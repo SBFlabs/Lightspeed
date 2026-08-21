@@ -572,6 +572,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         evaluateSpatialMetrics(rawX, rawY, x, y)
                     }
                 } else if (macroTrackingActive) {
+                    val previousGesture = currentDetectedGesture
                     val deltaX = rawX - gestureStartX
                     val deltaY = rawY - gestureStartY
 
@@ -638,6 +639,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             executeLinearScrubTrack(currentActiveZone, pixelYDelta)
                         }
                         else -> {}
+                    }
+
+                    if (currentDetectedGesture != MacroGesture.SCRUBBING && !currentDetectedGesture.name.endsWith("_HOLD")) {
+                        val moveDelta = hypot(rawX - lastTouchRawX, rawY - lastTouchRawY)
+                        if (currentDetectedGesture != previousGesture || moveDelta > (3f * density)) {
+                            resetHoldTimer()
+                        }
                     }
 
                     lastTouchRawX = rawX

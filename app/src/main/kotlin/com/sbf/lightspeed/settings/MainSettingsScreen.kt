@@ -622,7 +622,16 @@ fun CompactAccordionSection(title: String, isExpanded: Boolean, onToggle: () -> 
 }
 
 @Composable
-fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences, direction: ArrowDirection, isHold: Boolean, keyResName: String, defaultTitle: String, options: List<String>, labelCache: Map<String, String>) {
+fun GestureMappingRow(
+    context: Context,
+    prefs: android.content.SharedPreferences,
+    direction: ArrowDirection,
+    isHold: Boolean,
+    keyResName: String,
+    defaultTitle: String,
+    options: List<String>,
+    labelCache: Map<String, String>
+) {
     val key = remember(keyResName) { resKey(context, keyResName) }
     var currentRawValue by remember { mutableStateOf(prefs.getString(key, "none") ?: "none") }
     var showMainMenu by remember { mutableStateOf(false) }
@@ -644,168 +653,175 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
     }
 
     val shortcutConfigLauncher = rememberLauncherForActivityResult(
-         contract = ActivityResultContracts.StartActivityForResult()
-     ) { result ->
-         val targetPrefKey = prefs.getString("pending_automation_key", "") ?: ""
-         val data = result.data
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val targetPrefKey = prefs.getString("pending_automation_key", "") ?: ""
+        val data = result.data
 
-         if (data != null && targetPrefKey.isNotBlank() && result.resultCode == Activity.RESULT_OK) {
-             var uriString = ""
+        if (data != null && targetPrefKey.isNotBlank() && result.resultCode == Activity.RESULT_OK) {
+            var uriString = ""
 
-             if (data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
-                 val pinRequest = try {
-                     if (Build.VERSION.SDK_INT >= 33) {
-                         data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST", LauncherApps.PinItemRequest::class.java)
-                     } else {
-                         @Suppress("DEPRECATION")
-                         data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
-                     }
-                 } catch (e: Exception) {
-                     @Suppress("DEPRECATION")
-                     data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
-                 }
+            if (data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
+                val pinRequest = try {
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST", LauncherApps.PinItemRequest::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
+                    }
+                } catch (e: Exception) {
+                    @Suppress("DEPRECATION")
+                    data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
+                }
 
-                 if (pinRequest != null && pinRequest.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
-                     try {
-                         // Formally accept the request to register the multi-widget array in the system
-                         pinRequest.accept()
-                     } catch (e: Exception) {
-                         Log.e("LaunchTime", "Failed to accept system pinning validation", e)
-                     }
-                     val info = pinRequest.shortcutInfo
-                     if (info != null) {
-                         val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: ""
-                         uriString = "shortcut:;id=${info.id};pkg=${info.`package`};label=$label;"
-                     }
-                 }
-             }
+                if (pinRequest != null && pinRequest.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
+                    try {
+                        pinRequest.accept()
+                    } catch (e: Exception) {
+                        Log.e("LaunchTime", "Failed to accept system pinning validation", e)
+                    }
+                    val info = pinRequest.shortcutInfo
+                    if (info != null) {
+                        val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: ""
+                        uriString = "shortcut:;id=${info.id};pkg=${info.`package`};label=$label;"
+                    }
+                }
+            }
 
-             if (uriString.isBlank()) {
-                 val shortcutIntent = try {
-                     if (Build.VERSION.SDK_INT >= 33) {
-                         data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
-                     } else {
-                         @Suppress("DEPRECATION")
-                         data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
-                     }
-                 } catch (e: Exception) {
-                     @Suppress("DEPRECATION")
-                     data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
-                 } ?: data
-                 
-                 val label = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: ""
-                 val intentUri = shortcutIntent.toUri(Intent.URI_INTENT_SCHEME)
-                 uriString = if (label.isNotEmpty()) {
-                     "shortcut:intent:$intentUri;custom_label=$label;"
-                 } else {
-                     "shortcut:$intentUri"
-                 }
-             }
+            if (uriString.isBlank()) {
+                val shortcutIntent = try {
+                    if (Build.VERSION.SDK_INT >= 33) {
+                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
+                    }
+                } catch (e: Exception) {
+                    @Suppress("DEPRECATION")
+                    data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
+                } ?: data
 
-             currentRawValue = uriString
-             prefs.edit().putString(targetPrefKey, uriString).remove("pending_automation_key").commit()
-         }
-         showShortcutDialog = false
-     }
+                val label = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: ""
+                val intentUri = shortcutIntent.toUri(Intent.URI_INTENT_SCHEME)
+                uriString = if (label.isNotEmpty()) {
+                    "shortcut:intent:$intentUri;custom_label=$label;"
+                } else {
+                    "shortcut:$intentUri"
+                }
+            }
 
-     var expandedSubsections by remember { mutableStateOf(setOf<String>()) } // Empty set = Collapsed by default
+            currentRawValue = uriString
+            prefs.edit().putString(targetPrefKey, uriString).remove("pending_automation_key").commit()
+        }
+        showShortcutDialog = false
+    }
 
-     val filteredShortcuts = remember(shortcutTokens, shortcutSearchQuery) {
-         shortcutTokens.filter { token ->
-             val pkg = token.substringAfter(";pkg=").substringBefore(";")
-             val appLabel = labelCache["app:$pkg"] ?: ""
-             val shortcutLabel = labelCache[token] ?: ""
-             appLabel.contains(shortcutSearchQuery, ignoreCase = true) ||
-             shortcutLabel.contains(shortcutSearchQuery, ignoreCase = true)
-         }
-     }
+    var expandedSubsections by remember { mutableStateOf(setOf<String>()) }
 
-     val groupedShortcuts = remember(filteredShortcuts) {
-         filteredShortcuts.groupBy { token ->
-             val pkg = token.substringAfter(";pkg=").substringBefore(";")
-             labelCache["app:$pkg"] ?: "System Shortcuts"
-         }.toSortedMap(compareBy { it.lowercase() })
-     }
+    val filteredShortcuts = remember(shortcutTokens, shortcutSearchQuery) {
+        shortcutTokens.filter { token ->
+            val pkg = token.substringAfter(";pkg=").substringBefore(";")
+            val appLabel = labelCache["app:$pkg"] ?: ""
+            val shortcutLabel = labelCache[token] ?: ""
+            appLabel.contains(shortcutSearchQuery, ignoreCase = true) ||
+            shortcutLabel.contains(shortcutSearchQuery, ignoreCase = true)
+        }
+    }
 
-     val flatShortcutsList by remember(groupedShortcuts, expandedSubsections) {
-         androidx.compose.runtime.derivedStateOf {
-             val list = mutableListOf<Pair<String, Int>>() // Pair(Content, TypeTag: 0=AppHeader, 1=SubHeader, 2=TokenItem)
-             groupedShortcuts.forEach { (appName, tokens) ->
-                 val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
-                 val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
-                 val deepActivities = tokens.filter { it.contains(";type=activity;") }
+    val groupedShortcuts = remember(filteredShortcuts) {
+        filteredShortcuts.groupBy { token ->
+            val pkg = token.substringAfter(";pkg=").substringBefore(";")
+            labelCache["app:$pkg"] ?: "System Shortcuts"
+        }.toSortedMap(compareBy { it.lowercase() })
+    }
 
-                 if (appShortcuts.isNotEmpty() || homeShortcuts.isNotEmpty() || deepActivities.isNotEmpty()) {
-                     list.add(Pair(appName, 0))
+    val flatShortcutsList by remember(groupedShortcuts, expandedSubsections) {
+        androidx.compose.runtime.derivedStateOf {
+            val list = mutableListOf<Pair<String, Int>>()
+            groupedShortcuts.forEach { (appName, tokens) ->
+                val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
+                val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
+                val deepActivities = tokens.filter { it.contains(";type=activity;") }
 
-                     if (appShortcuts.isNotEmpty()) {
-                         val sectionKey = "$appName|App Shortcuts"
-                         list.add(Pair(sectionKey, 1))
-                         if (expandedSubsections.contains(sectionKey)) {
-                             appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
-                         }
-                     }
-                     if (homeShortcuts.isNotEmpty()) {
-                         val sectionKey = "$appName|Home Screen Shortcuts"
-                         list.add(Pair(sectionKey, 1))
-                         if (expandedSubsections.contains(sectionKey)) {
-                             homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
-                         }
-                     }
-                     if (deepActivities.isNotEmpty()) {
-                         val sectionKey = "$appName|Deep Activities"
-                         list.add(Pair(sectionKey, 1))
-                         if (expandedSubsections.contains(sectionKey)) {
-                             deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
-                         }
-                     }
-                 }
-             }
-             list
-         }
-     }
+                if (appShortcuts.isNotEmpty() || homeShortcuts.isNotEmpty() || deepActivities.isNotEmpty()) {
+                    list.add(Pair(appName, 0))
 
-     val activeLabel = remember(currentRawValue, labelCache) {
-         if (currentRawValue.startsWith("shortcut:")) {
-             val raw = currentRawValue.substringAfter("shortcut:")
-             if (raw.contains(";pkg=")) {
-                 val pkg = raw.substringAfter(";pkg=").substringBefore(";")
-                 val appLabel = labelCache["app:$pkg"] ?: pkg
-                 val label = if (raw.contains(";label=")) raw.substringAfter(";label=").substringBefore(";") else ""
-                 if (label.isNotEmpty()) "$appLabel ($label)" else "$appLabel (Pinned)"
-             } else if (raw.contains("intent:")) {
-                 val intentPart = if (raw.startsWith("intent:")) raw else raw.substringAfter("intent:")
-                 val pkg = if (intentPart.contains("package=")) {
-                     intentPart.substringAfter("package=").substringBefore(";")
-                 } else if (intentPart.contains("component=")) {
-                     val comp = intentPart.substringAfter("component=").substringBefore(";")
-                     comp.substringBefore("/").removeSuffix(".").trim()
-                 } else ""
+                    if (appShortcuts.isNotEmpty()) {
+                        val sectionKey = "$appName|App Shortcuts"
+                        list.add(Pair(sectionKey, 1))
+                        if (expandedSubsections.contains(sectionKey)) {
+                            appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
+                        }
+                    }
+                    if (homeShortcuts.isNotEmpty()) {
+                        val sectionKey = "$appName|Home Screen Shortcuts"
+                        list.add(Pair(sectionKey, 1))
+                        if (expandedSubsections.contains(sectionKey)) {
+                            homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
+                        }
+                    }
+                    if (deepActivities.isNotEmpty()) {
+                        val sectionKey = "$appName|Deep Activities"
+                        list.add(Pair(sectionKey, 1))
+                        if (expandedSubsections.contains(sectionKey)) {
+                            deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
+                        }
+                    }
+                }
+            }
+            list
+        }
+    }
 
-                 val appLabel = if (pkg.isNotEmpty()) labelCache["app:$pkg"] ?: pkg else "Shortcut Action"
-                 val customLabel = if (raw.contains(";custom_label=")) {
-                     raw.substringAfter(";custom_label=").substringBefore(";")
-                 } else ""
+    val activeLabel = remember(currentRawValue, labelCache) {
+        if (currentRawValue.startsWith("shortcut:")) {
+            val raw = currentRawValue.substringAfter("shortcut:")
+            if (raw.contains(";pkg=")) {
+                val pkg = raw.substringAfter(";pkg=").substringBefore(";")
+                val appLabel = labelCache["app:$pkg"] ?: pkg
+                val label = if (raw.contains(";label=")) raw.substringAfter(";label=").substringBefore(";") else ""
+                if (label.isNotEmpty()) "$appLabel ($label)" else "$appLabel (Pinned)"
+            } else if (raw.contains("intent:")) {
+                val intentPart = if (raw.startsWith("intent:")) raw else raw.substringAfter("intent:")
+                val pkg = if (intentPart.contains("package=")) {
+                    intentPart.substringAfter("package=").substringBefore(";")
+                } else if (intentPart.contains("component=")) {
+                    val comp = intentPart.substringAfter("component=").substringBefore(";")
+                    comp.substringBefore("/").removeSuffix(".").trim()
+                } else ""
 
-                 if (customLabel.isNotEmpty()) {
-                     "$appLabel ($customLabel)"
-                 } else if (intentPart.contains("MACRO_NAME=")) {
-                     val macroEncoded = intentPart.substringAfter("MACRO_NAME=").substringBefore(";")
-                     val macroName = try { java.net.URLDecoder.decode(macroEncoded, "UTF-8") } catch(e: Exception) { macroEncoded }
-                     "$appLabel ($macroName)"
-                 } else {
-                     "$appLabel (Shortcut)"
-                 }
-             } else {
-                 labelCache[currentRawValue] ?: currentRawValue
-             }
-         } else {
-             labelCache[currentRawValue] ?: currentRawValue
-         }
-     }
-     val coroutineScope = rememberCoroutineScope()
+                val appLabel = if (pkg.isNotEmpty()) labelCache["app:$pkg"] ?: pkg else "Shortcut Action"
+                val customLabel = if (raw.contains(";custom_label=")) {
+                    raw.substringAfter(";custom_label=").substringBefore(";")
+                } else ""
 
-    Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)).clickable { showMainMenu = true }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (customLabel.isNotEmpty()) {
+                    "$appLabel ($customLabel)"
+                } else if (intentPart.contains("MACRO_NAME=")) {
+                    val macroEncoded = intentPart.substringAfter("MACRO_NAME=").substringBefore(";")
+                    val macroName = try { java.net.URLDecoder.decode(macroEncoded, "UTF-8") } catch(e: Exception) { macroEncoded }
+                    "$appLabel ($macroName)"
+                } else {
+                    "$appLabel (Shortcut)"
+                }
+            } else {
+                labelCache[currentRawValue] ?: currentRawValue
+            }
+        } else {
+            labelCache[currentRawValue] ?: currentRawValue
+        }
+    }
+    val coroutineScope = rememberCoroutineScope()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
+            .clickable { showMainMenu = true }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         GestureTrailTracer(direction, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -848,7 +864,7 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
         )
     }
 
-    if (showAppDialog) if (showAppDialog) {
+    if (showAppDialog) {
         val listState = rememberLazyListState()
         val letterIndices = remember(filteredApps) {
             val map = mutableMapOf<Char, Int>()
@@ -883,7 +899,7 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
 
                 Box(modifier = Modifier.fillMaxWidth().height(460.dp)) {
                     Row(modifier = Modifier.fillMaxSize()) {
-                        
+
                         LazyColumn(state = listState, modifier = Modifier.weight(1f)) {
                             itemsIndexed(filteredApps) { _, token ->
                                 Text(
@@ -901,7 +917,6 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                             }
                         }
 
-                        // High-performance pointer loop track
                         Column(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -913,19 +928,12 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                                         while (true) {
                                             val down = awaitFirstDown(requireUnconsumed = false)
                                             isDragging = true
-                                            var currentY = down.position.y.coerceIn(0f, sideBarHeight)
-                                            
+                                            val currentY = down.position.y.coerceIn(0f, sideBarHeight)
+
                                             if (filteredApps.isNotEmpty()) {
-    val ratio = (currentY / sideBarHeight).coerceIn(0f, 1f)
-    val idx = (ratio * (filteredApps.size - 1)).toInt().coerceIn(0, filteredApps.size - 1)
-    coroutineScope.launch { listState.scrollToItem(idx) }
-    val label = labelCache[filteredApps[idx]] ?: filteredApps[idx]
-    hudLetter = if (label.length >= 2) {
-        label.take(1).uppercase() + label.substring(1, 2).lowercase()
-    } else {
-        label.uppercase()
-    }
-}
+                                                val ratio = (currentY / sideBarHeight).coerceIn(0f, 1f)
+                                                val idx = (ratio * (filteredApps.size - 1)).toInt().coerceIn(0, filteredApps.size - 1)
+                                                coroutineScope.launch { listState.scrollToItem(idx) }
                                                 val label = labelCache[filteredApps[idx]] ?: filteredApps[idx]
                                                 hudLetter = if (label.length >= 2) {
                                                     label.take(1).uppercase() + label.substring(1, 2).lowercase()
@@ -939,10 +947,10 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                                                 val event = awaitPointerEvent()
                                                 val dragChange = event.changes.firstOrNull()
                                                 if (dragChange != null && dragChange.pressed) {
-                                                    currentY = dragChange.position.y.coerceIn(0f, sideBarHeight)
-                                                    ratio = currentY / sideBarHeight
-                                                    idx = (ratio * (filteredApps.size - 1)).toInt().coerceIn(0, filteredApps.size - 1)
+                                                    val dragY = dragChange.position.y.coerceIn(0f, sideBarHeight)
                                                     if (filteredApps.isNotEmpty()) {
+                                                        val ratio = (dragY / sideBarHeight).coerceIn(0f, 1f)
+                                                        val idx = (ratio * (filteredApps.size - 1)).toInt().coerceIn(0, filteredApps.size - 1)
                                                         coroutineScope.launch { listState.scrollToItem(idx) }
                                                         val label = labelCache[filteredApps[idx]] ?: filteredApps[idx]
                                                         hudLetter = if (label.length >= 2) {
@@ -953,10 +961,10 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                                                     }
                                                     dragChange.consume()
                                                 } else {
+                                                    isDragging = false
                                                     break
                                                 }
                                             }
-                                            isDragging = false
                                         }
                                     }
                                 },
@@ -980,7 +988,6 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                         }
                     }
 
-                    // Dynamic Heads-Up Display Overlay popup
                     if (isDragging && hudLetter.isNotEmpty()) {
                         Box(
                             modifier = Modifier
@@ -1004,125 +1011,128 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
         )
     }
 
-    if (showShortcutDialog) if (showShortcutDialog) {
-         val listState = rememberLazyListState()
-         val shortcutLetterIndices = remember(flatShortcutsList) {
-              val map = mutableMapOf<Char, Int>()
-              flatShortcutsList.forEachIndexed { index, pair ->
-                  if (pair.second == 0) {
-                      val firstChar = pair.first.firstOrNull()?.uppercaseChar() ?: '#'
-                      val targetKey = if (firstChar in 'A'..'Z') firstChar else '#'
-                      if (!map.containsKey(targetKey)) { map[targetKey] = index }
-                  }
-              }
-              map
-          }
+    if (showShortcutDialog) {
+        val listState = rememberLazyListState()
+        val shortcutLetterIndices = remember(flatShortcutsList) {
+            val map = mutableMapOf<Char, Int>()
+            flatShortcutsList.forEachIndexed { index, pair ->
+                if (pair.second == 0) {
+                    val firstChar = pair.first.firstOrNull()?.uppercaseChar() ?: '#'
+                    val targetKey = if (firstChar in 'A'..'Z') firstChar else '#'
+                    if (!map.containsKey(targetKey)) { map[targetKey] = index }
+                }
+            }
+            map
+        }
 
-          AlertDialog(
-              onDismissRequest = { showShortcutDialog = false },
-              title = {
-                  Column {
-                      Text("Select App Shortcut")
-                      Spacer(modifier = Modifier.height(8.dp))
-                      OutlinedTextField(
-                          value = shortcutSearchQuery,
-                          onValueChange = { shortcutSearchQuery = it },
-                          label = { Text("Search Shortcuts") },
-                          modifier = Modifier.fillMaxWidth(),
-                          singleLine = true
-                      )
-                  }
-              },
-              text = {
+        AlertDialog(
+            onDismissRequest = { showShortcutDialog = false },
+            title = {
+                Column {
+                    Text("Select App Shortcut")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = shortcutSearchQuery,
+                        onValueChange = { shortcutSearchQuery = it },
+                        label = { Text("Search Shortcuts") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            text = {
                 var sideBarHeight by remember { mutableStateOf(1f) }
                 var isDragging by remember { mutableStateOf(false) }
                 var hudLetter by remember { mutableStateOf("") }
 
                 Box(modifier = Modifier.fillMaxWidth().height(460.dp)) {
                     Row(modifier = Modifier.fillMaxSize()) {
-                        
-                        // Preserved Pristine Multi-Type Subcategory Evaluation Matrix
                         LazyColumn(state = listState, modifier = Modifier.weight(1f)) {
-                         itemsIndexed(flatShortcutsList) { _, pair ->
-                             when (pair.second) {
-                                 0 -> {
-                                     Text(
-                                         text = pair.first.uppercase(),
-                                         fontSize = 11.sp,
-                                         fontWeight = FontWeight.Bold,
-                                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                         modifier = Modifier.padding(top = 14.dp, bottom = 4.dp, start = 8.dp)
-                                     )
-                                 }
-                                 1 -> {
-                                     val isExpanded = expandedSubsections.contains(pair.first)
-                                     Row(
-                                         modifier = Modifier
-                                             .fillMaxWidth()
-                                             .clickable {
-                                                 expandedSubsections = if (isExpanded) {
-                                                     expandedSubsections - pair.first
-                                                 } else {
-                                                     expandedSubsections + pair.first
-                                                 }
-                                             }
-                                             .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
-                                         verticalAlignment = Alignment.CenterVertically
-                                     ) {
-                                         Text(
-                                             text = pair.first.substringAfter("|"),
-                                             fontSize = 11.sp,
-                                             fontWeight = FontWeight.SemiBold,
-                                             color = MaterialTheme.colorScheme.secondary,
-                                             modifier = Modifier.weight(1f)
-                                         )
-                                         Icon(
-                                             imageVector = if (isExpanded) 
-                                                 Icons.Default.KeyboardArrowUp 
-                                             else 
-                                                 Icons.Default.KeyboardArrowDown,
-                                             contentDescription = null,
-                                             tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f),
-                                             modifier = Modifier.size(16.dp)
-                                         )
-                                     }
-                                 }
-                                 2 -> {
-                                     val token = pair.first
-                                     Text(
-                                         text = labelCache[token] ?: token,
-                                         modifier = Modifier
-                                             .fillMaxWidth()
-                                             .clickable { 
-                                                 if (token.contains(";type=app_shortcut;")) {
-                                                     try {
-                                                         val pkgName = token.substringAfter(";pkg=").substringBefore(";")
-                                                         val clsName = token.substringAfter(";activity=").substringBefore(";")
-                                                         val launchIntent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
-                                                             component = android.content.ComponentName(pkgName, clsName)
-                                                         }
-                                                         prefs.edit().putString("pending_automation_key", key).commit()
-                                                         shortcutConfigLauncher.launch(launchIntent)
-                                                     } catch (e: Exception) {
-                                                         currentRawValue = token
-                                                         prefs.edit().putString(key, token).apply()
-                                                         showShortcutDialog = false
-                                                     }
-                                                 } else {
-                                                     currentRawValue = token
-                                                     prefs.edit().putString(key, token).apply()
-                                                     showShortcutDialog = false 
-                                                 }
-                                             }
-                                             .padding(vertical = 10.dp, horizontal = 24.dp),
-                                         color = MaterialTheme.colorScheme.onSurface
-                                     )
-                                 }
-                             }
-                         }
-                     }
+                            itemsIndexed(flatShortcutsList) { _, pair ->
+                                when (pair.second) {
+                                    0 -> {
+                                        Text(
+                                            text = pair.first.uppercase(),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                    1 -> {
+                                        val isExpanded = expandedSubsections.contains(pair.first)
+                                        val count = groupedShortcuts[pair.first.substringBefore("|")]?.let { tokens ->
+                                            if (pair.first.endsWith("App Shortcuts")) tokens.count { it.contains(";type=app_shortcut;") }
+                                            else if (pair.first.endsWith("Home Screen Shortcuts")) tokens.count { it.contains(";type=home_shortcut;") }
+                                            else tokens.count { it.contains(";type=activity;") }
+                                        } ?: 0
 
-                        // High-performance pointer loop track
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    expandedSubsections = if (isExpanded) {
+                                                        expandedSubsections - pair.first
+                                                    } else {
+                                                        expandedSubsections + pair.first
+                                                    }
+                                                }
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.2f))
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (isExpanded) "▼ ${pair.first.substringAfter("|")} ($count)" else "▶ ${pair.first.substringAfter("|")} ($count)",
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 12.sp,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                    2 -> {
+                                        val token = pair.first
+                                        val isConfiguredAction = token.contains(";type=app_shortcut;")
+                                        val isPinnedShortcut = token.contains(";type=home_shortcut;")
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = 16.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = labelCache[token] ?: token,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clickable {
+                                                        if (isConfiguredAction) {
+                                                            val pkg = token.substringAfter(";pkg=").substringBefore(";")
+                                                            val act = token.substringAfter(";activity=").substringBefore(";")
+                                                            val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                                                                setClassName(pkg, act)
+                                                            }
+                                                            prefs.edit().putString("pending_automation_key", key).apply()
+                                                            shortcutConfigLauncher.launch(intent)
+                                                        } else {
+                                                            currentRawValue = token
+                                                            prefs.edit().putString(key, token).apply()
+                                                            showShortcutDialog = false
+                                                        }
+                                                    }
+                                                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                fontSize = 13.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         Column(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -1134,18 +1144,17 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                                         while (true) {
                                             val down = awaitFirstDown(requireUnconsumed = false)
                                             isDragging = true
-                                            var currentY = down.position.y.coerceIn(0f, sideBarHeight)
-                                            
-                                            var ratio = currentY / sideBarHeight
-                                            var idx = (ratio * (flatShortcutsList.size - 1)).toInt().coerceIn(0, flatShortcutsList.size - 1)
+                                            val currentY = down.position.y.coerceIn(0f, sideBarHeight)
+
                                             if (flatShortcutsList.isNotEmpty()) {
+                                                val ratio = (currentY / sideBarHeight).coerceIn(0f, 1f)
+                                                val idx = (ratio * (flatShortcutsList.size - 1)).toInt().coerceIn(0, flatShortcutsList.size - 1)
                                                 coroutineScope.launch { listState.scrollToItem(idx) }
                                                 val pair = flatShortcutsList[idx]
-                                                val label = when (pair.second) {
-                                                    0 -> pair.first
-                                                    1 -> pair.first.substringAfter("|")
-                                                    else -> labelCache[pair.first] ?: pair.first
-                                                }
+                                                val label = if (pair.second == 0) pair.first
+                                                else if (pair.second == 1) pair.first.substringAfter("|")
+                                                else labelCache[pair.first] ?: pair.first
+
                                                 hudLetter = if (label.length >= 2) {
                                                     label.take(1).uppercase() + label.substring(1, 2).lowercase()
                                                 } else {
@@ -1158,17 +1167,16 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                                                 val event = awaitPointerEvent()
                                                 val dragChange = event.changes.firstOrNull()
                                                 if (dragChange != null && dragChange.pressed) {
-                                                    currentY = dragChange.position.y.coerceIn(0f, sideBarHeight)
-                                                    ratio = currentY / sideBarHeight
-                                                    idx = (ratio * (flatShortcutsList.size - 1)).toInt().coerceIn(0, flatShortcutsList.size - 1)
+                                                    val dragY = dragChange.position.y.coerceIn(0f, sideBarHeight)
                                                     if (flatShortcutsList.isNotEmpty()) {
+                                                        val ratio = (dragY / sideBarHeight).coerceIn(0f, 1f)
+                                                        val idx = (ratio * (flatShortcutsList.size - 1)).toInt().coerceIn(0, flatShortcutsList.size - 1)
                                                         coroutineScope.launch { listState.scrollToItem(idx) }
                                                         val pair = flatShortcutsList[idx]
-                                                        val label = when (pair.second) {
-                                                            0 -> pair.first
-                                                            1 -> pair.first.substringAfter("|")
-                                                            else -> labelCache[pair.first] ?: pair.first
-                                                        }
+                                                        val label = if (pair.second == 0) pair.first
+                                                        else if (pair.second == 1) pair.first.substringAfter("|")
+                                                        else labelCache[pair.first] ?: pair.first
+
                                                         hudLetter = if (label.length >= 2) {
                                                             label.take(1).uppercase() + label.substring(1, 2).lowercase()
                                                         } else {
@@ -1177,10 +1185,10 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                                                     }
                                                     dragChange.consume()
                                                 } else {
+                                                    isDragging = false
                                                     break
                                                 }
                                             }
-                                            isDragging = false
                                         }
                                     }
                                 },
@@ -1188,7 +1196,7 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".forEach { letter ->
-                                val hasApps = shortcutLetterIndices.containsKey(letter)
+                                val hasShortcuts = shortcutLetterIndices.containsKey(letter)
                                 Box(
                                     modifier = Modifier.weight(1f),
                                     contentAlignment = Alignment.Center
@@ -1197,14 +1205,13 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                                         text = letter.toString(),
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (hasApps) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                                        color = if (hasShortcuts) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
                                     )
                                 }
                             }
                         }
                     }
 
-                    // Dynamic Heads-Up Display Overlay
                     if (isDragging && hudLetter.isNotEmpty()) {
                         Box(
                             modifier = Modifier
@@ -1223,10 +1230,10 @@ fun GestureMappingRow(context: Context, prefs: android.content.SharedPreferences
                         }
                     }
                 }
-              },
-              confirmButton = { TextButton(onClick = { showShortcutDialog = false }) { Text("Cancel") } }
-          )
-     }
+            },
+            confirmButton = { TextButton(onClick = { showShortcutDialog = false }) { Text("Cancel") } }
+        )
+    }
 }
 
 @Composable

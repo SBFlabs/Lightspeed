@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="45"
+        android:scaleX="0.86"
+        android:scaleY="0.86">
+
+        <!-- Fuselage, Porthole, and Dual-Core Thrust Flame -->
+        <path
+            android:fillColor="@color/m3_icon_foreground"
+            android:fillType="evenOdd"
+            android:pathData="
+                M 54,12
+                C 51,20 43,36 43,54
+                C 36,58 29,66 25,76
+                C 24.5,77.5 26,78.5 27.5,78
+                C 34,75.5 41,74 46,74
+                L 46,78
+                L 62,78
+                L 62,74
+                C 67,74 74,75.5 80.5,78
+                C 82,78.5 83.5,77.5 83,76
+                C 79,66 72,58 65,54
+                C 65,36 57,20 54,12 Z
+
+                M 54,34
+                a 5.5,5.5 0 1,0 0.001,0 Z
+
+                M 54,94
+                C 49.5,88 46.5,84 47,80.5
+                L 61,80.5
+                C 61.5,84 58.5,88 54,94 Z
+
+                M 54,89
+                C 51.5,85.5 50,83 50.5,81.5
+                L 57.5,81.5
+                C 58,83 56.5,85.5 54,89 Z" />
+    </group>
+</vector>

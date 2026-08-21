@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light Pastel Accent Container Tone 90 -->
+    <color name="m3_icon_background">@android:color/system_accent1_100</color>
+    <!-- Deep Tonal Accent Tone 20 -->
+    <color name="m3_icon_foreground">@android:color/system_accent1_800</color>
+</resources>

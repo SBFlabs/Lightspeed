@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Lightspeed</string>
+    <string name="accessibility_service_description">Lightspeed high-performance edge gesture and category cruise overlay.</string>
+</resources>

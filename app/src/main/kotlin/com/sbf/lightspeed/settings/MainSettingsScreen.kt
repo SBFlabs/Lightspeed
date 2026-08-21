@@ -592,7 +592,7 @@ fun FloatingOverlayContainer(
 @Composable
 fun CompactAccordionSection(title: String, isExpanded: Boolean, onToggle: () -> Unit, content: @Composable () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
     ) {
@@ -639,141 +639,7 @@ fun GestureMappingRow(
     var showAppDialog by remember { mutableStateOf(false) }
     var showShortcutDialog by remember { mutableStateOf(false) }
 
-    var appSearchQuery by remember { mutableStateOf("") }
-    var shortcutSearchQuery by remember { mutableStateOf("") }
-
-    val systemTokens = options.filter { it == "none" || it.startsWith("system:") }
-    val appTokens = options.filter { it.startsWith("app:") }.sortedBy { (labelCache[it] ?: it).lowercase() }
-    val shortcutTokens = options.filter { it.startsWith("shortcut:") }
-
-    val filteredApps = if (appSearchQuery.isBlank()) {
-        appTokens
-    } else {
-        appTokens.filter { (labelCache[it] ?: it).contains(appSearchQuery, ignoreCase = true) }
-    }
-
-    val shortcutConfigLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val targetPrefKey = prefs.getString("pending_automation_key", "") ?: ""
-        val data = result.data
-
-        if (data != null && targetPrefKey.isNotBlank() && result.resultCode == Activity.RESULT_OK) {
-            var uriString = ""
-
-            if (data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
-                val pinRequest = try {
-                    if (Build.VERSION.SDK_INT >= 33) {
-                        data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST", LauncherApps.PinItemRequest::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
-                    }
-                } catch (e: Exception) {
-                    @Suppress("DEPRECATION")
-                    data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
-                }
-
-                if (pinRequest != null && pinRequest.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
-                    try {
-                        pinRequest.accept()
-                    } catch (e: Exception) {
-                        Log.e("LaunchTime", "Failed to accept system pinning validation", e)
-                    }
-                    val info = pinRequest.shortcutInfo
-                    if (info != null) {
-                        val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: ""
-                        uriString = "shortcut:;id=${info.id};pkg=${info.`package`};label=$label;"
-                    }
-                }
-            }
-
-            if (uriString.isBlank()) {
-                val shortcutIntent = try {
-                    if (Build.VERSION.SDK_INT >= 33) {
-                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
-                    }
-                } catch (e: Exception) {
-                    @Suppress("DEPRECATION")
-                    data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
-                } ?: data
-
-                val label = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: ""
-                val intentUri = shortcutIntent.toUri(Intent.URI_INTENT_SCHEME)
-                uriString = if (label.isNotEmpty()) {
-                    "shortcut:intent:$intentUri;custom_label=$label;"
-                } else {
-                    "shortcut:$intentUri"
-                }
-            }
-
-            currentRawValue = uriString
-            prefs.edit().putString(targetPrefKey, uriString).remove("pending_automation_key").commit()
-        }
-        showShortcutDialog = false
-    }
-
-    var expandedSubsections by remember { mutableStateOf(setOf<String>()) }
-
-    val filteredShortcuts = remember(shortcutTokens, shortcutSearchQuery) {
-        shortcutTokens.filter { token ->
-            val pkg = token.substringAfter(";pkg=").substringBefore(";")
-            val appLabel = labelCache["app:$pkg"] ?: ""
-            val shortcutLabel = labelCache[token] ?: ""
-            appLabel.contains(shortcutSearchQuery, ignoreCase = true) ||
-            shortcutLabel.contains(shortcutSearchQuery, ignoreCase = true)
-        }
-    }
-
-    val groupedShortcuts = remember(filteredShortcuts) {
-        filteredShortcuts.groupBy { token ->
-            val pkg = token.substringAfter(";pkg=").substringBefore(";")
-            labelCache["app:$pkg"] ?: "System Shortcuts"
-        }.toSortedMap(compareBy { it.lowercase() })
-    }
-
-    val flatShortcutsList by remember(groupedShortcuts, expandedSubsections) {
-        androidx.compose.runtime.derivedStateOf {
-            val list = mutableListOf<Pair<String, Int>>()
-            groupedShortcuts.forEach { (appName, tokens) ->
-                val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
-                val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
-                val deepActivities = tokens.filter { it.contains(";type=activity;") }
-
-                if (appShortcuts.isNotEmpty() || homeShortcuts.isNotEmpty() || deepActivities.isNotEmpty()) {
-                    list.add(Pair(appName, 0))
-
-                    if (appShortcuts.isNotEmpty()) {
-                        val sectionKey = "$appName|App Shortcuts"
-                        list.add(Pair(sectionKey, 1))
-                        if (expandedSubsections.contains(sectionKey)) {
-                            appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
-                        }
-                    }
-                    if (homeShortcuts.isNotEmpty()) {
-                        val sectionKey = "$appName|Home Screen Shortcuts"
-                        list.add(Pair(sectionKey, 1))
-                        if (expandedSubsections.contains(sectionKey)) {
-                            homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
-                        }
-                    }
-                    if (deepActivities.isNotEmpty()) {
-                        val sectionKey = "$appName|Deep Activities"
-                        list.add(Pair(sectionKey, 1))
-                        if (expandedSubsections.contains(sectionKey)) {
-                            deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
-                        }
-                    }
-                }
-            }
-            list
-        }
-    }
-
-    val activeLabel = remember(currentRawValue, labelCache) {
+    val activeLabel = remember(currentRawValue, labelCache[currentRawValue]) {
         if (currentRawValue.startsWith("shortcut:")) {
             val raw = currentRawValue.substringAfter("shortcut:")
             if (raw.contains(";pkg=")) {
@@ -840,6 +706,7 @@ fun GestureMappingRow(
     }
 
     if (showSystemDialog) {
+        val systemTokens = remember(options) { options.filter { it == "none" || it.startsWith("system:") } }
         AlertDialog(
             onDismissRequest = { showSystemDialog = false },
             title = { Text("Select System Action") },
@@ -865,6 +732,14 @@ fun GestureMappingRow(
     }
 
     if (showAppDialog) {
+        var appSearchQuery by remember { mutableStateOf("") }
+        val appTokens = remember(options) {
+            options.filter { it.startsWith("app:") }.sortedBy { (labelCache[it] ?: it).lowercase() }
+        }
+        val filteredApps = remember(appTokens, appSearchQuery) {
+            if (appSearchQuery.isBlank()) appTokens
+            else appTokens.filter { (labelCache[it] ?: it).contains(appSearchQuery, ignoreCase = true) }
+        }
         val listState = rememberLazyListState()
         val letterIndices = remember(filteredApps) {
             val map = mutableMapOf<Char, Int>()
@@ -1012,6 +887,119 @@ fun GestureMappingRow(
     }
 
     if (showShortcutDialog) {
+        var shortcutSearchQuery by remember { mutableStateOf("") }
+        var expandedSubsections by remember { mutableStateOf(setOf<String>()) }
+        val shortcutTokens = remember(options) { options.filter { it.startsWith("shortcut:") } }
+
+        val filteredShortcuts = remember(shortcutTokens, shortcutSearchQuery) {
+            shortcutTokens.filter { token ->
+                val pkg = token.substringAfter(";pkg=").substringBefore(";")
+                val appLabel = labelCache["app:$pkg"] ?: ""
+                val shortcutLabel = labelCache[token] ?: ""
+                appLabel.contains(shortcutSearchQuery, ignoreCase = true) ||
+                shortcutLabel.contains(shortcutSearchQuery, ignoreCase = true)
+            }
+        }
+
+        val groupedShortcuts = remember(filteredShortcuts) {
+            filteredShortcuts.groupBy { token ->
+                val pkg = token.substringAfter(";pkg=").substringBefore(";")
+                labelCache["app:$pkg"] ?: "System Shortcuts"
+            }.toSortedMap(compareBy { it.lowercase() })
+        }
+
+        val flatShortcutsList by remember(groupedShortcuts, expandedSubsections) {
+            androidx.compose.runtime.derivedStateOf {
+                val list = mutableListOf<Pair<String, Int>>()
+                groupedShortcuts.forEach { (appName, tokens) ->
+                    val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
+                    val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
+                    val deepActivities = tokens.filter { it.contains(";type=activity;") }
+
+                    if (appShortcuts.isNotEmpty() || homeShortcuts.isNotEmpty() || deepActivities.isNotEmpty()) {
+                        list.add(Pair(appName, 0))
+                        if (appShortcuts.isNotEmpty()) {
+                            val sectionKey = "$appName|App Shortcuts"
+                            list.add(Pair(sectionKey, 1))
+                            if (expandedSubsections.contains(sectionKey)) {
+                                appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
+                            }
+                        }
+                        if (homeShortcuts.isNotEmpty()) {
+                            val sectionKey = "$appName|Home Screen Shortcuts"
+                            list.add(Pair(sectionKey, 1))
+                            if (expandedSubsections.contains(sectionKey)) {
+                                homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
+                            }
+                        }
+                        if (deepActivities.isNotEmpty()) {
+                            val sectionKey = "$appName|Deep Activities"
+                            list.add(Pair(sectionKey, 1))
+                            if (expandedSubsections.contains(sectionKey)) {
+                                deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach { list.add(Pair(it, 2)) }
+                            }
+                        }
+                    }
+                }
+                list
+            }
+        }
+
+        val shortcutConfigLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val targetPrefKey = prefs.getString("pending_automation_key", "") ?: ""
+            val data = result.data
+
+            if (data != null && targetPrefKey.isNotBlank() && result.resultCode == Activity.RESULT_OK) {
+                var uriString = ""
+                if (data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
+                    val pinRequest = try {
+                        if (Build.VERSION.SDK_INT >= 33) {
+                            data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST", LauncherApps.PinItemRequest::class.java)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
+                        }
+                    } catch (e: Exception) {
+                        @Suppress("DEPRECATION")
+                        data.getParcelableExtra("android.content.pm.extra.PIN_ITEM_REQUEST") as? LauncherApps.PinItemRequest
+                    }
+
+                    if (pinRequest != null && pinRequest.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
+                        try { pinRequest.accept() } catch (_: Exception) {}
+                        val info = pinRequest.shortcutInfo
+                        if (info != null) {
+                            val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: ""
+                            uriString = "shortcut:;id=${info.id};pkg=${info.`package`};label=$label;"
+                        }
+                    }
+                }
+
+                if (uriString.isBlank()) {
+                    val shortcutIntent = try {
+                        if (Build.VERSION.SDK_INT >= 33) {
+                            data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
+                        }
+                    } catch (e: Exception) {
+                        @Suppress("DEPRECATION")
+                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
+                    } ?: data
+
+                    val label = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: ""
+                    val intentUri = shortcutIntent.toUri(Intent.URI_INTENT_SCHEME)
+                    uriString = if (label.isNotEmpty()) "shortcut:intent:$intentUri;custom_label=$label;" else "shortcut:$intentUri"
+                }
+
+                currentRawValue = uriString
+                prefs.edit().putString(targetPrefKey, uriString).remove("pending_automation_key").commit()
+            }
+            showShortcutDialog = false
+        }
+
         val listState = rememberLazyListState()
         val shortcutLetterIndices = remember(flatShortcutsList) {
             val map = mutableMapOf<Char, Int>()
@@ -1074,11 +1062,7 @@ fun GestureMappingRow(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clickable {
-                                                    expandedSubsections = if (isExpanded) {
-                                                        expandedSubsections - pair.first
-                                                    } else {
-                                                        expandedSubsections + pair.first
-                                                    }
+                                                    expandedSubsections = if (isExpanded) expandedSubsections - pair.first else expandedSubsections + pair.first
                                                 }
                                                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.2f))
                                                 .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1235,7 +1219,6 @@ fun GestureMappingRow(
         )
     }
 }
-
 @Composable
 fun PrefToggleRow(
     context: Context,

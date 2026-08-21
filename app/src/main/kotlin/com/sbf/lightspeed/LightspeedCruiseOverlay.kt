@@ -741,12 +741,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 triggerHardwareHaptic(20, 120) // Noticeable micro-tick (25ms) that vibrates even during slow pulls
             }
 
-            if (assignedScrub == "scrub:volume") {
+            if (assignedScrub == "scrub:volume" || assignedScrub == "system:volume") {
                 val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 val targetVol = (currentVol - steps).coerceIn(0, maxVol)
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, AudioManager.FLAG_SHOW_UI)
-            } else if (assignedScrub == "scrub:brightness") {
+            } else if (assignedScrub == "scrub:brightness" || assignedScrub == "system:brightness") {
                 if (!Settings.System.canWrite(context)) {
                     val currentTimestamp = System.currentTimeMillis()
                     if (currentTimestamp - lastPermissionToastTime > 5000) {

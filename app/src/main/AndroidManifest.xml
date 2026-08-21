@@ -57,6 +57,18 @@
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
+            <activity
+            android:name=".CockpitSettingsActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".GearPickerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
     </application>
 
 </manifest>

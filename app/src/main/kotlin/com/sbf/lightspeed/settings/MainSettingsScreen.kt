@@ -169,8 +169,9 @@ object LightspeedActionRegistry {
                         }
                     } catch (_: Exception) {}
 
-                    // 3. LauncherApps Shortcuts (Android 7.1+)
+                    // 3. LauncherApps & Shizuku Dynamic / Home Shortcuts (Android 7.1+)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+                        var foundShortcuts = false
                         try {
                             val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
                             val query = LauncherApps.ShortcutQuery().apply {
@@ -182,8 +183,43 @@ object LightspeedActionRegistry {
                                 val shortcutToken = "shortcut:label=" + label + ";pkg=" + pkg + ";type=home_shortcut;id=" + shortcut.id
                                 baseTokens.add(shortcutToken)
                                 temporaryLabels[shortcutToken] = label
+                                foundShortcuts = true
                             }
                         } catch (_: Exception) {}
+
+                        // If not the default launcher and Shizuku is active, query shortcuts via elevated shell dumpsys shortcut
+                        if (!foundShortcuts && ElevatedTaskCloser.isShizukuActive) {
+                            try {
+                                val proc = ElevatedTaskCloser.execShizuku("dumpsys shortcut $pkg")
+                                if (proc != null) {
+                                    val output = proc.inputStream.bufferedReader().readText()
+                                    proc.waitFor()
+                                    
+                                    val idRegex = Regex("""id:\s*([^\r\n,]+)|id=([^\r\n, ]+)""")
+                                    val labelRegex = Regex("""(?:shortLabel|title):\s*([^\r\n,]+)|shortLabel=([^\r\n, ]+)""")
+                                    
+                                    val shortcutBlocks = output.split(Regex("""ShortcutInfo\s*\{|Shortcut\s*\{""")).drop(1)
+                                    for (block in shortcutBlocks) {
+                                        val idMatch = idRegex.find(block)
+                                        val rawId = idMatch?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
+                                            ?: idMatch?.groupValues?.getOrNull(2)?.takeIf { it.isNotBlank() }
+                                        
+                                        val labelMatch = labelRegex.find(block)
+                                        val rawLabel = labelMatch?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
+                                            ?: labelMatch?.groupValues?.getOrNull(2)?.takeIf { it.isNotBlank() }
+                                            ?: rawId
+
+                                        if (!rawId.isNullOrBlank()) {
+                                            val cleanId = rawId.trim().removeSurrounding("\"")
+                                            val cleanLabel = (rawLabel ?: cleanId).trim().removeSurrounding("\"")
+                                            val shortcutToken = "shortcut:label=$cleanLabel;pkg=$pkg;type=home_shortcut;id=$cleanId"
+                                            baseTokens.add(shortcutToken)
+                                            temporaryLabels[shortcutToken] = cleanLabel
+                                        }
+                                    }
+                                }
+                            } catch (_: Exception) {}
+                        }
                     }
                 }
             } catch (e: Exception) {

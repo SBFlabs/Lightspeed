@@ -55,11 +55,29 @@ object ActionDispatcher {
                 if (uriString.contains(";id=") && uriString.contains(";pkg=")) {
                     val shortcutId = uriString.substringAfter(";id=").substringBefore(";")
                     val pkgName = uriString.substringAfter(";pkg=").substringBefore(";")
+                    var launched = false
                     try {
                         val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
                         launcherApps.startShortcut(pkgName, shortcutId, null, null, Process.myUserHandle())
+                        launched = true
                     } catch (e: Exception) {
-                        Log.e(TAG, "LauncherApps shortcut launch failed", e)
+                        Log.w(TAG, "LauncherApps shortcut launch failed, falling back to Shizuku/Intent", e)
+                    }
+
+                    if (!launched && ElevatedTaskCloser.isShizukuActive) {
+                        try {
+                            ElevatedTaskCloser.execShizuku("cmd shortcut start-shortcut --user 0 -p $pkgName -i $shortcutId || am start-shortcut -p $pkgName -i $shortcutId")
+                            launched = true
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Shizuku shortcut launch failed", e)
+                        }
+                    }
+
+                    if (!launched) {
+                        context.packageManager.getLaunchIntentForPackage(pkgName)?.let {
+                            it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            try { context.startActivity(it) } catch (_: Exception) {}
+                        }
                     }
                 } else if (uriString.contains(";type=activity;") && uriString.contains(";activity=") && uriString.contains(";pkg=")) {
                     val pkg = uriString.substringAfter(";pkg=").substringBefore(";")
@@ -68,7 +86,14 @@ object ActionDispatcher {
                         setClassName(pkg, act)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    try { context.startActivity(intent) } catch (e: Exception) { Log.e(TAG, "Activity launch failed", e) }
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Standard activity launch failed, attempting elevated launch", e)
+                        if (ElevatedTaskCloser.isShizukuActive) {
+                            ElevatedTaskCloser.execShizuku("am start -n $pkg/$act")
+                        }
+                    }
                 } else {
                     try {
                         val pureUri = if (uriString.contains("intent:#Intent;")) {

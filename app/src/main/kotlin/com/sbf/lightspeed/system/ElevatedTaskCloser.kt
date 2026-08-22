@@ -65,7 +65,7 @@ object ElevatedTaskCloser {
         }
     }
 
-    private fun execShizuku(cmd: String): Process? {
+    fun execShizuku(cmd: String): Process? {
         return try {
             val m = Shizuku::class.java.getDeclaredMethod(
                 "newProcess",

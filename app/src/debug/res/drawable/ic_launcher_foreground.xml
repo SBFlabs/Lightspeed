@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Rocket Core Group -->
+    <group
+        android:pivotX="54"
+        android:pivotY="48"
+        android:rotation="45"
+        android:scaleX="0.74"
+        android:scaleY="0.74"
+        android:translateY="-4">
+
+        <!-- Fuselage & Wings (Electric Amethyst) -->
+        <path
+            android:fillColor="#D0BCFF"
+            android:fillType="evenOdd"
+            android:pathData="
+                M 54,12
+                C 51,20 43,36 43,54
+                C 36,58 29,66 25,76
+                C 24.5,77.5 26,78.5 27.5,78
+                C 34,75.5 41,74 46,74
+                L 46,78
+                L 62,78
+                L 62,74
+                C 67,74 74,75.5 80.5,78
+                C 82,78.5 83.5,77.5 83,76
+                C 79,66 72,58 65,54
+                C 65,36 57,20 54,12 Z
+
+                M 54,34
+                a 5.5,5.5 0 1,0 0.001,0 Z" />
+
+        <!-- Dual-Core Thrust Flame (Neon Amber) -->
+        <path
+            android:fillColor="#FFB74D"
+            android:pathData="
+                M 54,94
+                C 49.5,88 46.5,84 47,80.5
+                L 61,80.5
+                C 61.5,84 58.5,88 54,94 Z
+
+                M 54,89
+                C 51.5,85.5 50,83 50.5,81.5
+                L 57.5,81.5
+                C 58,83 56.5,85.5 54,89 Z" />
+    </group>
+
+    <!-- Crescent Night Moon (Top-Left) -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M 32,24 C 27,24 23,28 23,33 C 23,39 28,43 34,43 C 37,43 39.5,41.8 41,40 C 35,39.5 30.5,35 30.5,29 C 30.5,27 31.1,25.3 32,24 Z" />
+
+    <!-- "NIGHTLY" Pill Badge -->
+    <path
+        android:fillColor="#4F378B"
+        android:strokeColor="#9A82DB"
+        android:strokeWidth="1.2"
+        android:pathData="M 35,76 L 73,76 C 76.5,76 79,78.5 79,81.5 C 79,84.5 76.5,87 73,87 L 35,87 C 31.5,87 29,84.5 29,81.5 C 29,78.5 31.5,76 35,76 Z" />
+
+    <!-- "NIGHTLY" Vector Glyph Typography -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M 34,79 L 35.2,79 L 36.8,82.4 L 36.8,79 L 37.8,79 L 37.8,84 L 36.6,84 L 35,80.6 L 35,84 L 34,84 Z
+            M 40.5,79 L 41.5,79 L 41.5,84 L 40.5,84 Z
+            M 47,80 L 47,79 L 44,79 L 44,84 L 47,84 L 47,81.5 L 45.5,81.5 L 45.5,82.5 L 46,82.5 L 46,83.2 L 45,83.2 L 45,79.8 L 47,79.8 Z
+            M 49.5,79 L 50.5,79 L 50.5,81 L 52,81 L 52,79 L 53,79 L 53,84 L 52,84 L 52,81.8 L 50.5,81.8 L 50.5,84 L 49.5,84 Z
+            M 55,79 L 58.5,79 L 58.5,79.8 L 57.2,79.8 L 57.2,84 L 56.2,84 L 56.2,79.8 L 55,79.8 Z
+            M 60.5,79 L 61.5,79 L 61.5,83.2 L 63.5,83.2 L 63.5,84 L 60.5,84 Z
+            M 65.5,79 L 66.8,81.2 L 68,79 L 69.2,79 L 67.4,81.8 L 67.4,84 L 66.4,84 L 66.4,81.8 L 64.5,79 Z" />
+</vector>

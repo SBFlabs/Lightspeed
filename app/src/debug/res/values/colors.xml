@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nightly Deep Space Void Background -->
+    <color name="m3_icon_background">#121019</color>
+    <!-- Nightly Electric Amethyst Foreground -->
+    <color name="m3_icon_foreground">#D0BCFF</color>
+    <!-- Nightly Accent Amber & Cyan -->
+    <color name="nightly_badge_bg">#4F378B</color>
+    <color name="nightly_badge_text">#EADDFF</color>
+    <color name="nightly_flame">#FFB74D</color>
+</resources>

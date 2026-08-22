@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Deep Space Midnight Gradient Base -->
+    <path
+        android:fillColor="#14111E"
+        android:pathData="M0,0h108v108h-108z" />
+
+    <!-- Subtle Nightly Cyber Nebula Radial Glow -->
+    <path
+        android:fillColor="#261A3E"
+        android:pathData="M 54,54 m -42,0 a 42,42 0 1,0 84,0 a 42,42 0 1,0 -84,0" />
+
+    <!-- Orbital Track Line -->
+    <path
+        android:strokeColor="#382B56"
+        android:strokeWidth="1.2"
+        android:pathData="M 18,54 A 36,36 0 1,0 90,54 A 36,36 0 1,0 18,54" />
+
+    <!-- Distant Cosmic Stars -->
+    <path
+        android:fillColor="#65558F"
+        android:pathData="M 28,30 a 1.2,1.2 0 1,0 0.001,0 Z M 80,26 a 1.5,1.5 0 1,0 0.001,0 Z M 24,78 a 1,1 0 1,0 0.001,0 Z M 84,72 a 1.2,1.2 0 1,0 0.001,0 Z M 54,20 a 1,1 0 1,0 0.001,0 Z" />
+</vector>

@@ -2,6 +2,15 @@
 
 All notable changes to the Lightspeed Gesture Launcher & Workspace are documented in this file.
 
+## [1.1.2] - 2026-08-23
+
+### 🚀 Highlights & Fixes
+* **Relative Horizontal Pull Calculation**: Replaced absolute screen-edge distance checks with relative touch-down pull vectors (`touchDownRawX - rawX > 28dp`).
+* **Category Scrubbing Stability**: Completely eliminated premature app grid flashes while scrolling up and down through categories on the central pill.
+* **Smooth Reversion**: Pushing finger back towards the right edge smoothly transitions from App Grid back to Category selection.
+
+---
+
 ## [1.1.1] - 2026-08-23
 
 ### 🚀 Highlights & Fixes

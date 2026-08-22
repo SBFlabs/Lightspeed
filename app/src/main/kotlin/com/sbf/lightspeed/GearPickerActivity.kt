@@ -662,12 +662,11 @@ class GearPickerActivity : ComponentActivity() {
                                 }
 
                                 // High Sensitivity Continuous Drag A-Z Index Scroller
-                                val letters = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                 Column(
                                     modifier = Modifier
                                         .fillMaxHeight()
                                         .width(32.dp)
-                                        .padding(start = 4.dp)
+                                        .padding(start = 6.dp)
                                         .onGloballyPositioned { sideBarHeight = it.size.height.toFloat().coerceAtLeast(1f) }
                                         .pointerInput(flatItemsList) {
                                             awaitPointerEventScope {
@@ -678,17 +677,24 @@ class GearPickerActivity : ComponentActivity() {
 
                                                     if (flatItemsList.isNotEmpty()) {
                                                         val ratio = (currentY / sideBarHeight).coerceIn(0f, 1f)
-                                                        val letterIdx = (ratio * (letters.length - 1)).toInt().coerceIn(0, letters.length - 1)
-                                                        val targetChar = letters[letterIdx]
+                                                        val idx = (ratio * (flatItemsList.size - 1)).toInt().coerceIn(0, flatItemsList.size - 1)
+                                                        coroutineScope.launch { listState.scrollToItem(idx) }
                                                         
-                                                        val targetItemIdx = letterIndices[targetChar] ?: run {
-                                                            val availableLetters = letterIndices.keys.sorted()
-                                                            val closest = availableLetters.minByOrNull { kotlin.math.abs(it - targetChar) }
-                                                            closest?.let { letterIndices[it] }
+                                                        val item = flatItemsList[idx]
+                                                        val label = when (item) {
+                                                            is PickerRowItem.SystemHeader -> "System Actions"
+                                                            is PickerRowItem.SystemAction -> item.label
+                                                            is PickerRowItem.AppHeader -> item.appName
+                                                            is PickerRowItem.AppLaunchItem -> item.appName
+                                                            is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
+                                                            is PickerRowItem.ShortcutAction -> item.label
                                                         }
-                                                        
-                                                        targetItemIdx?.let { coroutineScope.launch { listState.scrollToItem(it) } }
-                                                        hudLetter = targetChar.toString()
+
+                                                        hudLetter = if (label.length >= 2) {
+                                                            label.take(1).uppercase() + label.substring(1, 2).lowercase()
+                                                        } else {
+                                                            label.uppercase()
+                                                        }
                                                     }
                                                     down.consume()
 
@@ -699,17 +705,24 @@ class GearPickerActivity : ComponentActivity() {
                                                             val dragY = dragChange.position.y.coerceIn(0f, sideBarHeight)
                                                             if (flatItemsList.isNotEmpty()) {
                                                                 val ratio = (dragY / sideBarHeight).coerceIn(0f, 1f)
-                                                                val letterIdx = (ratio * (letters.length - 1)).toInt().coerceIn(0, letters.length - 1)
-                                                                val targetChar = letters[letterIdx]
+                                                                val idx = (ratio * (flatItemsList.size - 1)).toInt().coerceIn(0, flatItemsList.size - 1)
+                                                                coroutineScope.launch { listState.scrollToItem(idx) }
                                                                 
-                                                                val targetItemIdx = letterIndices[targetChar] ?: run {
-                                                                    val availableLetters = letterIndices.keys.sorted()
-                                                                    val closest = availableLetters.minByOrNull { kotlin.math.abs(it - targetChar) }
-                                                                    closest?.let { letterIndices[it] }
+                                                                val item = flatItemsList[idx]
+                                                                val label = when (item) {
+                                                                    is PickerRowItem.SystemHeader -> "System Actions"
+                                                                    is PickerRowItem.SystemAction -> item.label
+                                                                    is PickerRowItem.AppHeader -> item.appName
+                                                                    is PickerRowItem.AppLaunchItem -> item.appName
+                                                                    is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
+                                                                    is PickerRowItem.ShortcutAction -> item.label
                                                                 }
-                                                                
-                                                                targetItemIdx?.let { coroutineScope.launch { listState.scrollToItem(it) } }
-                                                                hudLetter = targetChar.toString()
+
+                                                                hudLetter = if (label.length >= 2) {
+                                                                    label.take(1).uppercase() + label.substring(1, 2).lowercase()
+                                                                } else {
+                                                                    label.uppercase()
+                                                                }
                                                             }
                                                             dragChange.consume()
                                                         } else {
@@ -723,7 +736,7 @@ class GearPickerActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.SpaceEvenly,
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    letters.forEach { letter ->
+                                    "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".forEach { letter ->
                                         val hasApps = letterIndices.containsKey(letter)
                                         Box(
                                             modifier = Modifier.weight(1f),
@@ -733,7 +746,7 @@ class GearPickerActivity : ComponentActivity() {
                                                 text = letter.toString(),
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (hasApps) dynamicSecondary else Color.White.copy(alpha = 0.18f)
+                                                color = if (hasApps) dynamicSecondary else Color.White.copy(alpha = 0.2f)
                                             )
                                         }
                                     }
@@ -744,9 +757,9 @@ class GearPickerActivity : ComponentActivity() {
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.Center)
-                                        .size(76.dp)
-                                        .background(Color(0xFF1E1E28).copy(alpha = 0.96f), shape = RoundedCornerShape(18.dp))
-                                        .border(2.dp, dynamicPrimary, shape = RoundedCornerShape(18.dp)),
+                                        .size(80.dp)
+                                        .background(Color(0xFF1E1E28).copy(alpha = 0.94f), shape = RoundedCornerShape(16.dp))
+                                        .border(2.2.dp, dynamicPrimary, shape = RoundedCornerShape(16.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(

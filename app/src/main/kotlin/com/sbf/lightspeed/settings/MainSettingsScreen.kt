@@ -129,6 +129,34 @@ object LightspeedActionRegistry {
             val temporaryLabels = mutableMapOf<String, String>()
             baseTokens.forEach { temporaryLabels[it] = resolveDynamicTokenLabel(context, it) }
 
+            val shizukuShortcutsMap = mutableMapOf<String, MutableList<Pair<String, String>>>()
+            if (ElevatedTaskCloser.isShizukuActive) {
+                try {
+                    val proc = ElevatedTaskCloser.execShizuku("dumpsys shortcut")
+                    if (proc != null) {
+                        val output = proc.inputStream.bufferedReader().readText()
+                        proc.waitFor()
+
+                        val shortcutBlocks = output.split("ShortcutInfo {").drop(1)
+                        val idRegex = Regex("""id=([^\r\n, ]+)""")
+                        val pkgRegex = Regex("""packageName=([^\r\n, ]+)""")
+                        val labelRegex = Regex("""shortLabel=([^,\r\n]+)""")
+
+                        for (block in shortcutBlocks) {
+                            val pkgMatch = pkgRegex.find(block)?.groupValues?.getOrNull(1)?.trim()
+                            val idMatch = idRegex.find(block)?.groupValues?.getOrNull(1)?.trim()
+                            val labelMatch = labelRegex.find(block)?.groupValues?.getOrNull(1)?.trim()
+
+                            if (!pkgMatch.isNullOrBlank() && !idMatch.isNullOrBlank()) {
+                                val cleanLabel = (labelMatch ?: idMatch).trim().removeSurrounding("\"")
+                                shizukuShortcutsMap.getOrPut(pkgMatch) { mutableListOf() }
+                                    .add(Pair(idMatch, cleanLabel))
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
             try {
                 val pm = context.packageManager
                 val mainIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
@@ -187,38 +215,13 @@ object LightspeedActionRegistry {
                             }
                         } catch (_: Exception) {}
 
-                        // If not the default launcher and Shizuku is active, query shortcuts via elevated shell dumpsys shortcut
-                        if (!foundShortcuts && ElevatedTaskCloser.isShizukuActive) {
-                            try {
-                                val proc = ElevatedTaskCloser.execShizuku("dumpsys shortcut $pkg")
-                                if (proc != null) {
-                                    val output = proc.inputStream.bufferedReader().readText()
-                                    proc.waitFor()
-                                    
-                                    val idRegex = Regex("""id:\s*([^\r\n,]+)|id=([^\r\n, ]+)""")
-                                    val labelRegex = Regex("""(?:shortLabel|title):\s*([^\r\n,]+)|shortLabel=([^\r\n, ]+)""")
-                                    
-                                    val shortcutBlocks = output.split(Regex("""ShortcutInfo\s*\{|Shortcut\s*\{""")).drop(1)
-                                    for (block in shortcutBlocks) {
-                                        val idMatch = idRegex.find(block)
-                                        val rawId = idMatch?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
-                                            ?: idMatch?.groupValues?.getOrNull(2)?.takeIf { it.isNotBlank() }
-                                        
-                                        val labelMatch = labelRegex.find(block)
-                                        val rawLabel = labelMatch?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
-                                            ?: labelMatch?.groupValues?.getOrNull(2)?.takeIf { it.isNotBlank() }
-                                            ?: rawId
-
-                                        if (!rawId.isNullOrBlank()) {
-                                            val cleanId = rawId.trim().removeSurrounding("\"")
-                                            val cleanLabel = (rawLabel ?: cleanId).trim().removeSurrounding("\"")
-                                            val shortcutToken = "shortcut:label=$cleanLabel;pkg=$pkg;type=home_shortcut;id=$cleanId"
-                                            baseTokens.add(shortcutToken)
-                                            temporaryLabels[shortcutToken] = cleanLabel
-                                        }
-                                    }
-                                }
-                            } catch (_: Exception) {}
+                        // If not the default launcher, use pre-parsed Shizuku shortcuts for THIS specific package
+                        if (!foundShortcuts) {
+                            shizukuShortcutsMap[pkg]?.forEach { (shortcutId, label) ->
+                                val shortcutToken = "shortcut:label=$label;pkg=$pkg;type=home_shortcut;id=$shortcutId"
+                                baseTokens.add(shortcutToken)
+                                temporaryLabels[shortcutToken] = label
+                            }
                         }
                     }
                 }

@@ -30,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -422,36 +423,46 @@ class GearPickerActivity : ComponentActivity() {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
+                                                        .padding(start = 14.dp, top = 2.dp, bottom = 2.dp)
+                                                        .clip(RoundedCornerShape(10.dp))
                                                         .background(
-                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
-                                                            shape = RoundedCornerShape(8.dp)
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.03f)
                                                         )
                                                         .border(
                                                             width = 1.dp,
-                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
-                                                            shape = RoundedCornerShape(8.dp)
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.05f),
+                                                            shape = RoundedCornerShape(10.dp)
                                                         )
                                                         .clickable {
                                                             if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
                                                         }
-                                                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                        .padding(horizontal = 12.dp, vertical = 9.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     Column(modifier = Modifier.weight(1f)) {
-                                                        Text(text = item.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal)
+                                                        Text(
+                                                            text = item.label,
+                                                            color = if (isChecked) dynamicPrimary else Color.White,
+                                                            fontSize = 13.sp,
+                                                            fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal
+                                                        )
                                                         Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
                                                     }
-                                                    Checkbox(
-                                                        checked = isChecked,
-                                                        onCheckedChange = {
-                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
-                                                        },
-                                                        colors = CheckboxDefaults.colors(
-                                                            checkedColor = dynamicPrimary,
-                                                            checkmarkColor = Color.White
-                                                        )
-                                                    )
+                                                    if (isChecked) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .background(dynamicPrimary, CircleShape)
+                                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "SELECTED",
+                                                                color = Color.Black,
+                                                                fontSize = 9.sp,
+                                                                fontWeight = FontWeight.ExtraBold
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                             is PickerRowItem.AppHeader -> {
@@ -461,23 +472,99 @@ class GearPickerActivity : ComponentActivity() {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(vertical = 3.dp)
-                                                        .background(
-                                                            color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.06f),
-                                                            shape = RoundedCornerShape(12.dp)
-                                                        )
-                                                        .border(
-                                                            width = 1.dp,
-                                                            color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.06f),
-                                                            shape = RoundedCornerShape(12.dp)
-                                                        ),
+                                                        .padding(vertical = 3.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    // 1. Left Expand Button (Chevron)
+                                                    // 1. Main Board (Left ~80%): App Icon + Title + Action Count + Selection Badge
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp, topEnd = 6.dp, bottomEnd = 6.dp))
+                                                            .background(
+                                                                if (isAppSelected) dynamicPrimary.copy(alpha = 0.28f)
+                                                                else Color.White.copy(alpha = 0.06f)
+                                                            )
+                                                            .border(
+                                                                width = 1.dp,
+                                                                color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.08f),
+                                                                shape = RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp, topEnd = 6.dp, bottomEnd = 6.dp)
+                                                            )
+                                                            .clickable {
+                                                                if (isAppSelected) selectedTokens.remove(item.appToken) else selectedTokens.add(item.appToken)
+                                                            }
+                                                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
+                                                        if (iconBmp != null) {
+                                                            Image(
+                                                                bitmap = iconBmp.asImageBitmap(),
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(30.dp).padding(end = 10.dp)
+                                                            )
+                                                        } else {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(30.dp)
+                                                                    .padding(end = 10.dp)
+                                                                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                                            )
+                                                        }
+
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = item.appName,
+                                                                color = if (isAppSelected) dynamicPrimary else Color.White,
+                                                                fontSize = 14.sp,
+                                                                fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                            if (item.totalShortcuts > 0) {
+                                                                Text(
+                                                                    text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
+                                                                    color = dynamicSecondary.copy(alpha = 0.8f),
+                                                                    fontSize = 10.5.sp
+                                                                )
+                                                            }
+                                                        }
+
+                                                        // Selection Indicator Badge (No square checklist!)
+                                                        if (isAppSelected) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .padding(start = 6.dp)
+                                                                    .background(dynamicPrimary, CircleShape)
+                                                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = "SELECTED",
+                                                                    color = Color.Black,
+                                                                    fontSize = 9.sp,
+                                                                    fontWeight = FontWeight.ExtraBold
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                                    // 2. Expand Chevron Zone (Right ~20%): Distinct Material 3 Color-Coded Container
                                                     if (item.totalShortcuts > 0) {
                                                         Box(
                                                             modifier = Modifier
-                                                                .size(44.dp)
+                                                                .size(width = 46.dp, height = 48.dp)
+                                                                .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 14.dp, bottomEnd = 14.dp))
+                                                                .background(
+                                                                    if (item.isExpanded) dynamicSecondary.copy(alpha = 0.35f)
+                                                                    else dynamicSecondary.copy(alpha = 0.12f)
+                                                                )
+                                                                .border(
+                                                                    width = 1.dp,
+                                                                    color = if (item.isExpanded) dynamicSecondary.copy(alpha = 0.65f) else dynamicSecondary.copy(alpha = 0.22f),
+                                                                    shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 14.dp, bottomEnd = 14.dp)
+                                                                )
                                                                 .clickable {
                                                                     expandedSubsections = if (item.isExpanded) {
                                                                         expandedSubsections - appKey
@@ -490,73 +577,15 @@ class GearPickerActivity : ComponentActivity() {
                                                             Icon(
                                                                 Icons.Default.ArrowDropDown,
                                                                 contentDescription = if (item.isExpanded) "Collapse" else "Expand",
-                                                                tint = if (item.isExpanded) dynamicPrimary else dynamicSecondary,
+                                                                tint = if (item.isExpanded) dynamicSecondary else dynamicSecondary.copy(alpha = 0.9f),
                                                                 modifier = Modifier
                                                                     .size(24.dp)
                                                                     .rotate(if (item.isExpanded) 180f else 0f)
                                                             )
                                                         }
                                                     } else {
-                                                        Spacer(modifier = Modifier.width(14.dp))
+                                                        Spacer(modifier = Modifier.width(4.dp))
                                                     }
-
-                                                    // 2. Main Tap Area (70% - Icon + App Name + Subtitle) -> Directly selects/toggles app:packageName
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .clickable {
-                                                                if (isAppSelected) selectedTokens.remove(item.appToken) else selectedTokens.add(item.appToken)
-                                                            }
-                                                            .padding(vertical = 8.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
-                                                        if (iconBmp != null) {
-                                                            Image(
-                                                                bitmap = iconBmp.asImageBitmap(),
-                                                                contentDescription = null,
-                                                                modifier = Modifier.size(28.dp).padding(end = 8.dp)
-                                                            )
-                                                        } else {
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .size(28.dp)
-                                                                    .padding(end = 8.dp)
-                                                                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                                                            )
-                                                        }
-
-                                                        Column(modifier = Modifier.weight(1f)) {
-                                                            Text(
-                                                                text = item.appName,
-                                                                color = Color.White,
-                                                                fontSize = 14.sp,
-                                                                fontWeight = FontWeight.SemiBold,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
-                                                            )
-                                                            if (item.totalShortcuts > 0) {
-                                                                Text(
-                                                                    text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
-                                                                    color = dynamicSecondary.copy(alpha = 0.8f),
-                                                                    fontSize = 10.sp
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // 3. Selection Checkbox
-                                                    Checkbox(
-                                                        checked = isAppSelected,
-                                                        onCheckedChange = {
-                                                            if (isAppSelected) selectedTokens.remove(item.appToken) else selectedTokens.add(item.appToken)
-                                                        },
-                                                        colors = CheckboxDefaults.colors(
-                                                            checkedColor = dynamicPrimary,
-                                                            checkmarkColor = Color.White
-                                                        ),
-                                                        modifier = Modifier.padding(end = 4.dp)
-                                                    )
                                                 }
                                             }
                                             is PickerRowItem.SubHeader -> {
@@ -599,15 +628,15 @@ class GearPickerActivity : ComponentActivity() {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(start = 22.dp, top = 2.dp, bottom = 2.dp)
+                                                        .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
+                                                        .clip(RoundedCornerShape(10.dp))
                                                         .background(
-                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
-                                                            shape = RoundedCornerShape(8.dp)
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.03f)
                                                         )
                                                         .border(
                                                             width = 1.dp,
-                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
-                                                            shape = RoundedCornerShape(8.dp)
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.05f),
+                                                            shape = RoundedCornerShape(10.dp)
                                                         )
                                                         .clickable {
                                                             if (item.isPlugin && !isChecked) {
@@ -621,15 +650,15 @@ class GearPickerActivity : ComponentActivity() {
                                                                 if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
                                                             }
                                                         }
-                                                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                        .padding(horizontal = 12.dp, vertical = 8.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     Column(modifier = Modifier.weight(1f)) {
                                                         Text(
                                                             text = item.label,
-                                                            color = Color.White,
+                                                            color = if (isChecked) dynamicPrimary else Color.White,
                                                             fontSize = 13.sp,
-                                                            fontWeight = FontWeight.Normal,
+                                                            fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal,
                                                             maxLines = 1,
                                                             overflow = TextOverflow.Ellipsis
                                                         )
@@ -642,25 +671,21 @@ class GearPickerActivity : ComponentActivity() {
                                                         )
                                                     }
 
-                                                    Checkbox(
-                                                        checked = isChecked,
-                                                        onCheckedChange = {
-                                                            if (item.isPlugin && !isChecked) {
-                                                                val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
-                                                                val act = item.token.substringAfter(";activity=").substringBefore(";")
-                                                                val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
-                                                                    setClassName(pkg, act)
-                                                                }
-                                                                shortcutConfigLauncher.launch(intent)
-                                                            } else {
-                                                                if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
-                                                            }
-                                                        },
-                                                        colors = CheckboxDefaults.colors(
-                                                            checkedColor = dynamicPrimary,
-                                                            checkmarkColor = Color.White
-                                                        )
-                                                    )
+                                                    if (isChecked) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .background(dynamicPrimary, CircleShape)
+                                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "SELECTED",
+                                                                color = Color.Black,
+                                                                fontSize = 9.sp,
+                                                                fontWeight = FontWeight.ExtraBold
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

@@ -4,32 +4,28 @@
 
 # Core Philosophy & Distribution
 - App Type: Fully offline, ultra-fast gesture launcher & overlay workspace.
-- Distribution Target: Production-ready for Google Play Store and clean FOSS GitHub release.
 - Privacy & Network: 100% offline. Zero telemetry, zero external network dependencies.
-- Build System: Gradle Kotlin DSL (`./gradlew assembleDebug` verification).
+- Build System: Gradle Kotlin DSL.
+
+# Release & Git Strategy
+- Nightly (Local Only):
+  * Application ID: `com.sbf.lightspeed.nightly` (App label: "Lightspeed Nightly")
+  * Runs side-by-side with stable without overwriting it.
+  * Local Git commits only. NEVER push to GitHub remote automatically.
+- Stable (Production & GitHub):
+  * Application ID: `com.sbf.lightspeed` (App label: "Lightspeed")
+  * Pushed to GitHub ONLY when explicitly instructed ("Promote nightly to stable").
+
+# Autonomous Execution Loop (MANDATORY AFTER EVERY TASK/FIX)
+Whenever you finish writing, fixing, or refactoring code:
+1. Compile: Run `./gradlew assembleDebug`.
+2. Local Commit: Automatically `git add -A` and `git commit -m "<concise task description>"`.
+3. Wireless ADB Deploy:
+   - Run `adb connect 192.168.100.10:5555`
+   - Run `adb -s 192.168.100.10:5555 install -r app/build/outputs/apk/debug/app-debug.apk`
+4. Report: State that the build succeeded, show the commit hash, and confirm deployment to the device.
 
 # Architecture & Code Standards
-- Primary Language: 100% Pure Kotlin (Eliminate all legacy Java and XML layouts).
-- UI Framework: Jetpack Compose with Material 3 Expressive guidelines.
-- Visual Aesthetics: Deep space aesthetic, progressive backdrop frosting, and liquid glass blur overlays.
-- Gesture Engine: Android WindowManager overlays + AccessibilityService global event dispatching.
-
-# Component Breakdown
-1. Right Sidebar Gesture Engine:
-   - Direct Horizontal Swipe (from rest): Immediately invokes the Favorite Apps / Gears wheel.
-   - Continuous Vertical Swipe (holding): Scrubs through installed app categories.
-   - Horizontal Swipe (after category selection): Cruises through apps inside the active category; lifting finger (ACTION_UP) launches the selected app.
-   - Top & Bottom Edge Zones: Configurable system actions, app shortcuts, and custom intents.
-2. Status Bar & Screen Overlays:
-   - Status bar gesture detector (needs fix & touch event pass-through tuning).
-   - Planned Left Counterpart Sidebar & Bottom Quick Bar.
-3. Customization Interface:
-   - Floating Compose window over progressive background frosting for on-the-fly settings.
-   - Local backup & restore system (JSON / Encrypted Datastore).
-
-# Agent Operating Guardrails (Autonomous Lead Developer Mode)
-- The user is a Non-Developer Product Manager (Medical Student).
-- DO NOT ask the user to manually edit code, fix merge markers, or write Gradle dependencies.
-- Handle all file creations, refactorings, SDK upgrades, and bug fixes autonomously.
-- Always run `./gradlew assembleDebug` (or inspect logs) to verify changes before declaring a task complete.
-- Explain all changes in plain, friendly, non-technical English summaries.
+- Primary Language: 100% Pure Kotlin (Jetpack Compose with Material 3 Expressive).
+- Visual Aesthetics: Deep space aesthetic, progressive backdrop frosting, AGSL liquid glass.
+- Operating Mode: Autonomous Lead Developer (User is Non-Developer PM).

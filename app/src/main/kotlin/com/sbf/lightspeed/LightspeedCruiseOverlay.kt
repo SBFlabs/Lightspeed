@@ -972,11 +972,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private fun launchLauncherSettings() {
         dismissOverlay()
         try {
-            val settingsIntent = Intent(context, Class.forName("com.sbf.lightspeed.SettingsActivity")).apply {
+            val settingsIntent = Intent(context, MainActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             context.startActivity(settingsIntent)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             val alternativeIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }

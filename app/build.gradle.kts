@@ -14,11 +14,18 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        manifestPlaceholders["appName"] = "Lightspeed"
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix = ".nightly"
+            versionNameSuffix = "-NIGHTLY"
+            manifestPlaceholders["appName"] = "Lightspeed Nightly"
+        }
         release {
             isMinifyEnabled = false
+            manifestPlaceholders["appName"] = "Lightspeed"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

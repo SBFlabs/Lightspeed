@@ -205,7 +205,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var touchDownRawY = 0f
     private var lastTouchRawX = 0f
     private var lastTouchRawY = 0f
-    private var hasStartedVerticalScrub = false
+    private var categoryScrubbingEngaged = false
+    private var maxVerticalDisplacement = 0f
     private var depthPercentage = 0f
     private var virtualCursorX = 0f
     private var virtualCursorY = 0f
@@ -540,7 +541,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                 if (currentActiveZone == TouchZone.CENTER_CRUISE) {
                     isCruising = true
-                    hasStartedVerticalScrub = false
+                    categoryScrubbingEngaged = false
+                    maxVerticalDisplacement = 0f
                     categoryVisualOffset = 0f
                     entranceStartTime = System.currentTimeMillis()
                     lastLoadedCategoryId = null
@@ -576,14 +578,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 if (isCruising) {
                     val deltaX = touchDownRawX - rawX
                     val deltaY = abs(rawY - touchDownRawY)
-
-                    // Latch vertical scrubbing intent if user moves beyond minimal resting threshold
-                    if (deltaY > (14f * density) || abs(rawY - lastTouchRawY) > 3f) {
-                        hasStartedVerticalScrub = true
+                    if (deltaY > maxVerticalDisplacement) {
+                        maxVerticalDisplacement = deltaY
                     }
 
-                    // Direct Lateral Swipe from rest: Only enters Favorites/Gears if NO vertical category scrubbing occurred
-                    if (currentLayer == CruiseLayer.CATEGORY && !hasStartedVerticalScrub && deltaX > (20f * density) && deltaY < (14f * density)) {
+                    // Deliberate category scrubbing requires moving along the edge (> 20dp)
+                    if (maxVerticalDisplacement > (20f * density)) {
+                        categoryScrubbingEngaged = true
+                    }
+
+                    // Direct Lateral Swipe from rest -> Open Gears / Cockpit
+                    // Fires when the swipe is primarily horizontal and no vertical category scrubbing has occurred
+                    if (currentLayer == CruiseLayer.CATEGORY && !categoryScrubbingEngaged && deltaX > (18f * density) && deltaX > (deltaY * 1.1f)) {
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
                     }
@@ -863,7 +869,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         if (currentLayer == CruiseLayer.CATEGORY) {
             activeItem = null; viewportScrollOffset = 0f
-            if ((touchDownRawX - rawX) > (20f * density) || (wF - localX) > (20f * density)) {
+            if (categoryScrubbingEngaged && ((touchDownRawX - rawX) > (20f * density) || (wF - localX) > (20f * density))) {
                 currentLayer = CruiseLayer.GRID; loadActiveCategoryGrid(); invalidate(); return
             }
             if (cachedCategories.isNotEmpty()) {

@@ -25,6 +25,7 @@ android {
         }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             manifestPlaceholders["appName"] = "Lightspeed"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

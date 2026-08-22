@@ -6,14 +6,16 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Build
-import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import com.sbf.lightspeed.system.ElevatedTaskCloser
-import rikka.shizuku.Shizuku
 
 class LightspeedAccessibilityService : AccessibilityService() {
+
+    companion object {
+        var instance: LightspeedAccessibilityService? = null
+            private set
+    }
 
     private var windowManager: WindowManager? = null
 
@@ -39,6 +41,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         // 1. Initialize Right Sidebar Overlay Window
@@ -138,6 +141,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
     override fun onInterrupt() { teardown() }
     override fun onDestroy() {
         super.onDestroy()
+        if (instance === this) {
+            instance = null
+        }
         val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
         prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
         teardown()

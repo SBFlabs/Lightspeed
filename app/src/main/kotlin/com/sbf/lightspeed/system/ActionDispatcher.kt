@@ -6,19 +6,19 @@ import android.content.Intent
 import android.content.pm.LauncherApps
 import android.os.Process
 import android.util.Log
+import com.sbf.lightspeed.LightspeedAccessibilityService
 
 object ActionDispatcher {
     private const val TAG = "ActionDispatcher"
 
     fun execute(context: Context, token: String?, onScrollToTop: () -> Unit = {}) {
-        Log.i(TAG, "Executing action token: '$token'")
         if (token.isNullOrBlank() || token == "none") return
+        Log.i(TAG, "Executing action token: '$token'")
 
-        val service = context as? AccessibilityService
+        val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
 
         when {
             token == "system:close_app" || token == "ACTION_CLOSE_APP" || token == "close_app" -> {
-                Log.i(TAG, "Triggering ElevatedTaskCloser.closeTopApp()")
                 ElevatedTaskCloser.closeTopApp(context)
             }
             token == "system:scroll_to_top" || token == "ACTION_SCROLL_TO_TOP" || token == "scroll_to_top" -> onScrollToTop()
@@ -31,10 +31,18 @@ object ActionDispatcher {
                     try { context.startActivity(homeIntent) } catch (_: Exception) {}
                 }
             }
-            token == "system:back" || token == "ACTION_BACK" || token == "back" -> service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-            token == "system:recents" || token == "ACTION_RECENTS" || token == "recents" -> service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
-            token == "system:notifications" || token == "ACTION_NOTIFICATIONS" || token == "notifications" -> service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
-            token == "system:quick_settings" || token == "ACTION_QUICK_SETTINGS" || token == "quick_settings" -> service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
+            token == "system:back" || token == "ACTION_BACK" || token == "back" -> {
+                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+            }
+            token == "system:recents" || token == "ACTION_RECENTS" || token == "recents" -> {
+                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
+            }
+            token == "system:notifications" || token == "ACTION_NOTIFICATIONS" || token == "notifications" -> {
+                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+            }
+            token == "system:quick_settings" || token == "ACTION_QUICK_SETTINGS" || token == "quick_settings" -> {
+                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
+            }
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")
                 context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
@@ -53,6 +61,14 @@ object ActionDispatcher {
                     } catch (e: Exception) {
                         Log.e(TAG, "LauncherApps shortcut launch failed", e)
                     }
+                } else if (uriString.contains(";type=activity;") && uriString.contains(";activity=") && uriString.contains(";pkg=")) {
+                    val pkg = uriString.substringAfter(";pkg=").substringBefore(";")
+                    val act = uriString.substringAfter(";activity=").substringBefore(";")
+                    val intent = Intent().apply {
+                        setClassName(pkg, act)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    try { context.startActivity(intent) } catch (e: Exception) { Log.e(TAG, "Activity launch failed", e) }
                 } else {
                     try {
                         val pureUri = if (uriString.contains("intent:#Intent;")) {
@@ -67,7 +83,15 @@ object ActionDispatcher {
                     }
                 }
             }
-            else -> Log.w(TAG, "Unhandled action token: $token")
+            else -> {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(token)
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try { context.startActivity(launchIntent) } catch (_: Exception) {}
+                } else {
+                    Log.w(TAG, "Unhandled action token: $token")
+                }
+            }
         }
     }
 }

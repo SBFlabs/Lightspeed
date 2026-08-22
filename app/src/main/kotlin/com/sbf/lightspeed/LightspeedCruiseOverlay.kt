@@ -679,10 +679,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             
                             if (targetedPackage != null) {
                                 triggerHardwareHaptic(40, 200)
-                                try {
-                                    val launchIntent = context.packageManager.getLaunchIntentForPackage(targetedPackage)
-                                    if (launchIntent != null) context.startActivity(launchIntent)
-                                } catch (e: Exception) { e.printStackTrace() }
+                                com.sbf.lightspeed.system.ActionDispatcher.execute(service ?: context, targetedPackage)
                             }
    } else if (activeGearRing == 2) {
                             triggerHardwareHaptic(50, 220)
@@ -1256,18 +1253,34 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val currentScale = if (isHighlighted) 1.25f else 1.0f
                     val currentSize = (sizeRaw * currentScale).toInt()
                     
+                    val itemToken = ringApps[i]
+                    val extractedPkg = when {
+                        itemToken.startsWith("app:") -> itemToken.removePrefix("app:")
+                        itemToken.startsWith("shortcut:") -> {
+                            if (itemToken.contains(";pkg=")) itemToken.substringAfter(";pkg=").substringBefore(";")
+                            else if (itemToken.contains("package=")) itemToken.substringAfter("package=").substringBefore(";")
+                            else ""
+                        }
+                        itemToken.startsWith("system:") -> ""
+                        else -> itemToken
+                    }
                     try {
-                        val iconDrawable = pm.getApplicationIcon(ringApps[i])
-                        iconDrawable.alpha = if (isRingFocused) (if (isHighlighted) 255 else 200) else 90
-                        iconDrawable.setBounds(
-                            (iconCX - currentSize / 2).toInt(),
-                            (iconCY - currentSize / 2).toInt(),
-                            (iconCX + currentSize / 2).toInt(),
-                            (iconCY + currentSize / 2).toInt()
-                        )
-                        iconDrawable.draw(canvas)
+                        if (extractedPkg.isNotEmpty()) {
+                            val iconDrawable = pm.getApplicationIcon(extractedPkg)
+                            iconDrawable.alpha = if (isRingFocused) (if (isHighlighted) 255 else 200) else 90
+                            iconDrawable.setBounds(
+                                (iconCX - currentSize / 2).toInt(),
+                                (iconCY - currentSize / 2).toInt(),
+                                (iconCX + currentSize / 2).toInt(),
+                                (iconCY + currentSize / 2).toInt()
+                            )
+                            iconDrawable.draw(canvas)
+                        } else {
+                            elementPaint.style = Paint.Style.FILL
+                            elementPaint.color = if (isHighlighted) Color.WHITE else Color.GRAY
+                            canvas.drawCircle(iconCX, iconCY, currentSize / 3f, elementPaint)
+                        }
                     } catch (e: Exception) {
-                        // Resilient Fallback: Render structural vector placeholder if asset bundle loading faults
                         elementPaint.style = Paint.Style.FILL
                         elementPaint.color = if (isHighlighted) Color.WHITE else Color.GRAY
                         canvas.drawCircle(iconCX, iconCY, currentSize / 3f, elementPaint)

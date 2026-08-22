@@ -1,7 +1,10 @@
 package com.sbf.lightspeed
 
-import android.app.Activity
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -27,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.sbf.lightspeed.settings.LightspeedActionRegistry
 
 class CockpitSettingsActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
@@ -44,11 +48,17 @@ class CockpitSettingsActivity : ComponentActivity() {
             WindowInsetsCompat.CONSUMED
         }
 
+        LightspeedActionRegistry.initializeSync(this)
+
         setContent {
             val context = LocalContext.current
 
+            LaunchedEffect(Unit) {
+                LightspeedActionRegistry.ensureIndexed(context)
+            }
+
             val dynamicColorScheme = remember {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     androidx.compose.material3.dynamicDarkColorScheme(context)
                 } else {
                     darkColorScheme(
@@ -63,7 +73,7 @@ class CockpitSettingsActivity : ComponentActivity() {
             var launchBehavior by remember { mutableStateOf(prefs.getString("cockpit_launch_behavior", "default") ?: "default") }
             val setsOrder = remember { mutableStateListOf<String>() }
             val setNames = remember { mutableStateMapOf<String, String>() }
-            
+
             val ring0Data = remember { mutableStateMapOf<String, List<String>>() }
             val ring1Data = remember { mutableStateMapOf<String, List<String>>() }
             var selectedSetId by remember { mutableStateOf<String?>(null) }
@@ -81,11 +91,11 @@ class CockpitSettingsActivity : ComponentActivity() {
                         else -> "CUSTOM SET"
                     }
                     val saved = prefs.getString("gear_set_${id}_name", defaultName) ?: defaultName
-                    setNames[id] = if (saved == "SET A" || saved == "SET B" || saved == "SET C" || saved == "SET D" || saved == "SET" || saved.isEmpty()) defaultName else saved
-                    
+                    setNames[id] = if (saved in listOf("SET A", "SET B", "SET C", "SET D", "SET", "")) defaultName else saved
+
                     val r0Str = prefs.getString("gear_set_${id}_ring_0_packages", "") ?: ""
                     ring0Data[id] = r0Str.split(",").filter { it.isNotEmpty() }
-                    
+
                     val r1Str = prefs.getString("gear_set_${id}_ring_1_packages", "") ?: ""
                     ring1Data[id] = r1Str.split(",").filter { it.isNotEmpty() }
                 }
@@ -202,7 +212,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                         }
                                         val r0List = ring0Data[targetId] ?: emptyList()
                                         if (r0List.isEmpty()) {
-                                            item { Text("No apps inside outer ring.", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)) }
+                                            item { Text("No items inside outer ring.", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)) }
                                         } else {
                                             itemsIndexed(r0List) { idx, pkg ->
                                                 AppRow(pkg = pkg, index = idx, totalSize = r0List.size, onMoveUp = {
@@ -224,7 +234,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                         }
                                         val r1List = ring1Data[targetId] ?: emptyList()
                                         if (r1List.isEmpty()) {
-                                            item { Text("No apps inside inner ring.", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)) }
+                                            item { Text("No items inside inner ring.", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)) }
                                         } else {
                                             itemsIndexed(r1List) { idx, pkg ->
                                                 AppRow(pkg = pkg, index = idx, totalSize = r1List.size, onMoveUp = {
@@ -279,32 +289,46 @@ class CockpitSettingsActivity : ComponentActivity() {
 @Composable
 fun AppRow(pkg: String, index: Int, totalSize: Int, onMoveUp: () -> Unit, onMoveDown: () -> Unit, onRemove: () -> Unit) {
     val context = LocalContext.current
-    
-    // Asynchronously resolve app metadata along with graphical icon assets natively
+    val pm = context.packageManager
+
     val appData = remember(pkg) {
-        try {
-            val pm = context.packageManager
-            val info = pm.getApplicationInfo(pkg, 0)
-            val label = pm.getApplicationLabel(info).toString()
-            val drawable = pm.getApplicationIcon(info)
-            
-            val bitmap = if (drawable is android.graphics.drawable.BitmapDrawable) {
-                drawable.bitmap
-            } else {
-                val bmp = android.graphics.Bitmap.createBitmap(
-                    drawable.intrinsicWidth.coerceAtLeast(1),
-                    drawable.intrinsicHeight.coerceAtLeast(1),
-                    android.graphics.Bitmap.Config.ARGB_8888
-                )
-                val canvas = android.graphics.Canvas(bmp)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-                bmp
+        val extractedPkg = when {
+            pkg.startsWith("app:") -> pkg.removePrefix("app:")
+            pkg.startsWith("shortcut:") -> {
+                if (pkg.contains(";pkg=")) pkg.substringAfter(";pkg=").substringBefore(";")
+                else if (pkg.contains("package=")) pkg.substringAfter("package=").substringBefore(";")
+                else ""
             }
-            Pair(label, bitmap.asImageBitmap())
-        } catch (e: Exception) {
-            Pair(pkg.substringAfterLast("."), null)
+            pkg.startsWith("system:") -> ""
+            else -> pkg
         }
+
+        val cachedLabel = LightspeedActionRegistry.labelCache[pkg]
+        val label = cachedLabel ?: when {
+            extractedPkg.isNotEmpty() -> try { pm.getApplicationLabel(pm.getApplicationInfo(extractedPkg, 0)).toString() } catch (_: Exception) { pkg.substringAfterLast(".") }
+            else -> pkg
+        }
+
+        val bitmap = if (extractedPkg.isNotEmpty()) {
+            try {
+                val drawable = pm.getApplicationIcon(extractedPkg)
+                if (drawable is BitmapDrawable) {
+                    drawable.bitmap
+                } else {
+                    val bmp = Bitmap.createBitmap(
+                        drawable.intrinsicWidth.coerceAtLeast(1),
+                        drawable.intrinsicHeight.coerceAtLeast(1),
+                        Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = Canvas(bmp)
+                    drawable.setBounds(0, 0, canvas.width, canvas.height)
+                    drawable.draw(canvas)
+                    bmp
+                }
+            } catch (_: Exception) { null }
+        } else null
+
+        Pair(label, bitmap?.asImageBitmap())
     }
 
     val appLabel = appData.first
@@ -339,7 +363,7 @@ fun AppRow(pkg: String, index: Int, totalSize: Int, onMoveUp: () -> Unit, onMove
             Text(appLabel, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
             Text(pkg, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        
+
         IconButton(onClick = onMoveUp, enabled = index > 0, modifier = Modifier.size(32.dp)) {
             Text("▲", fontSize = 12.sp, color = if (index > 0) MaterialTheme.colorScheme.primary else Color.Gray)
         }

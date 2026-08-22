@@ -170,7 +170,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                     Text("Profiles & Gear Sets (${setsOrder.size}):", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.7f))
 
                                     LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
-                                        itemsIndexed(setsOrder) { index, id ->
+                                        itemsIndexed(setsOrder, key = { _, id -> id }) { index, id ->
                                             var currentName by remember(id) { mutableStateOf(setNames[id] ?: "") }
                                             val r0Count = (ring0Data[id] ?: emptyList()).size
                                             val r1Count = (ring1Data[id] ?: emptyList()).size
@@ -316,7 +316,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                 }
                                             }
                                         } else {
-                                            itemsIndexed(currentRingList) { idx, pkg ->
+                                            itemsIndexed(currentRingList, key = { idx, pkg -> "ring_${activeRingTab}_${idx}_${pkg}" }) { idx, pkg ->
                                                 AppRow(
                                                     pkg = pkg,
                                                     index = idx,

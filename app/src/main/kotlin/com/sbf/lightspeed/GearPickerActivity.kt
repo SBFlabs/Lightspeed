@@ -17,7 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +38,53 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import kotlinx.coroutines.launch
+
+sealed class PickerRowItem {
+    abstract val key: String
+
+    data class SystemHeader(val count: Int, val isExpanded: Boolean) : PickerRowItem() {
+        override val key = "header_sys"
+    }
+
+    data class SystemAction(val token: String, val label: String) : PickerRowItem() {
+        override val key = "action_$token"
+    }
+
+    data class AppHeader(
+        val appName: String,
+        val packageName: String,
+        val isExpanded: Boolean,
+        val shortcutsCount: Int
+    ) : PickerRowItem() {
+        override val key = "app_header_$packageName"
+    }
+
+    data class AppLaunchItem(
+        val appName: String,
+        val token: String,
+        val packageName: String
+    ) : PickerRowItem() {
+        override val key = "app_launch_$packageName"
+    }
+
+    data class SubHeader(
+        val packageName: String,
+        val subKey: String,
+        val label: String,
+        val isExpanded: Boolean
+    ) : PickerRowItem() {
+        override val key = "sub_header_$subKey"
+    }
+
+    data class ShortcutAction(
+        val token: String,
+        val label: String,
+        val packageName: String,
+        val isPlugin: Boolean
+    ) : PickerRowItem() {
+        override val key = "shortcut_$token"
+    }
+}
 
 class GearPickerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -140,105 +187,111 @@ class GearPickerActivity : ComponentActivity() {
                 }
             }
 
-            // Build hierarchical items: Level 0 = App/Category, Level 1 = Subsection, Level 2 = Action Item
-            val flatItemsList = remember(allTokens.size, searchQuery, expandedSubsections) {
-                val list = mutableListOf<Triple<String, String, Int>>()
-
-                val validTokens = allTokens.filter { it != "none" }
-                val filtered = if (searchQuery.isBlank()) {
-                    validTokens
-                } else {
-                    validTokens.filter { token ->
-                        val label = labelCache[token] ?: token
-                        label.contains(searchQuery, ignoreCase = true) || token.contains(searchQuery, ignoreCase = true)
-                    }
-                }
-
-                // 1. System Actions Category
-                val systemActions = filtered.filter { it.startsWith("system:") }
-                if (systemActions.isNotEmpty()) {
-                    list.add(Triple("category:system", "System Actions", 0))
-                    val systemKey = "System Actions|Items"
-                    val isExpanded = expandedSubsections.contains(systemKey) || searchQuery.isNotBlank()
-                    if (isExpanded) {
-                        systemActions.forEach { token ->
-                            list.add(Triple(token, labelCache[token] ?: token, 2))
+            // Build hierarchical items with stable keys
+            val flatItemsList by remember(allTokens.size, labelCache.size, searchQuery, expandedSubsections) {
+                derivedStateOf {
+                    val list = mutableListOf<PickerRowItem>()
+                    val validTokens = allTokens.filter { it != "none" }
+                    val filtered = if (searchQuery.isBlank()) {
+                        validTokens
+                    } else {
+                        validTokens.filter { token ->
+                            val label = labelCache[token] ?: token
+                            label.contains(searchQuery, ignoreCase = true) || token.contains(searchQuery, ignoreCase = true)
                         }
                     }
-                }
 
-                // 2. Apps and Nested App Shortcuts
-                val nonSystem = filtered.filter { !it.startsWith("system:") }
-                val groupedByApp = nonSystem.groupBy { token ->
-                    when {
-                        token.startsWith("app:") -> {
-                            val pkg = token.removePrefix("app:")
-                            labelCache["app:$pkg"] ?: pkg
-                        }
-                        token.startsWith("shortcut:") -> {
-                            val raw = token.removePrefix("shortcut:")
-                            val pkg = if (raw.contains(";pkg=")) raw.substringAfter(";pkg=").substringBefore(";") else ""
-                            if (pkg.isNotEmpty()) labelCache["app:$pkg"] ?: pkg else "App Shortcuts"
-                        }
-                        else -> "Other"
-                    }
-                }.toSortedMap(compareBy { it.lowercase() })
-
-                groupedByApp.forEach { (appName, tokens) ->
-                    val appToken = tokens.firstOrNull { it.startsWith("app:") }
-                    val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
-                    val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
-                    val deepActivities = tokens.filter { it.contains(";type=activity;") }
-
-                    list.add(Triple("app_header:$appName", appName, 0))
-
-                    val appHeaderKey = "$appName|All"
-                    val isAppExpanded = expandedSubsections.contains(appHeaderKey) || searchQuery.isNotBlank()
-
-                    if (isAppExpanded) {
-                        if (appToken != null) {
-                            list.add(Triple(appToken, "Launch $appName", 2))
-                        }
-
-                        if (appShortcuts.isNotEmpty()) {
-                            val subKey = "$appName|App Shortcuts"
-                            list.add(Triple(subKey, "App Shortcuts (${appShortcuts.size})", 1))
-                            if (expandedSubsections.contains(subKey) || searchQuery.isNotBlank()) {
-                                appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
-                                    list.add(Triple(it, labelCache[it] ?: it, 2))
-                                }
-                            }
-                        }
-
-                        if (homeShortcuts.isNotEmpty()) {
-                            val subKey = "$appName|Home Screen Shortcuts"
-                            list.add(Triple(subKey, "Home Screen Shortcuts (${homeShortcuts.size})", 1))
-                            if (expandedSubsections.contains(subKey) || searchQuery.isNotBlank()) {
-                                homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
-                                    list.add(Triple(it, labelCache[it] ?: it, 2))
-                                }
-                            }
-                        }
-
-                        if (deepActivities.isNotEmpty()) {
-                            val subKey = "$appName|Deep Activities"
-                            list.add(Triple(subKey, "Deep Activities (${deepActivities.size})", 1))
-                            if (expandedSubsections.contains(subKey) || searchQuery.isNotBlank()) {
-                                deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
-                                    list.add(Triple(it, labelCache[it] ?: it, 2))
-                                }
+                    // 1. System Actions
+                    val systemActions = filtered.filter { it.startsWith("system:") }
+                    if (systemActions.isNotEmpty()) {
+                        val sysKey = "category:system"
+                        val isExpanded = expandedSubsections.contains(sysKey) || searchQuery.isNotBlank()
+                        list.add(PickerRowItem.SystemHeader(systemActions.size, isExpanded))
+                        if (isExpanded) {
+                            systemActions.forEach { token ->
+                                list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token))
                             }
                         }
                     }
+
+                    // 2. Apps and Shortcuts grouped by package
+                    val nonSystem = filtered.filter { !it.startsWith("system:") }
+                    val appMap = mutableMapOf<String, MutableList<String>>()
+                    nonSystem.forEach { token ->
+                        val pkg = when {
+                            token.startsWith("app:") -> token.removePrefix("app:")
+                            token.startsWith("shortcut:") && token.contains(";pkg=") -> token.substringAfter(";pkg=").substringBefore(";")
+                            token.startsWith("shortcut:") && token.contains("package=") -> token.substringAfter("package=").substringBefore(";")
+                            else -> "other"
+                        }
+                        appMap.getOrPut(pkg) { mutableListOf() }.add(token)
+                    }
+
+                    val sortedApps = appMap.keys.map { pkg ->
+                        val appLabel = labelCache["app:$pkg"] ?: pkg
+                        Triple(pkg, appLabel, appMap[pkg] ?: emptyList())
+                    }.sortedBy { it.second.lowercase() }
+
+                    sortedApps.forEach { (pkg, appName, tokens) ->
+                        val appToken = tokens.firstOrNull { it.startsWith("app:") }
+                        val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
+                        val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
+                        val deepActivities = tokens.filter { it.contains(";type=activity;") }
+
+                        val appKey = "app:$pkg"
+                        val isExpanded = expandedSubsections.contains(appKey) || searchQuery.isNotBlank()
+                        val totalShortcuts = appShortcuts.size + homeShortcuts.size + deepActivities.size
+
+                        list.add(PickerRowItem.AppHeader(appName, pkg, isExpanded, totalShortcuts))
+
+                        if (isExpanded) {
+                            if (appToken != null) {
+                                list.add(PickerRowItem.AppLaunchItem(appName, appToken, pkg))
+                            }
+
+                            if (appShortcuts.isNotEmpty()) {
+                                val subKey = "$pkg|AppShortcuts"
+                                val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
+                                list.add(PickerRowItem.SubHeader(pkg, subKey, "App Shortcuts (${appShortcuts.size})", isSubExpanded))
+                                if (isSubExpanded) {
+                                    appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
+                                        list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = true))
+                                    }
+                                }
+                            }
+
+                            if (homeShortcuts.isNotEmpty()) {
+                                val subKey = "$pkg|HomeShortcuts"
+                                val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
+                                list.add(PickerRowItem.SubHeader(pkg, subKey, "Home Shortcuts (${homeShortcuts.size})", isSubExpanded))
+                                if (isSubExpanded) {
+                                    homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
+                                        list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = false))
+                                    }
+                                }
+                            }
+
+                            if (deepActivities.isNotEmpty()) {
+                                val subKey = "$pkg|DeepActivities"
+                                val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
+                                list.add(PickerRowItem.SubHeader(pkg, subKey, "Deep Activities (${deepActivities.size})", isSubExpanded))
+                                if (isSubExpanded) {
+                                    deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
+                                        list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = false))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    list
                 }
-                list
             }
 
             val letterIndices = remember(flatItemsList) {
                 val map = mutableMapOf<Char, Int>()
-                flatItemsList.forEachIndexed { index, (_, label, level) ->
-                    if (level == 0) {
-                        val firstChar = label.firstOrNull()?.uppercaseChar() ?: '#'
+                flatItemsList.forEachIndexed { index, item ->
+                    if (item is PickerRowItem.AppHeader) {
+                        val firstChar = item.appName.firstOrNull()?.uppercaseChar() ?: '#'
                         val targetKey = if (firstChar in 'A'..'Z') firstChar else '#'
                         if (!map.containsKey(targetKey)) map[targetKey] = index
                     }
@@ -329,57 +382,34 @@ class GearPickerActivity : ComponentActivity() {
                                 state = listState,
                                 modifier = Modifier.weight(1f).fillMaxHeight()
                             ) {
-                                itemsIndexed(flatItemsList, key = { index, (key, _, level) -> "${level}_${key}_$index" }) { _, (key, label, level) ->
-                                    when (level) {
-                                        0 -> {
-                                            val headerKey = if (key.startsWith("category:system")) "System Actions|Items" else "${label}|All"
-                                            val isExpanded = expandedSubsections.contains(headerKey) || searchQuery.isNotBlank()
-                                            val pkg = if (key.startsWith("app_header:")) {
-                                                allTokens.firstOrNull { it.startsWith("app:") && labelCache[it] == label }?.removePrefix("app:") ?: ""
-                                            } else ""
-
+                                items(
+                                    items = flatItemsList,
+                                    key = { it.key }
+                                ) { item ->
+                                    when (item) {
+                                        is PickerRowItem.SystemHeader -> {
+                                            val sysKey = "category:system"
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .padding(vertical = 3.dp)
                                                     .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
                                                     .clickable {
-                                                        expandedSubsections = if (expandedSubsections.contains(headerKey)) {
-                                                            expandedSubsections - headerKey
+                                                        expandedSubsections = if (item.isExpanded) {
+                                                            expandedSubsections - sysKey
                                                         } else {
-                                                            expandedSubsections + headerKey
+                                                            expandedSubsections + sysKey
                                                         }
                                                     }
                                                     .padding(horizontal = 10.dp, vertical = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                if (pkg.isNotEmpty()) {
-                                                    val iconBmp = remember(pkg) {
-                                                        LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, pkg)
-                                                    }
-                                                    if (iconBmp != null) {
-                                                        Image(
-                                                            bitmap = iconBmp.asImageBitmap(),
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(28.dp).padding(end = 8.dp)
-                                                        )
-                                                    } else {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(28.dp)
-                                                                .padding(end = 8.dp)
-                                                                .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                                                        )
-                                                    }
-                                                }
                                                 Text(
-                                                    text = label,
+                                                    text = "⚡ System Actions (${item.count})",
                                                     color = Color.White,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    modifier = Modifier.weight(1f),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                    modifier = Modifier.weight(1f)
                                                 )
                                                 Icon(
                                                     Icons.Default.ArrowDropDown,
@@ -387,50 +417,12 @@ class GearPickerActivity : ComponentActivity() {
                                                     tint = dynamicSecondary,
                                                     modifier = Modifier
                                                         .size(20.dp)
-                                                        .rotate(if (isExpanded) 180f else 0f)
+                                                        .rotate(if (item.isExpanded) 180f else 0f)
                                                 )
                                             }
                                         }
-                                        1 -> {
-                                            val isExpanded = expandedSubsections.contains(key) || searchQuery.isNotBlank()
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 12.dp, top = 2.dp, bottom = 2.dp)
-                                                    .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
-                                                    .clickable {
-                                                        expandedSubsections = if (expandedSubsections.contains(key)) {
-                                                            expandedSubsections - key
-                                                        } else {
-                                                            expandedSubsections + key
-                                                        }
-                                                    }
-                                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = label,
-                                                    color = dynamicSecondary,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    modifier = Modifier.weight(1f),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Icon(
-                                                    Icons.Default.ArrowDropDown,
-                                                    contentDescription = null,
-                                                    tint = dynamicSecondary,
-                                                    modifier = Modifier
-                                                        .size(18.dp)
-                                                        .rotate(if (isExpanded) 180f else 0f)
-                                                )
-                                            }
-                                        }
-                                        2 -> {
-                                            val isChecked = selectedTokens.contains(key)
-                                            val isConfiguredAction = key.contains(";type=app_shortcut;")
-
+                                        is PickerRowItem.SystemAction -> {
+                                            val isChecked = selectedTokens.contains(item.token)
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -445,15 +437,175 @@ class GearPickerActivity : ComponentActivity() {
                                                         shape = RoundedCornerShape(8.dp)
                                                     )
                                                     .clickable {
-                                                        if (isConfiguredAction && !isChecked) {
-                                                            val pkg = key.substringAfter(";pkg=").substringBefore(";")
-                                                            val act = key.substringAfter(";activity=").substringBefore(";")
+                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(text = item.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal)
+                                                    Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
+                                                }
+                                                Checkbox(
+                                                    checked = isChecked,
+                                                    onCheckedChange = {
+                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                    },
+                                                    colors = CheckboxDefaults.colors(
+                                                        checkedColor = dynamicPrimary,
+                                                        checkmarkColor = Color.White
+                                                    )
+                                                )
+                                            }
+                                        }
+                                        is PickerRowItem.AppHeader -> {
+                                            val appKey = "app:${item.packageName}"
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 3.dp)
+                                                    .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
+                                                    .clickable {
+                                                        expandedSubsections = if (item.isExpanded) {
+                                                            expandedSubsections - appKey
+                                                        } else {
+                                                            expandedSubsections + appKey
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
+                                                if (iconBmp != null) {
+                                                    Image(
+                                                        bitmap = iconBmp.asImageBitmap(),
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(28.dp).padding(end = 8.dp)
+                                                    )
+                                                } else {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(28.dp)
+                                                            .padding(end = 8.dp)
+                                                            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                                                    )
+                                                }
+                                                Text(
+                                                    text = item.appName,
+                                                    color = Color.White,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    modifier = Modifier.weight(1f),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Icon(
+                                                    Icons.Default.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    tint = dynamicSecondary,
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .rotate(if (item.isExpanded) 180f else 0f)
+                                                )
+                                            }
+                                        }
+                                        is PickerRowItem.AppLaunchItem -> {
+                                            val isChecked = selectedTokens.contains(item.token)
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
+                                                    .background(
+                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    )
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    )
+                                                    .clickable {
+                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(text = "Launch ${item.appName}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal)
+                                                    Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
+                                                }
+                                                Checkbox(
+                                                    checked = isChecked,
+                                                    onCheckedChange = {
+                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                    },
+                                                    colors = CheckboxDefaults.colors(
+                                                        checkedColor = dynamicPrimary,
+                                                        checkmarkColor = Color.White
+                                                    )
+                                                )
+                                            }
+                                        }
+                                        is PickerRowItem.SubHeader -> {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 12.dp, top = 2.dp, bottom = 2.dp)
+                                                    .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        expandedSubsections = if (item.isExpanded) {
+                                                            expandedSubsections - item.subKey
+                                                        } else {
+                                                            expandedSubsections + item.subKey
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = item.label,
+                                                    color = dynamicSecondary,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    modifier = Modifier.weight(1f),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Icon(
+                                                    Icons.Default.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    tint = dynamicSecondary,
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .rotate(if (item.isExpanded) 180f else 0f)
+                                                )
+                                            }
+                                        }
+                                        is PickerRowItem.ShortcutAction -> {
+                                            val isChecked = selectedTokens.contains(item.token)
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 22.dp, top = 2.dp, bottom = 2.dp)
+                                                    .background(
+                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    )
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    )
+                                                    .clickable {
+                                                        if (item.isPlugin && !isChecked) {
+                                                            val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
+                                                            val act = item.token.substringAfter(";activity=").substringBefore(";")
                                                             val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
                                                                 setClassName(pkg, act)
                                                             }
                                                             shortcutConfigLauncher.launch(intent)
                                                         } else {
-                                                            if (isChecked) selectedTokens.remove(key) else selectedTokens.add(key)
+                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
                                                         }
                                                     }
                                                     .padding(horizontal = 10.dp, vertical = 7.dp),
@@ -461,7 +613,7 @@ class GearPickerActivity : ComponentActivity() {
                                             ) {
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
-                                                        text = label,
+                                                        text = item.label,
                                                         color = Color.White,
                                                         fontSize = 13.sp,
                                                         fontWeight = FontWeight.Normal,
@@ -469,7 +621,7 @@ class GearPickerActivity : ComponentActivity() {
                                                         overflow = TextOverflow.Ellipsis
                                                     )
                                                     Text(
-                                                        text = key,
+                                                        text = item.token,
                                                         color = Color.LightGray.copy(alpha = 0.40f),
                                                         fontSize = 10.sp,
                                                         maxLines = 1,
@@ -480,15 +632,15 @@ class GearPickerActivity : ComponentActivity() {
                                                 Checkbox(
                                                     checked = isChecked,
                                                     onCheckedChange = {
-                                                        if (isConfiguredAction && !isChecked) {
-                                                            val pkg = key.substringAfter(";pkg=").substringBefore(";")
-                                                            val act = key.substringAfter(";activity=").substringBefore(";")
+                                                        if (item.isPlugin && !isChecked) {
+                                                            val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
+                                                            val act = item.token.substringAfter(";activity=").substringBefore(";")
                                                             val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
                                                                 setClassName(pkg, act)
                                                             }
                                                             shortcutConfigLauncher.launch(intent)
                                                         } else {
-                                                            if (isChecked) selectedTokens.remove(key) else selectedTokens.add(key)
+                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
                                                         }
                                                     },
                                                     colors = CheckboxDefaults.colors(

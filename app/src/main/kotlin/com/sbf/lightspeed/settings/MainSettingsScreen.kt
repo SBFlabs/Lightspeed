@@ -219,6 +219,8 @@ fun MainSettingsScreen() {
                         .fillMaxHeight(0.94f)
                         .clickable(enabled = false) {}
                 ) {
+                    var refreshKey by remember { mutableStateOf(0) }
+
                     FloatingOverlayContainer(
                         title = "Sidebar Matrix Controller",
                         onDismiss = { dismissAction() },
@@ -249,7 +251,14 @@ fun MainSettingsScreen() {
                             }
                         }
                     ) {
-                        SidebarMatrixConfigurationFields(context, prefs, subAllCollapsed)
+                        key(refreshKey) {
+                            SidebarMatrixConfigurationFields(
+                                context = context,
+                                prefs = prefs,
+                                subAllCollapsed = subAllCollapsed,
+                                onRefreshNeeded = { refreshKey++ }
+                            )
+                        }
                     }
                 }
             }
@@ -258,7 +267,12 @@ fun MainSettingsScreen() {
 }
 
 @Composable
-fun SidebarMatrixConfigurationFields(context: Context, prefs: android.content.SharedPreferences, subAllCollapsed: Boolean) {
+fun SidebarMatrixConfigurationFields(
+    context: Context,
+    prefs: android.content.SharedPreferences,
+    subAllCollapsed: Boolean,
+    onRefreshNeeded: () -> Unit = {}
+) {
     var isStatusBarExpanded by remember { mutableStateOf(false) }
     var isCenterExpanded by remember { mutableStateOf(false) }
     var isTopExpanded by remember { mutableStateOf(true) }
@@ -286,6 +300,7 @@ fun SidebarMatrixConfigurationFields(context: Context, prefs: android.content.Sh
             val result = LightspeedBackupEngine.importFromFile(context, uri)
             result.onSuccess { count ->
                 Toast.makeText(context, "Restored $count settings successfully!", Toast.LENGTH_SHORT).show()
+                onRefreshNeeded()
             }.onFailure { err ->
                 Toast.makeText(context, "Import failed: ${err.message}", Toast.LENGTH_LONG).show()
             }
@@ -484,6 +499,7 @@ fun SidebarMatrixConfigurationFields(context: Context, prefs: android.content.Sh
                             LightspeedBackupEngine.resetToDefaults(context)
                             showResetConfirmDialog = false
                             Toast.makeText(context, "Preferences reset to factory defaults", Toast.LENGTH_SHORT).show()
+                            onRefreshNeeded()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {

@@ -59,14 +59,20 @@ object LightspeedBackupEngine {
     fun exportToFile(context: Context, uri: Uri): Result<Int> {
         return try {
             val jsonString = exportToJson(context)
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
-                    writer.write(jsonString)
-                    writer.flush()
-                }
+            val bytes = jsonString.toByteArray(Charsets.UTF_8)
+            val outputStream = try {
+                context.contentResolver.openOutputStream(uri, "wt")
+            } catch (_: Exception) {
+                context.contentResolver.openOutputStream(uri)
+            } ?: return Result.failure(IllegalStateException("Could not open output stream for $uri"))
+
+            outputStream.use { stream ->
+                stream.write(bytes)
+                stream.flush()
             }
+
             val count = context.getSharedPreferences("default", Context.MODE_PRIVATE).all.size
-            Log.i(TAG, "Exported $count entries successfully to $uri")
+            Log.i(TAG, "Exported $count entries (${bytes.size} bytes) successfully to $uri")
             Result.success(count)
         } catch (e: Exception) {
             Log.e(TAG, "Export failed", e)
@@ -76,6 +82,10 @@ object LightspeedBackupEngine {
 
     fun importFromJson(context: Context, jsonString: String): Result<Int> {
         return try {
+            if (jsonString.isBlank()) {
+                return Result.failure(IllegalArgumentException("Backup payload is empty"))
+            }
+
             val root = JSONObject(jsonString)
             val settingsObject = root.optJSONObject("settings") ?: root
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
@@ -85,13 +95,29 @@ object LightspeedBackupEngine {
             val keys = settingsObject.keys()
             while (keys.hasNext()) {
                 val key = keys.next()
+                if (key == "app" || key == "packageName" || key == "backupVersion" || key == "exportedAt" || key == "exportedAtFormatted" || key == "device") {
+                    continue
+                }
+
                 val value = settingsObject.get(key)
                 when (value) {
-                    is Boolean -> { editor.putBoolean(key, value); importedCount++ }
-                    is Int -> { editor.putInt(key, value); importedCount++ }
-                    is Long -> { editor.putLong(key, value); importedCount++ }
-                    is Double -> { editor.putFloat(key, value.toFloat()); importedCount++ }
-                    is String -> { editor.putString(key, value); importedCount++ }
+                    is Boolean -> {
+                        editor.putBoolean(key, value)
+                        importedCount++
+                    }
+                    is Number -> {
+                        val numDouble = value.toDouble()
+                        if (numDouble == numDouble.toInt().toDouble() && !key.contains("float", ignoreCase = true)) {
+                            editor.putInt(key, value.toInt())
+                        } else {
+                            editor.putFloat(key, value.toFloat())
+                        }
+                        importedCount++
+                    }
+                    is String -> {
+                        editor.putString(key, value)
+                        importedCount++
+                    }
                     is JSONArray -> {
                         val set = mutableSetOf<String>()
                         for (i in 0 until value.length()) {
@@ -100,11 +126,18 @@ object LightspeedBackupEngine {
                         editor.putStringSet(key, set)
                         importedCount++
                     }
+                    else -> {
+                        editor.putString(key, value.toString())
+                        importedCount++
+                    }
                 }
             }
 
-            editor.apply()
-            Log.i(TAG, "Imported $importedCount settings entries successfully")
+            val success = editor.commit()
+            if (!success) {
+                editor.apply()
+            }
+            Log.i(TAG, "Imported and committed $importedCount settings entries successfully")
             Result.success(importedCount)
         } catch (e: Exception) {
             Log.e(TAG, "Import failed", e)
@@ -114,16 +147,13 @@ object LightspeedBackupEngine {
 
     fun importFromFile(context: Context, uri: Uri): Result<Int> {
         return try {
-            val stringBuilder = StringBuilder()
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8)).use { reader ->
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null) {
-                        stringBuilder.append(line)
-                    }
-                }
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: return Result.failure(IllegalStateException("Could not open input stream for $uri"))
+
+            val jsonString = inputStream.use { stream ->
+                stream.bufferedReader(Charsets.UTF_8).readText()
             }
-            importFromJson(context, stringBuilder.toString())
+            importFromJson(context, jsonString)
         } catch (e: Exception) {
             Log.e(TAG, "File read during import failed", e)
             Result.failure(e)

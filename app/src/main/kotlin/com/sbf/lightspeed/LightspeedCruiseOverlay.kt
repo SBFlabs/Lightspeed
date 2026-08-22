@@ -887,7 +887,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         if (currentLayer == CruiseLayer.CATEGORY) {
             activeItem = null; viewportScrollOffset = 0f
-            if (categoryScrubbingEngaged && ((touchDownRawX - rawX) > (20f * density) || (wF - localX) > (20f * density))) {
+            val horizontalPull = touchDownRawX - rawX
+            if (categoryScrubbingEngaged && horizontalPull > (28f * density)) {
                 currentLayer = CruiseLayer.GRID; loadActiveCategoryGrid(); invalidate(); return
             }
             if (cachedCategories.isNotEmpty()) {
@@ -933,8 +934,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 if (closestIndex != activeCatIndex) activeCatIndex = closestIndex
             }
         } else {
+            val horizontalPull = touchDownRawX - rawX
             val nextLayerState = when {
-                (wF - localX) <= (wF * 0.05f) -> CruiseLayer.CATEGORY
+                horizontalPull <= (14f * density) -> CruiseLayer.CATEGORY
                 (wF - localX) <= (wF * 0.40f) -> CruiseLayer.GRID
                 else -> CruiseLayer.STICKY_PIN
             }

@@ -1315,13 +1315,11 @@ fun PrefDottedSliderRow(
 }
 
 fun resKey(context: Context, resourceName: String): String {
-    val id = context.resources.getIdentifier(resourceName, "string", context.packageName)
-    return if (id != 0) context.getString(id) else resourceName
+    return resourceName
 }
 
 fun resStr(context: Context, resourceName: String, fallback: String): String {
-    val id = context.resources.getIdentifier(resourceName, "string", context.packageName)
-    return if (id != 0) context.getString(id) else fallback
+    return fallback.ifEmpty { resourceName }
 }
 
 @Composable

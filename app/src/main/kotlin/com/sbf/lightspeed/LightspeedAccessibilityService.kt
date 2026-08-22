@@ -74,17 +74,25 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
         if (!enabled) return
 
+        val screenWidthPx = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
-        val spanPx = (prefs.getInt("pref_statusbar_span", 1080) * density).toInt()
-        val sensitivityPx = (prefs.getInt("pref_statusbar_sensitivity", 40) * density).toInt()
+        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
+        val spanPx = if (spanPref >= 1000) {
+            screenWidthPx
+        } else {
+            (spanPref * density).toInt().coerceIn((50 * density).toInt(), screenWidthPx)
+        }
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 80)
+        val heightPx = (thicknessDp * density).toInt().coerceIn((20 * density).toInt(), (300 * density).toInt())
         val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * density).toInt()
         val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).toInt()
 
         statusBarWindowParams = WindowManager.LayoutParams(
             spanPx,
-            sensitivityPx,
+            heightPx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                     WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
@@ -104,6 +112,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     private fun updateStatusBarOverlayFromPrefs(prefs: SharedPreferences) {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
+        val screenWidthPx = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
 
         if (!enabled) {
@@ -114,8 +123,14 @@ class LightspeedAccessibilityService : AccessibilityService() {
             return
         }
 
-        val spanPx = (prefs.getInt("pref_statusbar_span", 1080) * density).toInt()
-        val sensitivityPx = (prefs.getInt("pref_statusbar_sensitivity", 40) * density).toInt()
+        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
+        val spanPx = if (spanPref >= 1000) {
+            screenWidthPx
+        } else {
+            (spanPref * density).toInt().coerceIn((50 * density).toInt(), screenWidthPx)
+        }
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 80)
+        val heightPx = (thicknessDp * density).toInt().coerceIn((20 * density).toInt(), (300 * density).toInt())
         val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * density).toInt()
         val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).toInt()
 
@@ -123,7 +138,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
             setupStatusBarOverlay(prefs)
         } else {
             statusBarWindowParams.width = spanPx
-            statusBarWindowParams.height = sensitivityPx
+            statusBarWindowParams.height = heightPx
             statusBarWindowParams.x = offsetX
             statusBarWindowParams.y = offsetY
             statusBarOverlayView?.invalidate()

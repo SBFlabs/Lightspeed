@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

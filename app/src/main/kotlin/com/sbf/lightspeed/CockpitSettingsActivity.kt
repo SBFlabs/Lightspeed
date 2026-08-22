@@ -6,9 +6,9 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,20 +33,9 @@ import androidx.core.view.WindowInsetsCompat
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 
 class CockpitSettingsActivity : ComponentActivity() {
-    @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS or WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
-        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        window.navigationBarColor = android.graphics.Color.TRANSPARENT
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { view, insets ->
-            view.setPadding(0, 0, 0, 0)
-            WindowInsetsCompat.CONSUMED
-        }
+        enableEdgeToEdge()
 
         LightspeedActionRegistry.initializeSync(this)
 

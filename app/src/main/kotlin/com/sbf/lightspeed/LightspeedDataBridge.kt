@@ -42,17 +42,31 @@ class LightspeedDataBridge(private val context: Context) {
     private val executor = Executors.newSingleThreadExecutor()
 
     init {
+        // Pre-populate with default categories immediately so cold start has zero delay
+        categories.forEach { appCache[it.id] = emptyList() }
         refreshCacheAsync()
         registerPackageReceiver()
     }
 
-    fun getLiveCategories(): List<CategoryNode> = categories.filter { (appCache[it.id]?.isNotEmpty() == true) }
+    fun getLiveCategories(): List<CategoryNode> {
+        val active = categories.filter { (appCache[it.id]?.isNotEmpty() == true) }
+        return if (active.isNotEmpty()) active else categories
+    }
 
     fun getAppsForCategory(categoryId: String): List<LaunchTarget> {
         return appCache[categoryId] ?: emptyList()
     }
 
-    fun getIcon(packageName: String): Drawable? = iconCache[packageName]
+    fun getIcon(packageName: String): Drawable? {
+        val cached = iconCache[packageName]
+        if (cached != null) return cached
+        return try {
+            val pm = context.packageManager
+            val drawable = pm.getApplicationIcon(packageName)
+            iconCache[packageName] = drawable
+            drawable
+        } catch (_: Exception) { null }
+    }
 
     fun refreshCacheAsync(onComplete: (() -> Unit)? = null) {
         executor.execute {

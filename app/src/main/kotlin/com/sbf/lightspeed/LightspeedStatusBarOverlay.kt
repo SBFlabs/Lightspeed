@@ -38,7 +38,16 @@ class LightspeedStatusBarOverlay(
     }
 
     init {
+        isClickable = true
+        isFocusable = false
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && width > 0 && height > 0) {
+            systemGestureExclusionRects = listOf(android.graphics.Rect(0, 0, width, height))
+        }
     }
 
     override fun onDetachedFromWindow() {
@@ -50,22 +59,45 @@ class LightspeedStatusBarOverlay(
     private var startY = 0f
     private var isScrubbing = false
 
+    private fun triggerHaptic(durationMs: Long = 25, amplitude: Int = 140) {
+        try {
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(android.os.VibrationEffect.createOneShot(durationMs, amplitude))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(durationMs)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+        override fun onDown(e: MotionEvent): Boolean = true
+
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
             val action = prefs.getString("pref_macro_action_STATUSBAR_TAP", "system:scroll_to_top") ?: "system:scroll_to_top"
+            triggerHaptic(20, 120)
             performActionByName(action)
             return true
         }
 
         override fun onDoubleTap(e: MotionEvent): Boolean {
             val action = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", "system:scroll_to_top") ?: "system:scroll_to_top"
-            performActionByName(action)
-            return true
+            if (action != "none") {
+                triggerHaptic(30, 180)
+                performActionByName(action)
+                return true
+            }
+            return false
         }
     })
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (gestureDetector.onTouchEvent(event)) return true
+        val gestureHandled = gestureDetector.onTouchEvent(event)
+        val density = resources.displayMetrics.density
+        val threshold = 18f * density
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -78,10 +110,13 @@ class LightspeedStatusBarOverlay(
                 val dx = event.x - startX
                 val dy = event.y - startY
 
-                if (abs(dy) > 25f && abs(dy) > abs(dx)) {
+                if (abs(dy) > (24f * density) && abs(dy) > abs(dx) && !isScrubbing) {
                     isScrubbing = true
                     val scrubAction = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "none") ?: "none"
-                    performActionByName(scrubAction)
+                    if (scrubAction != "none") {
+                        triggerHaptic(25, 150)
+                        performActionByName(scrubAction)
+                    }
                 }
                 return true
             }
@@ -90,23 +125,37 @@ class LightspeedStatusBarOverlay(
                 val dy = event.y - startY
 
                 if (!isScrubbing) {
-                    if (abs(dx) > abs(dy) && dx > 15f) {
+                    if (abs(dx) > abs(dy) && dx > threshold) {
                         val action = prefs.getString("pref_macro_action_STATUSBAR_SWIPE_RIGHT", "none") ?: "none"
-                        performActionByName(action)
-                        return true
-                    } else if (abs(dx) > abs(dy) && dx < -15f) {
+                        if (action != "none") {
+                            triggerHaptic(30, 160)
+                            performActionByName(action)
+                            return true
+                        }
+                    } else if (abs(dx) > abs(dy) && dx < -threshold) {
                         val action = prefs.getString("pref_macro_action_STATUSBAR_SWIPE_LEFT", "none") ?: "none"
-                        performActionByName(action)
-                        return true
-                    } else if (dy > 15f && abs(dy) > abs(dx)) {
+                        if (action != "none") {
+                            triggerHaptic(30, 160)
+                            performActionByName(action)
+                            return true
+                        }
+                    } else if (dy > threshold && abs(dy) > abs(dx)) {
                         val action = prefs.getString("pref_macro_action_STATUSBAR_SWIPE_DOWN", "system:notifications") ?: "system:notifications"
-                        performActionByName(action)
-                        return true
+                        if (action != "none") {
+                            triggerHaptic(30, 160)
+                            performActionByName(action)
+                            return true
+                        }
                     }
                 }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                isScrubbing = false
+                return true
             }
         }
-        return super.onTouchEvent(event)
+        return gestureHandled || super.onTouchEvent(event)
     }
 
     override fun onDraw(canvas: Canvas) {

@@ -11,6 +11,7 @@ import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +37,7 @@ import kotlinx.coroutines.launch
 class GearPickerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         val setId = intent.getStringExtra("SET_ID") ?: "0"
         val ringIndex = intent.getIntExtra("RING_INDEX", 0)

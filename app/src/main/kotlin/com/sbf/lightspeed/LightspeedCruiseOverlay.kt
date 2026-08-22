@@ -214,7 +214,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var lastTouchY = 0f
 
     private val launchpadPillBounds = RectF() 
-    private val gestureEngine = if (context is AccessibilityService) LightspeedGestureEngine(context) else null
     private val dataBridge = LightspeedDataBridge(context)
 
     private val projectionCamera3D = Camera()
@@ -364,7 +363,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     setFloatUniform("bottomBlurHeight", 160.0f * density)
                 }
                 cachedRenderEffect = RenderEffect.createRuntimeShaderEffect(progressiveShader, "inputTexture")
-            } catch (e: Exception) { Log.e("LightspeedBlur", "AGSL fault", e) }
+            } catch (e: Exception) {
+                Log.e("LightspeedBlur", "AGSL fault", e)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    cachedRenderEffect = RenderEffect.createBlurEffect(25f, 25f, android.graphics.Shader.TileMode.CLAMP)
+                }
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            cachedRenderEffect = RenderEffect.createBlurEffect(25f, 25f, android.graphics.Shader.TileMode.CLAMP)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -523,30 +529,22 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     categoryHeightCache.clear(); applicationIconCache.clear()
                     currentLayer = CruiseLayer.CATEGORY
                     updateMetricsDimensions()
-                    placedAppsList.clear(); cachedApps = emptyList(); cachedCategories = emptyList()
+                    placedAppsList.clear(); cachedApps = emptyList()
                     service?.updateWindowLayout(true)
-                    invalidate()
 
-                    Thread {
-                        val categoriesList = dataBridge.getLiveCategories()
-                        post {
-                            if (isCruising) {
-                                cachedCategories = categoriesList
-                                if (cachedCategories.isNotEmpty()) {
-                                    val hF = if (height > 0) height.toFloat() else 2400f
-                                    val startYArea = hF * 0.25f
-                                    val endYArea = hF * 0.75f
-                                    val usableHeight = endYArea - startYArea
-                                    val normY = ((y - startYArea) / usableHeight).coerceIn(0f, 1f)
-                                    initialCatIndex = floor(normY * cachedCategories.size).toInt().coerceIn(0, cachedCategories.size - 1)
-                                    activeCatIndex = initialCatIndex
-                                    val catLineH = usableHeight / cachedCategories.size
-                                    categoryVisualOffset = (hF / 2f) - (startYArea + (activeCatIndex * catLineH) + (catLineH / 2f))
-                                }
-                                invalidate()
-                            }
-                        }
-                    }.start()
+                    cachedCategories = dataBridge.getLiveCategories()
+                    if (cachedCategories.isNotEmpty()) {
+                        val hF = if (height > 0) height.toFloat() else resources.displayMetrics.heightPixels.toFloat()
+                        val startYArea = hF * 0.25f
+                        val endYArea = hF * 0.75f
+                        val usableHeight = endYArea - startYArea
+                        val normY = ((y - startYArea) / usableHeight).coerceIn(0f, 1f)
+                        initialCatIndex = floor(normY * cachedCategories.size).toInt().coerceIn(0, cachedCategories.size - 1)
+                        activeCatIndex = initialCatIndex
+                        val catLineH = usableHeight / cachedCategories.size
+                        categoryVisualOffset = (hF / 2f) - (startYArea + (activeCatIndex * catLineH) + (catLineH / 2f))
+                    }
+                    invalidate()
                 } else if (currentActiveZone != TouchZone.NONE) {
                     macroTrackingActive = true
                     uiHandler.postDelayed(holdTimerRunnable, ViewConfiguration.getLongPressTimeout().toLong())
@@ -556,12 +554,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> {
                 val density = resources.displayMetrics.density // Convert hardcoded pixels to device-agnostic DP
                 if (isCruising) {
-                    val density = resources.displayMetrics.density
                     val deltaX = touchDownRawX - rawX
                     val deltaY = abs(rawY - touchDownRawY)
 
                     // Immediate Horizontal Breakthrough: Trigger Gyroscope before category loop engages
-                    if (currentLayer == CruiseLayer.CATEGORY && deltaX > (24f * density) && deltaY < (14f * density)) {
+                    if (currentLayer == CruiseLayer.CATEGORY && deltaX > (18f * density) && deltaY < (28f * density)) {
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
                     }
@@ -817,20 +814,21 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private fun preloadActiveCategoryIcons() {
         try {
             applicationIconCache.clear()
-            val pm = context.packageManager
             for (target in cachedApps) {
-                if (!target.isWidget && !applicationIconCache.containsKey(target.packageName)) {
-                    val intent = pm.getLaunchIntentForPackage(target.packageName)
-                    val drawable = if (intent != null) pm.getActivityIcon(intent) else pm.getApplicationIcon(target.packageName)
-                    applicationIconCache[target.packageName] = drawable
+                if (!target.isWidget) {
+                    val drawable = dataBridge.getIcon(target.packageName)
+                    if (drawable != null) {
+                        applicationIconCache[target.packageName] = drawable
+                    }
                 }
             }
-        } catch (e: Exception) {}
+        } catch (_: Exception) {}
     }
 
     private fun evaluateSpatialMetrics(rawX: Float, rawY: Float, localX: Float, localY: Float) {
         val wF = width.toFloat(); val hF = height.toFloat()
         if (wF <= 0f || hF <= 0f) return
+        val density = resources.displayMetrics.density
         depthPercentage = ((wF - localX) / wF).coerceIn(0f, 1f)
         val verticalComfortScope = hF * 0.40f
         val verticalStartAnchor = hF * 0.30f
@@ -838,7 +836,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         if (currentLayer == CruiseLayer.CATEGORY) {
             activeItem = null; viewportScrollOffset = 0f
-            if (wF >= 500f && (touchDownRawX - rawX) > (wF * 0.12f) && (System.currentTimeMillis() - entranceStartTime) > 150L) {
+            if ((touchDownRawX - rawX) > (26f * density)) {
                 currentLayer = CruiseLayer.GRID; loadActiveCategoryGrid(); invalidate(); return
             }
             if (cachedCategories.isNotEmpty()) {

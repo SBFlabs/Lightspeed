@@ -2,6 +2,13 @@
 
 All notable changes to the Lightspeed Gesture Launcher & Workspace are documented in this file.
 
+## [1.1.1] - 2026-08-23
+
+### 🚀 Highlights & Fixes
+* **Gesture Decision Gate (Zero Flicker)**: Added a quiet neutral intent resolution gate to `LightspeedCruiseOverlay`. Direct lateral swipes to open the Cockpit / Gears Wheel now render 100% seamlessly without flashing the 3D category cylinder in the background.
+* **Rock-Solid Gesture Separation**: Distinctly isolates fast lateral swipes (Cockpit/Gears) from deliberate vertical category scrubbing (Category App Grid).
+* **Backup & Restore SAF Hardening**: Enforced `"wt"` stream mode and explicit JSON type coercions to ensure 100% reliable settings backup and restore across Android versions.
+
 ---
 
 ## [1.1.0] - 2026-08-23

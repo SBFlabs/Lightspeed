@@ -556,7 +556,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     lastLoadedCategoryId = null
                     snapAnimator?.cancel()
                     categoryAppsCache.clear(); categoryGridCache.clear()
-                    categoryHeightCache.clear(); applicationIconCache.clear()
+                    val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+                    if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
+                        activeGearSetIndex = cPrefs.getInt("last_active_set_index", 0)
+                    } else {
+                        activeGearSetIndex = 0
+                    }
                     currentLayer = CruiseLayer.NEUTRAL
                     updateMetricsDimensions()
                     placedAppsList.clear(); cachedApps = emptyList()
@@ -597,6 +602,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     if ((currentLayer == CruiseLayer.NEUTRAL || currentLayer == CruiseLayer.CATEGORY) &&
                         !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
                         uiHandler.removeCallbacks(neutralToCategoryRunnable)
+                        val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+                        if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
+                            activeGearSetIndex = cPrefs.getInt("last_active_set_index", 0)
+                        } else {
+                            activeGearSetIndex = 0
+                        }
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
                     }
@@ -1042,6 +1053,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         isStickyPinned = false; isCruising = false; currentLayer = CruiseLayer.HIDDEN
         activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f
         placedAppsList.clear(); cachedApps = emptyList(); cachedCategories = emptyList()
+        val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        if (cPrefs.getString("cockpit_launch_behavior", "default") != "last") {
+            activeGearSetIndex = 0
+        }
         service?.updateWindowLayout(false)
         updateMetricsDimensions()
         invalidate()
@@ -1156,6 +1171,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             if (!isCubeRotationFired) {
                 isCubeRotationFired = true
                 activeGearSetIndex = (activeGearSetIndex + 1) % totalGearSetsCount
+                val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+                if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
+                    cPrefs.edit().putInt("last_active_set_index", activeGearSetIndex).apply()
+                }
                 triggerHardwareHaptic(55, 255) // Solid mechanical locking thud
             }
         } else if (deltaX < innerThreshold + (25f * density)) {

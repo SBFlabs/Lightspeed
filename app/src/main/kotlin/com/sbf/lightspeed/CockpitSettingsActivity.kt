@@ -147,22 +147,38 @@ class CockpitSettingsActivity : ComponentActivity() {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(14.dp))
-                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
+                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text("Launch Mode:", fontSize = 13.sp, color = Color.White.copy(alpha = 0.8f), modifier = Modifier.weight(1f))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Launch Mode", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                            Text(
+                                                if (launchBehavior == "default") "Always starts on first profile" else "Resumes on last used profile",
+                                                fontSize = 10.sp,
+                                                color = Color.LightGray.copy(alpha = 0.6f)
+                                            )
+                                        }
                                         
                                         FilterChip(
                                             selected = launchBehavior == "default",
                                             onClick = { launchBehavior = "default" },
-                                            label = { Text("Always Default", fontSize = 11.sp) },
+                                            label = { Text("Always Default", fontSize = 11.sp, fontWeight = if (launchBehavior == "default") FontWeight.Bold else FontWeight.Normal) },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = dynamicColorScheme.primary,
+                                                selectedLabelColor = Color.White
+                                            ),
                                             modifier = Modifier.padding(end = 6.dp)
                                         )
                                         FilterChip(
                                             selected = launchBehavior == "last",
                                             onClick = { launchBehavior = "last" },
-                                            label = { Text("Remember Last", fontSize = 11.sp) }
+                                            label = { Text("Remember Last", fontSize = 11.sp, fontWeight = if (launchBehavior == "last") FontWeight.Bold else FontWeight.Normal) },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = dynamicColorScheme.primary,
+                                                selectedLabelColor = Color.White
+                                            )
                                         )
                                     }
 
@@ -184,26 +200,35 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                     .padding(12.dp)
                                             ) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    OutlinedTextField(
+                                                    TextField(
                                                         value = currentName,
                                                         onValueChange = { currentName = it; setNames[id] = it },
-                                                        colors = OutlinedTextFieldDefaults.colors(
+                                                        placeholder = { Text("Profile Name...", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp) },
+                                                        textStyle = androidx.compose.ui.text.TextStyle(
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Color.White
+                                                        ),
+                                                        colors = TextFieldDefaults.colors(
+                                                            focusedContainerColor = Color.White.copy(alpha = 0.08f),
+                                                            unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
                                                             focusedTextColor = Color.White,
                                                             unfocusedTextColor = Color.White,
-                                                            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                                                            unfocusedContainerColor = Color.Transparent
+                                                            focusedIndicatorColor = Color.Transparent,
+                                                            unfocusedIndicatorColor = Color.Transparent,
+                                                            disabledIndicatorColor = Color.Transparent
                                                         ),
-                                                        shape = RoundedCornerShape(10.dp),
-                                                        modifier = Modifier.weight(1f).height(48.dp),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        modifier = Modifier.weight(1f).height(52.dp),
                                                         singleLine = true
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Button(
                                                         onClick = { selectedSetId = id; activeRingTab = 0 },
                                                         colors = ButtonDefaults.buttonColors(containerColor = dynamicColorScheme.primary),
-                                                        shape = RoundedCornerShape(10.dp),
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        modifier = Modifier.height(44.dp)
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        contentPadding = PaddingValues(horizontal = 14.dp),
+                                                        modifier = Modifier.height(52.dp)
                                                     ) {
                                                         Text("GEARS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                                     }

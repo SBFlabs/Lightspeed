@@ -56,7 +56,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
 
 
-    enum class CruiseLayer { HIDDEN, CATEGORY, GRID, STICKY_PIN, FAVORITES_GEARS, COCKPIT_HANGAR }
+    enum class CruiseLayer { HIDDEN, NEUTRAL, CATEGORY, GRID, STICKY_PIN, FAVORITES_GEARS, COCKPIT_HANGAR }
     enum class TouchZone { NONE, TOP_EDGE, CENTER_CRUISE, BOTTOM_EDGE }
     
     enum class MacroGesture {
@@ -164,6 +164,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 triggerHardwareHaptic(35, 160)
                 macroTrackingActive = false
             }
+        }
+    }
+
+    private val neutralToCategoryRunnable = Runnable {
+        if (isCruising && currentLayer == CruiseLayer.NEUTRAL) {
+            currentLayer = CruiseLayer.CATEGORY
+            entranceStartTime = System.currentTimeMillis()
+            invalidate()
         }
     }
 
@@ -549,7 +557,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     snapAnimator?.cancel()
                     categoryAppsCache.clear(); categoryGridCache.clear()
                     categoryHeightCache.clear(); applicationIconCache.clear()
-                    currentLayer = CruiseLayer.CATEGORY
+                    currentLayer = CruiseLayer.NEUTRAL
                     updateMetricsDimensions()
                     placedAppsList.clear(); cachedApps = emptyList()
                     service?.updateWindowLayout(true)
@@ -566,6 +574,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         val catLineH = usableHeight / cachedCategories.size
                         categoryVisualOffset = (hF / 2f) - (startYArea + (activeCatIndex * catLineH) + (catLineH / 2f))
                     }
+                    uiHandler.removeCallbacks(neutralToCategoryRunnable)
+                    uiHandler.postDelayed(neutralToCategoryRunnable, 140L)
                     invalidate()
                 } else if (currentActiveZone != TouchZone.NONE) {
                     macroTrackingActive = true
@@ -582,21 +592,26 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         maxVerticalDisplacement = deltaY
                     }
 
-                    // Deliberate category scrubbing requires moving along the edge (> 20dp)
-                    if (maxVerticalDisplacement > (20f * density)) {
-                        categoryScrubbingEngaged = true
-                    }
-
-                    // Direct Lateral Swipe from rest -> Open Gears / Cockpit
-                    // Fires when the swipe is primarily horizontal and no vertical category scrubbing has occurred
-                    if (currentLayer == CruiseLayer.CATEGORY && !categoryScrubbingEngaged && deltaX > (18f * density) && deltaX > (deltaY * 1.1f)) {
+                    // 1. Direct Lateral Swipe from rest -> Open Gears / Cockpit immediately
+                    // Zero category flicker because NEUTRAL never painted categories on screen!
+                    if ((currentLayer == CruiseLayer.NEUTRAL || currentLayer == CruiseLayer.CATEGORY) &&
+                        !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
+                        uiHandler.removeCallbacks(neutralToCategoryRunnable)
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
                     }
 
+                    // 2. Deliberate vertical movement -> Engage Category 3D Cylinder
+                    if (currentLayer == CruiseLayer.NEUTRAL && maxVerticalDisplacement > (14f * density)) {
+                        uiHandler.removeCallbacks(neutralToCategoryRunnable)
+                        categoryScrubbingEngaged = true
+                        currentLayer = CruiseLayer.CATEGORY
+                        entranceStartTime = System.currentTimeMillis()
+                    }
+
                     if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
                         processGyroscopeTouchPhysics(rawX, rawY)
-                    } else {
+                    } else if (currentLayer == CruiseLayer.CATEGORY || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN) {
                         evaluateSpatialMetrics(rawX, rawY, x, y)
                     }
                     lastTouchRawX = rawX
@@ -731,11 +746,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         return true
                     }
 
+                    uiHandler.removeCallbacks(neutralToCategoryRunnable)
                     if (currentLayer == CruiseLayer.STICKY_PIN) {
                         isStickyPinned = true; currentLayer = CruiseLayer.GRID
                         updateMetricsDimensions(); invalidate()
                     } else if (currentLayer == CruiseLayer.CATEGORY && activeCatIndex in cachedCategories.indices && cachedCategories[activeCatIndex].id == "launcher_settings_virtual_id") {
                         launchLauncherSettings()
+                    } else if (currentLayer == CruiseLayer.NEUTRAL) {
+                        dismissOverlay()
                     } else {
                         activeItem?.let { executeLaunch(it); dismissOverlay() } ?: dismissOverlay()
                     }
@@ -1229,6 +1247,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             canvas.drawRect(topVisualBounds, highlightPaint)
             canvas.drawRoundRect(centerVisualBounds, 6f, 6f, highlightPaint)
             canvas.drawRect(bottomVisualBounds, highlightPaint)
+            return
+        }
+
+        if (currentLayer == CruiseLayer.NEUTRAL) {
+            // Keep background neutral during intent decision gate (eliminates category ghost frames before Gears)
             return
         }
 

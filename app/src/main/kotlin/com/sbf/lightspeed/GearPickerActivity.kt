@@ -15,6 +15,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -116,6 +119,9 @@ class GearPickerActivity : ComponentActivity() {
             var expandedSubsections by remember { mutableStateOf(setOf<String>()) }
             val listState = rememberLazyListState()
             val coroutineScope = rememberCoroutineScope()
+            var sideBarHeight by remember { mutableStateOf(1f) }
+            var isDragging by remember { mutableStateOf(false) }
+            var hudLetter by remember { mutableStateOf("") }
 
             LaunchedEffect(Unit) {
                 LightspeedActionRegistry.ensureIndexed(this@GearPickerActivity)
@@ -377,302 +383,377 @@ class GearPickerActivity : ComponentActivity() {
                             singleLine = true
                         )
 
-                        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.weight(1f).fillMaxHeight()
-                            ) {
-                                items(
-                                    items = flatItemsList,
-                                    key = { it.key }
-                                ) { item ->
-                                    when (item) {
-                                        is PickerRowItem.SystemHeader -> {
-                                            val sysKey = "category:system"
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(vertical = 3.dp)
-                                                    .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
-                                                    .clickable {
-                                                        expandedSubsections = if (item.isExpanded) {
-                                                            expandedSubsections - sysKey
-                                                        } else {
-                                                            expandedSubsections + sysKey
-                                                        }
-                                                    }
-                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "⚡ System Actions (${item.count})",
-                                                    color = Color.White,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                                Icon(
-                                                    Icons.Default.ArrowDropDown,
-                                                    contentDescription = null,
-                                                    tint = dynamicSecondary,
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.weight(1f).fillMaxHeight()
+                                ) {
+                                    items(
+                                        items = flatItemsList,
+                                        key = { it.key }
+                                    ) { item ->
+                                        when (item) {
+                                            is PickerRowItem.SystemHeader -> {
+                                                val sysKey = "category:system"
+                                                Row(
                                                     modifier = Modifier
-                                                        .size(20.dp)
-                                                        .rotate(if (item.isExpanded) 180f else 0f)
-                                                )
-                                            }
-                                        }
-                                        is PickerRowItem.SystemAction -> {
-                                            val isChecked = selectedTokens.contains(item.token)
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
-                                                    .background(
-                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .clickable {
-                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
-                                                    }
-                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(text = item.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal)
-                                                    Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
-                                                }
-                                                Checkbox(
-                                                    checked = isChecked,
-                                                    onCheckedChange = {
-                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
-                                                    },
-                                                    colors = CheckboxDefaults.colors(
-                                                        checkedColor = dynamicPrimary,
-                                                        checkmarkColor = Color.White
-                                                    )
-                                                )
-                                            }
-                                        }
-                                        is PickerRowItem.AppHeader -> {
-                                            val appKey = "app:${item.packageName}"
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(vertical = 3.dp)
-                                                    .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
-                                                    .clickable {
-                                                        expandedSubsections = if (item.isExpanded) {
-                                                            expandedSubsections - appKey
-                                                        } else {
-                                                            expandedSubsections + appKey
-                                                        }
-                                                    }
-                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
-                                                if (iconBmp != null) {
-                                                    Image(
-                                                        bitmap = iconBmp.asImageBitmap(),
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(28.dp).padding(end = 8.dp)
-                                                    )
-                                                } else {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(28.dp)
-                                                            .padding(end = 8.dp)
-                                                            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                                                    )
-                                                }
-                                                Text(
-                                                    text = item.appName,
-                                                    color = Color.White,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    modifier = Modifier.weight(1f),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Icon(
-                                                    Icons.Default.ArrowDropDown,
-                                                    contentDescription = null,
-                                                    tint = dynamicSecondary,
-                                                    modifier = Modifier
-                                                        .size(20.dp)
-                                                        .rotate(if (item.isExpanded) 180f else 0f)
-                                                )
-                                            }
-                                        }
-                                        is PickerRowItem.AppLaunchItem -> {
-                                            val isChecked = selectedTokens.contains(item.token)
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
-                                                    .background(
-                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .clickable {
-                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
-                                                    }
-                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(text = "Launch ${item.appName}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal)
-                                                    Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
-                                                }
-                                                Checkbox(
-                                                    checked = isChecked,
-                                                    onCheckedChange = {
-                                                        if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
-                                                    },
-                                                    colors = CheckboxDefaults.colors(
-                                                        checkedColor = dynamicPrimary,
-                                                        checkmarkColor = Color.White
-                                                    )
-                                                )
-                                            }
-                                        }
-                                        is PickerRowItem.SubHeader -> {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 12.dp, top = 2.dp, bottom = 2.dp)
-                                                    .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
-                                                    .clickable {
-                                                        expandedSubsections = if (item.isExpanded) {
-                                                            expandedSubsections - item.subKey
-                                                        } else {
-                                                            expandedSubsections + item.subKey
-                                                        }
-                                                    }
-                                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = item.label,
-                                                    color = dynamicSecondary,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    modifier = Modifier.weight(1f),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Icon(
-                                                    Icons.Default.ArrowDropDown,
-                                                    contentDescription = null,
-                                                    tint = dynamicSecondary,
-                                                    modifier = Modifier
-                                                        .size(18.dp)
-                                                        .rotate(if (item.isExpanded) 180f else 0f)
-                                                )
-                                            }
-                                        }
-                                        is PickerRowItem.ShortcutAction -> {
-                                            val isChecked = selectedTokens.contains(item.token)
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 22.dp, top = 2.dp, bottom = 2.dp)
-                                                    .background(
-                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .clickable {
-                                                        if (item.isPlugin && !isChecked) {
-                                                            val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
-                                                            val act = item.token.substringAfter(";activity=").substringBefore(";")
-                                                            val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
-                                                                setClassName(pkg, act)
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 3.dp)
+                                                        .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
+                                                        .clickable {
+                                                            expandedSubsections = if (item.isExpanded) {
+                                                                expandedSubsections - sysKey
+                                                            } else {
+                                                                expandedSubsections + sysKey
                                                             }
-                                                            shortcutConfigLauncher.launch(intent)
-                                                        } else {
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "⚡ System Actions (${item.count})",
+                                                        color = Color.White,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Icon(
+                                                        Icons.Default.ArrowDropDown,
+                                                        contentDescription = null,
+                                                        tint = dynamicSecondary,
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .rotate(if (item.isExpanded) 180f else 0f)
+                                                    )
+                                                }
+                                            }
+                                            is PickerRowItem.SystemAction -> {
+                                                val isChecked = selectedTokens.contains(item.token)
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
+                                                        .background(
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable {
                                                             if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
                                                         }
+                                                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(text = item.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal)
+                                                        Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
                                                     }
-                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Checkbox(
+                                                        checked = isChecked,
+                                                        onCheckedChange = {
+                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                        },
+                                                        colors = CheckboxDefaults.colors(
+                                                            checkedColor = dynamicPrimary,
+                                                            checkmarkColor = Color.White
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            is PickerRowItem.AppHeader -> {
+                                                val appKey = "app:${item.packageName}"
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 3.dp)
+                                                        .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
+                                                        .clickable {
+                                                            expandedSubsections = if (item.isExpanded) {
+                                                                expandedSubsections - appKey
+                                                            } else {
+                                                                expandedSubsections + appKey
+                                                            }
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
+                                                    if (iconBmp != null) {
+                                                        Image(
+                                                            bitmap = iconBmp.asImageBitmap(),
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(28.dp).padding(end = 8.dp)
+                                                        )
+                                                    } else {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(28.dp)
+                                                                .padding(end = 8.dp)
+                                                                .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = item.appName,
+                                                        color = Color.White,
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        modifier = Modifier.weight(1f),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Icon(
+                                                        Icons.Default.ArrowDropDown,
+                                                        contentDescription = null,
+                                                        tint = dynamicSecondary,
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .rotate(if (item.isExpanded) 180f else 0f)
+                                                    )
+                                                }
+                                            }
+                                            is PickerRowItem.AppLaunchItem -> {
+                                                val isChecked = selectedTokens.contains(item.token)
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
+                                                        .background(
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable {
+                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(text = "Launch ${item.appName}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Normal)
+                                                        Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
+                                                    }
+                                                    Checkbox(
+                                                        checked = isChecked,
+                                                        onCheckedChange = {
+                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                        },
+                                                        colors = CheckboxDefaults.colors(
+                                                            checkedColor = dynamicPrimary,
+                                                            checkmarkColor = Color.White
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            is PickerRowItem.SubHeader -> {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = 12.dp, top = 2.dp, bottom = 2.dp)
+                                                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
+                                                        .clickable {
+                                                            expandedSubsections = if (item.isExpanded) {
+                                                                expandedSubsections - item.subKey
+                                                            } else {
+                                                                expandedSubsections + item.subKey
+                                                            }
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
                                                     Text(
                                                         text = item.label,
-                                                        color = Color.White,
-                                                        fontSize = 13.sp,
-                                                        fontWeight = FontWeight.Normal,
+                                                        color = dynamicSecondary,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        modifier = Modifier.weight(1f),
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
-                                                    Text(
-                                                        text = item.token,
-                                                        color = Color.LightGray.copy(alpha = 0.40f),
-                                                        fontSize = 10.sp,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
+                                                    Icon(
+                                                        Icons.Default.ArrowDropDown,
+                                                        contentDescription = null,
+                                                        tint = dynamicSecondary,
+                                                        modifier = Modifier
+                                                            .size(18.dp)
+                                                            .rotate(if (item.isExpanded) 180f else 0f)
                                                     )
                                                 }
-
-                                                Checkbox(
-                                                    checked = isChecked,
-                                                    onCheckedChange = {
-                                                        if (item.isPlugin && !isChecked) {
-                                                            val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
-                                                            val act = item.token.substringAfter(";activity=").substringBefore(";")
-                                                            val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
-                                                                setClassName(pkg, act)
-                                                            }
-                                                            shortcutConfigLauncher.launch(intent)
-                                                        } else {
-                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
-                                                        }
-                                                    },
-                                                    colors = CheckboxDefaults.colors(
-                                                        checkedColor = dynamicPrimary,
-                                                        checkmarkColor = Color.White
-                                                    )
-                                                )
                                             }
+                                            is PickerRowItem.ShortcutAction -> {
+                                                val isChecked = selectedTokens.contains(item.token)
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = 22.dp, top = 2.dp, bottom = 2.dp)
+                                                        .background(
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable {
+                                                            if (item.isPlugin && !isChecked) {
+                                                                val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
+                                                                val act = item.token.substringAfter(";activity=").substringBefore(";")
+                                                                val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                                                                    setClassName(pkg, act)
+                                                                }
+                                                                shortcutConfigLauncher.launch(intent)
+                                                            } else {
+                                                                if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                            }
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = item.label,
+                                                            color = Color.White,
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.Normal,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        Text(
+                                                            text = item.token,
+                                                            color = Color.LightGray.copy(alpha = 0.40f),
+                                                            fontSize = 10.sp,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+
+                                                    Checkbox(
+                                                        checked = isChecked,
+                                                        onCheckedChange = {
+                                                            if (item.isPlugin && !isChecked) {
+                                                                val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
+                                                                val act = item.token.substringAfter(";activity=").substringBefore(";")
+                                                                val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                                                                    setClassName(pkg, act)
+                                                                }
+                                                                shortcutConfigLauncher.launch(intent)
+                                                            } else {
+                                                                if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                            }
+                                                        },
+                                                        colors = CheckboxDefaults.colors(
+                                                            checkedColor = dynamicPrimary,
+                                                            checkmarkColor = Color.White
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // High Sensitivity Continuous Drag A-Z Index Scroller
+                                val letters = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .width(32.dp)
+                                        .padding(start = 4.dp)
+                                        .onGloballyPositioned { sideBarHeight = it.size.height.toFloat().coerceAtLeast(1f) }
+                                        .pointerInput(flatItemsList) {
+                                            awaitPointerEventScope {
+                                                while (true) {
+                                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                                    isDragging = true
+                                                    val currentY = down.position.y.coerceIn(0f, sideBarHeight)
+
+                                                    if (flatItemsList.isNotEmpty()) {
+                                                        val ratio = (currentY / sideBarHeight).coerceIn(0f, 1f)
+                                                        val letterIdx = (ratio * (letters.length - 1)).toInt().coerceIn(0, letters.length - 1)
+                                                        val targetChar = letters[letterIdx]
+                                                        
+                                                        val targetItemIdx = letterIndices[targetChar] ?: run {
+                                                            val availableLetters = letterIndices.keys.sorted()
+                                                            val closest = availableLetters.minByOrNull { kotlin.math.abs(it - targetChar) }
+                                                            closest?.let { letterIndices[it] }
+                                                        }
+                                                        
+                                                        targetItemIdx?.let { coroutineScope.launch { listState.scrollToItem(it) } }
+                                                        hudLetter = targetChar.toString()
+                                                    }
+                                                    down.consume()
+
+                                                    while (true) {
+                                                        val event = awaitPointerEvent()
+                                                        val dragChange = event.changes.firstOrNull()
+                                                        if (dragChange != null && dragChange.pressed) {
+                                                            val dragY = dragChange.position.y.coerceIn(0f, sideBarHeight)
+                                                            if (flatItemsList.isNotEmpty()) {
+                                                                val ratio = (dragY / sideBarHeight).coerceIn(0f, 1f)
+                                                                val letterIdx = (ratio * (letters.length - 1)).toInt().coerceIn(0, letters.length - 1)
+                                                                val targetChar = letters[letterIdx]
+                                                                
+                                                                val targetItemIdx = letterIndices[targetChar] ?: run {
+                                                                    val availableLetters = letterIndices.keys.sorted()
+                                                                    val closest = availableLetters.minByOrNull { kotlin.math.abs(it - targetChar) }
+                                                                    closest?.let { letterIndices[it] }
+                                                                }
+                                                                
+                                                                targetItemIdx?.let { coroutineScope.launch { listState.scrollToItem(it) } }
+                                                                hudLetter = targetChar.toString()
+                                                            }
+                                                            dragChange.consume()
+                                                        } else {
+                                                            isDragging = false
+                                                            break
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                    verticalArrangement = Arrangement.SpaceEvenly,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    letters.forEach { letter ->
+                                        val hasApps = letterIndices.containsKey(letter)
+                                        Box(
+                                            modifier = Modifier.weight(1f),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = letter.toString(),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (hasApps) dynamicSecondary else Color.White.copy(alpha = 0.18f)
+                                            )
                                         }
                                     }
                                 }
                             }
 
-                            // Fast A-Z Index Scroller
-                            Column(
-                                modifier = Modifier
-                                    .width(22.dp)
-                                    .fillMaxHeight()
-                                    .padding(start = 4.dp),
-                                verticalArrangement = Arrangement.SpaceEvenly,
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".forEach { letter ->
-                                    val targetIdx = letterIndices[letter]
+                            if (isDragging && hudLetter.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(76.dp)
+                                        .background(Color(0xFF1E1E28).copy(alpha = 0.96f), shape = RoundedCornerShape(18.dp))
+                                        .border(2.dp, dynamicPrimary, shape = RoundedCornerShape(18.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text(
-                                        text = letter.toString(),
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (targetIdx != null) dynamicSecondary else Color.White.copy(alpha = 0.15f),
-                                        modifier = Modifier.clickable(enabled = targetIdx != null) {
-                                            targetIdx?.let { coroutineScope.launch { listState.scrollToItem(it) } }
-                                        }.padding(vertical = 0.5.dp)
+                                        text = hudLetter,
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White
                                     )
                                 }
                             }

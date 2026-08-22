@@ -8,8 +8,10 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.sbf.lightspeed.system.LightspeedBackupEngine
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -261,6 +263,34 @@ fun SidebarMatrixConfigurationFields(context: Context, prefs: android.content.Sh
     var isCenterExpanded by remember { mutableStateOf(false) }
     var isTopExpanded by remember { mutableStateOf(true) }
     var isBottomExpanded by remember { mutableStateOf(false) }
+    var isBackupExpanded by remember { mutableStateOf(false) }
+    var showResetConfirmDialog by remember { mutableStateOf(false) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val result = LightspeedBackupEngine.exportToFile(context, uri)
+            result.onSuccess { count ->
+                Toast.makeText(context, "Exported $count settings to JSON successfully!", Toast.LENGTH_SHORT).show()
+            }.onFailure { err ->
+                Toast.makeText(context, "Export failed: ${err.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val result = LightspeedBackupEngine.importFromFile(context, uri)
+            result.onSuccess { count ->
+                Toast.makeText(context, "Restored $count settings successfully!", Toast.LENGTH_SHORT).show()
+            }.onFailure { err ->
+                Toast.makeText(context, "Import failed: ${err.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     val dynamicActionTokens = LightspeedActionRegistry.allTokens
     val tokenLabelCache = LightspeedActionRegistry.labelCache
@@ -279,7 +309,7 @@ fun SidebarMatrixConfigurationFields(context: Context, prefs: android.content.Sh
 
     LaunchedEffect(subAllCollapsed) {
         val ns = !subAllCollapsed
-        isStatusBarExpanded = ns; isCenterExpanded = ns; isTopExpanded = ns; isBottomExpanded = ns
+        isStatusBarExpanded = ns; isCenterExpanded = ns; isTopExpanded = ns; isBottomExpanded = ns; isBackupExpanded = ns
     }
 
     val customVectors = listOf(
@@ -355,6 +385,118 @@ fun SidebarMatrixConfigurationFields(context: Context, prefs: android.content.Sh
                     }
                 }
             }
+        }
+
+        CompactAccordionSection(
+            title = "Backup & Restore Engine",
+            isExpanded = isBackupExpanded,
+            onToggle = { isBackupExpanded = !isBackupExpanded }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Export Card
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                        .clickable { exportLauncher.launch(LightspeedBackupEngine.generateDefaultFileName()) }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = "Export", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                        Text("Save all gesture maps, coordinates & gears to a local backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                    }
+                }
+
+                // Import Card
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                        .clickable { importLauncher.launch(arrayOf("application/json", "*/*")) }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CloudDownload, contentDescription = "Import", tint = MaterialTheme.colorScheme.secondary)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                        Text("Restore complete settings from a previous Lightspeed backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                    }
+                }
+
+                // Reset Card
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
+                        .clickable { showResetConfirmDialog = true }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Reset to Factory Defaults", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
+                        Text("Wipe custom settings and revert to pristine defaults", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                    }
+                }
+            }
+        }
+
+        if (showResetConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showResetConfirmDialog = false },
+                title = { Text("Reset to Factory Defaults?", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = { Text("This will wipe all customized gestures, sensitivity sliders, and custom gear sets. This action cannot be undone.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            LightspeedBackupEngine.resetToDefaults(context)
+                            showResetConfirmDialog = false
+                            Toast.makeText(context, "Preferences reset to factory defaults", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Reset Everything", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetConfirmDialog = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         }
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -547,14 +689,30 @@ fun FloatingOverlayContainer(
     headerControl: @Composable (RowScope.() -> Unit) = {},
     content: @Composable () -> Unit
 ) {
+    val glassBorder = Brush.verticalGradient(
+        colors = listOf(
+            Color.White.copy(alpha = 0.28f),
+            Color.White.copy(alpha = 0.08f),
+            Color.White.copy(alpha = 0.03f)
+        )
+    )
+
     Card(
         modifier = Modifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(28.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.68f))
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(28.dp)),
+            .clip(RoundedCornerShape(32.dp))
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                    ),
+                    radius = 1200f
+                )
+            )
+            .border(1.2.dp, glassBorder, RoundedCornerShape(32.dp)),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(28.dp)
+        shape = RoundedCornerShape(32.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             Row(

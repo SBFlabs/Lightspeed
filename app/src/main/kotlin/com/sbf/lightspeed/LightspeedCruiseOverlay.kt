@@ -335,6 +335,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     uniform float2 viewSize;
                     uniform float topBlurHeight;
                     uniform float bottomBlurHeight;
+
                     half4 main(float2 fragCoord) {
                         float blurAlpha = 0.0;
                         if (fragCoord.y < topBlurHeight) {
@@ -343,18 +344,35 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             blurAlpha = (fragCoord.y - (viewSize.y - bottomBlurHeight)) / bottomBlurHeight;
                         }
                         blurAlpha = clamp(blurAlpha, 0.0, 1.0);
-                        float fadeProgress = pow(blurAlpha, 1.4);
-                        float step = blurAlpha * 24.0;
-                        half4 color = inputTexture.eval(fragCoord);
-                        if (step > 0.1) {
-                            color += inputTexture.eval(fragCoord + float2(0.0, step * 0.4));
-                            color += inputTexture.eval(fragCoord - float2(0.0, step * 0.4));
-                            color += inputTexture.eval(fragCoord + float2(step * 0.4, 0.0));
-                            color += inputTexture.eval(fragCoord - float2(step * 0.4, 0.0));
-                            color /= 5.0;
+                        float fadeProgress = pow(blurAlpha, 1.3);
+                        float radius = blurAlpha * 24.0;
+
+                        half4 color = half4(0.0);
+                        if (radius > 0.4) {
+                            // Multi-tap Poisson sampling for velvet-smooth liquid glass
+                            color += inputTexture.eval(fragCoord) * 0.22;
+                            color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * 0.13;
+                            color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * 0.13;
+                            color += inputTexture.eval(fragCoord + float2(radius * 0.55, 0.0)) * 0.13;
+                            color += inputTexture.eval(fragCoord - float2(radius * 0.55, 0.0)) * 0.13;
+                            color += inputTexture.eval(fragCoord + float2(radius * 0.38, radius * 0.38)) * 0.065;
+                            color += inputTexture.eval(fragCoord - float2(radius * 0.38, radius * 0.38)) * 0.065;
+                            color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * 0.065;
+                            color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * 0.065;
+
+                            // Subtle chromatic edge refraction (frosted prism effect)
+                            float chroma = radius * 0.08;
+                            half4 rSample = inputTexture.eval(fragCoord + float2(chroma, 0.0));
+                            half4 bSample = inputTexture.eval(fragCoord - float2(chroma, 0.0));
+                            color.r = mix(color.r, rSample.r, 0.25);
+                            color.b = mix(color.b, bSample.b, 0.25);
+                        } else {
+                            color = inputTexture.eval(fragCoord);
                         }
-                        half4 deepSpaceVoid = half4(0.015, 0.015, 0.023, 1.0);
-                        return mix(color, deepSpaceVoid, fadeProgress);
+
+                        // Deep Space Void tint with subtle cosmic purple glow
+                        half4 deepSpaceVoid = half4(0.022, 0.018, 0.035, 1.0);
+                        return mix(color, deepSpaceVoid, fadeProgress * 0.88);
                     }
                 """.trimIndent()
                 val progressiveShader = RuntimeShader(agslSource).apply {

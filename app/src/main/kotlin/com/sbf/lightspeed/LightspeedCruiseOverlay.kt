@@ -33,6 +33,7 @@ import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
 import com.sbf.lightspeed.defaultPrefs
+import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import java.net.URISyntaxException
@@ -1102,36 +1103,223 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
 
-    private fun buildMechanicalGearPath(cx: Float, cy: Float, innerR: Float, outerR: Float, teeth: Int, rotationDeg: Float): android.graphics.Path {
-        val path = android.graphics.Path()
-        val angleStep = 2.0 * Math.PI / teeth
-        val radOffset = Math.toRadians(rotationDeg.toDouble())
+    private fun drawSpaceshipGimbalRing(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        trackRadius: Float,
+        trackWidth: Float,
+        teethCount: Int,
+        toothDepth: Float,
+        rotationDeg: Float,
+        isActive: Boolean,
+        m3Primary: Int
+    ) {
+        val innerR = trackRadius - trackWidth / 2f
+        val outerR = trackRadius + trackWidth / 2f
         
-        for (i in 0 until teeth) {
-            val angle = i * angleStep + radOffset
+        // 1. Frosted Translucent Orbital Gimbal Track Band
+        elementPaint.style = Paint.Style.STROKE
+        elementPaint.strokeWidth = trackWidth
+        elementPaint.color = if (isActive) Color.argb(45, 255, 255, 255) else Color.argb(15, 255, 255, 255)
+        canvas.drawCircle(cx, cy, trackRadius, elementPaint)
+
+        // 2. Inner and Outer Precision Glowing Boundary Rails
+        elementPaint.style = Paint.Style.STROKE
+        elementPaint.strokeWidth = if (isActive) 2.2f else 1.2f
+        elementPaint.color = if (isActive) m3Primary else Color.argb(45, 200, 210, 230)
+        canvas.drawCircle(cx, cy, innerR, elementPaint)
+        canvas.drawCircle(cx, cy, outerR, elementPaint)
+
+        // 3. Precision Laser-Etched Azimuth Ticks
+        val totalTicks = teethCount * 2
+        val tickAngleStep = 360.0 / totalTicks
+        val rotRad = Math.toRadians(rotationDeg.toDouble())
+        elementPaint.style = Paint.Style.STROKE
+        
+        for (i in 0 until totalTicks) {
+            val angleRad = Math.toRadians(i * tickAngleStep) + rotRad
+            val isMajor = (i % 2 == 0)
+            val tickLen = if (isMajor) (trackWidth * 0.35f) else (trackWidth * 0.18f)
+            val tickR1 = outerR - tickLen
+            val tickR2 = outerR
             
-            // Tooth Tip Point A
-            var x = cx + outerR * Math.cos(angle).toFloat()
-            var y = cy + outerR * Math.sin(angle).toFloat()
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            val x1 = cx + tickR1 * Math.cos(angleRad).toFloat()
+            val y1 = cy + tickR1 * Math.sin(angleRad).toFloat()
+            val x2 = cx + tickR2 * Math.cos(angleRad).toFloat()
+            val y2 = cy + tickR2 * Math.sin(angleRad).toFloat()
             
-            // Tooth Tip Point B (Flat top cogs)
-            x = cx + outerR * Math.cos(angle + angleStep * 0.4).toFloat()
-            y = cy + outerR * Math.sin(angle + angleStep * 0.4).toFloat()
-            path.lineTo(x, y)
-            
-            // Tooth Root Valley Point A
-            x = cx + innerR * Math.cos(angle + angleStep * 0.5).toFloat()
-            y = cy + innerR * Math.sin(angle + angleStep * 0.5).toFloat()
-            path.lineTo(x, y)
-            
-            // Tooth Root Valley Point B
-            x = cx + innerR * Math.cos(angle + angleStep * 0.9).toFloat()
-            y = cy + innerR * Math.sin(angle + angleStep * 0.9).toFloat()
-            path.lineTo(x, y)
+            elementPaint.strokeWidth = if (isMajor) 1.8f else 1.0f
+            elementPaint.color = if (isActive) (if (isMajor) Color.argb(180, 255, 255, 255) else Color.argb(100, 255, 255, 255))
+                                 else (if (isMajor) Color.argb(70, 200, 210, 230) else Color.argb(30, 200, 210, 230))
+            canvas.drawLine(x1, y1, x2, y2, elementPaint)
         }
-        path.close()
-        return path
+
+        // 4. Solid Chamfered Magnetic Hyperdrive Teeth (Energy Cogs)
+        val gearPath = android.graphics.Path()
+        val toothAngleStep = (2.0 * Math.PI) / teethCount
+        val toothInnerR = outerR - (toothDepth * 0.25f)
+        val toothOuterR = outerR + toothDepth
+        
+        for (i in 0 until teethCount) {
+            val angle = i * toothAngleStep + rotRad
+            val p1X = cx + toothInnerR * Math.cos(angle).toFloat()
+            val p1Y = cy + toothInnerR * Math.sin(angle).toFloat()
+            if (i == 0) gearPath.moveTo(p1X, p1Y) else gearPath.lineTo(p1X, p1Y)
+
+            val p2X = cx + toothOuterR * Math.cos(angle + toothAngleStep * 0.15).toFloat()
+            val p2Y = cy + toothOuterR * Math.sin(angle + toothAngleStep * 0.15).toFloat()
+            gearPath.lineTo(p2X, p2Y)
+
+            val p3X = cx + toothOuterR * Math.cos(angle + toothAngleStep * 0.35).toFloat()
+            val p3Y = cy + toothOuterR * Math.sin(angle + toothAngleStep * 0.35).toFloat()
+            gearPath.lineTo(p3X, p3Y)
+
+            val p4X = cx + toothInnerR * Math.cos(angle + toothAngleStep * 0.50).toFloat()
+            val p4Y = cy + toothInnerR * Math.sin(angle + toothAngleStep * 0.50).toFloat()
+            gearPath.lineTo(p4X, p4Y)
+
+            val p5X = cx + toothInnerR * Math.cos(angle + toothAngleStep).toFloat()
+            val p5Y = cy + toothInnerR * Math.sin(angle + toothAngleStep).toFloat()
+            gearPath.lineTo(p5X, p5Y)
+        }
+        gearPath.close()
+
+        // Draw Teeth Surface Fill
+        elementPaint.style = Paint.Style.FILL
+        elementPaint.color = if (isActive) Color.argb(55, 255, 255, 255) else Color.argb(18, 255, 255, 255)
+        canvas.drawPath(gearPath, elementPaint)
+
+        // Draw Teeth Glowing Edge Contour
+        elementPaint.style = Paint.Style.STROKE
+        elementPaint.strokeWidth = if (isActive) 2.2f else 1.2f
+        elementPaint.color = if (isActive) Color.argb(220, 240, 245, 255) else Color.argb(60, 150, 160, 180)
+        canvas.drawPath(gearPath, elementPaint)
+    }
+
+    private fun drawFlightLockReticle(
+        canvas: Canvas,
+        targetCX: Float,
+        targetCY: Float,
+        bracketSize: Float,
+        m3Primary: Int,
+        appName: String,
+        density: Float
+    ) {
+        val half = bracketSize / 2f
+        val armLen = bracketSize * 0.28f
+        
+        elementPaint.style = Paint.Style.STROKE
+        elementPaint.strokeWidth = 2.4f * density
+        elementPaint.color = m3Primary
+        
+        // Top-Left Chevron [
+        canvas.drawLine(targetCX - half, targetCY - half + armLen, targetCX - half, targetCY - half, elementPaint)
+        canvas.drawLine(targetCX - half, targetCY - half, targetCX - half + armLen, targetCY - half, elementPaint)
+        
+        // Top-Right Chevron ]
+        canvas.drawLine(targetCX + half - armLen, targetCY - half, targetCX + half, targetCY - half, elementPaint)
+        canvas.drawLine(targetCX + half, targetCY - half, targetCX + half, targetCY - half + armLen, elementPaint)
+        
+        // Bottom-Left Chevron [
+        canvas.drawLine(targetCX - half, targetCY + half - armLen, targetCX - half, targetCY + half, elementPaint)
+        canvas.drawLine(targetCX - half, targetCY + half, targetCX - half + armLen, targetCY + half, elementPaint)
+        
+        // Bottom-Right Chevron ]
+        canvas.drawLine(targetCX + half - armLen, targetCY + half, targetCX + half, targetCY + half, elementPaint)
+        canvas.drawLine(targetCX + half, targetCY + half, targetCX + half, targetCY + half - armLen, elementPaint)
+        
+        // Horizontal Laser Alignment Lead Line extending to left bezel
+        elementPaint.strokeWidth = 1.2f * density
+        elementPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+        canvas.drawLine(0f, targetCY, targetCX - half - 10f, targetCY, elementPaint)
+
+        // Holographic Telemetry Label above/adjacent target
+        textPaint.textSize = 12f * density
+        textPaint.color = Color.WHITE
+        textPaint.textAlign = Paint.Align.LEFT
+        
+        val badgeX = targetCX + half + 14f * density
+        val badgeY = targetCY - 6f * density
+        
+        // Target Lock Badge Frame
+        highlightPaint.style = Paint.Style.FILL
+        highlightPaint.color = Color.argb(190, 16, 20, 32)
+        val textWidth = textPaint.measureText(appName)
+        val badgeRect = RectF(badgeX - 8f * density, badgeY - 14f * density, badgeX + textWidth + 14f * density, badgeY + 20f * density)
+        canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
+        
+        highlightPaint.style = Paint.Style.STROKE
+        highlightPaint.strokeWidth = 1.2f * density
+        highlightPaint.color = m3Primary
+        canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
+        
+        // App Name
+        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        canvas.drawText(appName, badgeX, badgeY + 2f * density, textPaint)
+        
+        // Telemetry Subtext
+        textPaint.textSize = 8.5f * density
+        textPaint.color = Color.argb(200, 180, 220, 255)
+        canvas.drawText("TARGET LOCK // 180°", badgeX, badgeY + 14f * density, textPaint)
+    }
+
+    private fun drawHolographicReactorCore(
+        canvas: Canvas,
+        cx: Float,
+        cy: Float,
+        coreRadius: Float,
+        isActive: Boolean,
+        m3Primary: Int,
+        density: Float
+    ) {
+        // 1. Outer Containment Bezel
+        elementPaint.style = Paint.Style.FILL
+        val coreGrad = android.graphics.RadialGradient(
+            cx, cy, coreRadius,
+            intArrayOf(
+                if (isActive) m3Primary else Color.argb(180, 35, 40, 55),
+                if (isActive) Color.argb(220, 20, 25, 38) else Color.argb(240, 12, 14, 20)
+            ),
+            floatArrayOf(0.0f, 1.0f),
+            android.graphics.Shader.TileMode.CLAMP
+        )
+        elementPaint.shader = coreGrad
+        canvas.drawCircle(cx, cy, coreRadius, elementPaint)
+        elementPaint.shader = null
+
+        // 2. Outer Containment Border
+        elementPaint.style = Paint.Style.STROKE
+        elementPaint.strokeWidth = if (isActive) 3f * density else 1.8f * density
+        elementPaint.color = if (isActive) Color.WHITE else Color.argb(80, 200, 220, 255)
+        canvas.drawCircle(cx, cy, coreRadius, elementPaint)
+
+        // 3. Rotating Inner Containment Ring with 4 Aperture Notches
+        val rotAngle = (System.currentTimeMillis() % 10000L) / 10000f * 360f
+        val innerR = coreRadius * 0.68f
+        elementPaint.strokeWidth = 1.5f * density
+        elementPaint.color = if (isActive) Color.WHITE else Color.argb(120, 200, 220, 255)
+        canvas.drawCircle(cx, cy, innerR, elementPaint)
+
+        for (i in 0..3) {
+            val a = Math.toRadians((rotAngle + i * 90.0))
+            val nx1 = cx + (innerR - 6f * density) * Math.cos(a).toFloat()
+            val ny1 = cy + (innerR - 6f * density) * Math.sin(a).toFloat()
+            val nx2 = cx + (innerR + 6f * density) * Math.cos(a).toFloat()
+            val ny2 = cy + (innerR + 6f * density) * Math.sin(a).toFloat()
+            canvas.drawLine(nx1, ny1, nx2, ny2, elementPaint)
+        }
+
+        // 4. Central Astrogation Aperture Glyph & "COCKPIT" text
+        textPaint.textAlign = Paint.Align.CENTER
+        textPaint.textSize = 10f * density
+        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        textPaint.color = Color.WHITE
+        canvas.drawText("COCKPIT", cx, cy - 2f * density, textPaint)
+
+        textPaint.textSize = 7.5f * density
+        textPaint.color = if (isActive) Color.WHITE else Color.argb(160, 200, 220, 255)
+        canvas.drawText("HANGAR", cx, cy + 10f * density, textPaint)
     }
 
     private fun processGyroscopeTouchPhysics(rawX: Float, rawY: Float) {
@@ -1277,36 +1465,79 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
 
         if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
-            // Apply canvas darkening backdrop for progressive blur alignment
-            canvas.drawColor(Color.argb(160, 10, 10, 14))
-            
+            val density = resources.displayMetrics.density
             val cx = width / 2f
             val cy = height / 2f
             
-            elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = 3.5f
-            
-            // Draw Industrial Machine Gear 1 (Outer Ring, 16 Heavy Teeth Cogs)
-            elementPaint.color = if (activeGearRing == 0) Color.argb(220, 240, 240, 245) else Color.argb(50, 120, 120, 130)
-            val gearPath1 = buildMechanicalGearPath(cx, cy, 290f, 335f, 16, gearRingRotations[0])
-            canvas.drawPath(gearPath1, elementPaint)
-            
-            // Draw Industrial Machine Gear 2 (Inner Interlocking Ring, 12 Cogs)
-            elementPaint.color = if (activeGearRing == 1) Color.argb(220, 240, 240, 245) else Color.argb(50, 120, 120, 130)
-            val gearPath2 = buildMechanicalGearPath(cx, cy, 175f, 215f, 12, gearRingRotations[1])
-            canvas.drawPath(gearPath2, elementPaint)
-            
-            // Render Central Command Hub Centerpiece
+            // 1. Deep Space Astrogation Backdrop with subtle radial vignette
+            val spaceGrad = android.graphics.RadialGradient(
+                cx, cy, (width.toFloat().coerceAtLeast(height.toFloat()) * 0.75f),
+                intArrayOf(Color.argb(210, 10, 14, 22), Color.argb(245, 4, 6, 10)),
+                floatArrayOf(0.0f, 1.0f),
+                android.graphics.Shader.TileMode.CLAMP
+            )
             elementPaint.style = Paint.Style.FILL
-            elementPaint.color = if (activeGearRing == 2) m3Primary else Color.argb(35, 255, 255, 255)
-            canvas.drawCircle(cx, cy, 65f, elementPaint)
+            elementPaint.shader = spaceGrad
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), elementPaint)
+            elementPaint.shader = null
 
-            // --- DYNAMIC GEOMETRIC APP ICON PRESENTATION PASS ---
+            // 2. Flight Telemetry Grid & Attitude Axis Crosshairs
+            elementPaint.style = Paint.Style.STROKE
+            elementPaint.strokeWidth = 1f * density
+            elementPaint.color = Color.argb(24, 200, 220, 255)
+            canvas.drawLine(cx - (380f * density / 2.6f), cy, cx + (380f * density / 2.6f), cy, elementPaint)
+            canvas.drawLine(cx, cy - (380f * density / 2.6f), cx, cy + (380f * density / 2.6f), elementPaint)
+            
+            // Scaled Radii for Outer, Inner, and Core Hub
+            val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
+            val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
+            val radHub = 64f * (density / 2.6f).coerceAtLeast(0.9f)
+            
+            // Draw Outer Orbital Gimbal Ring (Ring 0, 16 Magnetic Cogs)
+            drawSpaceshipGimbalRing(
+                canvas = canvas,
+                cx = cx,
+                cy = cy,
+                trackRadius = rad0,
+                trackWidth = 48f * density / 2.6f,
+                teethCount = 16,
+                toothDepth = 16f * density / 2.6f,
+                rotationDeg = gearRingRotations[0],
+                isActive = (activeGearRing == 0),
+                m3Primary = m3Primary
+            )
+
+            // Draw Inner Orbital Gimbal Ring (Ring 1, 12 Magnetic Cogs)
+            drawSpaceshipGimbalRing(
+                canvas = canvas,
+                cx = cx,
+                cy = cy,
+                trackRadius = rad1,
+                trackWidth = 42f * density / 2.6f,
+                teethCount = 12,
+                toothDepth = 14f * density / 2.6f,
+                rotationDeg = gearRingRotations[1],
+                isActive = (activeGearRing == 1),
+                m3Primary = m3Primary
+            )
+
+            // Draw Central Holographic Warp Core / Cockpit Command Node (Ring 2)
+            drawHolographicReactorCore(
+                canvas = canvas,
+                cx = cx,
+                cy = cy,
+                coreRadius = radHub,
+                isActive = (activeGearRing == 2),
+                m3Primary = m3Primary,
+                density = density
+            )
+
+            // --- ORBITAL APP FLIGHT PODS & ICONS PASS ---
             val pm = context.packageManager
-            val sizeRaw = (42f * resources.displayMetrics.density).toInt()
+            val sizeRaw = (42f * density).toInt()
 
             for (r in 0..1) {
-                val radius = if (r == 0) 320f else 200f
+                val radius = if (r == 0) rad0 else rad1
                 val ringApps = getAppsForActiveGear(activeGearSetIndex, r)
                 if (ringApps.isEmpty()) continue
                 
@@ -1322,10 +1553,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val iconCX = cx + radius * Math.cos(angleRad).toFloat()
                     val iconCY = cy + radius * Math.sin(angleRad).toFloat()
                     
-                    // Dynamic Focus Interpolation: Scale highlighted icon closest to targeting vector zone (180 deg)
+                    // Dynamic Focus Interpolation: Target angle is 180 deg (straight left)
                     val normalizedDeg = if (angleDeg < 0) angleDeg + 360f else angleDeg
                     val isHighlighted = isRingFocused && abs(normalizedDeg - 180f) < (180f / count)
-                    val currentScale = if (isHighlighted) 1.25f else 1.0f
+                    val currentScale = if (isHighlighted) 1.28f else 1.0f
                     val currentSize = (sizeRaw * currentScale).toInt()
                     
                     val itemToken = ringApps[i]
@@ -1339,10 +1570,32 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         itemToken.startsWith("system:") -> ""
                         else -> itemToken
                     }
+
+                    val appLabel = LightspeedActionRegistry.labelCache[itemToken] ?: run {
+                        if (extractedPkg.isNotEmpty()) {
+                            try {
+                                pm.getApplicationLabel(pm.getApplicationInfo(extractedPkg, 0)).toString()
+                            } catch (_: Exception) { extractedPkg }
+                        } else {
+                            itemToken.substringAfter("system:").replace("_", " ").uppercase()
+                        }
+                    }
+
+                    // 1. Orbital Flight Pod Socket Behind Icon
+                    highlightPaint.style = Paint.Style.FILL
+                    highlightPaint.color = if (isHighlighted) Color.argb(200, 22, 28, 44) else Color.argb(90, 16, 20, 30)
+                    canvas.drawCircle(iconCX, iconCY, (currentSize / 2f) + (6f * density), highlightPaint)
+
+                    highlightPaint.style = Paint.Style.STROKE
+                    highlightPaint.strokeWidth = if (isHighlighted) 2.4f * density else 1.2f * density
+                    highlightPaint.color = if (isHighlighted) m3Primary else Color.argb(55, 200, 220, 255)
+                    canvas.drawCircle(iconCX, iconCY, (currentSize / 2f) + (6f * density), highlightPaint)
+
+                    // 2. Draw Icon Drawable or Action Glyph
                     try {
                         if (extractedPkg.isNotEmpty()) {
                             val iconDrawable = pm.getApplicationIcon(extractedPkg)
-                            iconDrawable.alpha = if (isRingFocused) (if (isHighlighted) 255 else 200) else 90
+                            iconDrawable.alpha = if (isRingFocused) (if (isHighlighted) 255 else 210) else 110
                             iconDrawable.setBounds(
                                 (iconCX - currentSize / 2).toInt(),
                                 (iconCY - currentSize / 2).toInt(),
@@ -1360,18 +1613,54 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         elementPaint.color = if (isHighlighted) Color.WHITE else Color.GRAY
                         canvas.drawCircle(iconCX, iconCY, currentSize / 3f, elementPaint)
                     }
+
+                    // 3. Draw 180° Flight Lock Targeting Reticle & Holographic Badge if Highlighted
+                    if (isHighlighted) {
+                        drawFlightLockReticle(
+                            canvas = canvas,
+                            targetCX = iconCX,
+                            targetCY = iconCY,
+                            bracketSize = currentSize + 22f * density,
+                            m3Primary = m3Primary,
+                            appName = appLabel,
+                            density = density
+                        )
+                    }
                 }
             }
             
-            // Render Profile Header Label
-            textPaint.color = Color.WHITE
+            // --- TOP FLIGHT TELEMETRY HUD HEADER (PROFILE HUD) ---
+            val headerY = cy - rad0 - (38f * density)
             val profileName = when(activeGearSetIndex) {
                 0 -> getGearSetNameByIndex(0)
                 1 -> getGearSetNameByIndex(1)
                 2 -> getGearSetNameByIndex(2)
                 else -> getGearSetNameByIndex(3)
             }
-            canvas.drawText(profileName, cx, cy - 380f, textPaint)
+            
+            val headerText = "◈ ASTROGATION // PROFILE $activeGearSetIndex: $profileName ◈"
+            textPaint.textSize = 12.5f * density
+            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textPaint.textAlign = Paint.Align.CENTER
+            val headerWidth = textPaint.measureText(headerText)
+
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(160, 12, 16, 26)
+            val headerRect = RectF(cx - headerWidth / 2f - 16f * density, headerY - 16f * density, cx + headerWidth / 2f + 16f * density, headerY + 16f * density)
+            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
+
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 1.2f * density
+            highlightPaint.color = Color.argb(60, 200, 220, 255)
+            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
+
+            textPaint.color = Color.WHITE
+            canvas.drawText(headerText, cx, headerY + 4f * density, textPaint)
+
+            // Subtitle Guidance Hint
+            textPaint.textSize = 8.5f * density
+            textPaint.color = Color.argb(160, 180, 210, 245)
+            canvas.drawText("PULL RIGHT >> SWITCH PROFILE  •  PULL LEFT << CANCEL", cx, headerY + 28f * density, textPaint)
             return
         }
 

@@ -65,8 +65,32 @@ object LightspeedActionRegistry {
     var isIndexed by mutableStateOf(false)
     val allTokens = mutableStateListOf<String>()
     val labelCache = mutableStateMapOf<String, String>()
+    val iconBitmapCache = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
 
-        fun getBaseTokens(): List<String> = listOf(
+    fun getIconBitmap(context: Context, pkg: String): android.graphics.Bitmap? {
+        if (pkg.isBlank()) return null
+        return iconBitmapCache.getOrPut(pkg) {
+            try {
+                val pm = context.packageManager
+                val drawable = pm.getApplicationIcon(pkg)
+                if (drawable is android.graphics.drawable.BitmapDrawable && drawable.bitmap != null) {
+                    drawable.bitmap
+                } else {
+                    val w = drawable.intrinsicWidth.coerceIn(48, 192)
+                    val h = drawable.intrinsicHeight.coerceIn(48, 192)
+                    val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(bmp)
+                    drawable.setBounds(0, 0, w, h)
+                    drawable.draw(canvas)
+                    bmp
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    fun getBaseTokens(): List<String> = listOf(
         "none", "system:close_app", "system:home", "system:back", "system:recents",
         "system:notifications", "system:quick_settings", "system:scroll_to_top"
     )
@@ -76,6 +100,22 @@ object LightspeedActionRegistry {
             val base = getBaseTokens()
             allTokens.addAll(base)
             base.forEach { labelCache[it] = resolveDynamicTokenLabel(context, it) }
+
+            // Instant Phase 0: Fast synchronous load of launcher apps (< 30ms)
+            try {
+                val pm = context.packageManager
+                val mainIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+                val resolvedApps = pm.queryIntentActivities(mainIntent, 0)
+                val appTokens = mutableListOf<String>()
+                resolvedApps.forEach { resolveInfo ->
+                    val pkg = resolveInfo.activityInfo.packageName
+                    val appToken = "app:$pkg"
+                    appTokens.add(appToken)
+                    val appLabel = pm.getApplicationLabel(resolveInfo.activityInfo.applicationInfo).toString()
+                    labelCache[appToken] = appLabel
+                }
+                allTokens.addAll(appTokens.distinct())
+            } catch (_: Exception) {}
         }
     }
 
@@ -100,6 +140,9 @@ object LightspeedActionRegistry {
                     baseTokens.add(appToken)
                     val appLabel = pm.getApplicationLabel(resolveInfo.activityInfo.applicationInfo).toString()
                     temporaryLabels[appToken] = appLabel
+
+                    // Pre-warm icon cache on background worker thread
+                    getIconBitmap(context, pkg)
 
                     // 1. Exported Activity Deep Links
                     try {

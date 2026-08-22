@@ -4,15 +4,14 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,17 +19,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import kotlinx.coroutines.launch
 
@@ -41,7 +46,6 @@ class GearPickerActivity : ComponentActivity() {
 
         val setId = intent.getStringExtra("SET_ID") ?: "0"
         val ringIndex = intent.getIntExtra("RING_INDEX", 0)
-        val pm = packageManager
 
         val primaryAccent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             getColor(android.R.color.system_accent1_600)
@@ -137,7 +141,7 @@ class GearPickerActivity : ComponentActivity() {
             }
 
             // Build hierarchical items: Level 0 = App/Category, Level 1 = Subsection, Level 2 = Action Item
-            val flatItemsList = remember(allTokens, searchQuery, expandedSubsections) {
+            val flatItemsList = remember(allTokens.size, searchQuery, expandedSubsections) {
                 val list = mutableListOf<Triple<String, String, Int>>()
 
                 val validTokens = allTokens.filter { it != "none" }
@@ -250,11 +254,11 @@ class GearPickerActivity : ComponentActivity() {
             ) {
                 Card(
                     modifier = Modifier
-                        .fillMaxWidth(0.94f)
-                        .fillMaxHeight(0.88f)
-                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp)),
+                        .fillMaxWidth(0.95f)
+                        .fillMaxHeight(0.90f)
+                        .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(24.dp)),
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0x1AFFFFFF))
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0E0E14).copy(alpha = 0.95f))
                 ) {
                     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                         val rawName = getSharedPreferences("default", Context.MODE_PRIVATE).getString("gear_set_${setId}_name", "") ?: ""
@@ -268,30 +272,55 @@ class GearPickerActivity : ComponentActivity() {
                             }
                         } else rawName
 
-                        Text(
-                            text = "Assign Shortcuts to Gear ${ringIndex + 1} ($sName)",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Assign to Gear ${ringIndex + 1} (${if (ringIndex == 0) "Outer" else "Inner"})",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "Profile: $sName (${selectedTokens.size} selected)",
+                                    fontSize = 12.sp,
+                                    color = dynamicSecondary
+                                )
+                            }
+                            IconButton(
+                                onClick = { finish() },
+                                modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.08f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
+                        }
 
                         TextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search apps, shortcuts & actions...", color = Color.White.copy(alpha = 0.45f), fontSize = 14.sp) },
-                            leadingIcon = { Text("🔍", fontSize = 14.sp, modifier = Modifier.padding(start = 8.dp)) },
+                            placeholder = { Text("Search apps, shortcuts & actions...", color = Color.White.copy(alpha = 0.45f), fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            },
                             colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color(0x26FFFFFF),
-                                unfocusedContainerColor = Color(0x14FFFFFF),
+                                focusedContainerColor = Color.White.copy(alpha = 0.08f),
+                                unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
                                 focusedTextColor = Color.White,
                                 unfocusedTextColor = Color.White,
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
                                 disabledIndicatorColor = Color.Transparent
                             ),
-                            shape = RoundedCornerShape(28.dp),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                             singleLine = true
                         )
 
@@ -313,7 +342,7 @@ class GearPickerActivity : ComponentActivity() {
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .padding(vertical = 3.dp)
-                                                    .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                                    .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
                                                     .clickable {
                                                         expandedSubsections = if (expandedSubsections.contains(headerKey)) {
                                                             expandedSubsections - headerKey
@@ -321,21 +350,27 @@ class GearPickerActivity : ComponentActivity() {
                                                             expandedSubsections + headerKey
                                                         }
                                                     }
-                                                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 if (pkg.isNotEmpty()) {
-                                                    AndroidView(
-                                                        factory = { ctx -> ImageView(ctx) },
-                                                        modifier = Modifier.size(28.dp).padding(end = 8.dp),
-                                                        update = { view ->
-                                                            try {
-                                                                view.setImageDrawable(pm.getApplicationIcon(pkg))
-                                                            } catch (_: Exception) {
-                                                                view.setImageDrawable(null)
-                                                            }
-                                                        }
-                                                    )
+                                                    val iconBmp = remember(pkg) {
+                                                        LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, pkg)
+                                                    }
+                                                    if (iconBmp != null) {
+                                                        Image(
+                                                            bitmap = iconBmp.asImageBitmap(),
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(28.dp).padding(end = 8.dp)
+                                                        )
+                                                    } else {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(28.dp)
+                                                                .padding(end = 8.dp)
+                                                                .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                                                        )
+                                                    }
                                                 }
                                                 Text(
                                                     text = label,
@@ -346,11 +381,13 @@ class GearPickerActivity : ComponentActivity() {
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
-                                                Text(
-                                                    text = if (isExpanded) "▲" else "▼",
-                                                    color = dynamicSecondary,
-                                                    fontSize = 11.sp,
-                                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                                Icon(
+                                                    Icons.Default.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    tint = dynamicSecondary,
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .rotate(if (isExpanded) 180f else 0f)
                                                 )
                                             }
                                         }
@@ -360,7 +397,7 @@ class GearPickerActivity : ComponentActivity() {
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .padding(start = 12.dp, top = 2.dp, bottom = 2.dp)
-                                                    .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(6.dp))
+                                                    .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
                                                     .clickable {
                                                         expandedSubsections = if (expandedSubsections.contains(key)) {
                                                             expandedSubsections - key
@@ -368,7 +405,7 @@ class GearPickerActivity : ComponentActivity() {
                                                             expandedSubsections + key
                                                         }
                                                     }
-                                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
@@ -380,10 +417,13 @@ class GearPickerActivity : ComponentActivity() {
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
-                                                Text(
-                                                    text = if (isExpanded) "▲" else "▼",
-                                                    color = dynamicSecondary,
-                                                    fontSize = 10.sp
+                                                Icon(
+                                                    Icons.Default.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    tint = dynamicSecondary,
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .rotate(if (isExpanded) 180f else 0f)
                                                 )
                                             }
                                         }
@@ -394,10 +434,15 @@ class GearPickerActivity : ComponentActivity() {
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(start = 20.dp, top = 1.dp, bottom = 1.dp)
+                                                    .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
                                                     .background(
-                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.22f) else Color.Transparent,
-                                                        shape = RoundedCornerShape(6.dp)
+                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.02f),
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    )
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = if (isChecked) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent,
+                                                        shape = RoundedCornerShape(8.dp)
                                                     )
                                                     .clickable {
                                                         if (isConfiguredAction && !isChecked) {
@@ -411,7 +456,7 @@ class GearPickerActivity : ComponentActivity() {
                                                             if (isChecked) selectedTokens.remove(key) else selectedTokens.add(key)
                                                         }
                                                     }
-                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Column(modifier = Modifier.weight(1f)) {
@@ -425,7 +470,7 @@ class GearPickerActivity : ComponentActivity() {
                                                     )
                                                     Text(
                                                         text = key,
-                                                        color = Color.LightGray.copy(alpha = 0.45f),
+                                                        color = Color.LightGray.copy(alpha = 0.40f),
                                                         fontSize = 10.sp,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
@@ -460,7 +505,7 @@ class GearPickerActivity : ComponentActivity() {
                             // Fast A-Z Index Scroller
                             Column(
                                 modifier = Modifier
-                                    .width(24.dp)
+                                    .width(22.dp)
                                     .fillMaxHeight()
                                     .padding(start = 4.dp),
                                 verticalArrangement = Arrangement.SpaceEvenly,
@@ -470,27 +515,28 @@ class GearPickerActivity : ComponentActivity() {
                                     val targetIdx = letterIndices[letter]
                                     Text(
                                         text = letter.toString(),
-                                        fontSize = 10.sp,
+                                        fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (targetIdx != null) dynamicSecondary else Color.White.copy(alpha = 0.15f),
                                         modifier = Modifier.clickable(enabled = targetIdx != null) {
                                             targetIdx?.let { coroutineScope.launch { listState.scrollToItem(it) } }
-                                        }.padding(vertical = 1.dp)
+                                        }.padding(vertical = 0.5.dp)
                                     )
                                 }
                             }
                         }
 
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Button(
+                            OutlinedButton(
                                 onClick = { finish() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE61C1C)),
-                                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                modifier = Modifier.weight(1f).height(46.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
                             ) {
-                                Text("CANCEL", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("CANCEL", color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                             }
 
                             Button(
@@ -500,9 +546,10 @@ class GearPickerActivity : ComponentActivity() {
                                     finish()
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = dynamicPrimary),
-                                modifier = Modifier.weight(1f).padding(start = 8.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f).height(46.dp)
                             ) {
-                                Text("SAVE", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text("SAVE (${selectedTokens.size})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }

@@ -283,13 +283,14 @@ fun MainSettingsScreen() {
                         .clickable(enabled = false) {}
                 ) {
                     var refreshKey by remember { mutableStateOf(0) }
+                    var toggleAllTrigger by remember { mutableStateOf(0) }
 
                     FloatingOverlayContainer(
                         title = "Sidebar Matrix Controller",
                         onDismiss = { dismissAction() },
                         headerControl = {
                             IconButton(
-                                onClick = { subAllCollapsed = !subAllCollapsed },
+                                onClick = { toggleAllTrigger++ },
                                 colors = IconButtonDefaults.iconButtonColors(
                                     containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                 )
@@ -318,7 +319,7 @@ fun MainSettingsScreen() {
                             SidebarMatrixConfigurationFields(
                                 context = context,
                                 prefs = prefs,
-                                subAllCollapsed = subAllCollapsed,
+                                toggleAllTrigger = toggleAllTrigger,
                                 onRefreshNeeded = { refreshKey++ }
                             )
                         }
@@ -333,7 +334,7 @@ fun MainSettingsScreen() {
 fun SidebarMatrixConfigurationFields(
     context: Context,
     prefs: android.content.SharedPreferences,
-    subAllCollapsed: Boolean,
+    toggleAllTrigger: Int = 0,
     onRefreshNeeded: () -> Unit = {}
 ) {
     var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", false)) }
@@ -388,9 +389,23 @@ fun SidebarMatrixConfigurationFields(
         LightspeedActionRegistry.ensureIndexed(context)
     }
 
-    LaunchedEffect(subAllCollapsed) {
-        val ns = !subAllCollapsed
-        isStatusBarExpanded = ns; isCenterExpanded = ns; isTopExpanded = ns; isBottomExpanded = ns; isBackupExpanded = ns
+    var allExpandedState by remember { mutableStateOf(false) }
+    LaunchedEffect(toggleAllTrigger) {
+        if (toggleAllTrigger > 0) {
+            allExpandedState = !allExpandedState
+            isStatusBarExpanded = allExpandedState
+            isCenterExpanded = allExpandedState
+            isTopExpanded = allExpandedState
+            isBottomExpanded = allExpandedState
+            isBackupExpanded = allExpandedState
+            prefs.edit()
+                .putBoolean("pref_section_statusbar_expanded", allExpandedState)
+                .putBoolean("pref_section_center_expanded", allExpandedState)
+                .putBoolean("pref_section_top_expanded", allExpandedState)
+                .putBoolean("pref_section_bottom_expanded", allExpandedState)
+                .putBoolean("pref_section_backup_expanded", allExpandedState)
+                .apply()
+        }
     }
 
     val customVectors = listOf(
@@ -456,6 +471,34 @@ fun SidebarMatrixConfigurationFields(
                 .apply()
         }) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Cockpit & Dual-Ring Gear Sets launcher card
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            val intent = Intent(context, CockpitSettingsActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Cockpit & Dual-Ring Gear Sets", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+                            Text("Configure circular outer/inner rings, gear sets & physics", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Height", 50, 1000, 10, 400)
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Sensitivity", 10, 100, 5, 40)
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_visual_width", "", "Width", 0, 20, 1, 4)
@@ -496,7 +539,10 @@ fun SidebarMatrixConfigurationFields(
         CompactAccordionSection(
             title = "Backup & Restore Engine",
             isExpanded = isBackupExpanded,
-            onToggle = { isBackupExpanded = !isBackupExpanded }
+            onToggle = {
+                isBackupExpanded = !isBackupExpanded
+                prefs.edit().putBoolean("pref_section_backup_expanded", isBackupExpanded).apply()
+            }
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // Export Card

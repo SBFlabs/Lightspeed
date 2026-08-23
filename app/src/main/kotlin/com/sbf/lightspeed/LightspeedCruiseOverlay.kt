@@ -1633,8 +1633,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         targetCY: Float,
         bracketSize: Float,
         m3Primary: Int,
-        m3SurfaceContainer: Int,
-        m3OnSurface: Int,
         m3Secondary: Int,
         appName: String,
         density: Float
@@ -1669,7 +1667,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         // Holographic Telemetry Label above/adjacent target
         textPaint.textSize = 12f * density
-        textPaint.color = m3OnSurface
+        textPaint.color = Color.WHITE
         textPaint.textAlign = Paint.Align.LEFT
         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
 
@@ -1696,9 +1694,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         val badgeX = targetCX + half + 14f * density
         val badgeY = targetCY - 6f * density
         
-        // Target Lock Badge Frame (Material 3 Surface Container)
+        // Target Lock Badge Frame
         highlightPaint.style = Paint.Style.FILL
-        highlightPaint.color = Color.argb(225, Color.red(m3SurfaceContainer), Color.green(m3SurfaceContainer), Color.blue(m3SurfaceContainer))
+        highlightPaint.color = Color.argb(190, 16, 20, 32)
         val badgeRect = RectF(badgeX - 8f * density, badgeY - 14f * density, badgeX + finalBadgeWidth + 12f * density, badgeY + 18f * density)
         canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
         
@@ -1707,16 +1705,16 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         highlightPaint.color = m3Primary
         canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
         
-        // App Name (Material 3 On-Surface)
+        // App Name
         textPaint.textSize = 12f * density
         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-        textPaint.color = m3OnSurface
+        textPaint.color = Color.WHITE
         canvas.drawText(cleanAppName, badgeX, badgeY + 1f * density, textPaint)
         
-        // Telemetry Subtext (Material 3 Secondary Tonal Accent)
+        // Telemetry Subtext (Material 3 Dynamic Secondary Tonal Accent)
         textPaint.textSize = 8f * density
         textPaint.typeface = android.graphics.Typeface.DEFAULT
-        textPaint.color = m3Secondary
+        textPaint.color = Color.argb(220, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
         canvas.drawText(subText, badgeX, badgeY + 12.5f * density, textPaint)
     }
 
@@ -1999,39 +1997,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (activeGearSetIndex >= totalGearSetsCount) { activeGearSetIndex = 0 }
 
         val m3Primary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_accent1_200, context.theme)
+            context.resources.getColor(android.R.color.system_accent1_600, context.theme)
         } else {
-            Color.parseColor("#D0BCFF")
+            Color.parseColor("#6750A4")
         }
         val m3Secondary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_accent2_200, context.theme)
+            context.resources.getColor(android.R.color.system_accent1_300, context.theme)
         } else {
-            Color.parseColor("#CCC2DC")
-        }
-        val m3Tertiary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_accent3_200, context.theme)
-        } else {
-            Color.parseColor("#EFB8C8")
-        }
-        val m3SurfaceContainer = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_neutral1_800, context.theme)
-        } else {
-            Color.parseColor("#211F26")
-        }
-        val m3OnSurface = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_neutral1_100, context.theme)
-        } else {
-            Color.parseColor("#E6E0E9")
-        }
-        val m3OnSurfaceVariant = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_neutral2_200, context.theme)
-        } else {
-            Color.parseColor("#CAC4D0")
-        }
-        val m3Outline = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_neutral2_400, context.theme)
-        } else {
-            Color.parseColor("#938F99")
+            Color.parseColor("#D0BCFF")
         }
 
         super.onDraw(canvas)
@@ -2673,8 +2646,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             targetCY = iconCY,
                             bracketSize = currentSize + 22f * density,
                             m3Primary = m3Primary,
-                            m3SurfaceContainer = m3SurfaceContainer,
-                            m3OnSurface = m3OnSurface,
                             m3Secondary = m3Secondary,
                             appName = appLabel,
                             density = density

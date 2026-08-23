@@ -1815,6 +1815,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         textPaint.color = m3Primary
                         textPaint.alpha = (255 * decelerationFactor).toInt()
                         canvas.drawText("✦", targetTextX - 12f * density, centerY + 5f * density, textPaint)
+                        textPaint.textAlign = Paint.Align.CENTER
 
                         // Sector Label
                         catTextPaint.color = Color.WHITE
@@ -1837,6 +1838,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             canvas.drawColor(Color.argb(195, 4, 6, 12))
             drawCosmicStarfield(canvas, w, h, density, 0.7f)
 
+            textPaint.textAlign = Paint.Align.CENTER
             canvas.save(); canvas.clipRect(0f, 0f, w, h)
             canvas.translate(0f, -(if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset))
             for (item in placedAppsList) {

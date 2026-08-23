@@ -182,6 +182,62 @@ class CockpitSettingsActivity : ComponentActivity() {
                                         )
                                     }
 
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Icon Pack Selector Card
+                                    val availableIconPacks = remember { com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context) }
+                                    var activeIconPack by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)) }
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
+                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                                            .padding(12.dp)
+                                    ) {
+                                        Text("Icon Pack & Visuals", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Applied across Gimbal Gears, Category Horizon & Star System Grid", fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.6f))
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        androidx.compose.foundation.lazy.LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            items(availableIconPacks.size) { idx ->
+                                                val pack = availableIconPacks[idx]
+                                                val isSelected = (activeIconPack == pack.packageName)
+
+                                                Box(
+                                                    modifier = Modifier
+                                                        .background(
+                                                            if (isSelected) dynamicColorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.04f),
+                                                            RoundedCornerShape(10.dp)
+                                                        )
+                                                        .border(
+                                                            if (isSelected) 1.5.dp else 1.dp,
+                                                            if (isSelected) dynamicColorScheme.primary else Color.White.copy(alpha = 0.1f),
+                                                            RoundedCornerShape(10.dp)
+                                                        )
+                                                        .clickable {
+                                                            activeIconPack = pack.packageName
+                                                            com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, pack.packageName)
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Text(
+                                                            text = if (pack.isSystem) "🎨 System Dynamic" else "📦 ${pack.label}",
+                                                            fontSize = 11.sp,
+                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                            color = if (isSelected) Color.White else Color.LightGray
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     Spacer(modifier = Modifier.height(14.dp))
                                     Text("Profiles & Gear Sets (${setsOrder.size}):", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.7f))
 

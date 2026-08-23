@@ -68,26 +68,7 @@ object LightspeedActionRegistry {
     val iconBitmapCache = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
 
     fun getIconBitmap(context: Context, pkg: String): android.graphics.Bitmap? {
-        if (pkg.isBlank()) return null
-        return iconBitmapCache.getOrPut(pkg) {
-            try {
-                val pm = context.packageManager
-                val drawable = pm.getApplicationIcon(pkg)
-                if (drawable is android.graphics.drawable.BitmapDrawable && drawable.bitmap != null) {
-                    drawable.bitmap
-                } else {
-                    val w = drawable.intrinsicWidth.coerceIn(48, 192)
-                    val h = drawable.intrinsicHeight.coerceIn(48, 192)
-                    val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-                    val canvas = android.graphics.Canvas(bmp)
-                    drawable.setBounds(0, 0, w, h)
-                    drawable.draw(canvas)
-                    bmp
-                }
-            } catch (_: Exception) {
-                null
-            }
-        }
+        return com.sbf.lightspeed.system.LightspeedIconManager.getIconBitmap(context, pkg)
     }
 
     fun getBaseTokens(): List<String> = listOf(

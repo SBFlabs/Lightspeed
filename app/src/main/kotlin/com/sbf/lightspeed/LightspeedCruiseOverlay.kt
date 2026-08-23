@@ -1898,8 +1898,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                     // 2. Draw Icon Drawable or Action Glyph
                     try {
-                        if (extractedPkg.isNotEmpty()) {
-                            val iconDrawable = pm.getApplicationIcon(extractedPkg)
+                        val iconDrawable = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, itemToken)
+                        if (iconDrawable != null) {
                             iconDrawable.alpha = if (isRingFocused) (if (isHighlighted) 255 else 210) else 110
                             iconDrawable.setBounds(
                                 (iconCX - currentSize / 2).toInt(),

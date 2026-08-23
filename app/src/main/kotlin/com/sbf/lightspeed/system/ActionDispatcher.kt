@@ -3,8 +3,8 @@ package com.sbf.lightspeed.system
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
-import android.content.pm.LauncherApps
-import android.os.Process
+import android.media.AudioManager
+import android.os.Build
 import android.util.Log
 import com.sbf.lightspeed.LightspeedAccessibilityService
 
@@ -38,10 +38,21 @@ object ActionDispatcher {
                 service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
             }
             token == "system:notifications" || token == "ACTION_NOTIFICATIONS" || token == "notifications" -> {
-                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+                expandNotifications(context, service)
             }
             token == "system:quick_settings" || token == "ACTION_QUICK_SETTINGS" || token == "quick_settings" -> {
-                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
+                expandQuickSettings(context, service)
+            }
+            token == "system:screen_timeout" -> {
+                LightspeedTimeoutEngine.cycleNext(context)
+            }
+            token == "system:volume" -> {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                audioManager?.adjustSuggestedStreamVolume(
+                    AudioManager.ADJUST_SAME,
+                    AudioManager.USE_DEFAULT_STREAM_TYPE,
+                    AudioManager.FLAG_SHOW_UI
+                )
             }
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")
@@ -63,5 +74,27 @@ object ActionDispatcher {
                 }
             }
         }
+    }
+
+    private fun expandNotifications(context: Context, service: AccessibilityService?) {
+        try {
+            val statusBarService = context.getSystemService("statusbar")
+            val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
+            val method = statusBarManagerClass.getMethod("expandNotificationsPanel")
+            method.invoke(statusBarService)
+            return
+        } catch (_: Exception) {}
+        service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+    }
+
+    private fun expandQuickSettings(context: Context, service: AccessibilityService?) {
+        try {
+            val statusBarService = context.getSystemService("statusbar")
+            val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
+            val method = statusBarManagerClass.getMethod("expandSettingsPanel")
+            method.invoke(statusBarService)
+            return
+        } catch (_: Exception) {}
+        service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
     }
 }

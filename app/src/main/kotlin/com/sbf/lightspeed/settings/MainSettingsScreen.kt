@@ -58,7 +58,7 @@ import kotlinx.coroutines.withContext
 
 enum class ArrowDirection {
     SWIPE_UP, SWIPE_DOWN, SWIPE_LEFT, SWIPE_UP_DOWN, SWIPE_DOWN_UP,
-    SWIPE_UP_LEFT, SWIPE_DOWN_LEFT, LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, TAP, SWIPE_RIGHT, SWIPE_RIGHT_BACK
+    SWIPE_UP_LEFT, SWIPE_DOWN_LEFT, LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, TAP, DOUBLE_TAP, SWIPE_RIGHT, SWIPE_RIGHT_BACK, RIGHT_DOWN
 }
 
 object LightspeedActionRegistry {
@@ -336,11 +336,11 @@ fun SidebarMatrixConfigurationFields(
     subAllCollapsed: Boolean,
     onRefreshNeeded: () -> Unit = {}
 ) {
-    var isStatusBarExpanded by remember { mutableStateOf(false) }
-    var isCenterExpanded by remember { mutableStateOf(false) }
-    var isTopExpanded by remember { mutableStateOf(true) }
-    var isBottomExpanded by remember { mutableStateOf(false) }
-    var isBackupExpanded by remember { mutableStateOf(false) }
+    var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", false)) }
+    var isCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_center_expanded", false)) }
+    var isTopExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_top_expanded", true)) }
+    var isBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_bottom_expanded", false)) }
+    var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -363,7 +363,10 @@ fun SidebarMatrixConfigurationFields(
             val result = LightspeedBackupEngine.importFromFile(context, uri)
             result.onSuccess { count ->
                 Toast.makeText(context, "Restored $count settings successfully!", Toast.LENGTH_SHORT).show()
-                onRefreshNeeded()
+                (context as? Activity)?.let { act ->
+                    act.finish()
+                    act.startActivity(act.intent)
+                } ?: onRefreshNeeded()
             }.onFailure { err ->
                 Toast.makeText(context, "Import failed: ${err.message}", Toast.LENGTH_LONG).show()
             }
@@ -391,6 +394,7 @@ fun SidebarMatrixConfigurationFields(
     }
 
     val customVectors = listOf(
+        "TAP" to ("Single Tap" to ArrowDirection.TAP),
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
         "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
         "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
@@ -403,11 +407,17 @@ fun SidebarMatrixConfigurationFields(
         "SWIPE_LEFT_DOWN" to ("Swipe Left & Down" to ArrowDirection.LEFT_DOWN)
     )
 
-    val interfaceZones = listOf("TOP" to "Top Edge [Above Sidebar Area]", "BOTTOM" to "Bottom Edge [Below Sidebar Area]")
+    val interfaceZones = listOf("TOP" to "Right Sidebar - Upper Zone (Above Gimbal)", "BOTTOM" to "Right Sidebar - Lower Zone (Below Gimbal)")
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         
-        CompactAccordionSection(title = "Status Bar Zone Configuration", isExpanded = isStatusBarExpanded, onToggle = { isStatusBarExpanded = !isStatusBarExpanded }) {
+        CompactAccordionSection(title = "Status Bar (Top Screen Edge)", isExpanded = isStatusBarExpanded, onToggle = {
+            isStatusBarExpanded = !isStatusBarExpanded
+            prefs.edit()
+                .putBoolean("pref_section_statusbar_expanded", isStatusBarExpanded)
+                .putBoolean("pref_statusbar_preview", isStatusBarExpanded)
+                .apply()
+        }) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 PrefToggleRow(context, prefs, "pref_statusbar_enabled", "", "", "Enable Status Bar Gestures", "Enable full touch, tap, and swipe gesture matrix parsing over the status bar zone.")
                 PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Span", 50, 2000, 50, 1080)
@@ -418,15 +428,17 @@ fun SidebarMatrixConfigurationFields(
                 PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Transparency", 0, 100, 5, 0)
 
                 HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Extended Down Swipe (Scrubbing)", listOf("none", "system:scroll_to_top", "system:volume", "system:brightness"), tokenLabelCache)
+                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Swipe Along Bar & Pull Down (2-Step Scrubbing)", listOf("none", "system:screen_timeout", "system:volume", "system:brightness", "system:scroll_to_top"), tokenLabelCache)
 
                 val statusBarVectors = listOf(
                     Triple("TAP", "Single Tap", ArrowDirection.TAP),
-                    Triple("SWIPE_DOWN", "Swipe Down (Notifications)", ArrowDirection.SWIPE_DOWN),
-                    Triple("SWIPE_RIGHT", "Swipe Right", ArrowDirection.SWIPE_RIGHT),
-                    Triple("SWIPE_RIGHT_BACK", "Swipe Right & Return", ArrowDirection.SWIPE_RIGHT_BACK),
+                    Triple("DOUBLE_TAP", "Double Tap", ArrowDirection.DOUBLE_TAP),
                     Triple("SWIPE_LEFT", "Swipe Left", ArrowDirection.SWIPE_LEFT),
-                    Triple("SWIPE_LEFT_BACK", "Swipe Left & Return", ArrowDirection.LEFT_BACK)
+                    Triple("SWIPE_RIGHT", "Swipe Right", ArrowDirection.SWIPE_RIGHT),
+                    Triple("SWIPE_LEFT_BACK", "Swipe Left & Return", ArrowDirection.LEFT_BACK),
+                    Triple("SWIPE_RIGHT_BACK", "Swipe Right & Return", ArrowDirection.SWIPE_RIGHT_BACK),
+                    Triple("SWIPE_LEFT_DOWN", "Swipe Left & Down (Quick Trigger)", ArrowDirection.LEFT_DOWN),
+                    Triple("SWIPE_RIGHT_DOWN", "Swipe Right & Down (Quick Trigger)", ArrowDirection.RIGHT_DOWN)
                 )
 
                 statusBarVectors.forEach { (vectorKey, vectorTitle, arrowEnum) ->
@@ -436,7 +448,13 @@ fun SidebarMatrixConfigurationFields(
             }
         }
 
-        CompactAccordionSection(title = "Center Zone Coordinates", isExpanded = isCenterExpanded, onToggle = { isCenterExpanded = !isCenterExpanded }) {
+        CompactAccordionSection(title = "Right Sidebar - Center Zone (Gimbal / Cogs)", isExpanded = isCenterExpanded, onToggle = {
+            isCenterExpanded = !isCenterExpanded
+            prefs.edit()
+                .putBoolean("pref_section_center_expanded", isCenterExpanded)
+                .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded)
+                .apply()
+        }) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Height", 50, 1000, 10, 400)
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Sensitivity", 10, 100, 5, 40)
@@ -446,7 +464,17 @@ fun SidebarMatrixConfigurationFields(
         }
 
         interfaceZones.forEachIndexed { idx, (zoneKey, zoneTitle) ->
-            CompactAccordionSection(title = zoneTitle, isExpanded = if (idx == 0) isTopExpanded else isBottomExpanded, onToggle = { if (idx == 0) isTopExpanded = !isTopExpanded else isBottomExpanded = !isBottomExpanded }) {
+            val isCurrentExpanded = if (idx == 0) isTopExpanded else isBottomExpanded
+            CompactAccordionSection(title = zoneTitle, isExpanded = isCurrentExpanded, onToggle = {
+                if (idx == 0) {
+                    isTopExpanded = !isTopExpanded
+                    prefs.edit().putBoolean("pref_section_top_expanded", isTopExpanded).apply()
+                } else {
+                    isBottomExpanded = !isBottomExpanded
+                    prefs.edit().putBoolean("pref_section_bottom_expanded", isBottomExpanded).apply()
+                }
+                prefs.edit().putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded).apply()
+            }) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
                     PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Height", 50, 600, 10, 200)
@@ -666,7 +694,11 @@ fun GestureTrailTracer(direction: ArrowDirection, isHold: Boolean, color: Color,
                 path.moveTo(w*0.8f, h*0.3f); path.lineTo(w*0.3f, h*0.3f); path.lineTo(w*0.3f, h*0.8f)
                 if (actionProgress < 0.5f) { cy = h*0.3f; cx = w*0.8f + (w*0.3f - w*0.8f) * (actionProgress * 2f) } else { cx = w*0.3f; cy = h*0.3f + (h*0.8f - h*0.3f) * ((actionProgress - 0.5f) * 2f) }
             }
-            ArrowDirection.TAP -> {
+            ArrowDirection.RIGHT_DOWN -> {
+                path.moveTo(w*0.2f, h*0.3f); path.lineTo(w*0.7f, h*0.3f); path.lineTo(w*0.7f, h*0.8f)
+                if (actionProgress < 0.5f) { cy = h*0.3f; cx = w*0.2f + (w*0.7f - w*0.2f) * (actionProgress * 2f) } else { cx = w*0.7f; cy = h*0.3f + (h*0.8f - h*0.3f) * ((actionProgress - 0.5f) * 2f) }
+            }
+            ArrowDirection.TAP, ArrowDirection.DOUBLE_TAP -> {
                 cx = w * 0.5f; cy = h * 0.5f
             }
             ArrowDirection.SCRUB -> {
@@ -694,8 +726,10 @@ fun GestureTrailTracer(direction: ArrowDirection, isHold: Boolean, color: Color,
         val hasArrowhead = direction != ArrowDirection.SWIPE_UP_DOWN && 
                            direction != ArrowDirection.SWIPE_DOWN_UP && 
                            direction != ArrowDirection.LEFT_BACK &&
-                               direction != ArrowDirection.SWIPE_RIGHT_BACK && 
-                           direction != ArrowDirection.SCRUB
+                           direction != ArrowDirection.SWIPE_RIGHT_BACK && 
+                           direction != ArrowDirection.SCRUB &&
+                           direction != ArrowDirection.TAP &&
+                           direction != ArrowDirection.DOUBLE_TAP
 
         if (hasArrowhead) {
             val arrowheadPath = Path(); val arrowSize = w * 0.14f
@@ -739,6 +773,11 @@ fun GestureTrailTracer(direction: ArrowDirection, isHold: Boolean, color: Color,
                     arrowheadPath.moveTo(w * 0.3f - arrowSize, h * 0.8f - arrowSize)
                     arrowheadPath.lineTo(w * 0.3f, h * 0.8f)
                     arrowheadPath.lineTo(w * 0.3f + arrowSize, h * 0.8f - arrowSize)
+                }
+                ArrowDirection.RIGHT_DOWN -> {
+                    arrowheadPath.moveTo(w * 0.7f - arrowSize, h * 0.8f - arrowSize)
+                    arrowheadPath.lineTo(w * 0.7f, h * 0.8f)
+                    arrowheadPath.lineTo(w * 0.7f + arrowSize, h * 0.8f - arrowSize)
                 }
                 else -> {}
             }
@@ -934,10 +973,31 @@ fun GestureMappingRow(
         }
         Box {
             DropdownMenu(expanded = showMainMenu, onDismissRequest = { showMainMenu = false }) {
-                DropdownMenuItem(text = { Text("None") }, onClick = { currentRawValue = "none"; prefs.edit().putString(key, "none").apply(); showMainMenu = false })
-                DropdownMenuItem(text = { Text("System Action...") }, onClick = { showMainMenu = false; showSystemDialog = true })
-                DropdownMenuItem(text = { Text("Launch Application...") }, onClick = { showMainMenu = false; showAppDialog = true })
-                DropdownMenuItem(text = { Text("Launch App Shortcut...") }, onClick = { showMainMenu = false; showShortcutDialog = true })
+                if (direction == ArrowDirection.SCRUB) {
+                    options.forEach { opt ->
+                        val optLabel = when (opt) {
+                            "none" -> "None"
+                            "system:screen_timeout" -> "Screen Timeout (15s – 10m)"
+                            "system:volume" -> "Volume (Media Stream)"
+                            "system:brightness" -> "Screen Brightness"
+                            "system:scroll_to_top" -> "Scroll to Top"
+                            else -> labelCache[opt] ?: opt
+                        }
+                        DropdownMenuItem(
+                            text = { Text(optLabel) },
+                            onClick = {
+                                currentRawValue = opt
+                                prefs.edit().putString(key, opt).apply()
+                                showMainMenu = false
+                            }
+                        )
+                    }
+                } else {
+                    DropdownMenuItem(text = { Text("None") }, onClick = { currentRawValue = "none"; prefs.edit().putString(key, "none").apply(); showMainMenu = false })
+                    DropdownMenuItem(text = { Text("System Action...") }, onClick = { showMainMenu = false; showSystemDialog = true })
+                    DropdownMenuItem(text = { Text("Launch Application...") }, onClick = { showMainMenu = false; showAppDialog = true })
+                    DropdownMenuItem(text = { Text("Launch App Shortcut...") }, onClick = { showMainMenu = false; showShortcutDialog = true })
+                }
             }
         }
     }

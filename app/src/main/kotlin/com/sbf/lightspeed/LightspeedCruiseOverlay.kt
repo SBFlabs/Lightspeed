@@ -431,9 +431,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             if (event.action == MotionEvent.ACTION_DOWN) {
                 val d = resources.displayMetrics.density; val cx = width / 2f; val cy = height / 2f
-                val topHangarY = 54f * d
-                // 1. Config Button (Top Right Capsule)
-                if (x >= cx + 90f * d && x <= cx + 190f * d && y >= topHangarY - 20f * d && y <= topHangarY + 20f * d) {
+                val topHangarY = 50f * d
+                // 1. Config Button (Centered Action Capsule)
+                if (x >= cx - 85f * d && x <= cx + 85f * d && y >= topHangarY + 18f * d && y <= topHangarY + 52f * d) {
                     val intent = android.content.Intent(context, CockpitSettingsActivity::class.java).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
                     context.startActivity(intent)
                     dismissOverlay()
@@ -1476,7 +1476,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             canvas.drawLine(cx, cy - 180f * d, cx, cy + 180f * d, elementPaint)
 
             // 3. Top Telemetry Header & Config Button
-            val topHangarY = 54f * d
+            val topHangarY = 50f * d
             val hangarHeader = "◈ ASTROGATION COCKPIT // HANGAR DOCK ◈"
             textPaint.textSize = 12f * d
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -1496,20 +1496,20 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             textPaint.color = Color.WHITE
             canvas.drawText(hangarHeader, cx, topHangarY + 4f * d, textPaint)
 
-            // Top-right Config Button: [ ⚙ CONFIG ]
-            val configBtnRect = RectF(cx + 95f * d, topHangarY - 14f * d, cx + 180f * d, topHangarY + 14f * d)
+            // Centered Action Capsule Button directly beneath the header: [ ⚙ COCKPIT CONFIG ]
+            val configBtnRect = RectF(cx - 75f * d, topHangarY + 22f * d, cx + 75f * d, topHangarY + 48f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(140, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(configBtnRect, 8f * d, 8f * d, highlightPaint)
+            canvas.drawRoundRect(configBtnRect, 12f * d, 12f * d, highlightPaint)
             
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1.2f * d
             highlightPaint.color = m3Primary
-            canvas.drawRoundRect(configBtnRect, 8f * d, 8f * d, highlightPaint)
+            canvas.drawRoundRect(configBtnRect, 12f * d, 12f * d, highlightPaint)
             
             textPaint.textSize = 9.5f * d
             textPaint.color = Color.WHITE
-            canvas.drawText("⚙ CONFIG", configBtnRect.centerX(), configBtnRect.centerY() + 3.5f * d, textPaint)
+            canvas.drawText("⚙ COCKPIT CONFIG", configBtnRect.centerX(), configBtnRect.centerY() + 3.5f * d, textPaint)
 
             // 4. Modular Docking Bay Pods (Profile Selection Modules)
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)

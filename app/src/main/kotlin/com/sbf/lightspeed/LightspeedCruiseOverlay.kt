@@ -751,10 +751,21 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             }
                             
                             if (targetedPackage != null) {
-                                triggerHardwareHaptic(40, 200)
-                                com.sbf.lightspeed.system.ActionDispatcher.execute(service ?: context, targetedPackage)
+                                val density = resources.displayMetrics.density
+                                val cx = width / 2f
+                                val cy = height / 2f
+                                val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
+                                val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
+                                val currentTrackRadius = if (activeGearRing == 0) rad0 else rad1
+                                val targetedX = cx - currentTrackRadius
+                                val targetedY = cy
+
+                                triggerHyperdriveWarpLaunch(targetedX, targetedY) {
+                                    com.sbf.lightspeed.system.ActionDispatcher.execute(service ?: context, targetedPackage)
+                                }
+                                return true
                             }
-   } else if (activeGearRing == 2) {
+                        } else if (activeGearRing == 2) {
                             triggerHardwareHaptic(50, 220)
                             val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
                             if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
@@ -783,7 +794,17 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     } else if (currentLayer == CruiseLayer.NEUTRAL) {
                         dismissOverlay()
                     } else {
-                        activeItem?.let { executeLaunch(it); dismissOverlay() } ?: dismissOverlay()
+                        val launchTarget = activeItem
+                        if (launchTarget != null) {
+                            val placed = placedAppsList.find { it.app == launchTarget }
+                            val focalX = placed?.bounds?.centerX() ?: (width / 2f)
+                            val focalY = placed?.bounds?.centerY() ?: (height / 2f)
+                            triggerHyperdriveWarpLaunch(focalX, focalY) {
+                                executeLaunch(launchTarget)
+                            }
+                        } else {
+                            dismissOverlay()
+                        }
                     }
                     isCruising = false
                 } else if (macroTrackingActive) {
@@ -1384,6 +1405,84 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         elementPaint.shader = nebulaShader
         canvas.drawCircle(cx, cy, radius, elementPaint)
         elementPaint.shader = null
+    }
+
+    private var isWarpLaunching = false
+    private var warpStartTime = 0L
+    private var warpFocalPointX = 0f
+    private var warpFocalPointY = 0f
+
+    private fun triggerHyperdriveWarpLaunch(focalX: Float, focalY: Float, onLaunch: () -> Unit) {
+        isWarpLaunching = true
+        warpStartTime = System.currentTimeMillis()
+        warpFocalPointX = focalX
+        warpFocalPointY = focalY
+        triggerHardwareHaptic(50, 255)
+        invalidate()
+
+        uiHandler.postDelayed({
+            isWarpLaunching = false
+            onLaunch()
+            dismissOverlay()
+        }, 130L)
+    }
+
+    private fun drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) {
+        if (!isWarpLaunching) return
+        val elapsed = (System.currentTimeMillis() - warpStartTime).toFloat()
+        val progress = (elapsed / 130f).coerceIn(0f, 1f)
+        val easeProgress = progress * progress
+
+        val cx = warpFocalPointX
+        val cy = warpFocalPointY
+
+        // 1. High-Energy Chromatic Shockwave Ring
+        val shockwaveR = easeProgress * 340f * density
+        val shockAlpha = ((1f - progress) * 255).toInt().coerceIn(0, 255)
+        
+        elementPaint.style = Paint.Style.STROKE
+        elementPaint.strokeWidth = (4.0f * (1f - progress) + 1.0f) * density
+        elementPaint.color = Color.argb(shockAlpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+        canvas.drawCircle(cx, cy, shockwaveR, elementPaint)
+
+        elementPaint.strokeWidth = 1.4f * density
+        elementPaint.color = Color.argb((shockAlpha * 0.75f).toInt(), 0, 229, 255) // Cyan edge glow
+        canvas.drawCircle(cx, cy, shockwaveR * 0.84f, elementPaint)
+
+        // 2. 36 Radiating Warp Vector Streaks
+        val lineCount = 36
+        val angleStep = (2 * Math.PI) / lineCount
+        elementPaint.style = Paint.Style.STROKE
+
+        for (i in 0 until lineCount) {
+            val angle = i * angleStep
+            val rStart = (easeProgress * 35f * density) + (i % 4) * 8f * density
+            val streakLength = (easeProgress * 230f * density) + (i % 3) * 35f * density
+            val rEnd = rStart + streakLength
+
+            val x1 = cx + (rStart * Math.cos(angle)).toFloat()
+            val y1 = cy + (rStart * Math.sin(angle)).toFloat()
+            val x2 = cx + (rEnd * Math.cos(angle)).toFloat()
+            val y2 = cy + (rEnd * Math.sin(angle)).toFloat()
+
+            val lineAlpha = ((1f - progress) * (180 + (i * 13) % 75)).toInt().coerceIn(0, 255)
+            elementPaint.strokeWidth = if (i % 3 == 0) 2.4f * density else 1.2f * density
+            elementPaint.color = when (i % 3) {
+                0 -> Color.argb(lineAlpha, 255, 255, 255)
+                1 -> Color.argb(lineAlpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+                else -> Color.argb(lineAlpha, 0, 229, 255)
+            }
+            canvas.drawLine(x1, y1, x2, y2, elementPaint)
+        }
+
+        // 3. Central Hyperdrive Flash Core
+        val flashRadius = (1f - progress) * 50f * density
+        val flashAlpha = ((1f - progress) * 230).toInt().coerceIn(0, 255)
+        elementPaint.style = Paint.Style.FILL
+        elementPaint.color = Color.argb(flashAlpha, 255, 255, 255)
+        canvas.drawCircle(cx, cy, flashRadius, elementPaint)
+
+        postInvalidateOnAnimation()
     }
 
     private fun processGyroscopeTouchPhysics(rawX: Float, rawY: Float) {
@@ -2038,6 +2137,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
             canvas.restore()
         }
+        drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
     }
 }
 

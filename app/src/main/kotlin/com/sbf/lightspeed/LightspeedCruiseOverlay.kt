@@ -213,6 +213,19 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var gearRingRotations = FloatArray(3) { 0f }
     private var rawHorizontalXAccumulator = 0f
     private var isCubeRotationFired = false
+    private var lastTargetedIndex = intArrayOf(-1, -1)
+
+    private fun triggerGearCogHaptic() {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val strength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
+        when (strength) {
+            "subtle" -> triggerHardwareHaptic(10, 50)
+            "tactical" -> triggerHardwareHaptic(18, 130)
+            "heavy" -> triggerHardwareHaptic(30, 220)
+            "off" -> {}
+            else -> triggerHardwareHaptic(18, 130)
+        }
+    }
 
     private var touchDownRawX = 0f
     private var touchDownRawY = 0f
@@ -1539,11 +1552,41 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             isCubeRotationFired = false
         }
 
-        // Rotational Axis Crank Math: Scale angular velocity inversely by item density
+        // Rotational Axis Crank Math: Scale angular velocity by flight physics profile
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
+        val physicsMultiplier = when (physicsProfile) {
+            "fluid" -> 1.45f
+            "heavy" -> 0.72f
+            else -> 1.0f
+        }
+
         val itemDensity = if (activeGearRing == 0) 6f else 12f // Baseline densities
-        val scalingConstant = 45f
+        val scalingConstant = 45f * physicsMultiplier
         if (activeGearRing in 0..1) {
             gearRingRotations[activeGearRing] += (deltaY / density) * (scalingConstant / itemDensity)
+
+            // Physical Mechanical Cog Notch Haptics as icons cross the 180° focus reticle
+            val packages = getAppsForActiveGear(activeGearSetIndex, activeGearRing)
+            if (packages.isNotEmpty()) {
+                val itemCount = packages.size
+                val currentRot = gearRingRotations[activeGearRing]
+                var closestIdx = 0
+                var minDiff = Float.MAX_VALUE
+                for (i in packages.indices) {
+                    val itemAngle = (currentRot + i * (360f / itemCount)) % 360f
+                    val norm = if (itemAngle < 0) itemAngle + 360f else itemAngle
+                    val diff = kotlin.math.abs(norm - 180f)
+                    if (diff < minDiff) {
+                        minDiff = diff
+                        closestIdx = i
+                    }
+                }
+                if (closestIdx != lastTargetedIndex[activeGearRing]) {
+                    lastTargetedIndex[activeGearRing] = closestIdx
+                    triggerGearCogHaptic()
+                }
+            }
         }
 
         lastTouchRawX = rawX

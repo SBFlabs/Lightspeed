@@ -184,6 +184,102 @@ class CockpitSettingsActivity : ComponentActivity() {
 
                                     Spacer(modifier = Modifier.height(10.dp))
 
+                                    // Gimbal Flight Physics & Haptic Tuning Card
+                                    var physicsProfile by remember {
+                                        mutableStateOf(context.getSharedPreferences("default", Context.MODE_PRIVATE).getString("pref_gear_physics_profile", "magnetic") ?: "magnetic")
+                                    }
+                                    var hapticStrength by remember {
+                                        mutableStateOf(context.getSharedPreferences("default", Context.MODE_PRIVATE).getString("pref_gear_haptic_strength", "tactical") ?: "tactical")
+                                    }
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
+                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                                            .padding(12.dp)
+                                    ) {
+                                        Text("Gimbal Flight Physics & Haptics", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Tune gear rotation angular momentum and mechanical ratchet ticks", fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.6f))
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Text("Physics Momentum:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
+                                        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            FilterChip(
+                                                selected = physicsProfile == "magnetic",
+                                                onClick = {
+                                                    physicsProfile = "magnetic"
+                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_physics_profile", "magnetic").apply()
+                                                },
+                                                label = { Text("⚡ Snappy Magnetic", fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                            )
+                                            FilterChip(
+                                                selected = physicsProfile == "fluid",
+                                                onClick = {
+                                                    physicsProfile = "fluid"
+                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_physics_profile", "fluid").apply()
+                                                },
+                                                label = { Text("🌊 Fluid Glide", fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                            )
+                                            FilterChip(
+                                                selected = physicsProfile == "heavy",
+                                                onClick = {
+                                                    physicsProfile = "heavy"
+                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_physics_profile", "heavy").apply()
+                                                },
+                                                label = { Text("🚀 Heavy Cargo", fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Text("Tactile Ratchet Tick:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
+                                        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            FilterChip(
+                                                selected = hapticStrength == "subtle",
+                                                onClick = {
+                                                    hapticStrength = "subtle"
+                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "subtle").apply()
+                                                },
+                                                label = { Text("Subtle", fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                            )
+                                            FilterChip(
+                                                selected = hapticStrength == "tactical",
+                                                onClick = {
+                                                    hapticStrength = "tactical"
+                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "tactical").apply()
+                                                },
+                                                label = { Text("Tactical", fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                            )
+                                            FilterChip(
+                                                selected = hapticStrength == "heavy",
+                                                onClick = {
+                                                    hapticStrength = "heavy"
+                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "heavy").apply()
+                                                },
+                                                label = { Text("Heavy Thud", fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                            )
+                                            FilterChip(
+                                                selected = hapticStrength == "off",
+                                                onClick = {
+                                                    hapticStrength = "off"
+                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "off").apply()
+                                                },
+                                                label = { Text("Off", fontSize = 11.sp) },
+                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
                                     // Icon Pack Selector Card
                                     val availableIconPacks = remember { com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context) }
                                     var activeIconPack by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)) }

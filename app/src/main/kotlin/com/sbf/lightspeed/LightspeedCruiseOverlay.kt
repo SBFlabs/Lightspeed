@@ -1690,7 +1690,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
             
             // --- TOP FLIGHT TELEMETRY HUD HEADER (PROFILE HUD) ---
-            val headerY = cy - rad0 - (38f * density)
+            val topBadgeY = 54f * density
             val profileName = when(activeGearSetIndex) {
                 0 -> getGearSetNameByIndex(0)
                 1 -> getGearSetNameByIndex(1)
@@ -1699,28 +1699,29 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
             
             val headerText = "◈ ASTROGATION // PROFILE $activeGearSetIndex: $profileName ◈"
-            textPaint.textSize = 12.5f * density
+            textPaint.textSize = 12f * density
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.textAlign = Paint.Align.CENTER
             val headerWidth = textPaint.measureText(headerText)
 
             highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(160, 12, 16, 26)
-            val headerRect = RectF(cx - headerWidth / 2f - 16f * density, headerY - 16f * density, cx + headerWidth / 2f + 16f * density, headerY + 16f * density)
+            highlightPaint.color = Color.argb(175, 12, 16, 28)
+            val headerRect = RectF(cx - headerWidth / 2f - 16f * density, topBadgeY - 15f * density, cx + headerWidth / 2f + 16f * density, topBadgeY + 15f * density)
             canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
 
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1.2f * density
-            highlightPaint.color = Color.argb(60, 200, 220, 255)
+            highlightPaint.color = Color.argb(80, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
 
             textPaint.color = Color.WHITE
-            canvas.drawText(headerText, cx, headerY + 4f * density, textPaint)
+            canvas.drawText(headerText, cx, topBadgeY + 4f * density, textPaint)
 
-            // Subtitle Guidance Hint
+            // Subtitle Guidance Hint (cleanly separated with zero gear collision)
             textPaint.textSize = 8.5f * density
+            textPaint.typeface = android.graphics.Typeface.DEFAULT
             textPaint.color = Color.argb(160, 180, 210, 245)
-            canvas.drawText("PULL RIGHT >> SWITCH PROFILE  •  PULL LEFT << CANCEL", cx, headerY + 28f * density, textPaint)
+            canvas.drawText("PULL RIGHT >> SWITCH PROFILE  •  PULL LEFT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
             return
         }
 

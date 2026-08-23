@@ -1505,10 +1505,17 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
         val w = width.toFloat(); val h = height.toFloat()
         if (currentLayer == CruiseLayer.HIDDEN) {
+            highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(40, 255, 255, 255)
-            canvas.drawRect(topVisualBounds, highlightPaint)
-            canvas.drawRoundRect(centerVisualBounds, 6f, 6f, highlightPaint)
-            canvas.drawRect(bottomVisualBounds, highlightPaint)
+            if (topVisualWidthPx > 0.5f && topVisualBounds.width() > 0.5f) {
+                canvas.drawRect(topVisualBounds, highlightPaint)
+            }
+            if (centerVisualWidthPx > 0.5f && centerVisualBounds.width() > 0.5f) {
+                canvas.drawRoundRect(centerVisualBounds, 6f, 6f, highlightPaint)
+            }
+            if (bottomVisualWidthPx > 0.5f && bottomVisualBounds.width() > 0.5f) {
+                canvas.drawRect(bottomVisualBounds, highlightPaint)
+            }
             return
         }
 

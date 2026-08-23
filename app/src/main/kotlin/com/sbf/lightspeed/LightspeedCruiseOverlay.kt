@@ -984,9 +984,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
         } else {
             val horizontalPull = touchDownRawX - rawX
+            // In GRID mode, allow navigating all the way to the rightmost column without prematurely kicking back to CATEGORY.
+            // Only exit back to CATEGORY if the thumb slides all the way back to the physical screen edge (< 6dp pull).
             val nextLayerState = when {
-                horizontalPull <= (14f * density) -> CruiseLayer.CATEGORY
-                (wF - localX) <= (wF * 0.40f) -> CruiseLayer.GRID
+                horizontalPull <= (6f * density) -> CruiseLayer.CATEGORY
+                (wF - localX) <= (wF * 0.42f) -> CruiseLayer.GRID
                 else -> CruiseLayer.STICKY_PIN
             }
             if (currentLayer == CruiseLayer.GRID && nextLayerState == CruiseLayer.CATEGORY) {
@@ -1015,7 +1017,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 placedAppsList.clear(); cachedApps = emptyList(); lastLoadedCategoryId = null
                 invalidate(); return
             }
-            virtualCursorX = (wF * 0.94f) - (((wF - localX).coerceAtLeast(0f) / (wF * 0.30f)).coerceIn(0f, 1f) * (wF * 0.88f))
+
+            // Map cursor progress so that the rightmost column is reached cleanly with zero edge collision
+            val pullDistance = (wF - localX).coerceAtLeast(0f)
+            val cursorProgress = ((pullDistance - (10f * density)) / (wF * 0.28f)).coerceIn(0f, 1f)
+            virtualCursorX = (wF * 0.94f) - (cursorProgress * (wF * 0.88f))
+
             val gTop = hF * 0.16f; val gBot = hF * 0.94f; val gScope = gBot - gTop
             virtualCursorY = gTop + (normalizedVerticalProgress * gScope)
             if (totalGridContentHeight <= gScope) { viewportScrollOffset = 0f } 

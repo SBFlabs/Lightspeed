@@ -1721,7 +1721,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             textPaint.textSize = 8.5f * density
             textPaint.typeface = android.graphics.Typeface.DEFAULT
             textPaint.color = Color.argb(160, 180, 210, 245)
-            canvas.drawText("PULL RIGHT >> SWITCH PROFILE  •  PULL LEFT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
+            canvas.drawText("PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
             return
         }
 
@@ -1760,6 +1760,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             textPaint.color = Color.WHITE
             textPaint.alpha = (255 * decelerationFactor).toInt()
             canvas.drawText(hudHeader, w / 2f, topBadgeY + 4f * density, textPaint)
+
+            // Subtitle Guidance Hint for Category Cruise
+            textPaint.textSize = 8.5f * density
+            textPaint.typeface = android.graphics.Typeface.DEFAULT
+            textPaint.color = Color.argb((160 * decelerationFactor).toInt(), 180, 210, 245)
+            canvas.drawText("PULL LEFT >> ENTER STAR SYSTEM  •  SLIDE RIGHT << CANCEL", w / 2f, topBadgeY + 28f * density, textPaint)
 
             // 4. Galactic Sector Horizon with Nebula Clusters
             if (cachedCategories.isNotEmpty()) {

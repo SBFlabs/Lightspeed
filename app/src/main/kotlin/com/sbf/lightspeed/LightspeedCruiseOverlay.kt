@@ -150,6 +150,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var hangarBayTouchDownX = 0f
     private var hangarBayTouchDownY = 0f
     private var isDraggingHangarBays = false
+    private var isSpinningHangarRing = false
+    private var hangarSpinTouchY = 0f
+    private var activeHangarRing = 0
 
     private val holdTimerRunnable = Runnable {
         if (macroTrackingActive) {
@@ -627,9 +630,16 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             return true
                         }
 
-                        // 7. Live Ring Arm Buttons & Purge
-                        val cyGimbal = (screenH * 0.72f).coerceAtLeast(cy + 130f * d)
-                        val r0BtnRect = RectF(cx - 120f * d, cyGimbal - 86f * d, cx + 120f * d, cyGimbal - 50f * d)
+                        // 7. Live Ring Configuration Buttons & Purge
+                        val cyGimbal = (screenH * 0.68f).coerceAtLeast(cy + 110f * d)
+                        val radOuter = 135f * d
+                        val radInner = 82f * d
+                        val radHub = 26f * d
+                        val rBtnY = cyGimbal + radOuter + 22f * d
+
+                        val r0BtnRect = RectF(leftX, rBtnY - 17f * d, cx - gap / 2f, rBtnY + 17f * d)
+                        val r1BtnRect = RectF(cx + gap / 2f, rBtnY - 17f * d, rightX, rBtnY + 17f * d)
+
                         if (r0BtnRect.contains(x, y)) {
                             val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                                 putExtra("SET_ID", currentSetId)
@@ -641,7 +651,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             return true
                         }
 
-                        val r1BtnRect = RectF(cx - 120f * d, cyGimbal + 50f * d, cx + 120f * d, cyGimbal + 86f * d)
                         if (r1BtnRect.contains(x, y)) {
                             val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                                 putExtra("SET_ID", currentSetId)
@@ -653,15 +662,31 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             return true
                         }
 
-                        if (kotlin.math.hypot(x - cx, y - cyGimbal) <= 30f * d) {
+                        // Live Gimbal Ring Touch & Spin Detection
+                        val distFromCore = kotlin.math.hypot(x - cx, y - cyGimbal)
+                        if (distFromCore <= radHub) {
                             prefs.edit().putString("gear_set_${currentSetId}_ring0", "").putString("gear_set_${currentSetId}_ring1", "").apply()
                             triggerHardwareHaptic(60, 255)
+                            invalidate()
+                            return true
+                        } else if (distFromCore in (radInner + 16f * d)..(radOuter + 30f * d)) {
+                            activeHangarRing = 0
+                            isSpinningHangarRing = true
+                            hangarSpinTouchY = y
+                            triggerHardwareHaptic(15, 80)
+                            invalidate()
+                            return true
+                        } else if (distFromCore in (radHub + 4f * d)..(radInner + 16f * d)) {
+                            activeHangarRing = 1
+                            isSpinningHangarRing = true
+                            hangarSpinTouchY = y
+                            triggerHardwareHaptic(15, 80)
                             invalidate()
                             return true
                         }
 
                         // 8. Bottom Exit Capsule
-                        val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 62f * d, cx + (deckW * 0.42f), screenH - 18f * d)
+                        val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 56f * d, cx + (deckW * 0.42f), screenH - 18f * d)
                         if (exitBtnRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
                             dismissOverlay()
                             return true
@@ -677,9 +702,36 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             invalidate()
                         }
                         return true
+                    } else if (isSpinningHangarRing) {
+                        val dy = y - hangarSpinTouchY
+                        hangarSpinTouchY = y
+                        val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
+                        val multiplier = when (physicsProfile) {
+                            "magnetic" -> 1.0f
+                            "fluid" -> 1.45f
+                            "heavy" -> 0.72f
+                            else -> 1.0f
+                        }
+                        val oldRot = gearRingRotations[activeHangarRing]
+                        val rotDelta = dy * multiplier * 0.45f
+                        val newRot = (oldRot + rotDelta) % 360f
+                        gearRingRotations[activeHangarRing] = newRot
+
+                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing)
+                        if (ringApps.isNotEmpty()) {
+                            val step = 360f / ringApps.size
+                            val oldNotch = (((oldRot % 360f) + 360f) % 360f / step).toInt()
+                            val newNotch = (((newRot % 360f) + 360f) % 360f / step).toInt()
+                            if (oldNotch != newNotch) {
+                                triggerGearCogHaptic()
+                            }
+                        }
+                        invalidate()
+                        return true
                     }
                 }
-                MotionEvent.ACTION_UP -> {
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    isSpinningHangarRing = false
                     if (isDraggingHangarBays) {
                         isDraggingHangarBays = false
                         val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
@@ -2058,57 +2110,161 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             drawPill(hap3Rect, "HEAVY", hapticStrength == "heavy")
             drawPill(hap4Rect, "OFF", hapticStrength == "off")
 
-            // 8. Live Dual Gimbal Assembly Preview
-            val cyGimbal = (screenH * 0.72f).coerceAtLeast(cy + 130f * d)
-            val radOuter = 160f * d
-            val radInner = 95f * d
+            // 8. Live Dual Gimbal Assembly Preview & Touch Interaction
+            val cyGimbal = (screenH * 0.68f).coerceAtLeast(cy + 110f * d)
+            val radOuter = 135f * d
+            val radInner = 82f * d
+            val radHub = 26f * d
 
-            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radOuter, 28f * d, 16, 8f * d, gearRingRotations[0], true, m3Primary)
-            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radInner, 22f * d, 10, 6f * d, gearRingRotations[1], false, m3Primary)
+            // Draw Gimbal Rings with Active Highlight based on activeHangarRing
+            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radOuter, 26f * d, 16, 7f * d, gearRingRotations[0], (activeHangarRing == 0), m3Primary)
+            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radInner, 20f * d, 10, 5.5f * d, gearRingRotations[1], (activeHangarRing == 1), m3Primary)
 
             val r0 = getAppsForActiveGear(activeGearSetIndex, 0)
             val r1 = getAppsForActiveGear(activeGearSetIndex, 1)
+            val pm = context.packageManager
+            val sizeRaw = (34f * d).toInt()
 
-            val r0BtnRect = RectF(cx - 120f * d, cyGimbal - 86f * d, cx + 120f * d, cyGimbal - 50f * d)
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(190, 16, 22, 38)
-            canvas.drawRoundRect(r0BtnRect, 14f * d, 14f * d, highlightPaint)
-            highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.4f * d
-            highlightPaint.color = m3Primary
-            canvas.drawRoundRect(r0BtnRect, 14f * d, 14f * d, highlightPaint)
-            textPaint.textSize = 11f * d
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            textPaint.color = Color.WHITE
-            canvas.drawText("RING 01 // ${r0.size} APPS [ ⊕ EDIT ]", cx, cyGimbal - 64f * d, textPaint)
+            var focusedAppLabel: String? = null
 
-            val r1BtnRect = RectF(cx - 120f * d, cyGimbal + 50f * d, cx + 120f * d, cyGimbal + 86f * d)
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(190, 16, 22, 38)
-            canvas.drawRoundRect(r1BtnRect, 14f * d, 14f * d, highlightPaint)
+            // Draw Real App Icons on both rings
+            for (r in 0..1) {
+                val radius = if (r == 0) radOuter else radInner
+                val ringApps = if (r == 0) r0 else r1
+                if (ringApps.isEmpty()) continue
+
+                val count = ringApps.size
+                val baseRotation = gearRingRotations[r]
+                val isRingFocused = (activeHangarRing == r)
+
+                for (i in ringApps.indices) {
+                    val angleDeg = (baseRotation + i * (360f / count)) % 360f
+                    val angleRad = Math.toRadians(angleDeg.toDouble())
+
+                    val iconCX = cx + radius * Math.cos(angleRad).toFloat()
+                    val iconCY = cyGimbal + radius * Math.sin(angleRad).toFloat()
+
+                    val normalizedDeg = if (angleDeg < 0) angleDeg + 360f else angleDeg
+                    val isHighlighted = isRingFocused && abs(normalizedDeg - 180f) < (180f / count)
+                    val currentScale = if (isHighlighted) 1.25f else 1.0f
+                    val currentSize = (sizeRaw * currentScale).toInt()
+
+                    val itemToken = ringApps[i]
+                    val extractedPkg = when {
+                        itemToken.startsWith("app:") -> itemToken.removePrefix("app:")
+                        itemToken.startsWith("shortcut:") -> {
+                            if (itemToken.contains(";pkg=")) itemToken.substringAfter(";pkg=").substringBefore(";")
+                            else if (itemToken.contains("package=")) itemToken.substringAfter("package=").substringBefore(";")
+                            else ""
+                        }
+                        itemToken.startsWith("system:") -> ""
+                        else -> itemToken
+                    }
+
+                    val appLabel = LightspeedActionRegistry.labelCache[itemToken] ?: run {
+                        if (extractedPkg.isNotEmpty()) {
+                            try {
+                                pm.getApplicationLabel(pm.getApplicationInfo(extractedPkg, 0)).toString()
+                            } catch (_: Exception) { extractedPkg }
+                        } else itemToken
+                    }
+
+                    if (isHighlighted) {
+                        focusedAppLabel = appLabel
+                    }
+
+                    // Draw Pod Glowing Backdrop
+                    highlightPaint.style = Paint.Style.FILL
+                    highlightPaint.color = if (isHighlighted) Color.argb(220, 24, 32, 54) else Color.argb(140, 12, 16, 26)
+                    canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
+
+                    highlightPaint.style = Paint.Style.STROKE
+                    highlightPaint.strokeWidth = if (isHighlighted) 1.6f * d else 0.8f * d
+                    highlightPaint.color = if (isHighlighted) m3Primary else Color.argb(50, 200, 220, 255)
+                    canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
+
+                    // Draw App Icon
+                    try {
+                        val dIcon = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, itemToken)
+                        if (dIcon != null) {
+                            dIcon.alpha = if (isRingFocused) (if (isHighlighted) 255 else 210) else 140
+                            val iconLeft = (iconCX - currentSize / 2f).toInt()
+                            val iconTop = (iconCY - currentSize / 2f).toInt()
+                            dIcon.setBounds(iconLeft, iconTop, iconLeft + currentSize, iconTop + currentSize)
+                            dIcon.draw(canvas)
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
+            // Draw Targeting Reticle Collimator at 180 deg (straight left)
+            val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
+            val reticleY = cyGimbal
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1.4f * d
             highlightPaint.color = m3Secondary
-            canvas.drawRoundRect(r1BtnRect, 14f * d, 14f * d, highlightPaint)
-            textPaint.color = Color.WHITE
-            canvas.drawText("RING 02 // ${r1.size} APPS [ ⊕ EDIT ]", cx, cyGimbal + 72f * d, textPaint)
+            canvas.drawCircle(reticleX, reticleY, 22f * d, highlightPaint)
+            canvas.drawLine(reticleX - 26f * d, reticleY, reticleX - 16f * d, reticleY, highlightPaint)
+            canvas.drawLine(reticleX + 16f * d, reticleY, reticleX + 26f * d, reticleY, highlightPaint)
+
+            // Target Indicator Text Badge
+            if (focusedAppLabel != null) {
+                textPaint.textSize = 10f * d
+                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.color = m3Secondary
+                canvas.drawText("🎯 ACTIVE TARGET: $focusedAppLabel", cx, cyGimbal - radOuter - 10f * d, textPaint)
+            } else {
+                textPaint.textSize = 9.5f * d
+                textPaint.typeface = android.graphics.Typeface.DEFAULT
+                textPaint.color = Color.argb(140, 200, 220, 255)
+                canvas.drawText("✦ TOUCH & DRAG TO SPIN GIMBAL ✦", cx, cyGimbal - radOuter - 10f * d, textPaint)
+            }
 
             // Central Purge Core
             elementPaint.style = Paint.Style.FILL
             elementPaint.color = Color.argb(55, 239, 83, 80)
-            canvas.drawCircle(cx, cyGimbal, 28f * d, elementPaint)
+            canvas.drawCircle(cx, cyGimbal, radHub, elementPaint)
             elementPaint.style = Paint.Style.STROKE
             elementPaint.strokeWidth = 1.2f * d
             elementPaint.color = Color.argb(180, 239, 83, 80)
-            canvas.drawCircle(cx, cyGimbal, 26f * d, elementPaint)
+            canvas.drawCircle(cx, cyGimbal, radHub - 2f * d, elementPaint)
             textPaint.textSize = 8.5f * d
             textPaint.color = Color.parseColor("#FFCDD2")
             canvas.drawText("PURGE", cx, cyGimbal - 1f * d, textPaint)
-            textPaint.textSize = 7.5f * d
-            canvas.drawText("RING", cx, cyGimbal + 10f * d, textPaint)
+            textPaint.textSize = 7f * d
+            canvas.drawText("RING", cx, cyGimbal + 9f * d, textPaint)
+
+            // 9. Dedicated Clean Configuration Buttons Below Gimbal
+            val rBtnY = cyGimbal + radOuter + 22f * d
+            val r0BtnRect = RectF(leftX, rBtnY - 17f * d, cx - gap / 2f, rBtnY + 17f * d)
+            val r1BtnRect = RectF(cx + gap / 2f, rBtnY - 17f * d, rightX, rBtnY + 17f * d)
+
+            // Ring 01 Button
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(190, 16, 22, 38)
+            canvas.drawRoundRect(r0BtnRect, 10f * d, 10f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 1.3f * d
+            highlightPaint.color = m3Primary
+            canvas.drawRoundRect(r0BtnRect, 10f * d, 10f * d, highlightPaint)
+            textPaint.textSize = 10f * d
+            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textPaint.color = Color.WHITE
+            canvas.drawText("⊕ RING 01 (${r0.size} APPS)", r0BtnRect.centerX(), r0BtnRect.centerY() + 3.5f * d, textPaint)
+
+            // Ring 02 Button
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(190, 16, 22, 38)
+            canvas.drawRoundRect(r1BtnRect, 10f * d, 10f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 1.3f * d
+            highlightPaint.color = m3Secondary
+            canvas.drawRoundRect(r1BtnRect, 10f * d, 10f * d, highlightPaint)
+            textPaint.color = Color.WHITE
+            canvas.drawText("⊕ RING 02 (${r1.size} APPS)", r1BtnRect.centerX(), r1BtnRect.centerY() + 3.5f * d, textPaint)
 
             // Bottom Exit Capsule
-            val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 62f * d, cx + (deckW * 0.42f), screenH - 18f * d)
+            val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 56f * d, cx + (deckW * 0.42f), screenH - 18f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(140, 24, 28, 40)
             canvas.drawRoundRect(exitBtnRect, 14f * d, 14f * d, highlightPaint)

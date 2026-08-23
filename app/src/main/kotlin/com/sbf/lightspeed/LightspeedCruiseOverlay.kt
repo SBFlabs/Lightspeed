@@ -82,7 +82,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     
     private var isCruising = false
     private var isStickyPinned = false
-    private var currentLayer = CruiseLayer.HIDDEN
+    private var currentLayer: CruiseLayer = CruiseLayer.HIDDEN
+        set(value) {
+            field = value
+            refreshActiveRenderEffect()
+        }
     private var currentActiveZone = TouchZone.NONE
 
     private var centerHeightPx = 400f
@@ -416,7 +420,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private fun refreshActiveRenderEffect() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            setRenderEffect(if (currentLayer != CruiseLayer.HIDDEN) cachedRenderEffect else null)
+            val shouldApplyBlur = (currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN)
+            setRenderEffect(if (shouldApplyBlur) cachedRenderEffect else null)
         }
     }
 
@@ -904,7 +909,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 currentLayer = CruiseLayer.GRID; loadActiveCategoryGrid(); invalidate(); return
             }
             if (cachedCategories.isNotEmpty()) {
-                val startYArea = hF * 0.25f; val endYArea = hF * 0.75f
+                val startYArea = hF * 0.22f; val endYArea = hF * 0.78f
                 val catLineH = (endYArea - startYArea) / cachedCategories.size
 
                 val isAtBottom = (activeCatIndex == cachedCategories.size - 1)
@@ -957,7 +962,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 touchDownRawX = rawX; touchDownRawY = rawY; lastTouchRawY = rawY
                 placedAppsList.clear(); cachedApps = emptyList(); lastLoadedCategoryId = null
                 if (cachedCategories.isNotEmpty()) {
-                    val startYArea = hF * 0.25f; val endYArea = hF * 0.75f
+                    val startYArea = hF * 0.22f; val endYArea = hF * 0.78f
                     val catLineH = (endYArea - startYArea) / cachedCategories.size
 
                     val maxScroll = totalGridContentHeight - (hF * 0.79f)
@@ -1758,9 +1763,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val relativeDistanceFromCenter = centerY - (h / 2f)
                     val sweepAngleRad = (relativeDistanceFromCenter / ((endYArea - startYArea) / 2f)).coerceIn(-1.2f, 1.2f) * (PI / 2.6f)
                     
-                    val targetTextX = w - 75f - (cos(sweepAngleRad).toFloat() * 260f) - ((1f - decelerationFactor) * (w * 0.45f))
+                    val targetTextX = w - 75f - (cos(sweepAngleRad).toFloat() * 260f)
                     val distanceRatio = (abs(relativeDistanceFromCenter) / ((endYArea - startYArea) / 2f)).coerceIn(0f, 1f)
-                    val zoom = (0.65f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.55f) * decelerationFactor
+                    val zoom = 0.65f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.55f
 
                     // If active category, draw its blazing Nebula Cloud behind it
                     if (idx == activeCatIndex) {

@@ -79,12 +79,19 @@ object ActionDispatcher {
                             try { context.startActivity(it) } catch (_: Exception) {}
                         }
                     }
-                } else if (uriString.contains(";type=activity;") && uriString.contains(";activity=") && uriString.contains(";pkg=")) {
+                } else if (uriString.contains(";activity=") && uriString.contains(";pkg=")) {
                     val pkg = uriString.substringAfter(";pkg=").substringBefore(";")
                     val act = uriString.substringAfter(";activity=").substringBefore(";")
-                    val intent = Intent().apply {
-                        setClassName(pkg, act)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val intent = if (uriString.contains(";type=app_shortcut;")) {
+                        Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                            setClassName(pkg, act)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    } else {
+                        Intent().apply {
+                            setClassName(pkg, act)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
                     }
                     try {
                         context.startActivity(intent)

@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -134,6 +136,8 @@ class GearPickerActivity : ComponentActivity() {
                 val data = result.data
                 if (data != null && result.resultCode == Activity.RESULT_OK) {
                     var uriString = ""
+                    var shortcutBmp: Bitmap? = null
+
                     if (data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
                         val pinRequest = try {
                             if (Build.VERSION.SDK_INT >= 33) {
@@ -153,6 +157,14 @@ class GearPickerActivity : ComponentActivity() {
                             if (info != null) {
                                 val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: ""
                                 uriString = "shortcut:;id=${info.id};pkg=${info.`package`};label=$label;"
+                                try {
+                                    val launcherApps = getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+                                    val d = launcherApps.getShortcutBadgedIconDrawable(info, resources.displayMetrics.densityDpi)
+                                        ?: launcherApps.getShortcutIconDrawable(info, resources.displayMetrics.densityDpi)
+                                    if (d != null) {
+                                        shortcutBmp = com.sbf.lightspeed.system.LightspeedIconManager.getIconBitmap(this@GearPickerActivity, info.`package`)
+                                    }
+                                } catch (_: Exception) {}
                             }
                         }
                     }
@@ -178,11 +190,54 @@ class GearPickerActivity : ComponentActivity() {
                             } else {
                                 "shortcut:$intentUri"
                             }
+
+                            val rawBmp: Bitmap? = try {
+                                if (Build.VERSION.SDK_INT >= 33) {
+                                    data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON, Bitmap::class.java)
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON) as? Bitmap
+                                }
+                            } catch (_: Exception) { null }
+
+                            shortcutBmp = rawBmp ?: run {
+                                val iconRes = try {
+                                    if (Build.VERSION.SDK_INT >= 33) {
+                                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, Intent.ShortcutIconResource::class.java)
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE) as? Intent.ShortcutIconResource
+                                    }
+                                } catch (_: Exception) { null }
+                                if (iconRes != null) {
+                                    try {
+                                        val foreignRes = packageManager.getResourcesForApplication(iconRes.packageName)
+                                        val id = foreignRes.getIdentifier(iconRes.resourceName, null, null)
+                                        if (id != 0) {
+                                            val d = foreignRes.getDrawable(id, null)
+                                            if (d != null) {
+                                                val w = d.intrinsicWidth.coerceIn(48, 256)
+                                                val h = d.intrinsicHeight.coerceIn(48, 256)
+                                                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                                                val canvas = Canvas(bmp)
+                                                d.setBounds(0, 0, w, h)
+                                                d.draw(canvas)
+                                                bmp
+                                            } else null
+                                        } else null
+                                    } catch (_: Exception) { null }
+                                } else null
+                            }
                         }
                     }
 
-                    if (uriString.isNotBlank() && !selectedTokens.contains(uriString)) {
-                        selectedTokens.add(uriString)
+                    if (uriString.isNotBlank()) {
+                        if (shortcutBmp != null) {
+                            com.sbf.lightspeed.system.LightspeedIconManager.saveCustomShortcutBitmap(this@GearPickerActivity, uriString, shortcutBmp)
+                        }
+                        if (!selectedTokens.contains(uriString)) {
+                            selectedTokens.add(uriString)
+                        }
                     }
                 }
             }

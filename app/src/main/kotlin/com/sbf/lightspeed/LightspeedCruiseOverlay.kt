@@ -1418,6 +1418,51 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
+    private fun resolveCleanAppLabel(itemToken: String): String {
+        LightspeedActionRegistry.labelCache[itemToken]?.let { return it }
+        val pm = context.packageManager
+        return when {
+            itemToken.startsWith("shortcut:") -> {
+                when {
+                    itemToken.contains("custom_label=") -> itemToken.substringAfter("custom_label=").substringBefore(";")
+                    itemToken.contains(";label=") -> itemToken.substringAfter(";label=").substringBefore(";")
+                    itemToken.contains("label=") -> itemToken.substringAfter("label=").substringBefore(";")
+                    itemToken.contains(";pkg=") -> {
+                        val pkg = itemToken.substringAfter(";pkg=").substringBefore(";")
+                        try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
+                    }
+                    itemToken.contains("package=") -> {
+                        val pkg = itemToken.substringAfter("package=").substringBefore(";")
+                        try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
+                    }
+                    itemToken.contains("component=") -> {
+                        val pkg = itemToken.substringAfter("component=").substringBefore("/").substringBefore(";")
+                        try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
+                    }
+                    itemToken.contains("intent:#Intent;") -> {
+                        try {
+                            val pureUri = "intent:#Intent;" + itemToken.substringAfter("intent:#Intent;").substringBefore(";pkg=").substringBefore(";custom_label=").substringBefore(";label=")
+                            val parsed = Intent.parseUri(pureUri, Intent.URI_INTENT_SCHEME)
+                            val pkg = parsed.`package` ?: parsed.component?.packageName ?: ""
+                            if (pkg.isNotEmpty()) {
+                                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                            } else "Shortcut"
+                        } catch (_: Exception) { "Shortcut" }
+                    }
+                    else -> "Shortcut"
+                }
+            }
+            itemToken.startsWith("system:") -> itemToken.substringAfter("system:").replace("_", " ").uppercase()
+            itemToken.startsWith("app:") -> {
+                val pkg = itemToken.removePrefix("app:")
+                try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
+            }
+            else -> {
+                try { pm.getApplicationLabel(pm.getApplicationInfo(itemToken, 0)).toString() } catch (_: Exception) { itemToken }
+            }
+        }
+    }
+
     private fun launchLauncherSettings() {
         dismissOverlay()
         try {
@@ -1622,6 +1667,16 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         textPaint.textSize = 12f * density
         textPaint.color = Color.WHITE
         textPaint.textAlign = Paint.Align.LEFT
+        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+
+        val maxBadgeWidth = 160f * density
+        var cleanAppName = appName
+        if (textPaint.measureText(cleanAppName) > maxBadgeWidth) {
+            while (cleanAppName.length > 3 && textPaint.measureText("$cleanAppName…") > maxBadgeWidth) {
+                cleanAppName = cleanAppName.dropLast(1)
+            }
+            cleanAppName = "$cleanAppName…"
+        }
         
         val badgeX = targetCX + half + 14f * density
         val badgeY = targetCY - 6f * density
@@ -1629,7 +1684,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         // Target Lock Badge Frame
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = Color.argb(190, 16, 20, 32)
-        val textWidth = textPaint.measureText(appName)
+        val textWidth = textPaint.measureText(cleanAppName)
         val badgeRect = RectF(badgeX - 8f * density, badgeY - 14f * density, badgeX + textWidth + 14f * density, badgeY + 20f * density)
         canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
         
@@ -1639,11 +1694,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
         
         // App Name
-        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-        canvas.drawText(appName, badgeX, badgeY + 2f * density, textPaint)
+        canvas.drawText(cleanAppName, badgeX, badgeY + 2f * density, textPaint)
         
         // Telemetry Subtext
         textPaint.textSize = 8.5f * density
+        textPaint.typeface = android.graphics.Typeface.DEFAULT
         textPaint.color = Color.argb(200, 180, 220, 255)
         canvas.drawText("TARGET LOCK // 180°", badgeX, badgeY + 14f * density, textPaint)
     }
@@ -2219,24 +2274,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val currentSize = (sizeRaw * currentScale).toInt()
 
                     val itemToken = ringApps[i]
-                    val extractedPkg = when {
-                        itemToken.startsWith("app:") -> itemToken.removePrefix("app:")
-                        itemToken.startsWith("shortcut:") -> {
-                            if (itemToken.contains(";pkg=")) itemToken.substringAfter(";pkg=").substringBefore(";")
-                            else if (itemToken.contains("package=")) itemToken.substringAfter("package=").substringBefore(";")
-                            else ""
-                        }
-                        itemToken.startsWith("system:") -> ""
-                        else -> itemToken
-                    }
-
-                    val appLabel = LightspeedActionRegistry.labelCache[itemToken] ?: run {
-                        if (extractedPkg.isNotEmpty()) {
-                            try {
-                                pm.getApplicationLabel(pm.getApplicationInfo(extractedPkg, 0)).toString()
-                            } catch (_: Exception) { extractedPkg }
-                        } else itemToken
-                    }
+                    val appLabel = resolveCleanAppLabel(itemToken)
 
                     if (isHighlighted) {
                         focusedAppLabel = appLabel
@@ -2498,26 +2536,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val currentSize = (sizeRaw * currentScale).toInt()
                     
                     val itemToken = ringApps[i]
-                    val extractedPkg = when {
-                        itemToken.startsWith("app:") -> itemToken.removePrefix("app:")
-                        itemToken.startsWith("shortcut:") -> {
-                            if (itemToken.contains(";pkg=")) itemToken.substringAfter(";pkg=").substringBefore(";")
-                            else if (itemToken.contains("package=")) itemToken.substringAfter("package=").substringBefore(";")
-                            else ""
-                        }
-                        itemToken.startsWith("system:") -> ""
-                        else -> itemToken
-                    }
-
-                    val appLabel = LightspeedActionRegistry.labelCache[itemToken] ?: run {
-                        if (extractedPkg.isNotEmpty()) {
-                            try {
-                                pm.getApplicationLabel(pm.getApplicationInfo(extractedPkg, 0)).toString()
-                            } catch (_: Exception) { extractedPkg }
-                        } else {
-                            itemToken.substringAfter("system:").replace("_", " ").uppercase()
-                        }
-                    }
+                    val appLabel = resolveCleanAppLabel(itemToken)
 
                     // 1. Orbital Flight Pod Socket Behind Icon
                     highlightPaint.style = Paint.Style.FILL

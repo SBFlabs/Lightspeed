@@ -187,9 +187,53 @@ object LightspeedIconManager {
         }
     }
 
+    private val customShortcutBitmaps = ConcurrentHashMap<String, Bitmap>()
+
+    fun saveCustomShortcutBitmap(context: Context, token: String, bitmap: Bitmap) {
+        if (token.isBlank()) return
+        customShortcutBitmaps[token] = bitmap
+        bitmapCache[token] = bitmap
+        drawableCache[token] = BitmapDrawable(context.resources, bitmap)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val dir = java.io.File(context.filesDir, "shortcut_icons")
+                if (!dir.exists()) dir.mkdirs()
+                val file = java.io.File(dir, "${token.hashCode()}.png")
+                java.io.FileOutputStream(file).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error saving shortcut bitmap to disk", e)
+            }
+        }
+    }
+
+    private fun loadCustomShortcutBitmap(context: Context, token: String): Bitmap? {
+        customShortcutBitmaps[token]?.let { return it }
+        try {
+            val file = java.io.File(context.filesDir, "shortcut_icons/${token.hashCode()}.png")
+            if (file.exists()) {
+                val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                if (bmp != null) {
+                    customShortcutBitmaps[token] = bmp
+                    return bmp
+                }
+            }
+        } catch (_: Exception) {}
+        return null
+    }
+
     fun getIconDrawable(context: Context, tokenOrPkg: String): Drawable? {
         if (tokenOrPkg.isBlank()) return null
         drawableCache[tokenOrPkg]?.let { return it }
+
+        // Check custom shortcut bitmap first
+        val customBmp = loadCustomShortcutBitmap(context, tokenOrPkg)
+        if (customBmp != null) {
+            val d = BitmapDrawable(context.resources, customBmp)
+            drawableCache[tokenOrPkg] = d
+            return d
+        }
 
         ensureLoaded(context)
         val activePack = getActiveIconPack(context)
@@ -199,10 +243,20 @@ object LightspeedIconManager {
         val extractedPkg = when {
             tokenOrPkg.startsWith("app:") -> tokenOrPkg.removePrefix("app:")
             tokenOrPkg.startsWith("shortcut:") -> {
-                if (tokenOrPkg.contains(";pkg=")) tokenOrPkg.substringAfter(";pkg=").substringBefore(";")
-                else if (tokenOrPkg.contains("pkg=")) tokenOrPkg.substringAfter("pkg=").substringBefore(";")
-                else if (tokenOrPkg.contains("package=")) tokenOrPkg.substringAfter("package=").substringBefore(";")
-                else ""
+                when {
+                    tokenOrPkg.contains(";pkg=") -> tokenOrPkg.substringAfter(";pkg=").substringBefore(";")
+                    tokenOrPkg.contains("pkg=") -> tokenOrPkg.substringAfter("pkg=").substringBefore(";")
+                    tokenOrPkg.contains("package=") -> tokenOrPkg.substringAfter("package=").substringBefore(";")
+                    tokenOrPkg.contains("component=") -> tokenOrPkg.substringAfter("component=").substringBefore("/").substringBefore(";")
+                    tokenOrPkg.contains("intent:#Intent;") -> {
+                        try {
+                            val pureUri = "intent:#Intent;" + tokenOrPkg.substringAfter("intent:#Intent;").substringBefore(";pkg=").substringBefore(";custom_label=").substringBefore(";label=")
+                            val parsed = Intent.parseUri(pureUri, Intent.URI_INTENT_SCHEME)
+                            parsed.`package` ?: parsed.component?.packageName ?: ""
+                        } catch (_: Exception) { "" }
+                    }
+                    else -> ""
+                }
             }
             else -> tokenOrPkg
         }

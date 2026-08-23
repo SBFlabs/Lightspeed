@@ -282,7 +282,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    private fun updateMetricsDimensions() {
+    fun updateMetricsDimensions() {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
 
@@ -2956,6 +2956,72 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
             canvas.restore()
         }
+
+        if (currentLayer == CruiseLayer.HIDDEN) {
+            val isSidebarPreview = prefs.getBoolean("pref_sidebar_preview", false)
+            val isTopExpanded = prefs.getBoolean("pref_section_top_expanded", false)
+            val isCenterExpanded = prefs.getBoolean("pref_section_center_expanded", false)
+            val isBottomExpanded = prefs.getBoolean("pref_section_bottom_expanded", false)
+
+            val d = resources.displayMetrics.density
+            val screenW = width.toFloat()
+
+            val centerTransparency = prefs.getInt("pref_sidebar_center_transparency", 0)
+            val topTransparency = prefs.getInt("pref_sidebar_top_transparency", 0)
+            val bottomTransparency = if (prefs.getBoolean("pref_sidebar_link_edges", false)) topTransparency else prefs.getInt("pref_sidebar_bottom_transparency", 0)
+
+            // 1. Center Zone (Gimbal / Cogs)
+            if (isCenterExpanded || isSidebarPreview) {
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(130, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+                canvas.drawRect(centerTouchBounds, highlightPaint)
+
+                highlightPaint.style = Paint.Style.STROKE
+                highlightPaint.strokeWidth = 2f * d
+                highlightPaint.color = Color.WHITE
+                canvas.drawRect(centerTouchBounds, highlightPaint)
+            } else if (centerTransparency > 0) {
+                val alpha = (centerTransparency * 2.55f).toInt().coerceIn(0, 255)
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(alpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+                canvas.drawRect(screenW - (3f * d), centerTouchBounds.top, screenW, centerTouchBounds.bottom, highlightPaint)
+            }
+
+            // 2. Upper Zone
+            if (isTopExpanded || isSidebarPreview) {
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(130, 68, 138, 255)
+                canvas.drawRect(topTouchBounds, highlightPaint)
+
+                highlightPaint.style = Paint.Style.STROKE
+                highlightPaint.strokeWidth = 2f * d
+                highlightPaint.color = Color.WHITE
+                canvas.drawRect(topTouchBounds, highlightPaint)
+            } else if (topTransparency > 0) {
+                val alpha = (topTransparency * 2.55f).toInt().coerceIn(0, 255)
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(alpha, 68, 138, 255)
+                canvas.drawRect(screenW - (3f * d), topTouchBounds.top, screenW, topTouchBounds.bottom, highlightPaint)
+            }
+
+            // 3. Lower Zone
+            if (isBottomExpanded || isSidebarPreview) {
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(130, 255, 171, 0)
+                canvas.drawRect(bottomTouchBounds, highlightPaint)
+
+                highlightPaint.style = Paint.Style.STROKE
+                highlightPaint.strokeWidth = 2f * d
+                highlightPaint.color = Color.WHITE
+                canvas.drawRect(bottomTouchBounds, highlightPaint)
+            } else if (bottomTransparency > 0) {
+                val alpha = (bottomTransparency * 2.55f).toInt().coerceIn(0, 255)
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(alpha, 255, 171, 0)
+                canvas.drawRect(screenW - (3f * d), bottomTouchBounds.top, screenW, bottomTouchBounds.bottom, highlightPaint)
+            }
+        }
+
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
     }
 }

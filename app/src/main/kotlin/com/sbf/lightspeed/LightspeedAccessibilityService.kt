@@ -32,6 +32,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             updateStatusBarOverlayFromPrefs(prefs)
         }
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_"))) {
+            updateSidebarOverlayFromPrefs(prefs)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -146,9 +149,32 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun updateSidebarOverlayFromPrefs(prefs: SharedPreferences) {
+        if (windowManager == null || overlayView == null) return
+        val isPreview = prefs.getBoolean("pref_sidebar_preview", false)
+        val density = resources.displayMetrics.density
+        val maxTouchWidthDp = maxOf(
+            prefs.getInt("pref_sidebar_center_touch_width", 40),
+            prefs.getInt("pref_sidebar_top_touch_width", 40),
+            prefs.getInt("pref_sidebar_bottom_touch_width", 40)
+        )
+        val targetWidth = if (isPreview) {
+            (maxTouchWidthDp * density * 2.5f).toInt().coerceAtLeast((150 * density).toInt())
+        } else {
+            edgeWidthPx
+        }
+        windowParams.width = targetWidth
+        overlayView?.updateMetricsDimensions()
+        overlayView?.invalidate()
+        windowManager?.updateViewLayout(overlayView, windowParams)
+    }
+
     fun updateWindowLayout(expand: Boolean) {
         if (windowManager == null || overlayView == null) return
-        windowParams.width = if (expand) WindowManager.LayoutParams.MATCH_PARENT else edgeWidthPx
+        val isPreview = getSharedPreferences("default", Context.MODE_PRIVATE).getBoolean("pref_sidebar_preview", false)
+        val density = resources.displayMetrics.density
+        val restingWidth = if (isPreview) (150 * density).toInt() else edgeWidthPx
+        windowParams.width = if (expand) WindowManager.LayoutParams.MATCH_PARENT else restingWidth
         windowManager?.updateViewLayout(overlayView, windowParams)
     }
 

@@ -18,14 +18,21 @@
 
 # Autonomous Execution Loop (MANDATORY AFTER EVERY TASK/FIX)
 Whenever you finish writing, fixing, or refactoring code:
-1. Compile: Run `./gradlew assembleDebug`.
-2. Local Commit: Automatically `git add -A` and `git commit -m "<concise task description>"`.
-3. Wireless ADB Deploy:
+1. Hardware Bottleneck & Process Hygiene:
+   - NEVER run multiple Gradle builds or overlapping background processes in parallel.
+   - Always execute builds strictly sequentially to prevent CPU throttling, daemon lockups, and stale task reporting.
+2. Compile: Run `./gradlew assembleDebug` (or `assembleRelease` for stable).
+3. Local Commit: Automatically `git add -A` and `git commit -m "<concise task description>"`.
+4. Wireless ADB Deploy (Silent):
    - Run `adb connect 192.168.100.10:5555`
    - Run `adb -s 192.168.100.10:5555 install -r app/build/outputs/apk/debug/app-debug.apk`
-4. Report: State that the build succeeded, show the commit hash, and confirm deployment to the device.
+   - NEVER run `am start` to auto-launch screens on install.
+5. Device Verification:
+   - Always verify `adb -s 192.168.100.10:5555 shell dumpsys package <pkg> | grep lastUpdateTime` to ensure the phone physically updated.
+6. Report: State the commit hash, verified lastUpdateTime on device, and confirmed status.
 
 # Architecture & Code Standards
 - Primary Language: 100% Pure Kotlin (Jetpack Compose with Material 3 Expressive).
 - Visual Aesthetics: Deep space aesthetic, progressive backdrop frosting, AGSL liquid glass.
 - Operating Mode: Autonomous Lead Developer (User is Non-Developer PM).
+

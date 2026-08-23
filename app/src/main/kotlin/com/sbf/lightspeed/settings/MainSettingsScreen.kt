@@ -466,44 +466,17 @@ fun SidebarMatrixConfigurationFields(
 
         CompactAccordionSection(title = "Right Sidebar - Center Zone (Gimbal / Cogs)", isExpanded = isCenterExpanded, onToggle = {
             isCenterExpanded = !isCenterExpanded
+            val newCenter = isCenterExpanded
             prefs.edit()
-                .putBoolean("pref_section_center_expanded", isCenterExpanded)
-                .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded)
+                .putBoolean("pref_section_center_expanded", newCenter)
+                .putBoolean("pref_sidebar_preview", newCenter || isTopExpanded || isBottomExpanded)
                 .apply()
         }) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Cockpit & Dual-Ring Gear Sets launcher card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .clickable {
-                            val intent = Intent(context, CockpitSettingsActivity::class.java).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(intent)
-                        },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Cockpit & Dual-Ring Gear Sets", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
-                            Text("Configure circular outer/inner rings, gear sets & physics", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Height", 50, 1000, 10, 400)
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Sensitivity", 10, 100, 5, 40)
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_visual_width", "", "Width", 0, 20, 1, 4)
                 PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Vertical Offset", -300, 300, 10, 0)
+                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Transparency", 0, 100, 5, 0)
             }
         }
 
@@ -512,18 +485,25 @@ fun SidebarMatrixConfigurationFields(
             CompactAccordionSection(title = zoneTitle, isExpanded = isCurrentExpanded, onToggle = {
                 if (idx == 0) {
                     isTopExpanded = !isTopExpanded
-                    prefs.edit().putBoolean("pref_section_top_expanded", isTopExpanded).apply()
+                    val newTop = isTopExpanded
+                    prefs.edit()
+                        .putBoolean("pref_section_top_expanded", newTop)
+                        .putBoolean("pref_sidebar_preview", isCenterExpanded || newTop || isBottomExpanded)
+                        .apply()
                 } else {
                     isBottomExpanded = !isBottomExpanded
-                    prefs.edit().putBoolean("pref_section_bottom_expanded", isBottomExpanded).apply()
+                    val newBottom = isBottomExpanded
+                    prefs.edit()
+                        .putBoolean("pref_section_bottom_expanded", newBottom)
+                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || newBottom)
+                        .apply()
                 }
-                prefs.edit().putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded).apply()
             }) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
                     PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Height", 50, 600, 10, 200)
                     PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Sensitivity", 10, 100, 5, 40)
-                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_visual_width", "", "Width", 0, 20, 1, 4)
+                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Transparency", 0, 100, 5, 0)
 
                     HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
                     GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Left Swipe (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
@@ -928,11 +908,18 @@ fun CompactAccordionSection(title: String, isExpanded: Boolean, onToggle: () -> 
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                )
                 Icon(
-                    if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
             AnimatedVisibility(visible = isExpanded) {

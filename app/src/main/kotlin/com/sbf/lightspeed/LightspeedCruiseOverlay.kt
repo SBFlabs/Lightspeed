@@ -443,42 +443,154 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         val rawX = event.rawX; val rawY = event.rawY
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             if (event.action == MotionEvent.ACTION_DOWN) {
-                val d = resources.displayMetrics.density; val cx = width / 2f; val cy = height / 2f
-                val topHangarY = 50f * d
-                // 1. Config Button (Centered Action Capsule)
-                if (x >= cx - 85f * d && x <= cx + 85f * d && y >= topHangarY + 18f * d && y <= topHangarY + 52f * d) {
-                    val intent = android.content.Intent(context, CockpitSettingsActivity::class.java).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-                    context.startActivity(intent)
-                    dismissOverlay()
+                val d = resources.displayMetrics.density
+                val cx = width / 2f
+                val cy = height / 2f
+                val topHangarY = 40f * d
+                val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+
+                // 1. Startup Mode: First Profile vs Resume Last
+                val r1Y = topHangarY + 36f * d
+                val btn1Rect = RectF(cx - 130f * d, r1Y - 12f * d, cx - 6f * d, r1Y + 12f * d)
+                val btn2Rect = RectF(cx + 6f * d, r1Y - 12f * d, cx + 130f * d, r1Y + 12f * d)
+                if (btn1Rect.contains(x, y)) {
+                    prefs.edit().putString("cockpit_launch_behavior", "default").apply()
+                    triggerHardwareHaptic(20, 120)
+                    invalidate()
                     return true
                 }
-                if (y < (30f * d) || y > (height - 60f * d)) { dismissOverlay(); return true }
-                val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+                if (btn2Rect.contains(x, y)) {
+                    prefs.edit().putString("cockpit_launch_behavior", "last").apply()
+                    triggerHardwareHaptic(20, 120)
+                    invalidate()
+                    return true
+                }
+
+                // 2. Profile Order & Re-ordering
+                val r2Y = r1Y + 32f * d
                 val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-                val setsList = setsString.split(",").filter { it.isNotEmpty() }
+                val setsList = setsString.split(",").filter { it.isNotEmpty() }.toMutableList()
                 if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
                 val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
-                val itemW = 82f * d
-                val startX = cx - ((setsList.size - 1) * itemW / 2f)
-                val bayY = cy - 280f * d
 
-                // 2. Docking Bay Profile Selection Pods
-                if (y >= bayY - 25f * d && y <= bayY + 25f * d) {
-                    for (gIndex in setsList.indices) {
-                        val btnX = startX + gIndex * itemW
-                        if (x >= btnX - 40f * d && x <= btnX + 40f * d) {
-                            activeGearSetIndex = gIndex
-                            if (prefs.getString("cockpit_launch_behavior", "default") == "last") {
-                                prefs.edit().putInt("last_active_set_index", gIndex).apply()
-                            }
-                            triggerHardwareHaptic(30, 160)
-                            invalidate(); return true
-                        }
+                val arrowLeftRect = RectF(cx - 130f * d, r2Y - 12f * d, cx - 104f * d, r2Y + 12f * d)
+                val profileCapsuleRect = RectF(cx - 100f * d, r2Y - 12f * d, cx + 72f * d, r2Y + 12f * d)
+                val arrowRightRect = RectF(cx + 76f * d, r2Y - 12f * d, cx + 102f * d, r2Y + 12f * d)
+                val addProfileRect = RectF(cx + 106f * d, r2Y - 12f * d, cx + 130f * d, r2Y + 12f * d)
+
+                if (arrowLeftRect.contains(x, y) && activeGearSetIndex > 0) {
+                    val temp = setsList[activeGearSetIndex]
+                    setsList[activeGearSetIndex] = setsList[activeGearSetIndex - 1]
+                    setsList[activeGearSetIndex - 1] = temp
+                    activeGearSetIndex--
+                    prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
+                    triggerHardwareHaptic(30, 160)
+                    invalidate()
+                    return true
+                }
+                if (arrowRightRect.contains(x, y) && activeGearSetIndex < setsList.size - 1) {
+                    val temp = setsList[activeGearSetIndex]
+                    setsList[activeGearSetIndex] = setsList[activeGearSetIndex + 1]
+                    setsList[activeGearSetIndex + 1] = temp
+                    activeGearSetIndex++
+                    prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
+                    triggerHardwareHaptic(30, 160)
+                    invalidate()
+                    return true
+                }
+                if (profileCapsuleRect.contains(x, y)) {
+                    activeGearSetIndex = (activeGearSetIndex + 1) % setsList.size
+                    if (prefs.getString("cockpit_launch_behavior", "default") == "last") {
+                        prefs.edit().putInt("last_active_set_index", activeGearSetIndex).apply()
+                    }
+                    triggerHardwareHaptic(25, 140)
+                    invalidate()
+                    return true
+                }
+                if (addProfileRect.contains(x, y)) {
+                    val newId = System.currentTimeMillis().toString()
+                    setsList.add(newId)
+                    prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).putString("gear_set_${newId}_name", "CUSTOM SET").apply()
+                    activeGearSetIndex = setsList.size - 1
+                    triggerHardwareHaptic(40, 200)
+                    invalidate()
+                    return true
+                }
+
+                // 3. Icon Theme Carousel
+                val r3Y = r2Y + 30f * d
+                val iconThemeRect = RectF(cx - 130f * d, r3Y - 11f * d, cx + 130f * d, r3Y + 11f * d)
+                if (iconThemeRect.contains(x, y)) {
+                    val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
+                    if (availablePacks.isNotEmpty()) {
+                        val activePack = com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)
+                        val currentIndex = availablePacks.indexOfFirst { it.packageName == activePack }
+                        val nextIndex = (currentIndex + 1) % availablePacks.size
+                        com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, availablePacks[nextIndex].packageName)
+                        triggerHardwareHaptic(35, 180)
+                        invalidate()
+                        return true
                     }
                 }
 
-                // 3. Ring 0 [Outer Gimbal] Arm Capsule
-                if (x >= cx - 100f * d && x <= cx + 100f * d && y >= cy - 100f * d && y <= cy - 55f * d) {
+                // 4. Flight Physics
+                val r4Y = r3Y + 28f * d
+                val phys1Rect = RectF(cx - 130f * d, r4Y - 10f * d, cx - 46f * d, r4Y + 10f * d)
+                val phys2Rect = RectF(cx - 42f * d, r4Y - 10f * d, cx + 42f * d, r4Y + 10f * d)
+                val phys3Rect = RectF(cx + 46f * d, r4Y - 10f * d, cx + 130f * d, r4Y + 10f * d)
+                if (phys1Rect.contains(x, y)) {
+                    prefs.edit().putString("pref_gear_physics_profile", "magnetic").apply()
+                    triggerHardwareHaptic(20, 120)
+                    invalidate()
+                    return true
+                }
+                if (phys2Rect.contains(x, y)) {
+                    prefs.edit().putString("pref_gear_physics_profile", "fluid").apply()
+                    triggerHardwareHaptic(20, 120)
+                    invalidate()
+                    return true
+                }
+                if (phys3Rect.contains(x, y)) {
+                    prefs.edit().putString("pref_gear_physics_profile", "heavy").apply()
+                    triggerHardwareHaptic(20, 120)
+                    invalidate()
+                    return true
+                }
+
+                // 5. Haptic Strength
+                val r5Y = r4Y + 24f * d
+                val hap1Rect = RectF(cx - 130f * d, r5Y - 9f * d, cx - 68f * d, r5Y + 9f * d)
+                val hap2Rect = RectF(cx - 64f * d, r5Y - 9f * d, cx - 2f * d, r5Y + 9f * d)
+                val hap3Rect = RectF(cx + 2f * d, r5Y - 9f * d, cx + 64f * d, r5Y + 9f * d)
+                val hap4Rect = RectF(cx + 68f * d, r5Y - 9f * d, cx + 130f * d, r5Y + 9f * d)
+                if (hap1Rect.contains(x, y)) {
+                    prefs.edit().putString("pref_gear_haptic_strength", "subtle").apply()
+                    triggerHardwareHaptic(10, 60)
+                    invalidate()
+                    return true
+                }
+                if (hap2Rect.contains(x, y)) {
+                    prefs.edit().putString("pref_gear_haptic_strength", "tactical").apply()
+                    triggerHardwareHaptic(20, 140)
+                    invalidate()
+                    return true
+                }
+                if (hap3Rect.contains(x, y)) {
+                    prefs.edit().putString("pref_gear_haptic_strength", "heavy").apply()
+                    triggerHardwareHaptic(35, 240)
+                    invalidate()
+                    return true
+                }
+                if (hap4Rect.contains(x, y)) {
+                    prefs.edit().putString("pref_gear_haptic_strength", "off").apply()
+                    invalidate()
+                    return true
+                }
+
+                // 6. Ring 0 [Outer Gimbal] Arm Capsule
+                val cyGimbal = cy + 105f * d
+                val r0BtnRect = RectF(cx - 85f * d, cyGimbal - 72f * d, cx + 85f * d, cyGimbal - 48f * d)
+                if (r0BtnRect.contains(x, y)) {
                     val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                         putExtra("SET_ID", currentSetId)
                         putExtra("RING_INDEX", 0)
@@ -489,8 +601,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     return true
                 }
 
-                // 4. Ring 1 [Inner Gimbal] Arm Capsule
-                if (x >= cx - 100f * d && x <= cx + 100f * d && y >= cy + 55f * d && y <= cy + 100f * d) {
+                // 7. Ring 1 [Inner Gimbal] Arm Capsule
+                val r1BtnRect = RectF(cx - 85f * d, cyGimbal + 48f * d, cx + 85f * d, cyGimbal + 72f * d)
+                if (r1BtnRect.contains(x, y)) {
                     val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                         putExtra("SET_ID", currentSetId)
                         putExtra("RING_INDEX", 1)
@@ -501,11 +614,19 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     return true
                 }
 
-                // 5. Central Purge Core
-                if (x >= cx - 35f * d && x <= cx + 35f * d && y >= cy - 35f * d && y <= cy + 35f * d) {
-                    prefs.edit().putString("gear_set_${currentSetId}_ring_0_packages", "").putString("gear_set_${currentSetId}_ring_1_packages", "").apply()
+                // 8. Central Purge Core
+                if (kotlin.math.hypot(x - cx, y - cyGimbal) <= 28f * d) {
+                    prefs.edit().putString("gear_set_${currentSetId}_ring0", "").putString("gear_set_${currentSetId}_ring1", "").apply()
                     triggerHardwareHaptic(60, 255)
-                    invalidate(); return true
+                    invalidate()
+                    return true
+                }
+
+                // 9. Bottom Exit Capsule / Outside tap
+                val exitBtnRect = RectF(cx - 95f * d, height - 52f * d, cx + 95f * d, height - 26f * d)
+                if (exitBtnRect.contains(x, y) || y < (20f * d) || y > (height - 20f * d)) {
+                    dismissOverlay()
+                    return true
                 }
             }
             return true
@@ -1611,184 +1732,236 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         super.onDraw(canvas)
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             val d = resources.displayMetrics.density
-            val cx = width / 2f; val cy = height / 2f
+            val cx = width / 2f
+            val cy = height / 2f
+            val topHangarY = 40f * d
 
             // 1. Deep Space Astrogation Hangar Void with Starfield
-            canvas.drawColor(Color.argb(240, 6, 8, 14))
+            canvas.drawColor(Color.argb(245, 6, 8, 14))
             drawCosmicStarfield(canvas, width.toFloat(), height.toFloat(), d, 0.75f)
 
-            // 2. Flight Telemetry Grid & Attitude Axis Crosshairs
-            elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = 1f * d
-            elementPaint.color = Color.argb(20, 200, 220, 255)
-            canvas.drawLine(cx - 180f * d, cy, cx + 180f * d, cy, elementPaint)
-            canvas.drawLine(cx, cy - 180f * d, cx, cy + 180f * d, elementPaint)
-
-            // 3. Top Telemetry Header & Config Button
-            val topHangarY = 50f * d
-            val hangarHeader = "◈ ASTROGATION COCKPIT // HANGAR DOCK ◈"
-            textPaint.textSize = 12f * d
+            // 2. Flight Telemetry Header
+            val hangarHeader = "◈ ASTROGATION COCKPIT // HANGAR DECK ◈"
+            textPaint.textSize = 11.5f * d
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.textAlign = Paint.Align.CENTER
             val headerWidth = textPaint.measureText(hangarHeader)
 
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(175, 12, 16, 28)
-            val headerRect = RectF(cx - headerWidth / 2f - 16f * d, topHangarY - 15f * d, cx + headerWidth / 2f + 16f * d, topHangarY + 15f * d)
+            val headerRect = RectF(cx - headerWidth / 2f - 14f * d, topHangarY - 14f * d, cx + headerWidth / 2f + 14f * d, topHangarY + 14f * d)
             canvas.drawRoundRect(headerRect, 10f * d, 10f * d, highlightPaint)
-
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1.2f * d
-            highlightPaint.color = Color.argb(80, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+            highlightPaint.color = Color.argb(90, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(headerRect, 10f * d, 10f * d, highlightPaint)
-
             textPaint.color = Color.WHITE
             canvas.drawText(hangarHeader, cx, topHangarY + 4f * d, textPaint)
 
-            // Centered Action Capsule Button directly beneath the header: [ ⚙ COCKPIT CONFIG ]
-            val configBtnRect = RectF(cx - 75f * d, topHangarY + 22f * d, cx + 75f * d, topHangarY + 48f * d)
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(140, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(configBtnRect, 12f * d, 12f * d, highlightPaint)
-            
-            highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.2f * d
-            highlightPaint.color = m3Primary
-            canvas.drawRoundRect(configBtnRect, 12f * d, 12f * d, highlightPaint)
-            
-            textPaint.textSize = 9.5f * d
-            textPaint.color = Color.WHITE
-            canvas.drawText("⚙ COCKPIT CONFIG", configBtnRect.centerX(), configBtnRect.centerY() + 3.5f * d, textPaint)
-
-            // 4. Modular Docking Bay Pods (Profile Selection Modules)
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val launchBehavior = prefs.getString("cockpit_launch_behavior", "default") ?: "default"
+            val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
+            val hapticStrength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
+
+            // 3. ROW 1: STARTUP MODE [ FIRST PROFILE ] | [ RESUME LAST ]
+            val r1Y = topHangarY + 36f * d
+            val btn1Rect = RectF(cx - 130f * d, r1Y - 12f * d, cx - 6f * d, r1Y + 12f * d)
+            val btn2Rect = RectF(cx + 6f * d, r1Y - 12f * d, cx + 130f * d, r1Y + 12f * d)
+
+            val isDef = (launchBehavior == "default")
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = if (isDef) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
+            canvas.drawRoundRect(btn1Rect, 8f * d, 8f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = if (isDef) 1.4f * d else 0.8f * d
+            highlightPaint.color = if (isDef) m3Primary else Color.argb(50, 200, 220, 255)
+            canvas.drawRoundRect(btn1Rect, 8f * d, 8f * d, highlightPaint)
+            textPaint.textSize = 9f * d
+            textPaint.color = if (isDef) Color.WHITE else Color.argb(160, 200, 220, 255)
+            canvas.drawText("STARTUP: FIRST PROFILE", btn1Rect.centerX(), btn1Rect.centerY() + 3f * d, textPaint)
+
+            val isLast = (launchBehavior == "last")
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = if (isLast) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
+            canvas.drawRoundRect(btn2Rect, 8f * d, 8f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = if (isLast) 1.4f * d else 0.8f * d
+            highlightPaint.color = if (isLast) m3Primary else Color.argb(50, 200, 220, 255)
+            canvas.drawRoundRect(btn2Rect, 8f * d, 8f * d, highlightPaint)
+            textPaint.color = if (isLast) Color.WHITE else Color.argb(160, 200, 220, 255)
+            canvas.drawText("STARTUP: RESUME LAST", btn2Rect.centerX(), btn2Rect.centerY() + 3f * d, textPaint)
+
+            // 4. ROW 2: PROFILE ORDER & RE-ORDERING
+            val r2Y = r1Y + 32f * d
             val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
             val setsList = setsString.split(",").filter { it.isNotEmpty() }
             if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
+            val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
+            val defaultName = when (currentSetId) { "0" -> "POWER USER"; "1" -> "STORES"; "2" -> "UTILITIES"; "3" -> "ENTERTAINMENT"; else -> "CUSTOM" }
+            val currentSetName = prefs.getString("gear_set_${currentSetId}_name", defaultName) ?: defaultName
 
-            val itemW = 82f * d
-            val startX = cx - ((setsList.size - 1) * itemW / 2f)
-            val bayY = cy - 280f * d
+            val arrowLeftRect = RectF(cx - 130f * d, r2Y - 12f * d, cx - 104f * d, r2Y + 12f * d)
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(70, 20, 26, 40)
+            canvas.drawRoundRect(arrowLeftRect, 6f * d, 6f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 0.8f * d
+            highlightPaint.color = Color.argb(60, 200, 220, 255)
+            canvas.drawRoundRect(arrowLeftRect, 6f * d, 6f * d, highlightPaint)
+            textPaint.textSize = 11f * d
+            textPaint.color = if (activeGearSetIndex > 0) m3Secondary else Color.argb(70, 150, 150, 150)
+            canvas.drawText("◀", arrowLeftRect.centerX(), arrowLeftRect.centerY() + 4f * d, textPaint)
 
-            for (g in setsList.indices) {
-                val setId = setsList[g]
-                val defaultName = when(setId) { "0" -> "BAY A"; "1" -> "BAY B"; "2" -> "BAY C"; "3" -> "BAY D"; else -> "BAY" }
-                val setName = prefs.getString("gear_set_${setId}_name", defaultName) ?: defaultName
-                val btnX = startX + g * itemW
-                val isCurrentBay = (activeGearSetIndex == g)
+            val profileCapsuleRect = RectF(cx - 100f * d, r2Y - 12f * d, cx + 72f * d, r2Y + 12f * d)
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(160, 18, 24, 38)
+            canvas.drawRoundRect(profileCapsuleRect, 8f * d, 8f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 1.2f * d
+            highlightPaint.color = m3Primary
+            canvas.drawRoundRect(profileCapsuleRect, 8f * d, 8f * d, highlightPaint)
+            textPaint.textSize = 9.5f * d
+            textPaint.color = Color.WHITE
+            canvas.drawText("◈ ${activeGearSetIndex + 1}/${setsList.size}: $currentSetName ◈", profileCapsuleRect.centerX(), profileCapsuleRect.centerY() + 3.5f * d, textPaint)
 
-                val bayRect = RectF(btnX - 36f * d, bayY - 18f * d, btnX + 36f * d, bayY + 18f * d)
+            val arrowRightRect = RectF(cx + 76f * d, r2Y - 12f * d, cx + 102f * d, r2Y + 12f * d)
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(70, 20, 26, 40)
+            canvas.drawRoundRect(arrowRightRect, 6f * d, 6f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 0.8f * d
+            highlightPaint.color = Color.argb(60, 200, 220, 255)
+            canvas.drawRoundRect(arrowRightRect, 6f * d, 6f * d, highlightPaint)
+            textPaint.textSize = 11f * d
+            textPaint.color = if (activeGearSetIndex < setsList.size - 1) m3Secondary else Color.argb(70, 150, 150, 150)
+            canvas.drawText("▶", arrowRightRect.centerX(), arrowRightRect.centerY() + 4f * d, textPaint)
 
-                // Background Pod
+            val addProfileRect = RectF(cx + 106f * d, r2Y - 12f * d, cx + 130f * d, r2Y + 12f * d)
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(70, 20, 26, 40)
+            canvas.drawRoundRect(addProfileRect, 6f * d, 6f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 0.8f * d
+            highlightPaint.color = Color.argb(60, 200, 220, 255)
+            canvas.drawRoundRect(addProfileRect, 6f * d, 6f * d, highlightPaint)
+            textPaint.textSize = 12f * d
+            textPaint.color = Color.WHITE
+            canvas.drawText("+", addProfileRect.centerX(), addProfileRect.centerY() + 4f * d, textPaint)
+
+            // 5. ROW 3: ICON THEME CAROUSEL
+            val r3Y = r2Y + 30f * d
+            val activePack = com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)
+            val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
+            val currentPackLabel = availablePacks.firstOrNull { it.packageName == activePack }?.label ?: "System Default"
+            val iconThemeRect = RectF(cx - 130f * d, r3Y - 11f * d, cx + 130f * d, r3Y + 11f * d)
+
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(90, 16, 22, 36)
+            canvas.drawRoundRect(iconThemeRect, 8f * d, 8f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 1f * d
+            highlightPaint.color = Color.argb(70, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
+            canvas.drawRoundRect(iconThemeRect, 8f * d, 8f * d, highlightPaint)
+            textPaint.textSize = 9.5f * d
+            textPaint.color = Color.WHITE
+            canvas.drawText("THEME: $currentPackLabel  [ ➔ CYCLE ]", iconThemeRect.centerX(), iconThemeRect.centerY() + 3.5f * d, textPaint)
+
+            // 6. ROW 4: FLIGHT MOMENTUM & HAPTICS
+            val r4Y = r3Y + 28f * d
+            val phys1Rect = RectF(cx - 130f * d, r4Y - 10f * d, cx - 46f * d, r4Y + 10f * d)
+            val phys2Rect = RectF(cx - 42f * d, r4Y - 10f * d, cx + 42f * d, r4Y + 10f * d)
+            val phys3Rect = RectF(cx + 46f * d, r4Y - 10f * d, cx + 130f * d, r4Y + 10f * d)
+
+            fun drawPill(rect: RectF, label: String, isSelected: Boolean) {
                 highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = if (isCurrentBay) Color.argb(190, 24, 32, 54) else Color.argb(70, 14, 18, 28)
-                canvas.drawRoundRect(bayRect, 8f * d, 8f * d, highlightPaint)
-
-                // Border
+                highlightPaint.color = if (isSelected) Color.argb(170, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(50, 18, 22, 34)
+                canvas.drawRoundRect(rect, 6f * d, 6f * d, highlightPaint)
                 highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = if (isCurrentBay) 1.8f * d else 1f * d
-                highlightPaint.color = if (isCurrentBay) m3Primary else Color.argb(40, 200, 220, 255)
-                canvas.drawRoundRect(bayRect, 8f * d, 8f * d, highlightPaint)
-
-                // Status Indicator LED
-                val ledColor = if (isCurrentBay) m3Primary else Color.argb(80, 100, 120, 150)
-                elementPaint.style = Paint.Style.FILL
-                elementPaint.color = ledColor
-                canvas.drawCircle(btnX - 24f * d, bayY, 3f * d, elementPaint)
-
-                // Bay Name
-                textPaint.textSize = 10.5f * d
-                textPaint.typeface = if (isCurrentBay) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
-                textPaint.color = if (isCurrentBay) Color.WHITE else Color.argb(170, 200, 220, 255)
-                canvas.drawText(setName, btnX + 4f * d, bayY + 3.5f * d, textPaint)
+                highlightPaint.strokeWidth = if (isSelected) 1.2f * d else 0.7f * d
+                highlightPaint.color = if (isSelected) m3Primary else Color.argb(40, 200, 220, 255)
+                canvas.drawRoundRect(rect, 6f * d, 6f * d, highlightPaint)
+                textPaint.textSize = 8.5f * d
+                textPaint.color = if (isSelected) Color.WHITE else Color.argb(150, 200, 220, 255)
+                canvas.drawText(label, rect.centerX(), rect.centerY() + 3f * d, textPaint)
             }
 
-            // 5. Dual Gimbal Assembly Preview (Outer Ring 0 & Inner Ring 1)
-            val radOuter = 200f * d
-            val radInner = 120f * d
+            drawPill(phys1Rect, "⚡ SNAPPY", physicsProfile == "magnetic")
+            drawPill(phys2Rect, "🌊 FLUID", physicsProfile == "fluid")
+            drawPill(phys3Rect, "🚀 HEAVY", physicsProfile == "heavy")
 
-            // Draw Frosted Gimbal Ring Tracks
-            drawSpaceshipGimbalRing(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                trackRadius = radOuter,
-                trackWidth = 32f * d,
-                teethCount = 16,
-                toothDepth = 10f * d,
-                rotationDeg = 0f,
-                isActive = true,
-                m3Primary = m3Primary
-            )
-            drawSpaceshipGimbalRing(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                trackRadius = radInner,
-                trackWidth = 26f * d,
-                teethCount = 10,
-                toothDepth = 8f * d,
-                rotationDeg = 0f,
-                isActive = false,
-                m3Primary = m3Primary
-            )
+            val r5Y = r4Y + 24f * d
+            val hap1Rect = RectF(cx - 130f * d, r5Y - 9f * d, cx - 68f * d, r5Y + 9f * d)
+            val hap2Rect = RectF(cx - 64f * d, r5Y - 9f * d, cx - 2f * d, r5Y + 9f * d)
+            val hap3Rect = RectF(cx + 2f * d, r5Y - 9f * d, cx + 64f * d, r5Y + 9f * d)
+            val hap4Rect = RectF(cx + 68f * d, r5Y - 9f * d, cx + 130f * d, r5Y + 9f * d)
 
-            // Ring Payload Status Telemetry
+            drawPill(hap1Rect, "SUBTLE", hapticStrength == "subtle")
+            drawPill(hap2Rect, "TACTICAL", hapticStrength == "tactical")
+            drawPill(hap3Rect, "HEAVY", hapticStrength == "heavy")
+            drawPill(hap4Rect, "OFF", hapticStrength == "off")
+
+            // 7. Live Dual Gimbal Assembly Preview
+            val cyGimbal = cy + 105f * d
+            val radOuter = 160f * d
+            val radInner = 95f * d
+
+            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radOuter, 28f * d, 16, 8f * d, gearRingRotations[0], true, m3Primary)
+            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radInner, 22f * d, 10, 6f * d, gearRingRotations[1], false, m3Primary)
+
             val r0 = getAppsForActiveGear(activeGearSetIndex, 0)
             val r1 = getAppsForActiveGear(activeGearSetIndex, 1)
 
-            // Outer Ring Bay Capsule Button: [ RING 01: X PAYLOADS • CONFIGURE ]
-            val r0BtnRect = RectF(cx - 90f * d, cy - 92f * d, cx + 90f * d, cy - 64f * d)
+            val r0BtnRect = RectF(cx - 85f * d, cyGimbal - 72f * d, cx + 85f * d, cyGimbal - 48f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(190, 16, 22, 38)
-            canvas.drawRoundRect(r0BtnRect, 14f * d, 14f * d, highlightPaint)
+            canvas.drawRoundRect(r0BtnRect, 12f * d, 12f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.4f * d
+            highlightPaint.strokeWidth = 1.3f * d
             highlightPaint.color = m3Primary
-            canvas.drawRoundRect(r0BtnRect, 14f * d, 14f * d, highlightPaint)
-
-            textPaint.textSize = 10f * d
+            canvas.drawRoundRect(r0BtnRect, 12f * d, 12f * d, highlightPaint)
+            textPaint.textSize = 9.5f * d
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.color = Color.WHITE
-            canvas.drawText("RING 01 // ${r0.size} APPS [ARM]", cx, cy - 74f * d, textPaint)
+            canvas.drawText("RING 01 // ${r0.size} APPS [ ⊕ EDIT ]", cx, cyGimbal - 57f * d, textPaint)
 
-            // Inner Ring Bay Capsule Button: [ RING 02: Y PAYLOADS • CONFIGURE ]
-            val r1BtnRect = RectF(cx - 90f * d, cy + 64f * d, cx + 90f * d, cy + 92f * d)
+            val r1BtnRect = RectF(cx - 85f * d, cyGimbal + 48f * d, cx + 85f * d, cyGimbal + 72f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(190, 16, 22, 38)
-            canvas.drawRoundRect(r1BtnRect, 14f * d, 14f * d, highlightPaint)
+            canvas.drawRoundRect(r1BtnRect, 12f * d, 12f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.4f * d
+            highlightPaint.strokeWidth = 1.3f * d
             highlightPaint.color = m3Secondary
-            canvas.drawRoundRect(r1BtnRect, 14f * d, 14f * d, highlightPaint)
-
-            textPaint.textSize = 10f * d
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            canvas.drawRoundRect(r1BtnRect, 12f * d, 12f * d, highlightPaint)
             textPaint.color = Color.WHITE
-            canvas.drawText("RING 02 // ${r1.size} APPS [ARM]", cx, cy + 82f * d, textPaint)
+            canvas.drawText("RING 02 // ${r1.size} APPS [ ⊕ EDIT ]", cx, cyGimbal + 63f * d, textPaint)
 
-            // 6. Central Reactor Core / Jettison Purge Button
+            // Central Purge Core
             elementPaint.style = Paint.Style.FILL
-            elementPaint.color = Color.argb(55, 239, 83, 80) // Red Hazard Aura
-            canvas.drawCircle(cx, cy, 30f * d, elementPaint)
-
+            elementPaint.color = Color.argb(55, 239, 83, 80)
+            canvas.drawCircle(cx, cyGimbal, 24f * d, elementPaint)
             elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = 1.5f * d
+            elementPaint.strokeWidth = 1.2f * d
             elementPaint.color = Color.argb(180, 239, 83, 80)
-            canvas.drawCircle(cx, cy, 28f * d, elementPaint)
-
-            textPaint.textSize = 8.5f * d
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            canvas.drawCircle(cx, cyGimbal, 22f * d, elementPaint)
+            textPaint.textSize = 7.5f * d
             textPaint.color = Color.parseColor("#FFCDD2")
-            canvas.drawText("PURGE", cx, cy - 2f * d, textPaint)
-            textPaint.textSize = 7f * d
-            canvas.drawText("PAYLOAD", cx, cy + 10f * d, textPaint)
+            canvas.drawText("PURGE", cx, cyGimbal - 1f * d, textPaint)
+            textPaint.textSize = 6.5f * d
+            canvas.drawText("RING", cx, cyGimbal + 8f * d, textPaint)
 
-            // Bottom Guidance Hint
-            textPaint.textSize = 8.5f * d
-            textPaint.typeface = android.graphics.Typeface.DEFAULT
-            textPaint.color = Color.argb(140, 180, 210, 245)
-            canvas.drawText("TAP ANY RING TO CONFIGURE  •  TAP OUTSIDE TO EXIT", cx, cy + 250f * d, textPaint)
+            // Bottom Exit Capsule
+            val exitBtnRect = RectF(cx - 95f * d, height - 52f * d, cx + 95f * d, height - 26f * d)
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(120, 24, 28, 40)
+            canvas.drawRoundRect(exitBtnRect, 12f * d, 12f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 1f * d
+            highlightPaint.color = Color.argb(60, 200, 220, 255)
+            canvas.drawRoundRect(exitBtnRect, 12f * d, 12f * d, highlightPaint)
+            textPaint.textSize = 9f * d
+            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textPaint.color = Color.argb(200, 200, 220, 255)
+            canvas.drawText("✕ CLOSE HANGAR", cx, exitBtnRect.centerY() + 3f * d, textPaint)
             return
         }
         val w = width.toFloat(); val h = height.toFloat()

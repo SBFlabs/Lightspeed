@@ -146,6 +146,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var lastPermissionToastTime = 0L
     private var overScrollBoundaryAccumulator = 0f
     private var settingsCategoryAppended = false
+    private var hangarBayScrollOffset = 0f
+    private var hangarBayTouchDownX = 0f
+    private var hangarBayTouchDownY = 0f
+    private var isDraggingHangarBays = false
 
     private val holdTimerRunnable = Runnable {
         if (macroTrackingActive) {
@@ -442,233 +446,275 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         val x = event.x; val y = event.y
         val rawX = event.rawX; val rawY = event.rawY
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                val d = resources.displayMetrics.density
-                val screenW = width.toFloat()
-                val screenH = height.toFloat()
-                val cx = screenW / 2f
-                val cy = screenH / 2f
-                val deckW = (screenW * 0.92f).coerceAtMost(480f * d)
-                val leftX = cx - (deckW / 2f)
-                val rightX = cx + (deckW / 2f)
-                val gap = 8f * d
+            val d = resources.displayMetrics.density
+            val screenW = width.toFloat()
+            val screenH = height.toFloat()
+            val cx = screenW / 2f
+            val cy = screenH / 2f
+            val deckW = (screenW * 0.92f).coerceAtMost(480f * d)
+            val leftX = cx - (deckW / 2f)
+            val rightX = cx + (deckW / 2f)
+            val gap = 8f * d
 
-                val topHangarY = (screenH * 0.08f).coerceAtLeast(64f * d)
-                val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val topHangarY = (screenH * 0.08f).coerceAtLeast(64f * d)
+            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
+            val setsList = setsString.split(",").filter { it.isNotEmpty() }.toMutableList()
+            if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
+            val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
 
-                // 1. Startup Default Mode: Always First vs Resume Last
-                val r1Y = topHangarY + 46f * d
-                val halfBtnW = (deckW - gap) / 2f
-                val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
-                val btn2Rect = RectF(rightX - halfBtnW, r1Y - 18f * d, rightX, r1Y + 18f * d)
-                if (btn1Rect.contains(x, y)) {
-                    prefs.edit().putString("cockpit_launch_behavior", "default").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (btn2Rect.contains(x, y)) {
-                    prefs.edit().putString("cockpit_launch_behavior", "last").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
+            val r1Y = topHangarY + 46f * d
+            val r2Y = r1Y + 46f * d
+            val bayCount = setsList.size + 1
+            val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
+            val totalBayRailW = bayCount * slotW
+            val maxScroll = (totalBayRailW - deckW).coerceAtLeast(0f)
 
-                // 2. Docking Bays Profile Selector (Tap to switch active profile)
-                val r2Y = r1Y + 46f * d
-                val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-                val setsList = setsString.split(",").filter { it.isNotEmpty() }.toMutableList()
-                if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
-                val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
+            if (totalBayRailW <= deckW) {
+                hangarBayScrollOffset = 0f
+            } else {
+                hangarBayScrollOffset = hangarBayScrollOffset.coerceIn(-maxScroll, 0f)
+            }
+            val railStartX = if (totalBayRailW <= deckW) (leftX + (deckW - totalBayRailW) / 2f) else (leftX + hangarBayScrollOffset)
 
-                val bayCount = setsList.size + 1
-                val slotW = deckW / bayCount.coerceAtMost(5)
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    hangarBayTouchDownX = x
+                    hangarBayTouchDownY = y
+                    isDraggingHangarBays = (y in (r2Y - 24f * d)..(r2Y + 24f * d)) && (x in (leftX - 10f * d)..(rightX + 10f * d))
 
-                for (gIndex in setsList.indices) {
-                    val btnX = leftX + (gIndex + 0.5f) * slotW
-                    val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
-                    if (bayRect.contains(x, y)) {
-                        activeGearSetIndex = gIndex
-                        if (prefs.getString("cockpit_launch_behavior", "default") == "last") {
-                            prefs.edit().putInt("last_active_set_index", gIndex).apply()
+                    if (!isDraggingHangarBays) {
+                        // 1. Startup Default Mode: Always First vs Resume Last
+                        val halfBtnW = (deckW - gap) / 2f
+                        val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
+                        val btn2Rect = RectF(rightX - halfBtnW, r1Y - 18f * d, rightX, r1Y + 18f * d)
+                        if (btn1Rect.contains(x, y)) {
+                            prefs.edit().putString("cockpit_launch_behavior", "default").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
                         }
-                        triggerHardwareHaptic(25, 140)
-                        invalidate()
-                        return true
-                    }
-                }
-
-                // Plus button to add profile set
-                val plusBtnX = leftX + (setsList.size + 0.5f) * slotW
-                val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 18f * d, plusBtnX + slotW * 0.42f, r2Y + 18f * d)
-                if (plusRect.contains(x, y)) {
-                    val newId = System.currentTimeMillis().toString()
-                    setsList.add(newId)
-                    prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).putString("gear_set_${newId}_name", "SET ${setsList.size}").apply()
-                    activeGearSetIndex = setsList.size - 1
-                    triggerHardwareHaptic(40, 200)
-                    invalidate()
-                    return true
-                }
-
-                // 3. Reorder & Delete Active Profile in Rotation
-                val r3Y = r2Y + 44f * d
-                val shiftW = deckW * 0.35f
-                val deleteW = deckW * 0.26f
-                val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
-                val deleteBayRect = RectF(cx - deleteW / 2f, r3Y - 16f * d, cx + deleteW / 2f, r3Y + 16f * d)
-                val shiftRightRect = RectF(rightX - shiftW, r3Y - 16f * d, rightX, r3Y + 16f * d)
-
-                if (shiftLeftRect.contains(x, y) && activeGearSetIndex > 0) {
-                    val temp = setsList[activeGearSetIndex]
-                    setsList[activeGearSetIndex] = setsList[activeGearSetIndex - 1]
-                    setsList[activeGearSetIndex - 1] = temp
-                    activeGearSetIndex--
-                    prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
-                    triggerHardwareHaptic(30, 160)
-                    invalidate()
-                    return true
-                }
-                if (shiftRightRect.contains(x, y) && activeGearSetIndex < setsList.size - 1) {
-                    val temp = setsList[activeGearSetIndex]
-                    setsList[activeGearSetIndex] = setsList[activeGearSetIndex + 1]
-                    setsList[activeGearSetIndex + 1] = temp
-                    activeGearSetIndex++
-                    prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
-                    triggerHardwareHaptic(30, 160)
-                    invalidate()
-                    return true
-                }
-                if (deleteBayRect.contains(x, y)) {
-                    if (setsList.size > 1) {
-                        val removedId = setsList.removeAt(activeGearSetIndex)
-                        if (activeGearSetIndex >= setsList.size) {
-                            activeGearSetIndex = setsList.size - 1
+                        if (btn2Rect.contains(x, y)) {
+                            prefs.edit().putString("cockpit_launch_behavior", "last").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
                         }
-                        prefs.edit().putString("gear_sets_order", setsList.joinToString(","))
-                            .remove("gear_set_${removedId}_ring0")
-                            .remove("gear_set_${removedId}_ring1")
-                            .remove("gear_set_${removedId}_name")
-                            .apply()
-                        triggerHardwareHaptic(45, 230)
+
+                        // 3. Reorder & Delete Active Profile in Rotation
+                        val r3Y = r2Y + 44f * d
+                        val shiftW = deckW * 0.35f
+                        val deleteW = deckW * 0.26f
+                        val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
+                        val deleteBayRect = RectF(cx - deleteW / 2f, r3Y - 16f * d, cx + deleteW / 2f, r3Y + 16f * d)
+                        val shiftRightRect = RectF(rightX - shiftW, r3Y - 16f * d, rightX, r3Y + 16f * d)
+
+                        if (shiftLeftRect.contains(x, y) && activeGearSetIndex > 0) {
+                            val temp = setsList[activeGearSetIndex]
+                            setsList[activeGearSetIndex] = setsList[activeGearSetIndex - 1]
+                            setsList[activeGearSetIndex - 1] = temp
+                            activeGearSetIndex--
+                            prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
+                            val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
+                            hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
+                            triggerHardwareHaptic(30, 160)
+                            invalidate()
+                            return true
+                        }
+                        if (shiftRightRect.contains(x, y) && activeGearSetIndex < setsList.size - 1) {
+                            val temp = setsList[activeGearSetIndex]
+                            setsList[activeGearSetIndex] = setsList[activeGearSetIndex + 1]
+                            setsList[activeGearSetIndex + 1] = temp
+                            activeGearSetIndex++
+                            prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
+                            val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
+                            hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
+                            triggerHardwareHaptic(30, 160)
+                            invalidate()
+                            return true
+                        }
+                        if (deleteBayRect.contains(x, y)) {
+                            if (setsList.size > 1) {
+                                val removedId = setsList.removeAt(activeGearSetIndex)
+                                if (activeGearSetIndex >= setsList.size) {
+                                    activeGearSetIndex = setsList.size - 1
+                                }
+                                prefs.edit().putString("gear_sets_order", setsList.joinToString(","))
+                                    .remove("gear_set_${removedId}_ring0")
+                                    .remove("gear_set_${removedId}_ring1")
+                                    .remove("gear_set_${removedId}_name")
+                                    .apply()
+                                val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
+                                hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
+                                triggerHardwareHaptic(45, 230)
+                                invalidate()
+                                return true
+                            } else {
+                                android.widget.Toast.makeText(context, "Cannot delete the last remaining gear set", android.widget.Toast.LENGTH_SHORT).show()
+                                return true
+                            }
+                        }
+
+                        // 4. Icon Theme Carousel
+                        val r4Y = r3Y + 42f * d
+                        val iconThemeRect = RectF(leftX, r4Y - 18f * d, rightX, r4Y + 18f * d)
+                        if (iconThemeRect.contains(x, y)) {
+                            val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
+                            if (availablePacks.isNotEmpty()) {
+                                val activePack = com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)
+                                val currentIndex = availablePacks.indexOfFirst { it.packageName == activePack }
+                                val nextIndex = (currentIndex + 1) % availablePacks.size
+                                com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, availablePacks[nextIndex].packageName)
+                                triggerHardwareHaptic(35, 180)
+                                invalidate()
+                                return true
+                            }
+                        }
+
+                        // 5. Flight Momentum
+                        val r5Y = r4Y + 42f * d
+                        val physW = (deckW - (gap * 2)) / 3f
+                        val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
+                        val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
+                        val phys3Rect = RectF(rightX - physW, r5Y - 16f * d, rightX, r5Y + 16f * d)
+                        if (phys1Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_physics_profile", "magnetic").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
+                        }
+                        if (phys2Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_physics_profile", "fluid").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
+                        }
+                        if (phys3Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_physics_profile", "heavy").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
+                        }
+
+                        // 6. Tactile Ratchet Haptics
+                        val r6Y = r5Y + 38f * d
+                        val hapW = (deckW - (gap * 3)) / 4f
+                        val hap1Rect = RectF(leftX, r6Y - 15f * d, leftX + hapW, r6Y + 15f * d)
+                        val hap2Rect = RectF(leftX + (hapW + gap), r6Y - 15f * d, leftX + (hapW + gap) + hapW, r6Y + 15f * d)
+                        val hap3Rect = RectF(leftX + (hapW + gap) * 2, r6Y - 15f * d, leftX + (hapW + gap) * 2 + hapW, r6Y + 15f * d)
+                        val hap4Rect = RectF(rightX - hapW, r6Y - 15f * d, rightX, r6Y + 15f * d)
+                        if (hap1Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_haptic_strength", "subtle").apply()
+                            triggerHardwareHaptic(10, 60)
+                            invalidate()
+                            return true
+                        }
+                        if (hap2Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_haptic_strength", "tactical").apply()
+                            triggerHardwareHaptic(20, 140)
+                            invalidate()
+                            return true
+                        }
+                        if (hap3Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_haptic_strength", "heavy").apply()
+                            triggerHardwareHaptic(35, 240)
+                            invalidate()
+                            return true
+                        }
+                        if (hap4Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_haptic_strength", "off").apply()
+                            invalidate()
+                            return true
+                        }
+
+                        // 7. Live Ring Arm Buttons & Purge
+                        val cyGimbal = (screenH * 0.72f).coerceAtLeast(cy + 130f * d)
+                        val r0BtnRect = RectF(cx - 120f * d, cyGimbal - 86f * d, cx + 120f * d, cyGimbal - 50f * d)
+                        if (r0BtnRect.contains(x, y)) {
+                            val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
+                                putExtra("SET_ID", currentSetId)
+                                putExtra("RING_INDEX", 0)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                            dismissOverlay()
+                            return true
+                        }
+
+                        val r1BtnRect = RectF(cx - 120f * d, cyGimbal + 50f * d, cx + 120f * d, cyGimbal + 86f * d)
+                        if (r1BtnRect.contains(x, y)) {
+                            val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
+                                putExtra("SET_ID", currentSetId)
+                                putExtra("RING_INDEX", 1)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                            dismissOverlay()
+                            return true
+                        }
+
+                        if (kotlin.math.hypot(x - cx, y - cyGimbal) <= 30f * d) {
+                            prefs.edit().putString("gear_set_${currentSetId}_ring0", "").putString("gear_set_${currentSetId}_ring1", "").apply()
+                            triggerHardwareHaptic(60, 255)
+                            invalidate()
+                            return true
+                        }
+
+                        // 8. Bottom Exit Capsule
+                        val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 62f * d, cx + (deckW * 0.42f), screenH - 18f * d)
+                        if (exitBtnRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
+                            dismissOverlay()
+                            return true
+                        }
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (isDraggingHangarBays) {
+                        val dx = x - hangarBayTouchDownX
+                        hangarBayTouchDownX = x
+                        if (maxScroll > 0f) {
+                            hangarBayScrollOffset = (hangarBayScrollOffset + dx).coerceIn(-maxScroll, 0f)
+                            invalidate()
+                        }
+                        return true
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (isDraggingHangarBays) {
+                        isDraggingHangarBays = false
+                        val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
+                        if (distMoved < 14f * d) {
+                            for (gIndex in setsList.indices) {
+                                val btnX = railStartX + (gIndex + 0.5f) * slotW
+                                val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
+                                if (bayRect.contains(x, y)) {
+                                    activeGearSetIndex = gIndex
+                                    if (prefs.getString("cockpit_launch_behavior", "default") == "last") {
+                                        prefs.edit().putInt("last_active_set_index", gIndex).apply()
+                                    }
+                                    triggerHardwareHaptic(25, 140)
+                                    invalidate()
+                                    return true
+                                }
+                            }
+                            val plusBtnX = railStartX + (setsList.size + 0.5f) * slotW
+                            val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 18f * d, plusBtnX + slotW * 0.42f, r2Y + 18f * d)
+                            if (plusRect.contains(x, y)) {
+                                val newId = System.currentTimeMillis().toString()
+                                setsList.add(newId)
+                                prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).putString("gear_set_${newId}_name", "SET ${setsList.size}").apply()
+                                activeGearSetIndex = setsList.size - 1
+                                val newTotalRailW = (setsList.size + 1) * slotW
+                                val newMaxScroll = (newTotalRailW - deckW).coerceAtLeast(0f)
+                                hangarBayScrollOffset = -newMaxScroll
+                                triggerHardwareHaptic(40, 200)
+                                invalidate()
+                                return true
+                            }
+                        }
                         invalidate()
                         return true
-                    } else {
-                        android.widget.Toast.makeText(context, "Cannot delete the last remaining gear set", android.widget.Toast.LENGTH_SHORT).show()
-                        return true
                     }
-                }
-
-                // 4. Icon Theme Carousel
-                val r4Y = r3Y + 42f * d
-                val iconThemeRect = RectF(leftX, r4Y - 18f * d, rightX, r4Y + 18f * d)
-                if (iconThemeRect.contains(x, y)) {
-                    val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
-                    if (availablePacks.isNotEmpty()) {
-                        val activePack = com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)
-                        val currentIndex = availablePacks.indexOfFirst { it.packageName == activePack }
-                        val nextIndex = (currentIndex + 1) % availablePacks.size
-                        com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, availablePacks[nextIndex].packageName)
-                        triggerHardwareHaptic(35, 180)
-                        invalidate()
-                        return true
-                    }
-                }
-
-                // 5. Flight Momentum
-                val r5Y = r4Y + 42f * d
-                val physW = (deckW - (gap * 2)) / 3f
-                val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
-                val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
-                val phys3Rect = RectF(rightX - physW, r5Y - 16f * d, rightX, r5Y + 16f * d)
-                if (phys1Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_physics_profile", "magnetic").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (phys2Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_physics_profile", "fluid").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (phys3Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_physics_profile", "heavy").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-
-                // 6. Tactile Ratchet Haptics
-                val r6Y = r5Y + 38f * d
-                val hapW = (deckW - (gap * 3)) / 4f
-                val hap1Rect = RectF(leftX, r6Y - 15f * d, leftX + hapW, r6Y + 15f * d)
-                val hap2Rect = RectF(leftX + (hapW + gap), r6Y - 15f * d, leftX + (hapW + gap) + hapW, r6Y + 15f * d)
-                val hap3Rect = RectF(leftX + (hapW + gap) * 2, r6Y - 15f * d, leftX + (hapW + gap) * 2 + hapW, r6Y + 15f * d)
-                val hap4Rect = RectF(rightX - hapW, r6Y - 15f * d, rightX, r6Y + 15f * d)
-                if (hap1Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "subtle").apply()
-                    triggerHardwareHaptic(10, 60)
-                    invalidate()
-                    return true
-                }
-                if (hap2Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "tactical").apply()
-                    triggerHardwareHaptic(20, 140)
-                    invalidate()
-                    return true
-                }
-                if (hap3Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "heavy").apply()
-                    triggerHardwareHaptic(35, 240)
-                    invalidate()
-                    return true
-                }
-                if (hap4Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "off").apply()
-                    invalidate()
-                    return true
-                }
-
-                // 7. Live Ring Arm Buttons & Purge
-                val cyGimbal = (screenH * 0.72f).coerceAtLeast(cy + 130f * d)
-                val r0BtnRect = RectF(cx - 120f * d, cyGimbal - 86f * d, cx + 120f * d, cyGimbal - 50f * d)
-                if (r0BtnRect.contains(x, y)) {
-                    val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
-                        putExtra("SET_ID", currentSetId)
-                        putExtra("RING_INDEX", 0)
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                    dismissOverlay()
-                    return true
-                }
-
-                val r1BtnRect = RectF(cx - 120f * d, cyGimbal + 50f * d, cx + 120f * d, cyGimbal + 86f * d)
-                if (r1BtnRect.contains(x, y)) {
-                    val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
-                        putExtra("SET_ID", currentSetId)
-                        putExtra("RING_INDEX", 1)
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                    dismissOverlay()
-                    return true
-                }
-
-                if (kotlin.math.hypot(x - cx, y - cyGimbal) <= 30f * d) {
-                    prefs.edit().putString("gear_set_${currentSetId}_ring0", "").putString("gear_set_${currentSetId}_ring1", "").apply()
-                    triggerHardwareHaptic(60, 255)
-                    invalidate()
-                    return true
-                }
-
-                // 8. Bottom Exit Capsule
-                val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 62f * d, cx + (deckW * 0.42f), screenH - 18f * d)
-                if (exitBtnRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
-                    dismissOverlay()
-                    return true
                 }
             }
             return true
@@ -1841,7 +1887,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             textPaint.color = if (isLast) Color.WHITE else Color.argb(160, 200, 220, 255)
             canvas.drawText("STARTUP: RESUME LAST", btn2Rect.centerX(), btn2Rect.centerY() + 4f * d, textPaint)
 
-            // 4. ROW 2: DOCKING BAYS (TAP TO SWITCH ACTIVE PROFILE)
+            // 4. ROW 2: DOCKING BAYS (HORIZONTALLY SCROLLABLE RAIL)
             val r2Y = r1Y + 46f * d
             val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
             val setsList = setsString.split(",").filter { it.isNotEmpty() }
@@ -1849,13 +1895,19 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
 
             val bayCount = setsList.size + 1
-            val slotW = deckW / bayCount.coerceAtMost(5)
+            val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
+            val totalBayRailW = bayCount * slotW
+            val maxScroll = (totalBayRailW - deckW).coerceAtLeast(0f)
+            val railStartX = if (totalBayRailW <= deckW) (leftX + (deckW - totalBayRailW) / 2f) else (leftX + hangarBayScrollOffset.coerceIn(-maxScroll, 0f))
+
+            canvas.save()
+            canvas.clipRect(leftX - 4f * d, r2Y - 24f * d, rightX + 4f * d, r2Y + 24f * d)
 
             for (g in setsList.indices) {
                 val setId = setsList[g]
                 val defaultName = when (setId) { "0" -> "POWER"; "1" -> "STORES"; "2" -> "UTILITY"; "3" -> "MEDIA"; else -> "SET" }
                 val setName = prefs.getString("gear_set_${setId}_name", defaultName) ?: defaultName
-                val btnX = leftX + (g + 0.5f) * slotW
+                val btnX = railStartX + (g + 0.5f) * slotW
                 val isCurrentBay = (activeGearSetIndex == g)
 
                 val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
@@ -1878,7 +1930,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
 
             // Plus button to add profile set
-            val plusBtnX = leftX + (setsList.size + 0.5f) * slotW
+            val plusBtnX = railStartX + (setsList.size + 0.5f) * slotW
             val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 18f * d, plusBtnX + slotW * 0.42f, r2Y + 18f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(70, 20, 26, 40)
@@ -1890,6 +1942,22 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             textPaint.textSize = 15f * d
             textPaint.color = Color.WHITE
             canvas.drawText("+", plusBtnX, r2Y + 5.5f * d, textPaint)
+
+            canvas.restore()
+
+            // Draw subtle indicator arrows if the rail is scrollable
+            if (maxScroll > 0f) {
+                if (hangarBayScrollOffset < -4f * d) {
+                    textPaint.textSize = 9f * d
+                    textPaint.color = Color.argb(130, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
+                    canvas.drawText("◀", leftX - 1f * d, r2Y + 3.5f * d, textPaint)
+                }
+                if (hangarBayScrollOffset > -maxScroll + 4f * d) {
+                    textPaint.textSize = 9f * d
+                    textPaint.color = Color.argb(130, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
+                    canvas.drawText("▶", rightX + 1f * d, r2Y + 3.5f * d, textPaint)
+                }
+            }
 
             // 5. ROW 3: REORDER & DELETE ACTIVE PROFILE IN ROTATION
             val r3Y = r2Y + 44f * d

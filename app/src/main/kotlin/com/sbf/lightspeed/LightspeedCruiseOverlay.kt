@@ -633,6 +633,38 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             return true
                         }
 
+                        // 7. Reticle Crosshair Style
+                        val r7Y = r6Y + 35f * d
+                        val retW = (deckW - (gap * 3)) / 4f
+                        val ret1Rect = RectF(leftX, r7Y - 14f * d, leftX + retW, r7Y + 14f * d)
+                        val ret2Rect = RectF(leftX + (retW + gap), r7Y - 14f * d, leftX + (retW + gap) + retW, r7Y + 14f * d)
+                        val ret3Rect = RectF(leftX + (retW + gap) * 2, r7Y - 14f * d, leftX + (retW + gap) * 2 + retW, r7Y + 14f * d)
+                        val ret4Rect = RectF(rightX - retW, r7Y - 14f * d, rightX, r7Y + 14f * d)
+                        if (ret1Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_reticle_style", "tactical").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
+                        }
+                        if (ret2Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_reticle_style", "cyber").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
+                        }
+                        if (ret3Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_reticle_style", "cross").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
+                        }
+                        if (ret4Rect.contains(x, y)) {
+                            prefs.edit().putString("pref_gear_reticle_style", "diamond").apply()
+                            triggerHardwareHaptic(20, 120)
+                            invalidate()
+                            return true
+                        }
+
                         // 7. Live Gimbal Touch & Interaction
                         val cyGimbal = (screenH * 0.71f).coerceAtLeast(cy + 120f * d)
                         val radOuter = 145f * d
@@ -1635,7 +1667,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         m3Primary: Int,
         m3Secondary: Int,
         appName: String,
-        density: Float
+        density: Float,
+        reticleStyle: String = "tactical"
     ) {
         val half = bracketSize / 2f
         val armLen = bracketSize * 0.28f
@@ -1644,21 +1677,64 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         elementPaint.strokeWidth = 2.4f * density
         elementPaint.color = m3Primary
         
-        // Top-Left Chevron [
-        canvas.drawLine(targetCX - half, targetCY - half + armLen, targetCX - half, targetCY - half, elementPaint)
-        canvas.drawLine(targetCX - half, targetCY - half, targetCX - half + armLen, targetCY - half, elementPaint)
-        
-        // Top-Right Chevron ]
-        canvas.drawLine(targetCX + half - armLen, targetCY - half, targetCX + half, targetCY - half, elementPaint)
-        canvas.drawLine(targetCX + half, targetCY - half, targetCX + half, targetCY - half + armLen, elementPaint)
-        
-        // Bottom-Left Chevron [
-        canvas.drawLine(targetCX - half, targetCY + half - armLen, targetCX - half, targetCY + half, elementPaint)
-        canvas.drawLine(targetCX - half, targetCY + half, targetCX - half + armLen, targetCY + half, elementPaint)
-        
-        // Bottom-Right Chevron ]
-        canvas.drawLine(targetCX + half - armLen, targetCY + half, targetCX + half, targetCY + half, elementPaint)
-        canvas.drawLine(targetCX + half, targetCY + half, targetCX + half, targetCY + half - armLen, elementPaint)
+        when (reticleStyle) {
+            "cyber" -> {
+                // Circular segmented targeting arc with collimator crosshairs
+                val arcRect = RectF(targetCX - half, targetCY - half, targetCX + half, targetCY + half)
+                canvas.drawArc(arcRect, 35f, 110f, false, elementPaint)
+                canvas.drawArc(arcRect, 215f, 110f, false, elementPaint)
+                
+                elementPaint.strokeWidth = 1.6f * density
+                canvas.drawLine(targetCX, targetCY - half - 4f * density, targetCX, targetCY - half + 4f * density, elementPaint)
+                canvas.drawLine(targetCX, targetCY + half - 4f * density, targetCX, targetCY + half + 4f * density, elementPaint)
+                canvas.drawLine(targetCX - half - 4f * density, targetCY, targetCX - half + 4f * density, targetCY, elementPaint)
+                canvas.drawLine(targetCX + half - 4f * density, targetCY, targetCX + half + 4f * density, targetCY, elementPaint)
+            }
+            "cross" -> {
+                // Precision fine crosshairs with center clearance & micro dot
+                elementPaint.strokeWidth = 1.8f * density
+                val gap = half * 0.52f
+                canvas.drawLine(targetCX - half, targetCY, targetCX - gap, targetCY, elementPaint)
+                canvas.drawLine(targetCX + gap, targetCY, targetCX + half, targetCY, elementPaint)
+                canvas.drawLine(targetCX, targetCY - half, targetCX, targetCY - gap, elementPaint)
+                canvas.drawLine(targetCX, targetCY + gap, targetCX, targetCY + half, elementPaint)
+                
+                elementPaint.style = Paint.Style.FILL
+                canvas.drawCircle(targetCX, targetCY, 2.2f * density, elementPaint)
+                elementPaint.style = Paint.Style.STROKE
+            }
+            "diamond" -> {
+                // Sci-Fi Angular Diamond Targeting Matrix
+                val dOffset = half * 1.05f
+                val path = android.graphics.Path().apply {
+                    moveTo(targetCX, targetCY - dOffset)
+                    lineTo(targetCX + dOffset, targetCY)
+                    lineTo(targetCX, targetCY + dOffset)
+                    lineTo(targetCX - dOffset, targetCY)
+                    close()
+                }
+                elementPaint.strokeWidth = 2f * density
+                canvas.drawPath(path, elementPaint)
+                
+                elementPaint.style = Paint.Style.FILL
+                canvas.drawCircle(targetCX, targetCY - dOffset, 2.2f * density, elementPaint)
+                canvas.drawCircle(targetCX, targetCY + dOffset, 2.2f * density, elementPaint)
+                canvas.drawCircle(targetCX - dOffset, targetCY, 2.2f * density, elementPaint)
+                canvas.drawCircle(targetCX + dOffset, targetCY, 2.2f * density, elementPaint)
+                elementPaint.style = Paint.Style.STROKE
+            }
+            else -> {
+                // Default Tactical Corner Brackets [ ]
+                canvas.drawLine(targetCX - half, targetCY - half + armLen, targetCX - half, targetCY - half, elementPaint)
+                canvas.drawLine(targetCX - half, targetCY - half, targetCX - half + armLen, targetCY - half, elementPaint)
+                canvas.drawLine(targetCX + half - armLen, targetCY - half, targetCX + half, targetCY - half, elementPaint)
+                canvas.drawLine(targetCX + half, targetCY - half, targetCX + half, targetCY - half + armLen, elementPaint)
+                canvas.drawLine(targetCX - half, targetCY + half - armLen, targetCX - half, targetCY + half, elementPaint)
+                canvas.drawLine(targetCX - half, targetCY + half, targetCX - half + armLen, targetCY + half, elementPaint)
+                canvas.drawLine(targetCX + half - armLen, targetCY + half, targetCX + half, targetCY + half, elementPaint)
+                canvas.drawLine(targetCX + half, targetCY + half, targetCX + half, targetCY + half - armLen, elementPaint)
+            }
+        }
         
         // Horizontal Laser Alignment Lead Line extending to left bezel
         elementPaint.strokeWidth = 1.2f * density
@@ -1995,6 +2071,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         if (activeGearSetIndex >= totalGearSetsCount) { activeGearSetIndex = 0 }
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
 
         val m3Primary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             context.resources.getColor(android.R.color.system_accent1_600, context.theme)
@@ -2248,8 +2325,22 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             drawPill(hap3Rect, "HEAVY", hapticStrength == "heavy")
             drawPill(hap4Rect, "OFF", hapticStrength == "off")
 
+            // 7. ROW 7: RETICLE CROSSHAIR STYLE
+            val r7Y = r6Y + 35f * d
+            val retW = (deckW - (gap * 3)) / 4f
+            val ret1Rect = RectF(leftX, r7Y - 14f * d, leftX + retW, r7Y + 14f * d)
+            val ret2Rect = RectF(leftX + (retW + gap), r7Y - 14f * d, leftX + (retW + gap) + retW, r7Y + 14f * d)
+            val ret3Rect = RectF(leftX + (retW + gap) * 2, r7Y - 14f * d, leftX + (retW + gap) * 2 + retW, r7Y + 14f * d)
+            val ret4Rect = RectF(rightX - retW, r7Y - 14f * d, rightX, r7Y + 14f * d)
+
+            val reticleStyle = prefs.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
+            drawPill(ret1Rect, "[ ] TACTICAL", reticleStyle == "tactical")
+            drawPill(ret2Rect, "( ) CYBER", reticleStyle == "cyber")
+            drawPill(ret3Rect, "+ CROSS", reticleStyle == "cross")
+            drawPill(ret4Rect, "◇ DIAMOND", reticleStyle == "diamond")
+
             // 8. Live Dual Gimbal Assembly Preview & Active Ring Command Core
-            val cyGimbal = (screenH * 0.71f).coerceAtLeast(cy + 120f * d)
+            val cyGimbal = (screenH * 0.73f).coerceAtLeast(cy + 130f * d)
             val radOuter = 145f * d
             val radInner = 90f * d
             val radHub = 32f * d
@@ -2648,7 +2739,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             m3Primary = m3Primary,
                             m3Secondary = m3Secondary,
                             appName = appLabel,
-                            density = density
+                            density = density,
+                            reticleStyle = prefs.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
                         )
                     }
                 }

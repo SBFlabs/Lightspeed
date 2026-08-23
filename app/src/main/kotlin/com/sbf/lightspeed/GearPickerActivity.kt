@@ -654,13 +654,13 @@ class GearPickerActivity : ComponentActivity() {
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     val shortcutBmp = remember(item.token) {
-                                                        com.sbf.lightspeed.system.LightspeedIconManager.getIconBitmap(this@GearPickerActivity, item.token)
+                                                        com.sbf.lightspeed.system.LightspeedIconManager.getIconBitmap(this@GearPickerActivity, item.packageName)
                                                     }
                                                     if (shortcutBmp != null) {
                                                         Image(
                                                             bitmap = shortcutBmp.asImageBitmap(),
                                                             contentDescription = null,
-                                                            modifier = Modifier.size(24.dp).padding(end = 8.dp)
+                                                            modifier = Modifier.size(22.dp).padding(end = 8.dp)
                                                         )
                                                     }
                                                     Column(modifier = Modifier.weight(1f)) {

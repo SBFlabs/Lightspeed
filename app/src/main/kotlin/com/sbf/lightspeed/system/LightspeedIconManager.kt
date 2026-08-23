@@ -1,15 +1,12 @@
 package com.sbf.lightspeed.system
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.os.Build
-import android.os.Process
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,30 +34,13 @@ object LightspeedIconManager {
     private val bitmapCache = ConcurrentHashMap<String, Bitmap>()
     private val drawableCache = ConcurrentHashMap<String, Drawable>()
 
-    // Shizuku Shortcut Icon mapping: "pkg|id" -> Pair(iconResId, iconResName)
-    val shortcutResourceCache = ConcurrentHashMap<String, Pair<Int, String?>>()
-
     private var currentLoadedPack: String? = null
     private var isPackLoaded = false
 
-    private val CALENDAR_PACKAGES = setOf(
+    private val GOOGLE_CALENDAR_PACKAGES = setOf(
         "com.google.android.calendar",
-        "com.transsion.calendar",
-        "com.samsung.android.calendar",
-        "com.android.calendar",
-        "com.google.android.apps.calendar",
-        "com.simplemobiletools.calendar",
-        "com.simplemobiletools.calendar.pro",
-        "com.xiaomi.calendar",
-        "com.oneplus.calendar"
+        "com.google.android.apps.calendar"
     )
-
-    fun registerShortcutIcon(pkg: String, id: String, resId: Int, resName: String? = null) {
-        if (pkg.isNotBlank() && id.isNotBlank() && resId != 0) {
-            shortcutResourceCache["$pkg|$id"] = Pair(resId, resName)
-            shortcutResourceCache["${pkg.lowercase()}|${id.lowercase()}"] = Pair(resId, resName)
-        }
-    }
 
     fun getAvailableIconPacks(context: Context): List<IconPackInfo> {
         val pm = context.packageManager
@@ -216,25 +196,20 @@ object LightspeedIconManager {
         val dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
         val dayStr = dayOfMonth.toString().padStart(2, '0')
 
-        // 1. Dynamic Shortcut Icons (Google Play My Apps, Chrome tabs, etc.)
-        if (tokenOrPkg.startsWith("shortcut:")) {
-            val shortcutDrawable = loadShortcutIconDrawable(context, tokenOrPkg)
-            if (shortcutDrawable != null) {
-                drawableCache[tokenOrPkg] = shortcutDrawable
-                return shortcutDrawable
-            }
-        }
-
         val extractedPkg = when {
             tokenOrPkg.startsWith("app:") -> tokenOrPkg.removePrefix("app:")
             tokenOrPkg.startsWith("shortcut:") -> {
                 if (tokenOrPkg.contains(";pkg=")) tokenOrPkg.substringAfter(";pkg=").substringBefore(";")
-                else tokenOrPkg.substringAfter("pkg=").substringBefore(";")
+                else if (tokenOrPkg.contains("pkg=")) tokenOrPkg.substringAfter("pkg=").substringBefore(";")
+                else if (tokenOrPkg.contains("package=")) tokenOrPkg.substringAfter("package=").substringBefore(";")
+                else ""
             }
             else -> tokenOrPkg
         }
 
-        // 2. Third-Party Icon Pack Resolution
+        if (extractedPkg.isBlank()) return null
+
+        // 1. Third-Party Icon Pack Resolution (e.g. Arcticons)
         if (activePack != "system" && isPackLoaded) {
             try {
                 val pm = context.packageManager
@@ -273,16 +248,16 @@ object LightspeedIconManager {
             }
         }
 
-        // 3. Dynamic Calendar Icon Extraction / Badging
-        if (isCalendarPackage(extractedPkg)) {
-            val calDrawable = loadAuthenticCalendarDrawable(context, extractedPkg, dayOfMonth)
-            if (calDrawable != null) {
-                drawableCache[tokenOrPkg] = calDrawable
-                return calDrawable
+        // 2. Official Google Calendar 31 APK Drawables
+        if (GOOGLE_CALENDAR_PACKAGES.contains(extractedPkg.lowercase())) {
+            val googleCalDrawable = loadGoogleCalendarDrawable(context, extractedPkg, dayOfMonth)
+            if (googleCalDrawable != null) {
+                drawableCache[tokenOrPkg] = googleCalDrawable
+                return googleCalDrawable
             }
         }
 
-        // 4. System App Icon Fallback
+        // 3. Clean System App Icon Fallback
         return try {
             val pm = context.packageManager
             val defaultDrawable = pm.getApplicationIcon(extractedPkg)
@@ -305,85 +280,13 @@ object LightspeedIconManager {
         return bitmap
     }
 
-    private fun loadShortcutIconDrawable(context: Context, shortcutToken: String): Drawable? {
-        val pm = context.packageManager
-        val shortcutId = when {
-            shortcutToken.contains(";id=") -> shortcutToken.substringAfter(";id=").substringBefore(";")
-            shortcutToken.contains("id=") -> shortcutToken.substringAfter("id=").substringBefore(";")
-            else -> ""
-        }
-        val pkgName = when {
-            shortcutToken.contains(";pkg=") -> shortcutToken.substringAfter(";pkg=").substringBefore(";")
-            shortcutToken.contains("pkg=") -> shortcutToken.substringAfter("pkg=").substringBefore(";")
-            shortcutToken.contains("package=") -> shortcutToken.substringAfter("package=").substringBefore(";")
-            else -> ""
-        }
-        val activityName = when {
-            shortcutToken.contains(";activity=") -> shortcutToken.substringAfter(";activity=").substringBefore(";")
-            shortcutToken.contains("activity=") -> shortcutToken.substringAfter("activity=").substringBefore(";")
-            else -> ""
-        }
-
-        // A. If activity is specified (Deep Activity / Plugin)
-        if (pkgName.isNotBlank() && activityName.isNotBlank()) {
-            try {
-                val actDrawable = pm.getActivityIcon(ComponentName(pkgName, activityName))
-                if (actDrawable != null) return actDrawable
-            } catch (_: Exception) {}
-        }
-
-        // B. Check Shizuku shortcut resource cache (direct APK drawable)
-        if (pkgName.isNotBlank() && shortcutId.isNotBlank()) {
-            val resPair = shortcutResourceCache["$pkgName|$shortcutId"]
-                ?: shortcutResourceCache["${pkgName.lowercase()}|${shortcutId.lowercase()}"]
-                ?: shortcutResourceCache.entries.firstOrNull { it.key.startsWith("$pkgName|", ignoreCase = true) && it.key.contains(shortcutId, ignoreCase = true) }?.value
-
-            if (resPair != null && resPair.first != 0) {
-                try {
-                    val res = pm.getResourcesForApplication(pkgName)
-                    val drawable = res.getDrawable(resPair.first, null)
-                    if (drawable != null) return drawable
-                } catch (_: Exception) {}
-            }
-        }
-
-        // C. Query LauncherApps if available
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-            try {
-                if (shortcutId.isNotBlank() && pkgName.isNotBlank()) {
-                    val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
-                    val query = LauncherApps.ShortcutQuery().apply {
-                        setPackage(pkgName)
-                        setShortcutIds(listOf(shortcutId))
-                        setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST)
-                    }
-                    val shortcuts = launcherApps?.getShortcuts(query, Process.myUserHandle())
-                    val shortcutInfo = shortcuts?.firstOrNull()
-                    if (shortcutInfo != null) {
-                        val icon = launcherApps.getShortcutIconDrawable(shortcutInfo, context.resources.displayMetrics.densityDpi)
-                        if (icon != null) return icon
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Error loading shortcut icon via LauncherApps", e)
-            }
-        }
-
-        return null
-    }
-
-    private fun isCalendarPackage(pkg: String): Boolean {
-        val p = pkg.lowercase()
-        return CALENDAR_PACKAGES.contains(p) || p.contains("calendar")
-    }
-
-    private fun loadAuthenticCalendarDrawable(context: Context, pkg: String, day: Int): Drawable? {
+    private fun loadGoogleCalendarDrawable(context: Context, pkg: String, day: Int): Drawable? {
         val pm = context.packageManager
         try {
             val res = pm.getResourcesForApplication(pkg)
             val dayFormatted = day.toString().padStart(2, '0')
 
-            // 1. Try dynamic_icons array from APK resources (Official Google Calendar array)
+            // Try dynamic_icons array from APK resources (Official Google Calendar array)
             val arrayNames = listOf("calendar_icons_dynamic", "calendar_icons_dynamic_nexus_round", "dynamic_icons")
             for (arrayName in arrayNames) {
                 val arrayId = res.getIdentifier(arrayName, "array", pkg)
@@ -398,16 +301,14 @@ object LightspeedIconManager {
                 }
             }
 
-            // 2. Try direct authentic drawable resource names
+            // Try direct authentic drawable resource names
             val candidateNames = listOf(
                 "logo_calendar_${dayFormatted}_adaptive",
                 "logo_calendar_${dayFormatted}",
                 "calendar_icon_day_${day}",
                 "calendar_icon_day_${dayFormatted}",
                 "calendar_icon_${day}",
-                "calendar_icon_${dayFormatted}",
-                "ic_launcher_calendar_${day}",
-                "ic_launcher_calendar_day_${day}"
+                "calendar_icon_${dayFormatted}"
             )
             for (cand in candidateNames) {
                 val resId = res.getIdentifier(cand, "drawable", pkg)
@@ -416,54 +317,10 @@ object LightspeedIconManager {
                     if (drawable != null) return drawable
                 }
             }
-
-            // 3. For OEM Calendars (like Transsion / Infinix / Tecno / Samsung) that don't have 31 separate APK assets:
-            // Dynamically badge the authentic base icon with today's live day number
-            val baseAppIcon = pm.getApplicationIcon(pkg)
-            return renderDateOnBaseIcon(context, baseAppIcon, day)
-
         } catch (e: Exception) {
-            Log.w(TAG, "Error loading authentic calendar drawable from $pkg", e)
+            Log.w(TAG, "Error loading Google Calendar drawable", e)
         }
         return null
-    }
-
-    private fun renderDateOnBaseIcon(context: Context, baseDrawable: Drawable, day: Int): Drawable? {
-        return try {
-            val d = context.resources.displayMetrics.density
-            val size = (64 * d).toInt()
-            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bmp)
-
-            // Draw base OEM calendar icon
-            baseDrawable.setBounds(0, 0, size, size)
-            baseDrawable.draw(canvas)
-
-            // Smooth clean card surface over the date window to cover static OEM date
-            val cardRect = RectF(size * 0.16f, size * 0.32f, size * 0.84f, size * 0.86f)
-            val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.FILL
-            }
-            canvas.drawRoundRect(cardRect, 8f * d, 8f * d, cardPaint)
-
-            // Paint today's date in bold Material typography centered in the date zone
-            val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.parseColor("#1A1C1E")
-                textSize = 21f * d
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                textAlign = Paint.Align.CENTER
-            }
-            val textBounds = Rect()
-            val dayStr = day.toString()
-            textPaint.getTextBounds(dayStr, 0, dayStr.length, textBounds)
-            val textY = cardRect.centerY() + (textBounds.height() / 2f) - textBounds.bottom
-            canvas.drawText(dayStr, cardRect.centerX(), textY, textPaint)
-
-            BitmapDrawable(context.resources, bmp)
-        } catch (_: Exception) {
-            baseDrawable
-        }
     }
 
     private fun convertDrawableToBitmap(drawable: Drawable): Bitmap? {

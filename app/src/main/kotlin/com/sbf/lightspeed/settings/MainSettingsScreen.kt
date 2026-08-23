@@ -122,23 +122,16 @@ object LightspeedActionRegistry {
                         val idRegex = Regex("""id=([^\r\n, ]+)""")
                         val pkgRegex = Regex("""packageName=([^\r\n, ]+)""")
                         val labelRegex = Regex("""shortLabel=([^,\r\n]+)""")
-                        val iconResRegex = Regex("""iconRes=([0-9]+)""")
-                        val iconResNameRegex = Regex("""iconRes=[0-9]+\[([^\]]+)\]""")
 
                         for (block in shortcutBlocks) {
                             val pkgMatch = pkgRegex.find(block)?.groupValues?.getOrNull(1)?.trim()
                             val idMatch = idRegex.find(block)?.groupValues?.getOrNull(1)?.trim()
                             val labelMatch = labelRegex.find(block)?.groupValues?.getOrNull(1)?.trim()
-                            val resId = iconResRegex.find(block)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
-                            val resName = iconResNameRegex.find(block)?.groupValues?.getOrNull(1)?.trim()
 
                             if (!pkgMatch.isNullOrBlank() && !idMatch.isNullOrBlank()) {
                                 val cleanLabel = (labelMatch ?: idMatch).trim().removeSurrounding("\"")
                                 shizukuShortcutsMap.getOrPut(pkgMatch) { mutableListOf() }
                                     .add(Pair(idMatch, cleanLabel))
-                                if (resId != 0) {
-                                    com.sbf.lightspeed.system.LightspeedIconManager.registerShortcutIcon(pkgMatch, idMatch, resId, resName)
-                                }
                             }
                         }
                     }

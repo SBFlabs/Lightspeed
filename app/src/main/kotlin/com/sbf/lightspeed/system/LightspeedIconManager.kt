@@ -1,11 +1,11 @@
 package com.sbf.lightspeed.system
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
+import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -37,11 +37,15 @@ object LightspeedIconManager {
     private val bitmapCache = ConcurrentHashMap<String, Bitmap>()
     private val drawableCache = ConcurrentHashMap<String, Drawable>()
 
+    // Shizuku Shortcut Icon mapping: "pkg|id" -> Pair(iconResId, iconResName)
+    val shortcutResourceCache = ConcurrentHashMap<String, Pair<Int, String?>>()
+
     private var currentLoadedPack: String? = null
     private var isPackLoaded = false
 
     private val CALENDAR_PACKAGES = setOf(
         "com.google.android.calendar",
+        "com.transsion.calendar",
         "com.samsung.android.calendar",
         "com.android.calendar",
         "com.google.android.apps.calendar",
@@ -50,6 +54,13 @@ object LightspeedIconManager {
         "com.xiaomi.calendar",
         "com.oneplus.calendar"
     )
+
+    fun registerShortcutIcon(pkg: String, id: String, resId: Int, resName: String? = null) {
+        if (pkg.isNotBlank() && id.isNotBlank() && resId != 0) {
+            shortcutResourceCache["$pkg|$id"] = Pair(resId, resName)
+            shortcutResourceCache["${pkg.lowercase()}|${id.lowercase()}"] = Pair(resId, resName)
+        }
+    }
 
     fun getAvailableIconPacks(context: Context): List<IconPackInfo> {
         val pm = context.packageManager
@@ -135,7 +146,6 @@ object LightspeedIconManager {
             val pm = context.packageManager
             val iconPackRes = pm.getResourcesForApplication(iconPackPkg)
 
-            // Look for appfilter.xml in xml or assets
             var inputStream: InputStream? = null
             try {
                 val appfilterResId = iconPackRes.getIdentifier("appfilter", "xml", iconPackPkg)
@@ -263,12 +273,12 @@ object LightspeedIconManager {
             }
         }
 
-        // 3. Authentic Dynamic Calendar Icon Extraction from Calendar App APK
+        // 3. Dynamic Calendar Icon Extraction / Badging
         if (isCalendarPackage(extractedPkg)) {
-            val authenticCalDrawable = loadAuthenticCalendarDrawable(context, extractedPkg, dayOfMonth)
-            if (authenticCalDrawable != null) {
-                drawableCache[tokenOrPkg] = authenticCalDrawable
-                return authenticCalDrawable
+            val calDrawable = loadAuthenticCalendarDrawable(context, extractedPkg, dayOfMonth)
+            if (calDrawable != null) {
+                drawableCache[tokenOrPkg] = calDrawable
+                return calDrawable
             }
         }
 
@@ -296,10 +306,50 @@ object LightspeedIconManager {
     }
 
     private fun loadShortcutIconDrawable(context: Context, shortcutToken: String): Drawable? {
+        val pm = context.packageManager
+        val shortcutId = when {
+            shortcutToken.contains(";id=") -> shortcutToken.substringAfter(";id=").substringBefore(";")
+            shortcutToken.contains("id=") -> shortcutToken.substringAfter("id=").substringBefore(";")
+            else -> ""
+        }
+        val pkgName = when {
+            shortcutToken.contains(";pkg=") -> shortcutToken.substringAfter(";pkg=").substringBefore(";")
+            shortcutToken.contains("pkg=") -> shortcutToken.substringAfter("pkg=").substringBefore(";")
+            shortcutToken.contains("package=") -> shortcutToken.substringAfter("package=").substringBefore(";")
+            else -> ""
+        }
+        val activityName = when {
+            shortcutToken.contains(";activity=") -> shortcutToken.substringAfter(";activity=").substringBefore(";")
+            shortcutToken.contains("activity=") -> shortcutToken.substringAfter("activity=").substringBefore(";")
+            else -> ""
+        }
+
+        // A. If activity is specified (Deep Activity / Plugin)
+        if (pkgName.isNotBlank() && activityName.isNotBlank()) {
+            try {
+                val actDrawable = pm.getActivityIcon(ComponentName(pkgName, activityName))
+                if (actDrawable != null) return actDrawable
+            } catch (_: Exception) {}
+        }
+
+        // B. Check Shizuku shortcut resource cache (direct APK drawable)
+        if (pkgName.isNotBlank() && shortcutId.isNotBlank()) {
+            val resPair = shortcutResourceCache["$pkgName|$shortcutId"]
+                ?: shortcutResourceCache["${pkgName.lowercase()}|${shortcutId.lowercase()}"]
+                ?: shortcutResourceCache.entries.firstOrNull { it.key.startsWith("$pkgName|", ignoreCase = true) && it.key.contains(shortcutId, ignoreCase = true) }?.value
+
+            if (resPair != null && resPair.first != 0) {
+                try {
+                    val res = pm.getResourcesForApplication(pkgName)
+                    val drawable = res.getDrawable(resPair.first, null)
+                    if (drawable != null) return drawable
+                } catch (_: Exception) {}
+            }
+        }
+
+        // C. Query LauncherApps if available
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
             try {
-                val shortcutId = if (shortcutToken.contains(";id=")) shortcutToken.substringAfter(";id=").substringBefore(";") else ""
-                val pkgName = if (shortcutToken.contains(";pkg=")) shortcutToken.substringAfter(";pkg=").substringBefore(";") else ""
                 if (shortcutId.isNotBlank() && pkgName.isNotBlank()) {
                     val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? LauncherApps
                     val query = LauncherApps.ShortcutQuery().apply {
@@ -318,6 +368,7 @@ object LightspeedIconManager {
                 Log.w(TAG, "Error loading shortcut icon via LauncherApps", e)
             }
         }
+
         return null
     }
 
@@ -365,10 +416,54 @@ object LightspeedIconManager {
                     if (drawable != null) return drawable
                 }
             }
+
+            // 3. For OEM Calendars (like Transsion / Infinix / Tecno / Samsung) that don't have 31 separate APK assets:
+            // Dynamically badge the authentic base icon with today's live day number
+            val baseAppIcon = pm.getApplicationIcon(pkg)
+            return renderDateOnBaseIcon(context, baseAppIcon, day)
+
         } catch (e: Exception) {
             Log.w(TAG, "Error loading authentic calendar drawable from $pkg", e)
         }
         return null
+    }
+
+    private fun renderDateOnBaseIcon(context: Context, baseDrawable: Drawable, day: Int): Drawable? {
+        return try {
+            val d = context.resources.displayMetrics.density
+            val size = (64 * d).toInt()
+            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+
+            // Draw base OEM calendar icon
+            baseDrawable.setBounds(0, 0, size, size)
+            baseDrawable.draw(canvas)
+
+            // Smooth clean card surface over the date window to cover static OEM date
+            val cardRect = RectF(size * 0.16f, size * 0.32f, size * 0.84f, size * 0.86f)
+            val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                style = Paint.Style.FILL
+            }
+            canvas.drawRoundRect(cardRect, 8f * d, 8f * d, cardPaint)
+
+            // Paint today's date in bold Material typography centered in the date zone
+            val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.parseColor("#1A1C1E")
+                textSize = 21f * d
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+            }
+            val textBounds = Rect()
+            val dayStr = day.toString()
+            textPaint.getTextBounds(dayStr, 0, dayStr.length, textBounds)
+            val textY = cardRect.centerY() + (textBounds.height() / 2f) - textBounds.bottom
+            canvas.drawText(dayStr, cardRect.centerX(), textY, textPaint)
+
+            BitmapDrawable(context.resources, bmp)
+        } catch (_: Exception) {
+            baseDrawable
+        }
     }
 
     private fun convertDrawableToBitmap(drawable: Drawable): Bitmap? {

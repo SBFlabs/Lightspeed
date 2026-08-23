@@ -11,6 +11,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.sbf.lightspeed.CockpitSettingsActivity
 import com.sbf.lightspeed.system.LightspeedBackupEngine
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*

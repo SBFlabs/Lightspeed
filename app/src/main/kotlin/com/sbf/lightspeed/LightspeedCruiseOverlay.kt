@@ -2372,7 +2372,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         textPaint.textSize = 8.5f * d
                         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                         textPaint.color = Color.WHITE
-                        canvas.drawText("🚨 TAP ✕ TO PURGE", cx, shiftBarY + 3.5f * d, textPaint)
+                        canvas.drawText("🚨 TAP ✕ TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
                     } else {
                         textPaint.textSize = 10.5f * d
                         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
@@ -2404,7 +2404,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         textPaint.textSize = 9f * d
                         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                         textPaint.color = Color.WHITE
-                        canvas.drawText("🚨 TAP ✕ TO PURGE", cx, shiftBarY + 3.5f * d, textPaint)
+                        canvas.drawText("🚨 TAP ✕ TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
                     } else {
                         textPaint.textSize = 10.5f * d
                         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD

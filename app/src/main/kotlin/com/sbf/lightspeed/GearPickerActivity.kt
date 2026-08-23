@@ -369,9 +369,88 @@ class GearPickerActivity : ComponentActivity() {
                                 disabledIndicatorColor = Color.Transparent
                             ),
                             shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             singleLine = true
                         )
+
+                        // Selected Ring Payloads Reorder Tray
+                        if (selectedTokens.isNotEmpty()) {
+                            Text(
+                                text = "RING COG ORDER (${selectedTokens.size} PAYLOADS) — TAP ◀ ▶ TO SHIFT:",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = dynamicSecondary,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                            androidx.compose.foundation.lazy.LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(selectedTokens.size, key = { idx -> "selected_${idx}_${selectedTokens[idx]}" }) { idx ->
+                                    val token = selectedTokens[idx]
+                                    val label = labelCache[token] ?: token
+                                    val isFirst = (idx == 0)
+                                    val isLast = (idx == selectedTokens.size - 1)
+
+                                    Row(
+                                        modifier = Modifier
+                                            .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                                            .border(1.dp, dynamicPrimary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (selectedTokens.size > 1) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (!isFirst) {
+                                                        val temp = selectedTokens[idx]
+                                                        selectedTokens[idx] = selectedTokens[idx - 1]
+                                                        selectedTokens[idx - 1] = temp
+                                                    }
+                                                },
+                                                enabled = !isFirst,
+                                                modifier = Modifier.size(22.dp)
+                                            ) {
+                                                Text("◀", fontSize = 10.sp, color = if (!isFirst) dynamicSecondary else Color.Gray.copy(alpha = 0.3f), fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        Text(
+                                            text = "${idx + 1}. ${label.take(13)}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 4.dp)
+                                        )
+
+                                        if (selectedTokens.size > 1) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (!isLast) {
+                                                        val temp = selectedTokens[idx]
+                                                        selectedTokens[idx] = selectedTokens[idx + 1]
+                                                        selectedTokens[idx + 1] = temp
+                                                    }
+                                                },
+                                                enabled = !isLast,
+                                                modifier = Modifier.size(22.dp)
+                                            ) {
+                                                Text("▶", fontSize = 10.sp, color = if (!isLast) dynamicSecondary else Color.Gray.copy(alpha = 0.3f), fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+
+                                        IconButton(
+                                            onClick = { selectedTokens.removeAt(idx) },
+                                            modifier = Modifier.size(22.dp)
+                                        ) {
+                                            Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFFF6B6B), modifier = Modifier.size(13.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             Row(modifier = Modifier.fillMaxSize()) {

@@ -636,6 +636,57 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         val radInner = 90f * d
                         val radHub = 32f * d
 
+                        val shiftBarY = cyGimbal - radOuter - 14f * d
+                        val shiftCogLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
+                        val shiftCogRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
+                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing).toMutableList()
+
+                        // Check Live Orbital Shift Left
+                        if (shiftCogLeftRect.contains(x, y) && ringApps.size > 1) {
+                            val count = ringApps.size
+                            val baseRotation = gearRingRotations[activeHangarRing]
+                            var targetedIdx = 0
+                            var minDiff = Float.MAX_VALUE
+                            for (i in ringApps.indices) {
+                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
+                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
+                                val diff = kotlin.math.abs(norm - 180f)
+                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
+                            }
+                            val prevIdx = (targetedIdx - 1 + ringApps.size) % ringApps.size
+                            val temp = ringApps[targetedIdx]
+                            ringApps[targetedIdx] = ringApps[prevIdx]
+                            ringApps[prevIdx] = temp
+                            prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
+                            gearRingRotations[activeHangarRing] = (gearRingRotations[activeHangarRing] + (360f / count)) % 360f
+                            triggerHardwareHaptic(30, 160)
+                            invalidate()
+                            return true
+                        }
+
+                        // Check Live Orbital Shift Right
+                        if (shiftCogRightRect.contains(x, y) && ringApps.size > 1) {
+                            val count = ringApps.size
+                            val baseRotation = gearRingRotations[activeHangarRing]
+                            var targetedIdx = 0
+                            var minDiff = Float.MAX_VALUE
+                            for (i in ringApps.indices) {
+                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
+                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
+                                val diff = kotlin.math.abs(norm - 180f)
+                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
+                            }
+                            val nextIdx = (targetedIdx + 1) % ringApps.size
+                            val temp = ringApps[targetedIdx]
+                            ringApps[targetedIdx] = ringApps[nextIdx]
+                            ringApps[nextIdx] = temp
+                            prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
+                            gearRingRotations[activeHangarRing] = (gearRingRotations[activeHangarRing] - (360f / count)) % 360f
+                            triggerHardwareHaptic(30, 160)
+                            invalidate()
+                            return true
+                        }
+
                         val distFromCore = kotlin.math.hypot(x - cx, y - cyGimbal)
                         val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
                         val reticleY = cyGimbal
@@ -2194,21 +2245,55 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             canvas.drawLine(reticleX - 28f * d, reticleY, reticleX - 18f * d, reticleY, highlightPaint)
             canvas.drawLine(reticleX + 18f * d, reticleY, reticleX + 28f * d, reticleY, highlightPaint)
 
-            // Target Indicator Text Badge
-            if (focusedAppLabel != null) {
+            // Target Indicator & Live Orbital Shift Bar
+            val shiftBarY = cyGimbal - radOuter - 14f * d
+            val activeRingColor = if (activeHangarRing == 0) m3Primary else m3Secondary
+
+            if (focusedAppLabel != null && activeAppsList.size > 1) {
+                val shiftLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
+                val shiftRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
+
+                // Left Shift Cog Button
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(150, 18, 24, 40)
+                canvas.drawRoundRect(shiftLeftRect, 8f * d, 8f * d, highlightPaint)
+                highlightPaint.style = Paint.Style.STROKE
+                highlightPaint.strokeWidth = 0.9f * d
+                highlightPaint.color = Color.argb(80, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
+                canvas.drawRoundRect(shiftLeftRect, 8f * d, 8f * d, highlightPaint)
+                textPaint.textSize = 9.5f * d
+                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.color = activeRingColor
+                canvas.drawText("◀ SHIFT COG", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
+
+                // Center Target Badge
+                textPaint.textSize = 10.5f * d
+                textPaint.color = Color.WHITE
+                canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
+
+                // Right Shift Cog Button
+                highlightPaint.style = Paint.Style.FILL
+                highlightPaint.color = Color.argb(150, 18, 24, 40)
+                canvas.drawRoundRect(shiftRightRect, 8f * d, 8f * d, highlightPaint)
+                highlightPaint.style = Paint.Style.STROKE
+                highlightPaint.strokeWidth = 0.9f * d
+                highlightPaint.color = Color.argb(80, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
+                canvas.drawRoundRect(shiftRightRect, 8f * d, 8f * d, highlightPaint)
+                textPaint.color = activeRingColor
+                canvas.drawText("SHIFT COG ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
+            } else if (focusedAppLabel != null) {
                 textPaint.textSize = 10.5f * d
                 textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                textPaint.color = m3Secondary
-                canvas.drawText("🎯 TARGET: $focusedAppLabel", cx, cyGimbal - radOuter - 12f * d, textPaint)
+                textPaint.color = activeRingColor
+                canvas.drawText("🎯 TARGET: $focusedAppLabel", cx, shiftBarY + 3.5f * d, textPaint)
             } else {
                 textPaint.textSize = 10f * d
                 textPaint.typeface = android.graphics.Typeface.DEFAULT
                 textPaint.color = Color.argb(140, 200, 220, 255)
-                canvas.drawText("✦ TOUCH & DRAG TO SPIN // TAP CENTER TO EDIT ✦", cx, cyGimbal - radOuter - 12f * d, textPaint)
+                canvas.drawText("✦ TOUCH & DRAG TO SPIN // TAP CENTER TO EDIT ✦", cx, shiftBarY + 3.5f * d, textPaint)
             }
 
             // Central Command Reactor Core (Tap to Edit Active Ring)
-            val activeRingColor = if (activeHangarRing == 0) m3Primary else m3Secondary
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(195, 16, 22, 38)
             canvas.drawCircle(cx, cyGimbal, radHub, highlightPaint)

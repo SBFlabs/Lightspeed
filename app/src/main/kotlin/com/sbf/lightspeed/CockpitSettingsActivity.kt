@@ -2,29 +2,35 @@ package com.sbf.lightspeed
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,61 +38,75 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 
 class CockpitSettingsActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+
+        val dynamicColorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            dynamicDarkColorScheme(this)
+        } else {
+            darkColorScheme(
+                primary = Color(0xFF6750A4),
+                secondary = Color(0xFFD0BCFF),
+                tertiary = Color(0xFFCCC2DC)
+            )
+        }
 
         LightspeedActionRegistry.initializeSync(this)
 
         setContent {
-            val context = LocalContext.current
-
-            LaunchedEffect(Unit) {
-                LightspeedActionRegistry.ensureIndexed(context)
+            val context = this
+            val prefs = remember { context.getSharedPreferences("default", Context.MODE_PRIVATE) }
+            
+            var launchBehavior by remember { 
+                mutableStateOf(prefs.getString("cockpit_launch_behavior", "default") ?: "default") 
             }
 
-            val dynamicColorScheme = remember {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    androidx.compose.material3.dynamicDarkColorScheme(context)
-                } else {
-                    darkColorScheme(
-                        primary = Color(0xFF6750A4),
-                        secondary = Color(0xFFD0BCFF),
-                        background = Color(0xFF121214)
-                    )
-                }
+            var physicsProfile by remember {
+                mutableStateOf(prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic")
+            }
+            var hapticStrength by remember {
+                mutableStateOf(prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical")
             }
 
-            val prefs = remember { getSharedPreferences("default", Context.MODE_PRIVATE) }
-            var launchBehavior by remember { mutableStateOf(prefs.getString("cockpit_launch_behavior", "default") ?: "default") }
             val setsOrder = remember { mutableStateListOf<String>() }
             val setNames = remember { mutableStateMapOf<String, String>() }
-
             val ring0Data = remember { mutableStateMapOf<String, List<String>>() }
             val ring1Data = remember { mutableStateMapOf<String, List<String>>() }
+
             var selectedSetId by remember { mutableStateOf<String?>(null) }
             var activeRingTab by remember { mutableStateOf(0) }
 
             fun reloadSetData() {
-                val orderStr = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-                val list = orderStr.split(",").filter { it.isNotEmpty() }
                 setsOrder.clear()
-                setsOrder.addAll(list)
-                list.forEach { id ->
-                    val defaultName = when(id) {
-                        "0" -> "POWER USER ANDROID"
-                        "1" -> "MY APP STORES"
-                        "2" -> "UTILITIES SECTOR"
-                        "3" -> "ENTERTAINMENT DECK"
-                        else -> "CUSTOM SET"
-                    }
-                    val saved = prefs.getString("gear_set_${id}_name", defaultName) ?: defaultName
-                    setNames[id] = if (saved in listOf("SET A", "SET B", "SET C", "SET D", "SET", "")) defaultName else saved
+                setNames.clear()
+                ring0Data.clear()
+                ring1Data.clear()
 
-                    val r0Str = prefs.getString("gear_set_${id}_ring_0_packages", "") ?: ""
+                val savedOrder = prefs.getString("gear_sets_order", "") ?: ""
+                val ids = if (savedOrder.isEmpty()) {
+                    listOf("0", "1", "2", "3")
+                } else {
+                    savedOrder.split(",").filter { it.isNotEmpty() }
+                }
+                setsOrder.addAll(ids)
+
+                for (id in ids) {
+                    val rawName = prefs.getString("gear_set_${id}_name", "") ?: ""
+                    val sName = if (rawName.isEmpty() || rawName in listOf("SET A", "SET B", "SET C", "SET D", "SET")) {
+                        when (id) {
+                            "0" -> "POWER USER ANDROID"
+                            "1" -> "MY APP STORES"
+                            "2" -> "UTILITIES SECTOR"
+                            "3" -> "ENTERTAINMENT DECK"
+                            else -> "CUSTOM SET"
+                        }
+                    } else rawName
+                    setNames[id] = sName
+
+                    val r0Str = prefs.getString("gear_set_${id}_ring0", "") ?: ""
+                    val r1Str = prefs.getString("gear_set_${id}_ring1", "") ?: ""
                     ring0Data[id] = r0Str.split(",").filter { it.isNotEmpty() }
-
-                    val r1Str = prefs.getString("gear_set_${id}_ring_1_packages", "") ?: ""
                     ring1Data[id] = r1Str.split(",").filter { it.isNotEmpty() }
                 }
             }
@@ -104,18 +124,19 @@ class CockpitSettingsActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Spacer(modifier = Modifier.height(48.dp))
+                        Spacer(modifier = Modifier.height(44.dp))
 
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth(0.95f)
                                 .weight(1f)
-                                .padding(bottom = 24.dp)
+                                .padding(bottom = 20.dp)
                                 .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(24.dp)),
                             shape = RoundedCornerShape(24.dp),
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF0E0E14).copy(alpha = 0.95f))
                         ) {
-                            Column(modifier = Modifier.fillMaxSize().padding(18.dp)) {
+                            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                                // Top Header Bar
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -129,7 +150,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             color = Color.White
                                         )
                                         Text(
-                                            text = if (selectedSetId == null) "Customize circular dual-ring shortcuts" else "Configure Outer & Inner rings",
+                                            text = if (selectedSetId == null) "Customize circular dual-ring shortcuts & physics" else "Configure Outer & Inner rings",
                                             fontSize = 12.sp,
                                             color = dynamicColorScheme.secondary
                                         )
@@ -143,201 +164,223 @@ class CockpitSettingsActivity : ComponentActivity() {
                                 }
 
                                 if (selectedSetId == null) {
-                                    // Launch Behavior Card
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
-                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
-                                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    // Main Scrollable Cockpit Configuration View
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("Launch Mode", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                                            Text(
-                                                if (launchBehavior == "default") "Always starts on first profile" else "Resumes on last used profile",
-                                                fontSize = 10.sp,
-                                                color = Color.LightGray.copy(alpha = 0.6f)
-                                            )
-                                        }
-                                        
-                                        FilterChip(
-                                            selected = launchBehavior == "default",
-                                            onClick = { launchBehavior = "default" },
-                                            label = { Text("Always Default", fontSize = 11.sp, fontWeight = if (launchBehavior == "default") FontWeight.Bold else FontWeight.Normal) },
-                                            colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = dynamicColorScheme.primary,
-                                                selectedLabelColor = Color.White
-                                            ),
-                                            modifier = Modifier.padding(end = 6.dp)
-                                        )
-                                        FilterChip(
-                                            selected = launchBehavior == "last",
-                                            onClick = { launchBehavior = "last" },
-                                            label = { Text("Remember Last", fontSize = 11.sp, fontWeight = if (launchBehavior == "last") FontWeight.Bold else FontWeight.Normal) },
-                                            colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = dynamicColorScheme.primary,
-                                                selectedLabelColor = Color.White
-                                            )
-                                        )
-                                    }
+                                        // 1. Launch Mode Card
+                                        item {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
+                                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                                                    .padding(12.dp)
+                                            ) {
+                                                Text("Launch Mode", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                                Text(
+                                                    if (launchBehavior == "default") "Always starts on first profile" else "Resumes on last used profile",
+                                                    fontSize = 11.sp,
+                                                    color = Color.LightGray.copy(alpha = 0.7f),
+                                                    modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                                                )
 
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    // Gimbal Flight Physics & Haptic Tuning Card
-                                    var physicsProfile by remember {
-                                        mutableStateOf(context.getSharedPreferences("default", Context.MODE_PRIVATE).getString("pref_gear_physics_profile", "magnetic") ?: "magnetic")
-                                    }
-                                    var hapticStrength by remember {
-                                        mutableStateOf(context.getSharedPreferences("default", Context.MODE_PRIVATE).getString("pref_gear_haptic_strength", "tactical") ?: "tactical")
-                                    }
-
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
-                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
-                                            .padding(12.dp)
-                                    ) {
-                                        Text("Gimbal Flight Physics & Haptics", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                                        Text("Tune gear rotation angular momentum and mechanical ratchet ticks", fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.6f))
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        Text("Physics Momentum:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
-                                        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            FilterChip(
-                                                selected = physicsProfile == "magnetic",
-                                                onClick = {
-                                                    physicsProfile = "magnetic"
-                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_physics_profile", "magnetic").apply()
-                                                },
-                                                label = { Text("⚡ Snappy Magnetic", fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
-                                            )
-                                            FilterChip(
-                                                selected = physicsProfile == "fluid",
-                                                onClick = {
-                                                    physicsProfile = "fluid"
-                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_physics_profile", "fluid").apply()
-                                                },
-                                                label = { Text("🌊 Fluid Glide", fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
-                                            )
-                                            FilterChip(
-                                                selected = physicsProfile == "heavy",
-                                                onClick = {
-                                                    physicsProfile = "heavy"
-                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_physics_profile", "heavy").apply()
-                                                },
-                                                label = { Text("🚀 Heavy Cargo", fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        Text("Tactile Ratchet Tick:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.8f))
-                                        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            FilterChip(
-                                                selected = hapticStrength == "subtle",
-                                                onClick = {
-                                                    hapticStrength = "subtle"
-                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "subtle").apply()
-                                                },
-                                                label = { Text("Subtle", fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
-                                            )
-                                            FilterChip(
-                                                selected = hapticStrength == "tactical",
-                                                onClick = {
-                                                    hapticStrength = "tactical"
-                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "tactical").apply()
-                                                },
-                                                label = { Text("Tactical", fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
-                                            )
-                                            FilterChip(
-                                                selected = hapticStrength == "heavy",
-                                                onClick = {
-                                                    hapticStrength = "heavy"
-                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "heavy").apply()
-                                                },
-                                                label = { Text("Heavy Thud", fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
-                                            )
-                                            FilterChip(
-                                                selected = hapticStrength == "off",
-                                                onClick = {
-                                                    hapticStrength = "off"
-                                                    context.getSharedPreferences("default", Context.MODE_PRIVATE).edit().putString("pref_gear_haptic_strength", "off").apply()
-                                                },
-                                                label = { Text("Off", fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    // Icon Pack Selector Card
-                                    val availableIconPacks = remember { com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context) }
-                                    var activeIconPack by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)) }
-
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
-                                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
-                                            .padding(12.dp)
-                                    ) {
-                                        Text("Icon Pack & Visuals", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                                        Text("Applied across Gimbal Gears, Category Horizon & Star System Grid", fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.6f))
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        androidx.compose.foundation.lazy.LazyRow(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            items(availableIconPacks.size) { idx ->
-                                                val pack = availableIconPacks[idx]
-                                                val isSelected = (activeIconPack == pack.packageName)
-
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(
-                                                            if (isSelected) dynamicColorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.04f),
-                                                            RoundedCornerShape(10.dp)
-                                                        )
-                                                        .border(
-                                                            if (isSelected) 1.5.dp else 1.dp,
-                                                            if (isSelected) dynamicColorScheme.primary else Color.White.copy(alpha = 0.1f),
-                                                            RoundedCornerShape(10.dp)
-                                                        )
-                                                        .clickable {
-                                                            activeIconPack = pack.packageName
-                                                            com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, pack.packageName)
-                                                        }
-                                                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Text(
-                                                            text = if (pack.isSystem) "🎨 System Dynamic" else "📦 ${pack.label}",
-                                                            fontSize = 11.sp,
-                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                            color = if (isSelected) Color.White else Color.LightGray
+                                                    FilterChip(
+                                                        selected = launchBehavior == "default",
+                                                        onClick = {
+                                                            launchBehavior = "default"
+                                                            prefs.edit().putString("cockpit_launch_behavior", "default").apply()
+                                                        },
+                                                        label = { Text("Always Default", fontSize = 11.sp) },
+                                                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                    )
+                                                    FilterChip(
+                                                        selected = launchBehavior == "last",
+                                                        onClick = {
+                                                            launchBehavior = "last"
+                                                            prefs.edit().putString("cockpit_launch_behavior", "last").apply()
+                                                        },
+                                                        label = { Text("Remember Last", fontSize = 11.sp) },
+                                                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // 2. Gimbal Flight Physics & Haptics Tuning Card
+                                        item {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
+                                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                                                    .padding(12.dp)
+                                            ) {
+                                                Text("Gimbal Flight Physics & Haptics", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                                Text("Tune gear rotation angular momentum and mechanical ratchet ticks", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.7f), modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+
+                                                Text("Physics Momentum:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.85f))
+                                                LazyRow(
+                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    item {
+                                                        FilterChip(
+                                                            selected = physicsProfile == "magnetic",
+                                                            onClick = {
+                                                                physicsProfile = "magnetic"
+                                                                prefs.edit().putString("pref_gear_physics_profile", "magnetic").apply()
+                                                            },
+                                                            label = { Text("⚡ Snappy", fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                        )
+                                                    }
+                                                    item {
+                                                        FilterChip(
+                                                            selected = physicsProfile == "fluid",
+                                                            onClick = {
+                                                                physicsProfile = "fluid"
+                                                                prefs.edit().putString("pref_gear_physics_profile", "fluid").apply()
+                                                            },
+                                                            label = { Text("🌊 Fluid Glide", fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                        )
+                                                    }
+                                                    item {
+                                                        FilterChip(
+                                                            selected = physicsProfile == "heavy",
+                                                            onClick = {
+                                                                physicsProfile = "heavy"
+                                                                prefs.edit().putString("pref_gear_physics_profile", "heavy").apply()
+                                                            },
+                                                            label = { Text("🚀 Heavy Cargo", fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                        )
+                                                    }
+                                                }
+
+                                                Text("Tactile Ratchet Tick:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.85f))
+                                                LazyRow(
+                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    item {
+                                                        FilterChip(
+                                                            selected = hapticStrength == "subtle",
+                                                            onClick = {
+                                                                hapticStrength = "subtle"
+                                                                prefs.edit().putString("pref_gear_haptic_strength", "subtle").apply()
+                                                            },
+                                                            label = { Text("Subtle", fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                        )
+                                                    }
+                                                    item {
+                                                        FilterChip(
+                                                            selected = hapticStrength == "tactical",
+                                                            onClick = {
+                                                                hapticStrength = "tactical"
+                                                                prefs.edit().putString("pref_gear_haptic_strength", "tactical").apply()
+                                                            },
+                                                            label = { Text("Tactical", fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                        )
+                                                    }
+                                                    item {
+                                                        FilterChip(
+                                                            selected = hapticStrength == "heavy",
+                                                            onClick = {
+                                                                hapticStrength = "heavy"
+                                                                prefs.edit().putString("pref_gear_haptic_strength", "heavy").apply()
+                                                            },
+                                                            label = { Text("Heavy Thud", fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                        )
+                                                    }
+                                                    item {
+                                                        FilterChip(
+                                                            selected = hapticStrength == "off",
+                                                            onClick = {
+                                                                hapticStrength = "off"
+                                                                prefs.edit().putString("pref_gear_haptic_strength", "off").apply()
+                                                            },
+                                                            label = { Text("Off", fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
                                                         )
                                                     }
                                                 }
                                             }
                                         }
-                                    }
 
-                                    Spacer(modifier = Modifier.height(14.dp))
-                                    Text("Profiles & Gear Sets (${setsOrder.size}):", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.7f))
+                                        // 3. Icon Pack & Visuals Card
+                                        item {
+                                            val availableIconPacks = remember { com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context) }
+                                            var activeIconPack by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)) }
 
-                                    LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
+                                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                                                    .padding(12.dp)
+                                            ) {
+                                                Text("Icon Pack & Visuals", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                                Text("Applied across Gimbal Gears, Category Horizon & Star System Grid", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.7f), modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+
+                                                LazyRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    items(availableIconPacks.size) { idx ->
+                                                        val pack = availableIconPacks[idx]
+                                                        val isSelected = (activeIconPack == pack.packageName)
+
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .background(
+                                                                    if (isSelected) dynamicColorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.04f),
+                                                                    RoundedCornerShape(10.dp)
+                                                                )
+                                                                .border(
+                                                                    if (isSelected) 1.5.dp else 1.dp,
+                                                                    if (isSelected) dynamicColorScheme.primary else Color.White.copy(alpha = 0.1f),
+                                                                    RoundedCornerShape(10.dp)
+                                                                )
+                                                                .clickable {
+                                                                    activeIconPack = pack.packageName
+                                                                    com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, pack.packageName)
+                                                                }
+                                                                .padding(horizontal = 10.dp, vertical = 7.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = if (pack.isSystem) "🎨 System Dynamic" else "📦 ${pack.label}",
+                                                                fontSize = 11.sp,
+                                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                                color = if (isSelected) Color.White else Color.LightGray
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 4. Section Title: Profiles & Gear Sets
+                                        item {
+                                            Text(
+                                                text = "Profiles & Gear Sets (${setsOrder.size}):",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                modifier = Modifier.padding(top = 4.dp)
+                                            )
+                                        }
+
+                                        // 5. List of Profiles & Gear Sets
                                         itemsIndexed(setsOrder, key = { _, id -> id }) { index, id ->
                                             var currentName by remember(id) { mutableStateOf(setNames[id] ?: "") }
                                             val r0Count = (ring0Data[id] ?: emptyList()).size
@@ -346,7 +389,6 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(vertical = 4.dp)
                                                     .background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
                                                     .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(14.dp))
                                                     .padding(12.dp)
@@ -370,37 +412,44 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                             unfocusedIndicatorColor = Color.Transparent,
                                                             disabledIndicatorColor = Color.Transparent
                                                         ),
-                                                        shape = RoundedCornerShape(12.dp),
-                                                        modifier = Modifier.weight(1f).height(52.dp),
-                                                        singleLine = true
+                                                        modifier = Modifier.weight(1f).height(46.dp),
+                                                        singleLine = true,
+                                                        shape = RoundedCornerShape(10.dp)
                                                     )
+
                                                     Spacer(modifier = Modifier.width(8.dp))
+
                                                     Button(
-                                                        onClick = { selectedSetId = id; activeRingTab = 0 },
+                                                        onClick = { selectedSetId = id },
                                                         colors = ButtonDefaults.buttonColors(containerColor = dynamicColorScheme.primary),
-                                                        shape = RoundedCornerShape(12.dp),
-                                                        contentPadding = PaddingValues(horizontal = 14.dp),
-                                                        modifier = Modifier.height(52.dp)
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                                        modifier = Modifier.height(38.dp)
                                                     ) {
-                                                        Text("GEARS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                                        Text("EDIT GEARS ➔", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                                     }
                                                 }
 
+                                                Spacer(modifier = Modifier.height(8.dp))
+
                                                 Row(
-                                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     Text(
-                                                        text = "Outer Ring: $r0Count items  •  Inner Ring: $r1Count items",
+                                                        text = "Outer: $r0Count apps  |  Inner: $r1Count apps",
                                                         fontSize = 11.sp,
-                                                        color = Color.LightGray.copy(alpha = 0.6f)
+                                                        color = Color.LightGray.copy(alpha = 0.7f)
                                                     )
-                                                    Row {
+
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                                         IconButton(
                                                             onClick = {
                                                                 if (index > 0) {
-                                                                    val temp = setsOrder[index]; setsOrder[index] = setsOrder[index - 1]; setsOrder[index - 1] = temp
+                                                                    val temp = setsOrder[index]
+                                                                    setsOrder[index] = setsOrder[index - 1]
+                                                                    setsOrder[index - 1] = temp
                                                                 }
                                                             },
                                                             enabled = index > 0,
@@ -411,7 +460,9 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                         IconButton(
                                                             onClick = {
                                                                 if (index < setsOrder.size - 1) {
-                                                                    val temp = setsOrder[index]; setsOrder[index] = setsOrder[index + 1]; setsOrder[index + 1] = temp
+                                                                    val temp = setsOrder[index]
+                                                                    setsOrder[index] = setsOrder[index + 1]
+                                                                    setsOrder[index + 1] = temp
                                                                 }
                                                             },
                                                             enabled = index < setsOrder.size - 1,
@@ -430,25 +481,29 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                 }
                                             }
                                         }
-                                    }
 
-                                    OutlinedButton(
-                                        onClick = {
-                                            val newId = System.currentTimeMillis().toString()
-                                            setsOrder.add(newId)
-                                            setNames[newId] = "CUSTOM SET"
-                                            ring0Data[newId] = emptyList()
-                                            ring1Data[newId] = emptyList()
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).height(44.dp)
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("+ ADD NEW SET", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        // 6. Add New Set Button
+                                        item {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    val newId = System.currentTimeMillis().toString()
+                                                    setsOrder.add(newId)
+                                                    setNames[newId] = "CUSTOM SET"
+                                                    ring0Data[newId] = emptyList()
+                                                    ring1Data[newId] = emptyList()
+                                                },
+                                                shape = RoundedCornerShape(12.dp),
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(44.dp)
+                                            ) {
+                                                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("+ ADD NEW SET", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
                                     }
                                 } else {
+                                    // Individual Profile Gear Ring Editor View
                                     val targetId = selectedSetId!!
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                                         TextButton(onClick = { selectedSetId = null }) {
@@ -520,47 +575,15 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             val intent = Intent(context, GearPickerActivity::class.java).apply {
                                                 putExtra("SET_ID", targetId)
                                                 putExtra("RING_INDEX", activeRingTab)
+                                                putStringArrayListExtra("CURRENT_SELECTION", ArrayList(currentRingList))
                                             }
-                                            context.startActivity(intent)
+                                            startActivity(intent)
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = dynamicColorScheme.primary),
                                         shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).height(44.dp)
+                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(44.dp)
                                     ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("+ ADD SHORTCUTS TO GEAR ${activeRingTab + 1}", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    OutlinedButton(
-                                        onClick = { finish() },
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
-                                        modifier = Modifier.weight(1f).height(46.dp)
-                                    ) {
-                                        Text("CANCEL", color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                    }
-                                    Button(
-                                        onClick = {
-                                            val editor = prefs.edit()
-                                            editor.putString("cockpit_launch_behavior", launchBehavior)
-                                            editor.putString("gear_sets_order", setsOrder.joinToString(","))
-                                            setNames.forEach { (id, name) -> editor.putString("gear_set_${id}_name", name) }
-                                            ring0Data.forEach { (id, apps) -> editor.putString("gear_set_${id}_ring_0_packages", apps.joinToString(",")) }
-                                            ring1Data.forEach { (id, apps) -> editor.putString("gear_set_${id}_ring_1_packages", apps.joinToString(",")) }
-                                            editor.apply()
-                                            finish()
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = dynamicColorScheme.primary),
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.weight(1f).height(46.dp)
-                                    ) {
-                                        Text("SAVE CHANGES", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text("+ ADD / CHANGE SHORTCUTS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                     }
                                 }
                             }
@@ -568,84 +591,129 @@ class CockpitSettingsActivity : ComponentActivity() {
                     }
                 }
             }
-        }
-    }
-}
 
-@Composable
-fun AppRow(pkg: String, index: Int, totalSize: Int, onMoveUp: () -> Unit, onMoveDown: () -> Unit, onRemove: () -> Unit) {
-    val context = LocalContext.current
-
-    val appData = remember(pkg) {
-        val extractedPkg = when {
-            pkg.startsWith("app:") -> pkg.removePrefix("app:")
-            pkg.startsWith("shortcut:") -> {
-                if (pkg.contains(";pkg=")) pkg.substringAfter(";pkg=").substringBefore(";")
-                else if (pkg.contains("package=")) pkg.substringAfter("package=").substringBefore(";")
-                else ""
+            DisposableEffect(Unit) {
+                onDispose {
+                    val editor = prefs.edit()
+                    editor.putString("cockpit_launch_behavior", launchBehavior)
+                    editor.putString("pref_gear_physics_profile", physicsProfile)
+                    editor.putString("pref_gear_haptic_strength", hapticStrength)
+                    editor.putString("gear_sets_order", setsOrder.joinToString(","))
+                    for (id in setsOrder) {
+                        editor.putString("gear_set_${id}_name", setNames[id] ?: "")
+                        editor.putString("gear_set_${id}_ring0", (ring0Data[id] ?: emptyList()).joinToString(","))
+                        editor.putString("gear_set_${id}_ring1", (ring1Data[id] ?: emptyList()).joinToString(","))
+                    }
+                    editor.apply()
+                }
             }
-            pkg.startsWith("system:") -> ""
-            else -> pkg
         }
-
-        val cachedLabel = LightspeedActionRegistry.labelCache[pkg]
-        val label = cachedLabel ?: when {
-            extractedPkg.isNotEmpty() -> try {
-                context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(extractedPkg, 0)).toString()
-            } catch (_: Exception) { pkg.substringAfterLast(".") }
-            else -> pkg
-        }
-
-        val bmp = if (extractedPkg.isNotEmpty()) {
-            LightspeedActionRegistry.getIconBitmap(context, extractedPkg)
-        } else null
-
-        Pair(label, bmp?.asImageBitmap())
     }
 
-    val appLabel = appData.first
-    val appIcon = appData.second
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp)
-            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+    @Composable
+    private fun AppRow(
+        pkg: String,
+        index: Int,
+        totalSize: Int,
+        onMoveUp: () -> Unit,
+        onMoveDown: () -> Unit,
+        onRemove: () -> Unit
     ) {
-        if (appIcon != null) {
-            Image(
-                bitmap = appIcon,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(32.dp)
-                    .padding(end = 10.dp)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .padding(end = 10.dp)
-                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-            )
+        val context = this
+        val dynamicColorScheme = MaterialTheme.colorScheme
+
+        val label = remember(pkg) {
+            when {
+                pkg.startsWith("system:") -> LightspeedActionRegistry.labelCache[pkg] ?: pkg.substringAfter("system:").replace("_", " ").uppercase()
+                pkg.startsWith("shortcut:") -> LightspeedActionRegistry.labelCache[pkg] ?: run {
+                    if (pkg.contains(";custom_label=")) pkg.substringAfter(";custom_label=").substringBefore(";")
+                    else if (pkg.contains(";label=")) pkg.substringAfter(";label=").substringBefore(";")
+                    else "Shortcut"
+                }
+                pkg.startsWith("app:") -> {
+                    val clean = pkg.removePrefix("app:")
+                    try {
+                        val pm = context.packageManager
+                        pm.getApplicationLabel(pm.getApplicationInfo(clean, 0)).toString()
+                    } catch (_: Exception) { clean }
+                }
+                else -> {
+                    try {
+                        val pm = context.packageManager
+                        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                    } catch (_: Exception) { pkg }
+                }
+            }
         }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(appLabel, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(pkg, fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.45f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val iconBmp = remember(pkg) {
+            com.sbf.lightspeed.system.LightspeedIconManager.getIconBitmap(context, pkg)
         }
 
-        IconButton(onClick = onMoveUp, enabled = index > 0, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Up", tint = if (index > 0) Color.White.copy(alpha = 0.8f) else Color.Gray, modifier = Modifier.size(18.dp))
-        }
-        IconButton(onClick = onMoveDown, enabled = index < totalSize - 1, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Down", tint = if (index < totalSize - 1) Color.White.copy(alpha = 0.8f) else Color.Gray, modifier = Modifier.size(18.dp))
-        }
-        IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFFF6B6B), modifier = Modifier.size(16.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 3.dp)
+                .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (iconBmp != null) {
+                Image(
+                    bitmap = iconBmp.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp).clip(RoundedCornerShape(6.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier.size(24.dp).background(Color.White.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(if (pkg.startsWith("system:")) "⚡" else "⚙", fontSize = 11.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (pkg.startsWith("system:")) "System Action" else if (pkg.startsWith("shortcut:")) "Deep Shortcut" else pkg.removePrefix("app:"),
+                    fontSize = 10.sp,
+                    color = Color.LightGray.copy(alpha = 0.5f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            IconButton(
+                onClick = onMoveUp,
+                enabled = index > 0,
+                modifier = Modifier.size(26.dp)
+            ) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Up", tint = if (index > 0) dynamicColorScheme.secondary else Color.Gray, modifier = Modifier.size(16.dp))
+            }
+            IconButton(
+                onClick = onMoveDown,
+                enabled = index < totalSize - 1,
+                modifier = Modifier.size(26.dp)
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Down", tint = if (index < totalSize - 1) dynamicColorScheme.secondary else Color.Gray, modifier = Modifier.size(16.dp))
+            }
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(26.dp)
+            ) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFFF6B6B), modifier = Modifier.size(16.dp))
+            }
         }
     }
 }
-

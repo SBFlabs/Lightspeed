@@ -135,8 +135,7 @@ class GearPickerActivity : ComponentActivity() {
             ) { result ->
                 val data = result.data
                 if (data != null && result.resultCode == Activity.RESULT_OK) {
-                    var uriString = ""
-                    var shortcutBmp: Bitmap? = null
+                    var generatedToken = ""
 
                     if (data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
                         val pinRequest = try {
@@ -155,21 +154,13 @@ class GearPickerActivity : ComponentActivity() {
                             try { pinRequest.accept() } catch (_: Exception) {}
                             val info = pinRequest.shortcutInfo
                             if (info != null) {
-                                val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: ""
-                                uriString = "shortcut:;id=${info.id};pkg=${info.`package`};label=$label;"
-                                try {
-                                    val launcherApps = getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-                                    val d = launcherApps.getShortcutBadgedIconDrawable(info, resources.displayMetrics.densityDpi)
-                                        ?: launcherApps.getShortcutIconDrawable(info, resources.displayMetrics.densityDpi)
-                                    if (d != null) {
-                                        shortcutBmp = com.sbf.lightspeed.system.LightspeedIconManager.getIconBitmap(this@GearPickerActivity, info.`package`)
-                                    }
-                                } catch (_: Exception) {}
+                                val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: "Shortcut"
+                                generatedToken = com.sbf.lightspeed.system.LightspeedShortcutManager.createPinnedShortcutToken(info.`package`, info.id, label)
                             }
                         }
                     }
 
-                    if (uriString.isBlank()) {
+                    if (generatedToken.isBlank()) {
                         val shortcutIntent = try {
                             if (Build.VERSION.SDK_INT >= 33) {
                                 data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
@@ -182,15 +173,8 @@ class GearPickerActivity : ComponentActivity() {
                             data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT) as? Intent
                         }
 
-                        val shortcutName = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: ""
+                        val shortcutName = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: "Shortcut"
                         if (shortcutIntent != null) {
-                            val intentUri = shortcutIntent.toUri(Intent.URI_INTENT_SCHEME)
-                            uriString = if (shortcutName.isNotEmpty()) {
-                                "shortcut:intent:$intentUri;custom_label=$shortcutName;"
-                            } else {
-                                "shortcut:$intentUri"
-                            }
-
                             val rawBmp: Bitmap? = try {
                                 if (Build.VERSION.SDK_INT >= 33) {
                                     data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON, Bitmap::class.java)
@@ -200,7 +184,7 @@ class GearPickerActivity : ComponentActivity() {
                                 }
                             } catch (_: Exception) { null }
 
-                            shortcutBmp = rawBmp ?: run {
+                            val shortcutBmp = rawBmp ?: run {
                                 val iconRes = try {
                                     if (Build.VERSION.SDK_INT >= 33) {
                                         data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON_RESOURCE, Intent.ShortcutIconResource::class.java)
@@ -228,16 +212,20 @@ class GearPickerActivity : ComponentActivity() {
                                     } catch (_: Exception) { null }
                                 } else null
                             }
+
+                            val pkg = shortcutIntent.`package` ?: shortcutIntent.component?.packageName ?: ""
+                            generatedToken = com.sbf.lightspeed.system.LightspeedShortcutManager.createCustomShortcutToken(
+                                context = this@GearPickerActivity,
+                                pkg = pkg,
+                                label = shortcutName,
+                                intent = shortcutIntent,
+                                bitmap = shortcutBmp
+                            )
                         }
                     }
 
-                    if (uriString.isNotBlank()) {
-                        if (shortcutBmp != null) {
-                            com.sbf.lightspeed.system.LightspeedIconManager.saveCustomShortcutBitmap(this@GearPickerActivity, uriString, shortcutBmp)
-                        }
-                        if (!selectedTokens.contains(uriString)) {
-                            selectedTokens.add(uriString)
-                        }
+                    if (generatedToken.isNotBlank() && !selectedTokens.contains(generatedToken)) {
+                        selectedTokens.add(generatedToken)
                     }
                 }
             }
@@ -445,7 +433,10 @@ class GearPickerActivity : ComponentActivity() {
                             ) {
                                 items(selectedTokens.size, key = { idx -> "selected_${idx}_${selectedTokens[idx]}" }) { idx ->
                                     val token = selectedTokens[idx]
-                                    val label = labelCache[token] ?: token
+                                    val label = com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(this@GearPickerActivity, token)
+                                    val iconBmp = remember(token) {
+                                        com.sbf.lightspeed.system.LightspeedShortcutManager.resolveIconBitmap(this@GearPickerActivity, token)
+                                    }
                                     val isFirst = (idx == 0)
                                     val isLast = (idx == selectedTokens.size - 1)
 
@@ -470,6 +461,14 @@ class GearPickerActivity : ComponentActivity() {
                                             ) {
                                                 Text("◀", fontSize = 10.sp, color = if (!isFirst) dynamicSecondary else Color.Gray.copy(alpha = 0.3f), fontWeight = FontWeight.Bold)
                                             }
+                                        }
+
+                                        if (iconBmp != null) {
+                                            Image(
+                                                bitmap = iconBmp.asImageBitmap(),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp).padding(end = 4.dp)
+                                            )
                                         }
 
                                         Text(
@@ -788,7 +787,7 @@ class GearPickerActivity : ComponentActivity() {
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     val shortcutBmp = remember(item.token) {
-                                                        com.sbf.lightspeed.system.LightspeedIconManager.getIconBitmap(this@GearPickerActivity, item.packageName)
+                                                        com.sbf.lightspeed.system.LightspeedShortcutManager.resolveIconBitmap(this@GearPickerActivity, item.token)
                                                     }
                                                     if (shortcutBmp != null) {
                                                         Image(
@@ -797,9 +796,12 @@ class GearPickerActivity : ComponentActivity() {
                                                             modifier = Modifier.size(22.dp).padding(end = 8.dp)
                                                         )
                                                     }
+                                                    val displayLabel = remember(item.token) {
+                                                        com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(this@GearPickerActivity, item.token)
+                                                    }
                                                     Column(modifier = Modifier.weight(1f)) {
                                                         Text(
-                                                            text = item.label,
+                                                            text = displayLabel,
                                                             color = if (isChecked) dynamicPrimary else Color.White,
                                                             fontSize = 13.sp,
                                                             fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal,
@@ -807,7 +809,7 @@ class GearPickerActivity : ComponentActivity() {
                                                             overflow = TextOverflow.Ellipsis
                                                         )
                                                         Text(
-                                                            text = item.token,
+                                                            text = if (item.isPlugin) "Shortcut Creator Wizard" else item.token,
                                                             color = Color.LightGray.copy(alpha = 0.40f),
                                                             fontSize = 10.sp,
                                                             maxLines = 1,

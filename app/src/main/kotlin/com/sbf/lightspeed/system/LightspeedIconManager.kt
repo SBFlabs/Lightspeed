@@ -227,12 +227,12 @@ object LightspeedIconManager {
         if (tokenOrPkg.isBlank()) return null
         drawableCache[tokenOrPkg]?.let { return it }
 
-        // Check custom shortcut bitmap first
-        val customBmp = loadCustomShortcutBitmap(context, tokenOrPkg)
-        if (customBmp != null) {
-            val d = BitmapDrawable(context.resources, customBmp)
-            drawableCache[tokenOrPkg] = d
-            return d
+        if (tokenOrPkg.startsWith("shortcut:")) {
+            val shortcutDrawable = LightspeedShortcutManager.resolveIconDrawable(context, tokenOrPkg)
+            if (shortcutDrawable != null) {
+                drawableCache[tokenOrPkg] = shortcutDrawable
+                return shortcutDrawable
+            }
         }
 
         ensureLoaded(context)
@@ -242,22 +242,6 @@ object LightspeedIconManager {
 
         val extractedPkg = when {
             tokenOrPkg.startsWith("app:") -> tokenOrPkg.removePrefix("app:")
-            tokenOrPkg.startsWith("shortcut:") -> {
-                when {
-                    tokenOrPkg.contains(";pkg=") -> tokenOrPkg.substringAfter(";pkg=").substringBefore(";")
-                    tokenOrPkg.contains("pkg=") -> tokenOrPkg.substringAfter("pkg=").substringBefore(";")
-                    tokenOrPkg.contains("package=") -> tokenOrPkg.substringAfter("package=").substringBefore(";")
-                    tokenOrPkg.contains("component=") -> tokenOrPkg.substringAfter("component=").substringBefore("/").substringBefore(";")
-                    tokenOrPkg.contains("intent:#Intent;") -> {
-                        try {
-                            val pureUri = "intent:#Intent;" + tokenOrPkg.substringAfter("intent:#Intent;").substringBefore(";pkg=").substringBefore(";custom_label=").substringBefore(";label=")
-                            val parsed = Intent.parseUri(pureUri, Intent.URI_INTENT_SCHEME)
-                            parsed.`package` ?: parsed.component?.packageName ?: ""
-                        } catch (_: Exception) { "" }
-                    }
-                    else -> ""
-                }
-            }
             else -> tokenOrPkg
         }
 

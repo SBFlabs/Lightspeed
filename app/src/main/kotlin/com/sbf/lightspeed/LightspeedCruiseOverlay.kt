@@ -1419,48 +1419,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private fun resolveCleanAppLabel(itemToken: String): String {
-        LightspeedActionRegistry.labelCache[itemToken]?.let { return it }
-        val pm = context.packageManager
-        return when {
-            itemToken.startsWith("shortcut:") -> {
-                when {
-                    itemToken.contains("custom_label=") -> itemToken.substringAfter("custom_label=").substringBefore(";")
-                    itemToken.contains(";label=") -> itemToken.substringAfter(";label=").substringBefore(";")
-                    itemToken.contains("label=") -> itemToken.substringAfter("label=").substringBefore(";")
-                    itemToken.contains(";pkg=") -> {
-                        val pkg = itemToken.substringAfter(";pkg=").substringBefore(";")
-                        try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
-                    }
-                    itemToken.contains("package=") -> {
-                        val pkg = itemToken.substringAfter("package=").substringBefore(";")
-                        try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
-                    }
-                    itemToken.contains("component=") -> {
-                        val pkg = itemToken.substringAfter("component=").substringBefore("/").substringBefore(";")
-                        try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
-                    }
-                    itemToken.contains("intent:#Intent;") -> {
-                        try {
-                            val pureUri = "intent:#Intent;" + itemToken.substringAfter("intent:#Intent;").substringBefore(";pkg=").substringBefore(";custom_label=").substringBefore(";label=")
-                            val parsed = Intent.parseUri(pureUri, Intent.URI_INTENT_SCHEME)
-                            val pkg = parsed.`package` ?: parsed.component?.packageName ?: ""
-                            if (pkg.isNotEmpty()) {
-                                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-                            } else "Shortcut"
-                        } catch (_: Exception) { "Shortcut" }
-                    }
-                    else -> "Shortcut"
-                }
-            }
-            itemToken.startsWith("system:") -> itemToken.substringAfter("system:").replace("_", " ").uppercase()
-            itemToken.startsWith("app:") -> {
-                val pkg = itemToken.removePrefix("app:")
-                try { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
-            }
-            else -> {
-                try { pm.getApplicationLabel(pm.getApplicationInfo(itemToken, 0)).toString() } catch (_: Exception) { itemToken }
-            }
-        }
+        return com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(context, itemToken)
     }
 
     private fun launchLauncherSettings() {

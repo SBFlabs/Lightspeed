@@ -1189,7 +1189,8 @@ fun GestureMappingRow(
             val data = result.data
 
             if (data != null && targetPrefKey.isNotBlank() && result.resultCode == Activity.RESULT_OK) {
-                var uriString = ""
+                var generatedToken = ""
+
                 if (data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
                     val pinRequest = try {
                         if (Build.VERSION.SDK_INT >= 33) {
@@ -1207,32 +1208,51 @@ fun GestureMappingRow(
                         try { pinRequest.accept() } catch (_: Exception) {}
                         val info = pinRequest.shortcutInfo
                         if (info != null) {
-                            val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: ""
-                            uriString = "shortcut:;id=${info.id};pkg=${info.`package`};label=$label;"
+                            val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: "Shortcut"
+                            generatedToken = com.sbf.lightspeed.system.LightspeedShortcutManager.createPinnedShortcutToken(info.`package`, info.id, label)
                         }
                     }
                 }
 
-                if (uriString.isBlank()) {
+                if (generatedToken.isBlank()) {
                     val shortcutIntent = try {
                         if (Build.VERSION.SDK_INT >= 33) {
                             data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
                         } else {
                             @Suppress("DEPRECATION")
-                            data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
+                            data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT) as? Intent
                         }
                     } catch (e: Exception) {
                         @Suppress("DEPRECATION")
-                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT)
-                    } ?: data
+                        data.getParcelableExtra(Intent.EXTRA_SHORTCUT_INTENT) as? Intent
+                    }
 
-                    val label = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: ""
-                    val intentUri = shortcutIntent.toUri(Intent.URI_INTENT_SCHEME)
-                    uriString = if (label.isNotEmpty()) "shortcut:intent:$intentUri;custom_label=$label;" else "shortcut:$intentUri"
+                    val label = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: "Shortcut"
+                    if (shortcutIntent != null) {
+                        val rawBmp = try {
+                            if (Build.VERSION.SDK_INT >= 33) {
+                                data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON, android.graphics.Bitmap::class.java)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                data.getParcelableExtra(Intent.EXTRA_SHORTCUT_ICON) as? android.graphics.Bitmap
+                            }
+                        } catch (_: Exception) { null }
+
+                        val pkg = shortcutIntent.`package` ?: shortcutIntent.component?.packageName ?: ""
+                        generatedToken = com.sbf.lightspeed.system.LightspeedShortcutManager.createCustomShortcutToken(
+                            context = context,
+                            pkg = pkg,
+                            label = label,
+                            intent = shortcutIntent,
+                            bitmap = rawBmp
+                        )
+                    }
                 }
 
-                currentRawValue = uriString
-                prefs.edit().putString(targetPrefKey, uriString).remove("pending_automation_key").commit()
+                if (generatedToken.isNotBlank()) {
+                    currentRawValue = generatedToken
+                    prefs.edit().putString(targetPrefKey, generatedToken).remove("pending_automation_key").commit()
+                }
             }
             showShortcutDialog = false
         }

@@ -444,15 +444,23 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             if (event.action == MotionEvent.ACTION_DOWN) {
                 val d = resources.displayMetrics.density
-                val cx = width / 2f
-                val cy = height / 2f
-                val topHangarY = 64f * d
+                val screenW = width.toFloat()
+                val screenH = height.toFloat()
+                val cx = screenW / 2f
+                val cy = screenH / 2f
+                val deckW = (screenW * 0.92f).coerceAtMost(480f * d)
+                val leftX = cx - (deckW / 2f)
+                val rightX = cx + (deckW / 2f)
+                val gap = 8f * d
+
+                val topHangarY = (screenH * 0.08f).coerceAtLeast(64f * d)
                 val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
 
                 // 1. Startup Default Mode: Always First vs Resume Last
-                val r1Y = topHangarY + 42f * d
-                val btn1Rect = RectF(cx - 150f * d, r1Y - 16f * d, cx - 6f * d, r1Y + 16f * d)
-                val btn2Rect = RectF(cx + 6f * d, r1Y - 16f * d, cx + 150f * d, r1Y + 16f * d)
+                val r1Y = topHangarY + 46f * d
+                val halfBtnW = (deckW - gap) / 2f
+                val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
+                val btn2Rect = RectF(rightX - halfBtnW, r1Y - 18f * d, rightX, r1Y + 18f * d)
                 if (btn1Rect.contains(x, y)) {
                     prefs.edit().putString("cockpit_launch_behavior", "default").apply()
                     triggerHardwareHaptic(20, 120)
@@ -467,20 +475,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 // 2. Docking Bays Profile Selector (Tap to switch active profile)
-                val r2Y = r1Y + 42f * d
+                val r2Y = r1Y + 46f * d
                 val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
                 val setsList = setsString.split(",").filter { it.isNotEmpty() }.toMutableList()
                 if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
                 val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
 
                 val bayCount = setsList.size + 1
-                val totalW = 300f * d
-                val slotW = (totalW / bayCount.coerceAtMost(5)).coerceIn(48f * d, 78f * d)
-                val startX = cx - ((bayCount - 1) * slotW / 2f)
+                val slotW = deckW / bayCount.coerceAtMost(5)
 
                 for (gIndex in setsList.indices) {
-                    val btnX = startX + gIndex * slotW
-                    val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 16f * d, btnX + slotW * 0.46f, r2Y + 16f * d)
+                    val btnX = leftX + (gIndex + 0.5f) * slotW
+                    val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
                     if (bayRect.contains(x, y)) {
                         activeGearSetIndex = gIndex
                         if (prefs.getString("cockpit_launch_behavior", "default") == "last") {
@@ -493,8 +499,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 // Plus button to add profile set
-                val plusBtnX = startX + setsList.size * slotW
-                val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 16f * d, plusBtnX + slotW * 0.42f, r2Y + 16f * d)
+                val plusBtnX = leftX + (setsList.size + 0.5f) * slotW
+                val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 18f * d, plusBtnX + slotW * 0.42f, r2Y + 18f * d)
                 if (plusRect.contains(x, y)) {
                     val newId = System.currentTimeMillis().toString()
                     setsList.add(newId)
@@ -505,10 +511,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     return true
                 }
 
-                // 3. Reorder Active Profile in Rotation
-                val r3Y = r2Y + 38f * d
-                val shiftLeftRect = RectF(cx - 150f * d, r3Y - 15f * d, cx - 6f * d, r3Y + 15f * d)
-                val shiftRightRect = RectF(cx + 6f * d, r3Y - 15f * d, cx + 150f * d, r3Y + 15f * d)
+                // 3. Reorder & Delete Active Profile in Rotation
+                val r3Y = r2Y + 44f * d
+                val shiftW = deckW * 0.35f
+                val deleteW = deckW * 0.26f
+                val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
+                val deleteBayRect = RectF(cx - deleteW / 2f, r3Y - 16f * d, cx + deleteW / 2f, r3Y + 16f * d)
+                val shiftRightRect = RectF(rightX - shiftW, r3Y - 16f * d, rightX, r3Y + 16f * d)
 
                 if (shiftLeftRect.contains(x, y) && activeGearSetIndex > 0) {
                     val temp = setsList[activeGearSetIndex]
@@ -530,10 +539,29 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     invalidate()
                     return true
                 }
+                if (deleteBayRect.contains(x, y)) {
+                    if (setsList.size > 1) {
+                        val removedId = setsList.removeAt(activeGearSetIndex)
+                        if (activeGearSetIndex >= setsList.size) {
+                            activeGearSetIndex = setsList.size - 1
+                        }
+                        prefs.edit().putString("gear_sets_order", setsList.joinToString(","))
+                            .remove("gear_set_${removedId}_ring0")
+                            .remove("gear_set_${removedId}_ring1")
+                            .remove("gear_set_${removedId}_name")
+                            .apply()
+                        triggerHardwareHaptic(45, 230)
+                        invalidate()
+                        return true
+                    } else {
+                        android.widget.Toast.makeText(context, "Cannot delete the last remaining gear set", android.widget.Toast.LENGTH_SHORT).show()
+                        return true
+                    }
+                }
 
                 // 4. Icon Theme Carousel
-                val r4Y = r3Y + 36f * d
-                val iconThemeRect = RectF(cx - 150f * d, r4Y - 16f * d, cx + 150f * d, r4Y + 16f * d)
+                val r4Y = r3Y + 42f * d
+                val iconThemeRect = RectF(leftX, r4Y - 18f * d, rightX, r4Y + 18f * d)
                 if (iconThemeRect.contains(x, y)) {
                     val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
                     if (availablePacks.isNotEmpty()) {
@@ -548,10 +576,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 // 5. Flight Momentum
-                val r5Y = r4Y + 36f * d
-                val phys1Rect = RectF(cx - 150f * d, r5Y - 15f * d, cx - 54f * d, r5Y + 15f * d)
-                val phys2Rect = RectF(cx - 48f * d, r5Y - 15f * d, cx + 48f * d, r5Y + 15f * d)
-                val phys3Rect = RectF(cx + 54f * d, r5Y - 15f * d, cx + 150f * d, r5Y + 15f * d)
+                val r5Y = r4Y + 42f * d
+                val physW = (deckW - (gap * 2)) / 3f
+                val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
+                val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
+                val phys3Rect = RectF(rightX - physW, r5Y - 16f * d, rightX, r5Y + 16f * d)
                 if (phys1Rect.contains(x, y)) {
                     prefs.edit().putString("pref_gear_physics_profile", "magnetic").apply()
                     triggerHardwareHaptic(20, 120)
@@ -572,11 +601,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 // 6. Tactile Ratchet Haptics
-                val r6Y = r5Y + 32f * d
-                val hap1Rect = RectF(cx - 150f * d, r6Y - 14f * d, cx - 80f * d, r6Y + 14f * d)
-                val hap2Rect = RectF(cx - 74f * d, r6Y - 14f * d, cx - 4f * d, r6Y + 14f * d)
-                val hap3Rect = RectF(cx + 4f * d, r6Y - 14f * d, cx + 74f * d, r6Y + 14f * d)
-                val hap4Rect = RectF(cx + 80f * d, r6Y - 14f * d, cx + 150f * d, r6Y + 14f * d)
+                val r6Y = r5Y + 38f * d
+                val hapW = (deckW - (gap * 3)) / 4f
+                val hap1Rect = RectF(leftX, r6Y - 15f * d, leftX + hapW, r6Y + 15f * d)
+                val hap2Rect = RectF(leftX + (hapW + gap), r6Y - 15f * d, leftX + (hapW + gap) + hapW, r6Y + 15f * d)
+                val hap3Rect = RectF(leftX + (hapW + gap) * 2, r6Y - 15f * d, leftX + (hapW + gap) * 2 + hapW, r6Y + 15f * d)
+                val hap4Rect = RectF(rightX - hapW, r6Y - 15f * d, rightX, r6Y + 15f * d)
                 if (hap1Rect.contains(x, y)) {
                     prefs.edit().putString("pref_gear_haptic_strength", "subtle").apply()
                     triggerHardwareHaptic(10, 60)
@@ -602,8 +632,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 // 7. Live Ring Arm Buttons & Purge
-                val cyGimbal = cy + 130f * d
-                val r0BtnRect = RectF(cx - 105f * d, cyGimbal - 82f * d, cx + 105f * d, cyGimbal - 48f * d)
+                val cyGimbal = (screenH * 0.72f).coerceAtLeast(cy + 130f * d)
+                val r0BtnRect = RectF(cx - 120f * d, cyGimbal - 86f * d, cx + 120f * d, cyGimbal - 50f * d)
                 if (r0BtnRect.contains(x, y)) {
                     val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                         putExtra("SET_ID", currentSetId)
@@ -615,7 +645,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     return true
                 }
 
-                val r1BtnRect = RectF(cx - 105f * d, cyGimbal + 48f * d, cx + 105f * d, cyGimbal + 82f * d)
+                val r1BtnRect = RectF(cx - 120f * d, cyGimbal + 50f * d, cx + 120f * d, cyGimbal + 86f * d)
                 if (r1BtnRect.contains(x, y)) {
                     val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                         putExtra("SET_ID", currentSetId)
@@ -627,7 +657,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     return true
                 }
 
-                if (kotlin.math.hypot(x - cx, y - cyGimbal) <= 28f * d) {
+                if (kotlin.math.hypot(x - cx, y - cyGimbal) <= 30f * d) {
                     prefs.edit().putString("gear_set_${currentSetId}_ring0", "").putString("gear_set_${currentSetId}_ring1", "").apply()
                     triggerHardwareHaptic(60, 255)
                     invalidate()
@@ -635,7 +665,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 // 8. Bottom Exit Capsule
-                val exitBtnRect = RectF(cx - 130f * d, height - 58f * d, cx + 130f * d, height - 18f * d)
+                val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 62f * d, cx + (deckW * 0.42f), screenH - 18f * d)
                 if (exitBtnRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
                     dismissOverlay()
                     return true
@@ -1744,31 +1774,38 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         super.onDraw(canvas)
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             val d = resources.displayMetrics.density
-            val cx = width / 2f
-            val cy = height / 2f
-            val topHangarY = 64f * d
+            val screenW = width.toFloat()
+            val screenH = height.toFloat()
+            val cx = screenW / 2f
+            val cy = screenH / 2f
+            val deckW = (screenW * 0.92f).coerceAtMost(480f * d)
+            val leftX = cx - (deckW / 2f)
+            val rightX = cx + (deckW / 2f)
+            val gap = 8f * d
+
+            val topHangarY = (screenH * 0.08f).coerceAtLeast(64f * d)
 
             // 1. Deep Space Astrogation Hangar Void with Starfield
             canvas.drawColor(Color.argb(245, 6, 8, 14))
-            drawCosmicStarfield(canvas, width.toFloat(), height.toFloat(), d, 0.75f)
+            drawCosmicStarfield(canvas, screenW, screenH, d, 0.75f)
 
             // 2. Flight Telemetry Header
             val hangarHeader = "◈ ASTROGATION COCKPIT // HANGAR DECK ◈"
-            textPaint.textSize = 12.5f * d
+            textPaint.textSize = 13f * d
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.textAlign = Paint.Align.CENTER
             val headerWidth = textPaint.measureText(hangarHeader)
 
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(175, 12, 16, 28)
-            val headerRect = RectF(cx - headerWidth / 2f - 18f * d, topHangarY - 16f * d, cx + headerWidth / 2f + 18f * d, topHangarY + 16f * d)
-            canvas.drawRoundRect(headerRect, 10f * d, 10f * d, highlightPaint)
+            val headerRect = RectF(cx - headerWidth / 2f - 20f * d, topHangarY - 18f * d, cx + headerWidth / 2f + 20f * d, topHangarY + 18f * d)
+            canvas.drawRoundRect(headerRect, 12f * d, 12f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1.2f * d
             highlightPaint.color = Color.argb(90, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(headerRect, 10f * d, 10f * d, highlightPaint)
+            canvas.drawRoundRect(headerRect, 12f * d, 12f * d, highlightPaint)
             textPaint.color = Color.WHITE
-            canvas.drawText(hangarHeader, cx, topHangarY + 5f * d, textPaint)
+            canvas.drawText(hangarHeader, cx, topHangarY + 5.5f * d, textPaint)
 
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
             val launchBehavior = prefs.getString("cockpit_launch_behavior", "default") ?: "default"
@@ -1776,144 +1813,163 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val hapticStrength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
 
             // 3. ROW 1: STARTUP DEFAULT MODE [ ALWAYS FIRST PROFILE ] | [ RESUME LAST PROFILE ]
-            val r1Y = topHangarY + 42f * d
-            val btn1Rect = RectF(cx - 150f * d, r1Y - 16f * d, cx - 6f * d, r1Y + 16f * d)
-            val btn2Rect = RectF(cx + 6f * d, r1Y - 16f * d, cx + 150f * d, r1Y + 16f * d)
+            val r1Y = topHangarY + 46f * d
+            val halfBtnW = (deckW - gap) / 2f
+            val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
+            val btn2Rect = RectF(rightX - halfBtnW, r1Y - 18f * d, rightX, r1Y + 18f * d)
 
             val isDef = (launchBehavior == "default")
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = if (isDef) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
-            canvas.drawRoundRect(btn1Rect, 8f * d, 8f * d, highlightPaint)
+            canvas.drawRoundRect(btn1Rect, 10f * d, 10f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = if (isDef) 1.4f * d else 0.8f * d
+            highlightPaint.strokeWidth = if (isDef) 1.5f * d else 0.8f * d
             highlightPaint.color = if (isDef) m3Primary else Color.argb(50, 200, 220, 255)
-            canvas.drawRoundRect(btn1Rect, 8f * d, 8f * d, highlightPaint)
-            textPaint.textSize = 10f * d
+            canvas.drawRoundRect(btn1Rect, 10f * d, 10f * d, highlightPaint)
+            textPaint.textSize = 10.5f * d
             textPaint.color = if (isDef) Color.WHITE else Color.argb(160, 200, 220, 255)
-            canvas.drawText("STARTUP: ALWAYS FIRST", btn1Rect.centerX(), btn1Rect.centerY() + 3.5f * d, textPaint)
+            canvas.drawText("STARTUP: ALWAYS FIRST", btn1Rect.centerX(), btn1Rect.centerY() + 4f * d, textPaint)
 
             val isLast = (launchBehavior == "last")
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = if (isLast) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
-            canvas.drawRoundRect(btn2Rect, 8f * d, 8f * d, highlightPaint)
+            canvas.drawRoundRect(btn2Rect, 10f * d, 10f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = if (isLast) 1.4f * d else 0.8f * d
+            highlightPaint.strokeWidth = if (isLast) 1.5f * d else 0.8f * d
             highlightPaint.color = if (isLast) m3Primary else Color.argb(50, 200, 220, 255)
-            canvas.drawRoundRect(btn2Rect, 8f * d, 8f * d, highlightPaint)
+            canvas.drawRoundRect(btn2Rect, 10f * d, 10f * d, highlightPaint)
             textPaint.color = if (isLast) Color.WHITE else Color.argb(160, 200, 220, 255)
-            canvas.drawText("STARTUP: RESUME LAST", btn2Rect.centerX(), btn2Rect.centerY() + 3.5f * d, textPaint)
+            canvas.drawText("STARTUP: RESUME LAST", btn2Rect.centerX(), btn2Rect.centerY() + 4f * d, textPaint)
 
             // 4. ROW 2: DOCKING BAYS (TAP TO SWITCH ACTIVE PROFILE)
-            val r2Y = r1Y + 42f * d
+            val r2Y = r1Y + 46f * d
             val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
             val setsList = setsString.split(",").filter { it.isNotEmpty() }
             if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
             val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
 
             val bayCount = setsList.size + 1
-            val totalW = 300f * d
-            val slotW = (totalW / bayCount.coerceAtMost(5)).coerceIn(48f * d, 78f * d)
-            val startX = cx - ((bayCount - 1) * slotW / 2f)
+            val slotW = deckW / bayCount.coerceAtMost(5)
 
             for (g in setsList.indices) {
                 val setId = setsList[g]
                 val defaultName = when (setId) { "0" -> "POWER"; "1" -> "STORES"; "2" -> "UTILITY"; "3" -> "MEDIA"; else -> "SET" }
                 val setName = prefs.getString("gear_set_${setId}_name", defaultName) ?: defaultName
-                val btnX = startX + g * slotW
+                val btnX = leftX + (g + 0.5f) * slotW
                 val isCurrentBay = (activeGearSetIndex == g)
 
-                val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 16f * d, btnX + slotW * 0.46f, r2Y + 16f * d)
+                val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
 
                 highlightPaint.style = Paint.Style.FILL
                 highlightPaint.color = if (isCurrentBay) Color.argb(190, 24, 32, 54) else Color.argb(70, 14, 18, 28)
-                canvas.drawRoundRect(bayRect, 8f * d, 8f * d, highlightPaint)
+                canvas.drawRoundRect(bayRect, 10f * d, 10f * d, highlightPaint)
 
                 highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = if (isCurrentBay) 1.6f * d else 0.8f * d
+                highlightPaint.strokeWidth = if (isCurrentBay) 1.8f * d else 0.8f * d
                 highlightPaint.color = if (isCurrentBay) m3Primary else Color.argb(40, 200, 220, 255)
-                canvas.drawRoundRect(bayRect, 8f * d, 8f * d, highlightPaint)
+                canvas.drawRoundRect(bayRect, 10f * d, 10f * d, highlightPaint)
 
                 // Bay Number & Short Name
                 val shortLabel = "${g + 1}: ${setName.take(6)}"
-                textPaint.textSize = 10f * d
+                textPaint.textSize = 10.5f * d
                 textPaint.typeface = if (isCurrentBay) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
                 textPaint.color = if (isCurrentBay) Color.WHITE else Color.argb(170, 200, 220, 255)
                 canvas.drawText(shortLabel, btnX, r2Y + 4f * d, textPaint)
             }
 
             // Plus button to add profile set
-            val plusBtnX = startX + setsList.size * slotW
-            val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 16f * d, plusBtnX + slotW * 0.42f, r2Y + 16f * d)
+            val plusBtnX = leftX + (setsList.size + 0.5f) * slotW
+            val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 18f * d, plusBtnX + slotW * 0.42f, r2Y + 18f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(70, 20, 26, 40)
-            canvas.drawRoundRect(plusRect, 8f * d, 8f * d, highlightPaint)
+            canvas.drawRoundRect(plusRect, 10f * d, 10f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 0.8f * d
             highlightPaint.color = Color.argb(60, 200, 220, 255)
-            canvas.drawRoundRect(plusRect, 8f * d, 8f * d, highlightPaint)
-            textPaint.textSize = 14f * d
+            canvas.drawRoundRect(plusRect, 10f * d, 10f * d, highlightPaint)
+            textPaint.textSize = 15f * d
             textPaint.color = Color.WHITE
-            canvas.drawText("+", plusBtnX, r2Y + 5f * d, textPaint)
+            canvas.drawText("+", plusBtnX, r2Y + 5.5f * d, textPaint)
 
-            // 5. ROW 3: REORDER ACTIVE PROFILE IN ROTATION
-            val r3Y = r2Y + 38f * d
-            val shiftLeftRect = RectF(cx - 150f * d, r3Y - 15f * d, cx - 6f * d, r3Y + 15f * d)
-            val shiftRightRect = RectF(cx + 6f * d, r3Y - 15f * d, cx + 150f * d, r3Y + 15f * d)
+            // 5. ROW 3: REORDER & DELETE ACTIVE PROFILE IN ROTATION
+            val r3Y = r2Y + 44f * d
+            val shiftW = deckW * 0.35f
+            val deleteW = deckW * 0.26f
+            val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
+            val deleteBayRect = RectF(cx - deleteW / 2f, r3Y - 16f * d, cx + deleteW / 2f, r3Y + 16f * d)
+            val shiftRightRect = RectF(rightX - shiftW, r3Y - 16f * d, rightX, r3Y + 16f * d)
 
+            // Shift Left Button
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(80, 20, 26, 40)
-            canvas.drawRoundRect(shiftLeftRect, 6f * d, 6f * d, highlightPaint)
+            canvas.drawRoundRect(shiftLeftRect, 8f * d, 8f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 0.8f * d
             highlightPaint.color = Color.argb(60, 200, 220, 255)
-            canvas.drawRoundRect(shiftLeftRect, 6f * d, 6f * d, highlightPaint)
+            canvas.drawRoundRect(shiftLeftRect, 8f * d, 8f * d, highlightPaint)
             textPaint.textSize = 10f * d
             textPaint.color = if (activeGearSetIndex > 0) m3Secondary else Color.argb(70, 150, 150, 150)
-            canvas.drawText("◀ SHIFT ORDER LEFT", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
+            canvas.drawText("◀ SHIFT LEFT", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
 
+            // Delete Bay Button
+            val canDelete = setsList.size > 1
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = if (canDelete) Color.argb(60, 239, 83, 80) else Color.argb(20, 60, 60, 60)
+            canvas.drawRoundRect(deleteBayRect, 8f * d, 8f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 0.8f * d
+            highlightPaint.color = if (canDelete) Color.argb(160, 239, 83, 80) else Color.argb(30, 100, 100, 100)
+            canvas.drawRoundRect(deleteBayRect, 8f * d, 8f * d, highlightPaint)
+            textPaint.textSize = 9.5f * d
+            textPaint.color = if (canDelete) Color.parseColor("#FFCDD2") else Color.argb(60, 150, 150, 150)
+            canvas.drawText("🗑 DELETE", deleteBayRect.centerX(), deleteBayRect.centerY() + 3.5f * d, textPaint)
+
+            // Shift Right Button
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(80, 20, 26, 40)
-            canvas.drawRoundRect(shiftRightRect, 6f * d, 6f * d, highlightPaint)
+            canvas.drawRoundRect(shiftRightRect, 8f * d, 8f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 0.8f * d
             highlightPaint.color = Color.argb(60, 200, 220, 255)
-            canvas.drawRoundRect(shiftRightRect, 6f * d, 6f * d, highlightPaint)
+            canvas.drawRoundRect(shiftRightRect, 8f * d, 8f * d, highlightPaint)
+            textPaint.textSize = 10f * d
             textPaint.color = if (activeGearSetIndex < setsList.size - 1) m3Secondary else Color.argb(70, 150, 150, 150)
-            canvas.drawText("SHIFT ORDER RIGHT ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
+            canvas.drawText("SHIFT RIGHT ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
 
             // 6. ROW 4: ICON THEME CAROUSEL
-            val r4Y = r3Y + 36f * d
+            val r4Y = r3Y + 42f * d
             val activePack = com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)
             val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
             val currentPackLabel = availablePacks.firstOrNull { it.packageName == activePack }?.label ?: "System Default"
-            val iconThemeRect = RectF(cx - 150f * d, r4Y - 16f * d, cx + 150f * d, r4Y + 16f * d)
+            val iconThemeRect = RectF(leftX, r4Y - 18f * d, rightX, r4Y + 18f * d)
 
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(90, 16, 22, 36)
-            canvas.drawRoundRect(iconThemeRect, 8f * d, 8f * d, highlightPaint)
+            canvas.drawRoundRect(iconThemeRect, 10f * d, 10f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1f * d
             highlightPaint.color = Color.argb(70, Color.red(m3Secondary), Color.green(m3Secondary), Color.blue(m3Secondary))
-            canvas.drawRoundRect(iconThemeRect, 8f * d, 8f * d, highlightPaint)
-            textPaint.textSize = 10.5f * d
+            canvas.drawRoundRect(iconThemeRect, 10f * d, 10f * d, highlightPaint)
+            textPaint.textSize = 11f * d
             textPaint.color = Color.WHITE
             canvas.drawText("THEME: $currentPackLabel  [ ➔ CYCLE ]", iconThemeRect.centerX(), iconThemeRect.centerY() + 4f * d, textPaint)
 
             // 7. ROW 5: FLIGHT MOMENTUM & HAPTICS
-            val r5Y = r4Y + 36f * d
-            val phys1Rect = RectF(cx - 150f * d, r5Y - 15f * d, cx - 54f * d, r5Y + 15f * d)
-            val phys2Rect = RectF(cx - 48f * d, r5Y - 15f * d, cx + 48f * d, r5Y + 15f * d)
-            val phys3Rect = RectF(cx + 54f * d, r5Y - 15f * d, cx + 150f * d, r5Y + 15f * d)
+            val r5Y = r4Y + 42f * d
+            val physW = (deckW - (gap * 2)) / 3f
+            val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
+            val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
+            val phys3Rect = RectF(rightX - physW, r5Y - 16f * d, rightX, r5Y + 16f * d)
 
             fun drawPill(rect: RectF, label: String, isSelected: Boolean) {
                 highlightPaint.style = Paint.Style.FILL
                 highlightPaint.color = if (isSelected) Color.argb(170, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(50, 18, 22, 34)
-                canvas.drawRoundRect(rect, 6f * d, 6f * d, highlightPaint)
+                canvas.drawRoundRect(rect, 8f * d, 8f * d, highlightPaint)
                 highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = if (isSelected) 1.2f * d else 0.7f * d
+                highlightPaint.strokeWidth = if (isSelected) 1.3f * d else 0.7f * d
                 highlightPaint.color = if (isSelected) m3Primary else Color.argb(40, 200, 220, 255)
-                canvas.drawRoundRect(rect, 6f * d, 6f * d, highlightPaint)
-                textPaint.textSize = 9.5f * d
+                canvas.drawRoundRect(rect, 8f * d, 8f * d, highlightPaint)
+                textPaint.textSize = 10f * d
                 textPaint.color = if (isSelected) Color.WHITE else Color.argb(150, 200, 220, 255)
                 canvas.drawText(label, rect.centerX(), rect.centerY() + 3.5f * d, textPaint)
             }
@@ -1922,11 +1978,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             drawPill(phys2Rect, "🌊 FLUID", physicsProfile == "fluid")
             drawPill(phys3Rect, "🚀 HEAVY", physicsProfile == "heavy")
 
-            val r6Y = r5Y + 32f * d
-            val hap1Rect = RectF(cx - 150f * d, r6Y - 14f * d, cx - 80f * d, r6Y + 14f * d)
-            val hap2Rect = RectF(cx - 74f * d, r6Y - 14f * d, cx - 4f * d, r6Y + 14f * d)
-            val hap3Rect = RectF(cx + 4f * d, r6Y - 14f * d, cx + 74f * d, r6Y + 14f * d)
-            val hap4Rect = RectF(cx + 80f * d, r6Y - 14f * d, cx + 150f * d, r6Y + 14f * d)
+            val r6Y = r5Y + 38f * d
+            val hapW = (deckW - (gap * 3)) / 4f
+            val hap1Rect = RectF(leftX, r6Y - 15f * d, leftX + hapW, r6Y + 15f * d)
+            val hap2Rect = RectF(leftX + (hapW + gap), r6Y - 15f * d, leftX + (hapW + gap) + hapW, r6Y + 15f * d)
+            val hap3Rect = RectF(leftX + (hapW + gap) * 2, r6Y - 15f * d, leftX + (hapW + gap) * 2 + hapW, r6Y + 15f * d)
+            val hap4Rect = RectF(rightX - hapW, r6Y - 15f * d, rightX, r6Y + 15f * d)
 
             drawPill(hap1Rect, "SUBTLE", hapticStrength == "subtle")
             drawPill(hap2Rect, "TACTICAL", hapticStrength == "tactical")
@@ -1934,7 +1991,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             drawPill(hap4Rect, "OFF", hapticStrength == "off")
 
             // 8. Live Dual Gimbal Assembly Preview
-            val cyGimbal = cy + 130f * d
+            val cyGimbal = (screenH * 0.72f).coerceAtLeast(cy + 130f * d)
             val radOuter = 160f * d
             val radInner = 95f * d
 
@@ -1944,54 +2001,54 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val r0 = getAppsForActiveGear(activeGearSetIndex, 0)
             val r1 = getAppsForActiveGear(activeGearSetIndex, 1)
 
-            val r0BtnRect = RectF(cx - 105f * d, cyGimbal - 82f * d, cx + 105f * d, cyGimbal - 48f * d)
+            val r0BtnRect = RectF(cx - 120f * d, cyGimbal - 86f * d, cx + 120f * d, cyGimbal - 50f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(190, 16, 22, 38)
-            canvas.drawRoundRect(r0BtnRect, 12f * d, 12f * d, highlightPaint)
+            canvas.drawRoundRect(r0BtnRect, 14f * d, 14f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.3f * d
+            highlightPaint.strokeWidth = 1.4f * d
             highlightPaint.color = m3Primary
-            canvas.drawRoundRect(r0BtnRect, 12f * d, 12f * d, highlightPaint)
-            textPaint.textSize = 10.5f * d
+            canvas.drawRoundRect(r0BtnRect, 14f * d, 14f * d, highlightPaint)
+            textPaint.textSize = 11f * d
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.color = Color.WHITE
-            canvas.drawText("RING 01 // ${r0.size} APPS [ ⊕ EDIT ]", cx, cyGimbal - 61f * d, textPaint)
+            canvas.drawText("RING 01 // ${r0.size} APPS [ ⊕ EDIT ]", cx, cyGimbal - 64f * d, textPaint)
 
-            val r1BtnRect = RectF(cx - 105f * d, cyGimbal + 48f * d, cx + 105f * d, cyGimbal + 82f * d)
+            val r1BtnRect = RectF(cx - 120f * d, cyGimbal + 50f * d, cx + 120f * d, cyGimbal + 86f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(190, 16, 22, 38)
-            canvas.drawRoundRect(r1BtnRect, 12f * d, 12f * d, highlightPaint)
+            canvas.drawRoundRect(r1BtnRect, 14f * d, 14f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.3f * d
+            highlightPaint.strokeWidth = 1.4f * d
             highlightPaint.color = m3Secondary
-            canvas.drawRoundRect(r1BtnRect, 12f * d, 12f * d, highlightPaint)
+            canvas.drawRoundRect(r1BtnRect, 14f * d, 14f * d, highlightPaint)
             textPaint.color = Color.WHITE
-            canvas.drawText("RING 02 // ${r1.size} APPS [ ⊕ EDIT ]", cx, cyGimbal + 69f * d, textPaint)
+            canvas.drawText("RING 02 // ${r1.size} APPS [ ⊕ EDIT ]", cx, cyGimbal + 72f * d, textPaint)
 
             // Central Purge Core
             elementPaint.style = Paint.Style.FILL
             elementPaint.color = Color.argb(55, 239, 83, 80)
-            canvas.drawCircle(cx, cyGimbal, 26f * d, elementPaint)
+            canvas.drawCircle(cx, cyGimbal, 28f * d, elementPaint)
             elementPaint.style = Paint.Style.STROKE
             elementPaint.strokeWidth = 1.2f * d
             elementPaint.color = Color.argb(180, 239, 83, 80)
-            canvas.drawCircle(cx, cyGimbal, 24f * d, elementPaint)
-            textPaint.textSize = 8f * d
+            canvas.drawCircle(cx, cyGimbal, 26f * d, elementPaint)
+            textPaint.textSize = 8.5f * d
             textPaint.color = Color.parseColor("#FFCDD2")
             canvas.drawText("PURGE", cx, cyGimbal - 1f * d, textPaint)
-            textPaint.textSize = 7f * d
-            canvas.drawText("RING", cx, cyGimbal + 9f * d, textPaint)
+            textPaint.textSize = 7.5f * d
+            canvas.drawText("RING", cx, cyGimbal + 10f * d, textPaint)
 
             // Bottom Exit Capsule
-            val exitBtnRect = RectF(cx - 130f * d, height - 58f * d, cx + 130f * d, height - 18f * d)
+            val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 62f * d, cx + (deckW * 0.42f), screenH - 18f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(140, 24, 28, 40)
-            canvas.drawRoundRect(exitBtnRect, 12f * d, 12f * d, highlightPaint)
+            canvas.drawRoundRect(exitBtnRect, 14f * d, 14f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1.2f * d
             highlightPaint.color = Color.argb(80, 200, 220, 255)
-            canvas.drawRoundRect(exitBtnRect, 12f * d, 12f * d, highlightPaint)
-            textPaint.textSize = 11f * d
+            canvas.drawRoundRect(exitBtnRect, 14f * d, 14f * d, highlightPaint)
+            textPaint.textSize = 11.5f * d
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.color = Color.WHITE
             canvas.drawText("✕ CLOSE HANGAR / RETURN", cx, exitBtnRect.centerY() + 4f * d, textPaint)

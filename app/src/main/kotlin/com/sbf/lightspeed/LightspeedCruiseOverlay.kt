@@ -712,8 +712,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             "heavy" -> 0.72f
                             else -> 1.0f
                         }
-                        val currentRadius = if (activeHangarRing == 0) (135f * d) else (82f * d)
-                        val rotDelta = (dy / currentRadius) * (180f / Math.PI.toFloat()) * multiplier * 0.95f
+                        val baseDegreesPerDp = 1.35f * multiplier
+                        val dyInDp = dy / d
+                        val rotDelta = dyInDp * baseDegreesPerDp
                         val oldRot = gearRingRotations[activeHangarRing]
                         val newRot = (oldRot + rotDelta) % 360f
                         gearRingRotations[activeHangarRing] = newRot
@@ -1823,12 +1824,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             else -> 1.0f
         }
 
-        val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
-        val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
-        val currentRadius = if (activeGearRing == 0) rad0 else rad1
+        val baseDegreesPerDp = 1.35f * physicsMultiplier
+        val dyInDp = deltaY / density
 
         if (activeGearRing in 0..1) {
-            val angularDeltaDeg = (deltaY / currentRadius) * (180f / Math.PI.toFloat()) * physicsMultiplier * 1.15f
+            val angularDeltaDeg = dyInDp * baseDegreesPerDp
             gearRingRotations[activeGearRing] += angularDeltaDeg
 
             // Physical Mechanical Cog Notch Haptics as icons cross the 180° focus reticle

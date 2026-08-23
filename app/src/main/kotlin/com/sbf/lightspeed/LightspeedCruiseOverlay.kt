@@ -712,8 +712,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             "heavy" -> 0.72f
                             else -> 1.0f
                         }
+                        val currentRadius = if (activeHangarRing == 0) (135f * d) else (82f * d)
+                        val rotDelta = (dy / currentRadius) * (180f / Math.PI.toFloat()) * multiplier * 0.95f
                         val oldRot = gearRingRotations[activeHangarRing]
-                        val rotDelta = dy * multiplier * 0.45f
                         val newRot = (oldRot + rotDelta) % 360f
                         gearRingRotations[activeHangarRing] = newRot
 
@@ -1813,7 +1814,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             isCubeRotationFired = false
         }
 
-        // Rotational Axis Crank Math: Scale angular velocity by flight physics profile
+        // Rotational Axis Crank Math: Scale angular velocity by true kinematic arc-length and flight physics profile
         val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
         val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
         val physicsMultiplier = when (physicsProfile) {
@@ -1822,10 +1823,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             else -> 1.0f
         }
 
-        val itemDensity = if (activeGearRing == 0) 6f else 12f // Baseline densities
-        val scalingConstant = 45f * physicsMultiplier
+        val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
+        val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
+        val currentRadius = if (activeGearRing == 0) rad0 else rad1
+
         if (activeGearRing in 0..1) {
-            gearRingRotations[activeGearRing] += (deltaY / density) * (scalingConstant / itemDensity)
+            val angularDeltaDeg = (deltaY / currentRadius) * (180f / Math.PI.toFloat()) * physicsMultiplier * 1.15f
+            gearRingRotations[activeGearRing] += angularDeltaDeg
 
             // Physical Mechanical Cog Notch Haptics as icons cross the 180° focus reticle
             val packages = getAppsForActiveGear(activeGearSetIndex, activeGearRing)

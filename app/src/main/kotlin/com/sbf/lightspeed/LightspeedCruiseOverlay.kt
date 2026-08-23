@@ -153,6 +153,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var isSpinningHangarRing = false
     private var hangarSpinTouchY = 0f
     private var activeHangarRing = 0
+    private var isHangarEjectArmed = false
+    private var hangarEjectTargetIndex = -1
+    private var hangarEjectRing = -1
 
     private val holdTimerRunnable = Runnable {
         if (macroTrackingActive) {
@@ -722,9 +725,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
                         val reticleY = cyGimbal
                         val distFromReticle = kotlin.math.hypot(x - reticleX, y - reticleY)
+                        val targetBadgeRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
 
-                        // Center Command Core Tap or Reticle Tap -> Open Gear Picker for Active Ring
-                        if (distFromCore <= radHub || distFromReticle <= 26f * d) {
+                        // 1. Center Command Core Tap -> Open Gear Picker for Active Ring
+                        if (distFromCore <= radHub) {
+                            isHangarEjectArmed = false
                             val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                                 putExtra("SET_ID", currentSetId)
                                 putExtra("RING_INDEX", activeHangarRing)
@@ -733,7 +738,43 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             context.startActivity(intent)
                             dismissOverlay()
                             return true
-                        } else if (distFromCore in (radInner + 16f * d)..(radOuter + 32f * d)) {
+                        }
+
+                        // 2. Focused Cog or Target Badge Tap -> Eject / Delete Targeted Cog
+                        if ((distFromReticle <= 30f * d || targetBadgeRect.contains(x, y)) && ringApps.isNotEmpty()) {
+                            val count = ringApps.size
+                            val baseRotation = gearRingRotations[activeHangarRing]
+                            var targetedIdx = 0
+                            var minDiff = Float.MAX_VALUE
+                            for (i in ringApps.indices) {
+                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
+                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
+                                val diff = kotlin.math.abs(norm - 180f)
+                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
+                            }
+
+                            if (isHangarEjectArmed && hangarEjectTargetIndex == targetedIdx && hangarEjectRing == activeHangarRing) {
+                                // CONFIRM EJECT: Purge targeted cog from ring
+                                ringApps.removeAt(targetedIdx)
+                                prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
+                                isHangarEjectArmed = false
+                                hangarEjectTargetIndex = -1
+                                triggerHardwareHaptic(60, 255)
+                                invalidate()
+                                return true
+                            } else {
+                                // ARM EJECT: Show red containment and warning
+                                isHangarEjectArmed = true
+                                hangarEjectTargetIndex = targetedIdx
+                                hangarEjectRing = activeHangarRing
+                                triggerHardwareHaptic(30, 180)
+                                invalidate()
+                                return true
+                            }
+                        }
+
+                        if (distFromCore in (radInner + 16f * d)..(radOuter + 32f * d)) {
+                            isHangarEjectArmed = false
                             activeHangarRing = 0
                             isSpinningHangarRing = true
                             hangarSpinTouchY = y
@@ -741,6 +782,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             invalidate()
                             return true
                         } else if (distFromCore in (radHub + 4f * d)..(radInner + 16f * d)) {
+                            isHangarEjectArmed = false
                             activeHangarRing = 1
                             isSpinningHangarRing = true
                             hangarSpinTouchY = y
@@ -2239,36 +2281,55 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         focusedAppLabel = appLabel
                     }
 
+                    val isEjectArmedHere = isHangarEjectArmed && isHighlighted && (activeHangarRing == r)
+
                     // Draw Pod Glowing Backdrop
                     highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = if (isHighlighted) Color.argb(220, 24, 32, 54) else Color.argb(140, 12, 16, 26)
+                    highlightPaint.color = if (isEjectArmedHere) Color.argb(230, 220, 38, 38)
+                                          else if (isHighlighted) Color.argb(220, 24, 32, 54)
+                                          else Color.argb(140, 12, 16, 26)
                     canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
 
                     highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = if (isHighlighted) 1.8f * d else 0.8f * d
-                    highlightPaint.color = if (isHighlighted) m3Primary else Color.argb(50, 200, 220, 255)
+                    highlightPaint.strokeWidth = if (isEjectArmedHere) 2.6f * d else if (isHighlighted) 1.8f * d else 0.8f * d
+                    highlightPaint.color = if (isEjectArmedHere) Color.argb(255, 255, 100, 100)
+                                          else if (isHighlighted) m3Primary
+                                          else Color.argb(50, 200, 220, 255)
                     canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
 
                     // Draw App Icon
                     try {
                         val dIcon = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, itemToken)
                         if (dIcon != null) {
-                            dIcon.alpha = if (isRingFocused) (if (isHighlighted) 255 else 220) else 140
+                            dIcon.alpha = if (isRingFocused) (if (isHighlighted) (if (isEjectArmedHere) 140 else 255) else 220) else 140
                             val iconLeft = (iconCX - currentSize / 2f).toInt()
                             val iconTop = (iconCY - currentSize / 2f).toInt()
                             dIcon.setBounds(iconLeft, iconTop, iconLeft + currentSize, iconTop + currentSize)
                             dIcon.draw(canvas)
                         }
                     } catch (_: Exception) {}
+
+                    // Draw Red Armed Eject Overlay Cross if Armed
+                    if (isEjectArmedHere) {
+                        elementPaint.style = Paint.Style.STROKE
+                        elementPaint.strokeWidth = 3.2f * d
+                        elementPaint.color = Color.WHITE
+                        val cr = 8.5f * d
+                        canvas.drawLine(iconCX - cr, iconCY - cr, iconCX + cr, iconCY + cr, elementPaint)
+                        canvas.drawLine(iconCX + cr, iconCY - cr, iconCX - cr, iconCY + cr, elementPaint)
+                    }
                 }
             }
 
             // Draw Targeting Reticle Collimator at 180 deg (straight left)
             val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
             val reticleY = cyGimbal
+            val isEjectArmedNow = isHangarEjectArmed
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.6f * d
-            highlightPaint.color = if (activeHangarRing == 0) m3Primary else m3Secondary
+            highlightPaint.strokeWidth = if (isEjectArmedNow) 2.4f * d else 1.6f * d
+            highlightPaint.color = if (isEjectArmedNow) Color.argb(255, 255, 60, 60)
+                                  else if (activeHangarRing == 0) m3Primary
+                                  else m3Secondary
             canvas.drawCircle(reticleX, reticleY, 24f * d, highlightPaint)
             canvas.drawLine(reticleX - 28f * d, reticleY, reticleX - 18f * d, reticleY, highlightPaint)
             canvas.drawLine(reticleX + 18f * d, reticleY, reticleX + 28f * d, reticleY, highlightPaint)
@@ -2297,10 +2358,27 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     textPaint.color = activeRingColor
                     canvas.drawText("◀ SHIFT COG", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
 
-                    // Center Target Badge
-                    textPaint.textSize = 10.5f * d
-                    textPaint.color = Color.WHITE
-                    canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
+                    // Center Target Badge / Armed Eject Capsule
+                    val targetBadgeRect = RectF(cx - 56f * d, shiftBarY - 12f * d, cx + 56f * d, shiftBarY + 12f * d)
+                    if (isHangarEjectArmed) {
+                        highlightPaint.style = Paint.Style.FILL
+                        highlightPaint.color = Color.argb(230, 220, 38, 38)
+                        canvas.drawRoundRect(targetBadgeRect, 8f * d, 8f * d, highlightPaint)
+                        highlightPaint.style = Paint.Style.STROKE
+                        highlightPaint.strokeWidth = 1.2f * d
+                        highlightPaint.color = Color.WHITE
+                        canvas.drawRoundRect(targetBadgeRect, 8f * d, 8f * d, highlightPaint)
+
+                        textPaint.textSize = 8.5f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = Color.WHITE
+                        canvas.drawText("🚨 TAP ✕ TO PURGE", cx, shiftBarY + 3.5f * d, textPaint)
+                    } else {
+                        textPaint.textSize = 10.5f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = Color.WHITE
+                        canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
+                    }
 
                     // Right Shift Cog Button
                     highlightPaint.style = Paint.Style.FILL
@@ -2313,10 +2391,26 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     textPaint.color = activeRingColor
                     canvas.drawText("SHIFT COG ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
                 } else {
-                    textPaint.textSize = 10.5f * d
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    textPaint.color = activeRingColor
-                    canvas.drawText("🎯 TARGET: $focusedAppLabel", cx, shiftBarY + 3.5f * d, textPaint)
+                    val singleTargetRect = RectF(cx - 75f * d, shiftBarY - 12f * d, cx + 75f * d, shiftBarY + 12f * d)
+                    if (isHangarEjectArmed) {
+                        highlightPaint.style = Paint.Style.FILL
+                        highlightPaint.color = Color.argb(230, 220, 38, 38)
+                        canvas.drawRoundRect(singleTargetRect, 8f * d, 8f * d, highlightPaint)
+                        highlightPaint.style = Paint.Style.STROKE
+                        highlightPaint.strokeWidth = 1.2f * d
+                        highlightPaint.color = Color.WHITE
+                        canvas.drawRoundRect(singleTargetRect, 8f * d, 8f * d, highlightPaint)
+
+                        textPaint.textSize = 9f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = Color.WHITE
+                        canvas.drawText("🚨 TAP ✕ TO PURGE", cx, shiftBarY + 3.5f * d, textPaint)
+                    } else {
+                        textPaint.textSize = 10.5f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = activeRingColor
+                        canvas.drawText("🎯 TARGET: $focusedAppLabel", cx, shiftBarY + 3.5f * d, textPaint)
+                    }
                 }
 
                 // Inter-Ring Transfer Button

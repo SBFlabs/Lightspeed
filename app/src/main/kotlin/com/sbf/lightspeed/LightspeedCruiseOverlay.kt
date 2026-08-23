@@ -1679,14 +1679,24 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             cleanAppName = "$cleanAppName…"
         }
         
+        val subText = "TARGET LOCK"
+        textPaint.textSize = 8.5f * density
+        textPaint.typeface = android.graphics.Typeface.DEFAULT
+        val subWidth = textPaint.measureText(subText)
+
+        textPaint.textSize = 12f * density
+        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        val titleWidth = textPaint.measureText(cleanAppName)
+
+        val finalBadgeWidth = maxOf(titleWidth, subWidth).coerceAtLeast(54f * density)
+        
         val badgeX = targetCX + half + 14f * density
         val badgeY = targetCY - 6f * density
         
         // Target Lock Badge Frame
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = Color.argb(190, 16, 20, 32)
-        val textWidth = textPaint.measureText(cleanAppName)
-        val badgeRect = RectF(badgeX - 8f * density, badgeY - 14f * density, badgeX + textWidth + 14f * density, badgeY + 20f * density)
+        val badgeRect = RectF(badgeX - 8f * density, badgeY - 14f * density, badgeX + finalBadgeWidth + 12f * density, badgeY + 18f * density)
         canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
         
         highlightPaint.style = Paint.Style.STROKE
@@ -1695,13 +1705,16 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
         
         // App Name
-        canvas.drawText(cleanAppName, badgeX, badgeY + 2f * density, textPaint)
+        textPaint.textSize = 12f * density
+        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        textPaint.color = Color.WHITE
+        canvas.drawText(cleanAppName, badgeX, badgeY + 1f * density, textPaint)
         
         // Telemetry Subtext
-        textPaint.textSize = 8.5f * density
+        textPaint.textSize = 8f * density
         textPaint.typeface = android.graphics.Typeface.DEFAULT
         textPaint.color = Color.argb(200, 180, 220, 255)
-        canvas.drawText("TARGET LOCK // 180°", badgeX, badgeY + 14f * density, textPaint)
+        canvas.drawText(subText, badgeX, badgeY + 12.5f * density, textPaint)
     }
 
     private fun drawHolographicReactorCore(

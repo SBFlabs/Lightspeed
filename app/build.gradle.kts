@@ -57,3 +57,14 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 }
+
+tasks.register("printApkPaths") {
+    doLast {
+        android.applicationVariants.all { variant ->
+            variant.outputs.all { output ->
+                println(">>> VARIANT ${variant.name} OUTPUT: ${output.outputFile.absolutePath}")
+            }
+        }
+    }
+}
+

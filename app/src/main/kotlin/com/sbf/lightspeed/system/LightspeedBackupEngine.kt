@@ -83,12 +83,17 @@ object LightspeedBackupEngine {
 
     fun importFromJson(context: Context, jsonString: String): Result<Int> {
         return try {
-            if (jsonString.isBlank()) {
+            val cleanJson = jsonString.trim().removePrefix("\uFEFF").trim()
+            if (cleanJson.isBlank()) {
                 return Result.failure(IllegalArgumentException("Backup payload is empty"))
             }
 
-            val root = JSONObject(jsonString)
-            val settingsObject = root.optJSONObject("settings") ?: root
+            val root = JSONObject(cleanJson)
+            val settingsObject = if (root.has("settings") && root.optJSONObject("settings") != null) {
+                root.getJSONObject("settings")
+            } else {
+                root
+            }
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
             val editor = prefs.edit()
 
@@ -97,6 +102,10 @@ object LightspeedBackupEngine {
             while (keys.hasNext()) {
                 val key = keys.next()
                 if (key == "app" || key == "packageName" || key == "backupVersion" || key == "exportedAt" || key == "exportedAtFormatted" || key == "device") {
+                    continue
+                }
+
+                if (settingsObject.isNull(key)) {
                     continue
                 }
 
@@ -115,10 +124,19 @@ object LightspeedBackupEngine {
                         importedCount++
                     }
                     is String -> {
-                        if (value == "true" || value == "false") {
-                            editor.putBoolean(key, value.toBoolean())
-                        } else {
-                            editor.putString(key, value)
+                        when (value) {
+                            "true", "false" -> {
+                                editor.putBoolean(key, value.toBoolean())
+                            }
+                            else -> {
+                                // If the key expects an integer but was serialized as string
+                                val intVal = value.toIntOrNull()
+                                if (intVal != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key == "last_active_set_index")) {
+                                    editor.putInt(key, intVal)
+                                } else {
+                                    editor.putString(key, value)
+                                }
+                            }
                         }
                         importedCount++
                     }
@@ -154,12 +172,10 @@ object LightspeedBackupEngine {
 
     fun importFromFile(context: Context, uri: Uri): Result<Int> {
         return try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: return Result.failure(IllegalStateException("Could not open input stream for $uri"))
+            val jsonString = context.contentResolver.openInputStream(uri)?.use { stream ->
+                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).readText()
+            } ?: return Result.failure(IllegalStateException("Could not open input stream for $uri"))
 
-            val jsonString = inputStream.use { stream ->
-                stream.bufferedReader(Charsets.UTF_8).readText()
-            }
             importFromJson(context, jsonString)
         } catch (e: Exception) {
             Log.e(TAG, "File read during import failed", e)

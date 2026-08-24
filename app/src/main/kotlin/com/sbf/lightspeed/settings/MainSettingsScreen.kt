@@ -359,7 +359,7 @@ fun SidebarMatrixConfigurationFields(
     }
 
     val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+        contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             val result = LightspeedBackupEngine.importFromFile(context, uri)
@@ -558,7 +558,7 @@ fun SidebarMatrixConfigurationFields(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                        .clickable { importLauncher.launch(arrayOf("*/*", "application/json", "text/plain")) }
+                        .clickable { importLauncher.launch("*/*") }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

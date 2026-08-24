@@ -2965,40 +2965,42 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     canvas.concat(transformMatrixPipeline)
 
                     val labelText = cat.label.uppercase()
+                    val focusFactor = Math.pow((1.0 - distanceRatio).coerceIn(0.0, 1.0), 3.0).toFloat() * decelerationFactor
+                    
+                    // 1. Stable, constant category font size based on text length (Zero per-frame shivering)
+                    val baseTargetSize = when {
+                        labelText.length <= 8 -> 18.5f * density
+                        labelText.length <= 13 -> 14.5f * density
+                        labelText.length <= 18 -> 12f * density
+                        else -> 10.5f * density
+                    }
+
+                    // 2. Smoothly interpolate font size, alpha, and color with distance from center
+                    val currentTextSize = 13f * density + (baseTargetSize - 13f * density) * focusFactor
+                    catTextPaint.textSize = currentTextSize
                     catTextPaint.textAlign = Paint.Align.RIGHT
+                    catTextPaint.typeface = if (focusFactor > 0.6f) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
 
-                    if (idx == activeCatIndex) {
-                        // Auto-scale font size dynamically so long labels never clip on the left
-                        var baseSize = 19f * density
-                        catTextPaint.textSize = baseSize
-                        val maxAllowedW = (targetTextX - (28f * density)) / zoom
-                        while (catTextPaint.measureText(labelText) > maxAllowedW && baseSize > 9.5f * density) {
-                            baseSize -= 0.5f * density
-                            catTextPaint.textSize = baseSize
-                        }
+                    // Color interpolation: Dim starlight (#9EA7B8) to blazing white
+                    val rCol = (158 + (255 - 158) * focusFactor).toInt()
+                    val gCol = (167 + (255 - 167) * focusFactor).toInt()
+                    val bCol = (184 + (255 - 184) * focusFactor).toInt()
+                    val alpha = ((35 + 220 * focusFactor) * decelerationFactor).toInt().coerceIn(0, 255)
+                    catTextPaint.color = Color.argb(alpha, rCol, gCol, bCol)
 
+                    // Draw smoothly gliding Category Star System Typography
+                    canvas.drawText(labelText, targetTextX, centerY + (5f + 1f * focusFactor) * density, catTextPaint)
+
+                    // 3. Glowing Celestial Star Beacon (Fades in smoothly as category enters focus)
+                    if (focusFactor > 0.25f) {
                         val measuredLabelW = catTextPaint.measureText(labelText)
-
-                        // Active Category Star System Typography
-                        catTextPaint.color = Color.WHITE
-                        catTextPaint.alpha = (255 * decelerationFactor).toInt()
-                        catTextPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        canvas.drawText(labelText, targetTextX, centerY + 6f * density, catTextPaint)
-
-                        // Glowing Celestial Star Beacon
+                        val beaconAlpha = ((focusFactor - 0.25f) / 0.75f).coerceIn(0f, 1f)
                         textPaint.textAlign = Paint.Align.RIGHT
                         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        textPaint.textSize = (baseSize * 0.75f).coerceAtLeast(8.5f * density)
+                        textPaint.textSize = (currentTextSize * 0.75f).coerceAtLeast(8.5f * density)
                         textPaint.color = m3Primary
-                        textPaint.alpha = (255 * decelerationFactor).toInt()
+                        textPaint.alpha = (255 * beaconAlpha * decelerationFactor).toInt()
                         canvas.drawText("✦", targetTextX - measuredLabelW - 6f * density, centerY + 5.5f * density, textPaint)
-                    } else {
-                        val fadeAlpha = (((1.0f - distanceRatio) * 160).toInt().coerceAtLeast(35) * decelerationFactor).toInt()
-                        catTextPaint.color = Color.parseColor("#9EA7B8")
-                        catTextPaint.alpha = fadeAlpha
-                        catTextPaint.typeface = android.graphics.Typeface.DEFAULT
-                        catTextPaint.textSize = 13.5f * density
-                        canvas.drawText(cat.label, targetTextX, centerY + 5f * density, catTextPaint)
                     }
                     canvas.restore()
                 }

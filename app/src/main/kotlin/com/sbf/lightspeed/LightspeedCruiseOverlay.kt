@@ -312,6 +312,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         bottomVisualWidthPx = if (linkEdges) topVisualWidthPx else prefs.getInt("pref_sidebar_bottom_visual_width", 2).toFloat() * density
         bottomTouchWidthPx = if (linkEdges) topTouchWidthPx else prefs.getInt("pref_sidebar_bottom_touch_width", 32).toFloat() * density
 
+        val isPreview = prefs.getBoolean("pref_sidebar_preview", false) ||
+                prefs.getBoolean("pref_section_center_expanded", false) ||
+                prefs.getBoolean("pref_section_top_expanded", false) ||
+                prefs.getBoolean("pref_section_bottom_expanded", false)
+
         if (currentLayer == CruiseLayer.HIDDEN) {
             val centerY = (screenH / 2f) + centerYOffsetPx
             val centerTop = centerY - (centerHeightPx / 2f)
@@ -320,23 +325,28 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val topLimit = (centerTop - topHeightPx).coerceAtLeast(0f)
             val bottomLimit = (centerBottom + bottomHeightPx).coerceAtMost(screenH)
 
-            val winHeight = (bottomLimit - topLimit).toInt()
-            val winWidth = maxOf(centerTouchWidthPx, topTouchWidthPx, bottomTouchWidthPx).toInt()
-            val w = winWidth.toFloat()
-            
-            topTouchBounds.set(w - topTouchWidthPx, 0f, w, topHeightPx)
-            centerTouchBounds.set(w - centerTouchWidthPx, topHeightPx, w, topHeightPx + centerHeightPx)
-            bottomTouchBounds.set(w - bottomTouchWidthPx, topHeightPx + centerHeightPx, w, topHeightPx + centerHeightPx + bottomHeightPx)
+            val maxTouchW = maxOf(centerTouchWidthPx, topTouchWidthPx, bottomTouchWidthPx)
+            val previewWidthPx = (maxTouchW + 240f * density).coerceAtLeast(screenW * 0.70f)
 
-            topVisualBounds.set(w - topVisualWidthPx, 0f, w, topHeightPx)
-            centerVisualBounds.set(w - centerVisualWidthPx, topHeightPx, w, topHeightPx + centerHeightPx)
-            bottomVisualBounds.set(w - bottomVisualWidthPx, topHeightPx + centerHeightPx, w, topHeightPx + centerHeightPx + bottomHeightPx)
+            val winHeight = if (isPreview) screenH.toInt() else (bottomLimit - topLimit).toInt()
+            val winWidth = if (isPreview) previewWidthPx.toInt() else maxTouchW.toInt()
+            val winY = if (isPreview) 0 else topLimit.toInt()
+            val w = winWidth.toFloat()
+            val offsetYInWin = if (isPreview) topLimit else 0f
+
+            topTouchBounds.set(w - topTouchWidthPx, offsetYInWin, w, offsetYInWin + topHeightPx)
+            centerTouchBounds.set(w - centerTouchWidthPx, offsetYInWin + topHeightPx, w, offsetYInWin + topHeightPx + centerHeightPx)
+            bottomTouchBounds.set(w - bottomTouchWidthPx, offsetYInWin + topHeightPx + centerHeightPx, w, offsetYInWin + topHeightPx + centerHeightPx + bottomHeightPx)
+
+            topVisualBounds.set(w - topVisualWidthPx, offsetYInWin, w, offsetYInWin + topHeightPx)
+            centerVisualBounds.set(w - centerVisualWidthPx, offsetYInWin + topHeightPx, w, offsetYInWin + topHeightPx + centerHeightPx)
+            bottomVisualBounds.set(w - bottomVisualWidthPx, offsetYInWin + topHeightPx + centerHeightPx, w, offsetYInWin + topHeightPx + centerHeightPx + bottomHeightPx)
 
             launchpadPillBounds.set(centerVisualBounds)
 
-            if (lp.height != winHeight || lp.width != winWidth || lp.y != topLimit.toInt() || lp.gravity != (Gravity.TOP or Gravity.END)) {
+            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.gravity != (Gravity.TOP or Gravity.END)) {
                 lp.gravity = Gravity.TOP or Gravity.END
-                lp.x = 0; lp.y = topLimit.toInt()
+                lp.x = 0; lp.y = winY
                 lp.width = winWidth; lp.height = winHeight
                 wm.updateViewLayout(this, lp)
             }
@@ -3206,61 +3216,108 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val isBottomExpanded = prefs.getBoolean("pref_section_bottom_expanded", false)
 
             val d = resources.displayMetrics.density
-            val screenW = width.toFloat()
+            val w = width.toFloat()
 
             val centerTransparency = prefs.getInt("pref_sidebar_center_transparency", 0)
             val topTransparency = prefs.getInt("pref_sidebar_top_transparency", 0)
             val bottomTransparency = if (prefs.getBoolean("pref_sidebar_link_edges", false)) topTransparency else prefs.getInt("pref_sidebar_bottom_transparency", 0)
 
-            // 1. Center Zone (Gimbal / Cogs)
-            if (isCenterExpanded || isSidebarPreview) {
+            fun drawPreviewZone(
+                bounds: RectF,
+                zoneColor: Int,
+                zoneTitle: String,
+                spanDp: Int,
+                reachDp: Int,
+                offsetDp: Int? = null,
+                isExpanded: Boolean
+            ) {
+                // 1. Translucent Touch Vector Corridor
+                val fillAlpha = if (isExpanded) 110 else 45
                 highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(130, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                canvas.drawRect(centerTouchBounds, highlightPaint)
+                highlightPaint.color = Color.argb(fillAlpha, Color.red(zoneColor), Color.green(zoneColor), Color.blue(zoneColor))
+                canvas.drawRect(bounds, highlightPaint)
 
+                // 2. Tactical Glowing Border & Corner Ticks
                 highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = 2f * d
-                highlightPaint.color = Color.WHITE
-                canvas.drawRect(centerTouchBounds, highlightPaint)
-            } else if (centerTransparency > 0) {
-                val alpha = (centerTransparency * 2.55f).toInt().coerceIn(0, 255)
-                highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(alpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                canvas.drawRect(screenW - (3f * d), centerTouchBounds.top, screenW, centerTouchBounds.bottom, highlightPaint)
+                highlightPaint.strokeWidth = if (isExpanded) 1.8f * d else 0.9f * d
+                highlightPaint.color = if (isExpanded) Color.WHITE else Color.argb(160, Color.red(zoneColor), Color.green(zoneColor), Color.blue(zoneColor))
+                canvas.drawRect(bounds, highlightPaint)
+
+                // 3. Laser Lead Line & Floating Telemetry Badge (for expanded/preview zone)
+                if (isExpanded || isSidebarPreview) {
+                    val badgeW = 165f * d
+                    val badgeH = 28f * d
+                    val badgeX = bounds.left - badgeW - 12f * d
+                    val badgeY = bounds.centerY() - (badgeH / 2f)
+                    val badgeRect = RectF(badgeX, badgeY, badgeX + badgeW, badgeY + badgeH)
+
+                    // Connecting laser tick line
+                    elementPaint.strokeWidth = 1.2f * d
+                    elementPaint.color = Color.argb(180, Color.red(zoneColor), Color.green(zoneColor), Color.blue(zoneColor))
+                    canvas.drawLine(badgeX + badgeW, bounds.centerY(), bounds.left, bounds.centerY(), elementPaint)
+
+                    // Badge Container
+                    highlightPaint.style = Paint.Style.FILL
+                    highlightPaint.color = Color.argb(220, 14, 18, 30)
+                    canvas.drawRoundRect(badgeRect, 6f * d, 6f * d, highlightPaint)
+                    highlightPaint.style = Paint.Style.STROKE
+                    highlightPaint.strokeWidth = 1.2f * d
+                    highlightPaint.color = Color.argb(200, Color.red(zoneColor), Color.green(zoneColor), Color.blue(zoneColor))
+                    canvas.drawRoundRect(badgeRect, 6f * d, 6f * d, highlightPaint)
+
+                    // Telemetry Text
+                    textPaint.textSize = 8.5f * d
+                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    textPaint.color = Color.WHITE
+                    textPaint.textAlign = Paint.Align.CENTER
+                    canvas.drawText(zoneTitle, badgeRect.centerX(), badgeRect.centerY() - 2f * d, textPaint)
+
+                    textPaint.textSize = 7f * d
+                    textPaint.typeface = android.graphics.Typeface.DEFAULT
+                    textPaint.color = Color.argb(200, 200, 220, 255)
+                    val statsText = if (offsetDp != null) "SPAN: ${spanDp}dp • REACH: ${reachDp}dp • OFFSET: ${offsetDp}dp" else "SPAN: ${spanDp}dp • REACH: ${reachDp}dp"
+                    canvas.drawText(statsText, badgeRect.centerX(), badgeRect.centerY() + 8f * d, textPaint)
+                }
             }
 
-            // 2. Upper Zone
-            if (isTopExpanded || isSidebarPreview) {
-                highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(130, 68, 138, 255)
-                canvas.drawRect(topTouchBounds, highlightPaint)
+            fun drawStealthBlade(bounds: RectF, color: Int, transparencyPct: Int) {
+                if (transparencyPct <= 0) return
+                val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
+                val bladeWidth = 6f * d
+                val bladeRect = RectF(w - bladeWidth, bounds.top + 4f * d, w + 2f * d, bounds.bottom - 4f * d)
 
-                highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = 2f * d
-                highlightPaint.color = Color.WHITE
-                canvas.drawRect(topTouchBounds, highlightPaint)
-            } else if (topTransparency > 0) {
-                val alpha = (topTransparency * 2.55f).toInt().coerceIn(0, 255)
+                // Glowing aura
                 highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(alpha, 68, 138, 255)
-                canvas.drawRect(screenW - (3f * d), topTouchBounds.top, screenW, topTouchBounds.bottom, highlightPaint)
+                highlightPaint.color = Color.argb((alpha * 0.35f).toInt(), Color.red(color), Color.green(color), Color.blue(color))
+                canvas.drawRoundRect(RectF(w - bladeWidth * 1.8f, bounds.top + 2f * d, w, bounds.bottom - 2f * d), 4f * d, 4f * d, highlightPaint)
+
+                // Tactical laser blade core
+                highlightPaint.color = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
+                canvas.drawRoundRect(bladeRect, 3f * d, 3f * d, highlightPaint)
+
+                // Bright inner edge line
+                highlightPaint.style = Paint.Style.STROKE
+                highlightPaint.strokeWidth = 1.1f * d
+                highlightPaint.color = Color.argb((alpha * 0.85f).toInt(), 255, 255, 255)
+                canvas.drawLine(w - bladeWidth, bounds.top + 6f * d, w - bladeWidth, bounds.bottom - 6f * d, highlightPaint)
             }
 
-            // 3. Lower Zone
-            if (isBottomExpanded || isSidebarPreview) {
-                highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(130, 255, 171, 0)
-                canvas.drawRect(bottomTouchBounds, highlightPaint)
+            if (isSidebarPreview || isCenterExpanded || isTopExpanded || isBottomExpanded) {
+                val upperColor = Color.rgb(68, 138, 255)
+                val coreColor = m3Primary
+                val lowerColor = Color.rgb(255, 171, 0)
 
-                highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = 2f * d
-                highlightPaint.color = Color.WHITE
-                canvas.drawRect(bottomTouchBounds, highlightPaint)
-            } else if (bottomTransparency > 0) {
-                val alpha = (bottomTransparency * 2.55f).toInt().coerceIn(0, 255)
-                highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(alpha, 255, 171, 0)
-                canvas.drawRect(screenW - (3f * d), bottomTouchBounds.top, screenW, bottomTouchBounds.bottom, highlightPaint)
+                drawPreviewZone(topTouchBounds, upperColor, "✦ UPPER VECTOR WING", (topHeightPx / d).toInt(), (topTouchWidthPx / d).toInt(), isExpanded = isTopExpanded)
+                drawPreviewZone(centerTouchBounds, coreColor, "✦ ASTROGATION CORE", (centerHeightPx / d).toInt(), (centerTouchWidthPx / d).toInt(), (centerYOffsetPx / d).toInt(), isExpanded = isCenterExpanded)
+                drawPreviewZone(bottomTouchBounds, lowerColor, "✦ LOWER VECTOR WING", (bottomHeightPx / d).toInt(), (bottomTouchWidthPx / d).toInt(), isExpanded = isBottomExpanded)
+            } else {
+                val upperColor = Color.rgb(68, 138, 255)
+                val coreColor = m3Primary
+                val lowerColor = Color.rgb(255, 171, 0)
+
+                drawStealthBlade(topTouchBounds, upperColor, topTransparency)
+                drawStealthBlade(centerTouchBounds, coreColor, centerTransparency)
+                drawStealthBlade(bottomTouchBounds, lowerColor, bottomTransparency)
             }
         }
 

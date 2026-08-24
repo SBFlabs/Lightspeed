@@ -2278,8 +2278,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
             val hapticStrength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
 
+            fun drawMicroHeader(text: String, yPos: Float) {
+                textPaint.textSize = 7.5f * d
+                textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                textPaint.color = Color.argb(130, 160, 195, 240)
+                textPaint.textAlign = Paint.Align.LEFT
+                canvas.drawText("// $text", leftX + 2f * d, yPos, textPaint)
+                textPaint.textAlign = Paint.Align.CENTER
+            }
+
             // 3. ROW 1: STARTUP DEFAULT MODE [ ALWAYS FIRST PROFILE ] | [ RESUME LAST PROFILE ]
             val r1Y = topHangarY + 46f * d
+            drawMicroHeader("STARTUP INITIALIZATION", r1Y - 22f * d)
             val halfBtnW = (deckW - gap) / 2f
             val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
             val btn2Rect = RectF(rightX - halfBtnW, r1Y - 18f * d, rightX, r1Y + 18f * d)
@@ -2309,6 +2319,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             // 4. ROW 2: DOCKING BAYS (HORIZONTALLY SCROLLABLE RAIL)
             val r2Y = r1Y + 46f * d
+            drawMicroHeader("GEAR HANGAR BAYS — TAP TO SWITCH • HOLD TO RENAME", r2Y - 22f * d)
             val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
             val setsList = setsString.split(",").filter { it.isNotEmpty() }
             if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
@@ -2426,6 +2437,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             // 6. ROW 4: ICON THEME CAROUSEL
             val r4Y = r3Y + 42f * d
+            drawMicroHeader("ICON THEME PACK", r4Y - 22f * d)
             val activePack = com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)
             val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
             val currentPackLabel = availablePacks.firstOrNull { it.packageName == activePack }?.label ?: "System Default"
@@ -2444,6 +2456,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             // 7. ROW 5: FLIGHT MOMENTUM & HAPTICS
             val r5Y = r4Y + 42f * d
+            drawMicroHeader("FLIGHT KINEMATICS & HAPTICS", r5Y - 20f * d)
             val physW = (deckW - (gap * 2)) / 3f
             val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
             val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
@@ -2480,6 +2493,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             // 7. ROW 7: RETICLE CROSSHAIR STYLE
             val r7Y = r6Y + 35f * d
+            drawMicroHeader("HUD TARGETING RETICLE", r7Y - 18f * d)
             val retW = (deckW - (gap * 3)) / 4f
             val ret1Rect = RectF(leftX, r7Y - 14f * d, leftX + retW, r7Y + 14f * d)
             val ret2Rect = RectF(leftX + (retW + gap), r7Y - 14f * d, leftX + (retW + gap) + retW, r7Y + 14f * d)
@@ -2781,11 +2795,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 textPaint.color = Color.WHITE
                 canvas.drawText("⇄ TRANSFER TO $destRingName", transferRect.centerX(), transferRect.centerY() + 3.5f * d, textPaint)
 
-                // Subtitle Hint for Long-Press Customization
+                // Subtitle Hint for Long-Press Customization & Gimbal Controls
                 textPaint.textSize = 8.5f * d
                 textPaint.typeface = android.graphics.Typeface.DEFAULT
                 textPaint.color = Color.argb(150, 180, 210, 245)
-                canvas.drawText("HOLD COG / SET TO CUSTOMIZE", cx, transferBarY + 22f * d, textPaint)
+                canvas.drawText("✦ DRAG TO ROTATE • TAP ✕ TO EJECT • HOLD TO EDIT ✦", cx, transferBarY + 22f * d, textPaint)
             } else {
                 textPaint.textSize = 10f * d
                 textPaint.typeface = android.graphics.Typeface.DEFAULT

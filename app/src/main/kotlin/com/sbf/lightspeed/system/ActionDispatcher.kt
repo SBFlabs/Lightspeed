@@ -35,7 +35,7 @@ object ActionDispatcher {
                 service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             }
             token == "system:recents" || token == "ACTION_RECENTS" || token == "recents" -> {
-                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
+                openRecents(context, service)
             }
             token == "system:notifications" || token == "ACTION_NOTIFICATIONS" || token == "notifications" -> {
                 expandNotifications(context, service)
@@ -74,6 +74,42 @@ object ActionDispatcher {
                 }
             }
         }
+    }
+
+    private fun openRecents(context: Context, service: AccessibilityService?) {
+        // 1. Primary: AccessibilityService GLOBAL_ACTION_RECENTS
+        val success = service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS) == true
+        if (success) {
+            Log.i(TAG, "Recents overview triggered via AccessibilityService")
+            return
+        }
+
+        // 2. Secondary: StatusBarManager.toggleRecentApps() reflection
+        try {
+            val statusBarService = context.getSystemService("statusbar")
+            val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
+            val method = statusBarManagerClass.getMethod("toggleRecentApps")
+            method.invoke(statusBarService)
+            Log.i(TAG, "Recents overview triggered via StatusBarManager.toggleRecentApps")
+            return
+        } catch (e: Exception) {
+            Log.d(TAG, "StatusBarManager fallback skipped: ${e.message}")
+        }
+
+        // 3. Tertiary: Shizuku Shell KEYCODE_APP_SWITCH (187)
+        try {
+            if (ElevatedTaskCloser.isShizukuActive) {
+                rikka.shizuku.Shizuku.newProcess(arrayOf("input", "keyevent", "187"), null, null).waitFor()
+                Log.i(TAG, "Recents overview triggered via Shizuku KEYCODE_APP_SWITCH")
+                return
+            }
+        } catch (_: Exception) {}
+
+        // 4. Quaternary: Asynchronous retry on Main Looper (in case WindowManager focus was transitioning)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            val retryService = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+            retryService?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
+        }, 30L)
     }
 
     private fun expandNotifications(context: Context, service: AccessibilityService?) {

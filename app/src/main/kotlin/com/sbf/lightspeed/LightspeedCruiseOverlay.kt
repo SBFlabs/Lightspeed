@@ -1299,6 +1299,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         Log.d("GestureEngine", "Target Vector: [$dynamicZone] -> Action Value: $actionValue")
         triggerHardwareHaptic(35, 160)
 
+        // Disengage overlay window so incoming system window (Recents/Home/App) gets immediate focus
+        dismissOverlay()
+
         ActionDispatcher.execute(service ?: context, actionValue)
     }
 
@@ -1915,8 +1918,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         uiHandler.postDelayed({
             isWarpLaunching = false
-            onLaunch()
             dismissOverlay()
+            onLaunch()
         }, 130L)
     }
 

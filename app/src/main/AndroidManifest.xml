@@ -30,7 +30,6 @@
             android:name=".MainActivity"
             android:exported="true"
             android:excludeFromRecents="true"
-            android:noHistory="true"
             android:theme="@style/Theme.Lightspeed.Floating">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

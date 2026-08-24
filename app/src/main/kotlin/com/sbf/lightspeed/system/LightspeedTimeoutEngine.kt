@@ -57,6 +57,10 @@ object LightspeedTimeoutEngine {
         }
     }
 
+    fun getCurrentFormatted(context: Context): String {
+        return formatTimeout(getCurrentTimeoutMs(context))
+    }
+
     fun cycleNext(context: Context): String {
         val currentIdx = getCurrentTimeoutIndex(context)
         val nextIdx = (currentIdx + 1) % TIMEOUT_STEPS.size

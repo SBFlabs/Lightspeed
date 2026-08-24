@@ -29,6 +29,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,7 +63,8 @@ import kotlinx.coroutines.withContext
 
 enum class ArrowDirection {
     SWIPE_UP, SWIPE_DOWN, SWIPE_LEFT, SWIPE_UP_DOWN, SWIPE_DOWN_UP,
-    SWIPE_UP_LEFT, SWIPE_DOWN_LEFT, LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, TAP, DOUBLE_TAP, SWIPE_RIGHT, SWIPE_RIGHT_BACK, RIGHT_DOWN
+    SWIPE_UP_LEFT, SWIPE_DOWN_LEFT, LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, TAP, DOUBLE_TAP,
+    SWIPE_RIGHT, SWIPE_RIGHT_BACK, RIGHT_BACK, RIGHT_UP, RIGHT_DOWN
 }
 
 object LightspeedActionRegistry {
@@ -244,10 +248,14 @@ fun MainSettingsScreen() {
         prefs.edit()
             .putBoolean("pref_statusbar_preview", false)
             .putBoolean("pref_sidebar_preview", false)
+            .putBoolean("pref_sidebar_left_preview", false)
             .putBoolean("pref_section_statusbar_expanded", false)
             .putBoolean("pref_section_center_expanded", false)
             .putBoolean("pref_section_top_expanded", false)
             .putBoolean("pref_section_bottom_expanded", false)
+            .putBoolean("pref_section_left_center_expanded", false)
+            .putBoolean("pref_section_left_top_expanded", false)
+            .putBoolean("pref_section_left_bottom_expanded", false)
             .apply()
         scope.launch {
             kotlinx.coroutines.delay(300)
@@ -347,11 +355,20 @@ fun SidebarMatrixConfigurationFields(
     toggleAllTrigger: Int = 0,
     onRefreshNeeded: () -> Unit = {}
 ) {
-    var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", false)) }
+    // Left Wing States
+    var isLeftCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_center_expanded", false)) }
+    var isLeftTopExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_top_expanded", true)) }
+    var isLeftBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
+
+    // Center Avionics States
+    var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", true)) }
+    var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
+
+    // Right Wing States
     var isCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_center_expanded", false)) }
     var isTopExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_top_expanded", true)) }
     var isBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_bottom_expanded", false)) }
-    var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
+
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var importStatusMessage by remember { mutableStateOf<String?>(null) }
     var isImportSuccess by remember { mutableStateOf(false) }
@@ -359,6 +376,8 @@ fun SidebarMatrixConfigurationFields(
     var showPasteJsonDialog by remember { mutableStateOf(false) }
     var pastedJsonText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -418,213 +437,393 @@ fun SidebarMatrixConfigurationFields(
     LaunchedEffect(toggleAllTrigger) {
         if (toggleAllTrigger > 0) {
             allExpandedState = !allExpandedState
-            isStatusBarExpanded = allExpandedState
-            isCenterExpanded = allExpandedState
-            isTopExpanded = allExpandedState
-            isBottomExpanded = allExpandedState
-            isBackupExpanded = allExpandedState
-            prefs.edit()
-                .putBoolean("pref_section_statusbar_expanded", allExpandedState)
-                .putBoolean("pref_section_center_expanded", allExpandedState)
-                .putBoolean("pref_section_top_expanded", allExpandedState)
-                .putBoolean("pref_section_bottom_expanded", allExpandedState)
-                .putBoolean("pref_section_backup_expanded", allExpandedState)
-                .apply()
+            when (pagerState.currentPage) {
+                0 -> {
+                    isLeftCenterExpanded = allExpandedState
+                    isLeftTopExpanded = allExpandedState
+                    isLeftBottomExpanded = allExpandedState
+                    prefs.edit()
+                        .putBoolean("pref_section_left_center_expanded", allExpandedState)
+                        .putBoolean("pref_section_left_top_expanded", allExpandedState)
+                        .putBoolean("pref_section_left_bottom_expanded", allExpandedState)
+                        .putBoolean("pref_sidebar_left_preview", allExpandedState)
+                        .apply()
+                }
+                1 -> {
+                    isStatusBarExpanded = allExpandedState
+                    isBackupExpanded = allExpandedState
+                    prefs.edit()
+                        .putBoolean("pref_section_statusbar_expanded", allExpandedState)
+                        .putBoolean("pref_section_backup_expanded", allExpandedState)
+                        .putBoolean("pref_statusbar_preview", allExpandedState)
+                        .apply()
+                }
+                2 -> {
+                    isCenterExpanded = allExpandedState
+                    isTopExpanded = allExpandedState
+                    isBottomExpanded = allExpandedState
+                    prefs.edit()
+                        .putBoolean("pref_section_center_expanded", allExpandedState)
+                        .putBoolean("pref_section_top_expanded", allExpandedState)
+                        .putBoolean("pref_section_bottom_expanded", allExpandedState)
+                        .putBoolean("pref_sidebar_preview", allExpandedState)
+                        .apply()
+                }
+            }
         }
     }
 
-    val customVectors = listOf(
+    val leftCustomVectors = listOf(
         "TAP" to ("Single Tap" to ArrowDirection.TAP),
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
         "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
-        "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
+        "SWIPE_RIGHT" to ("Swipe Right (Inward)" to ArrowDirection.SWIPE_RIGHT),
         "SWIPE_UP_DOWN" to ("Swipe Up & Down" to ArrowDirection.SWIPE_UP_DOWN),
         "SWIPE_DOWN_UP" to ("Swipe Down & Up" to ArrowDirection.SWIPE_DOWN_UP),
-        "SWIPE_UP_LEFT" to ("Swipe Up & Left" to ArrowDirection.SWIPE_UP_LEFT),
-        "SWIPE_DOWN_LEFT" to ("Swipe Down & Left" to ArrowDirection.SWIPE_DOWN_LEFT),
+        "SWIPE_RIGHT_BACK" to ("Swipe Right & Return" to ArrowDirection.RIGHT_BACK),
+        "SWIPE_RIGHT_UP" to ("Swipe Right & Up" to ArrowDirection.RIGHT_UP),
+        "SWIPE_RIGHT_DOWN" to ("Swipe Right & Down" to ArrowDirection.RIGHT_DOWN)
+    )
+
+    val rightCustomVectors = listOf(
+        "TAP" to ("Single Tap" to ArrowDirection.TAP),
+        "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
+        "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
+        "SWIPE_LEFT" to ("Swipe Left (Inward)" to ArrowDirection.SWIPE_LEFT),
+        "SWIPE_UP_DOWN" to ("Swipe Up & Down" to ArrowDirection.SWIPE_UP_DOWN),
+        "SWIPE_DOWN_UP" to ("Swipe Down & Up" to ArrowDirection.SWIPE_DOWN_UP),
         "SWIPE_LEFT_BACK" to ("Swipe Left & Return" to ArrowDirection.LEFT_BACK),
         "SWIPE_LEFT_UP" to ("Swipe Left & Up" to ArrowDirection.LEFT_UP),
         "SWIPE_LEFT_DOWN" to ("Swipe Left & Down" to ArrowDirection.LEFT_DOWN)
     )
 
-    val interfaceZones = listOf("TOP" to "Right Deflector Wing — Upper Vector Zone", "BOTTOM" to "Right Deflector Wing — Lower Vector Zone")
-
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         
-        CompactAccordionSection(title = "Overhead Canopy (Top Status Bar)", isExpanded = isStatusBarExpanded, onToggle = {
-            isStatusBarExpanded = !isStatusBarExpanded
-            prefs.edit()
-                .putBoolean("pref_section_statusbar_expanded", isStatusBarExpanded)
-                .putBoolean("pref_statusbar_preview", isStatusBarExpanded)
-                .apply()
-        }) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrefToggleRow(context, prefs, "pref_statusbar_enabled", "", "", "Enable Overhead Canopy Gestures", "Enable full touch, tap, and swipe gesture matrix parsing over the overhead canopy zone.")
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Canopy Span", 50, 2000, 50, 1080)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Canopy Thickness", 10, 300, 5, 80)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Reach", 10, 100, 5, 40)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset", -500, 500, 10, 0)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset", -200, 200, 5, 0)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Swipe Along Bar & Pull Down (2-Step Scrubbing)", listOf("none", "system:screen_timeout", "system:volume", "system:brightness", "system:scroll_to_top"), tokenLabelCache)
-
-                val statusBarVectors = listOf(
-                    Triple("TAP", "Single Tap", ArrowDirection.TAP),
-                    Triple("DOUBLE_TAP", "Double Tap", ArrowDirection.DOUBLE_TAP),
-                    Triple("SWIPE_LEFT", "Swipe Left", ArrowDirection.SWIPE_LEFT),
-                    Triple("SWIPE_RIGHT", "Swipe Right", ArrowDirection.SWIPE_RIGHT),
-                    Triple("SWIPE_LEFT_BACK", "Swipe Left & Return", ArrowDirection.LEFT_BACK),
-                    Triple("SWIPE_RIGHT_BACK", "Swipe Right & Return", ArrowDirection.SWIPE_RIGHT_BACK),
-                    Triple("SWIPE_LEFT_DOWN", "Swipe Left & Down (Quick Trigger)", ArrowDirection.LEFT_DOWN),
-                    Triple("SWIPE_RIGHT_DOWN", "Swipe Right & Down (Quick Trigger)", ArrowDirection.RIGHT_DOWN)
-                )
-
-                statusBarVectors.forEach { (vectorKey, vectorTitle, arrowEnum) ->
-                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_STATUSBAR_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
-                }
-            }
-        }
-
-        CompactAccordionSection(title = "Right Deflector Wing — Astrogation Core Zone", isExpanded = isCenterExpanded, onToggle = {
-            isCenterExpanded = !isCenterExpanded
-            val newCenter = isCenterExpanded
-            prefs.edit()
-                .putBoolean("pref_section_center_expanded", newCenter)
-                .putBoolean("pref_sidebar_preview", newCenter || isTopExpanded || isBottomExpanded)
-                .apply()
-        }) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-            }
-        }
-
-        interfaceZones.forEachIndexed { idx, (zoneKey, zoneTitle) ->
-            val isCurrentExpanded = if (idx == 0) isTopExpanded else isBottomExpanded
-            CompactAccordionSection(title = zoneTitle, isExpanded = isCurrentExpanded, onToggle = {
-                if (idx == 0) {
-                    isTopExpanded = !isTopExpanded
-                    val newTop = isTopExpanded
-                    prefs.edit()
-                        .putBoolean("pref_section_top_expanded", newTop)
-                        .putBoolean("pref_sidebar_preview", isCenterExpanded || newTop || isBottomExpanded)
-                        .apply()
-                } else {
-                    isBottomExpanded = !isBottomExpanded
-                    val newBottom = isBottomExpanded
-                    prefs.edit()
-                        .putBoolean("pref_section_bottom_expanded", newBottom)
-                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || newBottom)
-                        .apply()
-                }
-            }) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
-                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Wing Span (Height)", 50, 600, 10, 200)
-                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
-
-                    customVectors.forEach { (vectorKey, pairInfo) ->
-                        val (vectorTitle, arrowEnum) = pairInfo
-                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_${zoneKey}_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_${zoneKey}_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
-                    }
-                }
-            }
-        }
-
-        CompactAccordionSection(
-            title = "Backup & Restore Engine",
-            isExpanded = isBackupExpanded,
-            onToggle = {
-                isBackupExpanded = !isBackupExpanded
-                prefs.edit().putBoolean("pref_section_backup_expanded", isBackupExpanded).apply()
-            }
+        // Tactical Sci-Fi 3-Tab Navigator
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White.copy(alpha = 0.06f))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Export Card
-                Row(
+            listOf("◂ PORT WING", "◈ AVIONICS DECK ◈", "STARBOARD WING ▸").forEachIndexed { index, tabTitle ->
+                val isSelected = pagerState.currentPage == index
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                        .clickable { exportLauncher.launch(LightspeedBackupEngine.generateDefaultFileName()) }
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .clickable {
+                            scope.launch { pagerState.animateScrollToPage(index) }
+                        }
+                        .padding(vertical = 9.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                    Text(
+                        text = tabTitle,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.7f),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        // 3 Swipable Pages
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f).fillMaxWidth()
+        ) { pageIndex ->
+            when (pageIndex) {
+                // PAGE 0: PORT (LEFT) DEFLECTOR WING
+                0 -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = "Export", tint = MaterialTheme.colorScheme.primary)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
-                        Text("Save all gesture maps, coordinates & gears to a local backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                        CompactAccordionSection(
+                            title = "Left Deflector Wing — Astrogation Core Zone",
+                            isExpanded = isLeftCenterExpanded,
+                            onToggle = {
+                                isLeftCenterExpanded = !isLeftCenterExpanded
+                                prefs.edit()
+                                    .putBoolean("pref_section_left_center_expanded", isLeftCenterExpanded)
+                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                    .apply()
+                            }
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+
+                                leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                    val (vectorTitle, arrowEnum) = pairInfo
+                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_CENTER_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_CENTER_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                }
+                            }
+                        }
+
+                        CompactAccordionSection(
+                            title = "Left Deflector Wing — Upper Vector Zone",
+                            isExpanded = isLeftTopExpanded,
+                            onToggle = {
+                                isLeftTopExpanded = !isLeftTopExpanded
+                                prefs.edit()
+                                    .putBoolean("pref_section_left_top_expanded", isLeftTopExpanded)
+                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                    .apply()
+                            }
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+
+                                leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                    val (vectorTitle, arrowEnum) = pairInfo
+                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                }
+                            }
+                        }
+
+                        CompactAccordionSection(
+                            title = "Left Deflector Wing — Lower Vector Zone",
+                            isExpanded = isLeftBottomExpanded,
+                            onToggle = {
+                                isLeftBottomExpanded = !isLeftBottomExpanded
+                                prefs.edit()
+                                    .putBoolean("pref_section_left_bottom_expanded", isLeftBottomExpanded)
+                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                    .apply()
+                            }
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+
+                                leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                    val (vectorTitle, arrowEnum) = pairInfo
+                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                }
+                            }
+                        }
                     }
                 }
 
-                // Import Card
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                        .clickable { showImportOptionsDialog = true }
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                // PAGE 1: AVIONICS DECK (CENTER)
+                1 -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = "Import", tint = MaterialTheme.colorScheme.secondary)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
-                        Text("Restore complete settings from a previous Lightspeed backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                        CompactAccordionSection(title = "Overhead Canopy (Top Status Bar)", isExpanded = isStatusBarExpanded, onToggle = {
+                            isStatusBarExpanded = !isStatusBarExpanded
+                            prefs.edit()
+                                .putBoolean("pref_section_statusbar_expanded", isStatusBarExpanded)
+                                .putBoolean("pref_statusbar_preview", isStatusBarExpanded)
+                                .apply()
+                        }) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PrefToggleRow(context, prefs, "pref_statusbar_enabled", "", "", "Enable Overhead Canopy Gestures", "Enable full touch, tap, and swipe gesture matrix parsing over the overhead canopy zone.")
+                                PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Canopy Span", 50, 2000, 50, 1080)
+                                PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Canopy Thickness", 10, 300, 5, 80)
+                                PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset", -500, 500, 10, 0)
+                                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset", -200, 200, 5, 0)
+                                PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Swipe Along Bar & Pull Down (2-Step Scrubbing)", listOf("none", "system:screen_timeout", "system:volume", "system:brightness", "system:scroll_to_top"), tokenLabelCache)
+
+                                val statusBarVectors = listOf(
+                                    Triple("TAP", "Single Tap", ArrowDirection.TAP),
+                                    Triple("DOUBLE_TAP", "Double Tap", ArrowDirection.DOUBLE_TAP),
+                                    Triple("SWIPE_LEFT", "Swipe Left", ArrowDirection.SWIPE_LEFT),
+                                    Triple("SWIPE_RIGHT", "Swipe Right", ArrowDirection.SWIPE_RIGHT),
+                                    Triple("SWIPE_LEFT_BACK", "Swipe Left & Return", ArrowDirection.LEFT_BACK),
+                                    Triple("SWIPE_RIGHT_BACK", "Swipe Right & Return", ArrowDirection.SWIPE_RIGHT_BACK),
+                                    Triple("SWIPE_LEFT_DOWN", "Swipe Left & Down (Quick Trigger)", ArrowDirection.LEFT_DOWN),
+                                    Triple("SWIPE_RIGHT_DOWN", "Swipe Right & Down (Quick Trigger)", ArrowDirection.RIGHT_DOWN)
+                                )
+
+                                statusBarVectors.forEach { (vectorKey, vectorTitle, arrowEnum) ->
+                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_STATUSBAR_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                }
+                            }
+                        }
+
+                        CompactAccordionSection(
+                            title = "Backup & Restore Engine",
+                            isExpanded = isBackupExpanded,
+                            onToggle = {
+                                isBackupExpanded = !isBackupExpanded
+                                prefs.edit().putBoolean("pref_section_backup_expanded", isBackupExpanded).apply()
+                            }
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                // Export Card
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                                        .clickable { exportLauncher.launch(LightspeedBackupEngine.generateDefaultFileName()) }
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.CloudUpload, contentDescription = "Export", tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                                        Text("Save all gesture maps, coordinates & gears to a local backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                                    }
+                                }
+
+                                // Import Card
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                                        .clickable { showImportOptionsDialog = true }
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.CloudDownload, contentDescription = "Import", tint = MaterialTheme.colorScheme.secondary)
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                                        Text("Restore complete settings from a previous Lightspeed backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                                    }
+                                }
+
+                                // Reset Card
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
+                                        .clickable { showResetConfirmDialog = true }
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Reset to Factory Defaults", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
+                                        Text("Wipe custom settings and revert to pristine defaults", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                // Reset Card
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
-                        .clickable { showResetConfirmDialog = true }
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
+                // PAGE 2: STARBOARD (RIGHT) DEFLECTOR WING
+                2 -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Reset to Factory Defaults", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
-                        Text("Wipe custom settings and revert to pristine defaults", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                        CompactAccordionSection(
+                            title = "Right Deflector Wing — Astrogation Core Zone",
+                            isExpanded = isCenterExpanded,
+                            onToggle = {
+                                isCenterExpanded = !isCenterExpanded
+                                prefs.edit()
+                                    .putBoolean("pref_section_center_expanded", isCenterExpanded)
+                                    .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded)
+                                    .apply()
+                            }
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                            }
+                        }
+
+                        val interfaceZones = listOf("TOP" to "Right Deflector Wing — Upper Vector Zone", "BOTTOM" to "Right Deflector Wing — Lower Vector Zone")
+                        interfaceZones.forEachIndexed { idx, (zoneKey, zoneTitle) ->
+                            val isCurrentExpanded = if (idx == 0) isTopExpanded else isBottomExpanded
+                            CompactAccordionSection(title = zoneTitle, isExpanded = isCurrentExpanded, onToggle = {
+                                if (idx == 0) {
+                                    isTopExpanded = !isTopExpanded
+                                    val newTop = isTopExpanded
+                                    prefs.edit()
+                                        .putBoolean("pref_section_top_expanded", newTop)
+                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || newTop || isBottomExpanded)
+                                        .apply()
+                                } else {
+                                    isBottomExpanded = !isBottomExpanded
+                                    val newBottom = isBottomExpanded
+                                    prefs.edit()
+                                        .putBoolean("pref_section_bottom_expanded", newBottom)
+                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || newBottom)
+                                        .apply()
+                                }
+                            }) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
+                                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+
+                                    rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                        val (vectorTitle, arrowEnum) = pairInfo
+                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_${zoneKey}_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_${zoneKey}_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -915,6 +1114,14 @@ fun GestureTrailTracer(direction: ArrowDirection, isHold: Boolean, color: Color,
             ArrowDirection.LEFT_DOWN -> {
                 path.moveTo(w*0.8f, h*0.3f); path.lineTo(w*0.3f, h*0.3f); path.lineTo(w*0.3f, h*0.8f)
                 if (actionProgress < 0.5f) { cy = h*0.3f; cx = w*0.8f + (w*0.3f - w*0.8f) * (actionProgress * 2f) } else { cx = w*0.3f; cy = h*0.3f + (h*0.8f - h*0.3f) * ((actionProgress - 0.5f) * 2f) }
+            }
+            ArrowDirection.RIGHT_BACK -> {
+                path.moveTo(w*0.2f, h*0.5f); path.lineTo(w*0.8f, h*0.5f); path.lineTo(w*0.5f, h*0.5f)
+                if (actionProgress < 0.6f) { cy = h*0.5f; cx = w*0.2f + (w*0.8f - w*0.2f) * (actionProgress / 0.6f) } else { cy = h*0.5f; cx = w*0.8f + (w*0.5f - w*0.8f) * ((actionProgress - 0.6f) / 0.4f) }
+            }
+            ArrowDirection.RIGHT_UP -> {
+                path.moveTo(w*0.2f, h*0.7f); path.lineTo(w*0.7f, h*0.7f); path.lineTo(w*0.7f, h*0.2f)
+                if (actionProgress < 0.5f) { cy = h*0.7f; cx = w*0.2f + (w*0.7f - w*0.2f) * (actionProgress * 2f) } else { cx = w*0.7f; cy = h*0.7f + (h*0.2f - h*0.7f) * ((actionProgress - 0.5f) * 2f) }
             }
             ArrowDirection.RIGHT_DOWN -> {
                 path.moveTo(w*0.2f, h*0.3f); path.lineTo(w*0.7f, h*0.3f); path.lineTo(w*0.7f, h*0.8f)

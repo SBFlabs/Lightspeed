@@ -28,12 +28,19 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private var statusBarOverlayView: LightspeedStatusBarOverlay? = null
     private lateinit var statusBarWindowParams: WindowManager.LayoutParams
 
+    // Left Deflector Wing Overlay
+    private var leftWingOverlayView: LightspeedLeftWingOverlay? = null
+    private lateinit var leftWingWindowParams: WindowManager.LayoutParams
+
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_macro_action_STATUSBAR"))) {
+        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             updateStatusBarOverlayFromPrefs(prefs)
         }
-        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_"))) {
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_top") || key.startsWith("pref_section_center") || key.startsWith("pref_section_bottom"))) {
             updateSidebarOverlayFromPrefs(prefs)
+        }
+        if (key != null && (key.startsWith("pref_sidebar_left_") || key.startsWith("pref_section_left_") || key.startsWith("pref_macro_action_LEFT_"))) {
+            updateLeftWingOverlayFromPrefs(prefs)
         }
     }
 
@@ -67,8 +74,31 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         overlayView = LightspeedCruiseOverlay(this)
         windowManager?.addView(overlayView, windowParams)
+        overlayView?.post { overlayView?.updateMetricsDimensions() }
 
-        // 2. Initialize Status Bar Overlay Window
+        // 2. Initialize Left Deflector Wing Overlay Window
+        leftWingWindowParams = WindowManager.LayoutParams(
+            edgeWidthPx,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+
+        leftWingOverlayView = LightspeedLeftWingOverlay(this, this)
+        windowManager?.addView(leftWingOverlayView, leftWingWindowParams)
+        leftWingOverlayView?.post { leftWingOverlayView?.updateMetricsDimensions() }
+
+        // 3. Initialize Status Bar Overlay Window
         val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         setupStatusBarOverlay(prefs)
@@ -156,10 +186,17 @@ class LightspeedAccessibilityService : AccessibilityService() {
         overlayView?.postInvalidate()
     }
 
+    private fun updateLeftWingOverlayFromPrefs(prefs: SharedPreferences) {
+        if (windowManager == null || leftWingOverlayView == null) return
+        leftWingOverlayView?.updateMetricsDimensions()
+        leftWingOverlayView?.postInvalidate()
+    }
+
     fun reloadPreferences() {
         val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
         updateStatusBarOverlayFromPrefs(prefs)
         updateSidebarOverlayFromPrefs(prefs)
+        updateLeftWingOverlayFromPrefs(prefs)
     }
 
     fun updateWindowLayout(expand: Boolean) {
@@ -197,6 +234,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
         overlayView?.let {
             windowManager?.removeView(it)
             overlayView = null
+        }
+        leftWingOverlayView?.let {
+            windowManager?.removeView(it)
+            leftWingOverlayView = null
         }
         statusBarOverlayView?.let {
             windowManager?.removeView(it)

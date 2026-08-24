@@ -634,6 +634,12 @@ fun SidebarMatrixConfigurationFields(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        SymmetryCouplingCard(
+                            context = context,
+                            prefs = prefs,
+                            onModeChanged = { onRefreshNeeded() }
+                        )
+
                         CompactAccordionSection(title = "Overhead Canopy (Top Status Bar)", isExpanded = isStatusBarExpanded, onToggle = {
                             isStatusBarExpanded = !isStatusBarExpanded
                             prefs.edit()
@@ -1026,11 +1032,131 @@ fun SidebarMatrixConfigurationFields(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(4.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
-        PrefToggleRow(context, prefs, "pref_sidebar_link_edges", "", "", "Mirror dimensions", "Make the left and right sidebar sizes match perfectly.")
-        PrefToggleRow(context, prefs, "pref_sidebar_link_gestures", "", "", "Mirror gestures", "Use the exact same gesture actions for both sides.")
+@Composable
+fun SymmetryCouplingCard(
+    context: Context,
+    prefs: android.content.SharedPreferences,
+    onModeChanged: () -> Unit = {}
+) {
+    var geomMode by remember { mutableStateOf(prefs.getString("pref_symmetry_geometry_mode", "independent") ?: "independent") }
+    var gestMode by remember { mutableStateOf(prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent") }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.SyncAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
+                    Text("Synchronize wings or maintain bilateral independence", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                }
+            }
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+            // 1. Physical Geometry Switch
+            ThreeWayTacticalSelector(
+                title = "Physical Geometry (Span, Reach, Offset, Glow)",
+                subtitle = when (geomMode) {
+                    "right" -> "Starboard master — Port mirrors right wing geometry"
+                    "left" -> "Port master — Starboard mirrors left wing geometry"
+                    else -> "Independent — Each wing has custom geometry"
+                },
+                selectedMode = geomMode,
+                onSelect = { mode ->
+                    geomMode = mode
+                    prefs.edit().putString("pref_symmetry_geometry_mode", mode).apply()
+                    try {
+                        LightspeedAccessibilityService.instance?.reloadPreferences()
+                    } catch (_: Exception) {}
+                    onModeChanged()
+                }
+            )
+
+            // 2. Astrogation & Gestures Switch
+            ThreeWayTacticalSelector(
+                title = "Astrogation & Gestures (Cockpit & Macros)",
+                subtitle = when (gestMode) {
+                    "right" -> "Starboard master — Port inverts & executes right actions"
+                    "left" -> "Port master — Starboard inverts & executes left actions"
+                    else -> "Independent — Each wing has dedicated gesture maps"
+                },
+                selectedMode = gestMode,
+                onSelect = { mode ->
+                    gestMode = mode
+                    prefs.edit().putString("pref_symmetry_gesture_mode", mode).apply()
+                    try {
+                        LightspeedAccessibilityService.instance?.reloadPreferences()
+                    } catch (_: Exception) {}
+                    onModeChanged()
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun ThreeWayTacticalSelector(
+    title: String,
+    subtitle: String,
+    selectedMode: String,
+    onSelect: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+        Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.06f))
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            val options = listOf(
+                "left" to "◂ CLONE LEFT",
+                "independent" to "◈ INDEPENDENT",
+                "right" to "CLONE RIGHT ▸"
+            )
+
+            options.forEach { (modeKey, modeTitle) ->
+                val isSelected = selectedMode == modeKey
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .clickable { onSelect(modeKey) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = modeTitle,
+                        fontSize = 10.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.7f),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 

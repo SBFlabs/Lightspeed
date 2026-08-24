@@ -66,7 +66,7 @@ class LightspeedLeftWingOverlay(
     private var lastTapTime = 0L
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_sidebar_left_") || key.startsWith("pref_section_left_") || key.startsWith("pref_macro_action_LEFT_"))) {
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_") || key.startsWith("pref_symmetry_"))) {
             post {
                 updateMetricsDimensions()
                 invalidate()
@@ -96,15 +96,22 @@ class LightspeedLeftWingOverlay(
         val screenH = displayMetrics.heightPixels.toFloat()
         val density = displayMetrics.density
 
-        centerHeightPx = prefs.getInt("pref_sidebar_left_center_height", 400).toFloat() * density
-        centerYOffsetPx = prefs.getInt("pref_sidebar_left_center_y_offset", 0).toFloat() * density
-        centerTouchWidthPx = prefs.getInt("pref_sidebar_left_center_touch_width", 40).toFloat() * density
+        val geomMode = prefs.getString("pref_symmetry_geometry_mode", "independent") ?: "independent"
+        val isMirroringRight = geomMode == "right"
 
-        topHeightPx = prefs.getInt("pref_sidebar_left_top_height", 200).toFloat() * density
-        topTouchWidthPx = prefs.getInt("pref_sidebar_left_top_touch_width", 40).toFloat() * density
+        val centerPrefix = if (isMirroringRight) "pref_sidebar_center" else "pref_sidebar_left_center"
+        val topPrefix = if (isMirroringRight) "pref_sidebar_top" else "pref_sidebar_left_top"
+        val bottomPrefix = if (isMirroringRight) "pref_sidebar_bottom" else "pref_sidebar_left_bottom"
 
-        bottomHeightPx = prefs.getInt("pref_sidebar_left_bottom_height", 200).toFloat() * density
-        bottomTouchWidthPx = prefs.getInt("pref_sidebar_left_bottom_touch_width", 40).toFloat() * density
+        centerHeightPx = prefs.getInt("${centerPrefix}_height", 400).toFloat() * density
+        centerYOffsetPx = prefs.getInt("${centerPrefix}_y_offset", 0).toFloat() * density
+        centerTouchWidthPx = prefs.getInt("${centerPrefix}_touch_width", 40).toFloat() * density
+
+        topHeightPx = prefs.getInt("${topPrefix}_height", 200).toFloat() * density
+        topTouchWidthPx = prefs.getInt("${topPrefix}_touch_width", 40).toFloat() * density
+
+        bottomHeightPx = prefs.getInt("${bottomPrefix}_height", 200).toFloat() * density
+        bottomTouchWidthPx = prefs.getInt("${bottomPrefix}_touch_width", 40).toFloat() * density
 
         val centerY = (screenH / 2f) + centerYOffsetPx
         val centerTop = centerY - (centerHeightPx / 2f)
@@ -277,8 +284,7 @@ class LightspeedLeftWingOverlay(
                     if (totalDist < 18f) {
                         handleTap()
                     } else if (currentGesture != "NONE") {
-                        val actionKey = "pref_macro_action_${activeZoneKey}_$currentGesture"
-                        val action = prefs.getString(actionKey, "none") ?: "none"
+                        val action = getEffectiveAction(activeZoneKey, currentGesture, false)
                         if (action != "none") {
                             triggerHaptic(25, 160)
                             performActionByName(action)
@@ -376,9 +382,12 @@ class LightspeedLeftWingOverlay(
         val isBottomExpanded = prefs.getBoolean("pref_section_left_bottom_expanded", false)
         val isPreview = prefs.getBoolean("pref_sidebar_left_preview", false)
 
-        val centerTransparency = prefs.getInt("pref_sidebar_left_center_transparency", 0)
-        val topTransparency = prefs.getInt("pref_sidebar_left_top_transparency", 0)
-        val bottomTransparency = prefs.getInt("pref_sidebar_left_bottom_transparency", 0)
+        val geomMode = prefs.getString("pref_symmetry_geometry_mode", "independent") ?: "independent"
+        val isMirroringRight = geomMode == "right"
+
+        val centerTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_center_transparency", 0) else prefs.getInt("pref_sidebar_left_center_transparency", 0)
+        val topTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_top_transparency", 0) else prefs.getInt("pref_sidebar_left_top_transparency", 0)
+        val bottomTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_bottom_transparency", 0) else prefs.getInt("pref_sidebar_left_bottom_transparency", 0)
 
         fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean) {
             val isReview = isExpanded || (isPreview && isExpanded)
@@ -440,7 +449,39 @@ class LightspeedLeftWingOverlay(
         }
     }
 
+    private fun getEffectiveAction(zoneKey: String, gesture: String, isHold: Boolean): String {
+        val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
+        val isMirroringRight = gestMode == "right"
+
+        if (isMirroringRight) {
+            val rightZone = when (zoneKey) {
+                "LEFT_TOP" -> "TOP"
+                "LEFT_BOTTOM" -> "BOTTOM"
+                else -> "CENTER"
+            }
+            val rightGesture = when (gesture) {
+                "SWIPE_RIGHT" -> "SWIPE_LEFT"
+                "SWIPE_RIGHT_UP" -> "SWIPE_LEFT_UP"
+                "SWIPE_RIGHT_DOWN" -> "SWIPE_LEFT_DOWN"
+                "SWIPE_RIGHT_BACK" -> "SWIPE_LEFT_BACK"
+                else -> gesture
+            }
+            if (rightZone == "CENTER" && rightGesture == "SWIPE_LEFT") {
+                return "lightspeed:cockpit_hangar"
+            }
+            val key = if (isHold) "pref_macro_action_${rightZone}_${rightGesture}_HOLD" else "pref_macro_action_${rightZone}_$rightGesture"
+            return prefs.getString(key, "none") ?: "none"
+        } else {
+            val key = if (isHold) "pref_macro_action_${zoneKey}_${gesture}_HOLD" else "pref_macro_action_${zoneKey}_$gesture"
+            return prefs.getString(key, "none") ?: "none"
+        }
+    }
+
     private fun performActionByName(actionKey: String) {
+        if (actionKey == "lightspeed:cockpit_hangar") {
+            LightspeedAccessibilityService.instance?.reopenCockpitHangar()
+            return
+        }
         ActionDispatcher.execute(service, actionKey) {
             scrollToTop()
         }

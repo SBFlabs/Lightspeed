@@ -609,7 +609,8 @@ class GearPickerActivity : ComponentActivity() {
                                                             .rotate(if (item.isExpanded) 180f else 0f)
                                                     )
                                                 }
-                                                                      is PickerRowItem.SystemAction -> {
+                                            }
+                                            is PickerRowItem.SystemAction -> {
                                                 val isChecked = selectedTokens.contains(item.token)
                                                 Row(
                                                     modifier = Modifier

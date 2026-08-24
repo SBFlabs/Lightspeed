@@ -288,7 +288,7 @@ fun MainSettingsScreen() {
                     var toggleAllTrigger by remember { mutableStateOf(0) }
 
                     FloatingOverlayContainer(
-                        title = "Sidebar Matrix Controller",
+                        title = "Deflector Wings Controller",
                         onDismiss = { dismissAction() },
                         headerControl = {
                             IconButton(
@@ -439,11 +439,11 @@ fun SidebarMatrixConfigurationFields(
         "SWIPE_LEFT_DOWN" to ("Swipe Left & Down" to ArrowDirection.LEFT_DOWN)
     )
 
-    val interfaceZones = listOf("TOP" to "Right Sidebar - Upper Zone (Above Gimbal)", "BOTTOM" to "Right Sidebar - Lower Zone (Below Gimbal)")
+    val interfaceZones = listOf("TOP" to "Right Deflector Wing — Upper Vector Zone", "BOTTOM" to "Right Deflector Wing — Lower Vector Zone")
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         
-        CompactAccordionSection(title = "Status Bar (Top Screen Edge)", isExpanded = isStatusBarExpanded, onToggle = {
+        CompactAccordionSection(title = "Overhead Canopy (Top Status Bar)", isExpanded = isStatusBarExpanded, onToggle = {
             isStatusBarExpanded = !isStatusBarExpanded
             prefs.edit()
                 .putBoolean("pref_section_statusbar_expanded", isStatusBarExpanded)
@@ -451,13 +451,13 @@ fun SidebarMatrixConfigurationFields(
                 .apply()
         }) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrefToggleRow(context, prefs, "pref_statusbar_enabled", "", "", "Enable Status Bar Gestures", "Enable full touch, tap, and swipe gesture matrix parsing over the status bar zone.")
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Span", 50, 2000, 50, 1080)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Thickness", 10, 300, 5, 80)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Sensitivity", 10, 100, 5, 40)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Offset X", -500, 500, 10, 0)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Offset Y", -200, 200, 5, 0)
-                PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Transparency", 0, 100, 5, 0)
+                PrefToggleRow(context, prefs, "pref_statusbar_enabled", "", "", "Enable Overhead Canopy Gestures", "Enable full touch, tap, and swipe gesture matrix parsing over the overhead canopy zone.")
+                PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Canopy Span", 50, 2000, 50, 1080)
+                PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Canopy Thickness", 10, 300, 5, 80)
+                PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Reach", 10, 100, 5, 40)
+                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset", -500, 500, 10, 0)
+                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset", -200, 200, 5, 0)
+                PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
 
                 HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
                 GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Swipe Along Bar & Pull Down (2-Step Scrubbing)", listOf("none", "system:screen_timeout", "system:volume", "system:brightness", "system:scroll_to_top"), tokenLabelCache)
@@ -480,7 +480,7 @@ fun SidebarMatrixConfigurationFields(
             }
         }
 
-        CompactAccordionSection(title = "Right Sidebar - Center Zone (Gimbal / Cogs)", isExpanded = isCenterExpanded, onToggle = {
+        CompactAccordionSection(title = "Right Deflector Wing — Astrogation Core Zone", isExpanded = isCenterExpanded, onToggle = {
             isCenterExpanded = !isCenterExpanded
             val newCenter = isCenterExpanded
             prefs.edit()
@@ -489,10 +489,10 @@ fun SidebarMatrixConfigurationFields(
                 .apply()
         }) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Height", 50, 1000, 10, 400)
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Sensitivity", 10, 100, 5, 40)
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Vertical Offset", -300, 300, 10, 0)
-                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Transparency", 0, 100, 5, 0)
+                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
+                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
             }
         }
 
@@ -517,12 +517,12 @@ fun SidebarMatrixConfigurationFields(
             }) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
-                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Height", 50, 600, 10, 200)
-                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Sensitivity", 10, 100, 5, 40)
-                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Transparency", 0, 100, 5, 0)
+                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
 
                     HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Left Swipe (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
 
                     customVectors.forEach { (vectorKey, pairInfo) ->
                         val (vectorTitle, arrowEnum) = pairInfo

@@ -30,18 +30,24 @@ object LightspeedBackupEngine {
             java.io.File("/sdcard/Documents")
         )
         val seenPaths = mutableSetOf<String>()
-        for (dir in searchDirs) {
+
+        fun scanDir(dir: java.io.File, depth: Int) {
+            if (depth > 3 || !dir.exists() || !dir.isDirectory) return
             try {
-                if (dir.exists() && dir.isDirectory) {
-                    dir.listFiles()?.forEach { f ->
-                        if (f.isFile && f.name.endsWith(".json", ignoreCase = true) && f.length() > 0) {
-                            if (seenPaths.add(f.absolutePath)) {
-                                list.add(BackupFileEntry(f, f.name, f.lastModified(), f.length()))
-                            }
+                dir.listFiles()?.forEach { f ->
+                    if (f.isDirectory && !f.name.startsWith(".")) {
+                        scanDir(f, depth + 1)
+                    } else if (f.isFile && f.name.endsWith(".json", ignoreCase = true) && f.length() > 50) {
+                        if (seenPaths.add(f.absolutePath)) {
+                            list.add(BackupFileEntry(f, f.name, f.lastModified(), f.length()))
                         }
                     }
                 }
             } catch (_: Exception) {}
+        }
+
+        for (dir in searchDirs) {
+            scanDir(dir, 0)
         }
         return list.sortedByDescending { it.lastModified }
     }
@@ -89,15 +95,25 @@ object LightspeedBackupEngine {
         return try {
             val jsonString = exportToJson(context)
             val bytes = jsonString.toByteArray(Charsets.UTF_8)
-            val outputStream = try {
-                context.contentResolver.openOutputStream(uri, "wt")
-            } catch (_: Exception) {
-                context.contentResolver.openOutputStream(uri)
-            } ?: return Result.failure(IllegalStateException("Could not open output stream for $uri"))
 
-            outputStream.use { stream ->
-                stream.write(bytes)
-                stream.flush()
+            val written = try {
+                context.contentResolver.openFileDescriptor(uri, "wt")?.use { pfd ->
+                    java.io.FileOutputStream(pfd.fileDescriptor).use { fos ->
+                        fos.write(bytes)
+                        fos.flush()
+                        try { pfd.fileDescriptor.sync() } catch (_: Exception) {}
+                    }
+                }
+                true
+            } catch (_: Exception) {
+                false
+            }
+
+            if (!written) {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(bytes)
+                    stream.flush()
+                } ?: return Result.failure(IllegalStateException("Could not open output stream for $uri"))
             }
 
             val count = context.getSharedPreferences("default", Context.MODE_PRIVATE).all.size

@@ -558,7 +558,7 @@ fun SidebarMatrixConfigurationFields(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                        .clickable { importLauncher.launch(arrayOf("application/json", "*/*")) }
+                        .clickable { importLauncher.launch(arrayOf("*/*", "application/json", "text/plain")) }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

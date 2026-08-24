@@ -1182,11 +1182,24 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         } else if (activeGearRing == 2) {
                             triggerHardwareHaptic(50, 220)
                             val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-                            if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                                activeGearSetIndex = cPrefs.getInt("last_active_set_index", 0)
+                            cPrefs.edit().putInt("last_active_set_index", activeGearSetIndex).apply()
+                            
+                            // Align hangar bay profile rail to center the active gear set
+                            val setsString = cPrefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
+                            val setsList = setsString.split(",").filter { it.isNotEmpty() }
+                            val d = resources.displayMetrics.density
+                            val deckW = width * 0.88f
+                            val bayCount = setsList.size + 1
+                            val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
+                            val totalBayRailW = bayCount * slotW
+                            val maxScroll = (totalBayRailW - deckW).coerceAtLeast(0f)
+                            if (totalBayRailW > deckW) {
+                                val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
+                                hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
                             } else {
-                                activeGearSetIndex = 0
+                                hangarBayScrollOffset = 0f
                             }
+                            
                             currentLayer = CruiseLayer.COCKPIT_HANGAR
                             invalidate()
                             return true

@@ -2447,18 +2447,74 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
             }
 
-            // Draw Targeting Reticle Collimator at 180 deg (straight left)
+            // Draw Targeting Reticle Collimator at 180 deg (straight left) matching selected reticleStyle
             val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
             val reticleY = cyGimbal
             val isEjectArmedNow = isHangarEjectArmed
-            highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = if (isEjectArmedNow) 2.4f * d else 1.6f * d
-            highlightPaint.color = if (isEjectArmedNow) Color.argb(255, 255, 60, 60)
-                                  else if (activeHangarRing == 0) m3Primary
-                                  else m3Secondary
-            canvas.drawCircle(reticleX, reticleY, 24f * d, highlightPaint)
-            canvas.drawLine(reticleX - 28f * d, reticleY, reticleX - 18f * d, reticleY, highlightPaint)
-            canvas.drawLine(reticleX + 18f * d, reticleY, reticleX + 28f * d, reticleY, highlightPaint)
+            val reticleColor = if (isEjectArmedNow) Color.argb(255, 255, 60, 60)
+                               else if (activeHangarRing == 0) m3Primary
+                               else m3Secondary
+
+            val bracketSize = 54f * d
+            val half = bracketSize / 2f
+            val armLen = bracketSize * 0.28f
+
+            elementPaint.style = Paint.Style.STROKE
+            elementPaint.strokeWidth = if (isEjectArmedNow) 2.4f * d else 1.8f * d
+            elementPaint.color = reticleColor
+
+            when (reticleStyle) {
+                "cyber" -> {
+                    val arcRect = RectF(reticleX - half, reticleY - half, reticleX + half, reticleY + half)
+                    canvas.drawArc(arcRect, 35f, 110f, false, elementPaint)
+                    canvas.drawArc(arcRect, 215f, 110f, false, elementPaint)
+                    elementPaint.strokeWidth = 1.4f * d
+                    canvas.drawLine(reticleX, reticleY - half - 4f * d, reticleX, reticleY - half + 4f * d, elementPaint)
+                    canvas.drawLine(reticleX, reticleY + half - 4f * d, reticleX, reticleY + half + 4f * d, elementPaint)
+                    canvas.drawLine(reticleX - half - 4f * d, reticleY, reticleX - half + 4f * d, reticleY, elementPaint)
+                    canvas.drawLine(reticleX + half - 4f * d, reticleY, reticleX + half + 4f * d, reticleY, elementPaint)
+                }
+                "cross" -> {
+                    elementPaint.strokeWidth = 1.6f * d
+                    val gap = half * 0.52f
+                    canvas.drawLine(reticleX - half, reticleY, reticleX - gap, reticleY, elementPaint)
+                    canvas.drawLine(reticleX + gap, reticleY, reticleX + half, reticleY, elementPaint)
+                    canvas.drawLine(reticleX, reticleY - half, reticleX, reticleY - gap, elementPaint)
+                    canvas.drawLine(reticleX, reticleY + gap, reticleX, reticleY + half, elementPaint)
+                    elementPaint.style = Paint.Style.FILL
+                    canvas.drawCircle(reticleX, reticleY, 2.2f * d, elementPaint)
+                    elementPaint.style = Paint.Style.STROKE
+                }
+                "diamond" -> {
+                    val dOffset = half * 1.05f
+                    val path = android.graphics.Path().apply {
+                        moveTo(reticleX, reticleY - dOffset)
+                        lineTo(reticleX + dOffset, reticleY)
+                        lineTo(reticleX, reticleY + dOffset)
+                        lineTo(reticleX - dOffset, reticleY)
+                        close()
+                    }
+                    elementPaint.strokeWidth = 1.8f * d
+                    canvas.drawPath(path, elementPaint)
+                    elementPaint.style = Paint.Style.FILL
+                    canvas.drawCircle(reticleX, reticleY - dOffset, 2.2f * d, elementPaint)
+                    canvas.drawCircle(reticleX, reticleY + dOffset, 2.2f * d, elementPaint)
+                    canvas.drawCircle(reticleX - dOffset, reticleY, 2.2f * d, elementPaint)
+                    canvas.drawCircle(reticleX + dOffset, reticleY, 2.2f * d, elementPaint)
+                    elementPaint.style = Paint.Style.STROKE
+                }
+                else -> {
+                    // Tactical Corner Brackets [ ]
+                    canvas.drawLine(reticleX - half, reticleY - half + armLen, reticleX - half, reticleY - half, elementPaint)
+                    canvas.drawLine(reticleX - half, reticleY - half, reticleX - half + armLen, reticleY - half, elementPaint)
+                    canvas.drawLine(reticleX + half - armLen, reticleY - half, reticleX + half, reticleY - half, elementPaint)
+                    canvas.drawLine(reticleX + half, reticleY - half, reticleX + half, reticleY - half + armLen, elementPaint)
+                    canvas.drawLine(reticleX - half, reticleY + half - armLen, reticleX - half, reticleY + half, elementPaint)
+                    canvas.drawLine(reticleX - half, reticleY + half, reticleX - half + armLen, reticleY + half, elementPaint)
+                    canvas.drawLine(reticleX + half - armLen, reticleY + half, reticleX + half, reticleY + half, elementPaint)
+                    canvas.drawLine(reticleX + half, reticleY + half, reticleX + half, reticleY + half - armLen, elementPaint)
+                }
+            }
 
             val activeRingColor = if (activeHangarRing == 0) m3Primary else m3Secondary
             val otherRingColor = if (activeHangarRing == 0) m3Secondary else m3Primary

@@ -840,7 +840,7 @@ class GearPickerActivity : ComponentActivity() {
                                                             } else {
                                                                 handleTokenSelection(item.token)
                                                             }
-                                                        }                   }
+                                                        }
                                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {

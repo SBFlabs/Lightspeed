@@ -152,10 +152,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     private fun updateSidebarOverlayFromPrefs(prefs: SharedPreferences) {
         if (windowManager == null || overlayView == null) return
-        windowParams.width = edgeWidthPx
         overlayView?.updateMetricsDimensions()
-        overlayView?.invalidate()
-        windowManager?.updateViewLayout(overlayView, windowParams)
+        overlayView?.postInvalidate()
     }
 
     fun reloadPreferences() {
@@ -166,8 +164,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     fun updateWindowLayout(expand: Boolean) {
         if (windowManager == null || overlayView == null) return
-        windowParams.width = if (expand) WindowManager.LayoutParams.MATCH_PARENT else edgeWidthPx
-        windowManager?.updateViewLayout(overlayView, windowParams)
+        if (expand) {
+            windowParams.gravity = Gravity.TOP or Gravity.START
+            windowParams.x = 0; windowParams.y = 0
+            windowParams.width = WindowManager.LayoutParams.MATCH_PARENT
+            windowParams.height = WindowManager.LayoutParams.MATCH_PARENT
+            windowManager?.updateViewLayout(overlayView, windowParams)
+        } else {
+            overlayView?.updateMetricsDimensions()
+        }
     }
 
     fun reopenCockpitHangar(setIndex: Int = -1) {

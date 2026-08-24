@@ -324,8 +324,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val bottomLimit = (centerBottom + bottomHeightPx).coerceAtMost(screenH)
 
             val maxTouchW = maxOf(centerTouchWidthPx, topTouchWidthPx, bottomTouchWidthPx)
-            val winHeight = (bottomLimit - topLimit).toInt()
-            val winWidth = maxTouchW.toInt()
+            val winHeight = (bottomLimit - topLimit).toInt().coerceAtLeast(100)
+            val winWidth = (maxTouchW.coerceAtLeast(60f * density)).toInt()
             val winY = topLimit.toInt()
             val w = winWidth.toFloat()
 

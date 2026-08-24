@@ -172,6 +172,15 @@ object LightspeedShortcutManager {
             try {
                 val parsed = Intent.parseUri(cleanUri, Intent.URI_INTENT_SCHEME)
                 pkg = parsed.`package` ?: parsed.component?.packageName ?: ""
+                if (pkg.isBlank()) {
+                    pkg = when {
+                        cleanUri.contains(";package=") -> cleanUri.substringAfter(";package=").substringBefore(";")
+                        cleanUri.contains("package=") -> cleanUri.substringAfter("package=").substringBefore(";")
+                        cleanUri.contains(";pkg=") -> cleanUri.substringAfter(";pkg=").substringBefore(";")
+                        cleanUri.contains("pkg=") -> cleanUri.substringAfter("pkg=").substringBefore(";")
+                        else -> ""
+                    }
+                }
             } catch (_: Exception) {}
 
             return ParsedShortcut("intent", pkg, label = customLabel, intentUri = cleanUri)

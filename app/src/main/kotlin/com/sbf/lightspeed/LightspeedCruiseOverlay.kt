@@ -1408,11 +1408,28 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private fun executeMacroAction(zone: TouchZone, gesture: MacroGesture) {
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
         val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-        val dynamicZone = if (prefs.getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
-        val actionKey = "pref_macro_action_${dynamicZone}_${gesture.name}"
-        val actionValue = prefs.getString(actionKey, "none") ?: "none"
+        val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
+        val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
+        val isMirroringLeft = gestMode == "left"
 
-        Log.d("GestureEngine", "Target Vector: [$dynamicZone] -> Action Value: $actionValue")
+        val actionValue = if (isMirroringLeft) {
+            val isLeftUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
+            val leftZone = if (isLeftUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
+            val leftGesture = when (gesture.name) {
+                "SWIPE_LEFT" -> "SWIPE_RIGHT"
+                "SWIPE_LEFT_UP" -> "SWIPE_RIGHT_UP"
+                "SWIPE_LEFT_DOWN" -> "SWIPE_RIGHT_DOWN"
+                "SWIPE_LEFT_BACK" -> "SWIPE_RIGHT_BACK"
+                else -> gesture.name
+            }
+            prefs.getString("pref_macro_action_${leftZone}_$leftGesture", "none") ?: "none"
+        } else {
+            val dynamicZone = if (isFlankUnified) "UNIFIED" else zoneName
+            val actionKey = "pref_macro_action_${dynamicZone}_${gesture.name}"
+            prefs.getString(actionKey, "none") ?: "none"
+        }
+
+        Log.d("GestureEngine", "Target Vector: [$zoneName] -> Action Value: $actionValue")
         triggerHardwareHaptic(35, 160)
 
         // Disengage overlay window so incoming system window (Recents/Home/App) gets immediate focus

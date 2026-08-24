@@ -359,6 +359,8 @@ fun SidebarMatrixConfigurationFields(
     var isLeftCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_center_expanded", false)) }
     var isLeftTopExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_top_expanded", true)) }
     var isLeftBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
+    var isLeftFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)) }
+    var isLeftUnifiedExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_unified_expanded", false)) }
 
     // Center Avionics States
     var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", true)) }
@@ -368,6 +370,25 @@ fun SidebarMatrixConfigurationFields(
     var isCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_center_expanded", false)) }
     var isTopExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_top_expanded", true)) }
     var isBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_bottom_expanded", false)) }
+    var isRightFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)) }
+    var isRightUnifiedExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_right_unified_expanded", false)) }
+
+    var showSymmetryInfoDialog by remember { mutableStateOf(false) }
+    var showUnifyInfoDialog by remember { mutableStateOf(false) }
+    var showUnifyTemplateDialogForLeft by remember { mutableStateOf(false) }
+    var showUnifyTemplateDialogForRight by remember { mutableStateOf(false) }
+    var selectedTemplateOption by remember { mutableStateOf(0) }
+
+    fun cloneFlankActions(fromZone: String, toZone: String) {
+        val keys = prefs.all.keys.filter { it.startsWith("pref_macro_action_${fromZone}_") }
+        val edit = prefs.edit()
+        keys.forEach { srcKey ->
+            val suffix = srcKey.removePrefix("pref_macro_action_${fromZone}_")
+            val value = prefs.getString(srcKey, "none") ?: "none"
+            edit.putString("pref_macro_action_${toZone}_$suffix", value)
+        }
+        edit.apply()
+    }
 
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var importStatusMessage by remember { mutableStateOf<String?>(null) }
@@ -544,6 +565,21 @@ fun SidebarMatrixConfigurationFields(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        UnifyFlankActionsCard(
+                            isUnified = isLeftFlankUnified,
+                            onToggle = { enable ->
+                                if (enable) {
+                                    showUnifyTemplateDialogForLeft = true
+                                } else {
+                                    isLeftFlankUnified = false
+                                    prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", false).apply()
+                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                    onRefreshNeeded()
+                                }
+                            },
+                            onInfoClick = { showUnifyInfoDialog = true }
+                        )
+
                         CompactAccordionSection(
                             title = "Left Deflector Wing — Astrogation Core Zone",
                             isExpanded = isLeftCenterExpanded,
@@ -551,7 +587,7 @@ fun SidebarMatrixConfigurationFields(
                                 isLeftCenterExpanded = !isLeftCenterExpanded
                                 prefs.edit()
                                     .putBoolean("pref_section_left_center_expanded", isLeftCenterExpanded)
-                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded || isLeftUnifiedExpanded)
                                     .apply()
                             }
                         ) {
@@ -572,56 +608,96 @@ fun SidebarMatrixConfigurationFields(
                             }
                         }
 
-                        CompactAccordionSection(
-                            title = "Left Deflector Wing — Upper Vector Zone",
-                            isExpanded = isLeftTopExpanded,
-                            onToggle = {
-                                isLeftTopExpanded = !isLeftTopExpanded
-                                prefs.edit()
-                                    .putBoolean("pref_section_left_top_expanded", isLeftTopExpanded)
-                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
-                                    .apply()
-                            }
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Wing Span (Height)", 50, 600, 10, 200)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                        if (isLeftFlankUnified) {
+                            CompactAccordionSection(
+                                title = "Left Deflector Wing — Flank Vector Zones (Upper & Lower)",
+                                isExpanded = isLeftUnifiedExpanded,
+                                onToggle = {
+                                    isLeftUnifiedExpanded = !isLeftUnifiedExpanded
+                                    prefs.edit()
+                                        .putBoolean("pref_section_left_unified_expanded", isLeftUnifiedExpanded)
+                                        .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftUnifiedExpanded)
+                                        .apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Upper Wing Span (Height)", 50, 600, 10, 200)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
 
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Lower Wing Span (Height)", 50, 600, 10, 200)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
 
-                                leftCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                    val (vectorTitle, arrowEnum) = pairInfo
-                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                    Text("🎛️ DUAL SCRUBBER CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.sp)
+                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
+                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                    Text("⚡ UNIFIED GESTURE MATRIX", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp)
+                                    leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                        val (vectorTitle, arrowEnum) = pairInfo
+                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    }
                                 }
                             }
-                        }
+                        } else {
+                            CompactAccordionSection(
+                                title = "Left Deflector Wing — Upper Vector Zone",
+                                isExpanded = isLeftTopExpanded,
+                                onToggle = {
+                                    isLeftTopExpanded = !isLeftTopExpanded
+                                    prefs.edit()
+                                        .putBoolean("pref_section_left_top_expanded", isLeftTopExpanded)
+                                        .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                        .apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
 
-                        CompactAccordionSection(
-                            title = "Left Deflector Wing — Lower Vector Zone",
-                            isExpanded = isLeftBottomExpanded,
-                            onToggle = {
-                                isLeftBottomExpanded = !isLeftBottomExpanded
-                                prefs.edit()
-                                    .putBoolean("pref_section_left_bottom_expanded", isLeftBottomExpanded)
-                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
-                                    .apply()
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+
+                                    leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                        val (vectorTitle, arrowEnum) = pairInfo
+                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    }
+                                }
                             }
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Wing Span (Height)", 50, 600, 10, 200)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
 
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                            CompactAccordionSection(
+                                title = "Left Deflector Wing — Lower Vector Zone",
+                                isExpanded = isLeftBottomExpanded,
+                                onToggle = {
+                                    isLeftBottomExpanded = !isLeftBottomExpanded
+                                    prefs.edit()
+                                        .putBoolean("pref_section_left_bottom_expanded", isLeftBottomExpanded)
+                                        .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                        .apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
 
-                                leftCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                    val (vectorTitle, arrowEnum) = pairInfo
-                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+
+                                    leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                        val (vectorTitle, arrowEnum) = pairInfo
+                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    }
                                 }
                             }
                         }
@@ -637,7 +713,8 @@ fun SidebarMatrixConfigurationFields(
                         SymmetryCouplingCard(
                             context = context,
                             prefs = prefs,
-                            onModeChanged = { onRefreshNeeded() }
+                            onModeChanged = { onRefreshNeeded() },
+                            onInfoClick = { showSymmetryInfoDialog = true }
                         )
 
                         CompactAccordionSection(title = "Overhead Canopy (Top Status Bar)", isExpanded = isStatusBarExpanded, onToggle = {
@@ -774,6 +851,21 @@ fun SidebarMatrixConfigurationFields(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        UnifyFlankActionsCard(
+                            isUnified = isRightFlankUnified,
+                            onToggle = { enable ->
+                                if (enable) {
+                                    showUnifyTemplateDialogForRight = true
+                                } else {
+                                    isRightFlankUnified = false
+                                    prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", false).apply()
+                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                    onRefreshNeeded()
+                                }
+                            },
+                            onInfoClick = { showUnifyInfoDialog = true }
+                        )
+
                         CompactAccordionSection(
                             title = "Right Deflector Wing — Astrogation Core Zone",
                             isExpanded = isCenterExpanded,
@@ -781,7 +873,7 @@ fun SidebarMatrixConfigurationFields(
                                 isCenterExpanded = !isCenterExpanded
                                 prefs.edit()
                                     .putBoolean("pref_section_center_expanded", isCenterExpanded)
-                                    .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded)
+                                    .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded || isRightUnifiedExpanded)
                                     .apply()
                             }
                         ) {
@@ -793,39 +885,79 @@ fun SidebarMatrixConfigurationFields(
                             }
                         }
 
-                        val interfaceZones = listOf("TOP" to "Right Deflector Wing — Upper Vector Zone", "BOTTOM" to "Right Deflector Wing — Lower Vector Zone")
-                        interfaceZones.forEachIndexed { idx, (zoneKey, zoneTitle) ->
-                            val isCurrentExpanded = if (idx == 0) isTopExpanded else isBottomExpanded
-                            CompactAccordionSection(title = zoneTitle, isExpanded = isCurrentExpanded, onToggle = {
-                                if (idx == 0) {
-                                    isTopExpanded = !isTopExpanded
-                                    val newTop = isTopExpanded
+                        if (isRightFlankUnified) {
+                            CompactAccordionSection(
+                                title = "Right Deflector Wing — Flank Vector Zones (Upper & Lower)",
+                                isExpanded = isRightUnifiedExpanded,
+                                onToggle = {
+                                    isRightUnifiedExpanded = !isRightUnifiedExpanded
                                     prefs.edit()
-                                        .putBoolean("pref_section_top_expanded", newTop)
-                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || newTop || isBottomExpanded)
-                                        .apply()
-                                } else {
-                                    isBottomExpanded = !isBottomExpanded
-                                    val newBottom = isBottomExpanded
-                                    prefs.edit()
-                                        .putBoolean("pref_section_bottom_expanded", newBottom)
-                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || newBottom)
+                                        .putBoolean("pref_section_right_unified_expanded", isRightUnifiedExpanded)
+                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isRightUnifiedExpanded)
                                         .apply()
                                 }
-                            }) {
+                            ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
-                                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Wing Span (Height)", 50, 600, 10, 200)
-                                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                    PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                    Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Upper Wing Span (Height)", 50, 600, 10, 200)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Lower Wing Span (Height)", 50, 600, 10, 200)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
+                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
 
                                     HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                    Text("🎛️ DUAL SCRUBBER CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.sp)
+                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
+                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
 
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                    Text("⚡ UNIFIED GESTURE MATRIX", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp)
                                     rightCustomVectors.forEach { (vectorKey, pairInfo) ->
                                         val (vectorTitle, arrowEnum) = pairInfo
-                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_${zoneKey}_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_${zoneKey}_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    }
+                                }
+                            }
+                        } else {
+                            val interfaceZones = listOf("TOP" to "Right Deflector Wing — Upper Vector Zone", "BOTTOM" to "Right Deflector Wing — Lower Vector Zone")
+                            interfaceZones.forEachIndexed { idx, (zoneKey, zoneTitle) ->
+                                val isCurrentExpanded = if (idx == 0) isTopExpanded else isBottomExpanded
+                                CompactAccordionSection(title = zoneTitle, isExpanded = isCurrentExpanded, onToggle = {
+                                    if (idx == 0) {
+                                        isTopExpanded = !isTopExpanded
+                                        val newTop = isTopExpanded
+                                        prefs.edit()
+                                            .putBoolean("pref_section_top_expanded", newTop)
+                                            .putBoolean("pref_sidebar_preview", isCenterExpanded || newTop || isBottomExpanded)
+                                            .apply()
+                                    } else {
+                                        isBottomExpanded = !isBottomExpanded
+                                        val newBottom = isBottomExpanded
+                                        prefs.edit()
+                                            .putBoolean("pref_section_bottom_expanded", newBottom)
+                                            .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || newBottom)
+                                            .apply()
+                                    }
+                                }) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
+                                        PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                        PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                        PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
+                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+
+                                        rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                            val (vectorTitle, arrowEnum) = pairInfo
+                                            GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_${zoneKey}_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                            GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_${zoneKey}_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        }
                                     }
                                 }
                             }
@@ -1032,6 +1164,234 @@ fun SidebarMatrixConfigurationFields(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
+
+        if (showSymmetryInfoDialog) {
+            AlertDialog(
+                onDismissRequest = { showSymmetryInfoDialog = false },
+                icon = { Icon(Icons.Default.SyncAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                title = { Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("The 3-position selector acts as a non-destructive Flight Profile Switch:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text("• CLONE LEFT: Left Wing is master. Right Wing automatically mirrors its geometry or inverts and executes its gestures.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• INDEPENDENT: Bilateral multi-role setup. Both wings have dedicated, independent gesture maps and dimensions.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• CLONE RIGHT: Right Wing is master. Left Wing automatically mirrors its geometry or opens the Cockpit / executes its gestures.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("🔒 Switching profiles never deletes your custom setups. Switching back to INDEPENDENT restores all unique mappings instantly.", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showSymmetryInfoDialog = false }) {
+                        Text("Got it", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showUnifyInfoDialog) {
+            AlertDialog(
+                onDismissRequest = { showUnifyInfoDialog = false },
+                icon = { Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                title = { Text("Unified Flank Actions & Dual Scrubbers", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("This unifies your gesture configuration while preserving ergonomics:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text("• Single Gesture Set: Configure standard directional gestures (Tap, Swipe In, Swipe Up/Down, Hold) once for the whole flank.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• Dual Scrubbers: Independent inward scrubbing selectors for the upper half (e.g. Brightness) and lower half (e.g. Volume).", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• Independent Geometry: Top and bottom wing spans, reaches, and glows remain independently tunable for natural grip comfort.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("🔒 Toggling OFF immediately restores your previous separate upper and lower gesture mappings without data loss.", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showUnifyInfoDialog = false }) {
+                        Text("Got it", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showUnifyTemplateDialogForLeft) {
+            AlertDialog(
+                onDismissRequest = { showUnifyTemplateDialogForLeft = false },
+                title = { Text("Activate Unified Left Flank", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Choose an action template to initialize your unified flank set:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        listOf(
+                            0 to "Clone Upper Vector Actions (Top Half)",
+                            1 to "Clone Lower Vector Actions (Bottom Half)",
+                            2 to "Use Dedicated Unified Set"
+                        ).forEach { (optIdx, optLabel) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (selectedTemplateOption == optIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                    .clickable { selectedTemplateOption = optIdx }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedTemplateOption == optIdx,
+                                    onClick = { selectedTemplateOption = optIdx },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(optLabel, fontSize = 12.5.sp, color = Color.White)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (selectedTemplateOption == 0) {
+                                cloneFlankActions("LEFT_TOP", "LEFT_UNIFIED")
+                            } else if (selectedTemplateOption == 1) {
+                                cloneFlankActions("LEFT_BOTTOM", "LEFT_UNIFIED")
+                            }
+                            isLeftFlankUnified = true
+                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", true).apply()
+                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                            showUnifyTemplateDialogForLeft = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("Unify Actions", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUnifyTemplateDialogForLeft = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showUnifyTemplateDialogForRight) {
+            AlertDialog(
+                onDismissRequest = { showUnifyTemplateDialogForRight = false },
+                title = { Text("Activate Unified Right Flank", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Choose an action template to initialize your unified flank set:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        listOf(
+                            0 to "Clone Upper Vector Actions (Top Half)",
+                            1 to "Clone Lower Vector Actions (Bottom Half)",
+                            2 to "Use Dedicated Unified Set"
+                        ).forEach { (optIdx, optLabel) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (selectedTemplateOption == optIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                    .clickable { selectedTemplateOption = optIdx }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedTemplateOption == optIdx,
+                                    onClick = { selectedTemplateOption = optIdx },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(optLabel, fontSize = 12.5.sp, color = Color.White)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (selectedTemplateOption == 0) {
+                                cloneFlankActions("TOP", "UNIFIED")
+                            } else if (selectedTemplateOption == 1) {
+                                cloneFlankActions("BOTTOM", "UNIFIED")
+                            }
+                            isRightFlankUnified = true
+                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", true).apply()
+                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                            showUnifyTemplateDialogForRight = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("Unify Actions", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUnifyTemplateDialogForRight = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun UnifyFlankActionsCard(
+    isUnified: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onInfoClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Link,
+                contentDescription = null,
+                tint = if (isUnified) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Unify Upper & Lower Actions",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.5.sp,
+                    color = Color.White
+                )
+                Text(
+                    if (isUnified) "Single unified gesture set • Dual scrubbers active" else "Independent upper & lower gesture sets",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
+            }
+            IconButton(
+                onClick = onInfoClick,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = "Info",
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            Switch(
+                checked = isUnified,
+                onCheckedChange = { onToggle(it) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary
+                )
+            )
+        }
     }
 }
 
@@ -1039,7 +1399,8 @@ fun SidebarMatrixConfigurationFields(
 fun SymmetryCouplingCard(
     context: Context,
     prefs: android.content.SharedPreferences,
-    onModeChanged: () -> Unit = {}
+    onModeChanged: () -> Unit = {},
+    onInfoClick: () -> Unit = {}
 ) {
     var geomMode by remember { mutableStateOf(prefs.getString("pref_symmetry_geometry_mode", "independent") ?: "independent") }
     var gestMode by remember { mutableStateOf(prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent") }
@@ -1062,9 +1423,20 @@ fun SymmetryCouplingCard(
                     Icon(Icons.Default.SyncAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
                 Spacer(modifier = Modifier.width(10.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
                     Text("Synchronize wings or maintain bilateral independence", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                }
+                IconButton(
+                    onClick = onInfoClick,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = "Info",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 

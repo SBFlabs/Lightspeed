@@ -450,13 +450,14 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun getEffectiveAction(zoneKey: String, gesture: String, isHold: Boolean): String {
+        val isFlankUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
         val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
         val isMirroringRight = gestMode == "right"
 
         if (isMirroringRight) {
+            val isRightUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
             val rightZone = when (zoneKey) {
-                "LEFT_TOP" -> "TOP"
-                "LEFT_BOTTOM" -> "BOTTOM"
+                "LEFT_TOP", "LEFT_BOTTOM" -> if (isRightUnified) "UNIFIED" else if (zoneKey == "LEFT_TOP") "TOP" else "BOTTOM"
                 else -> "CENTER"
             }
             val rightGesture = when (gesture) {
@@ -472,7 +473,8 @@ class LightspeedLeftWingOverlay(
             val key = if (isHold) "pref_macro_action_${rightZone}_${rightGesture}_HOLD" else "pref_macro_action_${rightZone}_$rightGesture"
             return prefs.getString(key, "none") ?: "none"
         } else {
-            val key = if (isHold) "pref_macro_action_${zoneKey}_${gesture}_HOLD" else "pref_macro_action_${zoneKey}_$gesture"
+            val dynamicZone = if (isFlankUnified && (zoneKey == "LEFT_TOP" || zoneKey == "LEFT_BOTTOM")) "LEFT_UNIFIED" else zoneKey
+            val key = if (isHold) "pref_macro_action_${dynamicZone}_${gesture}_HOLD" else "pref_macro_action_${dynamicZone}_$gesture"
             return prefs.getString(key, "none") ?: "none"
         }
     }

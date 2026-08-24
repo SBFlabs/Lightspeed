@@ -90,6 +90,10 @@ class GearPickerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val singleSelectPrefKey = intent.getStringExtra("SINGLE_SELECT_PREF_KEY")
+        val singleSelectTitle = intent.getStringExtra("SINGLE_SELECT_TITLE") ?: "Select Action"
+        val isSingleSelect = !singleSelectPrefKey.isNullOrBlank()
+
         val setId = intent.getStringExtra("SET_ID") ?: "0"
         val ringIndex = intent.getIntExtra("RING_INDEX", 0)
 
@@ -110,8 +114,13 @@ class GearPickerActivity : ComponentActivity() {
         LightspeedActionRegistry.initializeSync(this)
 
         val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
-        val csvString = prefs.getString("gear_set_${setId}_ring_${ringIndex}_packages", "") ?: ""
-        val initialItems = csvString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        val initialItems = if (isSingleSelect) {
+            val currentToken = prefs.getString(singleSelectPrefKey, "none") ?: "none"
+            if (currentToken != "none") listOf(currentToken) else emptyList()
+        } else {
+            val csvString = prefs.getString("gear_set_${setId}_ring_${ringIndex}_packages", "") ?: ""
+            csvString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        }
 
         setContent {
             var searchQuery by remember { mutableStateOf("") }
@@ -122,6 +131,23 @@ class GearPickerActivity : ComponentActivity() {
             var sideBarHeight by remember { mutableStateOf(1f) }
             var isDragging by remember { mutableStateOf(false) }
             var hudLetter by remember { mutableStateOf("") }
+
+            fun handleTokenSelection(token: String) {
+                if (isSingleSelect) {
+                    prefs.edit().putString(singleSelectPrefKey, token).apply()
+                    try {
+                        LightspeedAccessibilityService.instance?.reloadPreferences()
+                    } catch (_: Exception) {}
+                    setResult(Activity.RESULT_OK, Intent().putExtra("SELECTED_TOKEN", token))
+                    finish()
+                } else {
+                    if (selectedTokens.contains(token)) {
+                        selectedTokens.remove(token)
+                    } else {
+                        selectedTokens.add(token)
+                    }
+                }
+            }
 
             LaunchedEffect(Unit) {
                 LightspeedActionRegistry.ensureIndexed(this@GearPickerActivity)
@@ -224,8 +250,8 @@ class GearPickerActivity : ComponentActivity() {
                         }
                     }
 
-                    if (generatedToken.isNotBlank() && !selectedTokens.contains(generatedToken)) {
-                        selectedTokens.add(generatedToken)
+                    if (generatedToken.isNotBlank()) {
+                        handleTokenSelection(generatedToken)
                     }
                 }
             }
@@ -369,15 +395,15 @@ class GearPickerActivity : ComponentActivity() {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Assign to Gear ${ringIndex + 1} (${if (ringIndex == 0) "Outer" else "Inner"})",
+                                    text = if (isSingleSelect) singleSelectTitle else "Assign to Gear ${ringIndex + 1} (${if (ringIndex == 0) "Outer" else "Inner"})",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                                 Text(
-                                    text = "Profile: $sName (${selectedTokens.size} selected)",
+                                    text = if (isSingleSelect) "Tap any app, deep shortcut or system action to assign" else "Profile: $sName (${selectedTokens.size} selected)",
                                     fontSize = 12.sp,
                                     color = dynamicSecondary
                                 )
@@ -416,8 +442,41 @@ class GearPickerActivity : ComponentActivity() {
                             singleLine = true
                         )
 
+                        if (isSingleSelect && searchQuery.isBlank()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (selectedTokens.isEmpty() || selectedTokens.contains("none")) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.04f))
+                                    .border(1.dp, if (selectedTokens.isEmpty() || selectedTokens.contains("none")) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        handleTokenSelection("none")
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("None (No Action)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("Clear and disable action for this gesture", color = Color.LightGray.copy(alpha = 0.5f), fontSize = 10.5.sp)
+                                }
+                                if (selectedTokens.isEmpty() || selectedTokens.contains("none")) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(dynamicPrimary, CircleShape)
+                                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("ACTIVE", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                }
+                            }
+                        }
+
                         // Selected Ring Payloads Reorder Tray
-                        if (selectedTokens.isNotEmpty()) {
+                        if (!isSingleSelect && selectedTokens.isNotEmpty()) {
                             Text(
                                 text = "RING COG ORDER (${selectedTokens.size} PAYLOADS) — TAP ◀ ▶ TO SHIFT:",
                                 fontSize = 9.5.sp,
@@ -550,8 +609,7 @@ class GearPickerActivity : ComponentActivity() {
                                                             .rotate(if (item.isExpanded) 180f else 0f)
                                                     )
                                                 }
-                                            }
-                                            is PickerRowItem.SystemAction -> {
+                                                                      is PickerRowItem.SystemAction -> {
                                                 val isChecked = selectedTokens.contains(item.token)
                                                 Row(
                                                     modifier = Modifier
@@ -567,7 +625,7 @@ class GearPickerActivity : ComponentActivity() {
                                                             shape = RoundedCornerShape(10.dp)
                                                         )
                                                         .clickable {
-                                                            if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                            handleTokenSelection(item.token)
                                                         }
                                                         .padding(horizontal = 12.dp, vertical = 9.dp),
                                                     verticalAlignment = Alignment.CenterVertically
@@ -623,7 +681,7 @@ class GearPickerActivity : ComponentActivity() {
                                                                 shape = RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp, topEnd = 6.dp, bottomEnd = 6.dp)
                                                             )
                                                             .clickable {
-                                                                if (isAppSelected) selectedTokens.remove(item.appToken) else selectedTokens.add(item.appToken)
+                                                                handleTokenSelection(item.appToken)
                                                             }
                                                             .padding(horizontal = 12.dp, vertical = 9.dp),
                                                         verticalAlignment = Alignment.CenterVertically
@@ -705,7 +763,7 @@ class GearPickerActivity : ComponentActivity() {
                                                                         expandedSubsections + appKey
                                                                     }
                                                                 },
-                                                            contentAlignment = Alignment.Center
+                                                                contentAlignment = Alignment.Center
                                                         ) {
                                                             Icon(
                                                                 Icons.Default.ArrowDropDown,
@@ -780,9 +838,9 @@ class GearPickerActivity : ComponentActivity() {
                                                                 }
                                                                 shortcutConfigLauncher.launch(intent)
                                                             } else {
-                                                                if (isChecked) selectedTokens.remove(item.token) else selectedTokens.add(item.token)
+                                                                handleTokenSelection(item.token)
                                                             }
-                                                        }
+                                                        }                   }
                                                         .padding(horizontal = 12.dp, vertical = 8.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
@@ -947,30 +1005,32 @@ class GearPickerActivity : ComponentActivity() {
                             }
                         }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { finish() },
-                                modifier = Modifier.weight(1f).height(46.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                        if (!isSingleSelect) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text("CANCEL", color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            }
+                                OutlinedButton(
+                                    onClick = { finish() },
+                                    modifier = Modifier.weight(1f).height(46.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                                ) {
+                                    Text("CANCEL", color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                }
 
-                            Button(
-                                onClick = {
-                                    val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
-                                    prefs.edit().putString("gear_set_${setId}_ring_${ringIndex}_packages", selectedTokens.joinToString(",")).apply()
-                                    finish()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = dynamicPrimary),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f).height(46.dp)
-                            ) {
-                                Text("SAVE (${selectedTokens.size})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Button(
+                                    onClick = {
+                                        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+                                        prefs.edit().putString("gear_set_${setId}_ring_${ringIndex}_packages", selectedTokens.joinToString(",")).apply()
+                                        finish()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = dynamicPrimary),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f).height(46.dp)
+                                ) {
+                                    Text("SAVE (${selectedTokens.size})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
                             }
                         }
                     }

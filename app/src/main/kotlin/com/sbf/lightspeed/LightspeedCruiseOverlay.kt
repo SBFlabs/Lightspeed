@@ -2692,6 +2692,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val pm = context.packageManager
             val sizeRaw = (42f * density).toInt()
 
+            var activeHighlightedCX = 0f
+            var activeHighlightedCY = 0f
+            var activeHighlightedBracketSize = 0f
+            var activeHighlightedLabel: String? = null
+
             for (r in 0..1) {
                 val radius = if (r == 0) rad0 else rad1
                 val ringApps = getAppsForActiveGear(activeGearSetIndex, r)
@@ -2717,6 +2722,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     
                     val itemToken = ringApps[i]
                     val appLabel = resolveCleanAppLabel(itemToken)
+
+                    if (isHighlighted) {
+                        activeHighlightedCX = iconCX
+                        activeHighlightedCY = iconCY
+                        activeHighlightedBracketSize = currentSize + 22f * density
+                        activeHighlightedLabel = appLabel
+                    }
 
                     // 1. Orbital Flight Pod Socket Behind Icon
                     highlightPaint.style = Paint.Style.FILL
@@ -2750,22 +2762,22 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         elementPaint.color = if (isHighlighted) Color.WHITE else Color.GRAY
                         canvas.drawCircle(iconCX, iconCY, currentSize / 3f, elementPaint)
                     }
-
-                    // 3. Draw 180° Flight Lock Targeting Reticle & Holographic Badge if Highlighted
-                    if (isHighlighted) {
-                        drawFlightLockReticle(
-                            canvas = canvas,
-                            targetCX = iconCX,
-                            targetCY = iconCY,
-                            bracketSize = currentSize + 22f * density,
-                            m3Primary = m3Primary,
-                            m3Secondary = m3Secondary,
-                            appName = appLabel,
-                            density = density,
-                            reticleStyle = prefs.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
-                        )
-                    }
                 }
+            }
+
+            // 3. Draw 180° Flight Lock Targeting Reticle & Holographic Badge AFTER all rings & pods are drawn (Top of Z-Stack)
+            if (activeHighlightedLabel != null) {
+                drawFlightLockReticle(
+                    canvas = canvas,
+                    targetCX = activeHighlightedCX,
+                    targetCY = activeHighlightedCY,
+                    bracketSize = activeHighlightedBracketSize,
+                    m3Primary = m3Primary,
+                    m3Secondary = m3Secondary,
+                    appName = activeHighlightedLabel,
+                    density = density,
+                    reticleStyle = prefs.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
+                )
             }
             
             // --- TOP FLIGHT TELEMETRY HUD HEADER (PROFILE HUD) ---

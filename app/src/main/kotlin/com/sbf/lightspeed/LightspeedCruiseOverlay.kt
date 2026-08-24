@@ -2979,12 +2979,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                         val measuredLabelW = catTextPaint.measureText(labelText)
 
-                        // Soft ethereal starlight backdrop pill
-                        val softGlowRect = RectF(targetTextX - measuredLabelW - 20f * density, centerY - (catLineH / 2f) + 2f, targetTextX + 8f * density, centerY + (catLineH / 2f) - 2f)
-                        highlightPaint.style = Paint.Style.FILL
-                        highlightPaint.color = Color.argb((55 * decelerationFactor).toInt(), 18, 24, 42)
-                        canvas.drawRoundRect(softGlowRect, 10f * density, 10f * density, highlightPaint)
-
                         // Active Category Star System Typography
                         catTextPaint.color = Color.WHITE
                         catTextPaint.alpha = (255 * decelerationFactor).toInt()

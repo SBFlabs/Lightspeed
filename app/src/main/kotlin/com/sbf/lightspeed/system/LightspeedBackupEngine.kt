@@ -18,40 +18,6 @@ object LightspeedBackupEngine {
     private const val TAG = "LightspeedBackup"
     const val BACKUP_VERSION = 1
 
-    data class BackupFileEntry(val file: java.io.File, val name: String, val lastModified: Long, val size: Long)
-
-    fun findLocalBackupFiles(): List<BackupFileEntry> {
-        val list = mutableListOf<BackupFileEntry>()
-        val searchDirs = listOf(
-            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
-            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS),
-            android.os.Environment.getExternalStorageDirectory(),
-            java.io.File("/sdcard/Download"),
-            java.io.File("/sdcard/Documents")
-        )
-        val seenPaths = mutableSetOf<String>()
-
-        fun scanDir(dir: java.io.File, depth: Int) {
-            if (depth > 3 || !dir.exists() || !dir.isDirectory) return
-            try {
-                dir.listFiles()?.forEach { f ->
-                    if (f.isDirectory && !f.name.startsWith(".")) {
-                        scanDir(f, depth + 1)
-                    } else if (f.isFile && f.name.endsWith(".json", ignoreCase = true) && f.length() > 50) {
-                        if (seenPaths.add(f.absolutePath)) {
-                            list.add(BackupFileEntry(f, f.name, f.lastModified(), f.length()))
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-        }
-
-        for (dir in searchDirs) {
-            scanDir(dir, 0)
-        }
-        return list.sortedByDescending { it.lastModified }
-    }
-
     fun generateDefaultFileName(): String {
         val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         return "lightspeed_backup_$dateStr.json"
@@ -86,6 +52,25 @@ object LightspeedBackupEngine {
                 }
             }
             put("settings", settingsObject)
+
+            // Embed custom shortcut icon bitmaps as Base64 strings
+            val iconsObject = JSONObject()
+            try {
+                val dir = java.io.File(context.filesDir, "shortcut_icons")
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { iconFile ->
+                        if (iconFile.isFile && iconFile.length() > 0 && iconFile.name.endsWith(".png")) {
+                            val key = iconFile.nameWithoutExtension
+                            val bytes = iconFile.readBytes()
+                            val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                            iconsObject.put(key, b64)
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+            if (iconsObject.length() > 0) {
+                put("shortcut_icons", iconsObject)
+            }
         }
 
         return root.toString(2)
@@ -203,6 +188,27 @@ object LightspeedBackupEngine {
             if (!success) {
                 editor.apply()
             }
+
+            // Restore custom shortcut icons from Base64
+            val iconsObject = root.optJSONObject("shortcut_icons")
+            if (iconsObject != null) {
+                try {
+                    val dir = java.io.File(context.filesDir, "shortcut_icons")
+                    if (!dir.exists()) dir.mkdirs()
+                    val iconKeys = iconsObject.keys()
+                    while (iconKeys.hasNext()) {
+                        val key = iconKeys.next()
+                        val b64 = iconsObject.getString(key)
+                        if (b64.isNotBlank()) {
+                            val bytes = android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)
+                            val file = java.io.File(dir, "$key.png")
+                            file.writeBytes(bytes)
+                        }
+                    }
+                    LightspeedShortcutManager.clearMemoryCache()
+                } catch (_: Exception) {}
+            }
+
             try {
                 LightspeedAccessibilityService.instance?.reloadPreferences()
             } catch (_: Exception) {}

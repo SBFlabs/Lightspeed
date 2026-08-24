@@ -37,6 +37,11 @@ object LightspeedShortcutManager {
     private val bitmapCache = ConcurrentHashMap<String, Bitmap>()
     private val drawableCache = ConcurrentHashMap<String, Drawable>()
 
+    fun clearMemoryCache() {
+        bitmapCache.clear()
+        drawableCache.clear()
+    }
+
     private fun safeTokenKey(token: String): String {
         return token.hashCode().toString()
     }

@@ -348,19 +348,25 @@ fun SidebarMatrixConfigurationFields(
     var importStatusMessage by remember { mutableStateOf<String?>(null) }
     var isImportSuccess by remember { mutableStateOf(false) }
     var showImportOptionsDialog by remember { mutableStateOf(false) }
-    var detectedBackups by remember { mutableStateOf<List<LightspeedBackupEngine.BackupFileEntry>>(emptyList()) }
     var showPasteJsonDialog by remember { mutableStateOf(false) }
     var pastedJsonText by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            val result = LightspeedBackupEngine.exportToFile(context, uri)
-            result.onSuccess { count ->
-                Toast.makeText(context, "Exported $count settings to JSON successfully!", Toast.LENGTH_SHORT).show()
-            }.onFailure { err ->
-                Toast.makeText(context, "Export failed: ${err.message}", Toast.LENGTH_LONG).show()
+            scope.launch(Dispatchers.IO) {
+                val result = LightspeedBackupEngine.exportToFile(context, uri)
+                result.onSuccess { count ->
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(context, "Exported $count settings to JSON successfully!", Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure { err ->
+                    launch(Dispatchers.Main) {
+                        Toast.makeText(context, "Export failed: ${err.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
     }
@@ -369,20 +375,19 @@ fun SidebarMatrixConfigurationFields(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            val result = LightspeedBackupEngine.importFromFile(context, uri)
-            result.onSuccess { count ->
-                isImportSuccess = true
-                importStatusMessage = "Successfully restored $count settings from backup file!\n\nAll gesture maps, coordinates, status bar metrics, and gear sets have been applied."
-                try {
-                    LightspeedAccessibilityService.instance?.reloadPreferences()
-                } catch (_: Exception) {}
-            }.onFailure { err ->
-                isImportSuccess = false
-                importStatusMessage = "Import Failed:\n${err.message ?: err.javaClass.simpleName}"
+            scope.launch(Dispatchers.IO) {
+                val result = LightspeedBackupEngine.importFromFile(context, uri)
+                result.onSuccess { count ->
+                    isImportSuccess = true
+                    importStatusMessage = "Successfully restored $count settings and shortcut configurations!"
+                    try {
+                        LightspeedAccessibilityService.instance?.reloadPreferences()
+                    } catch (_: Exception) {}
+                }.onFailure { err ->
+                    isImportSuccess = false
+                    importStatusMessage = "Import Failed:\n${err.message ?: err.javaClass.simpleName}"
+                }
             }
-        } else {
-            isImportSuccess = false
-            importStatusMessage = "File selection was cancelled or no file was returned."
         }
     }
 
@@ -569,10 +574,7 @@ fun SidebarMatrixConfigurationFields(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                        .clickable {
-                            detectedBackups = LightspeedBackupEngine.findLocalBackupFiles()
-                            showImportOptionsDialog = true
-                        }
+                        .clickable { showImportOptionsDialog = true }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -670,17 +672,14 @@ fun SidebarMatrixConfigurationFields(
                             val wasSuccess = isImportSuccess
                             importStatusMessage = null
                             if (wasSuccess) {
-                                (context as? Activity)?.let { act ->
-                                    act.finish()
-                                    act.startActivity(act.intent)
-                                } ?: onRefreshNeeded()
+                                (context as? Activity)?.recreate() ?: onRefreshNeeded()
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isImportSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        Text(if (isImportSuccess) "Apply & Reload" else "Dismiss", color = Color.White)
+                        Text(if (isImportSuccess) "Done" else "Dismiss", color = Color.White)
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -699,111 +698,59 @@ fun SidebarMatrixConfigurationFields(
                 },
                 text = {
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (detectedBackups.isNotEmpty()) {
-                            Text(
-                                "DETECTED BACKUPS ON DEVICE",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            detectedBackups.forEach { entry ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                                        .clickable {
-                                            showImportOptionsDialog = false
-                                            try {
-                                                val text = entry.file.readText(Charsets.UTF_8)
-                                                val res = LightspeedBackupEngine.importFromJson(context, text)
-                                                res.onSuccess { count ->
-                                                    isImportSuccess = true
-                                                    importStatusMessage = "Successfully restored $count settings from:\n${entry.name}!\n\nAll configurations loaded live."
-                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                }.onFailure { err ->
-                                                    isImportSuccess = false
-                                                    importStatusMessage = "Import Failed:\n${err.message}"
-                                                }
-                                            } catch (e: Exception) {
-                                                isImportSuccess = false
-                                                importStatusMessage = "Failed to read file ${entry.name}:\n${e.message}"
-                                            }
-                                        }
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Save, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(entry.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White, maxLines = 1)
-                                        Text("${entry.size} bytes • Tap to Restore", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(6.dp))
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-
                         Text(
-                            "OTHER RESTORE OPTIONS",
+                            "SELECT RESTORE METHOD",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 1.sp
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        // Browse via system picker
+                        // Choose via system picker
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
                                 .clickable {
                                     showImportOptionsDialog = false
                                     importLauncher.launch("*/*")
                                 }
-                                .padding(12.dp),
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Browse with File Manager", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                Text("Select a backup file using system picker", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Choose Backup File", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                                Text("Select your backup .json file from storage", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         // Paste JSON Directly
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
                                 .clickable {
                                     showImportOptionsDialog = false
                                     pastedJsonText = ""
                                     showPasteJsonDialog = true
                                 }
-                                .padding(12.dp),
+                                .padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Icon(Icons.Default.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                Text("Paste raw backup text from clipboard", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                                Text("Paste backup payload from clipboard", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -846,14 +793,16 @@ fun SidebarMatrixConfigurationFields(
                                 isImportSuccess = false
                                 importStatusMessage = "Pasted text is empty."
                             } else {
-                                val res = LightspeedBackupEngine.importFromJson(context, text)
-                                res.onSuccess { count ->
-                                    isImportSuccess = true
-                                    importStatusMessage = "Successfully restored $count settings from pasted JSON!"
-                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                }.onFailure { err ->
-                                    isImportSuccess = false
-                                    importStatusMessage = "Import Failed:\n${err.message}"
+                                scope.launch(Dispatchers.IO) {
+                                    val res = LightspeedBackupEngine.importFromJson(context, text)
+                                    res.onSuccess { count ->
+                                        isImportSuccess = true
+                                        importStatusMessage = "Successfully restored $count settings and shortcut configurations!"
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                    }.onFailure { err ->
+                                        isImportSuccess = false
+                                        importStatusMessage = "Import Failed:\n${err.message}"
+                                    }
                                 }
                             }
                         },

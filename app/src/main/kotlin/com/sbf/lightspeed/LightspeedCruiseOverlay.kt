@@ -474,6 +474,19 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             val r1Y = topHangarY + 46f * d
             val r2Y = r1Y + 46f * d
+            val r3Y = r2Y + 44f * d
+            val r4Y = r3Y + 38f * d
+            val r5Y = r4Y + 38f * d
+            val r6Y = r5Y + 38f * d
+            val r7Y = r6Y + 35f * d
+
+            val cyGimbal = (r7Y + 160f * d).coerceAtLeast(screenH * 0.62f)
+            val radOuter = 135f * d
+            val radInner = 84f * d
+            val radHub = 32f * d
+            val shiftBarY = cyGimbal + radOuter + 26f * d
+            val transferBarY = cyGimbal + radOuter + 58f * d
+
             val bayCount = setsList.size + 1
             val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
             val totalBayRailW = bayCount * slotW
@@ -542,7 +555,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 3. Reorder & Delete Active Profile in Rotation
-                        val r3Y = r2Y + 44f * d
                         val shiftW = deckW * 0.35f
                         val deleteW = deckW * 0.26f
                         val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
@@ -596,7 +608,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 4. Icon Theme Carousel
-                        val r4Y = r3Y + 42f * d
                         val iconThemeRect = RectF(leftX, r4Y - 18f * d, rightX, r4Y + 18f * d)
                         if (iconThemeRect.contains(x, y)) {
                             val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
@@ -612,7 +623,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 5. Flight Momentum
-                        val r5Y = r4Y + 42f * d
                         val physW = (deckW - (gap * 2)) / 3f
                         val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
                         val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
@@ -637,7 +647,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 6. Tactile Ratchet Haptics
-                        val r6Y = r5Y + 38f * d
                         val hapW = (deckW - (gap * 3)) / 4f
                         val hap1Rect = RectF(leftX, r6Y - 15f * d, leftX + hapW, r6Y + 15f * d)
                         val hap2Rect = RectF(leftX + (hapW + gap), r6Y - 15f * d, leftX + (hapW + gap) + hapW, r6Y + 15f * d)
@@ -668,7 +677,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 7. Reticle Crosshair Style
-                        val r7Y = r6Y + 35f * d
                         val retW = (deckW - (gap * 3)) / 4f
                         val ret1Rect = RectF(leftX, r7Y - 14f * d, leftX + retW, r7Y + 14f * d)
                         val ret2Rect = RectF(leftX + (retW + gap), r7Y - 14f * d, leftX + (retW + gap) + retW, r7Y + 14f * d)
@@ -700,13 +708,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 7. Live Gimbal Touch & Interaction
-                        val cyGimbal = (r7Y + 160f * d).coerceAtLeast(screenH * 0.62f)
-                        val radOuter = 135f * d
-                        val radInner = 84f * d
-                        val radHub = 32f * d
-
-                        val shiftBarY = cyGimbal + radOuter + 26f * d
-                        val transferBarY = cyGimbal + radOuter + 58f * d
                         val shiftCogLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
                         val shiftCogRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
                         val transferRect = RectF(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
@@ -930,9 +931,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     }
 
                     isSpinningHangarRing = false
+                    val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
                     if (isDraggingHangarBays) {
                         isDraggingHangarBays = false
-                        val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
                         if (distMoved < 14f * d) {
                             for (gIndex in setsList.indices) {
                                 val btnX = railStartX + (gIndex + 0.5f) * slotW
@@ -964,6 +965,45 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
                         invalidate()
                         return true
+                    } else if (distMoved < 14f * d) {
+                        val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
+                        val reticleY = cyGimbal
+                        val distFromReticle = kotlin.math.hypot(x - reticleX, y - reticleY)
+                        val targetBadgeRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
+                        val isTouchingReticleOrBadge = (distFromReticle <= 30f * d) || targetBadgeRect.contains(x, y)
+
+                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing).toMutableList()
+                        if (isTouchingReticleOrBadge && ringApps.isNotEmpty()) {
+                            val count = ringApps.size
+                            val baseRotation = gearRingRotations[activeHangarRing]
+                            var targetedIdx = 0
+                            var minDiff = Float.MAX_VALUE
+                            for (i in ringApps.indices) {
+                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
+                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
+                                val diff = kotlin.math.abs(norm - 180f)
+                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
+                            }
+
+                            if (isHangarEjectArmed && hangarEjectTargetIndex == targetedIdx && hangarEjectRing == activeHangarRing) {
+                                // CONFIRM EJECT: Purge targeted cog from ring
+                                ringApps.removeAt(targetedIdx)
+                                prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
+                                isHangarEjectArmed = false
+                                hangarEjectTargetIndex = -1
+                                triggerHardwareHaptic(60, 255)
+                                invalidate()
+                                return true
+                            } else {
+                                // ARM EJECT: Show red containment and white X on the tapped cog
+                                isHangarEjectArmed = true
+                                hangarEjectTargetIndex = targetedIdx
+                                hangarEjectRing = activeHangarRing
+                                triggerHardwareHaptic(30, 180)
+                                invalidate()
+                                return true
+                            }
+                        }
                     }
                 }
             }
@@ -2503,25 +2543,39 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                     // Draw Pod Glowing Backdrop
                     highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = if (isHighlighted) Color.argb(220, 24, 32, 54) else Color.argb(140, 12, 16, 26)
+                    highlightPaint.color = if (isEjectArmedHere) Color.argb(230, 220, 38, 38)
+                                          else if (isHighlighted) Color.argb(220, 24, 32, 54)
+                                          else Color.argb(140, 12, 16, 26)
                     canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
 
                     highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = if (isHighlighted) 1.8f * d else 0.8f * d
-                    highlightPaint.color = if (isHighlighted) m3Primary else Color.argb(50, 200, 220, 255)
+                    highlightPaint.strokeWidth = if (isEjectArmedHere) 2.6f * d else if (isHighlighted) 1.8f * d else 0.8f * d
+                    highlightPaint.color = if (isEjectArmedHere) Color.argb(255, 255, 100, 100)
+                                          else if (isHighlighted) m3Primary
+                                          else Color.argb(50, 200, 220, 255)
                     canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
 
                     // Draw App Icon
                     try {
                         val dIcon = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, itemToken)
                         if (dIcon != null) {
-                            dIcon.alpha = if (isRingFocused) (if (isHighlighted) 255 else 220) else 140
+                            dIcon.alpha = if (isRingFocused) (if (isHighlighted) (if (isEjectArmedHere) 140 else 255) else 220) else 140
                             val iconLeft = (iconCX - currentSize / 2f).toInt()
                             val iconTop = (iconCY - currentSize / 2f).toInt()
                             dIcon.setBounds(iconLeft, iconTop, iconLeft + currentSize, iconTop + currentSize)
                             dIcon.draw(canvas)
                         }
                     } catch (_: Exception) {}
+
+                    // Draw Red Armed Eject Overlay Cross if Armed
+                    if (isEjectArmedHere) {
+                        elementPaint.style = Paint.Style.STROKE
+                        elementPaint.strokeWidth = 3.2f * d
+                        elementPaint.color = Color.WHITE
+                        val cr = 8.5f * d
+                        canvas.drawLine(iconCX - cr, iconCY - cr, iconCX + cr, iconCY + cr, elementPaint)
+                        canvas.drawLine(iconCX + cr, iconCY - cr, iconCX - cr, iconCY + cr, elementPaint)
+                    }
                 }
             }
 
@@ -2531,14 +2585,16 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             // Draw Targeting Reticle Collimator at 180 deg (straight left) matching selected reticleStyle
             val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
             val reticleY = cyGimbal
-            val reticleColor = if (activeHangarRing == 0) m3Primary else m3Secondary
+            val reticleColor = if (isHangarEjectArmed) Color.argb(255, 255, 60, 60)
+                               else if (activeHangarRing == 0) m3Primary
+                               else m3Secondary
 
             val bracketSize = 54f * d
             val half = bracketSize / 2f
             val armLen = bracketSize * 0.28f
 
             elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = 1.8f * d
+            elementPaint.strokeWidth = if (isHangarEjectArmed) 2.4f * d else 1.8f * d
             elementPaint.color = reticleColor
 
             when (reticleStyle) {

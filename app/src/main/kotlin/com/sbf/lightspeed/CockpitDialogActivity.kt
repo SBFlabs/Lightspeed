@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -18,13 +19,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DriveFileRenameOutline
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,8 +37,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.IconPackInfo
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedShortcutManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class CockpitDialogActivity : ComponentActivity() {
@@ -47,8 +51,17 @@ class CockpitDialogActivity : ComponentActivity() {
         const val ACTION_EDIT_ITEM = "com.sbf.lightspeed.action.EDIT_ITEM"
 
         const val EXTRA_SET_ID = "EXTRA_SET_ID"
+        const val EXTRA_SET_INDEX = "EXTRA_SET_INDEX"
         const val EXTRA_CURRENT_NAME = "EXTRA_CURRENT_NAME"
         const val EXTRA_TOKEN = "EXTRA_TOKEN"
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        val setIndex = intent.getIntExtra(EXTRA_SET_INDEX, -1)
+        try {
+            LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
+        } catch (_: Exception) {}
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -200,6 +213,8 @@ fun EditItemContent(
     var customLabelText by remember { mutableStateOf(initialName) }
     var selectedBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var iconKeyTrigger by remember { mutableStateOf(0) }
+    var showSourceSelector by remember { mutableStateOf(false) }
+    var showIconPackBrowser by remember { mutableStateOf(false) }
 
     val currentDrawable = remember(token, selectedBitmap, iconKeyTrigger) {
         if (selectedBitmap != null) {
@@ -226,6 +241,17 @@ fun EditItemContent(
                 Toast.makeText(context, "Failed to load image: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    if (showIconPackBrowser) {
+        IconPackBrowserModal(
+            onDismiss = { showIconPackBrowser = false },
+            onIconSelected = { bmp ->
+                selectedBitmap = bmp
+                showIconPackBrowser = false
+            }
+        )
+        return
     }
 
     Column(
@@ -271,7 +297,7 @@ fun EditItemContent(
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                     RoundedCornerShape(22.dp)
                 )
-                .clickable { imagePickerLauncher.launch("image/*") },
+                .clickable { showSourceSelector = true },
             contentAlignment = Alignment.Center
         ) {
             val bmp = remember(currentDrawable) {
@@ -316,11 +342,29 @@ fun EditItemContent(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "Tap icon to pick from gallery",
-            fontSize = 11.5.sp,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            OutlinedButton(
+                onClick = { imagePickerLauncher.launch("image/*") },
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(Icons.Default.Photo, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Gallery", fontSize = 12.sp)
+            }
+            FilledTonalButton(
+                onClick = { showIconPackBrowser = true },
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Icon Packs", fontSize = 12.sp)
+            }
+        }
 
         Spacer(modifier = Modifier.height(18.dp))
 
@@ -399,6 +443,210 @@ fun EditItemContent(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Save", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+
+    if (showSourceSelector) {
+        AlertDialog(
+            onDismissRequest = { showSourceSelector = false },
+            title = { Text("Choose Icon Source") },
+            text = { Text("Select where to pick your custom icon from:") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSourceSelector = false
+                    showIconPackBrowser = true
+                }) {
+                    Text("Icon Pack")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSourceSelector = false
+                    imagePickerLauncher.launch("image/*")
+                }) {
+                    Text("Gallery / Photos")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun IconPackBrowserModal(
+    onDismiss: () -> Unit,
+    onIconSelected: (Bitmap) -> Unit
+) {
+    val context = LocalContext.current
+    val iconPacks = remember {
+        LightspeedIconManager.getAvailableIconPacks(context).filter { !it.isSystem }
+    }
+    var selectedPackPkg by remember {
+        mutableStateOf(iconPacks.firstOrNull()?.packageName ?: "")
+    }
+    var searchQuery by remember { mutableStateOf("") }
+    var drawablesList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedPackPkg) {
+        if (selectedPackPkg.isNotBlank()) {
+            isLoading = true
+            drawablesList = withContext(Dispatchers.IO) {
+                LightspeedIconManager.getIconPackDrawableNames(context, selectedPackPkg)
+            }
+            isLoading = false
+        }
+    }
+
+    val filteredDrawables = remember(drawablesList, searchQuery) {
+        if (searchQuery.isBlank()) {
+            drawablesList
+        } else {
+            val q = searchQuery.lowercase().trim()
+            drawablesList.filter { it.lowercase().contains(q) }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 520.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Category,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    "Icon Pack Browser",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (iconPacks.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No third-party icon packs detected.\nInstall an icon pack from Play Store or F-Droid.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+        } else {
+            // Icon Pack Selector Chips
+            ScrollableTabRow(
+                selectedTabIndex = iconPacks.indexOfFirst { it.packageName == selectedPackPkg }.coerceAtLeast(0),
+                edgePadding = 0.dp,
+                divider = {},
+                containerColor = Color.Transparent
+            ) {
+                iconPacks.forEach { pack ->
+                    val isSelected = (pack.packageName == selectedPackPkg)
+                    Tab(
+                        selected = isSelected,
+                        onClick = { selectedPackPkg = pack.packageName },
+                        text = {
+                            Text(
+                                pack.label,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Search icons (${filteredDrawables.size})") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 52.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .heightIn(max = 300.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filteredDrawables.take(300)) { drawableName ->
+                        val drawable = remember(drawableName, selectedPackPkg) {
+                            LightspeedIconManager.getDrawableFromPack(context, selectedPackPkg, drawableName)
+                        }
+                        val bmp = remember(drawable) {
+                            if (drawable is BitmapDrawable && drawable.bitmap != null) {
+                                drawable.bitmap
+                            } else if (drawable != null) {
+                                val size = 128
+                                val b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                                val canvas = Canvas(b)
+                                drawable.setBounds(0, 0, size, size)
+                                drawable.draw(canvas)
+                                b
+                            } else null
+                        }
+
+                        if (bmp != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f))
+                                    .clickable {
+                                        onIconSelected(bmp)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = drawableName,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

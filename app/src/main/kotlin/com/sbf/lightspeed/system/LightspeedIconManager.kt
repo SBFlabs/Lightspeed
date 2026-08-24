@@ -361,6 +361,86 @@ object LightspeedIconManager {
         return null
     }
 
+    fun getIconPackDrawableNames(context: Context, iconPackPkg: String): List<String> {
+        if (iconPackPkg == "system" || iconPackPkg.isBlank()) return emptyList()
+        val drawables = LinkedHashSet<String>()
+        try {
+            val pm = context.packageManager
+            val iconPackRes = pm.getResourcesForApplication(iconPackPkg)
+
+            // 1. Try reading drawable.xml if present
+            try {
+                val drawableXmlId = iconPackRes.getIdentifier("drawable", "xml", iconPackPkg)
+                if (drawableXmlId != 0) {
+                    val parser = iconPackRes.getXml(drawableXmlId)
+                    var eventType = parser.eventType
+                    while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                        if (eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
+                            val dr = parser.getAttributeValue(null, "drawable")
+                            if (!dr.isNullOrBlank()) drawables.add(dr)
+                        }
+                        eventType = parser.next()
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // 2. Try reading appfilter.xml
+            if (drawables.isEmpty()) {
+                var inputStream: java.io.InputStream? = null
+                try {
+                    val appfilterResId = iconPackRes.getIdentifier("appfilter", "xml", iconPackPkg)
+                    if (appfilterResId != 0) {
+                        val parser = iconPackRes.getXml(appfilterResId)
+                        var eventType = parser.eventType
+                        while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                            if (eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
+                                val dr = parser.getAttributeValue(null, "drawable")
+                                if (!dr.isNullOrBlank()) drawables.add(dr)
+                            }
+                            eventType = parser.next()
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                if (drawables.isEmpty()) {
+                    try {
+                        inputStream = iconPackRes.assets.open("appfilter.xml")
+                    } catch (_: Exception) {
+                        try {
+                            inputStream = iconPackRes.assets.open("appfilter_full.xml")
+                        } catch (_: Exception) {}
+                    }
+                    if (inputStream != null) {
+                        val factory = org.xmlpull.v1.XmlPullParserFactory.newInstance()
+                        val parser = factory.newPullParser()
+                        parser.setInput(inputStream, "UTF-8")
+                        var eventType = parser.eventType
+                        while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                            if (eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
+                                val dr = parser.getAttributeValue(null, "drawable")
+                                if (!dr.isNullOrBlank()) drawables.add(dr)
+                            }
+                            eventType = parser.next()
+                        }
+                        inputStream.close()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load drawables from pack: $iconPackPkg", e)
+        }
+        return drawables.toList()
+    }
+
+    fun getDrawableFromPack(context: Context, iconPackPkg: String, drawableName: String): Drawable? {
+        return try {
+            val pm = context.packageManager
+            val res = pm.getResourcesForApplication(iconPackPkg)
+            val resId = res.getIdentifier(drawableName, "drawable", iconPackPkg)
+            if (resId != 0) res.getDrawable(resId, null) else null
+        } catch (_: Exception) { null }
+    }
+
     private fun convertDrawableToBitmap(drawable: Drawable): Bitmap? {
         if (drawable is BitmapDrawable && drawable.bitmap != null) {
             return drawable.bitmap

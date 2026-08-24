@@ -184,6 +184,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
         windowManager?.updateViewLayout(overlayView, windowParams)
     }
 
+    fun reopenCockpitHangar(setIndex: Int = -1) {
+        overlayView?.post {
+            overlayView?.openHangarDirectly(setIndex)
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() { teardown() }
     override fun onDestroy() {

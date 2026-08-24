@@ -145,6 +145,11 @@ class LightspeedLeftWingOverlay(
     private var startRawY = 0f
     private var startX = 0f
     private var startY = 0f
+    private var highestXReached = 0f
+    private var lowestXReached = 0f
+    private var highestYReached = 0f
+    private var lowestYReached = 0f
+    private var initialDominantAxis = "NONE"
     private var isScrubbing = false
     private var isHoldFired = false
     private var currentGesture = "NONE"
@@ -163,8 +168,7 @@ class LightspeedLeftWingOverlay(
         if (!isScrubbing && currentGesture != "NONE") {
             isHoldFired = true
             triggerHaptic(40, 200)
-            val actionKey = "pref_macro_action_${activeZoneKey}_${currentGesture}_HOLD"
-            val action = prefs.getString(actionKey, "none") ?: "none"
+            val action = getEffectiveAction(activeZoneKey, currentGesture, true)
             if (action != "none") {
                 performActionByName(action)
             }
@@ -197,6 +201,11 @@ class LightspeedLeftWingOverlay(
                 startRawY = rawY
                 startX = x
                 startY = y
+                highestXReached = rawX
+                lowestXReached = rawX
+                highestYReached = rawY
+                lowestYReached = rawY
+                initialDominantAxis = "NONE"
                 isScrubbing = false
                 isHoldFired = false
                 currentGesture = "NONE"
@@ -222,6 +231,19 @@ class LightspeedLeftWingOverlay(
                 val dx = rawX - startRawX
                 val dy = rawY - startRawY
                 val totalDist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+
+                if (rawX > highestXReached) highestXReached = rawX
+                if (rawX < lowestXReached) lowestXReached = rawX
+                if (rawY > highestYReached) highestYReached = rawY
+                if (rawY < lowestYReached) lowestYReached = rawY
+
+                if (initialDominantAxis == "NONE") {
+                    if (abs(dy) > 25f && abs(dy) > abs(dx) * 1.2f) {
+                        initialDominantAxis = "Y"
+                    } else if (dx > 25f && dx > abs(dy) * 1.2f) {
+                        initialDominantAxis = "X"
+                    }
+                }
 
                 if (scrubType != "none" && !isTwoStepDownwardScrub) {
                     if (dx > 45f && abs(dx) > abs(dy) * 1.3f) {
@@ -259,9 +281,10 @@ class LightspeedLeftWingOverlay(
                     return true
                 }
 
-                if (totalDist > 25f && currentGesture == "NONE") {
+                if (totalDist > 25f) {
+                    val prev = currentGesture
                     currentGesture = determineGesture(dx, dy)
-                    if (currentGesture != "NONE") {
+                    if (currentGesture != "NONE" && currentGesture != prev) {
                         triggerHaptic(18, 100)
                     }
                 }
@@ -307,12 +330,33 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun determineGesture(dx: Float, dy: Float): String {
+        if (initialDominantAxis == "Y") {
+            if (lowestYReached < startRawY - 30f) { // Started moving UP
+                if (dx > 35f) return "SWIPE_UP_RIGHT"
+                if ((rawY - lowestYReached) > 50f) return "SWIPE_UP_DOWN"
+                if (dy < -45f) return "SWIPE_UP"
+            } else if (highestYReached > startRawY + 30f) { // Started moving DOWN
+                if (dx > 35f) return "SWIPE_DOWN_RIGHT"
+                if ((highestYReached - rawY) > 50f) return "SWIPE_DOWN_UP"
+                if (dy > 45f) return "SWIPE_DOWN"
+            }
+        } else if (initialDominantAxis == "X") {
+            if (highestXReached > startRawX + 30f) {
+                if (dy < -35f) return "SWIPE_RIGHT_UP"
+                if (dy > 35f) return "SWIPE_RIGHT_DOWN"
+                if ((highestXReached - rawX) > 25f) return "SWIPE_RIGHT_BACK"
+                if (dx > 45f) return "SWIPE_RIGHT"
+            }
+        }
+
         return when {
-            dx > 40f && dy < -40f -> "SWIPE_RIGHT_UP"
-            dx > 40f && dy > 40f -> "SWIPE_RIGHT_DOWN"
-            dx > 50f -> "SWIPE_RIGHT"
-            dy < -50f -> "SWIPE_UP"
-            dy > 50f -> "SWIPE_DOWN"
+            dx > 40f && dy < -35f -> "SWIPE_RIGHT_UP"
+            dx > 40f && dy > 35f -> "SWIPE_RIGHT_DOWN"
+            dy < -35f && dx > 35f -> "SWIPE_UP_RIGHT"
+            dy > 35f && dx > 35f -> "SWIPE_DOWN_RIGHT"
+            dx > 45f -> "SWIPE_RIGHT"
+            dy < -45f -> "SWIPE_UP"
+            dy > 45f -> "SWIPE_DOWN"
             else -> "NONE"
         }
     }
@@ -465,6 +509,8 @@ class LightspeedLeftWingOverlay(
                 "SWIPE_RIGHT_UP" -> "SWIPE_LEFT_UP"
                 "SWIPE_RIGHT_DOWN" -> "SWIPE_LEFT_DOWN"
                 "SWIPE_RIGHT_BACK" -> "SWIPE_LEFT_BACK"
+                "SWIPE_UP_RIGHT" -> "SWIPE_UP_LEFT"
+                "SWIPE_DOWN_RIGHT" -> "SWIPE_DOWN_LEFT"
                 else -> gesture
             }
             if (rightZone == "CENTER" && rightGesture == "SWIPE_LEFT") {

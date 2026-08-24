@@ -1420,6 +1420,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 "SWIPE_LEFT_UP" -> "SWIPE_RIGHT_UP"
                 "SWIPE_LEFT_DOWN" -> "SWIPE_RIGHT_DOWN"
                 "SWIPE_LEFT_BACK" -> "SWIPE_RIGHT_BACK"
+                "SWIPE_UP_LEFT" -> "SWIPE_UP_RIGHT"
+                "SWIPE_DOWN_LEFT" -> "SWIPE_DOWN_RIGHT"
                 else -> gesture.name
             }
             prefs.getString("pref_macro_action_${leftZone}_$leftGesture", "none") ?: "none"

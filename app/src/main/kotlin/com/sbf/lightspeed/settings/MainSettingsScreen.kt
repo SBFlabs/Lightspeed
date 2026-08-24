@@ -63,7 +63,8 @@ import kotlinx.coroutines.withContext
 
 enum class ArrowDirection {
     SWIPE_UP, SWIPE_DOWN, SWIPE_LEFT, SWIPE_UP_DOWN, SWIPE_DOWN_UP,
-    SWIPE_UP_LEFT, SWIPE_DOWN_LEFT, LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, TAP, DOUBLE_TAP,
+    SWIPE_UP_LEFT, SWIPE_DOWN_LEFT, SWIPE_UP_RIGHT, SWIPE_DOWN_RIGHT,
+    LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, TAP, DOUBLE_TAP,
     SWIPE_RIGHT, SWIPE_RIGHT_BACK, RIGHT_BACK, RIGHT_UP, RIGHT_DOWN
 }
 
@@ -499,6 +500,8 @@ fun SidebarMatrixConfigurationFields(
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
         "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
         "SWIPE_RIGHT" to ("Swipe Right (Inward)" to ArrowDirection.SWIPE_RIGHT),
+        "SWIPE_UP_RIGHT" to ("Swipe Up ➔ Inward" to ArrowDirection.SWIPE_UP_RIGHT),
+        "SWIPE_DOWN_RIGHT" to ("Swipe Down ➔ Inward" to ArrowDirection.SWIPE_DOWN_RIGHT),
         "SWIPE_UP_DOWN" to ("Swipe Up & Down" to ArrowDirection.SWIPE_UP_DOWN),
         "SWIPE_DOWN_UP" to ("Swipe Down & Up" to ArrowDirection.SWIPE_DOWN_UP),
         "SWIPE_RIGHT_BACK" to ("Swipe Right & Return" to ArrowDirection.RIGHT_BACK),
@@ -511,6 +514,8 @@ fun SidebarMatrixConfigurationFields(
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
         "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
         "SWIPE_LEFT" to ("Swipe Left (Inward)" to ArrowDirection.SWIPE_LEFT),
+        "SWIPE_UP_LEFT" to ("Swipe Up ➔ Inward" to ArrowDirection.SWIPE_UP_LEFT),
+        "SWIPE_DOWN_LEFT" to ("Swipe Down ➔ Inward" to ArrowDirection.SWIPE_DOWN_LEFT),
         "SWIPE_UP_DOWN" to ("Swipe Up & Down" to ArrowDirection.SWIPE_UP_DOWN),
         "SWIPE_DOWN_UP" to ("Swipe Down & Up" to ArrowDirection.SWIPE_DOWN_UP),
         "SWIPE_LEFT_BACK" to ("Swipe Left & Return" to ArrowDirection.LEFT_BACK),
@@ -1595,11 +1600,19 @@ fun GestureTrailTracer(direction: ArrowDirection, isHold: Boolean, color: Color,
             }
             ArrowDirection.SWIPE_UP_LEFT -> {
                 path.moveTo(w*0.7f, h*0.8f); path.lineTo(w*0.7f, h*0.3f); path.lineTo(w*0.2f, h*0.3f)
-                if (actionProgress < 0.5f) { cx = w*0.7f; cy = h*0.8f + (h*0.3f - h*0.8f) * (actionProgress * 2f) } else { cy = h*0.3f; cx = w*0.7f + (w*0.2f - w*0.7f) * ((actionProgress - 0.5f) * 2f) }
+                if (actionProgress < 0.5f) { cy = h*0.8f + (h*0.3f - h*0.8f) * (actionProgress * 2f); cx = w*0.7f } else { cx = w*0.7f + (w*0.2f - w*0.7f) * ((actionProgress - 0.5f) * 2f); cy = h*0.3f }
             }
             ArrowDirection.SWIPE_DOWN_LEFT -> {
                 path.moveTo(w*0.7f, h*0.2f); path.lineTo(w*0.7f, h*0.7f); path.lineTo(w*0.2f, h*0.7f)
-                if (actionProgress < 0.5f) { cx = w*0.7f; cy = h*0.2f + (h*0.7f - h*0.2f) * (actionProgress * 2f) } else { cy = h*0.7f; cx = w*0.7f + (w*0.2f - w*0.7f) * ((actionProgress - 0.5f) * 2f) }
+                if (actionProgress < 0.5f) { cy = h*0.2f + (h*0.7f - h*0.2f) * (actionProgress * 2f); cx = w*0.7f } else { cx = w*0.7f + (w*0.2f - w*0.7f) * ((actionProgress - 0.5f) * 2f); cy = h*0.7f }
+            }
+            ArrowDirection.SWIPE_UP_RIGHT -> {
+                path.moveTo(w*0.3f, h*0.8f); path.lineTo(w*0.3f, h*0.3f); path.lineTo(w*0.8f, h*0.3f)
+                if (actionProgress < 0.5f) { cy = h*0.8f + (h*0.3f - h*0.8f) * (actionProgress * 2f); cx = w*0.3f } else { cx = w*0.3f + (w*0.8f - w*0.3f) * ((actionProgress - 0.5f) * 2f); cy = h*0.3f }
+            }
+            ArrowDirection.SWIPE_DOWN_RIGHT -> {
+                path.moveTo(w*0.3f, h*0.2f); path.lineTo(w*0.3f, h*0.7f); path.lineTo(w*0.8f, h*0.7f)
+                if (actionProgress < 0.5f) { cy = h*0.2f + (h*0.7f - h*0.2f) * (actionProgress * 2f); cx = w*0.3f } else { cx = w*0.3f + (w*0.8f - w*0.3f) * ((actionProgress - 0.5f) * 2f); cy = h*0.7f }
             }
             ArrowDirection.LEFT_BACK -> {
                 path.moveTo(w*0.8f, h*0.5f); path.lineTo(w*0.2f, h*0.5f); path.lineTo(w*0.5f, h*0.5f)

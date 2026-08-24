@@ -807,7 +807,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 2. Focused Cog or Target Badge / Tag -> Long Press to Edit, Tap to Eject
-                        // 2. Focused Cog or Target Badge -> Long Press to Edit, Tap to Eject
+                        // 2. Focused Cog or Target Badge -> Long Press to Edit
                         val isTouchingReticleOrBadge = (distFromReticle <= 30f * d) || targetBadgeRect.contains(x, y)
 
                         if (isTouchingReticleOrBadge && ringApps.isNotEmpty()) {
@@ -839,25 +839,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 longPressCogRunnable = runnable
                                 postDelayed(runnable, 400)
                             }
-
-                            if (isHangarEjectArmed && hangarEjectTargetIndex == targetedIdx && hangarEjectRing == activeHangarRing) {
-                                // CONFIRM EJECT: Purge targeted cog from ring
-                                ringApps.removeAt(targetedIdx)
-                                prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
-                                isHangarEjectArmed = false
-                                hangarEjectTargetIndex = -1
-                                triggerHardwareHaptic(60, 255)
-                                invalidate()
-                                return true
-                            } else {
-                                // ARM EJECT: Show red containment and warning
-                                isHangarEjectArmed = true
-                                hangarEjectTargetIndex = targetedIdx
-                                hangarEjectRing = activeHangarRing
-                                triggerHardwareHaptic(30, 180)
-                                invalidate()
-                                return true
-                            }
+                            invalidate()
+                            return true
                         }
 
                         if (distFromCore in (radInner + 16f * d)..(radOuter + 32f * d)) {
@@ -2520,39 +2503,25 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                     // Draw Pod Glowing Backdrop
                     highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = if (isEjectArmedHere) Color.argb(230, 220, 38, 38)
-                                          else if (isHighlighted) Color.argb(220, 24, 32, 54)
-                                          else Color.argb(140, 12, 16, 26)
+                    highlightPaint.color = if (isHighlighted) Color.argb(220, 24, 32, 54) else Color.argb(140, 12, 16, 26)
                     canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
 
                     highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = if (isEjectArmedHere) 2.6f * d else if (isHighlighted) 1.8f * d else 0.8f * d
-                    highlightPaint.color = if (isEjectArmedHere) Color.argb(255, 255, 100, 100)
-                                          else if (isHighlighted) m3Primary
-                                          else Color.argb(50, 200, 220, 255)
+                    highlightPaint.strokeWidth = if (isHighlighted) 1.8f * d else 0.8f * d
+                    highlightPaint.color = if (isHighlighted) m3Primary else Color.argb(50, 200, 220, 255)
                     canvas.drawCircle(iconCX, iconCY, currentSize / 1.7f, highlightPaint)
 
                     // Draw App Icon
                     try {
                         val dIcon = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, itemToken)
                         if (dIcon != null) {
-                            dIcon.alpha = if (isRingFocused) (if (isHighlighted) (if (isEjectArmedHere) 140 else 255) else 220) else 140
+                            dIcon.alpha = if (isRingFocused) (if (isHighlighted) 255 else 220) else 140
                             val iconLeft = (iconCX - currentSize / 2f).toInt()
                             val iconTop = (iconCY - currentSize / 2f).toInt()
                             dIcon.setBounds(iconLeft, iconTop, iconLeft + currentSize, iconTop + currentSize)
                             dIcon.draw(canvas)
                         }
                     } catch (_: Exception) {}
-
-                    // Draw Red Armed Eject Overlay Cross if Armed
-                    if (isEjectArmedHere) {
-                        elementPaint.style = Paint.Style.STROKE
-                        elementPaint.strokeWidth = 3.2f * d
-                        elementPaint.color = Color.WHITE
-                        val cr = 8.5f * d
-                        canvas.drawLine(iconCX - cr, iconCY - cr, iconCX + cr, iconCY + cr, elementPaint)
-                        canvas.drawLine(iconCX + cr, iconCY - cr, iconCX - cr, iconCY + cr, elementPaint)
-                    }
                 }
             }
 
@@ -2562,17 +2531,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             // Draw Targeting Reticle Collimator at 180 deg (straight left) matching selected reticleStyle
             val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
             val reticleY = cyGimbal
-            val isEjectArmedNow = isHangarEjectArmed
-            val reticleColor = if (isEjectArmedNow) Color.argb(255, 255, 60, 60)
-                               else if (activeHangarRing == 0) m3Primary
-                               else m3Secondary
+            val reticleColor = if (activeHangarRing == 0) m3Primary else m3Secondary
 
             val bracketSize = 54f * d
             val half = bracketSize / 2f
             val armLen = bracketSize * 0.28f
 
             elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = if (isEjectArmedNow) 2.4f * d else 1.8f * d
+            elementPaint.strokeWidth = 1.8f * d
             elementPaint.color = reticleColor
 
             when (reticleStyle) {
@@ -2673,27 +2639,20 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     textPaint.color = activeRingColor
                     canvas.drawText("◀ SHIFT COG", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
 
-                    // Center Target Badge / Armed Eject Capsule
+                    // Center Target Badge
                     val targetBadgeRect = RectF(cx - 56f * d, shiftBarY - 14f * d, cx + 56f * d, shiftBarY + 14f * d)
-                    if (isHangarEjectArmed) {
-                        highlightPaint.style = Paint.Style.FILL
-                        highlightPaint.color = Color.argb(230, 220, 38, 38)
-                        canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
-                        highlightPaint.style = Paint.Style.STROKE
-                        highlightPaint.strokeWidth = 1.3f * d
-                        highlightPaint.color = Color.WHITE
-                        canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
+                    highlightPaint.style = Paint.Style.FILL
+                    highlightPaint.color = Color.argb(160, 18, 24, 40)
+                    canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
+                    highlightPaint.style = Paint.Style.STROKE
+                    highlightPaint.strokeWidth = 1f * d
+                    highlightPaint.color = Color.argb(100, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
+                    canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
 
-                        textPaint.textSize = 8.5f * d
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        textPaint.color = Color.WHITE
-                        canvas.drawText("🚨 TAP ✕ TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
-                    } else {
-                        textPaint.textSize = 11f * d
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        textPaint.color = Color.WHITE
-                        canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
-                    }
+                    textPaint.textSize = 11f * d
+                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    textPaint.color = Color.WHITE
+                    canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
 
                     // Right Shift Cog Button
                     highlightPaint.style = Paint.Style.FILL
@@ -2707,25 +2666,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     canvas.drawText("SHIFT COG ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
                 } else {
                     val singleTargetRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
-                    if (isHangarEjectArmed) {
-                        highlightPaint.style = Paint.Style.FILL
-                        highlightPaint.color = Color.argb(230, 220, 38, 38)
-                        canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
-                        highlightPaint.style = Paint.Style.STROKE
-                        highlightPaint.strokeWidth = 1.3f * d
-                        highlightPaint.color = Color.WHITE
-                        canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
+                    highlightPaint.style = Paint.Style.FILL
+                    highlightPaint.color = Color.argb(160, 18, 24, 40)
+                    canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
+                    highlightPaint.style = Paint.Style.STROKE
+                    highlightPaint.strokeWidth = 1.2f * d
+                    highlightPaint.color = activeRingColor
+                    canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
 
-                        textPaint.textSize = 9f * d
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        textPaint.color = Color.WHITE
-                        canvas.drawText("🚨 TAP ✕ TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
-                    } else {
-                        textPaint.textSize = 11f * d
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        textPaint.color = activeRingColor
-                        canvas.drawText(focusedAppLabel.take(16), cx, shiftBarY + 3.5f * d, textPaint)
-                    }
+                    textPaint.textSize = 11f * d
+                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    textPaint.color = Color.WHITE
+                    canvas.drawText(focusedAppLabel.take(16), cx, shiftBarY + 3.5f * d, textPaint)
                 }
 
                 // Inter-Ring Transfer Button
@@ -2747,7 +2699,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 textPaint.textSize = 8.5f * d
                 textPaint.typeface = android.graphics.Typeface.DEFAULT
                 textPaint.color = Color.argb(150, 180, 210, 245)
-                canvas.drawText("HOLD TARGET / SET TO CUSTOMIZE • TAP ✕ TO EJECT", cx, transferBarY + 22f * d, textPaint)
+                canvas.drawText("HOLD COG / SET TO CUSTOMIZE", cx, transferBarY + 22f * d, textPaint)
             } else {
                 textPaint.textSize = 10f * d
                 textPaint.typeface = android.graphics.Typeface.DEFAULT

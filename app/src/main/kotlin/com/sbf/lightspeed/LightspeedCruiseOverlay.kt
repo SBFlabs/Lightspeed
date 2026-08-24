@@ -195,8 +195,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && key.startsWith("pref_sidebar_")) {
-            post { updateMetricsDimensions() }
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_"))) {
+            post {
+                updateMetricsDimensions()
+                invalidate()
+            }
         }
     }
 
@@ -3213,27 +3216,30 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val topTransparency = prefs.getInt("pref_sidebar_top_transparency", 0)
             val bottomTransparency = if (prefs.getBoolean("pref_sidebar_link_edges", false)) topTransparency else prefs.getInt("pref_sidebar_bottom_transparency", 0)
 
+            val isSidebarPreview = prefs.getBoolean("pref_sidebar_preview", false)
+
             fun drawStealthBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean) {
-                val effectivePct = if (isExpanded) 100 else transparencyPct
-                if (effectivePct <= 0) return
-                val alpha = (effectivePct * 2.55f).toInt().coerceIn(15, 255)
-                val bladeWidth = if (isExpanded) 12f * d else 6f * d
-                val bladeRect = RectF(w - bladeWidth, bounds.top + 3f * d, w + 2f * d, bounds.bottom - 3f * d)
+                val effectivePct = if (isExpanded || (isSidebarPreview && isExpanded)) 100 else transparencyPct
+                if (effectivePct <= 0 && !isExpanded) return
 
-                // Glowing aura
+                val alpha = (effectivePct * 2.55f).toInt().coerceIn(20, 255)
+                val bladeWidth = if (isExpanded) 16f * d else 8f * d
+                val bladeRect = RectF(w - bladeWidth, bounds.top + 2f * d, w, bounds.bottom - 2f * d)
+
+                // 1. Broad Radiant Aura
                 highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb((alpha * 0.4f).toInt(), Color.red(color), Color.green(color), Color.blue(color))
-                canvas.drawRoundRect(RectF(w - bladeWidth * 2f, bounds.top + 1f * d, w, bounds.bottom - 1f * d), 6f * d, 6f * d, highlightPaint)
+                highlightPaint.color = Color.argb((alpha * (if (isExpanded) 0.55f else 0.35f)).toInt(), Color.red(color), Color.green(color), Color.blue(color))
+                canvas.drawRoundRect(RectF(w - bladeWidth * 2.2f, bounds.top, w, bounds.bottom), 6f * d, 6f * d, highlightPaint)
 
-                // Tactical laser blade core
+                // 2. Focused Tactical Laser Blade Core
                 highlightPaint.color = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
                 canvas.drawRoundRect(bladeRect, 4f * d, 4f * d, highlightPaint)
 
-                // Bright inner edge line
+                // 3. Crisp Bright Inner Laser Spine
                 highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = if (isExpanded) 1.8f * d else 1.1f * d
-                highlightPaint.color = Color.argb((alpha * 0.95f).toInt(), 255, 255, 255)
-                canvas.drawLine(w - bladeWidth, bounds.top + 6f * d, w - bladeWidth, bounds.bottom - 6f * d, highlightPaint)
+                highlightPaint.strokeWidth = if (isExpanded) 2.2f * d else 1.2f * d
+                highlightPaint.color = if (isExpanded) Color.WHITE else Color.argb((alpha * 0.9f).toInt(), 255, 255, 255)
+                canvas.drawLine(w - bladeWidth + 1f * d, bounds.top + 5f * d, w - bladeWidth + 1f * d, bounds.bottom - 5f * d, highlightPaint)
             }
 
             val upperColor = Color.rgb(68, 138, 255)

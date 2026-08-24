@@ -56,7 +56,7 @@ class LightspeedStatusBarOverlay(
     }
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_macro_action_STATUSBAR"))) {
+        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             postInvalidate()
         }
     }
@@ -327,13 +327,36 @@ class LightspeedStatusBarOverlay(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val previewEnabled = prefs.getBoolean("pref_statusbar_preview", false)
+        val previewEnabled = prefs.getBoolean("pref_statusbar_preview", false) ||
+                prefs.getBoolean("pref_section_statusbar_expanded", false)
         val transparencyPct = prefs.getInt("pref_statusbar_transparency", 0)
+        val d = resources.displayMetrics.density
+        val w = width.toFloat()
+        val h = height.toFloat()
 
-        val alpha = if (previewEnabled) 160 else (transparencyPct * 2.55f).toInt().coerceIn(0, 255)
-        if (alpha > 0) {
-            debugPaint.alpha = alpha
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), debugPaint)
+        if (previewEnabled) {
+            // Holographic Cyan Canopy Live Preview
+            debugPaint.style = Paint.Style.FILL
+            debugPaint.color = Color.argb(120, 0, 229, 255)
+            canvas.drawRoundRect(RectF(0f, 0f, w, h), 8f * d, 8f * d, debugPaint)
+
+            debugPaint.style = Paint.Style.STROKE
+            debugPaint.strokeWidth = 2f * d
+            debugPaint.color = Color.WHITE
+            canvas.drawRoundRect(RectF(1f * d, 1f * d, w - 1f * d, h - 1f * d), 8f * d, 8f * d, debugPaint)
+
+            // Center Telemetry Label
+            hudTextPaint.textSize = 10f * d
+            hudTextPaint.color = Color.WHITE
+            canvas.drawText("✦ OVERHEAD CANOPY HUD", w / 2f, (h / 2f) + 3.5f * d, hudTextPaint)
+        } else if (transparencyPct > 0) {
+            val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
+            debugPaint.style = Paint.Style.FILL
+            debugPaint.color = Color.argb((alpha * 0.4f).toInt(), 0, 229, 255)
+            canvas.drawRoundRect(RectF(0f, 0f, w, 4f * d), 2f * d, 2f * d, debugPaint)
+
+            debugPaint.color = Color.argb(alpha, 0, 229, 255)
+            canvas.drawRoundRect(RectF(0f, 0f, w, 2.5f * d), 1.5f * d, 1.5f * d, debugPaint)
         }
 
         if (isScrubbing && hudTitle.isNotEmpty()) {

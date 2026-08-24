@@ -241,6 +241,14 @@ fun MainSettingsScreen() {
 
     val dismissAction = {
         isVisible = false
+        prefs.edit()
+            .putBoolean("pref_statusbar_preview", false)
+            .putBoolean("pref_sidebar_preview", false)
+            .putBoolean("pref_section_statusbar_expanded", false)
+            .putBoolean("pref_section_center_expanded", false)
+            .putBoolean("pref_section_top_expanded", false)
+            .putBoolean("pref_section_bottom_expanded", false)
+            .apply()
         scope.launch {
             kotlinx.coroutines.delay(300)
             (context as? Activity)?.finishAndRemoveTask()

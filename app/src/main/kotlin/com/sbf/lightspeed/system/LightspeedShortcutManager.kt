@@ -204,6 +204,12 @@ object LightspeedShortcutManager {
     fun resolveLabel(context: Context, token: String): String {
         if (token.isBlank() || token == "none") return ""
 
+        try {
+            val custom = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+                .getString("custom_label_${safeTokenKey(token)}", null)
+            if (!custom.isNullOrBlank()) return custom
+        } catch (_: Exception) {}
+
         val parsed = parseToken(token)
 
         when (parsed.type) {

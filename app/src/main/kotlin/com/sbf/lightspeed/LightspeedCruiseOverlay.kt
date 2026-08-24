@@ -156,6 +156,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var isHangarEjectArmed = false
     private var hangarEjectTargetIndex = -1
     private var hangarEjectRing = -1
+    private var longPressHangarBayRunnable: Runnable? = null
+    private var longPressCogRunnable: Runnable? = null
+    private var hasLongPressFired = false
 
     private val holdTimerRunnable = Runnable {
         if (macroTrackingActive) {
@@ -485,11 +488,41 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    hasLongPressFired = false
+                    longPressHangarBayRunnable?.let { removeCallbacks(it) }
+                    longPressCogRunnable?.let { removeCallbacks(it) }
+                    longPressHangarBayRunnable = null
+                    longPressCogRunnable = null
+
                     hangarBayTouchDownX = x
                     hangarBayTouchDownY = y
                     isDraggingHangarBays = (y in (r2Y - 24f * d)..(r2Y + 24f * d)) && (x in (leftX - 10f * d)..(rightX + 10f * d))
 
-                    if (!isDraggingHangarBays) {
+                    if (isDraggingHangarBays) {
+                        for (gIndex in setsList.indices) {
+                            val btnX = railStartX + (gIndex + 0.5f) * slotW
+                            val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
+                            if (bayRect.contains(x, y)) {
+                                val targetSetId = setsList[gIndex]
+                                val currentName = prefs.getString("gear_set_${targetSetId}_name", "SET ${gIndex + 1}") ?: "SET ${gIndex + 1}"
+                                val runnable = Runnable {
+                                    hasLongPressFired = true
+                                    triggerHardwareHaptic(50, 255)
+                                    val intent = Intent(context, CockpitDialogActivity::class.java).apply {
+                                        action = CockpitDialogActivity.ACTION_RENAME_GEAR
+                                        putExtra(CockpitDialogActivity.EXTRA_SET_ID, targetSetId)
+                                        putExtra(CockpitDialogActivity.EXTRA_CURRENT_NAME, currentName)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                    dismissOverlay()
+                                }
+                                longPressHangarBayRunnable = runnable
+                                postDelayed(runnable, 400)
+                                break
+                            }
+                        }
+                    } else {
                         // 1. Startup Default Mode: Always First vs Resume Last
                         val halfBtnW = (deckW - gap) / 2f
                         val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
@@ -772,7 +805,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             return true
                         }
 
-                        // 2. Focused Cog or Target Badge Tap -> Eject / Delete Targeted Cog
+                        // 2. Focused Cog or Target Badge -> Long Press to Edit, Tap to Eject
                         if ((distFromReticle <= 30f * d || targetBadgeRect.contains(x, y)) && ringApps.isNotEmpty()) {
                             val count = ringApps.size
                             val baseRotation = gearRingRotations[activeHangarRing]
@@ -783,6 +816,23 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
                                 val diff = kotlin.math.abs(norm - 180f)
                                 if (diff < minDiff) { minDiff = diff; targetedIdx = i }
+                            }
+
+                            val targetedToken = if (targetedIdx in ringApps.indices) ringApps[targetedIdx] else null
+                            if (targetedToken != null) {
+                                val runnable = Runnable {
+                                    hasLongPressFired = true
+                                    triggerHardwareHaptic(50, 255)
+                                    val intent = Intent(context, CockpitDialogActivity::class.java).apply {
+                                        action = CockpitDialogActivity.ACTION_EDIT_ITEM
+                                        putExtra(CockpitDialogActivity.EXTRA_TOKEN, targetedToken)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                    dismissOverlay()
+                                }
+                                longPressCogRunnable = runnable
+                                postDelayed(runnable, 400)
                             }
 
                             if (isHangarEjectArmed && hangarEjectTargetIndex == targetedIdx && hangarEjectRing == activeHangarRing) {
@@ -832,6 +882,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     }
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
+                    if (distMoved > 8f * d) {
+                        longPressHangarBayRunnable?.let { removeCallbacks(it) }
+                        longPressCogRunnable?.let { removeCallbacks(it) }
+                        longPressHangarBayRunnable = null
+                        longPressCogRunnable = null
+                    }
+
                     if (isDraggingHangarBays) {
                         val dx = x - hangarBayTouchDownX
                         hangarBayTouchDownX = x
@@ -871,6 +929,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    longPressHangarBayRunnable?.let { removeCallbacks(it) }
+                    longPressCogRunnable?.let { removeCallbacks(it) }
+                    longPressHangarBayRunnable = null
+                    longPressCogRunnable = null
+
+                    if (hasLongPressFired) {
+                        hasLongPressFired = false
+                        isSpinningHangarRing = false
+                        isDraggingHangarBays = false
+                        return true
+                    }
+
                     isSpinningHangarRing = false
                     if (isDraggingHangarBays) {
                         isDraggingHangarBays = false
@@ -1528,6 +1598,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private fun dismissOverlay() {
+        longPressHangarBayRunnable?.let { removeCallbacks(it) }
+        longPressCogRunnable?.let { removeCallbacks(it) }
+        longPressHangarBayRunnable = null
+        longPressCogRunnable = null
+        hasLongPressFired = false
+
         snapAnimator?.cancel()
         isStickyPinned = false; isCruising = false; currentLayer = CruiseLayer.HIDDEN
         activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f
@@ -2596,7 +2672,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         textPaint.textSize = 11f * d
                         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                         textPaint.color = Color.WHITE
-                        canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
+                        canvas.drawText("🎯 " + focusedAppLabel.take(12), cx, shiftBarY + 3.5f * d, textPaint)
                     }
 
                     // Right Shift Cog Button
@@ -2646,6 +2722,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                 textPaint.color = Color.WHITE
                 canvas.drawText("⇄ TRANSFER TO $destRingName", transferRect.centerX(), transferRect.centerY() + 3.5f * d, textPaint)
+
+                // Subtitle Hint for Long-Press Customization
+                textPaint.textSize = 8.5f * d
+                textPaint.typeface = android.graphics.Typeface.DEFAULT
+                textPaint.color = Color.argb(150, 180, 210, 245)
+                canvas.drawText("HOLD TARGET / SET TO CUSTOMIZE • TAP ✕ TO EJECT", cx, transferBarY + 22f * d, textPaint)
             } else {
                 textPaint.textSize = 10f * d
                 textPaint.typeface = android.graphics.Typeface.DEFAULT

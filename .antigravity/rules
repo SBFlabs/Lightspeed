@@ -8,13 +8,14 @@
 - Build System: Gradle Kotlin DSL.
 
 # Release & Git Strategy
-- Nightly (Local Only):
+- Nightly (Active Development & Daily Testing):
   * Application ID: `com.sbf.lightspeed.nightly` (App label: "Lightspeed Nightly")
-  * Runs side-by-side with stable without overwriting it.
+  * ALL ongoing development, bug fixes, feature iterations, and automatic builds/installs MUST target `com.sbf.lightspeed.nightly` (`assembleDebug`) ONLY.
   * Local Git commits only. NEVER push to GitHub remote automatically.
-- Stable (Production & GitHub):
+- Stable Release Protection (STRICT IMMUTABILITY):
   * Application ID: `com.sbf.lightspeed` (App label: "Lightspeed")
-  * Pushed to GitHub ONLY when explicitly instructed ("Promote nightly to stable").
+  * NEVER build, reinstall, modify, or touch `com.sbf.lightspeed` unless the user explicitly commands it (e.g., "Promote nightly to stable" or "Update stable release").
+  * Pushed to GitHub ONLY when explicitly instructed.
 
 # Autonomous Execution Loop (MANDATORY AFTER EVERY TASK/FIX)
 Whenever you finish writing, fixing, or refactoring code:

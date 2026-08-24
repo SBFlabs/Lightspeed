@@ -99,7 +99,7 @@ object ActionDispatcher {
         // 3. Tertiary: Shizuku Shell KEYCODE_APP_SWITCH (187)
         try {
             if (ElevatedTaskCloser.isShizukuActive) {
-                rikka.shizuku.Shizuku.newProcess(arrayOf("input", "keyevent", "187"), null, null).waitFor()
+                ElevatedTaskCloser.execShizuku("input keyevent 187")?.waitFor()
                 Log.i(TAG, "Recents overview triggered via Shizuku KEYCODE_APP_SWITCH")
                 return
             }

@@ -169,6 +169,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
         windowManager?.updateViewLayout(overlayView, windowParams)
     }
 
+    fun reloadPreferences() {
+        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+        updateStatusBarOverlayFromPrefs(prefs)
+        updateSidebarOverlayFromPrefs(prefs)
+    }
+
     fun updateWindowLayout(expand: Boolean) {
         if (windowManager == null || overlayView == null) return
         val isPreview = getSharedPreferences("default", Context.MODE_PRIVATE).getBoolean("pref_sidebar_preview", false)

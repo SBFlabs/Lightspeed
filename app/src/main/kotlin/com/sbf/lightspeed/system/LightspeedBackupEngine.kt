@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
@@ -106,16 +107,19 @@ object LightspeedBackupEngine {
                         importedCount++
                     }
                     is Number -> {
-                        val numDouble = value.toDouble()
-                        if (numDouble == numDouble.toInt().toDouble() && !key.contains("float", ignoreCase = true)) {
-                            editor.putInt(key, value.toInt())
+                        if (key.endsWith("_time") || key.endsWith("_timestamp")) {
+                            editor.putLong(key, value.toLong())
                         } else {
-                            editor.putFloat(key, value.toFloat())
+                            editor.putInt(key, value.toInt())
                         }
                         importedCount++
                     }
                     is String -> {
-                        editor.putString(key, value)
+                        if (value == "true" || value == "false") {
+                            editor.putBoolean(key, value.toBoolean())
+                        } else {
+                            editor.putString(key, value)
+                        }
                         importedCount++
                     }
                     is JSONArray -> {
@@ -137,6 +141,9 @@ object LightspeedBackupEngine {
             if (!success) {
                 editor.apply()
             }
+            try {
+                LightspeedAccessibilityService.instance?.reloadPreferences()
+            } catch (_: Exception) {}
             Log.i(TAG, "Imported and committed $importedCount settings entries successfully")
             Result.success(importedCount)
         } catch (e: Exception) {

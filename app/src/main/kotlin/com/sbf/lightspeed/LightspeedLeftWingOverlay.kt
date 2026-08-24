@@ -283,7 +283,7 @@ class LightspeedLeftWingOverlay(
 
                 if (totalDist > 25f) {
                     val prev = currentGesture
-                    currentGesture = determineGesture(dx, dy)
+                    currentGesture = determineGesture(dx, dy, rawX, rawY)
                     if (currentGesture != "NONE" && currentGesture != prev) {
                         triggerHaptic(18, 100)
                     }
@@ -329,7 +329,7 @@ class LightspeedLeftWingOverlay(
         return true
     }
 
-    private fun determineGesture(dx: Float, dy: Float): String {
+    private fun determineGesture(dx: Float, dy: Float, rawX: Float, rawY: Float): String {
         if (initialDominantAxis == "Y") {
             if (lowestYReached < startRawY - 30f) { // Started moving UP
                 if (dx > 35f) return "SWIPE_UP_RIGHT"

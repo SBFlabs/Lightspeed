@@ -206,6 +206,7 @@ object LightspeedBackupEngine {
                         }
                     }
                     LightspeedShortcutManager.clearMemoryCache()
+                    LightspeedIconManager.clearCache()
                 } catch (_: Exception) {}
             }
 

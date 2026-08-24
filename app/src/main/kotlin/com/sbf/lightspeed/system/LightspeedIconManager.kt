@@ -89,6 +89,7 @@ object LightspeedIconManager {
     fun clearCache() {
         bitmapCache.clear()
         drawableCache.clear()
+        customShortcutBitmaps.clear()
         componentToDrawableMap.clear()
         packageToDrawableMap.clear()
         calendarPrefixMap.clear()

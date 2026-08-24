@@ -159,6 +159,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var longPressHangarBayRunnable: Runnable? = null
     private var longPressCogRunnable: Runnable? = null
     private var hasLongPressFired = false
+    private var isTouchingFocusedCog = false
 
     private val holdTimerRunnable = Runnable {
         if (macroTrackingActive) {
@@ -807,11 +808,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             return true
                         }
 
-                        // 2. Focused Cog or Target Badge / Tag -> Long Press to Edit, Tap to Eject
-                        // 2. Focused Cog or Target Badge -> Long Press to Edit
-                        val isTouchingReticleOrBadge = (distFromReticle <= 30f * d) || targetBadgeRect.contains(x, y)
+                        // 2. Focused Cog or Target Badge -> Long Press to Edit, Tap to Eject
+                        val isTouchingReticleOrBadge = (distFromReticle <= 48f * d) || targetBadgeRect.contains(x, y)
 
                         if (isTouchingReticleOrBadge && ringApps.isNotEmpty()) {
+                            isTouchingFocusedCog = true
                             val count = ringApps.size
                             val baseRotation = gearRingRotations[activeHangarRing]
                             var targetedIdx = 0
@@ -840,7 +841,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 longPressCogRunnable = runnable
                                 postDelayed(runnable, 400)
                             }
-                            invalidate()
                             return true
                         }
 
@@ -872,11 +872,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
-                    if (distMoved > 8f * d) {
+                    if (distMoved > 10f * d) {
                         longPressHangarBayRunnable?.let { removeCallbacks(it) }
                         longPressCogRunnable?.let { removeCallbacks(it) }
                         longPressHangarBayRunnable = null
                         longPressCogRunnable = null
+                        isTouchingFocusedCog = false
                     }
 
                     if (isDraggingHangarBays) {
@@ -925,9 +926,47 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                     if (hasLongPressFired) {
                         hasLongPressFired = false
+                        isTouchingFocusedCog = false
                         isSpinningHangarRing = false
                         isDraggingHangarBays = false
                         return true
+                    }
+
+                    if (isTouchingFocusedCog) {
+                        isTouchingFocusedCog = false
+                        isSpinningHangarRing = false
+                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing).toMutableList()
+                        if (ringApps.isNotEmpty()) {
+                            val count = ringApps.size
+                            val baseRotation = gearRingRotations[activeHangarRing]
+                            var targetedIdx = 0
+                            var minDiff = Float.MAX_VALUE
+                            for (i in ringApps.indices) {
+                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
+                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
+                                val diff = kotlin.math.abs(norm - 180f)
+                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
+                            }
+
+                            if (isHangarEjectArmed && hangarEjectTargetIndex == targetedIdx && hangarEjectRing == activeHangarRing) {
+                                // CONFIRM EJECT: Purge targeted cog from ring
+                                ringApps.removeAt(targetedIdx)
+                                prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
+                                isHangarEjectArmed = false
+                                hangarEjectTargetIndex = -1
+                                triggerHardwareHaptic(60, 255)
+                                invalidate()
+                                return true
+                            } else {
+                                // ARM EJECT: Show red containment and white X on the tapped cog, and show badge alert with eject shake
+                                isHangarEjectArmed = true
+                                hangarEjectTargetIndex = targetedIdx
+                                hangarEjectRing = activeHangarRing
+                                triggerHardwareHaptic(40, 220)
+                                invalidate()
+                                return true
+                            }
+                        }
                     }
 
                     isSpinningHangarRing = false
@@ -965,45 +1004,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
                         invalidate()
                         return true
-                    } else if (distMoved < 14f * d) {
-                        val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
-                        val reticleY = cyGimbal
-                        val distFromReticle = kotlin.math.hypot(x - reticleX, y - reticleY)
-                        val targetBadgeRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
-                        val isTouchingReticleOrBadge = (distFromReticle <= 30f * d) || targetBadgeRect.contains(x, y)
-
-                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing).toMutableList()
-                        if (isTouchingReticleOrBadge && ringApps.isNotEmpty()) {
-                            val count = ringApps.size
-                            val baseRotation = gearRingRotations[activeHangarRing]
-                            var targetedIdx = 0
-                            var minDiff = Float.MAX_VALUE
-                            for (i in ringApps.indices) {
-                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                                val diff = kotlin.math.abs(norm - 180f)
-                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
-                            }
-
-                            if (isHangarEjectArmed && hangarEjectTargetIndex == targetedIdx && hangarEjectRing == activeHangarRing) {
-                                // CONFIRM EJECT: Purge targeted cog from ring
-                                ringApps.removeAt(targetedIdx)
-                                prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
-                                isHangarEjectArmed = false
-                                hangarEjectTargetIndex = -1
-                                triggerHardwareHaptic(60, 255)
-                                invalidate()
-                                return true
-                            } else {
-                                // ARM EJECT: Show red containment and white X on the tapped cog
-                                isHangarEjectArmed = true
-                                hangarEjectTargetIndex = targetedIdx
-                                hangarEjectRing = activeHangarRing
-                                triggerHardwareHaptic(30, 180)
-                                invalidate()
-                                return true
-                            }
-                        }
                     }
                 }
             }
@@ -2695,20 +2695,35 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     textPaint.color = activeRingColor
                     canvas.drawText("◀ SHIFT COG", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
 
-                    // Center Target Badge
+                    // Center Target Badge / Armed Eject Capsule
                     val targetBadgeRect = RectF(cx - 56f * d, shiftBarY - 14f * d, cx + 56f * d, shiftBarY + 14f * d)
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(160, 18, 24, 40)
-                    canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = 1f * d
-                    highlightPaint.color = Color.argb(100, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
-                    canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
+                    if (isHangarEjectArmed) {
+                        highlightPaint.style = Paint.Style.FILL
+                        highlightPaint.color = Color.argb(230, 220, 38, 38)
+                        canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
+                        highlightPaint.style = Paint.Style.STROKE
+                        highlightPaint.strokeWidth = 1.4f * d
+                        highlightPaint.color = Color.WHITE
+                        canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
 
-                    textPaint.textSize = 11f * d
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    textPaint.color = Color.WHITE
-                    canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
+                        textPaint.textSize = 8.5f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = Color.WHITE
+                        canvas.drawText("🚨 TAP ✕ TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
+                    } else {
+                        highlightPaint.style = Paint.Style.FILL
+                        highlightPaint.color = Color.argb(160, 18, 24, 40)
+                        canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
+                        highlightPaint.style = Paint.Style.STROKE
+                        highlightPaint.strokeWidth = 1f * d
+                        highlightPaint.color = Color.argb(100, Color.red(activeRingColor), Color.green(activeRingColor), Color.blue(activeRingColor))
+                        canvas.drawRoundRect(targetBadgeRect, 9f * d, 9f * d, highlightPaint)
+
+                        textPaint.textSize = 11f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = Color.WHITE
+                        canvas.drawText(focusedAppLabel.take(13), cx, shiftBarY + 3.5f * d, textPaint)
+                    }
 
                     // Right Shift Cog Button
                     highlightPaint.style = Paint.Style.FILL
@@ -2722,18 +2737,33 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     canvas.drawText("SHIFT COG ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
                 } else {
                     val singleTargetRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(160, 18, 24, 40)
-                    canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = 1.2f * d
-                    highlightPaint.color = activeRingColor
-                    canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
+                    if (isHangarEjectArmed) {
+                        highlightPaint.style = Paint.Style.FILL
+                        highlightPaint.color = Color.argb(230, 220, 38, 38)
+                        canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
+                        highlightPaint.style = Paint.Style.STROKE
+                        highlightPaint.strokeWidth = 1.4f * d
+                        highlightPaint.color = Color.WHITE
+                        canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
 
-                    textPaint.textSize = 11f * d
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                    textPaint.color = Color.WHITE
-                    canvas.drawText(focusedAppLabel.take(16), cx, shiftBarY + 3.5f * d, textPaint)
+                        textPaint.textSize = 9f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = Color.WHITE
+                        canvas.drawText("🚨 TAP ✕ TO EJECT", cx, shiftBarY + 3.5f * d, textPaint)
+                    } else {
+                        highlightPaint.style = Paint.Style.FILL
+                        highlightPaint.color = Color.argb(160, 18, 24, 40)
+                        canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
+                        highlightPaint.style = Paint.Style.STROKE
+                        highlightPaint.strokeWidth = 1.2f * d
+                        highlightPaint.color = activeRingColor
+                        canvas.drawRoundRect(singleTargetRect, 9f * d, 9f * d, highlightPaint)
+
+                        textPaint.textSize = 11f * d
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.color = Color.WHITE
+                        canvas.drawText(focusedAppLabel.take(16), cx, shiftBarY + 3.5f * d, textPaint)
+                    }
                 }
 
                 // Inter-Ring Transfer Button

@@ -667,12 +667,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                         // 7. Live Gimbal Touch & Interaction
                         val cyGimbal = (screenH * 0.74f).coerceAtLeast(cy + 135f * d)
-                        val radOuter = 145f * d
-                        val radInner = 90f * d
-                        val radHub = 32f * d
+                        val radOuter = 135f * d
+                        val radInner = 84f * d
+                        val radHub = 30f * d
 
-                        val shiftBarY = cyGimbal - radOuter - 62f * d
-                        val transferBarY = cyGimbal - radOuter - 30f * d
+                        val topGears = cyGimbal - radOuter - 18f * d
+                        val gapCenter = (r7Y + topGears) / 2f
+
+                        val shiftBarY = gapCenter - 18f * d
+                        val transferBarY = gapCenter + 18f * d
                         val shiftCogLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
                         val shiftCogRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
                         val transferRect = RectF(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
@@ -2341,13 +2344,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             // 8. Live Dual Gimbal Assembly Preview & Active Ring Command Core
             val cyGimbal = (screenH * 0.74f).coerceAtLeast(cy + 135f * d)
-            val radOuter = 145f * d
-            val radInner = 90f * d
-            val radHub = 32f * d
+            val radOuter = 135f * d
+            val radInner = 84f * d
+            val radHub = 30f * d
 
             // Draw Gimbal Rings with Active Highlight based on activeHangarRing
-            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radOuter, 28f * d, 16, 8f * d, gearRingRotations[0], (activeHangarRing == 0), m3Primary)
-            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radInner, 22f * d, 10, 6f * d, gearRingRotations[1], (activeHangarRing == 1), m3Primary)
+            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radOuter, 26f * d, 16, 7.5f * d, gearRingRotations[0], (activeHangarRing == 0), m3Primary)
+            drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radInner, 20f * d, 10, 5.5f * d, gearRingRotations[1], (activeHangarRing == 1), m3Primary)
 
             val r0 = getAppsForActiveGear(activeGearSetIndex, 0)
             val r1 = getAppsForActiveGear(activeGearSetIndex, 1)
@@ -2440,8 +2443,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             canvas.drawLine(reticleX + 18f * d, reticleY, reticleX + 28f * d, reticleY, highlightPaint)
 
             // Target Indicator & Live Orbital Control Deck
-            val shiftBarY = cyGimbal - radOuter - 62f * d
-            val transferBarY = cyGimbal - radOuter - 30f * d
+            val topGears = cyGimbal - radOuter - 18f * d
+            val gapCenter = (r7Y + topGears) / 2f
+            val shiftBarY = gapCenter - 18f * d
+            val transferBarY = gapCenter + 18f * d
             val activeRingColor = if (activeHangarRing == 0) m3Primary else m3Secondary
             val otherRingColor = if (activeHangarRing == 0) m3Secondary else m3Primary
 

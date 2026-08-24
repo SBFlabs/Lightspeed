@@ -1886,20 +1886,38 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         m3Primary: Int,
         alphaFactor: Float
     ) {
-        val nebulaShader = android.graphics.RadialGradient(
-            cx, cy, radius,
+        val t = (System.currentTimeMillis() % 100000) / 1000.0
+        // 1. Primary Core Plasma Cloud
+        val nebulaShader1 = android.graphics.RadialGradient(
+            cx, cy, radius * 1.3f,
             intArrayOf(
                 Color.argb((140 * alphaFactor).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)),
-                Color.argb((95 * alphaFactor).toInt(), 138, 43, 226), // Cosmic Violet
-                Color.argb((50 * alphaFactor).toInt(), 0, 229, 255),  // Interstellar Cyan
-                Color.argb(0, 4, 4, 10)
+                Color.argb((90 * alphaFactor).toInt(), 138, 43, 226), // Cosmic Violet
+                Color.argb((45 * alphaFactor).toInt(), 0, 229, 255),  // Interstellar Cyan
+                Color.argb(0, 4, 6, 12)
             ),
             floatArrayOf(0.0f, 0.35f, 0.70f, 1.0f),
             android.graphics.Shader.TileMode.CLAMP
         )
         elementPaint.style = Paint.Style.FILL
-        elementPaint.shader = nebulaShader
-        canvas.drawCircle(cx, cy, radius, elementPaint)
+        elementPaint.shader = nebulaShader1
+        canvas.drawCircle(cx, cy, radius * 1.3f, elementPaint)
+
+        // 2. Secondary Diffuse Gaseous Filament
+        val offX = (sin(t * 0.8) * 20.0).toFloat()
+        val offY = (cos(t * 0.6) * 15.0).toFloat()
+        val nebulaShader2 = android.graphics.RadialGradient(
+            cx + offX, cy + offY, radius * 0.9f,
+            intArrayOf(
+                Color.argb((85 * alphaFactor).toInt(), 255, 64, 129), // Stellar Magenta
+                Color.argb((40 * alphaFactor).toInt(), 64, 196, 255), // Cyan Aurora
+                Color.argb(0, 0, 0, 0)
+            ),
+            floatArrayOf(0.0f, 0.5f, 1.0f),
+            android.graphics.Shader.TileMode.CLAMP
+        )
+        elementPaint.shader = nebulaShader2
+        canvas.drawCircle(cx + offX, cy + offY, radius * 0.9f, elementPaint)
         elementPaint.shader = null
     }
 
@@ -2796,39 +2814,40 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             // 2. Cosmic Stardust Particle Field
             drawCosmicStarfield(canvas, w, h, density, decelerationFactor)
 
-            // 3. Top Flight Telemetry Header (Sector Cruise HUD)
+            // 3. Top Flight Telemetry Header (Sector Cruise HUD with Auto-Fit)
             val topBadgeY = 54f * density
             val currentSector = (activeCatIndex + 1).toString().padStart(2, '0')
             val totalSectors = cachedCategories.size.toString().padStart(2, '0')
             val activeCatName = cachedCategories.getOrNull(activeCatIndex)?.label?.uppercase() ?: "CRUISE"
-            val hudHeader = "◈ WARP CRUISE // SECTOR $currentSector / $totalSectors: $activeCatName ◈"
+            val hudHeader = "◈ SECTOR $currentSector / $totalSectors  ✦  $activeCatName ◈"
 
-            textPaint.textSize = 11.5f * density
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.textAlign = Paint.Align.CENTER
+            var hudTextSize = 10.5f * density
+            textPaint.textSize = hudTextSize
+            val maxHudW = w * 0.85f
+            while (textPaint.measureText(hudHeader) > maxHudW && hudTextSize > 7.5f * density) {
+                hudTextSize -= 0.5f * density
+                textPaint.textSize = hudTextSize
+            }
             val hudWidth = textPaint.measureText(hudHeader)
 
             highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb((175 * decelerationFactor).toInt(), 12, 16, 28)
-            val headerRect = RectF(w / 2f - hudWidth / 2f - 16f * density, topBadgeY - 15f * density, w / 2f + hudWidth / 2f + 16f * density, topBadgeY + 15f * density)
-            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
-
-            highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.2f * density
-            highlightPaint.color = Color.argb((80 * decelerationFactor).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
+            highlightPaint.color = Color.argb((150 * decelerationFactor).toInt(), 10, 14, 26)
+            val headerRect = RectF(w / 2f - hudWidth / 2f - 14f * density, topBadgeY - 13f * density, w / 2f + hudWidth / 2f + 14f * density, topBadgeY + 13f * density)
+            canvas.drawRoundRect(headerRect, 9f * density, 9f * density, highlightPaint)
 
             textPaint.color = Color.WHITE
             textPaint.alpha = (255 * decelerationFactor).toInt()
-            canvas.drawText(hudHeader, w / 2f, topBadgeY + 4f * density, textPaint)
+            canvas.drawText(hudHeader, w / 2f, topBadgeY + 3.5f * density, textPaint)
 
             // Subtitle Guidance Hint for Category Cruise
             textPaint.textSize = 8.5f * density
             textPaint.typeface = android.graphics.Typeface.DEFAULT
             textPaint.color = Color.argb((160 * decelerationFactor).toInt(), 180, 210, 245)
-            canvas.drawText("PULL LEFT >> ENTER STAR SYSTEM  •  SLIDE RIGHT << CANCEL", w / 2f, topBadgeY + 28f * density, textPaint)
+            canvas.drawText("PULL LEFT >> ENTER STAR SYSTEM  •  SLIDE RIGHT << CANCEL", w / 2f, topBadgeY + 26f * density, textPaint)
 
-            // 4. Galactic Sector Horizon with Nebula Clusters
+            // 4. Galactic Horizon: Cruising Through Nebulae & Star Systems
             if (cachedCategories.isNotEmpty()) {
                 val startYArea = h * 0.22f; val endYArea = h * 0.78f
                 val catLineH = (endYArea - startYArea) / cachedCategories.size
@@ -2838,17 +2857,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val relativeDistanceFromCenter = centerY - (h / 2f)
                     val sweepAngleRad = (relativeDistanceFromCenter / ((endYArea - startYArea) / 2f)).coerceIn(-1.2f, 1.2f) * (PI / 2.6f)
                     
-                    val targetTextX = w - 75f - (cos(sweepAngleRad).toFloat() * 260f)
+                    // Natural right anchor with safe 28dp margin from screen edge
+                    val targetTextX = w - (28f * density) - (cos(sweepAngleRad).toFloat() * 160f * density)
                     val distanceRatio = (abs(relativeDistanceFromCenter) / ((endYArea - startYArea) / 2f)).coerceIn(0f, 1f)
-                    val zoom = 0.65f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.55f
+                    val zoom = 0.70f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.35f
 
-                    // If active category, draw its blazing Nebula Cloud behind it
+                    // If active category, draw its luminous chromatic Nebula Cloud behind it
                     if (idx == activeCatIndex) {
                         drawGalacticNebula(
                             canvas = canvas,
-                            cx = targetTextX + 60f * density,
+                            cx = targetTextX - (100f * density),
                             cy = centerY,
-                            radius = 160f * density,
+                            radius = 185f * density,
                             m3Primary = m3Primary,
                             alphaFactor = decelerationFactor
                         )
@@ -2863,46 +2883,47 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     transformMatrixPipeline.postScale(zoom, zoom); transformMatrixPipeline.postTranslate(targetTextX, centerY)
                     canvas.concat(transformMatrixPipeline)
 
+                    val labelText = cat.label.uppercase()
+                    catTextPaint.textAlign = Paint.Align.RIGHT
+
                     if (idx == activeCatIndex) {
-                        // Targeted Galactic Sector Pod
-                        val sectorWidth = 240f * density
-                        val sectorRect = RectF(targetTextX - 24f * density, centerY - (catLineH / 2f) + 2f, targetTextX + sectorWidth, centerY + (catLineH / 2f) - 2f)
-                        
+                        // Auto-scale font size dynamically so long labels never clip on the left
+                        var baseSize = 19f * density
+                        catTextPaint.textSize = baseSize
+                        val maxAllowedW = (targetTextX - (28f * density)) / zoom
+                        while (catTextPaint.measureText(labelText) > maxAllowedW && baseSize > 9.5f * density) {
+                            baseSize -= 0.5f * density
+                            catTextPaint.textSize = baseSize
+                        }
+
+                        val measuredLabelW = catTextPaint.measureText(labelText)
+
+                        // Soft ethereal starlight backdrop pill
+                        val softGlowRect = RectF(targetTextX - measuredLabelW - 20f * density, centerY - (catLineH / 2f) + 2f, targetTextX + 8f * density, centerY + (catLineH / 2f) - 2f)
                         highlightPaint.style = Paint.Style.FILL
-                        highlightPaint.color = Color.argb((90 * decelerationFactor).toInt(), 20, 26, 44)
-                        canvas.drawRoundRect(sectorRect, 14f * density, 14f * density, highlightPaint)
-                        
-                        highlightPaint.style = Paint.Style.STROKE
-                        highlightPaint.strokeWidth = 2f * density
-                        highlightPaint.color = Color.argb((220 * decelerationFactor).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                        canvas.drawRoundRect(sectorRect, 14f * density, 14f * density, highlightPaint)
+                        highlightPaint.color = Color.argb((55 * decelerationFactor).toInt(), 18, 24, 42)
+                        canvas.drawRoundRect(softGlowRect, 10f * density, 10f * density, highlightPaint)
 
-                        // Laser Targeting Lead Line
-                        elementPaint.style = Paint.Style.STROKE
-                        elementPaint.strokeWidth = 1.4f * density
-                        elementPaint.color = Color.argb((140 * decelerationFactor).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                        canvas.drawLine(0f, centerY, targetTextX - 30f * density, centerY, elementPaint)
-
-                        // Stellar Beacon Glyph
-                        textPaint.textAlign = Paint.Align.LEFT
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        textPaint.textSize = 14f * density
-                        textPaint.color = m3Primary
-                        textPaint.alpha = (255 * decelerationFactor).toInt()
-                        canvas.drawText("✦", targetTextX - 12f * density, centerY + 5f * density, textPaint)
-                        textPaint.textAlign = Paint.Align.CENTER
-
-                        // Sector Label
+                        // Active Category Star System Typography
                         catTextPaint.color = Color.WHITE
                         catTextPaint.alpha = (255 * decelerationFactor).toInt()
                         catTextPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        canvas.drawText(cat.label.uppercase(), targetTextX + 12f * density, centerY + 6f * density, catTextPaint)
+                        canvas.drawText(labelText, targetTextX, centerY + 6f * density, catTextPaint)
+
+                        // Glowing Celestial Star Beacon
+                        textPaint.textAlign = Paint.Align.RIGHT
+                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+                        textPaint.textSize = (baseSize * 0.75f).coerceAtLeast(8.5f * density)
+                        textPaint.color = m3Primary
+                        textPaint.alpha = (255 * decelerationFactor).toInt()
+                        canvas.drawText("✦", targetTextX - measuredLabelW - 6f * density, centerY + 5.5f * density, textPaint)
                     } else {
                         val fadeAlpha = (((1.0f - distanceRatio) * 160).toInt().coerceAtLeast(35) * decelerationFactor).toInt()
-                        catTextPaint.color = Color.parseColor("#A2A8B8")
+                        catTextPaint.color = Color.parseColor("#9EA7B8")
                         catTextPaint.alpha = fadeAlpha
                         catTextPaint.typeface = android.graphics.Typeface.DEFAULT
-                        canvas.drawText(cat.label, targetTextX, centerY + 6f * density, catTextPaint)
+                        catTextPaint.textSize = 13.5f * density
+                        canvas.drawText(cat.label, targetTextX, centerY + 5f * density, catTextPaint)
                     }
                     canvas.restore()
                 }

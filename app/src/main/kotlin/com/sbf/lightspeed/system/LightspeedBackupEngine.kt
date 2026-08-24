@@ -170,22 +170,67 @@ object LightspeedBackupEngine {
         }
     }
 
+    private fun readStringFromUri(context: Context, uri: Uri): String {
+        // Tier 1: Direct File check
+        if (uri.scheme == "file" || uri.path?.startsWith("/storage/") == true) {
+            try {
+                val path = if (uri.scheme == "file") (uri.path ?: "") else uri.path!!
+                val directFile = java.io.File(path)
+                if (directFile.exists() && directFile.length() > 0) {
+                    val content = directFile.readText(Charsets.UTF_8)
+                    if (content.isNotBlank()) return content
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Tier 2: Raw byte read from ContentResolver openInputStream
+        try {
+            context.contentResolver.openInputStream(uri)?.use { stream ->
+                val bytes = stream.readBytes()
+                if (bytes.isNotEmpty()) {
+                    val content = String(bytes, Charsets.UTF_8)
+                    if (content.isNotBlank()) return content
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Tier 2 openInputStream failed: ${e.message}")
+        }
+
+        // Tier 3: Direct ParcelFileDescriptor read
+        try {
+            context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                java.io.FileInputStream(pfd.fileDescriptor).use { fis ->
+                    val bytes = fis.readBytes()
+                    if (bytes.isNotEmpty()) {
+                        val content = String(bytes, Charsets.UTF_8)
+                        if (content.isNotBlank()) return content
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Tier 3 openFileDescriptor failed: ${e.message}")
+        }
+
+        // Tier 4: Document raw path extraction
+        try {
+            val path = uri.path ?: ""
+            if (path.contains("raw:")) {
+                val rawPath = path.substringAfter("raw:")
+                val f = java.io.File(rawPath)
+                if (f.exists() && f.length() > 0) {
+                    val content = f.readText(Charsets.UTF_8)
+                    if (content.isNotBlank()) return content
+                }
+            }
+        } catch (_: Exception) {}
+
+        throw IllegalStateException("Selected file returned 0 bytes (payload empty). Please try picking the file directly from Internal Storage or Downloads.")
+    }
+
     fun importFromFile(context: Context, uri: Uri): Result<Int> {
         return try {
             Log.i(TAG, "Importing from uri: $uri (scheme=${uri.scheme})")
-            val jsonString = when (uri.scheme) {
-                "file" -> {
-                    val file = java.io.File(uri.path ?: "")
-                    if (file.exists()) file.readText(Charsets.UTF_8)
-                    else throw IllegalStateException("File does not exist at ${uri.path}")
-                }
-                else -> {
-                    context.contentResolver.openInputStream(uri)?.use { stream ->
-                        BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).readText()
-                    } ?: throw IllegalStateException("Could not open stream for $uri")
-                }
-            }
-
+            val jsonString = readStringFromUri(context, uri)
             Log.i(TAG, "Read ${jsonString.length} chars from $uri")
             importFromJson(context, jsonString)
         } catch (e: Exception) {

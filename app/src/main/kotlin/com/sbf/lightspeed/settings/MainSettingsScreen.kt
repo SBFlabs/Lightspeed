@@ -347,6 +347,10 @@ fun SidebarMatrixConfigurationFields(
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var importStatusMessage by remember { mutableStateOf<String?>(null) }
     var isImportSuccess by remember { mutableStateOf(false) }
+    var showImportOptionsDialog by remember { mutableStateOf(false) }
+    var detectedBackups by remember { mutableStateOf<List<LightspeedBackupEngine.BackupFileEntry>>(emptyList()) }
+    var showPasteJsonDialog by remember { mutableStateOf(false) }
+    var pastedJsonText by remember { mutableStateOf("") }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -565,7 +569,10 @@ fun SidebarMatrixConfigurationFields(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                        .clickable { importLauncher.launch("*/*") }
+                        .clickable {
+                            detectedBackups = LightspeedBackupEngine.findLocalBackupFiles()
+                            showImportOptionsDialog = true
+                        }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -674,6 +681,190 @@ fun SidebarMatrixConfigurationFields(
                         )
                     ) {
                         Text(if (isImportSuccess) "Apply & Reload" else "Dismiss", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showImportOptionsDialog) {
+            AlertDialog(
+                onDismissRequest = { showImportOptionsDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Restore Configuration", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        if (detectedBackups.isNotEmpty()) {
+                            Text(
+                                "DETECTED BACKUPS ON DEVICE",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            detectedBackups.forEach { entry ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                        .clickable {
+                                            showImportOptionsDialog = false
+                                            try {
+                                                val text = entry.file.readText(Charsets.UTF_8)
+                                                val res = LightspeedBackupEngine.importFromJson(context, text)
+                                                res.onSuccess { count ->
+                                                    isImportSuccess = true
+                                                    importStatusMessage = "Successfully restored $count settings from:\n${entry.name}!\n\nAll configurations loaded live."
+                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                }.onFailure { err ->
+                                                    isImportSuccess = false
+                                                    importStatusMessage = "Import Failed:\n${err.message}"
+                                                }
+                                            } catch (e: Exception) {
+                                                isImportSuccess = false
+                                                importStatusMessage = "Failed to read file ${entry.name}:\n${e.message}"
+                                            }
+                                        }
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Save, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(entry.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White, maxLines = 1)
+                                        Text("${entry.size} bytes • Tap to Restore", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        Text(
+                            "OTHER RESTORE OPTIONS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Browse via system picker
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
+                                .clickable {
+                                    showImportOptionsDialog = false
+                                    importLauncher.launch("*/*")
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Browse with File Manager", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                Text("Select a backup file using system picker", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Paste JSON Directly
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
+                                .clickable {
+                                    showImportOptionsDialog = false
+                                    pastedJsonText = ""
+                                    showPasteJsonDialog = true
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                Text("Paste raw backup text from clipboard", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showImportOptionsDialog = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showPasteJsonDialog) {
+            AlertDialog(
+                onDismissRequest = { showPasteJsonDialog = false },
+                title = { Text("Paste Backup JSON", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text("Paste your exported JSON payload below:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        androidx.compose.material3.OutlinedTextField(
+                            value = pastedJsonText,
+                            onValueChange = { pastedJsonText = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp),
+                            placeholder = { Text("{\n  \"settings\": {\n    ...\n  }\n}", fontSize = 12.sp) },
+                            maxLines = 15,
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color.White)
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val text = pastedJsonText.trim()
+                            showPasteJsonDialog = false
+                            if (text.isBlank()) {
+                                isImportSuccess = false
+                                importStatusMessage = "Pasted text is empty."
+                            } else {
+                                val res = LightspeedBackupEngine.importFromJson(context, text)
+                                res.onSuccess { count ->
+                                    isImportSuccess = true
+                                    importStatusMessage = "Successfully restored $count settings from pasted JSON!"
+                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                }.onFailure { err ->
+                                    isImportSuccess = false
+                                    importStatusMessage = "Import Failed:\n${err.message}"
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Restore", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPasteJsonDialog = false }) {
+                        Text("Cancel", color = Color.White)
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant

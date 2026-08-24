@@ -18,6 +18,34 @@ object LightspeedBackupEngine {
     private const val TAG = "LightspeedBackup"
     const val BACKUP_VERSION = 1
 
+    data class BackupFileEntry(val file: java.io.File, val name: String, val lastModified: Long, val size: Long)
+
+    fun findLocalBackupFiles(): List<BackupFileEntry> {
+        val list = mutableListOf<BackupFileEntry>()
+        val searchDirs = listOf(
+            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS),
+            android.os.Environment.getExternalStorageDirectory(),
+            java.io.File("/sdcard/Download"),
+            java.io.File("/sdcard/Documents")
+        )
+        val seenPaths = mutableSetOf<String>()
+        for (dir in searchDirs) {
+            try {
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { f ->
+                        if (f.isFile && f.name.endsWith(".json", ignoreCase = true) && f.length() > 0) {
+                            if (seenPaths.add(f.absolutePath)) {
+                                list.add(BackupFileEntry(f, f.name, f.lastModified(), f.length()))
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return list.sortedByDescending { it.lastModified }
+    }
+
     fun generateDefaultFileName(): String {
         val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         return "lightspeed_backup_$dateStr.json"

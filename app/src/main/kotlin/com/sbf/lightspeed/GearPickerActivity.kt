@@ -109,9 +109,13 @@ class GearPickerActivity : ComponentActivity() {
 
         LightspeedActionRegistry.initializeSync(this)
 
+        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+        val csvString = prefs.getString("gear_set_${setId}_ring_${ringIndex}_packages", "") ?: ""
+        val initialItems = csvString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+
         setContent {
             var searchQuery by remember { mutableStateOf("") }
-            val selectedTokens = remember { mutableStateListOf<String>() }
+            val selectedTokens = remember { mutableStateListOf<String>().apply { addAll(initialItems) } }
             var expandedSubsections by remember { mutableStateOf(setOf<String>()) }
             val listState = rememberLazyListState()
             val coroutineScope = rememberCoroutineScope()
@@ -121,10 +125,6 @@ class GearPickerActivity : ComponentActivity() {
 
             LaunchedEffect(Unit) {
                 LightspeedActionRegistry.ensureIndexed(this@GearPickerActivity)
-                val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
-                val csvString = prefs.getString("gear_set_${setId}_ring_${ringIndex}_packages", "") ?: ""
-                val currentItems = csvString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                selectedTokens.addAll(currentItems)
             }
 
             val allTokens = LightspeedActionRegistry.allTokens

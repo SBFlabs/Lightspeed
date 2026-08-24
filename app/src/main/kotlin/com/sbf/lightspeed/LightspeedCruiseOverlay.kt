@@ -666,16 +666,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
 
                         // 7. Live Gimbal Touch & Interaction
-                        val cyGimbal = (screenH * 0.74f).coerceAtLeast(cy + 135f * d)
+                        val cyGimbal = (r7Y + 160f * d).coerceAtLeast(screenH * 0.62f)
                         val radOuter = 135f * d
                         val radInner = 84f * d
-                        val radHub = 30f * d
+                        val radHub = 32f * d
 
-                        val topGears = cyGimbal - radOuter - 18f * d
-                        val gapCenter = (r7Y + topGears) / 2f
-
-                        val shiftBarY = gapCenter - 18f * d
-                        val transferBarY = gapCenter + 18f * d
+                        val shiftBarY = cyGimbal + radOuter + 26f * d
+                        val transferBarY = cyGimbal + radOuter + 58f * d
                         val shiftCogLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
                         val shiftCogRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
                         val transferRect = RectF(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
@@ -762,44 +759,17 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         val distFromReticle = kotlin.math.hypot(x - reticleX, y - reticleY)
                         val targetBadgeRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
 
-                        // 1. Center Command Core Tap -> Inter-Ring Transfer focused app on the gear
+                        // 1. Center Command Core Tap -> Open Gear Picker for Active Ring
                         if (distFromCore <= radHub) {
-                            if (ringApps.isNotEmpty()) {
-                                val count = ringApps.size
-                                val baseRotation = gearRingRotations[activeHangarRing]
-                                var targetedIdx = 0
-                                var minDiff = Float.MAX_VALUE
-                                for (i in ringApps.indices) {
-                                    val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                                    val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                                    val diff = kotlin.math.abs(norm - 180f)
-                                    if (diff < minDiff) { minDiff = diff; targetedIdx = i }
-                                }
-                                val destRing = if (activeHangarRing == 0) 1 else 0
-                                val r0 = getAppsForActiveGear(activeGearSetIndex, 0).toMutableList()
-                                val r1 = getAppsForActiveGear(activeGearSetIndex, 1).toMutableList()
-                                val movedItem = if (activeHangarRing == 0) r0.removeAt(targetedIdx) else r1.removeAt(targetedIdx)
-                                if (destRing == 0) r0.add(movedItem) else r1.add(movedItem)
-
-                                prefs.edit()
-                                    .putString("gear_set_${currentSetId}_ring_0_packages", r0.joinToString(","))
-                                    .putString("gear_set_${currentSetId}_ring_1_packages", r1.joinToString(","))
-                                    .apply()
-
-                                activeHangarRing = destRing
-                                triggerHardwareHaptic(50, 255)
-                                invalidate()
-                                return true
-                            } else {
-                                val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
-                                    putExtra("SET_ID", currentSetId)
-                                    putExtra("RING_INDEX", activeHangarRing)
-                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                                dismissOverlay()
-                                return true
+                            isHangarEjectArmed = false
+                            val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
+                                putExtra("SET_ID", currentSetId)
+                                putExtra("RING_INDEX", activeHangarRing)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
+                            context.startActivity(intent)
+                            dismissOverlay()
+                            return true
                         }
 
                         // 2. Focused Cog or Target Badge Tap -> Eject / Delete Targeted Cog
@@ -2370,10 +2340,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             drawPill(ret4Rect, "◇ DIAMOND", reticleStyle == "diamond")
 
             // 8. Live Dual Gimbal Assembly Preview & Active Ring Command Core
-            val cyGimbal = (screenH * 0.74f).coerceAtLeast(cy + 135f * d)
+            val cyGimbal = (r7Y + 160f * d).coerceAtLeast(screenH * 0.62f)
             val radOuter = 135f * d
             val radInner = 84f * d
-            val radHub = 30f * d
+            val radHub = 32f * d
 
             // Draw Gimbal Rings with Active Highlight based on activeHangarRing
             drawSpaceshipGimbalRing(canvas, cx, cyGimbal, radOuter, 26f * d, 16, 7.5f * d, gearRingRotations[0], (activeHangarRing == 0), m3Primary)
@@ -2469,13 +2439,35 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             canvas.drawLine(reticleX - 28f * d, reticleY, reticleX - 18f * d, reticleY, highlightPaint)
             canvas.drawLine(reticleX + 18f * d, reticleY, reticleX + 28f * d, reticleY, highlightPaint)
 
-            // Target Indicator & Live Orbital Control Deck
-            val topGears = cyGimbal - radOuter - 18f * d
-            val gapCenter = (r7Y + topGears) / 2f
-            val shiftBarY = gapCenter - 18f * d
-            val transferBarY = gapCenter + 18f * d
             val activeRingColor = if (activeHangarRing == 0) m3Primary else m3Secondary
             val otherRingColor = if (activeHangarRing == 0) m3Secondary else m3Primary
+
+            // Central Command Reactor Core (Tap to Add/Edit Shortcuts on Active Ring)
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = Color.argb(210, 16, 22, 38)
+            canvas.drawCircle(cx, cyGimbal, radHub, highlightPaint)
+
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = 1.6f * d
+            highlightPaint.color = activeRingColor
+            canvas.drawCircle(cx, cyGimbal, radHub, highlightPaint)
+
+            textPaint.textSize = 8.5f * d
+            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textPaint.color = Color.WHITE
+            canvas.drawText("RING 0${activeHangarRing + 1}", cx, cyGimbal - 7f * d, textPaint)
+
+            textPaint.textSize = 8.5f * d
+            textPaint.color = activeRingColor
+            canvas.drawText("[ ⊕ EDIT ]", cx, cyGimbal + 4f * d, textPaint)
+
+            textPaint.textSize = 7f * d
+            textPaint.color = Color.argb(160, 200, 220, 255)
+            canvas.drawText("${activeAppsList.size} APPS", cx, cyGimbal + 13f * d, textPaint)
+
+            // Target Indicator & Live Orbital Control Deck (Positioned BELOW the Gears)
+            val shiftBarY = cyGimbal + radOuter + 26f * d
+            val transferBarY = cyGimbal + radOuter + 58f * d
 
             if (focusedAppLabel != null) {
                 if (activeAppsList.size > 1) {
@@ -2570,30 +2562,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 textPaint.color = Color.argb(140, 200, 220, 255)
                 canvas.drawText("✦ TOUCH & DRAG TO SPIN // TAP CENTER TO EDIT ✦", cx, shiftBarY + 3.5f * d, textPaint)
             }
-
-            // Central Command Reactor Core (Interactive Transfer Hub on the Gear)
-            val destRingNumber = if (activeHangarRing == 0) 2 else 1
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(210, 16, 22, 38)
-            canvas.drawCircle(cx, cyGimbal, radHub, highlightPaint)
-
-            highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.8f * d
-            highlightPaint.color = activeRingColor
-            canvas.drawCircle(cx, cyGimbal, radHub, highlightPaint)
-
-            textPaint.textSize = 8.5f * d
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            textPaint.color = Color.WHITE
-            canvas.drawText("RING 0${activeHangarRing + 1}", cx, cyGimbal - 10f * d, textPaint)
-
-            textPaint.textSize = 9.5f * d
-            textPaint.color = otherRingColor
-            canvas.drawText("⇄ TRANSFER", cx, cyGimbal + 1f * d, textPaint)
-
-            textPaint.textSize = 7.5f * d
-            textPaint.color = Color.argb(190, 200, 220, 255)
-            canvas.drawText("➔ RING 0$destRingNumber", cx, cyGimbal + 11f * d, textPaint)
 
             // Bottom Exit Capsule
             val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 58f * d, cx + (deckW * 0.42f), screenH - 18f * d)

@@ -515,7 +515,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
                                     context.startActivity(intent)
-                                    dismissOverlay()
                                 }
                                 longPressHangarBayRunnable = runnable
                                 postDelayed(runnable, 400)
@@ -805,8 +804,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             return true
                         }
 
-                        // 2. Focused Cog or Target Badge -> Long Press to Edit, Tap to Eject
-                        if ((distFromReticle <= 30f * d || targetBadgeRect.contains(x, y)) && ringApps.isNotEmpty()) {
+                        // 2. Focused Cog or Target Badge / Tag -> Long Press to Edit, Tap to Eject
+                        val isTouchingReticleOrTag = (distFromReticle <= 30f * d) ||
+                                (x in (reticleX - 24f * d)..(reticleX + 180f * d) && y in (reticleY - 24f * d)..(reticleY + 24f * d)) ||
+                                targetBadgeRect.contains(x, y)
+
+                        if (isTouchingReticleOrTag && ringApps.isNotEmpty()) {
                             val count = ringApps.size
                             val baseRotation = gearRingRotations[activeHangarRing]
                             var targetedIdx = 0
@@ -829,7 +832,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
                                     context.startActivity(intent)
-                                    dismissOverlay()
                                 }
                                 longPressCogRunnable = runnable
                                 postDelayed(runnable, 400)
@@ -1848,7 +1850,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             cleanAppName = "$cleanAppName…"
         }
         
-        val subText = "TARGET LOCK"
+        val subText = "TARGET LOCKED"
         textPaint.textSize = 8.5f * density
         textPaint.typeface = android.graphics.Typeface.DEFAULT
         val subWidth = textPaint.measureText(subText)
@@ -2536,7 +2538,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
             }
 
-            // Draw Targeting Reticle Collimator at 180 deg (straight left) matching selected reticleStyle
+            val activeRingColor = if (activeHangarRing == 0) m3Primary else m3Secondary
+            val otherRingColor = if (activeHangarRing == 0) m3Secondary else m3Primary
+
+            // Draw Targeting Reticle Collimator & Holographic Target Tag at 180 deg (straight left)
             val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
             val reticleY = cyGimbal
             val isEjectArmedNow = isHangarEjectArmed
@@ -2544,69 +2549,19 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                else if (activeHangarRing == 0) m3Primary
                                else m3Secondary
 
-            val bracketSize = 54f * d
-            val half = bracketSize / 2f
-            val armLen = bracketSize * 0.28f
-
-            elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = if (isEjectArmedNow) 2.4f * d else 1.8f * d
-            elementPaint.color = reticleColor
-
-            when (reticleStyle) {
-                "cyber" -> {
-                    val arcRect = RectF(reticleX - half, reticleY - half, reticleX + half, reticleY + half)
-                    canvas.drawArc(arcRect, 35f, 110f, false, elementPaint)
-                    canvas.drawArc(arcRect, 215f, 110f, false, elementPaint)
-                    elementPaint.strokeWidth = 1.4f * d
-                    canvas.drawLine(reticleX, reticleY - half - 4f * d, reticleX, reticleY - half + 4f * d, elementPaint)
-                    canvas.drawLine(reticleX, reticleY + half - 4f * d, reticleX, reticleY + half + 4f * d, elementPaint)
-                    canvas.drawLine(reticleX - half - 4f * d, reticleY, reticleX - half + 4f * d, reticleY, elementPaint)
-                    canvas.drawLine(reticleX + half - 4f * d, reticleY, reticleX + half + 4f * d, reticleY, elementPaint)
-                }
-                "cross" -> {
-                    elementPaint.strokeWidth = 1.6f * d
-                    val gap = half * 0.52f
-                    canvas.drawLine(reticleX - half, reticleY, reticleX - gap, reticleY, elementPaint)
-                    canvas.drawLine(reticleX + gap, reticleY, reticleX + half, reticleY, elementPaint)
-                    canvas.drawLine(reticleX, reticleY - half, reticleX, reticleY - gap, elementPaint)
-                    canvas.drawLine(reticleX, reticleY + gap, reticleX, reticleY + half, elementPaint)
-                    elementPaint.style = Paint.Style.FILL
-                    canvas.drawCircle(reticleX, reticleY, 2.2f * d, elementPaint)
-                    elementPaint.style = Paint.Style.STROKE
-                }
-                "diamond" -> {
-                    val dOffset = half * 1.05f
-                    val path = android.graphics.Path().apply {
-                        moveTo(reticleX, reticleY - dOffset)
-                        lineTo(reticleX + dOffset, reticleY)
-                        lineTo(reticleX, reticleY + dOffset)
-                        lineTo(reticleX - dOffset, reticleY)
-                        close()
-                    }
-                    elementPaint.strokeWidth = 1.8f * d
-                    canvas.drawPath(path, elementPaint)
-                    elementPaint.style = Paint.Style.FILL
-                    canvas.drawCircle(reticleX, reticleY - dOffset, 2.2f * d, elementPaint)
-                    canvas.drawCircle(reticleX, reticleY + dOffset, 2.2f * d, elementPaint)
-                    canvas.drawCircle(reticleX - dOffset, reticleY, 2.2f * d, elementPaint)
-                    canvas.drawCircle(reticleX + dOffset, reticleY, 2.2f * d, elementPaint)
-                    elementPaint.style = Paint.Style.STROKE
-                }
-                else -> {
-                    // Tactical Corner Brackets [ ]
-                    canvas.drawLine(reticleX - half, reticleY - half + armLen, reticleX - half, reticleY - half, elementPaint)
-                    canvas.drawLine(reticleX - half, reticleY - half, reticleX - half + armLen, reticleY - half, elementPaint)
-                    canvas.drawLine(reticleX + half - armLen, reticleY - half, reticleX + half, reticleY - half, elementPaint)
-                    canvas.drawLine(reticleX + half, reticleY - half, reticleX + half, reticleY - half + armLen, elementPaint)
-                    canvas.drawLine(reticleX - half, reticleY + half - armLen, reticleX - half, reticleY + half, elementPaint)
-                    canvas.drawLine(reticleX - half, reticleY + half, reticleX - half + armLen, reticleY + half, elementPaint)
-                    canvas.drawLine(reticleX + half - armLen, reticleY + half, reticleX + half, reticleY + half, elementPaint)
-                    canvas.drawLine(reticleX + half, reticleY + half, reticleX + half, reticleY + half - armLen, elementPaint)
-                }
+            if (focusedAppLabel != null) {
+                drawFlightLockReticle(
+                    canvas = canvas,
+                    targetCX = reticleX,
+                    targetCY = reticleY,
+                    bracketSize = 54f * d,
+                    m3Primary = reticleColor,
+                    m3Secondary = otherRingColor,
+                    appName = focusedAppLabel,
+                    density = d,
+                    reticleStyle = reticleStyle
+                )
             }
-
-            val activeRingColor = if (activeHangarRing == 0) m3Primary else m3Secondary
-            val otherRingColor = if (activeHangarRing == 0) m3Secondary else m3Primary
 
             // Central Command Reactor Core (Tap to Add/Edit Shortcuts on Active Ring)
             highlightPaint.style = Paint.Style.FILL

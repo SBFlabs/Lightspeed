@@ -1,12 +1,12 @@
 package com.sbf.lightspeed
 
-import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -56,41 +56,51 @@ class CockpitDialogActivity : ComponentActivity() {
         val action = intent.action ?: ACTION_RENAME_GEAR
 
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
+            val context = LocalContext.current
+            val colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                dynamicDarkColorScheme(context)
+            } else {
+                darkColorScheme(
                     primary = Color(0xFF90CAF9),
                     secondary = Color(0xFFCE93D8),
                     surface = Color(0xFF161B26),
                     surfaceVariant = Color(0xFF212836)
                 )
-            ) {
+            }
+
+            MaterialTheme(colorScheme = colorScheme) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.6f))
+                        .background(Color.Black.copy(alpha = 0.55f))
                         .clickable(onClick = { finish() }),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth(0.92f)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF141923))
-                            .border(1.2.dp, Color(0xFF90CAF9).copy(alpha = 0.35f), RoundedCornerShape(20.dp))
-                            .clickable(enabled = false, onClick = {})
-                            .padding(20.dp)
+                            .clickable(enabled = false, onClick = {}),
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation = 6.dp,
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
                     ) {
-                        when (action) {
-                            ACTION_RENAME_GEAR -> RenameGearContent(
-                                setId = intent.getStringExtra(EXTRA_SET_ID) ?: "0",
-                                currentName = intent.getStringExtra(EXTRA_CURRENT_NAME) ?: "SET 1",
-                                onDismiss = { finish() }
-                            )
-                            ACTION_EDIT_ITEM -> EditItemContent(
-                                token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
-                                onDismiss = { finish() }
-                            )
-                            else -> finish()
+                        Box(modifier = Modifier.padding(22.dp)) {
+                            when (action) {
+                                ACTION_RENAME_GEAR -> RenameGearContent(
+                                    setId = intent.getStringExtra(EXTRA_SET_ID) ?: "0",
+                                    currentName = intent.getStringExtra(EXTRA_CURRENT_NAME) ?: "SET 1",
+                                    onDismiss = { finish() }
+                                )
+                                ACTION_EDIT_ITEM -> EditItemContent(
+                                    token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
+                                    onDismiss = { finish() }
+                                )
+                                else -> finish()
+                            }
                         }
                     }
                 }
@@ -117,16 +127,16 @@ fun RenameGearContent(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 "Rename Gear Set",
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = Color.White
+                fontSize = 19.sp,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         OutlinedTextField(
             value = gearNameText,
@@ -134,17 +144,21 @@ fun RenameGearContent(
             label = { Text("Gear Set Name") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp)
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.White.copy(alpha = 0.7f))
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -159,9 +173,13 @@ fun RenameGearContent(
                     }
                     onDismiss()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save", color = Color(0xFF0F141C), fontWeight = FontWeight.Bold)
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -224,17 +242,17 @@ fun EditItemContent(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     "Customize Item",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Color.White
+                    fontSize = 19.sp,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    "Change display label and custom icon",
-                    fontSize = 11.sp,
+                    "Change display label & custom icon",
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -245,10 +263,14 @@ fun EditItemContent(
         // Icon Preview Card with Edit Badge
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF1E2536))
-                .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                .size(84.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .border(
+                    1.5.dp,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    RoundedCornerShape(22.dp)
+                )
                 .clickable { imagePickerLauncher.launch("image/*") },
             contentAlignment = Alignment.Center
         ) {
@@ -270,16 +292,16 @@ fun EditItemContent(
                 Image(
                     bitmap = bmp.asImageBitmap(),
                     contentDescription = "Item Icon",
-                    modifier = Modifier.size(54.dp)
+                    modifier = Modifier.size(56.dp)
                 )
             }
 
-            // Edit overlay icon
+            // Edit overlay badge
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(4.dp)
-                    .size(22.dp)
+                    .size(24.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
@@ -287,20 +309,20 @@ fun EditItemContent(
                 Icon(
                     Icons.Default.Image,
                     contentDescription = "Change Icon",
-                    tint = Color(0xFF0F141C),
-                    modifier = Modifier.size(13.dp)
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             "Tap icon to pick from gallery",
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+            fontSize = 11.5.sp,
+            color = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         OutlinedTextField(
             value = customLabelText,
@@ -308,7 +330,11 @@ fun EditItemContent(
             label = { Text("Display Name") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp)
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            )
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -330,9 +356,14 @@ fun EditItemContent(
             },
             modifier = Modifier.align(Alignment.Start)
         ) {
-            Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+            Icon(
+                Icons.Default.Refresh,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(16.dp)
+            )
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Reset to Default", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+            Text("Reset to Default", color = MaterialTheme.colorScheme.error, fontSize = 12.5.sp)
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -342,7 +373,7 @@ fun EditItemContent(
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.White.copy(alpha = 0.7f))
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
@@ -361,9 +392,13 @@ fun EditItemContent(
                     Toast.makeText(context, "Item customized successfully!", Toast.LENGTH_SHORT).show()
                     onDismiss()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Save", color = Color(0xFF0F141C), fontWeight = FontWeight.Bold)
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         }
     }

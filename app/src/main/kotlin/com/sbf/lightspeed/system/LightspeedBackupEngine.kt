@@ -172,13 +172,24 @@ object LightspeedBackupEngine {
 
     fun importFromFile(context: Context, uri: Uri): Result<Int> {
         return try {
-            val jsonString = context.contentResolver.openInputStream(uri)?.use { stream ->
-                BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).readText()
-            } ?: return Result.failure(IllegalStateException("Could not open input stream for $uri"))
+            Log.i(TAG, "Importing from uri: $uri (scheme=${uri.scheme})")
+            val jsonString = when (uri.scheme) {
+                "file" -> {
+                    val file = java.io.File(uri.path ?: "")
+                    if (file.exists()) file.readText(Charsets.UTF_8)
+                    else throw IllegalStateException("File does not exist at ${uri.path}")
+                }
+                else -> {
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).readText()
+                    } ?: throw IllegalStateException("Could not open stream for $uri")
+                }
+            }
 
+            Log.i(TAG, "Read ${jsonString.length} chars from $uri")
             importFromJson(context, jsonString)
         } catch (e: Exception) {
-            Log.e(TAG, "File read during import failed", e)
+            Log.e(TAG, "File read during import failed for $uri", e)
             Result.failure(e)
         }
     }

@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.sbf.lightspeed.CockpitSettingsActivity
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedBackupEngine
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -344,6 +345,8 @@ fun SidebarMatrixConfigurationFields(
     var isBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_bottom_expanded", false)) }
     var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
+    var importStatusMessage by remember { mutableStateOf<String?>(null) }
+    var isImportSuccess by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -364,14 +367,18 @@ fun SidebarMatrixConfigurationFields(
         if (uri != null) {
             val result = LightspeedBackupEngine.importFromFile(context, uri)
             result.onSuccess { count ->
-                Toast.makeText(context, "Restored $count settings successfully!", Toast.LENGTH_SHORT).show()
-                (context as? Activity)?.let { act ->
-                    act.finish()
-                    act.startActivity(act.intent)
-                } ?: onRefreshNeeded()
+                isImportSuccess = true
+                importStatusMessage = "Successfully restored $count settings from backup file!\n\nAll gesture maps, coordinates, status bar metrics, and gear sets have been applied."
+                try {
+                    LightspeedAccessibilityService.instance?.reloadPreferences()
+                } catch (_: Exception) {}
             }.onFailure { err ->
-                Toast.makeText(context, "Import failed: ${err.message}", Toast.LENGTH_LONG).show()
+                isImportSuccess = false
+                importStatusMessage = "Import Failed:\n${err.message ?: err.javaClass.simpleName}"
             }
+        } else {
+            isImportSuccess = false
+            importStatusMessage = "File selection was cancelled or no file was returned."
         }
     }
 
@@ -627,6 +634,46 @@ fun SidebarMatrixConfigurationFields(
                 dismissButton = {
                     TextButton(onClick = { showResetConfirmDialog = false }) {
                         Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (importStatusMessage != null) {
+            AlertDialog(
+                onDismissRequest = { importStatusMessage = null },
+                title = {
+                    Text(
+                        text = if (isImportSuccess) "Backup Restored" else "Import Status",
+                        fontWeight = FontWeight.Bold,
+                        color = if (isImportSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                },
+                text = {
+                    Text(
+                        text = importStatusMessage ?: "",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val wasSuccess = isImportSuccess
+                            importStatusMessage = null
+                            if (wasSuccess) {
+                                (context as? Activity)?.let { act ->
+                                    act.finish()
+                                    act.startActivity(act.intent)
+                                } ?: onRefreshNeeded()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isImportSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Text(if (isImportSuccess) "Apply & Reload" else "Dismiss", color = Color.White)
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant

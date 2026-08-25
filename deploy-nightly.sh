@@ -22,7 +22,7 @@ else
 fi
 
 echo "⚙️ [3/4] Compiling Lightspeed Nightly APK..."
-./gradlew packageDebug --rerun-tasks
+./gradlew assembleDebug
 
 echo "🚀 [4/4] Installing Nightly build to device ($APK_PATH)..."
 adb -s "$DEVICE_IP" install -r -d "$APK_PATH"

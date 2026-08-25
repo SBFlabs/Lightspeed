@@ -108,6 +108,7 @@ class CockpitSettingsActivity : ComponentActivity() {
             }
 
             LightspeedTheme(forceDark = true) {
+                val dynamicColorScheme = MaterialTheme.colorScheme
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.65f)),
                     contentAlignment = Alignment.Center

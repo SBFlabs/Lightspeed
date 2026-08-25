@@ -1284,14 +1284,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             val itemCount = packages.size
                             val currentRotation = gearRingRotations[activeGearRing]
                             
-                            val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
                             var targetedPackage: String? = null
                             var minAngleDiff = Float.MAX_VALUE
                             
                             for (i in packages.indices) {
                                 val itemAngle = (currentRotation + i * (360f / itemCount)) % 360f
                                 val normalizedAngle = if (itemAngle < 0) itemAngle + 360f else itemAngle
-                                val diff = minOf(abs(normalizedAngle - targetAngle), 360f - abs(normalizedAngle - targetAngle))
+                                val diff = abs(normalizedAngle - 180f)
                                 if (diff < minAngleDiff) {
                                     minAngleDiff = diff
                                     targetedPackage = packages[i]
@@ -1305,7 +1304,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
                                 val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
                                 val currentTrackRadius = if (activeGearRing == 0) rad0 else rad1
-                                val targetedX = if (isOpenedFromLeftFlank) (cx + currentTrackRadius) else (cx - currentTrackRadius)
+                                val targetedX = cx - currentTrackRadius
                                 val targetedY = cy
 
                                 triggerHyperdriveWarpLaunch(targetedX, targetedY) {
@@ -1836,14 +1835,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         if (packages.isNotEmpty() && activeGearRing in 0..1) {
                             val itemCount = packages.size
                             val currentRotation = gearRingRotations[activeGearRing]
-                            val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
                             var targetedPackage: String? = null
                             var minAngleDiff = Float.MAX_VALUE
                             
                             for (i in packages.indices) {
                                 val itemAngle = (currentRotation + i * (360f / itemCount)) % 360f
                                 val normalizedAngle = if (itemAngle < 0) itemAngle + 360f else itemAngle
-                                val diff = minOf(kotlin.math.abs(normalizedAngle - targetAngle), 360f - kotlin.math.abs(normalizedAngle - targetAngle))
+                                val diff = abs(normalizedAngle - 180f)
                                 if (diff < minAngleDiff) {
                                     minAngleDiff = diff
                                     targetedPackage = packages[i]
@@ -1857,7 +1855,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
                                 val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
                                 val currentTrackRadius = if (activeGearRing == 0) rad0 else rad1
-                                val targetedX = if (isOpenedFromLeftFlank) (cx + currentTrackRadius) else (cx - currentTrackRadius)
+                                val targetedX = cx - currentTrackRadius
                                 val targetedY = cy
 
                                 triggerHyperdriveWarpLaunch(targetedX, targetedY) {
@@ -2180,14 +2178,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
         }
         
-        // Horizontal Laser Alignment Lead Line extending to bezel
+        // Horizontal Laser Alignment Lead Line extending to left bezel
         elementPaint.strokeWidth = 1.2f * density
         elementPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-        if (isOpenedFromLeftFlank) {
-            canvas.drawLine(0f, targetCY, targetCX - half - 10f, targetCY, elementPaint)
-        } else {
-            canvas.drawLine(width.toFloat(), targetCY, targetCX + half + 10f, targetCY, elementPaint)
-        }
+        canvas.drawLine(0f, targetCY, targetCX - half - 10f, targetCY, elementPaint)
 
         // Holographic Telemetry Label above/adjacent target
         textPaint.textSize = 12f * density
@@ -2215,7 +2209,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         val finalBadgeWidth = maxOf(titleWidth, subWidth).coerceAtLeast(54f * density)
         
-        val badgeX = if (isOpenedFromLeftFlank) (targetCX + half + 14f * density) else (targetCX - half - 14f * density - finalBadgeWidth)
+        val badgeX = targetCX + half + 14f * density
         val badgeY = targetCY - 6f * density
         
         // Target Lock Badge Frame
@@ -2497,25 +2491,24 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             else -> 1.0f
         }
 
-        val baseDegreesPerDp = (if (isOpenedFromLeftFlank) -1.35f else 1.35f) * physicsMultiplier
+        val baseDegreesPerDp = 1.35f * physicsMultiplier
         val dyInDp = deltaY / density
 
         if (activeGearRing in 0..1) {
             val angularDeltaDeg = dyInDp * baseDegreesPerDp
             gearRingRotations[activeGearRing] += angularDeltaDeg
 
-            // Physical Mechanical Cog Notch Haptics as icons cross the focus reticle (0° for Left, 180° for Right)
+            // Physical Mechanical Cog Notch Haptics as icons cross the 180° focus reticle
             val packages = getAppsForActiveGear(activeGearSetIndex, activeGearRing)
             if (packages.isNotEmpty()) {
                 val itemCount = packages.size
                 val currentRot = gearRingRotations[activeGearRing]
-                val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
                 var closestIdx = 0
                 var minDiff = Float.MAX_VALUE
                 for (i in packages.indices) {
                     val itemAngle = (currentRot + i * (360f / itemCount)) % 360f
                     val norm = if (itemAngle < 0) itemAngle + 360f else itemAngle
-                    val diff = minOf(kotlin.math.abs(norm - targetAngle), 360f - kotlin.math.abs(norm - targetAngle))
+                    val diff = kotlin.math.abs(norm - 180f)
                     if (diff < minDiff) {
                         minDiff = diff
                         closestIdx = i
@@ -3274,11 +3267,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val iconCX = cx + radius * Math.cos(angleRad).toFloat()
                     val iconCY = cy + radius * Math.sin(angleRad).toFloat()
                     
-                    // Dynamic Focus Interpolation: Target angle is 0 deg for left flank, 180 deg for right flank
+                    // Dynamic Focus Interpolation: Target angle is 180 deg (straight left, pointing to center)
                     val normalizedDeg = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                    val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
-                    val angleDiff = minOf(abs(normalizedDeg - targetAngle), 360f - abs(normalizedDeg - targetAngle))
-                    val isHighlighted = isRingFocused && angleDiff < (180f / count)
+                    val isHighlighted = isRingFocused && abs(normalizedDeg - 180f) < (180f / count)
                     val currentScale = if (isHighlighted) 1.28f else 1.0f
                     val currentSize = (sizeRaw * currentScale).toInt()
                     

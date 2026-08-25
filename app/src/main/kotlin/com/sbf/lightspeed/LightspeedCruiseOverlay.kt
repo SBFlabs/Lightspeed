@@ -36,6 +36,7 @@ import com.sbf.lightspeed.defaultPrefs
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.ElevatedTaskCloser
+import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import java.net.URISyntaxException
 import kotlin.math.PI
 import kotlin.math.abs
@@ -1463,7 +1464,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             } else if (assignedScrub == "system:screen_timeout") {
                 val curIdx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
                 val targetIndex = (curIdx - steps).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
-                val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
+                val stepResult = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
+                val label = stepResult.second
                 if (scrubHudValue != label) {
                     scrubHudTitle = "SCREEN TIMEOUT"
                     scrubHudValue = label
@@ -3335,11 +3337,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
 
         if (currentDetectedGesture == MacroGesture.SCRUBBING && scrubHudTitle.isNotEmpty()) {
+            val d = resources.displayMetrics.density
             val cx = w / 2f
             val cy = h / 2f
             val text = "$scrubHudTitle: $scrubHudValue"
-            val textW = textPaint.measureText(text).coerceAtLeast(180f * density)
-            val rect = RectF(cx - (textW / 2f) - (20f * density), cy - (26f * density), cx + (textW / 2f) + (20f * density), cy + (26f * density))
+            val textW = textPaint.measureText(text).coerceAtLeast(180f * d)
+            val rect = RectF(cx - (textW / 2f) - (20f * d), cy - (26f * d), cx + (textW / 2f) + (20f * d), cy + (26f * d))
 
             val hudFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.FILL
@@ -3347,18 +3350,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
             val hudStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
-                strokeWidth = 2f * density
+                strokeWidth = 2f * d
                 color = m3Primary
             }
             val hudText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.WHITE
-                textSize = 15f * density
+                textSize = 15f * d
                 textAlign = Paint.Align.CENTER
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             }
-            canvas.drawRoundRect(rect, 14f * density, 14f * density, hudFill)
-            canvas.drawRoundRect(rect, 14f * density, 14f * density, hudStroke)
-            canvas.drawText(text, cx, cy + (6f * density), hudText)
+            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudFill)
+            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudStroke)
+            canvas.drawText(text, cx, cy + (6f * d), hudText)
         }
     }
 }

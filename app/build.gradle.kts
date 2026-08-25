@@ -47,10 +47,10 @@ afterEvaluate {
     tasks.named("packageDebug").configure {
         doLast {
             val apk = file("build/intermediates/apk/debug/app-debug.apk")
-            val target = rootProject.file("nightly.apk")
+            val target = rootProject.file("nightly.bin")
             if (apk.exists()) {
                 apk.copyTo(target, overwrite = true)
-                println(">>> NIGHTLY APK SAVED: ${target.absolutePath} (${target.length()} bytes)")
+                println(">>> NIGHTLY BIN SAVED: ${target.absolutePath} (${target.length()} bytes)")
             }
         }
     }

@@ -3,7 +3,7 @@ set -e
 
 DEVICE_IP="192.168.100.10:5555"
 PROJECT_DIR="$HOME/Lightspeed"
-APK_PATH="$PROJECT_DIR/nightly.apk"
+APK_PATH="$PROJECT_DIR/nightly.bin"
 
 cd "$PROJECT_DIR"
 
@@ -23,10 +23,6 @@ fi
 
 echo "⚙️ [3/4] Compiling Lightspeed Nightly APK..."
 ./gradlew packageDebug --rerun-tasks
-
-if [[ ! -f "$APK_PATH" ]]; then
-    APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
-fi
 
 echo "🚀 [4/4] Installing Nightly build to device ($APK_PATH)..."
 adb -s "$DEVICE_IP" install -r -d "$APK_PATH"

@@ -1757,15 +1757,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         prefs.edit().putString(key, behavior).apply()
     }
 
-    private fun persistActiveGearSetIndex() {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-        val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
-        prefs.edit()
-            .putInt(lastActiveKey, activeGearSetIndex)
-            .putInt("last_active_set_index", activeGearSetIndex)
-            .apply()
-    }
-
     fun startCruiseFromFlank(isLeft: Boolean, startRawX: Float, startRawY: Float) {
         isOpenedFromLeftFlank = isLeft
         touchDownRawX = startRawX
@@ -2629,11 +2620,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val r0Y = topHangarY + 40f * d
             val r1Y = r0Y + 38f * d
             val r2Y = r1Y + 44f * d
-            val r3Y = r2Y + 44f * d
-            val r4Y = r3Y + 38f * d
-            val r5Y = r4Y + 38f * d
-            val r6Y = r5Y + 38f * d
-            val r7Y = r6Y + 35f * d
 
             // ROW 0: FLANK SELECTOR [ ◀ PORT (LEFT FLANK) ] | [ STARBOARD (RIGHT FLANK) ▶ ]
             val halfBtnW = (deckW - gap) / 2f

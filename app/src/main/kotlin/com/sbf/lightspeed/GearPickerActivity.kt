@@ -668,11 +668,11 @@ class GearPickerActivity : ComponentActivity() {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .height(44.dp)
+                                                        .height(48.dp)
                                                         .padding(vertical = 2.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    // 1. Main Board (Left): App Icon + Title + Selection Badge
+                                                    // 1. Main Board (Left): App Icon + Title + Subtitle + Selection Badge
                                                     Row(
                                                         modifier = Modifier
                                                             .weight(1f)
@@ -710,26 +710,33 @@ class GearPickerActivity : ComponentActivity() {
                                                             Image(
                                                                 bitmap = iconBmp.asImageBitmap(),
                                                                 contentDescription = null,
-                                                                modifier = Modifier.size(24.dp).padding(end = 8.dp)
+                                                                modifier = Modifier.size(26.dp).padding(end = 8.dp)
                                                             )
                                                         } else {
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(24.dp)
+                                                                    .size(26.dp)
                                                                     .padding(end = 8.dp)
                                                                     .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(5.dp))
                                                             )
                                                         }
 
-                                                        Text(
-                                                            text = item.appName,
-                                                            color = if (isAppSelected) dynamicPrimary else Color.White,
-                                                            fontSize = 13.5.sp,
-                                                            fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.Medium,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            modifier = Modifier.weight(1f)
-                                                        )
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = item.appName,
+                                                                color = if (isAppSelected) dynamicPrimary else Color.White,
+                                                                fontSize = 13.sp,
+                                                                fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                            Text(
+                                                                text = if (hasShortcuts) "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}" else "Application",
+                                                                color = if (hasShortcuts) dynamicSecondary.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.38f),
+                                                                fontSize = 9.5.sp,
+                                                                maxLines = 1
+                                                            )
+                                                        }
 
                                                         // Selection Indicator Badge
                                                         if (isAppSelected) {

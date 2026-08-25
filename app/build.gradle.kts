@@ -43,6 +43,19 @@ android {
     }
 }
 
+afterEvaluate {
+    tasks.named("packageDebug").configure {
+        doLast {
+            val apk = file("build/intermediates/apk/debug/app-debug.apk")
+            val target = rootProject.file("nightly.apk")
+            if (apk.exists()) {
+                apk.copyTo(target, overwrite = true)
+                println(">>> NIGHTLY APK SAVED: ${target.absolutePath} (${target.length()} bytes)")
+            }
+        }
+    }
+}
+
 
 
 dependencies {

@@ -3,7 +3,7 @@ set -e
 
 DEVICE_IP="192.168.100.10:5555"
 PROJECT_DIR="$HOME/Lightspeed"
-APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+APK_PATH="$PROJECT_DIR/nightly.apk"
 
 cd "$PROJECT_DIR"
 
@@ -22,9 +22,16 @@ else
 fi
 
 echo "⚙️ [3/4] Compiling Lightspeed Nightly APK..."
-./gradlew assembleDebug
+./gradlew packageDebug --rerun-tasks
 
-echo "🚀 [4/4] Installing Nightly build to device..."
-adb -s "$DEVICE_IP" install -r "$APK_PATH"
+if [[ ! -f "$APK_PATH" ]]; then
+    APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+fi
+
+echo "🚀 [4/4] Installing Nightly build to device ($APK_PATH)..."
+adb -s "$DEVICE_IP" install -r -d "$APK_PATH"
+
+echo "🔍 Verifying physical installation on device..."
+adb -s "$DEVICE_IP" shell "dumpsys package com.sbf.lightspeed.nightly | grep -E 'versionCode|lastUpdateTime'"
 
 echo "✅ Lightspeed Nightly deployed successfully!"

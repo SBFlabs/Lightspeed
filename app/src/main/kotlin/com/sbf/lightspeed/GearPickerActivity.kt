@@ -43,6 +43,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
+import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import kotlinx.coroutines.launch
 
 sealed class PickerRowItem {
@@ -113,7 +115,7 @@ class GearPickerActivity : ComponentActivity() {
 
         LightspeedActionRegistry.initializeSync(this)
 
-        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = defaultPrefs()
         val initialItems = if (isSingleSelect) {
             val currentToken = prefs.getString(singleSelectPrefKey, "none") ?: "none"
             if (currentToken != "none") listOf(currentToken) else emptyList()
@@ -123,6 +125,7 @@ class GearPickerActivity : ComponentActivity() {
         }
 
         setContent {
+            LightspeedTheme(forceDark = true) {
             var searchQuery by remember { mutableStateOf("") }
             val selectedTokens = remember { mutableStateListOf<String>().apply { addAll(initialItems) } }
             var expandedSubsections by remember { mutableStateOf(setOf<String>()) }

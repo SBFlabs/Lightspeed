@@ -46,6 +46,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+import com.sbf.lightspeed.ui.theme.LightspeedTheme
+
 class CockpitDialogActivity : ComponentActivity() {
 
     companion object {
@@ -71,19 +73,7 @@ class CockpitDialogActivity : ComponentActivity() {
         val action = intent.action ?: ACTION_RENAME_GEAR
 
         setContent {
-            val context = LocalContext.current
-            val colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                dynamicDarkColorScheme(context)
-            } else {
-                darkColorScheme(
-                    primary = Color(0xFF90CAF9),
-                    secondary = Color(0xFFCE93D8),
-                    surface = Color(0xFF161B26),
-                    surfaceVariant = Color(0xFF212836)
-                )
-            }
-
-            MaterialTheme(colorScheme = colorScheme) {
+            LightspeedTheme(forceDark = true) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

@@ -35,28 +35,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sbf.lightspeed.settings.LightspeedActionRegistry
+import com.sbf.lightspeed.ui.theme.LightspeedTheme
+import com.sbf.lightspeed.system.defaultPrefs
 
 class CockpitSettingsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val dynamicColorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            dynamicDarkColorScheme(this)
-        } else {
-            darkColorScheme(
-                primary = Color(0xFF6750A4),
-                secondary = Color(0xFFD0BCFF),
-                tertiary = Color(0xFFCCC2DC)
-            )
-        }
-
         LightspeedActionRegistry.initializeSync(this)
 
         setContent {
             val context = this
-            val prefs = remember { context.getSharedPreferences("default", Context.MODE_PRIVATE) }
+            val prefs = remember { context.defaultPrefs() }
             
             var launchBehavior by remember { 
                 mutableStateOf(prefs.getString("cockpit_launch_behavior", "default") ?: "default") 
@@ -115,7 +106,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                 reloadSetData()
             }
 
-            MaterialTheme(colorScheme = dynamicColorScheme) {
+            LightspeedTheme(forceDark = true) {
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.65f)),
                     contentAlignment = Alignment.Center

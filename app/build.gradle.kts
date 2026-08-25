@@ -53,9 +53,10 @@ android {
 afterEvaluate {
     tasks.named("packageDebug").configure {
         doLast {
-            val intermediateDir = file("build/intermediates/apk/debug/packageDebug")
-            val outputDir = file("build/outputs/apk/debug").apply { mkdirs() }
+            val intermediateDir = File(layout.buildDirectory.get().asFile, "intermediates/apk/debug/packageDebug")
+            val outputDir = File(layout.buildDirectory.get().asFile, "outputs/apk/debug").apply { mkdirs() }
             val targetApk = File(outputDir, "app-debug.apk")
+            println(">>> SEARCHING INTERMEDIATE DIR: ${intermediateDir.absolutePath} (exists=${intermediateDir.exists()})")
             if (intermediateDir.exists()) {
                 intermediateDir.walk().filter { it.isFile && it.extension == "apk" }.forEach { foundApk ->
                     foundApk.copyTo(targetApk, overwrite = true)

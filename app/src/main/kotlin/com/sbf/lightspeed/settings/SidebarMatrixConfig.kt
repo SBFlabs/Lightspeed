@@ -9,12 +9,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
@@ -38,23 +38,61 @@ fun SidebarMatrixConfigurationFields(
     toggleAllTrigger: Int = 0,
     onRefreshNeeded: () -> Unit = {}
 ) {
-    // Left Wing States
+    // Left Wing Accordion States
     var isLeftCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_center_expanded", false)) }
     var isLeftTopExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_top_expanded", true)) }
     var isLeftBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
     var isLeftFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)) }
     var isLeftUnifiedExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_unified_expanded", false)) }
 
-    // Center Avionics States
+    // Left Wing Sub-Section States
+    var isLeftCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", true)) }
+    var isLeftCenterScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_center", true)) }
+    var isLeftCenterGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_center", true)) }
+
+    var isLeftUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_unified", true)) }
+    var isLeftUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_unified", true)) }
+    var isLeftUnifiedGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_unified", true)) }
+
+    var isLeftTopGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_top", true)) }
+    var isLeftTopScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_top", true)) }
+    var isLeftTopGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_top", true)) }
+
+    var isLeftBottomGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_bottom", true)) }
+    var isLeftBottomScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_bottom", true)) }
+    var isLeftBottomGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
+
+    // Center Avionics (Canopy / Status Bar) States
     var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", true)) }
     var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
 
-    // Right Wing States
+    var isStatusBarGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
+    var isStatusBarScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
+    var isStatusBarGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", true)) }
+
+    // Right Wing Accordion States
     var isCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_center_expanded", false)) }
     var isTopExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_top_expanded", true)) }
     var isBottomExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_bottom_expanded", false)) }
     var isRightFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)) }
     var isRightUnifiedExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_right_unified_expanded", false)) }
+
+    // Right Wing Sub-Section States
+    var isCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
+    var isCenterScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_center", true)) }
+    var isCenterGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_center", true)) }
+
+    var isRightUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_unified", true)) }
+    var isRightUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_unified", true)) }
+    var isRightUnifiedGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_unified", true)) }
+
+    var isTopGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_top", true)) }
+    var isTopScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_top", true)) }
+    var isTopGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_top", true)) }
+
+    var isBottomGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_bottom", true)) }
+    var isBottomScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_bottom", true)) }
+    var isBottomGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_bottom", true)) }
 
     var showSymmetryInfoDialog by remember { mutableStateOf(false) }
     var showUnifyInfoDialog by remember { mutableStateOf(false) }
@@ -207,16 +245,18 @@ fun SidebarMatrixConfigurationFields(
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         
-        // Tactical Sci-Fi 3-Tab Navigator
+        // Balanced, Optically Centered 3-Tab Navigator
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White.copy(alpha = 0.06f))
                 .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            listOf("◂ PORT WING", "◈ AVIONICS DECK ◈", "STARBOARD WING ▸").forEachIndexed { index, tabTitle ->
+            val tabTitles = listOf("PORT WING", "CANOPY DECK", "STARBOARD WING")
+            tabTitles.forEachIndexed { index, tabTitle ->
                 val isSelected = pagerState.currentPage == index
                 Box(
                     modifier = Modifier
@@ -226,164 +266,305 @@ fun SidebarMatrixConfigurationFields(
                         .clickable {
                             scope.launch { pagerState.animateScrollToPage(index) }
                         }
-                        .padding(vertical = 9.dp),
+                        .padding(vertical = 10.dp, horizontal = 2.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = tabTitle,
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.7f),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
+                        textAlign = TextAlign.Center,
                         maxLines = 1
                     )
                 }
             }
         }
 
-        // 3 Swipable Pages
+        // High-Performance Swipable Pages
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.weight(1f).fillMaxWidth()
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            beyondViewportPageCount = 0
         ) { pageIndex ->
             when (pageIndex) {
                 // PAGE 0: PORT (LEFT) DEFLECTOR WING
                 0 -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 20.dp)
                     ) {
-                        UnifyFlankActionsCard(
-                            isUnified = isLeftFlankUnified,
-                            onToggle = { enable ->
-                                if (enable) {
-                                    showUnifyTemplateDialogForLeft = true
-                                } else {
-                                    isLeftFlankUnified = false
-                                    prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", false).apply()
-                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                    onRefreshNeeded()
+                        item {
+                            UnifyFlankActionsCard(
+                                isUnified = isLeftFlankUnified,
+                                onToggle = { enable ->
+                                    if (enable) {
+                                        showUnifyTemplateDialogForLeft = true
+                                    } else {
+                                        isLeftFlankUnified = false
+                                        prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", false).apply()
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        onRefreshNeeded()
+                                    }
+                                },
+                                onInfoClick = { showUnifyInfoDialog = true }
+                            )
+                        }
+
+                        // Left Astrogation Core Zone
+                        item {
+                            CompactAccordionSection(
+                                title = "Left Deflector Wing — Astrogation Core Zone",
+                                isExpanded = isLeftCenterExpanded,
+                                onToggle = {
+                                    isLeftCenterExpanded = !isLeftCenterExpanded
+                                    prefs.edit()
+                                        .putBoolean("pref_section_left_center_expanded", isLeftCenterExpanded)
+                                        .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded || isLeftUnifiedExpanded)
+                                        .apply()
                                 }
-                            },
-                            onInfoClick = { showUnifyInfoDialog = true }
-                        )
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    // 1. Geometry & Bounds
+                                    CollapsibleSubSection(
+                                        title = "📐 Touch Vector Geometry & Position",
+                                        subtitle = "Wing span, touch reach, offset & stealth glow",
+                                        isExpanded = isLeftCenterGeoExpanded,
+                                        onToggle = {
+                                            isLeftCenterGeoExpanded = !isLeftCenterGeoExpanded
+                                            prefs.edit().putBoolean("pref_sub_geo_left_center", isLeftCenterGeoExpanded).apply()
+                                        }
+                                    ) {
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                    }
 
-                        CompactAccordionSection(
-                            title = "Left Deflector Wing — Astrogation Core Zone",
-                            isExpanded = isLeftCenterExpanded,
-                            onToggle = {
-                                isLeftCenterExpanded = !isLeftCenterExpanded
-                                prefs.edit()
-                                    .putBoolean("pref_section_left_center_expanded", isLeftCenterExpanded)
-                                    .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded || isLeftUnifiedExpanded)
-                                    .apply()
-                            }
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                    // 2. Inward Scrubbing
+                                    CollapsibleSubSection(
+                                        title = "🎛️ Inward Scrubbing Control",
+                                        subtitle = "2-step inward pull for volume, brightness, or timeout",
+                                        isExpanded = isLeftCenterScrubExpanded,
+                                        onToggle = {
+                                            isLeftCenterScrubExpanded = !isLeftCenterScrubExpanded
+                                            prefs.edit().putBoolean("pref_sub_scrub_left_center", isLeftCenterScrubExpanded).apply()
+                                        }
+                                    ) {
+                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                    }
 
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
-
-                                leftCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                    val (vectorTitle, arrowEnum) = pairInfo
-                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_CENTER_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_CENTER_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                    // 3. Gesture Actions & Macros
+                                    CollapsibleSubSection(
+                                        title = "⚡ Gesture Actions & Macro Mappings",
+                                        subtitle = "Directional swipes, tap, angle vectors & hold modifiers",
+                                        isExpanded = isLeftCenterGesturesExpanded,
+                                        onToggle = {
+                                            isLeftCenterGesturesExpanded = !isLeftCenterGesturesExpanded
+                                            prefs.edit().putBoolean("pref_sub_gestures_left_center", isLeftCenterGesturesExpanded).apply()
+                                        }
+                                    ) {
+                                        leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                            val (vectorTitle, arrowEnum) = pairInfo
+                                            GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_CENTER_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                            GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_CENTER_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        }
+                                    }
                                 }
                             }
                         }
 
                         if (isLeftFlankUnified) {
-                            CompactAccordionSection(
-                                title = "Left Deflector Wing — Flank Vector Zones (Upper & Lower)",
-                                isExpanded = isLeftUnifiedExpanded,
-                                onToggle = {
-                                    isLeftUnifiedExpanded = !isLeftUnifiedExpanded
-                                    prefs.edit()
-                                        .putBoolean("pref_section_left_unified_expanded", isLeftUnifiedExpanded)
-                                        .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftUnifiedExpanded)
-                                        .apply()
-                                }
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Upper Wing Span (Height)", 50, 600, 10, 200)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
+                            item {
+                                CompactAccordionSection(
+                                    title = "Left Deflector Wing — Flank Vector Zones (Upper & Lower)",
+                                    isExpanded = isLeftUnifiedExpanded,
+                                    onToggle = {
+                                        isLeftUnifiedExpanded = !isLeftUnifiedExpanded
+                                        prefs.edit()
+                                            .putBoolean("pref_section_left_unified_expanded", isLeftUnifiedExpanded)
+                                            .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftUnifiedExpanded)
+                                            .apply()
+                                    }
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        // 1. Geometry
+                                        CollapsibleSubSection(
+                                            title = "📐 Upper & Lower Wing Geometry",
+                                            subtitle = "Independent height, touch reach & stealth glow",
+                                            isExpanded = isLeftUnifiedGeoExpanded,
+                                            onToggle = {
+                                                isLeftUnifiedGeoExpanded = !isLeftUnifiedGeoExpanded
+                                                prefs.edit().putBoolean("pref_sub_geo_left_unified", isLeftUnifiedGeoExpanded).apply()
+                                            }
+                                        ) {
+                                            Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Upper Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
 
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Lower Wing Span (Height)", 50, 600, 10, 200)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Lower Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
+                                        }
 
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                    Text("🎛️ DUAL SCRUBBER CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.sp)
-                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
-                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                        // 2. Scrubbers
+                                        CollapsibleSubSection(
+                                            title = "🎛️ Dual Inward Scrubber Controls",
+                                            subtitle = "Independent upper & lower half scrubbers",
+                                            isExpanded = isLeftUnifiedScrubExpanded,
+                                            onToggle = {
+                                                isLeftUnifiedScrubExpanded = !isLeftUnifiedScrubExpanded
+                                                prefs.edit().putBoolean("pref_sub_scrub_left_unified", isLeftUnifiedScrubExpanded).apply()
+                                            }
+                                        ) {
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                        }
 
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                    Text("⚡ UNIFIED GESTURE MATRIX", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp)
-                                    leftCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                        val (vectorTitle, arrowEnum) = pairInfo
-                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        // 3. Gestures
+                                        CollapsibleSubSection(
+                                            title = "⚡ Unified Gesture Matrix",
+                                            subtitle = "Single configuration shared across both flank zones",
+                                            isExpanded = isLeftUnifiedGesturesExpanded,
+                                            onToggle = {
+                                                isLeftUnifiedGesturesExpanded = !isLeftUnifiedGesturesExpanded
+                                                prefs.edit().putBoolean("pref_sub_gestures_left_unified", isLeftUnifiedGesturesExpanded).apply()
+                                            }
+                                        ) {
+                                            leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         } else {
-                            CompactAccordionSection(
-                                title = "Left Deflector Wing — Upper Vector Zone",
-                                isExpanded = isLeftTopExpanded,
-                                onToggle = {
-                                    isLeftTopExpanded = !isLeftTopExpanded
-                                    prefs.edit()
-                                        .putBoolean("pref_section_left_top_expanded", isLeftTopExpanded)
-                                        .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
-                                        .apply()
-                                }
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Wing Span (Height)", 50, 600, 10, 200)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                            // Separate Upper Zone
+                            item {
+                                CompactAccordionSection(
+                                    title = "Left Deflector Wing — Upper Vector Zone",
+                                    isExpanded = isLeftTopExpanded,
+                                    onToggle = {
+                                        isLeftTopExpanded = !isLeftTopExpanded
+                                        prefs.edit()
+                                            .putBoolean("pref_section_left_top_expanded", isLeftTopExpanded)
+                                            .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                            .apply()
+                                    }
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        // 1. Geometry
+                                        CollapsibleSubSection(
+                                            title = "📐 Touch Vector Geometry & Position",
+                                            subtitle = "Upper wing span, touch reach & stealth glow",
+                                            isExpanded = isLeftTopGeoExpanded,
+                                            onToggle = {
+                                                isLeftTopGeoExpanded = !isLeftTopGeoExpanded
+                                                prefs.edit().putBoolean("pref_sub_geo_left_top", isLeftTopGeoExpanded).apply()
+                                            }
+                                        ) {
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                        }
 
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                        // 2. Scrubbers
+                                        CollapsibleSubSection(
+                                            title = "🎛️ Inward Scrubbing Control",
+                                            subtitle = "Upper vector inward sweep scrubber",
+                                            isExpanded = isLeftTopScrubExpanded,
+                                            onToggle = {
+                                                isLeftTopScrubExpanded = !isLeftTopScrubExpanded
+                                                prefs.edit().putBoolean("pref_sub_scrub_left_top", isLeftTopScrubExpanded).apply()
+                                            }
+                                        ) {
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
+                                        }
 
-                                    leftCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                        val (vectorTitle, arrowEnum) = pairInfo
-                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        // 3. Gestures
+                                        CollapsibleSubSection(
+                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                            subtitle = "Upper vector directional swipes, tap & hold",
+                                            isExpanded = isLeftTopGesturesExpanded,
+                                            onToggle = {
+                                                isLeftTopGesturesExpanded = !isLeftTopGesturesExpanded
+                                                prefs.edit().putBoolean("pref_sub_gestures_left_top", isLeftTopGesturesExpanded).apply()
+                                            }
+                                        ) {
+                                            leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                            }
+                                        }
                                     }
                                 }
                             }
 
-                            CompactAccordionSection(
-                                title = "Left Deflector Wing — Lower Vector Zone",
-                                isExpanded = isLeftBottomExpanded,
-                                onToggle = {
-                                    isLeftBottomExpanded = !isLeftBottomExpanded
-                                    prefs.edit()
-                                        .putBoolean("pref_section_left_bottom_expanded", isLeftBottomExpanded)
-                                        .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
-                                        .apply()
-                                }
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Wing Span (Height)", 50, 600, 10, 200)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                            // Separate Lower Zone
+                            item {
+                                CompactAccordionSection(
+                                    title = "Left Deflector Wing — Lower Vector Zone",
+                                    isExpanded = isLeftBottomExpanded,
+                                    onToggle = {
+                                        isLeftBottomExpanded = !isLeftBottomExpanded
+                                        prefs.edit()
+                                            .putBoolean("pref_section_left_bottom_expanded", isLeftBottomExpanded)
+                                            .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                            .apply()
+                                    }
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        // 1. Geometry
+                                        CollapsibleSubSection(
+                                            title = "📐 Touch Vector Geometry & Position",
+                                            subtitle = "Lower wing span, touch reach & stealth glow",
+                                            isExpanded = isLeftBottomGeoExpanded,
+                                            onToggle = {
+                                                isLeftBottomGeoExpanded = !isLeftBottomGeoExpanded
+                                                prefs.edit().putBoolean("pref_sub_geo_left_bottom", isLeftBottomGeoExpanded).apply()
+                                            }
+                                        ) {
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                        }
 
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                        // 2. Scrubbers
+                                        CollapsibleSubSection(
+                                            title = "🎛️ Inward Scrubbing Control",
+                                            subtitle = "Lower vector inward sweep scrubber",
+                                            isExpanded = isLeftBottomScrubExpanded,
+                                            onToggle = {
+                                                isLeftBottomScrubExpanded = !isLeftBottomScrubExpanded
+                                                prefs.edit().putBoolean("pref_sub_scrub_left_bottom", isLeftBottomScrubExpanded).apply()
+                                            }
+                                        ) {
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                        }
 
-                                    leftCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                        val (vectorTitle, arrowEnum) = pairInfo
-                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        // 3. Gestures
+                                        CollapsibleSubSection(
+                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                            subtitle = "Lower vector directional swipes, tap & hold",
+                                            isExpanded = isLeftBottomGesturesExpanded,
+                                            onToggle = {
+                                                isLeftBottomGesturesExpanded = !isLeftBottomGesturesExpanded
+                                                prefs.edit().putBoolean("pref_sub_gestures_left_bottom", isLeftBottomGesturesExpanded).apply()
+                                            }
+                                        ) {
+                                            leftCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -391,140 +572,180 @@ fun SidebarMatrixConfigurationFields(
                     }
                 }
 
-                // PAGE 1: AVIONICS DECK (CENTER)
+                // PAGE 1: AVIONICS DECK (STATUS BAR / CANOPY)
                 1 -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 20.dp)
                     ) {
-                        SymmetryCouplingCard(
-                            context = context,
-                            prefs = prefs,
-                            onModeChanged = { onRefreshNeeded() },
-                            onInfoClick = { showSymmetryInfoDialog = true }
-                        )
+                        item {
+                            CompactAccordionSection(
+                                title = "Status Bar Canopy — Sensor Deck",
+                                isExpanded = isStatusBarExpanded,
+                                onToggle = {
+                                    isStatusBarExpanded = !isStatusBarExpanded
+                                    prefs.edit()
+                                        .putBoolean("pref_section_statusbar_expanded", isStatusBarExpanded)
+                                        .putBoolean("pref_statusbar_preview", isStatusBarExpanded)
+                                        .apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    PrefToggleRow(
+                                        title = "Enable Canopy Gestures",
+                                        subtitle = "Top-edge gesture detection & sensor scrub bar",
+                                        isChecked = prefs.getBoolean("pref_statusbar_enabled", true),
+                                        onCheckedChange = { checked ->
+                                            prefs.edit().putBoolean("pref_statusbar_enabled", checked).apply()
+                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            onRefreshNeeded()
+                                        }
+                                    )
 
-                        CompactAccordionSection(title = "Overhead Canopy (Top Status Bar)", isExpanded = isStatusBarExpanded, onToggle = {
-                            isStatusBarExpanded = !isStatusBarExpanded
-                            prefs.edit()
-                                .putBoolean("pref_section_statusbar_expanded", isStatusBarExpanded)
-                                .putBoolean("pref_statusbar_preview", isStatusBarExpanded)
-                                .apply()
-                        }) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PrefToggleRow(context, prefs, "pref_statusbar_enabled", "", "", "Enable Overhead Canopy Gestures", "Enable full touch, tap, and swipe gesture matrix parsing over the overhead canopy zone.")
-                                PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Canopy Span", 50, 2000, 50, 1080)
-                                PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Canopy Thickness", 10, 300, 5, 80)
-                                PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset", -500, 500, 10, 0)
-                                PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset", -200, 200, 5, 0)
-                                PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                    // 1. Geometry & Sensitivity
+                                    CollapsibleSubSection(
+                                        title = "📐 Touch Vector Geometry & Sensitivity",
+                                        subtitle = "Sensor touch height, responsiveness & idle glow",
+                                        isExpanded = isStatusBarGeoExpanded,
+                                        onToggle = {
+                                            isStatusBarGeoExpanded = !isStatusBarGeoExpanded
+                                            prefs.edit().putBoolean("pref_sub_geo_statusbar", isStatusBarGeoExpanded).apply()
+                                        }
+                                    ) {
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_height", "", "Sensor Touch Height", 5, 80, 5, 24)
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Sensitivity", 10, 100, 5, 40)
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                    }
 
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Swipe Along Bar & Pull Down (2-Step Scrubbing)", listOf("none", "system:screen_timeout", "system:volume", "system:brightness", "system:scroll_to_top"), tokenLabelCache)
+                                    // 2. Scrubbers
+                                    CollapsibleSubSection(
+                                        title = "🎛️ Pull-Down Scrubbing Control",
+                                        subtitle = "Horizontal scrubbing selector for sensor bar",
+                                        isExpanded = isStatusBarScrubExpanded,
+                                        onToggle = {
+                                            isStatusBarScrubExpanded = !isStatusBarScrubExpanded
+                                            prefs.edit().putBoolean("pref_sub_scrub_statusbar", isStatusBarScrubExpanded).apply()
+                                        }
+                                    ) {
+                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Pull Down & Scrub Across", listOf("none", "system:screen_timeout", "system:brightness", "system:volume"), tokenLabelCache)
+                                    }
 
-                                val statusBarVectors = listOf(
-                                    Triple("TAP", "Single Tap", ArrowDirection.TAP),
-                                    Triple("DOUBLE_TAP", "Double Tap", ArrowDirection.DOUBLE_TAP),
-                                    Triple("SWIPE_LEFT", "Swipe Left", ArrowDirection.SWIPE_LEFT),
-                                    Triple("SWIPE_RIGHT", "Swipe Right", ArrowDirection.SWIPE_RIGHT),
-                                    Triple("SWIPE_LEFT_BACK", "Swipe Left & Return", ArrowDirection.LEFT_BACK),
-                                    Triple("SWIPE_RIGHT_BACK", "Swipe Right & Return", ArrowDirection.SWIPE_RIGHT_BACK),
-                                    Triple("SWIPE_LEFT_DOWN", "Swipe Left & Down (Quick Trigger)", ArrowDirection.LEFT_DOWN),
-                                    Triple("SWIPE_RIGHT_DOWN", "Swipe Right & Down (Quick Trigger)", ArrowDirection.RIGHT_DOWN)
-                                )
+                                    // 3. Gestures
+                                    CollapsibleSubSection(
+                                        title = "⚡ Canopy Gesture Actions & Macros",
+                                        subtitle = "Tap, double-tap, directional sweeps & hold modifiers",
+                                        isExpanded = isStatusBarGesturesExpanded,
+                                        onToggle = {
+                                            isStatusBarGesturesExpanded = !isStatusBarGesturesExpanded
+                                            prefs.edit().putBoolean("pref_sub_gestures_statusbar", isStatusBarGesturesExpanded).apply()
+                                        }
+                                    ) {
+                                        val statusVectors = listOf(
+                                            "TAP" to ("Single Tap" to ArrowDirection.TAP),
+                                            "DOUBLE_TAP" to ("Double Tap" to ArrowDirection.DOUBLE_TAP),
+                                            "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
+                                            "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT),
+                                            "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN)
+                                        )
 
-                                statusBarVectors.forEach { (vectorKey, vectorTitle, arrowEnum) ->
-                                    GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_STATUSBAR_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                    GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        statusVectors.forEach { (vectorKey, pairInfo) ->
+                                            val (vectorTitle, arrowEnum) = pairInfo
+                                            GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_STATUSBAR_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                            GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        }
+                                    }
                                 }
                             }
                         }
 
-                        CompactAccordionSection(
-                            title = "Backup & Restore Engine",
-                            isExpanded = isBackupExpanded,
-                            onToggle = {
-                                isBackupExpanded = !isBackupExpanded
-                                prefs.edit().putBoolean("pref_section_backup_expanded", isBackupExpanded).apply()
-                            }
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                // Export Card
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                                        .clickable { exportLauncher.launch(LightspeedBackupEngine.generateDefaultFileName()) }
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.CloudUpload, contentDescription = "Export", tint = MaterialTheme.colorScheme.primary)
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
-                                        Text("Save all gesture maps, coordinates & gears to a local backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
-                                    }
+                        // Cloud & Local Config Vault
+                        item {
+                            CompactAccordionSection(
+                                title = "Cloud & Local Configuration Vault",
+                                isExpanded = isBackupExpanded,
+                                onToggle = {
+                                    isBackupExpanded = !isBackupExpanded
+                                    prefs.edit().putBoolean("pref_section_backup_expanded", isBackupExpanded).apply()
                                 }
-
-                                // Import Card
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-                                        .clickable { showImportOptionsDialog = true }
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    // Export Card
+                                    Row(
                                         modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
-                                        contentAlignment = Alignment.Center
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                            .clickable { exportLauncher.launch("lightspeed-backup.json") }
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(Icons.Default.CloudDownload, contentDescription = "Import", tint = MaterialTheme.colorScheme.secondary)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.CloudUpload, contentDescription = "Export", tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                                            Text("Save all gesture sets, sliders, physics, and shortcuts to a standalone JSON file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                                        }
                                     }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
-                                        Text("Restore complete settings from a previous Lightspeed backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
-                                    }
-                                }
 
-                                // Reset Card
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
-                                        .clickable { showResetConfirmDialog = true }
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
+                                    // Import Card
+                                    Row(
                                         modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-                                        contentAlignment = Alignment.Center
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                            .clickable { showImportOptionsDialog = true }
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(Icons.Default.RestartAlt, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.CloudDownload, contentDescription = "Import", tint = MaterialTheme.colorScheme.secondary)
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                                            Text("Restore complete settings from a previous Lightspeed backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                                        }
                                     }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("Reset to Factory Defaults", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
-                                        Text("Wipe custom settings and revert to pristine defaults", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+
+                                    // Reset Card
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
+                                            .clickable { showResetConfirmDialog = true }
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.RestartAlt, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error)
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Reset to Factory Defaults", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
+                                            Text("Wipe custom settings and revert to pristine defaults", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                                        }
                                     }
                                 }
                             }
@@ -534,95 +755,230 @@ fun SidebarMatrixConfigurationFields(
 
                 // PAGE 2: STARBOARD (RIGHT) DEFLECTOR WING
                 2 -> {
-                    Column(
-                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(bottom = 20.dp)
                     ) {
-                        UnifyFlankActionsCard(
-                            isUnified = isRightFlankUnified,
-                            onToggle = { enable ->
-                                if (enable) {
-                                    showUnifyTemplateDialogForRight = true
-                                } else {
-                                    isRightFlankUnified = false
-                                    prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", false).apply()
-                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                    onRefreshNeeded()
-                                }
-                            },
-                            onInfoClick = { showUnifyInfoDialog = true }
-                        )
-
-                        CompactAccordionSection(
-                            title = "Right Deflector Wing — Astrogation Core Zone",
-                            isExpanded = isCenterExpanded,
-                            onToggle = {
-                                isCenterExpanded = !isCenterExpanded
-                                prefs.edit()
-                                    .putBoolean("pref_section_center_expanded", isCenterExpanded)
-                                    .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded || isRightUnifiedExpanded)
-                                    .apply()
-                            }
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
-                                PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-                            }
+                        item {
+                            UnifyFlankActionsCard(
+                                isUnified = isRightFlankUnified,
+                                onToggle = { enable ->
+                                    if (enable) {
+                                        showUnifyTemplateDialogForRight = true
+                                    } else {
+                                        isRightFlankUnified = false
+                                        prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", false).apply()
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        onRefreshNeeded()
+                                    }
+                                },
+                                onInfoClick = { showUnifyInfoDialog = true }
+                            )
                         }
 
-                        if (isRightFlankUnified) {
+                        // Right Astrogation Core Zone
+                        item {
                             CompactAccordionSection(
-                                title = "Right Deflector Wing — Flank Vector Zones (Upper & Lower)",
-                                isExpanded = isRightUnifiedExpanded,
+                                title = "Right Deflector Wing — Astrogation Core Zone",
+                                isExpanded = isCenterExpanded,
                                 onToggle = {
-                                    isRightUnifiedExpanded = !isRightUnifiedExpanded
+                                    isCenterExpanded = !isCenterExpanded
                                     prefs.edit()
-                                        .putBoolean("pref_section_right_unified_expanded", isRightUnifiedExpanded)
-                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isRightUnifiedExpanded)
+                                        .putBoolean("pref_section_center_expanded", isCenterExpanded)
+                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded || isRightUnifiedExpanded)
                                         .apply()
                                 }
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Upper Wing Span (Height)", 50, 600, 10, 200)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
+                                    // 1. Geometry
+                                    CollapsibleSubSection(
+                                        title = "📐 Touch Vector Geometry & Position",
+                                        subtitle = "Wing span, touch reach, offset & stealth glow",
+                                        isExpanded = isCenterGeoExpanded,
+                                        onToggle = {
+                                            isCenterGeoExpanded = !isCenterGeoExpanded
+                                            prefs.edit().putBoolean("pref_sub_geo_center", isCenterGeoExpanded).apply()
+                                        }
+                                    ) {
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Wing Span (Height)", 50, 1000, 10, 400)
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                    }
 
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Lower Wing Span (Height)", 50, 600, 10, 200)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
-                                    PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
+                                    // 2. Inward Scrubbing
+                                    CollapsibleSubSection(
+                                        title = "🎛️ Inward Scrubbing Control",
+                                        subtitle = "2-step inward pull for volume, brightness, or timeout",
+                                        isExpanded = isCenterScrubExpanded,
+                                        onToggle = {
+                                            isCenterScrubExpanded = !isCenterScrubExpanded
+                                            prefs.edit().putBoolean("pref_sub_scrub_center", isCenterScrubExpanded).apply()
+                                        }
+                                    ) {
+                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                    }
 
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                    Text("🎛️ DUAL SCRUBBER CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary, letterSpacing = 1.sp)
-                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
-                                    GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                    // 3. Gesture Actions & Macros
+                                    CollapsibleSubSection(
+                                        title = "⚡ Gesture Actions & Macro Mappings",
+                                        subtitle = "Directional swipes, tap, angle vectors & hold modifiers",
+                                        isExpanded = isCenterGesturesExpanded,
+                                        onToggle = {
+                                            isCenterGesturesExpanded = !isCenterGesturesExpanded
+                                            prefs.edit().putBoolean("pref_sub_gestures_center", isCenterGesturesExpanded).apply()
+                                        }
+                                    ) {
+                                        rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                            val (vectorTitle, arrowEnum) = pairInfo
+                                            GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_CENTER_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                            GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_CENTER_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                    Text("⚡ UNIFIED GESTURE MATRIX", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, letterSpacing = 1.sp)
-                                    rightCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                        val (vectorTitle, arrowEnum) = pairInfo
-                                        GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                        GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                        if (isRightFlankUnified) {
+                            item {
+                                CompactAccordionSection(
+                                    title = "Right Deflector Wing — Flank Vector Zones (Upper & Lower)",
+                                    isExpanded = isRightUnifiedExpanded,
+                                    onToggle = {
+                                        isRightUnifiedExpanded = !isRightUnifiedExpanded
+                                        prefs.edit()
+                                            .putBoolean("pref_section_right_unified_expanded", isRightUnifiedExpanded)
+                                            .putBoolean("pref_sidebar_preview", isCenterExpanded || isRightUnifiedExpanded)
+                                            .apply()
+                                    }
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        // 1. Geometry
+                                        CollapsibleSubSection(
+                                            title = "📐 Upper & Lower Wing Geometry",
+                                            subtitle = "Independent height, touch reach & stealth glow",
+                                            isExpanded = isRightUnifiedGeoExpanded,
+                                            onToggle = {
+                                                isRightUnifiedGeoExpanded = !isRightUnifiedGeoExpanded
+                                                prefs.edit().putBoolean("pref_sub_geo_unified", isRightUnifiedGeoExpanded).apply()
+                                            }
+                                        ) {
+                                            Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Upper Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Lower Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
+                                        }
+
+                                        // 2. Scrubbers
+                                        CollapsibleSubSection(
+                                            title = "🎛️ Dual Inward Scrubber Controls",
+                                            subtitle = "Independent upper & lower half scrubbers",
+                                            isExpanded = isRightUnifiedScrubExpanded,
+                                            onToggle = {
+                                                isRightUnifiedScrubExpanded = !isRightUnifiedScrubExpanded
+                                                prefs.edit().putBoolean("pref_sub_scrub_unified", isRightUnifiedScrubExpanded).apply()
+                                            }
+                                        ) {
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                        }
+
+                                        // 3. Gestures
+                                        CollapsibleSubSection(
+                                            title = "⚡ Unified Gesture Matrix",
+                                            subtitle = "Single configuration shared across both flank zones",
+                                            isExpanded = isRightUnifiedGesturesExpanded,
+                                            onToggle = {
+                                                isRightUnifiedGesturesExpanded = !isRightUnifiedGesturesExpanded
+                                                prefs.edit().putBoolean("pref_sub_gestures_unified", isRightUnifiedGesturesExpanded).apply()
+                                            }
+                                        ) {
+                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         } else {
-                            val interfaceZones = listOf("TOP" to "Right Deflector Wing — Upper Vector Zone", "BOTTOM" to "Right Deflector Wing — Lower Vector Zone")
-                            interfaceZones.forEachIndexed { idx, (zoneKey, zoneTitle) ->
-                                val isCurrentExpanded = if (idx == 0) isTopExpanded else isBottomExpanded
-                                CompactAccordionSection(title = zoneTitle, isExpanded = isCurrentExpanded, onToggle = {
-                                    if (idx == 0) {
+                            // Separate Upper Zone
+                            item {
+                                CompactAccordionSection(
+                                    title = "Right Deflector Wing — Upper Vector Zone",
+                                    isExpanded = isTopExpanded,
+                                    onToggle = {
                                         isTopExpanded = !isTopExpanded
                                         val newTop = isTopExpanded
                                         prefs.edit()
                                             .putBoolean("pref_section_top_expanded", newTop)
                                             .putBoolean("pref_sidebar_preview", isCenterExpanded || newTop || isBottomExpanded)
                                             .apply()
-                                    } else {
+                                    }
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        // 1. Geometry
+                                        CollapsibleSubSection(
+                                            title = "📐 Touch Vector Geometry & Position",
+                                            subtitle = "Upper wing span, touch reach & stealth glow",
+                                            isExpanded = isTopGeoExpanded,
+                                            onToggle = {
+                                                isTopGeoExpanded = !isTopGeoExpanded
+                                                prefs.edit().putBoolean("pref_sub_geo_top", isTopGeoExpanded).apply()
+                                            }
+                                        ) {
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                        }
+
+                                        // 2. Scrubbers
+                                        CollapsibleSubSection(
+                                            title = "🎛️ Inward Scrubbing Control",
+                                            subtitle = "Upper vector inward sweep scrubber",
+                                            isExpanded = isTopScrubExpanded,
+                                            onToggle = {
+                                                isTopScrubExpanded = !isTopScrubExpanded
+                                                prefs.edit().putBoolean("pref_sub_scrub_top", isTopScrubExpanded).apply()
+                                            }
+                                        ) {
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                        }
+
+                                        // 3. Gestures
+                                        CollapsibleSubSection(
+                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                            subtitle = "Upper vector directional swipes, tap & hold",
+                                            isExpanded = isTopGesturesExpanded,
+                                            onToggle = {
+                                                isTopGesturesExpanded = !isTopGesturesExpanded
+                                                prefs.edit().putBoolean("pref_sub_gestures_top", isTopGesturesExpanded).apply()
+                                            }
+                                        ) {
+                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Separate Lower Zone
+                            item {
+                                CompactAccordionSection(
+                                    title = "Right Deflector Wing — Lower Vector Zone",
+                                    isExpanded = isBottomExpanded,
+                                    onToggle = {
                                         isBottomExpanded = !isBottomExpanded
                                         val newBottom = isBottomExpanded
                                         prefs.edit()
@@ -630,20 +986,51 @@ fun SidebarMatrixConfigurationFields(
                                             .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || newBottom)
                                             .apply()
                                     }
-                                }) {
+                                ) {
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        val zonePrefix = if (idx == 0) "pref_sidebar_top" else "pref_sidebar_bottom"
-                                        PrefDottedSliderRow(context, prefs, "${zonePrefix}_height", "", "Wing Span (Height)", 50, 600, 10, 200)
-                                        PrefDottedSliderRow(context, prefs, "${zonePrefix}_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                        PrefDottedSliderRow(context, prefs, "${zonePrefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                        // 1. Geometry
+                                        CollapsibleSubSection(
+                                            title = "📐 Touch Vector Geometry & Position",
+                                            subtitle = "Lower wing span, touch reach & stealth glow",
+                                            isExpanded = isBottomGeoExpanded,
+                                            onToggle = {
+                                                isBottomGeoExpanded = !isBottomGeoExpanded
+                                                prefs.edit().putBoolean("pref_sub_geo_bottom", isBottomGeoExpanded).apply()
+                                            }
+                                        ) {
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Wing Span (Height)", 50, 600, 10, 200)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                        }
 
-                                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
-                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_${zoneKey}_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                        // 2. Scrubbers
+                                        CollapsibleSubSection(
+                                            title = "🎛️ Inward Scrubbing Control",
+                                            subtitle = "Lower vector inward sweep scrubber",
+                                            isExpanded = isBottomScrubExpanded,
+                                            onToggle = {
+                                                isBottomScrubExpanded = !isBottomScrubExpanded
+                                                prefs.edit().putBoolean("pref_sub_scrub_bottom", isBottomScrubExpanded).apply()
+                                            }
+                                        ) {
+                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                        }
 
-                                        rightCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                            val (vectorTitle, arrowEnum) = pairInfo
-                                            GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_${zoneKey}_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                            GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_${zoneKey}_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                        // 3. Gestures
+                                        CollapsibleSubSection(
+                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                            subtitle = "Lower vector directional swipes, tap & hold",
+                                            isExpanded = isBottomGesturesExpanded,
+                                            onToggle = {
+                                                isBottomGesturesExpanded = !isBottomGesturesExpanded
+                                                prefs.edit().putBoolean("pref_sub_gestures_bottom", isBottomGesturesExpanded).apply()
+                                            }
+                                        ) {
+                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                            }
                                         }
                                     }
                                 }
@@ -654,6 +1041,7 @@ fun SidebarMatrixConfigurationFields(
             }
         }
 
+        // Dialogs
         if (showResetConfirmDialog) {
             AlertDialog(
                 onDismissRequest = { showResetConfirmDialog = false },
@@ -729,9 +1117,7 @@ fun SidebarMatrixConfigurationFields(
                     }
                 },
                 text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             "SELECT RESTORE METHOD",
                             fontSize = 11.sp,

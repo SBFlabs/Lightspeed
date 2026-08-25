@@ -1,15 +1,8 @@
 package com.sbf.lightspeed.settings
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -26,6 +19,10 @@ enum class ArrowDirection {
     SWIPE_RIGHT, SWIPE_RIGHT_BACK, RIGHT_BACK, RIGHT_UP, RIGHT_DOWN
 }
 
+/**
+ * Ultra-fast static tactical gesture visualizer.
+ * Renders directional trajectories, start nodes, and vector arrowheads with zero continuous recomposition.
+ */
 @Composable
 fun GestureTrailTracer(
     direction: ArrowDirection,
@@ -33,315 +30,244 @@ fun GestureTrailTracer(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "gesture_track")
-    val progress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "progress"
-    )
-
     Canvas(modifier = modifier.size(36.dp)) {
         val w = size.width
         val h = size.height
-        val trackStroke = 1.5.dp.toPx()
-        val arrowStroke = 2.5.dp.toPx()
+        val trackStroke = 2.2.dp.toPx()
+        val arrowStroke = 2.4.dp.toPx()
         val path = Path()
-        var cx = w * 0.5f
-        var cy = h * 0.5f
-
-        val isHoldSegment = isHold && progress > 0.65f
-        val actionProgress = if (isHold) (if (!isHoldSegment) progress / 0.65f else 1.0f) else progress
-        val pulseAlpha = if (isHoldSegment) (1.0f - ((progress - 0.65f) / 0.35f)) else 0.0f
+        var startNode = Offset(w * 0.5f, h * 0.5f)
+        var endNode = Offset(w * 0.5f, h * 0.5f)
 
         when (direction) {
             ArrowDirection.SWIPE_UP -> {
-                path.moveTo(w * 0.5f, h * 0.8f)
-                path.lineTo(w * 0.5f, h * 0.2f)
-                cy = h * 0.8f + (h * 0.2f - h * 0.8f) * actionProgress
+                startNode = Offset(w * 0.5f, h * 0.8f)
+                endNode = Offset(w * 0.5f, h * 0.2f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(endNode.x, endNode.y)
             }
             ArrowDirection.SWIPE_DOWN -> {
-                path.moveTo(w * 0.5f, h * 0.2f)
-                path.lineTo(w * 0.5f, h * 0.8f)
-                cy = h * 0.2f + (h * 0.8f - h * 0.2f) * actionProgress
+                startNode = Offset(w * 0.5f, h * 0.2f)
+                endNode = Offset(w * 0.5f, h * 0.8f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(endNode.x, endNode.y)
             }
             ArrowDirection.SWIPE_RIGHT -> {
-                path.moveTo(w * 0.2f, h * 0.5f)
-                path.lineTo(w * 0.8f, h * 0.5f)
-                cx = w * 0.2f + (w * 0.8f - w * 0.2f) * actionProgress
+                startNode = Offset(w * 0.2f, h * 0.5f)
+                endNode = Offset(w * 0.8f, h * 0.5f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(endNode.x, endNode.y)
             }
-            ArrowDirection.SWIPE_RIGHT_BACK -> {
+            ArrowDirection.SWIPE_RIGHT_BACK, ArrowDirection.RIGHT_BACK -> {
+                startNode = Offset(w * 0.2f, h * 0.5f)
+                endNode = Offset(w * 0.4f, h * 0.5f)
                 path.moveTo(w * 0.2f, h * 0.5f)
                 path.lineTo(w * 0.8f, h * 0.5f)
-                path.lineTo(w * 0.5f, h * 0.5f)
-                if (actionProgress < 0.6f) {
-                    cy = h * 0.5f
-                    cx = w * 0.2f + (w * 0.8f - w * 0.2f) * (actionProgress / 0.6f)
-                } else {
-                    cy = h * 0.5f
-                    cx = w * 0.8f + (w * 0.5f - w * 0.8f) * ((actionProgress - 0.6f) / 0.4f)
-                }
+                path.lineTo(w * 0.4f, h * 0.5f)
             }
             ArrowDirection.SWIPE_LEFT -> {
-                path.moveTo(w * 0.8f, h * 0.5f)
-                path.lineTo(w * 0.2f, h * 0.5f)
-                cx = w * 0.8f + (w * 0.2f - w * 0.8f) * actionProgress
-            }
-            ArrowDirection.SWIPE_UP_DOWN -> {
-                path.moveTo(w * 0.5f, h * 0.8f)
-                path.lineTo(w * 0.5f, h * 0.3f)
-                path.lineTo(w * 0.5f, h * 0.7f)
-                cy = if (actionProgress < 0.5f) {
-                    h * 0.8f + (h * 0.3f - h * 0.8f) * (actionProgress * 2f)
-                } else {
-                    h * 0.3f + (h * 0.7f - h * 0.3f) * ((actionProgress - 0.5f) * 2f)
-                }
-            }
-            ArrowDirection.SWIPE_DOWN_UP -> {
-                path.moveTo(w * 0.5f, h * 0.2f)
-                path.lineTo(w * 0.5f, h * 0.7f)
-                path.lineTo(w * 0.5f, h * 0.3f)
-                cy = if (actionProgress < 0.5f) {
-                    h * 0.2f + (h * 0.7f - h * 0.2f) * (actionProgress * 2f)
-                } else {
-                    h * 0.7f + (h * 0.3f - h * 0.7f) * ((actionProgress - 0.5f) * 2f)
-                }
-            }
-            ArrowDirection.SWIPE_UP_LEFT -> {
-                path.moveTo(w * 0.7f, h * 0.8f)
-                path.lineTo(w * 0.7f, h * 0.3f)
-                path.lineTo(w * 0.2f, h * 0.3f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.8f + (h * 0.3f - h * 0.8f) * (actionProgress * 2f)
-                    cx = w * 0.7f
-                } else {
-                    cx = w * 0.7f + (w * 0.2f - w * 0.7f) * ((actionProgress - 0.5f) * 2f)
-                    cy = h * 0.3f
-                }
-            }
-            ArrowDirection.SWIPE_DOWN_LEFT -> {
-                path.moveTo(w * 0.7f, h * 0.2f)
-                path.lineTo(w * 0.7f, h * 0.7f)
-                path.lineTo(w * 0.2f, h * 0.7f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.2f + (h * 0.7f - h * 0.2f) * (actionProgress * 2f)
-                    cx = w * 0.7f
-                } else {
-                    cx = w * 0.7f + (w * 0.2f - w * 0.7f) * ((actionProgress - 0.5f) * 2f)
-                    cy = h * 0.7f
-                }
-            }
-            ArrowDirection.SWIPE_UP_RIGHT -> {
-                path.moveTo(w * 0.3f, h * 0.8f)
-                path.lineTo(w * 0.3f, h * 0.3f)
-                path.lineTo(w * 0.8f, h * 0.3f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.8f + (h * 0.3f - h * 0.8f) * (actionProgress * 2f)
-                    cx = w * 0.3f
-                } else {
-                    cx = w * 0.3f + (w * 0.8f - w * 0.3f) * ((actionProgress - 0.5f) * 2f)
-                    cy = h * 0.3f
-                }
-            }
-            ArrowDirection.SWIPE_DOWN_RIGHT -> {
-                path.moveTo(w * 0.3f, h * 0.2f)
-                path.lineTo(w * 0.3f, h * 0.7f)
-                path.lineTo(w * 0.8f, h * 0.7f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.2f + (h * 0.7f - h * 0.2f) * (actionProgress * 2f)
-                    cx = w * 0.3f
-                } else {
-                    cx = w * 0.3f + (w * 0.8f - w * 0.3f) * ((actionProgress - 0.5f) * 2f)
-                    cy = h * 0.7f
-                }
+                startNode = Offset(w * 0.8f, h * 0.5f)
+                endNode = Offset(w * 0.2f, h * 0.5f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(endNode.x, endNode.y)
             }
             ArrowDirection.LEFT_BACK -> {
+                startNode = Offset(w * 0.8f, h * 0.5f)
+                endNode = Offset(w * 0.6f, h * 0.5f)
                 path.moveTo(w * 0.8f, h * 0.5f)
                 path.lineTo(w * 0.2f, h * 0.5f)
-                path.lineTo(w * 0.5f, h * 0.5f)
-                if (actionProgress < 0.6f) {
-                    cy = h * 0.5f
-                    cx = w * 0.8f + (w * 0.2f - w * 0.8f) * (actionProgress / 0.6f)
-                } else {
-                    cy = h * 0.5f
-                    cx = w * 0.2f + (w * 0.5f - w * 0.2f) * ((actionProgress - 0.6f) / 0.4f)
-                }
+                path.lineTo(w * 0.6f, h * 0.5f)
+            }
+            ArrowDirection.SWIPE_UP_DOWN -> {
+                startNode = Offset(w * 0.5f, h * 0.75f)
+                endNode = Offset(w * 0.5f, h * 0.6f)
+                path.moveTo(w * 0.5f, h * 0.75f)
+                path.lineTo(w * 0.5f, h * 0.25f)
+                path.lineTo(w * 0.5f, h * 0.6f)
+            }
+            ArrowDirection.SWIPE_DOWN_UP -> {
+                startNode = Offset(w * 0.5f, h * 0.25f)
+                endNode = Offset(w * 0.5f, h * 0.4f)
+                path.moveTo(w * 0.5f, h * 0.25f)
+                path.lineTo(w * 0.5f, h * 0.75f)
+                path.lineTo(w * 0.5f, h * 0.4f)
+            }
+            ArrowDirection.SWIPE_UP_LEFT -> {
+                startNode = Offset(w * 0.75f, h * 0.75f)
+                endNode = Offset(w * 0.25f, h * 0.25f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.75f, h * 0.25f)
+                path.lineTo(endNode.x, endNode.y)
+            }
+            ArrowDirection.SWIPE_DOWN_LEFT -> {
+                startNode = Offset(w * 0.75f, h * 0.25f)
+                endNode = Offset(w * 0.25f, h * 0.75f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.75f, h * 0.75f)
+                path.lineTo(endNode.x, endNode.y)
+            }
+            ArrowDirection.SWIPE_UP_RIGHT -> {
+                startNode = Offset(w * 0.25f, h * 0.75f)
+                endNode = Offset(w * 0.75f, h * 0.25f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.25f, h * 0.25f)
+                path.lineTo(endNode.x, endNode.y)
+            }
+            ArrowDirection.SWIPE_DOWN_RIGHT -> {
+                startNode = Offset(w * 0.25f, h * 0.25f)
+                endNode = Offset(w * 0.75f, h * 0.75f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.25f, h * 0.75f)
+                path.lineTo(endNode.x, endNode.y)
             }
             ArrowDirection.LEFT_UP -> {
-                path.moveTo(w * 0.8f, h * 0.7f)
-                path.lineTo(w * 0.3f, h * 0.7f)
-                path.lineTo(w * 0.3f, h * 0.2f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.7f
-                    cx = w * 0.8f + (w * 0.3f - w * 0.8f) * (actionProgress * 2f)
-                } else {
-                    cx = w * 0.3f
-                    cy = h * 0.7f + (h * 0.2f - h * 0.7f) * ((actionProgress - 0.5f) * 2f)
-                }
+                startNode = Offset(w * 0.75f, h * 0.65f)
+                endNode = Offset(w * 0.3f, h * 0.25f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.3f, h * 0.65f)
+                path.lineTo(endNode.x, endNode.y)
             }
             ArrowDirection.LEFT_DOWN -> {
-                path.moveTo(w * 0.8f, h * 0.3f)
-                path.lineTo(w * 0.3f, h * 0.3f)
-                path.lineTo(w * 0.3f, h * 0.8f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.3f
-                    cx = w * 0.8f + (w * 0.3f - w * 0.8f) * (actionProgress * 2f)
-                } else {
-                    cx = w * 0.3f
-                    cy = h * 0.3f + (h * 0.8f - h * 0.3f) * ((actionProgress - 0.5f) * 2f)
-                }
-            }
-            ArrowDirection.RIGHT_BACK -> {
-                path.moveTo(w * 0.2f, h * 0.5f)
-                path.lineTo(w * 0.8f, h * 0.5f)
-                path.lineTo(w * 0.5f, h * 0.5f)
-                if (actionProgress < 0.6f) {
-                    cy = h * 0.5f
-                    cx = w * 0.2f + (w * 0.8f - w * 0.2f) * (actionProgress / 0.6f)
-                } else {
-                    cy = h * 0.5f
-                    cx = w * 0.8f + (w * 0.5f - w * 0.8f) * ((actionProgress - 0.6f) / 0.4f)
-                }
+                startNode = Offset(w * 0.75f, h * 0.35f)
+                endNode = Offset(w * 0.3f, h * 0.75f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.3f, h * 0.35f)
+                path.lineTo(endNode.x, endNode.y)
             }
             ArrowDirection.RIGHT_UP -> {
-                path.moveTo(w * 0.2f, h * 0.7f)
-                path.lineTo(w * 0.7f, h * 0.7f)
-                path.lineTo(w * 0.7f, h * 0.2f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.7f
-                    cx = w * 0.2f + (w * 0.7f - w * 0.2f) * (actionProgress * 2f)
-                } else {
-                    cx = w * 0.7f
-                    cy = h * 0.7f + (h * 0.2f - h * 0.7f) * ((actionProgress - 0.5f) * 2f)
-                }
+                startNode = Offset(w * 0.25f, h * 0.65f)
+                endNode = Offset(w * 0.7f, h * 0.25f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.7f, h * 0.65f)
+                path.lineTo(endNode.x, endNode.y)
             }
             ArrowDirection.RIGHT_DOWN -> {
-                path.moveTo(w * 0.2f, h * 0.3f)
-                path.lineTo(w * 0.7f, h * 0.3f)
-                path.lineTo(w * 0.7f, h * 0.8f)
-                if (actionProgress < 0.5f) {
-                    cy = h * 0.3f
-                    cx = w * 0.2f + (w * 0.7f - w * 0.2f) * (actionProgress * 2f)
-                } else {
-                    cx = w * 0.7f
-                    cy = h * 0.3f + (h * 0.8f - h * 0.3f) * ((actionProgress - 0.5f) * 2f)
-                }
+                startNode = Offset(w * 0.25f, h * 0.35f)
+                endNode = Offset(w * 0.7f, h * 0.75f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(w * 0.7f, h * 0.35f)
+                path.lineTo(endNode.x, endNode.y)
             }
-            ArrowDirection.TAP, ArrowDirection.DOUBLE_TAP -> {
-                cx = w * 0.5f
-                cy = h * 0.5f
+            ArrowDirection.TAP -> {
+                startNode = Offset(w * 0.5f, h * 0.5f)
+                endNode = Offset(w * 0.5f, h * 0.5f)
+            }
+            ArrowDirection.DOUBLE_TAP -> {
+                startNode = Offset(w * 0.4f, h * 0.5f)
+                endNode = Offset(w * 0.6f, h * 0.5f)
             }
             ArrowDirection.SCRUB -> {
-                val lp = (actionProgress * 2f)
-                val tipOffsetX = if (lp > 1f) {
-                    val angle = (lp - 1f) * 2f * kotlin.math.PI
-                    (w * 0.12f) * kotlin.math.sin(angle).toFloat()
-                } else {
-                    0f
-                }
-                path.moveTo(w * 0.5f, h * 0.1f)
-                path.lineTo(w * 0.5f + tipOffsetX, h * 0.9f)
-
-                if (lp <= 1f) {
-                    cx = w * 0.5f
-                    cy = h * 0.1f + (h * 0.8f) * lp
-                } else {
-                    cx = w * 0.5f + tipOffsetX
-                    cy = h * 0.9f
-                }
+                startNode = Offset(w * 0.2f, h * 0.5f)
+                endNode = Offset(w * 0.8f, h * 0.5f)
+                path.moveTo(w * 0.2f, h * 0.5f)
+                path.lineTo(w * 0.8f, h * 0.5f)
             }
         }
-        drawPath(
-            path = path,
-            color = color.copy(alpha = 0.15f),
-            style = Stroke(width = trackStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
 
-        val hasArrowhead = direction != ArrowDirection.SWIPE_UP_DOWN &&
-                direction != ArrowDirection.SWIPE_DOWN_UP &&
-                direction != ArrowDirection.LEFT_BACK &&
-                direction != ArrowDirection.SWIPE_RIGHT_BACK &&
-                direction != ArrowDirection.SCRUB &&
-                direction != ArrowDirection.TAP &&
-                direction != ArrowDirection.DOUBLE_TAP
+        // Draw track
+        if (direction != ArrowDirection.TAP && direction != ArrowDirection.DOUBLE_TAP) {
+            drawPath(
+                path = path,
+                color = color.copy(alpha = 0.7f),
+                style = Stroke(width = trackStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+        }
 
-        if (hasArrowhead) {
-            val arrowheadPath = Path()
-            val arrowSize = w * 0.14f
-            when (direction) {
-                ArrowDirection.SWIPE_RIGHT -> {
-                    arrowheadPath.moveTo(w * 0.8f - arrowSize, h * 0.5f - arrowSize)
-                    arrowheadPath.lineTo(w * 0.8f, h * 0.5f)
-                    arrowheadPath.lineTo(w * 0.8f - arrowSize, h * 0.5f + arrowSize)
-                }
-                ArrowDirection.SWIPE_UP -> {
-                    arrowheadPath.moveTo(w * 0.5f - arrowSize, h * 0.2f + arrowSize)
-                    arrowheadPath.lineTo(w * 0.5f, h * 0.2f)
-                    arrowheadPath.lineTo(w * 0.5f + arrowSize, h * 0.2f + arrowSize)
-                }
-                ArrowDirection.SWIPE_DOWN -> {
-                    arrowheadPath.moveTo(w * 0.5f - arrowSize, h * 0.8f - arrowSize)
-                    arrowheadPath.lineTo(w * 0.5f, h * 0.8f)
-                    arrowheadPath.lineTo(w * 0.5f + arrowSize, h * 0.8f - arrowSize)
-                }
-                ArrowDirection.SWIPE_LEFT -> {
-                    arrowheadPath.moveTo(w * 0.2f + arrowSize, h * 0.5f - arrowSize)
-                    arrowheadPath.lineTo(w * 0.2f, h * 0.5f)
-                    arrowheadPath.lineTo(w * 0.2f + arrowSize, h * 0.5f + arrowSize)
-                }
-                ArrowDirection.SWIPE_UP_LEFT -> {
-                    arrowheadPath.moveTo(w * 0.2f + arrowSize, h * 0.3f - arrowSize)
-                    arrowheadPath.lineTo(w * 0.2f, h * 0.3f)
-                    arrowheadPath.lineTo(w * 0.2f + arrowSize, h * 0.3f + arrowSize)
-                }
-                ArrowDirection.SWIPE_DOWN_LEFT -> {
-                    arrowheadPath.moveTo(w * 0.2f + arrowSize, h * 0.7f - arrowSize)
-                    arrowheadPath.lineTo(w * 0.2f, h * 0.7f)
-                    arrowheadPath.lineTo(w * 0.2f + arrowSize, h * 0.7f + arrowSize)
-                }
-                ArrowDirection.LEFT_UP -> {
-                    arrowheadPath.moveTo(w * 0.3f - arrowSize, h * 0.2f + arrowSize)
-                    arrowheadPath.lineTo(w * 0.3f, h * 0.2f)
-                    arrowheadPath.lineTo(w * 0.3f + arrowSize, h * 0.2f + arrowSize)
-                }
-                ArrowDirection.LEFT_DOWN -> {
-                    arrowheadPath.moveTo(w * 0.3f - arrowSize, h * 0.8f - arrowSize)
-                    arrowheadPath.lineTo(w * 0.3f, h * 0.8f)
-                    arrowheadPath.lineTo(w * 0.3f + arrowSize, h * 0.8f - arrowSize)
-                }
-                ArrowDirection.RIGHT_DOWN -> {
-                    arrowheadPath.moveTo(w * 0.7f - arrowSize, h * 0.8f - arrowSize)
-                    arrowheadPath.lineTo(w * 0.7f, h * 0.8f)
-                    arrowheadPath.lineTo(w * 0.7f + arrowSize, h * 0.8f - arrowSize)
-                }
-                else -> {}
+        // Draw arrowheads
+        val arrowheadPath = Path()
+        val arrowSize = w * 0.16f
+        var drawArrow = true
+
+        when (direction) {
+            ArrowDirection.SWIPE_RIGHT, ArrowDirection.RIGHT_UP, ArrowDirection.SWIPE_UP_RIGHT -> {
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x - arrowSize, endNode.y + arrowSize)
             }
+            ArrowDirection.SWIPE_LEFT, ArrowDirection.LEFT_UP, ArrowDirection.SWIPE_UP_LEFT -> {
+                arrowheadPath.moveTo(endNode.x + arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
+            }
+            ArrowDirection.SWIPE_UP -> {
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y + arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
+            }
+            ArrowDirection.SWIPE_DOWN -> {
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y - arrowSize)
+            }
+            ArrowDirection.SWIPE_DOWN_LEFT, ArrowDirection.LEFT_DOWN -> {
+                arrowheadPath.moveTo(endNode.x + arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
+            }
+            ArrowDirection.SWIPE_DOWN_RIGHT, ArrowDirection.RIGHT_DOWN -> {
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x - arrowSize, endNode.y + arrowSize)
+            }
+            ArrowDirection.LEFT_BACK -> {
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x - arrowSize, endNode.y + arrowSize)
+            }
+            ArrowDirection.RIGHT_BACK, ArrowDirection.SWIPE_RIGHT_BACK -> {
+                arrowheadPath.moveTo(endNode.x + arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
+            }
+            ArrowDirection.SWIPE_UP_DOWN -> {
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y - arrowSize)
+            }
+            ArrowDirection.SWIPE_DOWN_UP -> {
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y + arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
+            }
+            ArrowDirection.SCRUB -> {
+                arrowheadPath.moveTo(w * 0.2f + arrowSize, h * 0.5f - arrowSize)
+                arrowheadPath.lineTo(w * 0.2f, h * 0.5f)
+                arrowheadPath.lineTo(w * 0.2f + arrowSize, h * 0.5f + arrowSize)
+                arrowheadPath.moveTo(w * 0.8f - arrowSize, h * 0.5f - arrowSize)
+                arrowheadPath.lineTo(w * 0.8f, h * 0.5f)
+                arrowheadPath.lineTo(w * 0.8f - arrowSize, h * 0.5f + arrowSize)
+            }
+            else -> {
+                drawArrow = false
+            }
+        }
+
+        if (drawArrow) {
             drawPath(
                 path = arrowheadPath,
-                color = color.copy(alpha = 0.4f),
+                color = color,
                 style = Stroke(width = arrowStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
             )
         }
 
-        // Collapse calculation: shrinks the dot to 0px and fades alpha down linearly
-        val fadeThreshold = 0.85f
-        val (dotAlpha, dotRadius) = if (actionProgress > fadeThreshold) {
-            val scaleFactor = (1f - actionProgress) / (1f - fadeThreshold)
-            Pair(0.45f * scaleFactor, 4.dp.toPx() * scaleFactor)
+        // Draw start origin node / tap ring
+        if (direction == ArrowDirection.TAP) {
+            drawCircle(color = color, radius = 5.dp.toPx(), center = startNode)
+            drawCircle(color = color.copy(alpha = 0.35f), radius = 10.dp.toPx(), center = startNode, style = Stroke(width = 1.5.dp.toPx()))
+        } else if (direction == ArrowDirection.DOUBLE_TAP) {
+            drawCircle(color = color, radius = 4.dp.toPx(), center = startNode)
+            drawCircle(color = color, radius = 4.dp.toPx(), center = endNode)
         } else {
-            Pair(0.45f, 4.dp.toPx())
+            drawCircle(color = color, radius = 3.5.dp.toPx(), center = startNode)
         }
 
-        drawCircle(color = color.copy(alpha = dotAlpha), radius = dotRadius, center = Offset(cx, cy))
-        if (isHoldSegment) {
+        // Draw Hold indicator halo
+        if (isHold) {
             drawCircle(
-                color = color.copy(alpha = pulseAlpha),
-                radius = 4.dp.toPx() + (22.dp.toPx() * ((progress - 0.65f) / 0.35f)),
-                center = Offset(cx, cy),
-                style = Stroke(width = 1.dp.toPx())
+                color = color.copy(alpha = 0.6f),
+                radius = 12.dp.toPx(),
+                center = endNode,
+                style = Stroke(width = 1.2.dp.toPx())
             )
         }
     }

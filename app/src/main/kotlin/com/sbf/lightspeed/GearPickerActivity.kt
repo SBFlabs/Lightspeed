@@ -678,82 +678,134 @@ class GearPickerActivity : ComponentActivity() {
                                                             color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.06f),
                                                             shape = RoundedCornerShape(12.dp)
                                                         )
-                                                        .clickable {
-                                                            handleTokenSelection(item.appToken)
-                                                        }
-                                                        .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                                                val hasShortcuts = item.totalShortcuts > 0
+
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(IntrinsicSize.Min)
+                                                        .padding(vertical = 3.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
-                                                    if (iconBmp != null) {
-                                                        Image(
-                                                            bitmap = iconBmp.asImageBitmap(),
-                                                            contentDescription = null,
-                                                            modifier = Modifier.size(28.dp).padding(end = 10.dp)
-                                                        )
-                                                    } else {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(28.dp)
-                                                                .padding(end = 10.dp)
-                                                                .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
-                                                        )
-                                                    }
-
-                                                    Column(modifier = Modifier.weight(1f)) {
-                                                        Text(
-                                                            text = item.appName,
-                                                            color = if (isAppSelected) dynamicPrimary else Color.White,
-                                                            fontSize = 13.5.sp,
-                                                            fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
-                                                        )
-                                                        if (item.totalShortcuts > 0) {
-                                                            Text(
-                                                                text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
-                                                                color = dynamicSecondary.copy(alpha = 0.85f),
-                                                                fontSize = 10.sp
+                                                    // 1. Main Board (Left): App Icon + Title + Action Count + Selection Badge
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .fillMaxHeight()
+                                                            .clip(
+                                                                RoundedCornerShape(
+                                                                    topStart = 14.dp,
+                                                                    bottomStart = 14.dp,
+                                                                    topEnd = if (hasShortcuts) 6.dp else 14.dp,
+                                                                    bottomEnd = if (hasShortcuts) 6.dp else 14.dp
+                                                                )
                                                             )
+                                                            .background(
+                                                                if (isAppSelected) dynamicPrimary.copy(alpha = 0.28f)
+                                                                else Color.White.copy(alpha = 0.06f)
+                                                            )
+                                                            .border(
+                                                                width = 1.dp,
+                                                                color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.08f),
+                                                                shape = RoundedCornerShape(
+                                                                    topStart = 14.dp,
+                                                                    bottomStart = 14.dp,
+                                                                    topEnd = if (hasShortcuts) 6.dp else 14.dp,
+                                                                    bottomEnd = if (hasShortcuts) 6.dp else 14.dp
+                                                                )
+                                                            )
+                                                            .clickable {
+                                                                handleTokenSelection(item.appToken)
+                                                            }
+                                                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
+                                                        if (iconBmp != null) {
+                                                            Image(
+                                                                bitmap = iconBmp.asImageBitmap(),
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(28.dp).padding(end = 10.dp)
+                                                            )
+                                                        } else {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(28.dp)
+                                                                    .padding(end = 10.dp)
+                                                                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                                                            )
+                                                        }
+
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = item.appName,
+                                                                color = if (isAppSelected) dynamicPrimary else Color.White,
+                                                                fontSize = 13.5.sp,
+                                                                fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                            if (hasShortcuts) {
+                                                                Text(
+                                                                    text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
+                                                                    color = dynamicSecondary.copy(alpha = 0.85f),
+                                                                    fontSize = 10.sp
+                                                                )
+                                                            }
+                                                        }
+
+                                                        // Selection Indicator Badge
+                                                        if (isAppSelected) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .padding(start = 6.dp)
+                                                                    .background(dynamicPrimary, CircleShape)
+                                                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = "SELECTED",
+                                                                    color = Color.Black,
+                                                                    fontSize = 8.5.sp,
+                                                                    fontWeight = FontWeight.ExtraBold
+                                                                )
+                                                            }
                                                         }
                                                     }
 
-                                                    // Selection Indicator Badge
-                                                    if (isAppSelected) {
+                                                    if (hasShortcuts) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+
+                                                        // 2. Expand Chevron Zone (Right): Distinct Material 3 Color-Coded Container with perfectly matched height
                                                         Box(
                                                             modifier = Modifier
-                                                                .padding(horizontal = 4.dp)
-                                                                .background(dynamicPrimary, CircleShape)
-                                                                .padding(horizontal = 7.dp, vertical = 2.5.dp),
+                                                                .width(46.dp)
+                                                                .fillMaxHeight()
+                                                                .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 14.dp, bottomEnd = 14.dp))
+                                                                .background(
+                                                                    if (item.isExpanded) dynamicSecondary.copy(alpha = 0.35f)
+                                                                    else dynamicSecondary.copy(alpha = 0.12f)
+                                                                )
+                                                                .border(
+                                                                    width = 1.dp,
+                                                                    color = if (item.isExpanded) dynamicSecondary.copy(alpha = 0.65f) else dynamicSecondary.copy(alpha = 0.22f),
+                                                                    shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 14.dp, bottomEnd = 14.dp)
+                                                                )
+                                                                .clickable {
+                                                                    expandedSubsections = if (item.isExpanded) {
+                                                                        expandedSubsections - appKey
+                                                                    } else {
+                                                                        expandedSubsections + appKey
+                                                                    }
+                                                                },
                                                             contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Text(
-                                                                text = "SELECTED",
-                                                                color = Color.Black,
-                                                                fontSize = 8.5.sp,
-                                                                fontWeight = FontWeight.ExtraBold
-                                                            )
-                                                        }
-                                                    }
-
-                                                    // Integrated Accordion Arrow Button for Shortcuts
-                                                    if (item.totalShortcuts > 0) {
-                                                        IconButton(
-                                                            onClick = {
-                                                                expandedSubsections = if (item.isExpanded) {
-                                                                    expandedSubsections - appKey
-                                                                } else {
-                                                                    expandedSubsections + appKey
-                                                                }
-                                                            },
-                                                            modifier = Modifier.size(32.dp)
                                                         ) {
                                                             Icon(
                                                                 Icons.Default.ArrowDropDown,
                                                                 contentDescription = if (item.isExpanded) "Collapse" else "Expand",
-                                                                tint = dynamicSecondary,
+                                                                tint = if (item.isExpanded) dynamicSecondary else dynamicSecondary.copy(alpha = 0.9f),
                                                                 modifier = Modifier
-                                                                    .size(22.dp)
+                                                                    .size(24.dp)
                                                                     .rotate(if (item.isExpanded) 180f else 0f)
                                                             )
                                                         }

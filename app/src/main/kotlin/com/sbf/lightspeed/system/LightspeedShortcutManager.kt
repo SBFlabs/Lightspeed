@@ -94,13 +94,61 @@ object LightspeedShortcutManager {
         }
     }
 
+    fun isCorruptBitmap(bmp: Bitmap): Boolean {
+        if (bmp.width <= 0 || bmp.height <= 0) return true
+        val w = bmp.width
+        val h = bmp.height
+        val first = bmp.getPixel(0, 0)
+        if (first == Color.BLACK || first == Color.WHITE || first == 0) {
+            val stepX = (w / 6).coerceAtLeast(1)
+            val stepY = (h / 6).coerceAtLeast(1)
+            var hasVariation = false
+            for (x in 0 until w step stepX) {
+                for (y in 0 until h step stepY) {
+                    if (bmp.getPixel(x, y) != first) {
+                        hasVariation = true
+                        break
+                    }
+                }
+                if (hasVariation) break
+            }
+            if (!hasVariation) return true
+        }
+        return false
+    }
+
+    fun purgeCorruptedIcons(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val dir = File(context.filesDir, "shortcut_icons")
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { file ->
+                        if (file.isFile && file.name.endsWith(".png")) {
+                            val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                            if (bmp == null || isCorruptBitmap(bmp)) {
+                                file.delete()
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     fun loadCachedBitmap(context: Context, token: String): Bitmap? {
-        bitmapCache[token]?.let { return it }
+        bitmapCache[token]?.let {
+            if (!isCorruptBitmap(it)) return it
+            bitmapCache.remove(token)
+        }
         try {
             val file = File(context.filesDir, "shortcut_icons/${safeTokenKey(token)}.png")
             if (file.exists()) {
                 val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                 if (bmp != null) {
+                    if (isCorruptBitmap(bmp)) {
+                        file.delete()
+                        return null
+                    }
                     bitmapCache[token] = bmp
                     return bmp
                 }

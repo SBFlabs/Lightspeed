@@ -210,12 +210,19 @@ object LightspeedIconManager {
     }
 
     private fun loadCustomShortcutBitmap(context: Context, token: String): Bitmap? {
-        customShortcutBitmaps[token]?.let { return it }
+        customShortcutBitmaps[token]?.let {
+            if (!LightspeedShortcutManager.isCorruptBitmap(it)) return it
+            customShortcutBitmaps.remove(token)
+        }
         try {
             val file = java.io.File(context.filesDir, "shortcut_icons/${token.hashCode()}.png")
             if (file.exists()) {
                 val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                 if (bmp != null) {
+                    if (LightspeedShortcutManager.isCorruptBitmap(bmp)) {
+                        file.delete()
+                        return null
+                    }
                     customShortcutBitmaps[token] = bmp
                     return bmp
                 }

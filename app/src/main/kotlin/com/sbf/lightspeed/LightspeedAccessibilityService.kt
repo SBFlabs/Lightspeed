@@ -54,6 +54,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         // 1. Initialize Right Sidebar Overlay Window

@@ -43,27 +43,6 @@ android {
     }
 }
 
-afterEvaluate {
-    tasks.named("packageDebug").configure {
-        doLast {
-            val intermediateApkDir = file("build/intermediates/apk/debug")
-            val targetDir = rootProject.file("build-output").apply { mkdirs() }
-            val target = File(targetDir, "app-nightly.apk")
-            println(">>> SEARCHING INTERMEDIATE APK DIR: ${intermediateApkDir.absolutePath} (exists=${intermediateApkDir.exists()})")
-            if (intermediateApkDir.exists()) {
-                intermediateApkDir.walk().filter { it.isFile && it.extension == "apk" }.forEach { foundApk ->
-                    println(">>> FOUND APK: ${foundApk.absolutePath} (${foundApk.length()} bytes)")
-                    foundApk.copyTo(target, overwrite = true)
-                    println(">>> SUCCESSFULLY COPIED TO: ${target.absolutePath} (${target.length()} bytes)")
-                }
-            }
-            if (!target.exists()) {
-                println(">>> ERROR: TARGET APK NOT FOUND AFTER BUILD: ${target.absolutePath}")
-            }
-        }
-    }
-}
-
 
 
 dependencies {

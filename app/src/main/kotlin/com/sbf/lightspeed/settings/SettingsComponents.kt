@@ -526,6 +526,37 @@ fun GestureMappingRow(
 
 @Composable
 fun PrefToggleRow(
+    title: String,
+    subtitle: String = "",
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+            if (subtitle.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+            }
+        }
+        Switch(
+            checked = isChecked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
+        )
+    }
+}
+
+@Composable
+fun PrefToggleRow(
     context: Context,
     prefs: SharedPreferences,
     keyResName: String,
@@ -539,31 +570,15 @@ fun PrefToggleRow(
     val summary = remember(summaryResName) { resStr(context, summaryResName, defaultSummary) }
     var checked by remember { mutableStateOf(prefs.getBoolean(key, false)) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
-            if (summary.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(summary, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
-            }
+    PrefToggleRow(
+        title = title,
+        subtitle = summary,
+        isChecked = checked,
+        onCheckedChange = {
+            checked = it
+            prefs.edit().putBoolean(key, it).apply()
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = {
-                checked = it
-                prefs.edit().putBoolean(key, it).apply()
-            },
-            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
-        )
-    }
+    )
 }
 
 @Composable

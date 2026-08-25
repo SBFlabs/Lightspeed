@@ -213,8 +213,12 @@ object LightspeedShortcutManager {
             var cleanUri = body
             if (cleanUri.contains(";custom_label=")) cleanUri = cleanUri.substringBefore(";custom_label=")
             if (cleanUri.contains(";label=")) cleanUri = cleanUri.substringBefore(";label=")
-            if (cleanUri.startsWith("intent:intent:#Intent;")) cleanUri = cleanUri.removePrefix("intent:")
-            if (cleanUri.startsWith("intent:") && cleanUri.contains("#Intent;")) cleanUri = cleanUri.removePrefix("intent:")
+            while (cleanUri.startsWith("intent:intent:")) {
+                cleanUri = cleanUri.removePrefix("intent:")
+            }
+            if (!cleanUri.startsWith("intent:") && cleanUri.startsWith("#Intent;")) {
+                cleanUri = "intent:$cleanUri"
+            }
 
             var pkg = ""
             try {
@@ -486,19 +490,26 @@ object LightspeedShortcutManager {
                     val macroId = parsed.id
                     val macroName = parsed.label
 
-                    // Pipeline A: Explicit RunMacroActivity with macro ID/Name extras
+                    // Pipeline A: Explicit ShortcutDispatchActivity (authentic exported receiver for MacroDroid macros)
                     try {
-                        val mdIntent = Intent().apply {
-                            setClassName("com.arlosoft.macrodroid", "com.arlosoft.macrodroid.macro.run.RunMacroActivity")
+                        val mdIntent = Intent(Intent.ACTION_MAIN).apply {
+                            setClassName("com.arlosoft.macrodroid", "com.arlosoft.macrodroid.ShortcutDispatchActivity")
+                            putExtra("com.arlosoft.macrodroid.MACRO_NAME", macroName)
+                            putExtra("macro_name", macroName)
+                            macroId.toLongOrNull()?.let {
+                                putExtra("guid", it)
+                                putExtra("TriggerGuid", it)
+                            }
                             putExtra("macro_id", macroId)
                             putExtra("com.arlosoft.macrodroid.MACRO_ID", macroId)
-                            putExtra("macro_name", macroName)
-                            putExtra("com.arlosoft.macrodroid.MACRO_NAME", macroName)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            putExtra("is_action_block", false)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         }
                         context.startActivity(mdIntent)
                         launched = true
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        Log.d(TAG, "MacroDroid ShortcutDispatchActivity failed: ${e.message}")
+                    }
 
                     // Pipeline B: Broadcast to MacroDroid macro receivers
                     if (!launched) {
@@ -507,6 +518,7 @@ object LightspeedShortcutManager {
                                 setPackage("com.arlosoft.macrodroid")
                                 putExtra("macro_id", macroId)
                                 putExtra("macro_name", macroName)
+                                putExtra("com.arlosoft.macrodroid.MACRO_NAME", macroName)
                             }
                             context.sendBroadcast(bcIntent)
                             launched = true
@@ -517,8 +529,10 @@ object LightspeedShortcutManager {
                 // 4. Quaternary: Elevated Shizuku Shell Execution
                 if (!launched && ElevatedTaskCloser.isShizukuActive) {
                     try {
-                        ElevatedTaskCloser.execShizuku("cmd shortcut start-shortcut --user 0 -p ${parsed.packageName} -i '${parsed.id}' || am start-shortcut -p ${parsed.packageName} -i '${parsed.id}'")
-                        launched = true
+                        if (parsed.packageName == "com.arlosoft.macrodroid") {
+                            ElevatedTaskCloser.execShizuku("am start -n com.arlosoft.macrodroid/.ShortcutDispatchActivity -a android.intent.action.MAIN --es com.arlosoft.macrodroid.MACRO_NAME '${parsed.label}'")
+                            launched = true
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "Shizuku shortcut launch failed", e)
                     }
@@ -563,26 +577,47 @@ object LightspeedShortcutManager {
             }
 
             "intent" -> {
-                if (parsed.intentUri.isNotBlank()) {
+                var uri = parsed.intentUri.trim()
+                if (uri.isNotBlank()) {
+                    while (uri.startsWith("intent:intent:")) {
+                        uri = uri.removePrefix("intent:")
+                    }
+                    if (!uri.startsWith("intent:") && uri.startsWith("#Intent;")) {
+                        uri = "intent:$uri"
+                    }
+
                     val launchIntent = try {
-                        Intent.parseUri(parsed.intentUri, Intent.URI_INTENT_SCHEME).apply {
+                        Intent.parseUri(uri, Intent.URI_INTENT_SCHEME).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Intent URI parse failed: ${parsed.intentUri}", e)
+                        Log.e(TAG, "Intent URI parse failed: $uri", e)
                         null
                     }
 
                     if (launchIntent != null) {
+                        // Unpack nested ShortcutMaker intent if present
+                        val extraIntent = launchIntent.getStringExtra("extra_intent")
+                        if (!extraIntent.isNullOrBlank()) {
+                            try {
+                                val decodedInner = Uri.decode(extraIntent)
+                                val innerIntent = Intent.parseUri(decodedInner, Intent.URI_INTENT_SCHEME).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(innerIntent)
+                                return true
+                            } catch (_: Exception) {}
+                        }
+
                         // 1. Try starting as Activity
                         try {
                             context.startActivity(launchIntent)
                             return true
                         } catch (e: Exception) {
-                            Log.d(TAG, "Activity launch failed for ${parsed.intentUri}: ${e.message}, trying broadcast/service")
+                            Log.d(TAG, "Activity launch failed for $uri: ${e.message}, trying broadcast/service")
                         }
 
-                        // 2. Try sending as Broadcast (essential for MacroDroid, Tasker, automation shortcuts)
+                        // 2. Try sending as Broadcast
                         try {
                             context.sendBroadcast(launchIntent)
                             return true
@@ -602,11 +637,10 @@ object LightspeedShortcutManager {
                             Log.d(TAG, "Service launch failed: ${e.message}")
                         }
 
-                        // 4. Shizuku elevated shell execution fallback
+                        // 4. Elevated Shizuku fallback
                         if (ElevatedTaskCloser.isShizukuActive) {
                             try {
-                                val pkgArg = if (parsed.packageName.isNotBlank()) "-p ${parsed.packageName}" else ""
-                                ElevatedTaskCloser.execShizuku("am start $pkgArg '${parsed.intentUri}' || am broadcast $pkgArg '${parsed.intentUri}'")
+                                ElevatedTaskCloser.execShizuku("am start '${uri}' || am broadcast '${uri}'")
                                 return true
                             } catch (_: Exception) {}
                         }

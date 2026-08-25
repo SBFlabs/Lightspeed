@@ -323,11 +323,21 @@ class LightspeedLeftWingOverlay(
                     }
                 }
 
-                if (totalDist > 25f) {
+                val density = resources.displayMetrics.density
+                val maxExcursionX = highestXReached - startRawX
+                val maxExcursionUp = startRawY - lowestYReached
+                val maxExcursionDown = highestYReached - startRawY
+                val excursion = maxOf(maxExcursionX, maxExcursionUp, maxExcursionDown)
+
+                if (excursion > (18f * density)) {
                     val prev = currentGesture
                     currentGesture = determineGesture(dx, dy, rawX, rawY)
                     if (currentGesture != "NONE" && currentGesture != prev) {
                         triggerHaptic(18, 100)
+                        if (!isHoldFired) {
+                            uiHandler.removeCallbacks(holdRunnable)
+                            uiHandler.postDelayed(holdRunnable, 400L)
+                        }
                     }
                 }
                 return true
@@ -340,7 +350,11 @@ class LightspeedLeftWingOverlay(
                     return true
                 }
 
-                val totalDist = hypot((rawX - startRawX).toDouble(), (rawY - startRawY).toDouble()).toFloat()
+                val density = resources.displayMetrics.density
+                val maxExcursionX = highestXReached - startRawX
+                val maxExcursionUp = startRawY - lowestYReached
+                val maxExcursionDown = highestYReached - startRawY
+                val maxExcursion = maxOf(maxExcursionX, maxExcursionUp, maxExcursionDown)
 
                 if (isScrubbing) {
                     isTwoStepDownwardScrub = false
@@ -352,14 +366,17 @@ class LightspeedLeftWingOverlay(
                 }
 
                 if (!isHoldFired) {
-                    if (totalDist < 18f) {
-                        handleTap()
-                    } else if (currentGesture != "NONE") {
-                        val action = getEffectiveAction(activeZoneKey, currentGesture, false)
+                    val finalGesture = if (currentGesture != "NONE") currentGesture else determineGesture(rawX - startRawX, rawY - startRawY, rawX, rawY)
+                    val isReturning = finalGesture == "SWIPE_RIGHT_BACK" || finalGesture == "SWIPE_UP_DOWN" || finalGesture == "SWIPE_DOWN_UP"
+                    
+                    if (isReturning || (finalGesture != "NONE" && maxExcursion >= (18f * density))) {
+                        val action = getEffectiveAction(activeZoneKey, finalGesture, false)
                         if (action != "none") {
                             triggerHaptic(25, 160)
                             performActionByName(action)
                         }
+                    } else if (maxExcursion < (18f * density)) {
+                        handleTap()
                     }
                 }
                 return true
@@ -383,33 +400,47 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun determineGesture(dx: Float, dy: Float, rawX: Float, rawY: Float): String {
+        val density = resources.displayMetrics.density
+        val maxExcursionX = highestXReached - startRawX
+        val maxExcursionUp = startRawY - lowestYReached
+        val maxExcursionDown = highestYReached - startRawY
+
+        // 1. Returning Gestures (highest priority on reversal detection)
+        if (maxExcursionX > (22f * density) && (highestXReached - rawX) > (16f * density)) {
+            return "SWIPE_RIGHT_BACK"
+        }
+        if (maxExcursionUp > (25f * density) && (rawY - lowestYReached) > (20f * density)) {
+            return "SWIPE_UP_DOWN"
+        }
+        if (maxExcursionDown > (25f * density) && (highestYReached - rawY) > (20f * density)) {
+            return "SWIPE_DOWN_UP"
+        }
+
+        // 2. Compound Diagonal Gestures
         if (initialDominantAxis == "Y") {
-            if (lowestYReached < startRawY - 30f) { // Started moving UP
-                if (dx > 35f) return "SWIPE_UP_RIGHT"
-                if ((rawY - lowestYReached) > 50f) return "SWIPE_UP_DOWN"
-                if (dy < -45f) return "SWIPE_UP"
-            } else if (highestYReached > startRawY + 30f) { // Started moving DOWN
-                if (dx > 35f) return "SWIPE_DOWN_RIGHT"
-                if ((highestYReached - rawY) > 50f) return "SWIPE_DOWN_UP"
-                if (dy > 45f) return "SWIPE_DOWN"
+            if (lowestYReached < startRawY - (25f * density)) { // Moved UP
+                if (dx > (25f * density)) return "SWIPE_UP_RIGHT"
+                if (dy < (-35f * density)) return "SWIPE_UP"
+            } else if (highestYReached > startRawY + (25f * density)) { // Moved DOWN
+                if (dx > (25f * density)) return "SWIPE_DOWN_RIGHT"
+                if (dy > (35f * density)) return "SWIPE_DOWN"
             }
         } else if (initialDominantAxis == "X") {
-            if (highestXReached > startRawX + 30f) {
-                if (dy < -35f) return "SWIPE_RIGHT_UP"
-                if (dy > 35f) return "SWIPE_RIGHT_DOWN"
-                if ((highestXReached - rawX) > 25f) return "SWIPE_RIGHT_BACK"
-                if (dx > 45f) return "SWIPE_RIGHT"
+            if (highestXReached > startRawX + (25f * density)) {
+                if (dy < (-25f * density)) return "SWIPE_RIGHT_UP"
+                if (dy > (25f * density)) return "SWIPE_RIGHT_DOWN"
+                if (dx > (35f * density)) return "SWIPE_RIGHT"
             }
         }
 
         return when {
-            dx > 40f && dy < -35f -> "SWIPE_RIGHT_UP"
-            dx > 40f && dy > 35f -> "SWIPE_RIGHT_DOWN"
-            dy < -35f && dx > 35f -> "SWIPE_UP_RIGHT"
-            dy > 35f && dx > 35f -> "SWIPE_DOWN_RIGHT"
-            dx > 45f -> "SWIPE_RIGHT"
-            dy < -45f -> "SWIPE_UP"
-            dy > 45f -> "SWIPE_DOWN"
+            dx > (32f * density) && dy < (-25f * density) -> "SWIPE_RIGHT_UP"
+            dx > (32f * density) && dy > (25f * density) -> "SWIPE_RIGHT_DOWN"
+            dy < (-25f * density) && dx > (25f * density) -> "SWIPE_UP_RIGHT"
+            dy > (25f * density) && dx > (25f * density) -> "SWIPE_DOWN_RIGHT"
+            dx > (32f * density) -> "SWIPE_RIGHT"
+            dy < (-32f * density) -> "SWIPE_UP"
+            dy > (32f * density) -> "SWIPE_DOWN"
             else -> "NONE"
         }
     }

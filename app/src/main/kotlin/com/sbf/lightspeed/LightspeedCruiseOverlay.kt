@@ -1242,28 +1242,28 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             if (assignedScrub != "none" && assignedScrub != null && abs(deltaX) > thresholdX_Scrub) {
                                 currentDetectedGesture = MacroGesture.SCRUBBING
                                 uiHandler.removeCallbacks(holdTimerRunnable)
-                            } else if (deltaY < -thresholdY_Compound) {
+                            } else if (deltaY < (-25f * density)) {
                                 currentDetectedGesture = MacroGesture.SWIPE_LEFT_UP
-                            } else if (deltaY > thresholdY_Compound) {
+                            } else if (deltaY > (25f * density)) {
                                 currentDetectedGesture = MacroGesture.SWIPE_LEFT_DOWN
                             } else {
                                 val currentReturnRightDistance = rawX - lowestXReached
-                                if (currentReturnRightDistance > (30f * density)) {
+                                if (currentReturnRightDistance > (18f * density)) {
                                     currentDetectedGesture = MacroGesture.SWIPE_LEFT_BACK
                                 }
                             }
                         }
                         MacroGesture.SWIPE_UP -> {
-                            if ((rawY - lowestYReached) > 60f) {
+                            if ((rawY - lowestYReached) > (22f * density)) {
                                 currentDetectedGesture = MacroGesture.SWIPE_UP_DOWN
-                            } else if (deltaX < -50f) {
+                            } else if (deltaX < (-25f * density)) {
                                 currentDetectedGesture = MacroGesture.SWIPE_UP_LEFT
                             }
                         }
                         MacroGesture.SWIPE_DOWN -> {
-                            if ((highestYReached - rawY) > 60f) {
+                            if ((highestYReached - rawY) > (22f * density)) {
                                 currentDetectedGesture = MacroGesture.SWIPE_DOWN_UP
-                            } else if (deltaX < -50f) {
+                            } else if (deltaX < (-25f * density)) {
                                 currentDetectedGesture = MacroGesture.SWIPE_DOWN_LEFT
                             }
                         }

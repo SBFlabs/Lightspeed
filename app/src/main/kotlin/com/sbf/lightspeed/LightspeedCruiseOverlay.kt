@@ -161,10 +161,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var hasLongPressFired = false
     private var isTouchingFocusedCog = false
 
+    private var activeHoldScrubAction: String? = null
+    private var scrubHudTitle = ""
+    private var scrubHudValue = ""
+
     private val holdTimerRunnable = Runnable {
         if (macroTrackingActive) {
             val hostGesture = currentDetectedGesture
             val holdEquivalent = when(hostGesture) {
+                MacroGesture.NONE -> MacroGesture.NONE
                 MacroGesture.SWIPE_UP -> MacroGesture.SWIPE_UP_HOLD
                 MacroGesture.SWIPE_DOWN -> MacroGesture.SWIPE_DOWN_HOLD
                 MacroGesture.SWIPE_LEFT -> MacroGesture.SWIPE_LEFT_HOLD
@@ -177,8 +182,63 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 MacroGesture.SWIPE_LEFT_DOWN -> MacroGesture.SWIPE_LEFT_DOWN_HOLD
                 else -> hostGesture
             }
-            if (holdEquivalent != hostGesture) {
-                currentDetectedGesture = holdEquivalent
+
+            val gestureKey = if (hostGesture == MacroGesture.NONE) "TAP_HOLD" else holdEquivalent.name
+            val zoneName = if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
+            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
+            val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
+            val isMirroringLeft = gestMode == "left"
+
+            val actionValue = if (isMirroringLeft) {
+                val isLeftUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
+                val leftZone = if (isLeftUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
+                val leftGesture = when (gestureKey) {
+                    "SWIPE_LEFT_HOLD" -> "SWIPE_RIGHT_HOLD"
+                    "SWIPE_LEFT_UP_HOLD" -> "SWIPE_RIGHT_UP_HOLD"
+                    "SWIPE_LEFT_DOWN_HOLD" -> "SWIPE_RIGHT_DOWN_HOLD"
+                    "SWIPE_LEFT_BACK_HOLD" -> "SWIPE_RIGHT_BACK_HOLD"
+                    "SWIPE_UP_LEFT_HOLD" -> "SWIPE_UP_RIGHT_HOLD"
+                    "SWIPE_DOWN_LEFT_HOLD" -> "SWIPE_DOWN_RIGHT_HOLD"
+                    else -> gestureKey
+                }
+                prefs.getString("pref_macro_action_${leftZone}_$leftGesture", "none") ?: "none"
+            } else {
+                val dynamicZone = if (isFlankUnified) "UNIFIED" else zoneName
+                val actionKey = "pref_macro_action_${dynamicZone}_$gestureKey"
+                prefs.getString(actionKey, "none") ?: "none"
+            }
+
+            if (actionValue == "system:volume" || actionValue == "system:brightness" || actionValue == "system:screen_timeout" || actionValue == "scrub:volume" || actionValue == "scrub:brightness") {
+                currentDetectedGesture = MacroGesture.SCRUBBING
+                activeHoldScrubAction = actionValue
+                aggregateScrubAccumulator = 0f
+                isScrubEntranceHapticFired = true
+                triggerHardwareHaptic(35, 180)
+                when (actionValue) {
+                    "system:volume", "scrub:volume" -> {
+                        val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        scrubHudTitle = "MEDIA VOLUME"
+                        scrubHudValue = "$currentVol / $maxVol"
+                    }
+                    "system:brightness", "scrub:brightness" -> {
+                        val currentBrightness = try {
+                            Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                        } catch (_: Exception) { 128 }
+                        scrubHudTitle = "BRIGHTNESS"
+                        scrubHudValue = "${(currentBrightness * 100 / 255)}%"
+                    }
+                    "system:screen_timeout" -> {
+                        scrubHudTitle = "SCREEN TIMEOUT"
+                        scrubHudValue = LightspeedTimeoutEngine.getCurrentFormatted(context)
+                    }
+                }
+                invalidate()
+            } else if (actionValue != "none") {
+                if (holdEquivalent != hostGesture) {
+                    currentDetectedGesture = holdEquivalent
+                }
                 executeMacroAction(currentActiveZone, holdEquivalent)
                 triggerHardwareHaptic(35, 160)
                 macroTrackingActive = false
@@ -1343,6 +1403,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         executeMacroAction(currentActiveZone, currentDetectedGesture)
                     }
                 }
+                activeHoldScrubAction = null
+                scrubHudTitle = ""
+                scrubHudValue = ""
+                invalidate()
                 currentActiveZone = TouchZone.NONE
                 return true
             }
@@ -1359,47 +1423,52 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
         val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
         val dynamicZone = if (prefs.getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
-        val assignedScrub = prefs.getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none") ?: "none"
+        val assignedScrub = activeHoldScrubAction ?: (prefs.getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none") ?: "none")
 
         if (assignedScrub == "none") return
 
         aggregateScrubAccumulator += pixelDelta
-        val sensitivityThreshold = 35f
+        val sensitivityThreshold = 28f
 
         if (abs(aggregateScrubAccumulator) >= sensitivityThreshold) {
             val steps = (aggregateScrubAccumulator / sensitivityThreshold).toInt()
             aggregateScrubAccumulator %= sensitivityThreshold
             if (steps != 0) {
-                triggerHardwareHaptic(20, 120) // Noticeable micro-tick (25ms) that vibrates even during slow pulls
+                triggerHardwareHaptic(18, 110)
             }
 
             if (assignedScrub == "scrub:volume" || assignedScrub == "system:volume") {
                 val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 val targetVol = (currentVol - steps).coerceIn(0, maxVol)
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, AudioManager.FLAG_SHOW_UI)
+                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                scrubHudTitle = "MEDIA VOLUME"
+                scrubHudValue = "$targetVol / $maxVol"
+                invalidate()
             } else if (assignedScrub == "scrub:brightness" || assignedScrub == "system:brightness") {
-                if (!Settings.System.canWrite(context)) {
-                    val currentTimestamp = System.currentTimeMillis()
-                    if (currentTimestamp - lastPermissionToastTime > 5000) {
-                        lastPermissionToastTime = currentTimestamp
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(context, "LaunchTime requires Write Settings permission for brightness control", Toast.LENGTH_LONG).show()
-                            val grantIntent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                                data = Uri.parse("package:" + context.packageName)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(grantIntent)
-                        }
+                if (Settings.System.canWrite(context)) {
+                    val currentBrightness = try {
+                        Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                    } catch (_: Exception) { 128 }
+                    val targetBrightness = (currentBrightness - (steps * 8)).coerceIn(10, 255)
+                    try {
+                        Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
+                        scrubHudTitle = "BRIGHTNESS"
+                        scrubHudValue = "${(targetBrightness * 100 / 255)}%"
+                        invalidate()
+                    } catch (e: Exception) {
+                        Log.e("GestureEngine", "System write failure", e)
                     }
-                    return
                 }
-                try {
-                    val currentBrightness = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
-                    val targetBrightness = (currentBrightness - (steps * 4)).coerceIn(0, 255)
-                    Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
-                } catch (e: Exception) {
-                    Log.e("GestureEngine", "System write failure", e)
+            } else if (assignedScrub == "system:screen_timeout") {
+                val curIdx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
+                val targetIndex = (curIdx - steps).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
+                val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
+                if (scrubHudValue != label) {
+                    scrubHudTitle = "SCREEN TIMEOUT"
+                    scrubHudValue = label
+                    triggerHardwareHaptic(22, 140)
+                    invalidate()
                 }
             }
         }
@@ -3264,6 +3333,33 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
 
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
+
+        if (currentDetectedGesture == MacroGesture.SCRUBBING && scrubHudTitle.isNotEmpty()) {
+            val cx = w / 2f
+            val cy = h / 2f
+            val text = "$scrubHudTitle: $scrubHudValue"
+            val textW = textPaint.measureText(text).coerceAtLeast(180f * density)
+            val rect = RectF(cx - (textW / 2f) - (20f * density), cy - (26f * density), cx + (textW / 2f) + (20f * density), cy + (26f * density))
+
+            val hudFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+                color = Color.argb(220, 16, 20, 32)
+            }
+            val hudStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeWidth = 2f * density
+                color = m3Primary
+            }
+            val hudText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.WHITE
+                textSize = 15f * density
+                textAlign = Paint.Align.CENTER
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            }
+            canvas.drawRoundRect(rect, 14f * density, 14f * density, hudFill)
+            canvas.drawRoundRect(rect, 14f * density, 14f * density, hudStroke)
+            canvas.drawText(text, cx, cy + (6f * density), hudText)
+        }
     }
 }
 

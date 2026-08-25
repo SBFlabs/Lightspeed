@@ -80,7 +80,8 @@ object LightspeedActionRegistry {
     }
 
     fun getBaseTokens(): List<String> = listOf(
-        "none", "system:close_app", "system:home", "system:back", "system:recents",
+        "none", "system:screen_timeout", "system:volume", "system:brightness",
+        "system:close_app", "system:home", "system:back", "system:recents",
         "system:notifications", "system:quick_settings", "system:scroll_to_top"
     )
 
@@ -1541,6 +1542,9 @@ fun ThreeWayTacticalSelector(
 fun resolveDynamicTokenLabel(context: Context, token: String): String {
     return when {
         token == "none" -> "None"
+        token == "system:screen_timeout" -> "Screen Timeout (15s – 10m Scrubber)"
+        token == "system:volume" -> "Volume (Media Scrubber)"
+        token == "system:brightness" -> "Brightness Scrubber"
         token == "system:close_app" || token == "shizuku:close_app" -> "Close App (Remove from Recents)"
         token == "system:home" -> "Home"
         token == "system:back" -> "Back"

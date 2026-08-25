@@ -156,21 +156,54 @@ class LightspeedLeftWingOverlay(
     private var activeZoneKey = "LEFT_CENTER"
     private var scrubType = "none"
 
-    // 2-Step Inward Scrubbing
+    // 2-Step Inward Scrubbing & Hold-to-Scrub
     private var isHorizontalEngaged = false
     private var isTwoStepDownwardScrub = false
     private var initialScrubValue = 0
+    private var initialScrubTouchY = 0f
+    private var currentRawY = 0f
     private var scrubAccumulator = 0f
     private var hudTitle = ""
     private var hudValue = ""
 
     private val holdRunnable = Runnable {
-        if (!isScrubbing && currentGesture != "NONE") {
-            isHoldFired = true
-            triggerHaptic(40, 200)
-            val action = getEffectiveAction(activeZoneKey, currentGesture, true)
+        if (!isScrubbing) {
+            val gestureKey = if (currentGesture == "NONE") "TAP" else currentGesture
+            val action = getEffectiveAction(activeZoneKey, gestureKey, true)
             if (action != "none") {
-                performActionByName(action)
+                isHoldFired = true
+                if (action == "system:volume" || action == "system:brightness" || action == "system:screen_timeout") {
+                    isScrubbing = true
+                    scrubType = action
+                    scrubAccumulator = 0f
+                    initialScrubTouchY = currentRawY
+                    triggerHaptic(35, 180)
+                    when (scrubType) {
+                        "system:volume" -> {
+                            val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                            initialScrubValue = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+                            val max = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
+                            hudTitle = "MEDIA VOLUME"
+                            hudValue = "$initialScrubValue / $max"
+                        }
+                        "system:brightness" -> {
+                            initialScrubValue = try {
+                                Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                            } catch (_: Exception) { 128 }
+                            hudTitle = "BRIGHTNESS"
+                            hudValue = "${(initialScrubValue * 100 / 255)}%"
+                        }
+                        "system:screen_timeout" -> {
+                            initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
+                            hudTitle = "SCREEN TIMEOUT"
+                            hudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
+                        }
+                    }
+                    invalidate()
+                } else {
+                    triggerHaptic(40, 200)
+                    performActionByName(action)
+                }
             }
         }
     }
@@ -194,6 +227,7 @@ class LightspeedLeftWingOverlay(
         val y = event.y
         val rawX = event.rawX
         val rawY = event.rawY
+        currentRawY = rawY
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -245,6 +279,12 @@ class LightspeedLeftWingOverlay(
                     }
                 }
 
+                if (isScrubbing) {
+                    val scrubDy = if (isTwoStepDownwardScrub) dy else (rawY - initialScrubTouchY)
+                    handleScrubMotion(scrubDy)
+                    return true
+                }
+
                 if (scrubType != "none" && !isTwoStepDownwardScrub) {
                     if (dx > 45f && abs(dx) > abs(dy) * 1.3f) {
                         isHorizontalEngaged = true
@@ -259,26 +299,26 @@ class LightspeedLeftWingOverlay(
                             "system:volume" -> {
                                 val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
                                 initialScrubValue = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+                                val max = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
                                 hudTitle = "MEDIA VOLUME"
+                                hudValue = "$initialScrubValue / $max"
                             }
                             "system:brightness" -> {
                                 initialScrubValue = try {
                                     Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                                 } catch (_: Exception) { 128 }
                                 hudTitle = "BRIGHTNESS"
+                                hudValue = "${(initialScrubValue * 100 / 255)}%"
                             }
                             "system:screen_timeout" -> {
+                                initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
                                 hudTitle = "SCREEN TIMEOUT"
-                                hudValue = LightspeedTimeoutEngine.getCurrentFormatted(context)
+                                hudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
                             }
                         }
                         invalidate()
+                        return true
                     }
-                }
-
-                if (isTwoStepDownwardScrub) {
-                    handleScrubMotion(dy)
-                    return true
                 }
 
                 if (totalDist > 25f) {
@@ -295,10 +335,11 @@ class LightspeedLeftWingOverlay(
                 uiHandler.removeCallbacks(holdRunnable)
                 val totalDist = hypot((rawX - startRawX).toDouble(), (rawY - startRawY).toDouble()).toFloat()
 
-                if (isTwoStepDownwardScrub) {
+                if (isScrubbing) {
                     isTwoStepDownwardScrub = false
                     isScrubbing = false
                     hudTitle = ""
+                    hudValue = ""
                     invalidate()
                     return true
                 }
@@ -322,6 +363,7 @@ class LightspeedLeftWingOverlay(
                 isTwoStepDownwardScrub = false
                 isScrubbing = false
                 hudTitle = ""
+                hudValue = ""
                 invalidate()
                 return true
             }
@@ -386,31 +428,47 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun handleScrubMotion(dy: Float) {
-        val delta = dy - 35f
+        val density = resources.displayMetrics.density
+        val stepDistance = 28f * density
         when (scrubType) {
             "system:volume" -> {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
                 val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                val change = (delta / 45f).toInt()
-                val target = (initialScrubValue - change).coerceIn(0, maxVol)
-                am.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
-                hudValue = "$target / $maxVol"
+                val stepOffset = (-dy / stepDistance).toInt()
+                val targetVol = (initialScrubValue + stepOffset).coerceIn(0, maxVol)
+                val currentVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                if (targetVol != currentVol) {
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                    triggerHaptic(18, 110)
+                }
+                hudTitle = "MEDIA VOLUME"
+                hudValue = "$targetVol / $maxVol"
                 invalidate()
             }
             "system:brightness" -> {
-                val change = (delta * 1.5f).toInt()
-                val target = (initialScrubValue - change).coerceIn(5, 255)
-                try {
-                    Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, target)
-                    hudValue = "${(target * 100 / 255)}%"
-                    invalidate()
-                } catch (_: Exception) {}
+                if (Settings.System.canWrite(context)) {
+                    val stepOffset = ((-dy / (stepDistance * 1.2f)) * 12).toInt()
+                    val target = (initialScrubValue + stepOffset).coerceIn(10, 255)
+                    try {
+                        val currentBrightness = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                        if (abs(target - currentBrightness) > 2) {
+                            Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, target)
+                            triggerHaptic(14, 90)
+                        }
+                        hudTitle = "BRIGHTNESS"
+                        hudValue = "${(target * 100 / 255)}%"
+                        invalidate()
+                    } catch (_: Exception) {}
+                }
             }
             "system:screen_timeout" -> {
-                if (abs(delta - scrubAccumulator) > 70f) {
-                    scrubAccumulator = delta
-                    triggerHaptic(20, 120)
-                    hudValue = LightspeedTimeoutEngine.cycleNext(context)
+                val stepOffset = (-dy / (stepDistance * 1.5f)).toInt()
+                val targetIndex = (initialScrubValue + stepOffset).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
+                val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
+                if (hudValue != label) {
+                    hudTitle = "SCREEN TIMEOUT"
+                    hudValue = label
+                    triggerHaptic(22, 140)
                     invalidate()
                 }
             }
@@ -483,13 +541,13 @@ class LightspeedLeftWingOverlay(
         if (isScrubbing && hudTitle.isNotEmpty()) {
             val cx = width / 2f
             val cy = height / 2f
-            val rectW = 280f
-            val rectH = 56f
-            val rect = RectF(cx - rectW / 2f, cy - rectH / 2f, cx + rectW / 2f, cy + rectH / 2f)
+            val text = "$hudTitle: $hudValue"
+            val textW = hudTextPaint.measureText(text).coerceAtLeast(180f * d)
+            val rect = RectF(cx - (textW / 2f) - (20f * d), cy - (26f * d), cx + (textW / 2f) + (20f * d), cy + (26f * d))
 
-            canvas.drawRoundRect(rect, 14f, 14f, hudFillPaint)
-            canvas.drawRoundRect(rect, 14f, 14f, hudPaint)
-            canvas.drawText("$hudTitle: $hudValue", cx, cy + 9f, hudTextPaint)
+            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudFillPaint)
+            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudPaint)
+            canvas.drawText(text, cx, cy + (7f * d), hudTextPaint)
         }
     }
 

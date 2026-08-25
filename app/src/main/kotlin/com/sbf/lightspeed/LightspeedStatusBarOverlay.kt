@@ -103,13 +103,22 @@ class LightspeedStatusBarOverlay(
     private var hudValue = ""
 
     private val holdRunnable = Runnable {
-        if (!isScrubbing && currentGesture != "NONE") {
-            isHoldFired = true
-            triggerHaptic(40, 200)
-            val actionKey = "pref_macro_action_STATUSBAR_${currentGesture}_HOLD"
+        if (!isScrubbing) {
+            val gestureKey = if (currentGesture == "NONE") "TAP" else currentGesture
+            val actionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
             val action = prefs.getString(actionKey, "none") ?: "none"
             if (action != "none") {
-                performActionByName(action)
+                isHoldFired = true
+                if (action == "system:volume" || action == "system:brightness" || action == "system:screen_timeout" || action == "system:scroll_to_top") {
+                    scrubType = action
+                    isScrubbing = true
+                    triggerHaptic(35, 180)
+                    initScrubSession()
+                    invalidate()
+                } else {
+                    triggerHaptic(40, 200)
+                    performActionByName(action)
+                }
             }
         }
     }
@@ -160,8 +169,14 @@ class LightspeedStatusBarOverlay(
                 val dy = event.y - startY
                 val dist = hypot(dx, dy)
 
-                if (dist > threshold * 0.4f && !isHoldFired) {
+                if (dist > threshold * 0.4f && !isHoldFired && !isScrubbing) {
                     uiHandler.removeCallbacks(holdRunnable)
+                }
+
+                if (isScrubbing) {
+                    handleScrubMove(dy)
+                    invalidate()
+                    return true
                 }
 
                 if (!isScrubbing && !isHorizontalEngaged) {
@@ -179,12 +194,6 @@ class LightspeedStatusBarOverlay(
                         initScrubSession()
                     }
                 }
-
-                if (isScrubbing) {
-                    handleScrubMove(dy)
-                    invalidate()
-                    return true
-                }
                 return true
             }
 
@@ -194,14 +203,16 @@ class LightspeedStatusBarOverlay(
                 val dy = event.y - startY
                 val dist = hypot(dx, dy)
 
-                if (isHoldFired) return true
-
                 if (isScrubbing) {
                     isScrubbing = false
                     isTwoStepDownwardScrub = false
+                    hudTitle = ""
+                    hudValue = ""
                     invalidate()
                     return true
                 }
+
+                if (isHoldFired) return true
 
                 if (currentGesture != "NONE") {
                     val actionKey = "pref_macro_action_STATUSBAR_$currentGesture"

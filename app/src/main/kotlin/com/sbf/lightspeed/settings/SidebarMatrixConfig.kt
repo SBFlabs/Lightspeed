@@ -151,8 +151,6 @@ fun SidebarMatrixConfigurationFields(
     // Left Wing Sub-Section States
     var isLeftCockpitHubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_cockpit_hub_left", true)) }
     var isLeftCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", true)) }
-    var isLeftCenterScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_center", true)) }
-    var isLeftCenterGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_center", true)) }
 
     var isLeftUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_unified", true)) }
     var isLeftUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_unified", true)) }
@@ -184,8 +182,6 @@ fun SidebarMatrixConfigurationFields(
     // Right Wing Sub-Section States
     var isRightCockpitHubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_cockpit_hub_right", true)) }
     var isCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
-    var isCenterScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_center", true)) }
-    var isCenterGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_center", true)) }
 
     var isRightUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_unified", true)) }
     var isRightUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_unified", true)) }
@@ -457,36 +453,6 @@ fun SidebarMatrixConfigurationFields(
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-                                    }
-
-                                    // 3. Inward Scrubbing
-                                    CollapsibleSubSection(
-                                        title = "🎛️ Inward Scrubbing Control",
-                                        subtitle = "2-step inward pull for volume, brightness, or timeout",
-                                        isExpanded = isLeftCenterScrubExpanded,
-                                        onToggle = {
-                                            isLeftCenterScrubExpanded = !isLeftCenterScrubExpanded
-                                            prefs.edit().putBoolean("pref_sub_scrub_left_center", isLeftCenterScrubExpanded).apply()
-                                        }
-                                    ) {
-                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
-                                    }
-
-                                    // 4. Gesture Actions & Macros
-                                    CollapsibleSubSection(
-                                        title = "⚡ Gesture Actions & Macro Mappings",
-                                        subtitle = "Directional swipes, tap, angle vectors & hold modifiers",
-                                        isExpanded = isLeftCenterGesturesExpanded,
-                                        onToggle = {
-                                            isLeftCenterGesturesExpanded = !isLeftCenterGesturesExpanded
-                                            prefs.edit().putBoolean("pref_sub_gestures_left_center", isLeftCenterGesturesExpanded).apply()
-                                        }
-                                    ) {
-                                        leftCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                            val (vectorTitle, arrowEnum) = pairInfo
-                                            GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_LEFT_CENTER_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                            GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_LEFT_CENTER_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
-                                        }
                                     }
                                 }
                             }
@@ -934,36 +900,6 @@ fun SidebarMatrixConfigurationFields(
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-                                    }
-
-                                    // 3. Inward Scrubbing
-                                    CollapsibleSubSection(
-                                        title = "🎛️ Inward Scrubbing Control",
-                                        subtitle = "2-step inward pull for volume, brightness, or timeout",
-                                        isExpanded = isCenterScrubExpanded,
-                                        onToggle = {
-                                            isCenterScrubExpanded = !isCenterScrubExpanded
-                                            prefs.edit().putBoolean("pref_sub_scrub_center", isCenterScrubExpanded).apply()
-                                        }
-                                    ) {
-                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
-                                    }
-
-                                    // 4. Gesture Actions & Macros
-                                    CollapsibleSubSection(
-                                        title = "⚡ Gesture Actions & Macro Mappings",
-                                        subtitle = "Directional swipes, tap, angle vectors & hold modifiers",
-                                        isExpanded = isCenterGesturesExpanded,
-                                        onToggle = {
-                                            isCenterGesturesExpanded = !isCenterGesturesExpanded
-                                            prefs.edit().putBoolean("pref_sub_gestures_center", isCenterGesturesExpanded).apply()
-                                        }
-                                    ) {
-                                        rightCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                            val (vectorTitle, arrowEnum) = pairInfo
-                                            GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_CENTER_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                            GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_CENTER_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
-                                        }
                                     }
                                 }
                             }

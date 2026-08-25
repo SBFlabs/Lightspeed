@@ -171,16 +171,9 @@ class LightspeedLeftWingOverlay(
     private val holdRunnable = Runnable {
         if (!isScrubbing) {
             if (activeZoneKey == "LEFT_CENTER") {
-                val action = getEffectiveAction(activeZoneKey, "TAP", true)
-                if (action != "none") {
-                    isHoldFired = true
-                    triggerHaptic(40, 200)
-                    performActionByName(action)
-                } else {
-                    isHoldFired = true
-                    triggerHaptic(35, 180)
-                    (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
-                }
+                isHoldFired = true
+                triggerHaptic(35, 180)
+                (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
                 return@Runnable
             }
             val gestureKey = if (currentGesture == "NONE") "TAP" else currentGesture
@@ -258,7 +251,7 @@ class LightspeedLeftWingOverlay(
                     else -> "LEFT_CENTER"
                 }
 
-                val scrubAction = prefs.getString("pref_macro_action_${activeZoneKey}_SCRUBBING", "none") ?: "none"
+                val scrubAction = if (activeZoneKey == "LEFT_CENTER") "none" else (prefs.getString("pref_macro_action_${activeZoneKey}_SCRUBBING", "none") ?: "none")
                 scrubType = scrubAction
 
                 uiHandler.removeCallbacks(holdRunnable)
@@ -350,21 +343,11 @@ class LightspeedLeftWingOverlay(
                 }
 
                 if (!isHoldFired) {
-                    if (totalDist < 18f) {
+                    if (activeZoneKey == "LEFT_CENTER") {
+                        triggerHaptic(35, 180)
+                        (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
+                    } else if (totalDist < 18f) {
                         handleTap()
-                    } else if (activeZoneKey == "LEFT_CENTER") {
-                        if (currentGesture == "SWIPE_RIGHT" || currentGesture == "SWIPE_RIGHT_BACK" || currentGesture == "SWIPE_UP_RIGHT" || currentGesture == "SWIPE_DOWN_RIGHT") {
-                            triggerHaptic(35, 180)
-                            (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
-                        } else if (currentGesture != "NONE") {
-                            val action = getEffectiveAction(activeZoneKey, currentGesture, false)
-                            if (action != "none") {
-                                triggerHaptic(25, 160)
-                                performActionByName(action)
-                            } else {
-                                (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
-                            }
-                        }
                     } else if (currentGesture != "NONE") {
                         val action = getEffectiveAction(activeZoneKey, currentGesture, false)
                         if (action != "none") {

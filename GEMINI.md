@@ -21,17 +21,16 @@
 
 ---
 
-# 3. Zero-Build Autonomous Mode & Execution Scope (Strict Host Protection)
-- **STRICT BUILD BAN FOR AI**:
-  * The AI MUST NEVER run `./gradlew`, `./deploy-nightly.sh`, `assembleDebug`, `adb install`, or any build / compilation commands under any circumstances.
-  * Zero execution of background Gradle processes, timers (`schedule`), or build scripts by the AI.
-- **AI Core Responsibilities (Code & Architecture Only)**:
+# 3. Build & Deployment Execution Scope (Host Protection & User Overrides)
+- **BUILD & DEPLOY EXECUTION POLICY**:
+  * **Default Mode**: The AI refrains from running background Gradle daemons, build loops, or unsolicited compilations.
+  * **Explicit User Pass / Override**: Whenever the user explicitly instructs or gives a pass (e.g. "run it", "deploy it", "giving you a pass", etc.), the AI is fully authorized to execute `./deploy-nightly.sh` or target debug builds.
+- **AI Core Responsibilities**:
   * Pure Kotlin / Jetpack Compose code creation, modularization, and refactoring.
   * Architectural design, data model expansion, and logic implementations.
   * Git staging and concise local commit messages on branch `nightly-refactor`.
-- **User-Driven Compilation & Deployment**:
-  * The user exclusively controls all builds by running `./deploy-nightly.sh` directly in their physical terminal when they wish to test changes on their device.
-  * Once the AI completes code edits and git commits, it notifies the user that the code is ready for their manual `./deploy-nightly.sh` execution.
+- **Compilation & Deployment**:
+  * The user can run `./deploy-nightly.sh` directly or explicitly command the AI to execute it when needed.
 
 ---
 

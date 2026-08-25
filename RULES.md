@@ -23,8 +23,10 @@
 
 # 3. Autonomous Execution Loop (Mandatory After Every Task)
 Whenever any code edit, bug fix, or feature is completed:
-1. **Hardware & Process Hygiene**:
-   * NEVER run multiple Gradle builds or background tasks in parallel. Always build strictly sequentially to prevent CPU throttling, daemon deadlocks, and stale state.
+1. **Hardware & Process Hygiene (Strict 8GB RAM / 4th-Gen i7 Safeguards)**:
+   * **Daemon & Worker Invariance**: Always enforce `org.gradle.daemon=false`, `org.gradle.parallel=false`, `org.gradle.workers.max=2`, and `org.gradle.jvmargs=-Xmx2560m` in `gradle.properties`.
+   * **Zero Background Process Stacking**: NEVER launch multiple Gradle commands, background tasks, or asynchronous timers concurrently. Always run builds strictly sequentially in the foreground and verify completion before initiating any subsequent tool calls to prevent CPU starvation (>90%) and memory exhaustion that drops host services (SSH/Jellyfin).
+   * **Process Awareness**: Never assume prior commands are finished without checking task state. If any lingering Java process is detected, terminate it immediately (`killall -9 java`).
 2. **Compile**:
    * Run `./gradlew assembleDebug` (targets Nightly).
 3. **Local Git Commit**:

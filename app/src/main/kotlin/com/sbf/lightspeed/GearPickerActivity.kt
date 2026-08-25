@@ -721,21 +721,28 @@ class GearPickerActivity : ComponentActivity() {
                                                             )
                                                         }
 
-                                                        Column(modifier = Modifier.weight(1f)) {
+                                                        Column(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .fillMaxHeight(),
+                                                            verticalArrangement = Arrangement.Center
+                                                        ) {
                                                             Text(
                                                                 text = item.appName,
                                                                 color = if (isAppSelected) dynamicPrimary else Color.White,
-                                                                fontSize = 13.sp,
+                                                                fontSize = 13.5.sp,
                                                                 fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
                                                                 maxLines = 1,
                                                                 overflow = TextOverflow.Ellipsis
                                                             )
-                                                            Text(
-                                                                text = if (hasShortcuts) "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}" else "Application",
-                                                                color = if (hasShortcuts) dynamicSecondary.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.38f),
-                                                                fontSize = 9.5.sp,
-                                                                maxLines = 1
-                                                            )
+                                                            if (hasShortcuts) {
+                                                                Text(
+                                                                    text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
+                                                                    color = dynamicSecondary.copy(alpha = 0.85f),
+                                                                    fontSize = 10.sp,
+                                                                    maxLines = 1
+                                                                )
+                                                            }
                                                         }
 
                                                         // Selection Indicator Badge

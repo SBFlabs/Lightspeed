@@ -26,10 +26,113 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import com.sbf.lightspeed.CockpitSettingsActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedBackupEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+@Composable
+fun AstrogationCockpitHubCard(
+    context: Context,
+    prefs: SharedPreferences,
+    isLeftFlank: Boolean,
+    isExpanded: Boolean,
+    onToggle: () -> Unit
+) {
+    val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
+    val setsList = setsString.split(",").filter { it.isNotEmpty() }
+
+    val initialPrefKey = if (isLeftFlank) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+    val flankTitle = if (isLeftFlank) "Port (Left) Flank" else "Starboard (Right) Flank"
+    val defaultVal = if (isLeftFlank) "1" else "0"
+    var selectedVal by remember { mutableStateOf(prefs.getString(initialPrefKey, defaultVal) ?: defaultVal) }
+
+    fun getSetName(id: String): String {
+        val def = when (id) {
+            "0" -> "POWER USER ANDROID"
+            "1" -> "MY APP STORES"
+            "2" -> "UTILITIES SECTOR"
+            "3" -> "ENTERTAINMENT DECK"
+            else -> "CUSTOM SET"
+        }
+        val saved = prefs.getString("gear_set_${id}_name", def) ?: def
+        return if (saved.isEmpty() || saved.startsWith("SET ")) def else saved
+    }
+
+    CollapsibleSubSection(
+        title = "🛸 Astrogation Cockpit & Gear Sets",
+        subtitle = "Initial profile starting gear & dual-ring hangar access",
+        isExpanded = isExpanded,
+        onToggle = onToggle
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "INITIAL PROFILE ON $flankTitle TOUCH".uppercase(),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 1.sp
+            )
+
+            val options = mutableListOf<Pair<String, String>>()
+            setsList.forEachIndexed { idx, setId ->
+                options.add(idx.toString() to "Set $idx: ${getSetName(setId)}")
+            }
+            options.add("remember_last" to "Remember Last Active Profile")
+
+            options.forEach { (optKey, optLabel) ->
+                val isSelected = selectedVal == optKey
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                        .clickable {
+                            selectedVal = optKey
+                            prefs.edit().putString(initialPrefKey, optKey).apply()
+                        }
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = isSelected,
+                        onClick = {
+                            selectedVal = optKey
+                            prefs.edit().putString(initialPrefKey, optKey).apply()
+                        },
+                        colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = optLabel,
+                        fontSize = 12.5.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = Color.White
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Button(
+                onClick = {
+                    val intent = Intent(context, CockpitSettingsActivity::class.java)
+                    if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(44.dp)
+            ) {
+                Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Open Cockpit & Gear Sets Studio", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+    }
+}
 
 @Composable
 fun SidebarMatrixConfigurationFields(
@@ -46,6 +149,7 @@ fun SidebarMatrixConfigurationFields(
     var isLeftUnifiedExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_left_unified_expanded", false)) }
 
     // Left Wing Sub-Section States
+    var isLeftCockpitHubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_cockpit_hub_left", true)) }
     var isLeftCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", true)) }
     var isLeftCenterScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_center", true)) }
     var isLeftCenterGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_center", true)) }
@@ -78,6 +182,7 @@ fun SidebarMatrixConfigurationFields(
     var isRightUnifiedExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_right_unified_expanded", false)) }
 
     // Right Wing Sub-Section States
+    var isRightCockpitHubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_cockpit_hub_right", true)) }
     var isCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
     var isCenterScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_center", true)) }
     var isCenterGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_center", true)) }
@@ -326,7 +431,19 @@ fun SidebarMatrixConfigurationFields(
                                 }
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    // 1. Geometry & Bounds
+                                    // 1. Astrogation Cockpit & Gear Sets Hub
+                                    AstrogationCockpitHubCard(
+                                        context = context,
+                                        prefs = prefs,
+                                        isLeftFlank = true,
+                                        isExpanded = isLeftCockpitHubExpanded,
+                                        onToggle = {
+                                            isLeftCockpitHubExpanded = !isLeftCockpitHubExpanded
+                                            prefs.edit().putBoolean("pref_sub_cockpit_hub_left", isLeftCockpitHubExpanded).apply()
+                                        }
+                                    )
+
+                                    // 2. Geometry & Bounds
                                     CollapsibleSubSection(
                                         title = "📐 Touch Vector Geometry & Position",
                                         subtitle = "Wing span, touch reach, offset & stealth glow",
@@ -342,7 +459,7 @@ fun SidebarMatrixConfigurationFields(
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
                                     }
 
-                                    // 2. Inward Scrubbing
+                                    // 3. Inward Scrubbing
                                     CollapsibleSubSection(
                                         title = "🎛️ Inward Scrubbing Control",
                                         subtitle = "2-step inward pull for volume, brightness, or timeout",
@@ -355,7 +472,7 @@ fun SidebarMatrixConfigurationFields(
                                         GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
                                     }
 
-                                    // 3. Gesture Actions & Macros
+                                    // 4. Gesture Actions & Macros
                                     CollapsibleSubSection(
                                         title = "⚡ Gesture Actions & Macro Mappings",
                                         subtitle = "Directional swipes, tap, angle vectors & hold modifiers",
@@ -791,7 +908,19 @@ fun SidebarMatrixConfigurationFields(
                                 }
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    // 1. Geometry
+                                    // 1. Astrogation Cockpit & Gear Sets Hub
+                                    AstrogationCockpitHubCard(
+                                        context = context,
+                                        prefs = prefs,
+                                        isLeftFlank = false,
+                                        isExpanded = isRightCockpitHubExpanded,
+                                        onToggle = {
+                                            isRightCockpitHubExpanded = !isRightCockpitHubExpanded
+                                            prefs.edit().putBoolean("pref_sub_cockpit_hub_right", isRightCockpitHubExpanded).apply()
+                                        }
+                                    )
+
+                                    // 2. Geometry
                                     CollapsibleSubSection(
                                         title = "📐 Touch Vector Geometry & Position",
                                         subtitle = "Wing span, touch reach, offset & stealth glow",
@@ -807,7 +936,7 @@ fun SidebarMatrixConfigurationFields(
                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
                                     }
 
-                                    // 2. Inward Scrubbing
+                                    // 3. Inward Scrubbing
                                     CollapsibleSubSection(
                                         title = "🎛️ Inward Scrubbing Control",
                                         subtitle = "2-step inward pull for volume, brightness, or timeout",
@@ -820,7 +949,7 @@ fun SidebarMatrixConfigurationFields(
                                         GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_CENTER_SCRUBBING", "Swipe Inward & Pull Down (2-Step Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
                                     }
 
-                                    // 3. Gesture Actions & Macros
+                                    // 4. Gesture Actions & Macros
                                     CollapsibleSubSection(
                                         title = "⚡ Gesture Actions & Macro Mappings",
                                         subtitle = "Directional swipes, tap, angle vectors & hold modifiers",

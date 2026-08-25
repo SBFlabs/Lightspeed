@@ -219,6 +219,18 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun openCockpitFromLeft() {
+        overlayView?.post {
+            overlayView?.openHangarFromFlank(isLeftFlank = true)
+        }
+    }
+
+    fun openCockpitFromRight() {
+        overlayView?.post {
+            overlayView?.openHangarFromFlank(isLeftFlank = false)
+        }
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() { teardown() }
     override fun onDestroy() {

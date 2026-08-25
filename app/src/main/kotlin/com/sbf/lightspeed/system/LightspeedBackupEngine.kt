@@ -160,7 +160,7 @@ object LightspeedBackupEngine {
                             else -> {
                                 // If the key expects an integer but was serialized as string
                                 val intVal = value.toIntOrNull()
-                                if (intVal != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key == "last_active_set_index")) {
+                                if (intVal != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("last_active_set_index"))) {
                                     editor.putInt(key, intVal)
                                 } else {
                                     editor.putString(key, value)

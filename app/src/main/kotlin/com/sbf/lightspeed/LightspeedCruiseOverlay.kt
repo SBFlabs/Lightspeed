@@ -150,6 +150,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var longPressCogRunnable: Runnable? = null
     private var hasLongPressFired = false
     private var isTouchingFocusedCog = false
+    private var isOpenedFromLeftFlank = false
+
+    private fun persistActiveGearSetIndex() {
+        val prefs = context.defaultPrefs()
+        val editor = prefs.edit().putInt("last_active_set_index", activeGearSetIndex)
+        if (isOpenedFromLeftFlank) {
+            editor.putInt("last_active_set_index_left", activeGearSetIndex)
+        } else {
+            editor.putInt("last_active_set_index_right", activeGearSetIndex)
+        }
+        editor.apply()
+    }
 
     private var activeHoldScrubAction: String? = null
     private var scrubHudTitle = ""
@@ -1034,9 +1046,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
                                 if (bayRect.contains(x, y)) {
                                     activeGearSetIndex = gIndex
-                                    if (prefs.getString("cockpit_launch_behavior", "default") == "last") {
-                                        prefs.edit().putInt("last_active_set_index", gIndex).apply()
-                                    }
+                                    persistActiveGearSetIndex()
                                     triggerHardwareHaptic(25, 140)
                                     invalidate()
                                     return true
@@ -1132,6 +1142,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 if (currentActiveZone == TouchZone.CENTER_CRUISE) {
+                    isOpenedFromLeftFlank = false
                     isCruising = true
                     categoryScrubbingEngaged = false
                     maxVerticalDisplacement = 0f
@@ -1140,11 +1151,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     lastLoadedCategoryId = null
                     snapAnimator?.cancel()
                     categoryAppsCache.clear(); categoryGridCache.clear()
-                    val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-                    if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                        activeGearSetIndex = cPrefs.getInt("last_active_set_index", 0)
+                    val cPrefs = context.defaultPrefs()
+                    val prefVal = cPrefs.getString("pref_right_initial_gear_set", "0") ?: "0"
+                    if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
+                        activeGearSetIndex = cPrefs.getInt("last_active_set_index_right", cPrefs.getInt("last_active_set_index", 0))
                     } else {
-                        activeGearSetIndex = 0
+                        activeGearSetIndex = prefVal.toIntOrNull() ?: 0
                     }
                     currentLayer = CruiseLayer.NEUTRAL
                     updateMetricsDimensions()
@@ -1186,11 +1198,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     if ((currentLayer == CruiseLayer.NEUTRAL || currentLayer == CruiseLayer.CATEGORY) &&
                         !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
                         uiHandler.removeCallbacks(neutralToCategoryRunnable)
-                        val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-                        if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                            activeGearSetIndex = cPrefs.getInt("last_active_set_index", 0)
+                        val cPrefs = context.defaultPrefs()
+                        val prefVal = cPrefs.getString("pref_right_initial_gear_set", "0") ?: "0"
+                        if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
+                            activeGearSetIndex = cPrefs.getInt("last_active_set_index_right", cPrefs.getInt("last_active_set_index", 0))
                         } else {
-                            activeGearSetIndex = 0
+                            activeGearSetIndex = prefVal.toIntOrNull() ?: 0
                         }
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
@@ -1334,8 +1347,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             }
                         } else if (activeGearRing == 2) {
                             triggerHardwareHaptic(50, 220)
-                            val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-                            cPrefs.edit().putInt("last_active_set_index", activeGearSetIndex).apply()
+                            persistActiveGearSetIndex()
+                            val cPrefs = context.defaultPrefs()
                             
                             // Align hangar bay profile rail to center the active gear set
                             val setsString = cPrefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
@@ -1736,6 +1749,35 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (setIndex in setsList.indices) {
             activeGearSetIndex = setIndex
         }
+        currentLayer = CruiseLayer.COCKPIT_HANGAR
+        isCruising = false
+        isStickyPinned = false
+        service?.updateWindowLayout(true)
+        updateMetricsDimensions()
+        invalidate()
+    }
+
+    fun openHangarFromFlank(isLeftFlank: Boolean) {
+        val prefs = context.defaultPrefs()
+        val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
+        val setsList = setsString.split(",").filter { it.isNotEmpty() }
+
+        val initialSetPrefKey = if (isLeftFlank) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+        val lastActiveKey = if (isLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
+        val prefVal = prefs.getString(initialSetPrefKey, if (isLeftFlank) "1" else "0") ?: (if (isLeftFlank) "1" else "0")
+
+        val targetIndex = if (prefVal == "remember_last") {
+            prefs.getInt(lastActiveKey, if (isLeftFlank) 1 else 0)
+        } else {
+            prefVal.toIntOrNull() ?: (if (isLeftFlank) 1 else 0)
+        }
+
+        if (targetIndex in setsList.indices) {
+            activeGearSetIndex = targetIndex
+        } else {
+            activeGearSetIndex = 0
+        }
+
         currentLayer = CruiseLayer.COCKPIT_HANGAR
         isCruising = false
         isStickyPinned = false
@@ -2252,10 +2294,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             if (!isCubeRotationFired) {
                 isCubeRotationFired = true
                 activeGearSetIndex = (activeGearSetIndex + 1) % totalGearSetsCount
-                val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-                if (cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                    cPrefs.edit().putInt("last_active_set_index", activeGearSetIndex).apply()
-                }
+                persistActiveGearSetIndex()
                 triggerHardwareHaptic(55, 255) // Solid mechanical locking thud
             }
         } else if (deltaX < innerThreshold + (25f * density)) {

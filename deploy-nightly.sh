@@ -3,7 +3,7 @@ set -e
 
 DEVICE_IP="192.168.100.10:5555"
 PROJECT_DIR="$HOME/Lightspeed"
-APK_PATH="$PROJECT_DIR/build-output/app-nightly.apk"
+APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
 
 cd "$PROJECT_DIR"
 

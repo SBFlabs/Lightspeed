@@ -50,22 +50,6 @@ android {
     }
 }
 
-afterEvaluate {
-    tasks.named("packageDebug").configure {
-        doLast {
-            val intermediateDir = File(layout.buildDirectory.get().asFile, "intermediates/apk/debug/packageDebug")
-            val targetDir = rootProject.file("build-output").apply { mkdirs() }
-            val targetApk = File(targetDir, "app-nightly.apk")
-            if (intermediateDir.exists()) {
-                intermediateDir.walk().filter { it.isFile && it.extension == "apk" }.forEach { foundApk ->
-                    foundApk.copyTo(targetApk, overwrite = true)
-                    println(">>> PERSISTED APK TO: ${targetApk.absolutePath} (${targetApk.length()} bytes)")
-                }
-            }
-        }
-    }
-}
-
 
 
 dependencies {

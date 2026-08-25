@@ -4,8 +4,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-layout.buildDirectory.set(file("build"))
-
 android {
     namespace = "com.sbf.lightspeed"
     compileSdk = 35

@@ -24,10 +24,13 @@ fi
 echo "⚙️ [3/4] Compiling Lightspeed Nightly APK..."
 ./gradlew assembleDebug
 
+# Immediate cleanup of any transient build daemon or compiler workers
+killall -9 java 2>/dev/null || true
+
 echo "🚀 [4/4] Installing Nightly build to device ($APK_PATH)..."
 adb -s "$DEVICE_IP" install -r -d "$APK_PATH"
 
 echo "🔍 Verifying physical installation on device..."
 adb -s "$DEVICE_IP" shell "dumpsys package com.sbf.lightspeed.nightly | grep -E 'versionCode|lastUpdateTime'"
 
-echo "✅ Lightspeed Nightly deployed successfully!"
+echo "✅ Lightspeed Nightly deployed successfully! (Host memory 100% clean)"

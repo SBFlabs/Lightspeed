@@ -52,9 +52,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
     private val totalGearSetsCount: Int
         get() {
-            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-            val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-            val count = setsString.split(",").filter { it.isNotEmpty() }.size
+            val count = getGearSetsOrder(isOpenedFromLeftFlank).size
             return if (count > 0) count else 1
         }
 
@@ -533,15 +531,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val rightX = cx + (deckW / 2f)
             val gap = 8f * d
 
-            val topHangarY = (screenH * 0.08f).coerceAtLeast(64f * d)
+            val topHangarY = (screenH * 0.07f).coerceAtLeast(54f * d)
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-            val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-            val setsList = setsString.split(",").filter { it.isNotEmpty() }.toMutableList()
+            val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
             if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
             val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
 
-            val r1Y = topHangarY + 46f * d
-            val r2Y = r1Y + 46f * d
+            val r0Y = topHangarY + 40f * d
+            val r1Y = r0Y + 38f * d
+            val r2Y = r1Y + 44f * d
             val r3Y = r2Y + 44f * d
             val r4Y = r3Y + 38f * d
             val r5Y = r4Y + 38f * d
@@ -605,24 +603,46 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             }
                         }
                     } else {
-                        // 1. Startup Default Mode: Always First vs Resume Last
+                        // 0. Flank Switcher: Port (Left) vs Starboard (Right)
                         val halfBtnW = (deckW - gap) / 2f
-                        val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
-                        val btn2Rect = RectF(rightX - halfBtnW, r1Y - 18f * d, rightX, r1Y + 18f * d)
+                        val portRect = RectF(leftX, r0Y - 16f * d, leftX + halfBtnW, r0Y + 16f * d)
+                        val starboardRect = RectF(rightX - halfBtnW, r0Y - 16f * d, rightX, r0Y + 16f * d)
+                        if (portRect.contains(x, y)) {
+                            isOpenedFromLeftFlank = true
+                            val flankSets = getGearSetsOrder(true)
+                            if (activeGearSetIndex >= flankSets.size) activeGearSetIndex = 0
+                            hangarBayScrollOffset = 0f
+                            triggerHardwareHaptic(25, 140)
+                            invalidate()
+                            return true
+                        }
+                        if (starboardRect.contains(x, y)) {
+                            isOpenedFromLeftFlank = false
+                            val flankSets = getGearSetsOrder(false)
+                            if (activeGearSetIndex >= flankSets.size) activeGearSetIndex = 0
+                            hangarBayScrollOffset = 0f
+                            triggerHardwareHaptic(25, 140)
+                            invalidate()
+                            return true
+                        }
+
+                        // 1. Startup Default Mode: Always First vs Resume Last (Per-Flank)
+                        val btn1Rect = RectF(leftX, r1Y - 16f * d, leftX + halfBtnW, r1Y + 16f * d)
+                        val btn2Rect = RectF(rightX - halfBtnW, r1Y - 16f * d, rightX, r1Y + 16f * d)
                         if (btn1Rect.contains(x, y)) {
-                            prefs.edit().putString("cockpit_launch_behavior", "default").apply()
+                            setFlankLaunchBehavior(isOpenedFromLeftFlank, "default")
                             triggerHardwareHaptic(20, 120)
                             invalidate()
                             return true
                         }
                         if (btn2Rect.contains(x, y)) {
-                            prefs.edit().putString("cockpit_launch_behavior", "last").apply()
+                            setFlankLaunchBehavior(isOpenedFromLeftFlank, "last")
                             triggerHardwareHaptic(20, 120)
                             invalidate()
                             return true
                         }
 
-                        // 3. Reorder & Delete Active Profile in Rotation
+                        // 3. Reorder & Delete Active Profile in Rotation (Per-Flank)
                         val shiftW = deckW * 0.35f
                         val deleteW = deckW * 0.26f
                         val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
@@ -634,7 +654,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             setsList[activeGearSetIndex] = setsList[activeGearSetIndex - 1]
                             setsList[activeGearSetIndex - 1] = temp
                             activeGearSetIndex--
-                            prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
+                            saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
                             val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
                             hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
                             triggerHardwareHaptic(30, 160)
@@ -646,7 +666,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             setsList[activeGearSetIndex] = setsList[activeGearSetIndex + 1]
                             setsList[activeGearSetIndex + 1] = temp
                             activeGearSetIndex++
-                            prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).apply()
+                            saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
                             val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
                             hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
                             triggerHardwareHaptic(30, 160)
@@ -659,11 +679,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 if (activeGearSetIndex >= setsList.size) {
                                     activeGearSetIndex = setsList.size - 1
                                 }
-                                prefs.edit().putString("gear_sets_order", setsList.joinToString(","))
-                                    .remove("gear_set_${removedId}_ring0")
-                                    .remove("gear_set_${removedId}_ring1")
-                                    .remove("gear_set_${removedId}_name")
-                                    .apply()
+                                saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
                                 val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
                                 hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
                                 triggerHardwareHaptic(45, 230)
@@ -1057,7 +1073,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             if (plusRect.contains(x, y)) {
                                 val newId = System.currentTimeMillis().toString()
                                 setsList.add(newId)
-                                prefs.edit().putString("gear_sets_order", setsList.joinToString(",")).putString("gear_set_${newId}_name", "SET ${setsList.size}").apply()
+                                saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
+                                prefs.edit().putString("gear_set_${newId}_name", "SET ${setsList.size}").apply()
                                 activeGearSetIndex = setsList.size - 1
                                 val newTotalRailW = (setsList.size + 1) * slotW
                                 val newMaxScroll = (newTotalRailW - deckW).coerceAtLeast(0f)
@@ -1164,14 +1181,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
                         uiHandler.removeCallbacks(neutralToCategoryRunnable)
                         val cPrefs = context.defaultPrefs()
-                        val prefKey = if (isOpenedFromLeftFlank) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+                        val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
+                        val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
                         val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
-                        val defVal = if (isOpenedFromLeftFlank) "1" else "0"
-                        val prefVal = cPrefs.getString(prefKey, defVal) ?: defVal
-                        if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                            activeGearSetIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", if (isOpenedFromLeftFlank) 1 else 0))
+                        if (launchBehavior == "last") {
+                            val lastIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", 0))
+                            activeGearSetIndex = if (lastIndex in setsList.indices) lastIndex else 0
                         } else {
-                            activeGearSetIndex = prefVal.toIntOrNull() ?: (if (isOpenedFromLeftFlank) 1 else 0)
+                            activeGearSetIndex = 0
                         }
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
@@ -1315,11 +1332,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         } else if (activeGearRing == 2) {
                             triggerHardwareHaptic(50, 220)
                             persistActiveGearSetIndex()
-                            val cPrefs = context.defaultPrefs()
                             
                             // Align hangar bay profile rail to center the active gear set
-                            val setsString = cPrefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-                            val setsList = setsString.split(",").filter { it.isNotEmpty() }
+                            val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
                             val d = resources.displayMetrics.density
                             val deckW = width * 0.88f
                             val bayCount = setsList.size + 1
@@ -1709,6 +1724,48 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         invalidate()
     }
 
+    fun getGearSetsOrder(isLeft: Boolean): MutableList<String> {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val key = if (isLeft) "gear_sets_order_left" else "gear_sets_order_right"
+        val saved = prefs.getString(key, null)
+        if (!saved.isNullOrEmpty()) {
+            return saved.split(",").filter { it.isNotEmpty() }.toMutableList()
+        }
+        val legacy = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
+        return legacy.split(",").filter { it.isNotEmpty() }.toMutableList()
+    }
+
+    fun saveGearSetsOrder(isLeft: Boolean, list: List<String>) {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val key = if (isLeft) "gear_sets_order_left" else "gear_sets_order_right"
+        prefs.edit().putString(key, list.joinToString(",")).apply()
+    }
+
+    fun getFlankLaunchBehavior(isLeft: Boolean): String {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val key = if (isLeft) "cockpit_launch_behavior_left" else "cockpit_launch_behavior_right"
+        val saved = prefs.getString(key, null)
+        if (!saved.isNullOrEmpty()) {
+            return saved
+        }
+        return prefs.getString("cockpit_launch_behavior", "default") ?: "default"
+    }
+
+    fun setFlankLaunchBehavior(isLeft: Boolean, behavior: String) {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val key = if (isLeft) "cockpit_launch_behavior_left" else "cockpit_launch_behavior_right"
+        prefs.edit().putString(key, behavior).apply()
+    }
+
+    private fun persistActiveGearSetIndex() {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
+        prefs.edit()
+            .putInt(lastActiveKey, activeGearSetIndex)
+            .putInt("last_active_set_index", activeGearSetIndex)
+            .apply()
+    }
+
     fun startCruiseFromFlank(isLeft: Boolean, startRawX: Float, startRawY: Float) {
         isOpenedFromLeftFlank = isLeft
         touchDownRawX = startRawX
@@ -1741,14 +1798,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         categoryAppsCache.clear(); categoryGridCache.clear()
 
         val cPrefs = context.defaultPrefs()
-        val prefKey = if (isLeft) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+        val setsList = getGearSetsOrder(isLeft)
+        val launchBehavior = getFlankLaunchBehavior(isLeft)
         val lastActiveKey = if (isLeft) "last_active_set_index_left" else "last_active_set_index_right"
-        val defVal = if (isLeft) "1" else "0"
-        val prefVal = cPrefs.getString(prefKey, defVal) ?: defVal
-        if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-            activeGearSetIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", if (isLeft) 1 else 0))
+        if (launchBehavior == "last") {
+            val lastIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", 0))
+            activeGearSetIndex = if (lastIndex in setsList.indices) lastIndex else 0
         } else {
-            activeGearSetIndex = prefVal.toIntOrNull() ?: (if (isLeft) 1 else 0)
+            activeGearSetIndex = 0
         }
 
         currentLayer = CruiseLayer.NEUTRAL
@@ -1795,14 +1852,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
                         uiHandler.removeCallbacks(neutralToCategoryRunnable)
                         val cPrefs = context.defaultPrefs()
-                        val prefKey = if (isOpenedFromLeftFlank) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+                        val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
+                        val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
                         val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
-                        val defVal = if (isOpenedFromLeftFlank) "1" else "0"
-                        val prefVal = cPrefs.getString(prefKey, defVal) ?: defVal
-                        if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                            activeGearSetIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", if (isOpenedFromLeftFlank) 1 else 0))
+                        if (launchBehavior == "last") {
+                            val lastIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", 0))
+                            activeGearSetIndex = if (lastIndex in setsList.indices) lastIndex else 0
                         } else {
-                            activeGearSetIndex = prefVal.toIntOrNull() ?: (if (isOpenedFromLeftFlank) 1 else 0)
+                            activeGearSetIndex = 0
                         }
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
@@ -1866,9 +1923,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         } else if (activeGearRing == 2) {
                             triggerHardwareHaptic(50, 220)
                             persistActiveGearSetIndex()
-                            val cPrefs = context.defaultPrefs()
-                            val setsString = cPrefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-                            val setsList = setsString.split(",").filter { it.isNotEmpty() }
+                            val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
                             val d = resources.displayMetrics.density
                             val deckW = width * 0.88f
                             val bayCount = setsList.size + 1
@@ -1924,9 +1979,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     fun openHangarDirectly(setIndex: Int = -1) {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-        val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-        val setsList = setsString.split(",").filter { it.isNotEmpty() }
+        val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
         if (setIndex in setsList.indices) {
             activeGearSetIndex = setIndex
         }
@@ -1939,18 +1992,16 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     fun openHangarFromFlank(isLeftFlank: Boolean) {
+        isOpenedFromLeftFlank = isLeftFlank
         val prefs = context.defaultPrefs()
-        val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-        val setsList = setsString.split(",").filter { it.isNotEmpty() }
-
-        val initialSetPrefKey = if (isLeftFlank) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+        val setsList = getGearSetsOrder(isLeftFlank)
+        val launchBehavior = getFlankLaunchBehavior(isLeftFlank)
         val lastActiveKey = if (isLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
-        val prefVal = prefs.getString(initialSetPrefKey, if (isLeftFlank) "1" else "0") ?: (if (isLeftFlank) "1" else "0")
 
-        val targetIndex = if (prefVal == "remember_last") {
-            prefs.getInt(lastActiveKey, if (isLeftFlank) 1 else 0)
+        val targetIndex = if (launchBehavior == "last") {
+            prefs.getInt(lastActiveKey, 0)
         } else {
-            prefVal.toIntOrNull() ?: (if (isLeftFlank) 1 else 0)
+            0
         }
 
         if (targetIndex in setsList.indices) {
@@ -1969,10 +2020,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private fun getAppsForActiveGear(setIndex: Int, ringIndex: Int): List<String> {
         val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-        val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-        val setsList = setsString.split(",").filter { it.isNotEmpty() }
+        val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
         val setId = if (setIndex in setsList.indices) setsList[setIndex] else setIndex.toString()
         val csvString = prefs.getString("gear_set_${setId}_ring_${ringIndex}_packages", null)
+            ?: prefs.getString("gear_set_${setId}_ring${ringIndex}", null)
         if (!csvString.isNullOrEmpty()) {
             return csvString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         }
@@ -1996,9 +2047,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private fun getGearSetNameByIndex(index: Int): String {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-        val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-        val setsList = setsString.split(",").filter { it.isNotEmpty() }
+        val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
         if (index in setsList.indices) {
             return getGearSetNameById(setsList[index])
         }
@@ -2553,7 +2602,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val rightX = cx + (deckW / 2f)
             val gap = 8f * d
 
-            val topHangarY = (screenH * 0.08f).coerceAtLeast(64f * d)
+            val topHangarY = (screenH * 0.07f).coerceAtLeast(54f * d)
 
             // 1. Deep Space Astrogation Hangar Void with Starfield
             canvas.drawColor(Color.argb(245, 6, 8, 14))
@@ -2561,60 +2610,93 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             // 2. Flight Telemetry Header
             val hangarHeader = "◈ ASTROGATION COCKPIT // HANGAR DECK ◈"
-            textPaint.textSize = 13f * d
+            textPaint.textSize = 12.5f * d
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
             textPaint.textAlign = Paint.Align.CENTER
             val headerWidth = textPaint.measureText(hangarHeader)
 
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(175, 12, 16, 28)
-            val headerRect = RectF(cx - headerWidth / 2f - 20f * d, topHangarY - 18f * d, cx + headerWidth / 2f + 20f * d, topHangarY + 18f * d)
-            canvas.drawRoundRect(headerRect, 12f * d, 12f * d, highlightPaint)
+            val headerRect = RectF(cx - headerWidth / 2f - 18f * d, topHangarY - 16f * d, cx + headerWidth / 2f + 18f * d, topHangarY + 16f * d)
+            canvas.drawRoundRect(headerRect, 10f * d, 10f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 1.2f * d
             highlightPaint.color = Color.argb(90, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(headerRect, 12f * d, 12f * d, highlightPaint)
+            canvas.drawRoundRect(headerRect, 10f * d, 10f * d, highlightPaint)
             textPaint.color = Color.WHITE
-            canvas.drawText(hangarHeader, cx, topHangarY + 5.5f * d, textPaint)
+            canvas.drawText(hangarHeader, cx, topHangarY + 4.5f * d, textPaint)
+
+            val r0Y = topHangarY + 40f * d
+            val r1Y = r0Y + 38f * d
+            val r2Y = r1Y + 44f * d
+            val r3Y = r2Y + 44f * d
+            val r4Y = r3Y + 38f * d
+            val r5Y = r4Y + 38f * d
+            val r6Y = r5Y + 38f * d
+            val r7Y = r6Y + 35f * d
+
+            // ROW 0: FLANK SELECTOR [ ◀ PORT (LEFT FLANK) ] | [ STARBOARD (RIGHT FLANK) ▶ ]
+            val halfBtnW = (deckW - gap) / 2f
+            val portRect = RectF(leftX, r0Y - 16f * d, leftX + halfBtnW, r0Y + 16f * d)
+            val starboardRect = RectF(rightX - halfBtnW, r0Y - 16f * d, rightX, r0Y + 16f * d)
+
+            val isPort = isOpenedFromLeftFlank
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = if (isPort) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
+            canvas.drawRoundRect(portRect, 10f * d, 10f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = if (isPort) 1.5f * d else 0.8f * d
+            highlightPaint.color = if (isPort) m3Primary else Color.argb(50, 200, 220, 255)
+            canvas.drawRoundRect(portRect, 10f * d, 10f * d, highlightPaint)
+            textPaint.textSize = 10f * d
+            textPaint.color = if (isPort) Color.WHITE else Color.argb(160, 200, 220, 255)
+            canvas.drawText("◀ PORT (LEFT FLANK)", portRect.centerX(), portRect.centerY() + 3.5f * d, textPaint)
+
+            val isStarboard = !isOpenedFromLeftFlank
+            highlightPaint.style = Paint.Style.FILL
+            highlightPaint.color = if (isStarboard) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
+            canvas.drawRoundRect(starboardRect, 10f * d, 10f * d, highlightPaint)
+            highlightPaint.style = Paint.Style.STROKE
+            highlightPaint.strokeWidth = if (isStarboard) 1.5f * d else 0.8f * d
+            highlightPaint.color = if (isStarboard) m3Primary else Color.argb(50, 200, 220, 255)
+            canvas.drawRoundRect(starboardRect, 10f * d, 10f * d, highlightPaint)
+            textPaint.color = if (isStarboard) Color.WHITE else Color.argb(160, 200, 220, 255)
+            canvas.drawText("STARBOARD (RIGHT FLANK) ▶", starboardRect.centerX(), starboardRect.centerY() + 3.5f * d, textPaint)
 
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-            val launchBehavior = prefs.getString("cockpit_launch_behavior", "default") ?: "default"
+            val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
             val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
             val hapticStrength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
 
             // 3. ROW 1: STARTUP DEFAULT MODE [ ALWAYS FIRST PROFILE ] | [ RESUME LAST PROFILE ]
-            val r1Y = topHangarY + 46f * d
-            val halfBtnW = (deckW - gap) / 2f
-            val btn1Rect = RectF(leftX, r1Y - 18f * d, leftX + halfBtnW, r1Y + 18f * d)
-            val btn2Rect = RectF(rightX - halfBtnW, r1Y - 18f * d, rightX, r1Y + 18f * d)
+            val btn1Rect = RectF(leftX, r1Y - 16f * d, leftX + halfBtnW, r1Y + 16f * d)
+            val btn2Rect = RectF(rightX - halfBtnW, r1Y - 16f * d, rightX, r1Y + 16f * d)
 
             val isDef = (launchBehavior == "default")
             highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = if (isDef) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
-            canvas.drawRoundRect(btn1Rect, 10f * d, 10f * d, highlightPaint)
+            highlightPaint.color = if (isDef) Color.argb(180, 24, 34, 56) else Color.argb(50, 16, 20, 32)
+            canvas.drawRoundRect(btn1Rect, 9f * d, 9f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = if (isDef) 1.5f * d else 0.8f * d
-            highlightPaint.color = if (isDef) m3Primary else Color.argb(50, 200, 220, 255)
-            canvas.drawRoundRect(btn1Rect, 10f * d, 10f * d, highlightPaint)
-            textPaint.textSize = 10.5f * d
-            textPaint.color = if (isDef) Color.WHITE else Color.argb(160, 200, 220, 255)
-            canvas.drawText("STARTUP: ALWAYS FIRST", btn1Rect.centerX(), btn1Rect.centerY() + 4f * d, textPaint)
+            highlightPaint.strokeWidth = if (isDef) 1.4f * d else 0.8f * d
+            highlightPaint.color = if (isDef) m3Secondary else Color.argb(40, 200, 220, 255)
+            canvas.drawRoundRect(btn1Rect, 9f * d, 9f * d, highlightPaint)
+            textPaint.textSize = 9.5f * d
+            textPaint.color = if (isDef) Color.WHITE else Color.argb(150, 200, 220, 255)
+            canvas.drawText("STARTUP: ALWAYS FIRST", btn1Rect.centerX(), btn1Rect.centerY() + 3.5f * d, textPaint)
 
             val isLast = (launchBehavior == "last")
             highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = if (isLast) Color.argb(190, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)) else Color.argb(60, 20, 26, 40)
-            canvas.drawRoundRect(btn2Rect, 10f * d, 10f * d, highlightPaint)
+            highlightPaint.color = if (isLast) Color.argb(180, 24, 34, 56) else Color.argb(50, 16, 20, 32)
+            canvas.drawRoundRect(btn2Rect, 9f * d, 9f * d, highlightPaint)
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = if (isLast) 1.5f * d else 0.8f * d
-            highlightPaint.color = if (isLast) m3Primary else Color.argb(50, 200, 220, 255)
-            canvas.drawRoundRect(btn2Rect, 10f * d, 10f * d, highlightPaint)
-            textPaint.color = if (isLast) Color.WHITE else Color.argb(160, 200, 220, 255)
-            canvas.drawText("STARTUP: RESUME LAST", btn2Rect.centerX(), btn2Rect.centerY() + 4f * d, textPaint)
+            highlightPaint.strokeWidth = if (isLast) 1.4f * d else 0.8f * d
+            highlightPaint.color = if (isLast) m3Secondary else Color.argb(40, 200, 220, 255)
+            canvas.drawRoundRect(btn2Rect, 9f * d, 9f * d, highlightPaint)
+            textPaint.color = if (isLast) Color.WHITE else Color.argb(150, 200, 220, 255)
+            canvas.drawText("STARTUP: RESUME LAST", btn2Rect.centerX(), btn2Rect.centerY() + 3.5f * d, textPaint)
 
             // 4. ROW 2: DOCKING BAYS (HORIZONTALLY SCROLLABLE RAIL)
-            val r2Y = r1Y + 46f * d
-            val setsString = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-            val setsList = setsString.split(",").filter { it.isNotEmpty() }
+            val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
             if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
             val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
 

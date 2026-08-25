@@ -50,8 +50,13 @@ class CockpitSettingsActivity : ComponentActivity() {
             val context = this
             val prefs = remember { context.defaultPrefs() }
             
-            var launchBehavior by remember { 
-                mutableStateOf(prefs.getString("cockpit_launch_behavior", "default") ?: "default") 
+            var selectedFlankTab by remember { mutableStateOf(0) } // 0 = Left Flank / Port, 1 = Right Flank / Starboard
+
+            var launchBehaviorLeft by remember { 
+                mutableStateOf(prefs.getString("cockpit_launch_behavior_left", prefs.getString("cockpit_launch_behavior", "default")) ?: "default") 
+            }
+            var launchBehaviorRight by remember { 
+                mutableStateOf(prefs.getString("cockpit_launch_behavior_right", prefs.getString("cockpit_launch_behavior", "default")) ?: "default") 
             }
 
             var physicsProfile by remember {
@@ -61,7 +66,8 @@ class CockpitSettingsActivity : ComponentActivity() {
                 mutableStateOf(prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical")
             }
 
-            val setsOrder = remember { mutableStateListOf<String>() }
+            val setsOrderLeft = remember { mutableStateListOf<String>() }
+            val setsOrderRight = remember { mutableStateListOf<String>() }
             val setNames = remember { mutableStateMapOf<String, String>() }
             val ring0Data = remember { mutableStateMapOf<String, List<String>>() }
             val ring1Data = remember { mutableStateMapOf<String, List<String>>() }
@@ -70,20 +76,32 @@ class CockpitSettingsActivity : ComponentActivity() {
             var activeRingTab by remember { mutableStateOf(0) }
 
             fun reloadSetData() {
-                setsOrder.clear()
+                setsOrderLeft.clear()
+                setsOrderRight.clear()
                 setNames.clear()
                 ring0Data.clear()
                 ring1Data.clear()
 
-                val savedOrder = prefs.getString("gear_sets_order", "") ?: ""
-                val ids = if (savedOrder.isEmpty()) {
-                    listOf("0", "1", "2", "3")
+                val savedLeft = prefs.getString("gear_sets_order_left", null)
+                val idsLeft = if (!savedLeft.isNullOrEmpty()) {
+                    savedLeft.split(",").filter { it.isNotEmpty() }
                 } else {
-                    savedOrder.split(",").filter { it.isNotEmpty() }
+                    val global = prefs.getString("gear_sets_order", "") ?: ""
+                    if (global.isNotEmpty()) global.split(",").filter { it.isNotEmpty() } else listOf("0", "1", "2", "3")
                 }
-                setsOrder.addAll(ids)
+                setsOrderLeft.addAll(idsLeft)
 
-                for (id in ids) {
+                val savedRight = prefs.getString("gear_sets_order_right", null)
+                val idsRight = if (!savedRight.isNullOrEmpty()) {
+                    savedRight.split(",").filter { it.isNotEmpty() }
+                } else {
+                    val global = prefs.getString("gear_sets_order", "") ?: ""
+                    if (global.isNotEmpty()) global.split(",").filter { it.isNotEmpty() } else listOf("0", "1", "2", "3")
+                }
+                setsOrderRight.addAll(idsRight)
+
+                val allIds = (idsLeft + idsRight + listOf("0", "1", "2", "3")).distinct()
+                for (id in allIds) {
                     val rawName = prefs.getString("gear_set_${id}_name", "") ?: ""
                     val sName = if (rawName.isEmpty() || rawName in listOf("SET A", "SET B", "SET C", "SET D", "SET")) {
                         when (id) {
@@ -157,13 +175,54 @@ class CockpitSettingsActivity : ComponentActivity() {
                                 }
 
                                 if (selectedSetId == null) {
+                                    // Flank Selector Switcher
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        FilterChip(
+                                            selected = selectedFlankTab == 0,
+                                            onClick = { selectedFlankTab = 0 },
+                                            label = {
+                                                Text(
+                                                    "◀ Port (Left Astrogation)",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (selectedFlankTab == 0) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = dynamicColorScheme.primary,
+                                                selectedLabelColor = Color.White
+                                            ),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        FilterChip(
+                                            selected = selectedFlankTab == 1,
+                                            onClick = { selectedFlankTab = 1 },
+                                            label = {
+                                                Text(
+                                                    "Starboard (Right Astrogation) ▶",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (selectedFlankTab == 1) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = dynamicColorScheme.primary,
+                                                selectedLabelColor = Color.White
+                                            ),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+
                                     // Main Scrollable Cockpit Configuration View
                                     LazyColumn(
                                         modifier = Modifier.fillMaxSize(),
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        // 1. Launch Mode Card
+                                        // 1. Launch Mode Card (Per-Flank)
                                         item {
+                                            val isLeft = (selectedFlankTab == 0)
+                                            val currentLaunchBehavior = if (isLeft) launchBehaviorLeft else launchBehaviorRight
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -171,9 +230,14 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                     .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                                                     .padding(12.dp)
                                             ) {
-                                                Text("Launch Mode", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                                                 Text(
-                                                    if (launchBehavior == "default") "Always starts on first profile" else "Resumes on last used profile",
+                                                    if (isLeft) "Port (Left) Startup Mode" else "Starboard (Right) Startup Mode",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color.White
+                                                )
+                                                Text(
+                                                    if (currentLaunchBehavior == "default") "Always starts on first profile in this flank's sequence" else "Resumes on last used profile on this flank",
                                                     fontSize = 11.sp,
                                                     color = Color.LightGray.copy(alpha = 0.7f),
                                                     modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
@@ -184,19 +248,29 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
                                                     FilterChip(
-                                                        selected = launchBehavior == "default",
+                                                        selected = currentLaunchBehavior == "default",
                                                         onClick = {
-                                                            launchBehavior = "default"
-                                                            prefs.edit().putString("cockpit_launch_behavior", "default").apply()
+                                                            if (isLeft) {
+                                                                launchBehaviorLeft = "default"
+                                                                prefs.edit().putString("cockpit_launch_behavior_left", "default").apply()
+                                                            } else {
+                                                                launchBehaviorRight = "default"
+                                                                prefs.edit().putString("cockpit_launch_behavior_right", "default").apply()
+                                                            }
                                                         },
                                                         label = { Text("Always Default", fontSize = 11.sp) },
                                                         colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
                                                     )
                                                     FilterChip(
-                                                        selected = launchBehavior == "last",
+                                                        selected = currentLaunchBehavior == "last",
                                                         onClick = {
-                                                            launchBehavior = "last"
-                                                            prefs.edit().putString("cockpit_launch_behavior", "last").apply()
+                                                            if (isLeft) {
+                                                                launchBehaviorLeft = "last"
+                                                                prefs.edit().putString("cockpit_launch_behavior_left", "last").apply()
+                                                            } else {
+                                                                launchBehaviorRight = "last"
+                                                                prefs.edit().putString("cockpit_launch_behavior_right", "last").apply()
+                                                            }
                                                         },
                                                         label = { Text("Remember Last", fontSize = 11.sp) },
                                                         colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
@@ -363,9 +437,11 @@ class CockpitSettingsActivity : ComponentActivity() {
                                         }
 
                                         // 4. Section Title: Profiles & Gear Sets
+                                        val activeOrder = if (selectedFlankTab == 0) setsOrderLeft else setsOrderRight
+
                                         item {
                                             Text(
-                                                text = "Profiles & Gear Sets (${setsOrder.size}):",
+                                                text = if (selectedFlankTab == 0) "Port (Left) Profiles Sequence (${activeOrder.size}):" else "Starboard (Right) Profiles Sequence (${activeOrder.size}):",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Color.White.copy(alpha = 0.8f),
@@ -374,7 +450,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                         }
 
                                         // 5. List of Profiles & Gear Sets
-                                        itemsIndexed(setsOrder, key = { _, id -> id }) { index, id ->
+                                        itemsIndexed(activeOrder, key = { _, id -> "${selectedFlankTab}_$id" }) { index, id ->
                                             var currentName by remember(id) { mutableStateOf(setNames[id] ?: "") }
                                             val r0Count = (ring0Data[id] ?: emptyList()).size
                                             val r1Count = (ring1Data[id] ?: emptyList()).size
@@ -440,9 +516,9 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                         IconButton(
                                                             onClick = {
                                                                 if (index > 0) {
-                                                                    val temp = setsOrder[index]
-                                                                    setsOrder[index] = setsOrder[index - 1]
-                                                                    setsOrder[index - 1] = temp
+                                                                    val temp = activeOrder[index]
+                                                                    activeOrder[index] = activeOrder[index - 1]
+                                                                    activeOrder[index - 1] = temp
                                                                 }
                                                             },
                                                             enabled = index > 0,
@@ -452,23 +528,23 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                         }
                                                         IconButton(
                                                             onClick = {
-                                                                if (index < setsOrder.size - 1) {
-                                                                    val temp = setsOrder[index]
-                                                                    setsOrder[index] = setsOrder[index + 1]
-                                                                    setsOrder[index + 1] = temp
+                                                                if (index < activeOrder.size - 1) {
+                                                                    val temp = activeOrder[index]
+                                                                    activeOrder[index] = activeOrder[index + 1]
+                                                                    activeOrder[index + 1] = temp
                                                                 }
                                                             },
-                                                            enabled = index < setsOrder.size - 1,
+                                                            enabled = index < activeOrder.size - 1,
                                                             modifier = Modifier.size(28.dp)
                                                         ) {
-                                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = if (index < setsOrder.size - 1) dynamicColorScheme.secondary else Color.Gray, modifier = Modifier.size(18.dp))
+                                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move Down", tint = if (index < activeOrder.size - 1) dynamicColorScheme.secondary else Color.Gray, modifier = Modifier.size(18.dp))
                                                         }
                                                         IconButton(
-                                                            onClick = { setsOrder.removeAt(index) },
-                                                            enabled = setsOrder.size > 1,
+                                                            onClick = { activeOrder.removeAt(index) },
+                                                            enabled = activeOrder.size > 1,
                                                             modifier = Modifier.size(28.dp)
                                                         ) {
-                                                            Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = if (setsOrder.size > 1) Color(0xFFFF6B6B) else Color.Gray, modifier = Modifier.size(18.dp))
+                                                            Icon(Icons.Default.DeleteOutline, contentDescription = "Delete", tint = if (activeOrder.size > 1) Color(0xFFFF6B6B) else Color.Gray, modifier = Modifier.size(18.dp))
                                                         }
                                                     }
                                                 }
@@ -480,7 +556,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             OutlinedButton(
                                                 onClick = {
                                                     val newId = System.currentTimeMillis().toString()
-                                                    setsOrder.add(newId)
+                                                    activeOrder.add(newId)
                                                     setNames[newId] = "CUSTOM SET"
                                                     ring0Data[newId] = emptyList()
                                                     ring1Data[newId] = emptyList()
@@ -588,11 +664,16 @@ class CockpitSettingsActivity : ComponentActivity() {
             DisposableEffect(Unit) {
                 onDispose {
                     val editor = prefs.edit()
-                    editor.putString("cockpit_launch_behavior", launchBehavior)
+                    editor.putString("cockpit_launch_behavior_left", launchBehaviorLeft)
+                    editor.putString("cockpit_launch_behavior_right", launchBehaviorRight)
+                    editor.putString("cockpit_launch_behavior", launchBehaviorRight)
                     editor.putString("pref_gear_physics_profile", physicsProfile)
                     editor.putString("pref_gear_haptic_strength", hapticStrength)
-                    editor.putString("gear_sets_order", setsOrder.joinToString(","))
-                    for (id in setsOrder) {
+                    editor.putString("gear_sets_order_left", setsOrderLeft.joinToString(","))
+                    editor.putString("gear_sets_order_right", setsOrderRight.joinToString(","))
+                    editor.putString("gear_sets_order", setsOrderRight.joinToString(","))
+                    val allSavedIds = (setsOrderLeft + setsOrderRight + setNames.keys).distinct()
+                    for (id in allSavedIds) {
                         editor.putString("gear_set_${id}_name", setNames[id] ?: "")
                         editor.putString("gear_set_${id}_ring0", (ring0Data[id] ?: emptyList()).joinToString(","))
                         editor.putString("gear_set_${id}_ring1", (ring1Data[id] ?: emptyList()).joinToString(","))

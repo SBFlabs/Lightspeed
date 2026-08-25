@@ -22,10 +22,10 @@ else
 fi
 
 echo "⚙️ [3/4] Compiling Lightspeed Nightly APK..."
-./gradlew assembleDebug
+./gradlew assembleDebug --no-daemon
 
-# Immediate cleanup of any transient build daemon or compiler workers
-killall -9 java 2>/dev/null || true
+# Immediate cleanup of any transient build daemon, compiler workers, or aapt2 daemons
+killall -9 java aapt2 2>/dev/null || true
 
 echo "🚀 [4/4] Installing Nightly build to device ($APK_PATH)..."
 adb -s "$DEVICE_IP" install -r -d "$APK_PATH"

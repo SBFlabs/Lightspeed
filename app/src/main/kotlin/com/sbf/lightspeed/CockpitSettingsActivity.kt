@@ -35,8 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sbf.lightspeed.ui.theme.LightspeedTheme
+import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class CockpitSettingsActivity : ComponentActivity() {
 

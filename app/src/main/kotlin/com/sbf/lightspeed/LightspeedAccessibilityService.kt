@@ -9,6 +9,7 @@ import android.os.Build
 import android.view.Gravity
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import com.sbf.lightspeed.system.defaultPrefs
 
 class LightspeedAccessibilityService : AccessibilityService() {
 
@@ -99,7 +100,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         leftWingOverlayView?.post { leftWingOverlayView?.updateMetricsDimensions() }
 
         // 3. Initialize Status Bar Overlay Window
-        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = defaultPrefs()
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         setupStatusBarOverlay(prefs)
     }
@@ -193,7 +194,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     fun reloadPreferences() {
-        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = defaultPrefs()
         updateStatusBarOverlayFromPrefs(prefs)
         updateSidebarOverlayFromPrefs(prefs)
         updateLeftWingOverlayFromPrefs(prefs)
@@ -225,7 +226,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (instance === this) {
             instance = null
         }
-        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = defaultPrefs()
         prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
         teardown()
     }

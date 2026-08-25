@@ -21,7 +21,9 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.system.ActionDispatcher
+import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
+import com.sbf.lightspeed.system.defaultPrefs
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -30,7 +32,7 @@ class LightspeedLeftWingOverlay(
     private val service: AccessibilityService
 ) : View(context) {
 
-    private val prefs = service.getSharedPreferences("default", Context.MODE_PRIVATE)
+    private val prefs = service.defaultPrefs()
 
     private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val hudPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -209,17 +211,7 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun triggerHaptic(durationMs: Long = 25, amplitude: Int = 140) {
-        try {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            if (vibrator != null && vibrator.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(durationMs)
-                }
-            }
-        } catch (_: Exception) {}
+        LightspeedHapticEngine.vibrate(context, durationMs, amplitude)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {

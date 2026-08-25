@@ -32,11 +32,12 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
-import com.sbf.lightspeed.defaultPrefs
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.ElevatedTaskCloser
+import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
+import com.sbf.lightspeed.system.defaultPrefs
 import java.net.URISyntaxException
 import kotlin.math.PI
 import kotlin.math.abs
@@ -130,19 +131,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var isScrubEntranceHapticFired = false
 
     private fun triggerHardwareHaptic(durationMs: Long, amplitude: Int) {
-        try {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-            if (vibrator != null && vibrator.hasVibrator()) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    vibrator.vibrate(android.os.VibrationEffect.createOneShot(durationMs, amplitude))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(durationMs)
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("GestureEngine", "Hardware vibration failed", e)
-        }
+        LightspeedHapticEngine.vibrate(context, durationMs, amplitude)
     }
     private var lastPermissionToastTime = 0L
     private var overScrollBoundaryAccumulator = 0f
@@ -3365,5 +3354,3 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 }
-
-fun Context.defaultPrefs(): android.content.SharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE)

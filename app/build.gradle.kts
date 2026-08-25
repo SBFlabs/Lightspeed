@@ -54,13 +54,12 @@ afterEvaluate {
     tasks.named("packageDebug").configure {
         doLast {
             val intermediateDir = File(layout.buildDirectory.get().asFile, "intermediates/apk/debug/packageDebug")
-            val outputDir = File(layout.buildDirectory.get().asFile, "outputs/apk/debug").apply { mkdirs() }
-            val targetApk = File(outputDir, "app-debug.apk")
-            println(">>> SEARCHING INTERMEDIATE DIR: ${intermediateDir.absolutePath} (exists=${intermediateDir.exists()})")
+            val targetDir = rootProject.file("build-output").apply { mkdirs() }
+            val targetApk = File(targetDir, "app-nightly.apk")
             if (intermediateDir.exists()) {
                 intermediateDir.walk().filter { it.isFile && it.extension == "apk" }.forEach { foundApk ->
                     foundApk.copyTo(targetApk, overwrite = true)
-                    println(">>> SUCCESSFULLY COPIED APK TO: ${targetApk.absolutePath} (${targetApk.length()} bytes)")
+                    println(">>> PERSISTED APK TO: ${targetApk.absolutePath} (${targetApk.length()} bytes)")
                 }
             }
         }

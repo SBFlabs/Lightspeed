@@ -153,14 +153,14 @@ object LightspeedShortcutManager {
         if (body.contains(";id=") && body.contains(";pkg=")) {
             val id = body.substringAfter(";id=").substringBefore(";")
             val pkg = body.substringAfter(";pkg=").substringBefore(";")
-            val label = if (body.contains(";label=")) body.substringAfter(";label=").substringBefore(";") else ""
+            val label = if (body.contains(";label=")) decode(body.substringAfter(";label=").substringBefore(";")) else ""
             return ParsedShortcut("pinned", pkg, id = id, label = label)
         }
 
         // 3. Legacy Intent shortcut: intent:#Intent;...;custom_label=...;
         if (body.contains("#Intent;")) {
-            val customLabel = if (body.contains("custom_label=")) body.substringAfter("custom_label=").substringBefore(";")
-                              else if (body.contains("label=")) body.substringAfter("label=").substringBefore(";") else ""
+            val customLabel = if (body.contains("custom_label=")) decode(body.substringAfter("custom_label=").substringBefore(";"))
+                              else if (body.contains("label=")) decode(body.substringAfter("label=").substringBefore(";")) else ""
             
             var cleanUri = body
             if (cleanUri.contains(";custom_label=")) cleanUri = cleanUri.substringBefore(";custom_label=")
@@ -194,8 +194,8 @@ object LightspeedShortcutManager {
             else -> ""
         }
         val label = when {
-            body.contains(";label=") -> body.substringAfter(";label=").substringBefore(";")
-            body.contains("label=") -> body.substringAfter("label=").substringBefore(";")
+            body.contains(";label=") -> decode(body.substringAfter(";label=").substringBefore(";"))
+            body.contains("label=") -> decode(body.substringAfter("label=").substringBefore(";"))
             else -> ""
         }
         return ParsedShortcut("generic", pkg, label = label)
@@ -224,8 +224,9 @@ object LightspeedShortcutManager {
                 return token
             }
             else -> {
-                if (parsed.label.isNotBlank() && !parsed.label.contains("#Intent;")) {
-                    return parsed.label
+                val cleanLabel = decode(parsed.label)
+                if (cleanLabel.isNotBlank() && !cleanLabel.contains("#Intent;")) {
+                    return cleanLabel
                 }
                 if (parsed.packageName.isNotBlank()) {
                     return try {
@@ -320,8 +321,14 @@ object LightspeedShortcutManager {
 
         val d = resolveIconDrawable(context, token) ?: return null
         if (d is BitmapDrawable && d.bitmap != null) {
-            bitmapCache[token] = d.bitmap
-            return d.bitmap
+            val bmp = d.bitmap
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bmp.config == Bitmap.Config.HARDWARE) {
+                val softwareBmp = bmp.copy(Bitmap.Config.ARGB_8888, false)
+                bitmapCache[token] = softwareBmp
+                return softwareBmp
+            }
+            bitmapCache[token] = bmp
+            return bmp
         }
 
         val w = d.intrinsicWidth.coerceIn(48, 192)
@@ -406,40 +413,81 @@ object LightspeedShortcutManager {
             }
 
             "activity", "app_shortcut" -> {
-                val intent = if (parsed.type == "app_shortcut") {
-                    Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                if (parsed.packageName.isNotBlank() && parsed.activityName.isNotBlank()) {
+                    val intent = Intent().apply {
                         setClassName(parsed.packageName, parsed.activityName)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                } else {
-                    Intent().apply {
-                        setClassName(parsed.packageName, parsed.activityName)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        context.startActivity(intent)
+                        return true
+                    } catch (_: Exception) {
+                        try {
+                            val shortcutIntent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
+                                setClassName(parsed.packageName, parsed.activityName)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(shortcutIntent)
+                            return true
+                        } catch (e: Exception) {
+                            if (ElevatedTaskCloser.isShizukuActive) {
+                                ElevatedTaskCloser.execShizuku("am start -n ${parsed.packageName}/${parsed.activityName}")
+                                return true
+                            }
+                        }
                     }
                 }
-
-                return try {
-                    context.startActivity(intent)
-                    true
-                } catch (e: Exception) {
-                    if (ElevatedTaskCloser.isShizukuActive) {
-                        ElevatedTaskCloser.execShizuku("am start -n ${parsed.packageName}/${parsed.activityName}")
-                        true
-                    } else false
-                }
+                return false
             }
 
             "intent" -> {
                 if (parsed.intentUri.isNotBlank()) {
-                    return try {
-                        val launchIntent = Intent.parseUri(parsed.intentUri, Intent.URI_INTENT_SCHEME).apply {
+                    val launchIntent = try {
+                        Intent.parseUri(parsed.intentUri, Intent.URI_INTENT_SCHEME).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
-                        context.startActivity(launchIntent)
-                        true
                     } catch (e: Exception) {
-                        Log.e(TAG, "Intent launch failed for parsed URI: ${parsed.intentUri}", e)
-                        false
+                        Log.e(TAG, "Intent URI parse failed: ${parsed.intentUri}", e)
+                        null
+                    }
+
+                    if (launchIntent != null) {
+                        // 1. Try starting as Activity
+                        try {
+                            context.startActivity(launchIntent)
+                            return true
+                        } catch (e: Exception) {
+                            Log.d(TAG, "Activity launch failed for ${parsed.intentUri}: ${e.message}, trying broadcast/service")
+                        }
+
+                        // 2. Try sending as Broadcast (essential for MacroDroid, Tasker, automation shortcuts)
+                        try {
+                            context.sendBroadcast(launchIntent)
+                            return true
+                        } catch (e: Exception) {
+                            Log.d(TAG, "Broadcast launch failed: ${e.message}")
+                        }
+
+                        // 3. Try starting as Service
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                context.startForegroundService(launchIntent)
+                            } else {
+                                context.startService(launchIntent)
+                            }
+                            return true
+                        } catch (e: Exception) {
+                            Log.d(TAG, "Service launch failed: ${e.message}")
+                        }
+
+                        // 4. Shizuku elevated shell execution fallback
+                        if (ElevatedTaskCloser.isShizukuActive) {
+                            try {
+                                val pkgArg = if (parsed.packageName.isNotBlank()) "-p ${parsed.packageName}" else ""
+                                ElevatedTaskCloser.execShizuku("am start $pkgArg '${parsed.intentUri}' || am broadcast $pkgArg '${parsed.intentUri}'")
+                                return true
+                            } catch (_: Exception) {}
+                        }
                     }
                 }
                 return false

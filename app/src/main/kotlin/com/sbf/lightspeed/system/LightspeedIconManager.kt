@@ -226,13 +226,17 @@ object LightspeedIconManager {
 
     fun getIconDrawable(context: Context, tokenOrPkg: String): Drawable? {
         if (tokenOrPkg.isBlank()) return null
-        drawableCache[tokenOrPkg]?.let { return it }
+        drawableCache[tokenOrPkg]?.let {
+            return it.constantState?.newDrawable()?.mutate() ?: it
+        }
 
         if (tokenOrPkg.startsWith("shortcut:")) {
             val shortcutDrawable = LightspeedShortcutManager.resolveIconDrawable(context, tokenOrPkg)
             if (shortcutDrawable != null) {
-                drawableCache[tokenOrPkg] = shortcutDrawable
-                return shortcutDrawable
+                val mutated = shortcutDrawable.constantState?.newDrawable()?.mutate() ?: shortcutDrawable.mutate()
+                mutated.alpha = 255
+                drawableCache[tokenOrPkg] = mutated
+                return mutated.constantState?.newDrawable()?.mutate() ?: mutated
             }
         }
 
@@ -263,8 +267,10 @@ object LightspeedIconManager {
                         if (calResId != 0) {
                             val calDrawable = iconPackRes.getDrawable(calResId, null)
                             if (calDrawable != null) {
-                                drawableCache[tokenOrPkg] = calDrawable
-                                return calDrawable
+                                val mutated = calDrawable.constantState?.newDrawable()?.mutate() ?: calDrawable.mutate()
+                                mutated.alpha = 255
+                                drawableCache[tokenOrPkg] = mutated
+                                return mutated.constantState?.newDrawable()?.mutate() ?: mutated
                             }
                         }
                     }
@@ -277,8 +283,10 @@ object LightspeedIconManager {
                     if (resId != 0) {
                         val packDrawable = iconPackRes.getDrawable(resId, null)
                         if (packDrawable != null) {
-                            drawableCache[tokenOrPkg] = packDrawable
-                            return packDrawable
+                            val mutated = packDrawable.constantState?.newDrawable()?.mutate() ?: packDrawable.mutate()
+                            mutated.alpha = 255
+                            drawableCache[tokenOrPkg] = mutated
+                            return mutated.constantState?.newDrawable()?.mutate() ?: mutated
                         }
                     }
                 }
@@ -291,8 +299,10 @@ object LightspeedIconManager {
         if (GOOGLE_CALENDAR_PACKAGES.contains(extractedPkg.lowercase())) {
             val googleCalDrawable = loadGoogleCalendarDrawable(context, extractedPkg, dayOfMonth)
             if (googleCalDrawable != null) {
-                drawableCache[tokenOrPkg] = googleCalDrawable
-                return googleCalDrawable
+                val mutated = googleCalDrawable.constantState?.newDrawable()?.mutate() ?: googleCalDrawable.mutate()
+                mutated.alpha = 255
+                drawableCache[tokenOrPkg] = mutated
+                return mutated.constantState?.newDrawable()?.mutate() ?: mutated
             }
         }
 
@@ -300,8 +310,10 @@ object LightspeedIconManager {
         return try {
             val pm = context.packageManager
             val defaultDrawable = pm.getApplicationIcon(extractedPkg)
-            drawableCache[tokenOrPkg] = defaultDrawable
-            defaultDrawable
+            val mutated = defaultDrawable.constantState?.newDrawable()?.mutate() ?: defaultDrawable.mutate()
+            mutated.alpha = 255
+            drawableCache[tokenOrPkg] = mutated
+            mutated.constantState?.newDrawable()?.mutate() ?: mutated
         } catch (_: Exception) {
             null
         }
@@ -442,19 +454,36 @@ object LightspeedIconManager {
         } catch (_: Exception) { null }
     }
 
-    private fun convertDrawableToBitmap(drawable: Drawable): Bitmap? {
-        if (drawable is BitmapDrawable && drawable.bitmap != null) {
-            return drawable.bitmap
+    fun convertDrawableToBitmap(drawable: Drawable): Bitmap? {
+        val workingDrawable = drawable.constantState?.newDrawable()?.mutate() ?: drawable.mutate()
+        workingDrawable.alpha = 255
+
+        if (workingDrawable is BitmapDrawable && workingDrawable.bitmap != null) {
+            val bmp = workingDrawable.bitmap
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && bmp.config == Bitmap.Config.HARDWARE) {
+                return bmp.copy(Bitmap.Config.ARGB_8888, false)
+            }
+            if (bmp.width > 0 && bmp.height > 0) {
+                return bmp
+            }
         }
-        val w = drawable.intrinsicWidth.coerceIn(48, 256)
-        val h = drawable.intrinsicHeight.coerceIn(48, 256)
+
+        val rawW = workingDrawable.intrinsicWidth
+        val rawH = workingDrawable.intrinsicHeight
+        val targetSize = if (rawW > 0 && rawH > 0) {
+            maxOf(rawW, rawH).coerceIn(96, 256)
+        } else {
+            192
+        }
+
         return try {
-            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val bmp = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bmp)
-            drawable.setBounds(0, 0, w, h)
-            drawable.draw(canvas)
+            workingDrawable.setBounds(0, 0, targetSize, targetSize)
+            workingDrawable.draw(canvas)
             bmp
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Error converting drawable to bitmap", e)
             null
         }
     }

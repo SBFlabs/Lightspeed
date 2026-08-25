@@ -663,123 +663,100 @@ class GearPickerActivity : ComponentActivity() {
                                             is PickerRowItem.AppHeader -> {
                                                 val appKey = "app:${item.packageName}"
                                                 val isAppSelected = selectedTokens.contains(item.appToken)
-                                                
+
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(vertical = 3.dp),
+                                                        .padding(vertical = 2.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(
+                                                            if (isAppSelected) dynamicPrimary.copy(alpha = 0.26f)
+                                                            else Color.White.copy(alpha = 0.05f)
+                                                        )
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.06f),
+                                                            shape = RoundedCornerShape(12.dp)
+                                                        )
+                                                        .clickable {
+                                                            handleTokenSelection(item.appToken)
+                                                        }
+                                                        .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    // 1. Main Board (Left ~80%): App Icon + Title + Action Count + Selection Badge
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp, topEnd = 6.dp, bottomEnd = 6.dp))
-                                                            .background(
-                                                                if (isAppSelected) dynamicPrimary.copy(alpha = 0.28f)
-                                                                else Color.White.copy(alpha = 0.06f)
-                                                            )
-                                                            .border(
-                                                                width = 1.dp,
-                                                                color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.08f),
-                                                                shape = RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp, topEnd = 6.dp, bottomEnd = 6.dp)
-                                                            )
-                                                            .clickable {
-                                                                handleTokenSelection(item.appToken)
-                                                            }
-                                                            .padding(horizontal = 12.dp, vertical = 9.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
-                                                        if (iconBmp != null) {
-                                                            Image(
-                                                                bitmap = iconBmp.asImageBitmap(),
-                                                                contentDescription = null,
-                                                                modifier = Modifier.size(30.dp).padding(end = 10.dp)
-                                                            )
-                                                        } else {
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .size(30.dp)
-                                                                    .padding(end = 10.dp)
-                                                                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-                                                            )
-                                                        }
+                                                    val iconBmp = LightspeedActionRegistry.getIconBitmap(this@GearPickerActivity, item.packageName)
+                                                    if (iconBmp != null) {
+                                                        Image(
+                                                            bitmap = iconBmp.asImageBitmap(),
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(28.dp).padding(end = 10.dp)
+                                                        )
+                                                    } else {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(28.dp)
+                                                                .padding(end = 10.dp)
+                                                                .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                                                        )
+                                                    }
 
-                                                        Column(modifier = Modifier.weight(1f)) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = item.appName,
+                                                            color = if (isAppSelected) dynamicPrimary else Color.White,
+                                                            fontSize = 13.5.sp,
+                                                            fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        if (item.totalShortcuts > 0) {
                                                             Text(
-                                                                text = item.appName,
-                                                                color = if (isAppSelected) dynamicPrimary else Color.White,
-                                                                fontSize = 14.sp,
-                                                                fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
+                                                                text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
+                                                                color = dynamicSecondary.copy(alpha = 0.85f),
+                                                                fontSize = 10.sp
                                                             )
-                                                            if (item.totalShortcuts > 0) {
-                                                                Text(
-                                                                    text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
-                                                                    color = dynamicSecondary.copy(alpha = 0.8f),
-                                                                    fontSize = 10.5.sp
-                                                                )
-                                                            }
-                                                        }
-
-                                                        // Selection Indicator Badge (No square checklist!)
-                                                        if (isAppSelected) {
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .padding(start = 6.dp)
-                                                                    .background(dynamicPrimary, CircleShape)
-                                                                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                                                                contentAlignment = Alignment.Center
-                                                            ) {
-                                                                Text(
-                                                                    text = "SELECTED",
-                                                                    color = Color.Black,
-                                                                    fontSize = 9.sp,
-                                                                    fontWeight = FontWeight.ExtraBold
-                                                                )
-                                                            }
                                                         }
                                                     }
 
-                                                    Spacer(modifier = Modifier.width(4.dp))
-
-                                                    // 2. Expand Chevron Zone (Right ~20%): Distinct Material 3 Color-Coded Container
-                                                    if (item.totalShortcuts > 0) {
+                                                    // Selection Indicator Badge
+                                                    if (isAppSelected) {
                                                         Box(
                                                             modifier = Modifier
-                                                                .size(width = 46.dp, height = 48.dp)
-                                                                .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 14.dp, bottomEnd = 14.dp))
-                                                                .background(
-                                                                    if (item.isExpanded) dynamicSecondary.copy(alpha = 0.35f)
-                                                                    else dynamicSecondary.copy(alpha = 0.12f)
-                                                                )
-                                                                .border(
-                                                                    width = 1.dp,
-                                                                    color = if (item.isExpanded) dynamicSecondary.copy(alpha = 0.65f) else dynamicSecondary.copy(alpha = 0.22f),
-                                                                    shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 14.dp, bottomEnd = 14.dp)
-                                                                )
-                                                                .clickable {
-                                                                    expandedSubsections = if (item.isExpanded) {
-                                                                        expandedSubsections - appKey
-                                                                    } else {
-                                                                        expandedSubsections + appKey
-                                                                    }
-                                                                },
-                                                                contentAlignment = Alignment.Center
+                                                                .padding(horizontal = 4.dp)
+                                                                .background(dynamicPrimary, CircleShape)
+                                                                .padding(horizontal = 7.dp, vertical = 2.5.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = "SELECTED",
+                                                                color = Color.Black,
+                                                                fontSize = 8.5.sp,
+                                                                fontWeight = FontWeight.ExtraBold
+                                                            )
+                                                        }
+                                                    }
+
+                                                    // Integrated Accordion Arrow Button for Shortcuts
+                                                    if (item.totalShortcuts > 0) {
+                                                        IconButton(
+                                                            onClick = {
+                                                                expandedSubsections = if (item.isExpanded) {
+                                                                    expandedSubsections - appKey
+                                                                } else {
+                                                                    expandedSubsections + appKey
+                                                                }
+                                                            },
+                                                            modifier = Modifier.size(32.dp)
                                                         ) {
                                                             Icon(
                                                                 Icons.Default.ArrowDropDown,
                                                                 contentDescription = if (item.isExpanded) "Collapse" else "Expand",
-                                                                tint = if (item.isExpanded) dynamicSecondary else dynamicSecondary.copy(alpha = 0.9f),
+                                                                tint = dynamicSecondary,
                                                                 modifier = Modifier
-                                                                    .size(24.dp)
+                                                                    .size(22.dp)
                                                                     .rotate(if (item.isExpanded) 180f else 0f)
                                                             )
                                                         }
-                                                    } else {
-                                                        Spacer(modifier = Modifier.width(4.dp))
                                                     }
                                                 }
                                             }

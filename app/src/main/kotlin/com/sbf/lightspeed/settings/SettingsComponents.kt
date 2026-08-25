@@ -437,31 +437,14 @@ fun GestureMappingRow(
             if (raw.contains(";pkg=")) {
                 val pkg = raw.substringAfter(";pkg=").substringBefore(";")
                 val appLabel = labelCache["app:$pkg"] ?: pkg
-                val label = if (raw.contains(";label=")) raw.substringAfter(";label=").substringBefore(";") else ""
+                val label = if (raw.contains(";label=")) {
+                    val rawL = raw.substringAfter(";label=").substringBefore(";")
+                    try { android.net.Uri.decode(rawL) } catch (_: Exception) { rawL }
+                } else ""
                 if (label.isNotEmpty()) "$appLabel ($label)" else "$appLabel (Pinned)"
-            } else if (raw.contains("intent:")) {
-                val intentPart = if (raw.startsWith("intent:")) raw else raw.substringAfter("intent:")
-                val pkg = if (intentPart.contains("package=")) {
-                    intentPart.substringAfter("package=").substringBefore(";")
-                } else if (intentPart.contains("component=")) {
-                    val comp = intentPart.substringAfter("component=").substringBefore(";")
-                    comp.substringBefore("/").removeSuffix(".").trim()
-                } else ""
-
-                val appLabel = if (pkg.isNotEmpty()) labelCache["app:$pkg"] ?: pkg else "Shortcut Action"
-                val customLabel = if (raw.contains(";custom_label=")) {
-                    raw.substringAfter(";custom_label=").substringBefore(";")
-                } else ""
-
-                if (customLabel.isNotEmpty()) {
-                    "$appLabel ($customLabel)"
-                } else if (intentPart.contains("MACRO_NAME=")) {
-                    val macroEncoded = intentPart.substringAfter("MACRO_NAME=").substringBefore(";")
-                    val macroName = try { java.net.URLDecoder.decode(macroEncoded, "UTF-8") } catch(e: Exception) { macroEncoded }
-                    "$appLabel ($macroName)"
-                } else {
-                    "$appLabel (Shortcut)"
-                }
+            } else if (raw.contains("intent:") || raw.contains("b64uri=")) {
+                val appLabel = com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(context, currentRawValue)
+                if (appLabel.isNotBlank()) appLabel else "Shortcut Action"
             } else {
                 labelCache[currentRawValue] ?: currentRawValue
             }

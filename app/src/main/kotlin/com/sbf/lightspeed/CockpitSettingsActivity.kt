@@ -699,11 +699,7 @@ class CockpitSettingsActivity : ComponentActivity() {
         val label = remember(pkg) {
             when {
                 pkg.startsWith("system:") -> LightspeedActionRegistry.labelCache[pkg] ?: pkg.substringAfter("system:").replace("_", " ").uppercase()
-                pkg.startsWith("shortcut:") -> LightspeedActionRegistry.labelCache[pkg] ?: run {
-                    if (pkg.contains(";custom_label=")) pkg.substringAfter(";custom_label=").substringBefore(";")
-                    else if (pkg.contains(";label=")) pkg.substringAfter(";label=").substringBefore(";")
-                    else "Shortcut"
-                }
+                pkg.startsWith("shortcut:") -> com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(context, pkg)
                 pkg.startsWith("app:") -> {
                     val clean = pkg.removePrefix("app:")
                     try {

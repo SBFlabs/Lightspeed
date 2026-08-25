@@ -208,7 +208,8 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
             }
         }
         token.startsWith("shortcut:") -> {
-            token.substringAfter("label=").substringBefore(";")
+            val raw = token.substringAfter("label=").substringBefore(";")
+            try { android.net.Uri.decode(raw) } catch (_: Exception) { raw }
         }
         else -> token
     }

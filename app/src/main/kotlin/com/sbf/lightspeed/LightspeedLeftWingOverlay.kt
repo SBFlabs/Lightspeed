@@ -223,19 +223,6 @@ class LightspeedLeftWingOverlay(
         }
     }
 
-    private fun handleTap() {
-        if (activeZoneKey == "LEFT_CENTER") {
-            triggerHaptic(35, 180)
-            (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
-            return
-        }
-        val action = getEffectiveAction(activeZoneKey, "TAP", false)
-        if (action != "none") {
-            triggerHaptic(25, 160)
-            performActionByName(action)
-        }
-    }
-
     private fun triggerHaptic(durationMs: Long = 25, amplitude: Int = 140) {
         LightspeedHapticEngine.vibrate(context, durationMs, amplitude)
     }
@@ -435,20 +422,25 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun handleTap() {
+        if (activeZoneKey == "LEFT_CENTER") {
+            triggerHaptic(35, 180)
+            (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
+            return
+        }
         val now = System.currentTimeMillis()
         if (now - lastTapTime < 320) {
             pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
             pendingTapRunnable = null
             lastTapTime = 0
             triggerHaptic(30, 180)
-            val action = prefs.getString("pref_macro_action_${activeZoneKey}_DOUBLE_TAP", "none") ?: "none"
+            val action = getEffectiveAction(activeZoneKey, "DOUBLE_TAP", false)
             if (action != "none") {
                 performActionByName(action)
             }
         } else {
             lastTapTime = now
             pendingTapRunnable = Runnable {
-                val action = prefs.getString("pref_macro_action_${activeZoneKey}_TAP", "none") ?: "none"
+                val action = getEffectiveAction(activeZoneKey, "TAP", false)
                 if (action != "none") {
                     triggerHaptic(20, 120)
                     performActionByName(action)

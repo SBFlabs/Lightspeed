@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -668,7 +670,7 @@ class GearPickerActivity : ComponentActivity() {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .height(48.dp)
+                                                        .height(50.dp)
                                                         .padding(vertical = 2.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
@@ -725,13 +727,17 @@ class GearPickerActivity : ComponentActivity() {
                                                             modifier = Modifier
                                                                 .weight(1f)
                                                                 .fillMaxHeight(),
-                                                            verticalArrangement = Arrangement.Center
+                                                            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
                                                         ) {
                                                             Text(
                                                                 text = item.appName,
                                                                 color = if (isAppSelected) dynamicPrimary else Color.White,
                                                                 fontSize = 13.5.sp,
                                                                 fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                                style = TextStyle(
+                                                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                    lineHeight = 16.sp
+                                                                ),
                                                                 maxLines = 1,
                                                                 overflow = TextOverflow.Ellipsis
                                                             )
@@ -740,6 +746,10 @@ class GearPickerActivity : ComponentActivity() {
                                                                     text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
                                                                     color = dynamicSecondary.copy(alpha = 0.85f),
                                                                     fontSize = 10.sp,
+                                                                    style = TextStyle(
+                                                                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                        lineHeight = 12.sp
+                                                                    ),
                                                                     maxLines = 1
                                                                 )
                                                             }

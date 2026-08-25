@@ -21,24 +21,17 @@
 
 ---
 
-# 3. Autonomous Execution Loop & Host Safety Invariants
-Whenever any code edit, bug fix, or feature is completed:
-1. **Hardware & Process Hygiene (Strict 8GB RAM / 4th-Gen i7 Safeguards)**:
-   * **Post-Mortem Lessons**: Two severe process runaway incidents occurred due to: (a) using the agent `schedule` timer tool during builds, which registered 10+ stacked background tasks, (b) the Kotlin compiler daemon (`KotlinCompileDaemon`) running detached with a 2-hour idle timeout and 2.5GB RAM, and (c) orphaned native `aapt2` workers locking build pipelines. These caused 100% CPU/RAM starvation and crashed host services (SSH and Jellyfin).
-   * **Daemon & Worker Invariance**: Always enforce `org.gradle.daemon=false`, `org.gradle.parallel=false`, `org.gradle.workers.max=2`, `org.gradle.jvmargs=-Xmx2560m`, and `kotlin.compiler.execution.strategy=in-process` in `gradle.properties`.
-   * **Zero Background Process / Timer Stacking**: NEVER launch multiple Gradle commands, background tasks, or `schedule` asynchronous timers concurrently. The `schedule` tool is strictly forbidden when waiting for builds. Always run `./deploy-nightly.sh` strictly sequentially in the foreground and verify completion before initiating any subsequent tool calls to prevent CPU starvation (>90%) and memory exhaustion that drops host services (SSH/Jellyfin).
-   * **Process Awareness & Instant Flush**: Never assume prior commands are finished without checking task state. Always execute `killall -9 java aapt2 2>/dev/null || true` immediately after every compilation to purge any transient compiler memory or native AAPT daemons.
-2. **Compile & Deploy**:
-   * Run `./deploy-nightly.sh` synchronously.
-3. **Local Git Commit**:
-   * Auto-committed by `deploy-nightly.sh` with timestamp.
-4. **Wireless ADB Silent Deploy**:
-   * Executed by `deploy-nightly.sh` (`adb -s 192.168.100.10:5555 install -r -d app/build/outputs/apk/debug/app-debug.apk`).
-   * **STRICT SILENT DEPLOY**: NEVER run `am start` to launch activities on device upon installation.
-5. **Physical Device Verification**:
-   * Always run `adb -s 192.168.100.10:5555 shell "dumpsys package com.sbf.lightspeed.nightly | grep -E 'versionCode|lastUpdateTime'"` to verify that the phone physically updated.
-6. **Report to User**:
-   * State the commit hash, verified `lastUpdateTime` from device, and concise summary of changes.
+# 3. Zero-Build Autonomous Mode & Execution Scope (Strict Host Protection)
+- **STRICT BUILD BAN FOR AI**:
+  * The AI MUST NEVER run `./gradlew`, `./deploy-nightly.sh`, `assembleDebug`, `adb install`, or any build / compilation commands under any circumstances.
+  * Zero execution of background Gradle processes, timers (`schedule`), or build scripts by the AI.
+- **AI Core Responsibilities (Code & Architecture Only)**:
+  * Pure Kotlin / Jetpack Compose code creation, modularization, and refactoring.
+  * Architectural design, data model expansion, and logic implementations.
+  * Git staging and concise local commit messages on branch `nightly-refactor`.
+- **User-Driven Compilation & Deployment**:
+  * The user exclusively controls all builds by running `./deploy-nightly.sh` directly in their physical terminal when they wish to test changes on their device.
+  * Once the AI completes code edits and git commits, it notifies the user that the code is ready for their manual `./deploy-nightly.sh` execution.
 
 ---
 

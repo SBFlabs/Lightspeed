@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
+# Strict single-instance mutex lock
+LOCKFILE="/tmp/lightspeed-deploy.lock"
+exec 200>"$LOCKFILE"
+if ! flock -n 200; then
+    echo "❌ Another instance of deploy-nightly.sh is already running! Aborting duplicate."
+    exit 1
+fi
+
 DEVICE_IP="192.168.100.10:5555"
 PROJECT_DIR="$HOME/Lightspeed"
 APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
@@ -21,8 +29,11 @@ else
     echo "✓ Git tree clean (no new changes to commit)."
 fi
 
+# Ensure zero lingering processes exist before starting
+killall -9 java aapt2 2>/dev/null || true
+
 echo "⚙️ [3/4] Compiling Lightspeed Nightly APK..."
-./gradlew assembleDebug --no-daemon
+nice -n 19 ./gradlew assembleDebug --no-daemon
 
 # Immediate cleanup of any transient build daemon, compiler workers, or aapt2 daemons
 killall -9 java aapt2 2>/dev/null || true

@@ -1,6 +1,7 @@
 package com.sbf.lightspeed
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.IconPackInfo
@@ -457,7 +459,7 @@ fun EditItemContent(
                     showSourceSelector = false
                     showIconPackBrowser = true
                 }) {
-                    Text("Icon Pack")
+                    Text("Apps & Icon Packs")
                 }
             },
             dismissButton = {
@@ -472,6 +474,12 @@ fun EditItemContent(
     }
 }
 
+data class InstalledAppIconEntry(
+    val packageName: String,
+    val label: String,
+    val drawable: Drawable
+)
+
 @Composable
 fun IconPackBrowserModal(
     onDismiss: () -> Unit,
@@ -479,22 +487,57 @@ fun IconPackBrowserModal(
 ) {
     val context = LocalContext.current
     val iconPacks = remember {
-        LightspeedIconManager.getAvailableIconPacks(context).filter { !it.isSystem }
+        val list = mutableListOf<IconPackInfo>()
+        list.add(IconPackInfo("installed_apps", "Installed Apps", isSystem = true))
+        list.addAll(LightspeedIconManager.getAvailableIconPacks(context).filter { !it.isSystem })
+        list
     }
     var selectedPackPkg by remember {
-        mutableStateOf(iconPacks.firstOrNull()?.packageName ?: "")
+        mutableStateOf("installed_apps")
     }
     var searchQuery by remember { mutableStateOf("") }
     var drawablesList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var installedAppsList by remember { mutableStateOf<List<InstalledAppIconEntry>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedPackPkg) {
-        if (selectedPackPkg.isNotBlank()) {
-            isLoading = true
+        isLoading = true
+        if (selectedPackPkg == "installed_apps") {
+            installedAppsList = withContext(Dispatchers.IO) {
+                try {
+                    val pm = context.packageManager
+                    val intent = Intent(Intent.ACTION_MAIN, null).apply {
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                    }
+                    val activities = pm.queryIntentActivities(intent, 0)
+                    activities.mapNotNull { ri ->
+                        try {
+                            val pkg = ri.activityInfo.packageName
+                            val label = ri.loadLabel(pm)?.toString() ?: pkg
+                            val dr = ri.loadIcon(pm)
+                            InstalledAppIconEntry(packageName = pkg, label = label, drawable = dr)
+                        } catch (_: Exception) { null }
+                    }.sortedBy { it.label.lowercase() }
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            }
+        } else if (selectedPackPkg.isNotBlank()) {
             drawablesList = withContext(Dispatchers.IO) {
                 LightspeedIconManager.getIconPackDrawableNames(context, selectedPackPkg)
             }
-            isLoading = false
+        }
+        isLoading = false
+    }
+
+    val filteredApps = remember(installedAppsList, searchQuery) {
+        if (searchQuery.isBlank()) {
+            installedAppsList
+        } else {
+            val q = searchQuery.lowercase().trim()
+            installedAppsList.filter {
+                it.label.lowercase().contains(q) || it.packageName.lowercase().contains(q)
+            }
         }
     }
 
@@ -510,7 +553,7 @@ fun IconPackBrowserModal(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 520.dp)
+            .heightIn(max = 540.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -526,7 +569,7 @@ fun IconPackBrowserModal(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    "Icon Pack Browser",
+                    "Icon Browser",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     color = MaterialTheme.colorScheme.onSurface
@@ -539,66 +582,147 @@ fun IconPackBrowserModal(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        if (iconPacks.isEmpty()) {
+        // Tab Selector Chips
+        ScrollableTabRow(
+            selectedTabIndex = iconPacks.indexOfFirst { it.packageName == selectedPackPkg }.coerceAtLeast(0),
+            edgePadding = 0.dp,
+            divider = {},
+            containerColor = Color.Transparent
+        ) {
+            iconPacks.forEach { pack ->
+                val isSelected = (pack.packageName == selectedPackPkg)
+                Tab(
+                    selected = isSelected,
+                    onClick = {
+                        selectedPackPkg = pack.packageName
+                        searchQuery = ""
+                    },
+                    text = {
+                        Text(
+                            pack.label,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        val itemCount = if (selectedPackPkg == "installed_apps") filteredApps.size else filteredDrawables.size
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            label = {
+                Text(
+                    if (selectedPackPkg == "installed_apps") "Search installed apps ($itemCount)"
+                    else "Search icon pack ($itemCount)"
+                )
+            },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(240.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "No third-party icon packs detected.\nInstall an icon pack from Play Store or F-Droid.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
-        } else {
-            // Icon Pack Selector Chips
-            ScrollableTabRow(
-                selectedTabIndex = iconPacks.indexOfFirst { it.packageName == selectedPackPkg }.coerceAtLeast(0),
-                edgePadding = 0.dp,
-                divider = {},
-                containerColor = Color.Transparent
-            ) {
-                iconPacks.forEach { pack ->
-                    val isSelected = (pack.packageName == selectedPackPkg)
-                    Tab(
-                        selected = isSelected,
-                        onClick = { selectedPackPkg = pack.packageName },
-                        text = {
-                            Text(
-                                pack.label,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("Search icons (${filteredDrawables.size})") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (isLoading) {
+        } else if (selectedPackPkg == "installed_apps") {
+            // Render Installed Apps Grid
+            if (filteredApps.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp),
+                        .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "No matching apps found.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 64.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .heightIn(max = 320.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(filteredApps) { appEntry ->
+                        val bmp = remember(appEntry.packageName) {
+                            val dr = appEntry.drawable
+                            if (dr is BitmapDrawable && dr.bitmap != null) {
+                                dr.bitmap
+                            } else {
+                                val size = 128
+                                val b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                                val canvas = Canvas(b)
+                                dr.setBounds(0, 0, size, size)
+                                dr.draw(canvas)
+                                b
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f))
+                                .clickable {
+                                    if (bmp != null) {
+                                        onIconSelected(bmp)
+                                    }
+                                }
+                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if (bmp != null) {
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = appEntry.label,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = appEntry.label,
+                                fontSize = 10.5.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            // Render Third-Party Icon Pack Grid
+            if (filteredDrawables.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No matching icons in this pack.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp
+                    )
                 }
             } else {
                 LazyVerticalGrid(
@@ -606,7 +730,7 @@ fun IconPackBrowserModal(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
-                        .heightIn(max = 300.dp),
+                        .heightIn(max = 320.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {

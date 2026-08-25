@@ -41,6 +41,29 @@ android {
     buildFeatures {
         compose = true
     }
+
+    applicationVariants.all {
+        outputs.all {
+            val f = (this as? com.android.build.gradle.internal.api.ApkVariantOutputImpl)?.outputFile
+            println(">>> VARIANT OUTPUT PATH: ${f?.absolutePath}")
+        }
+    }
+}
+
+afterEvaluate {
+    tasks.named("packageDebug").configure {
+        doLast {
+            val intermediateDir = file("build/intermediates/apk/debug/packageDebug")
+            val outputDir = file("build/outputs/apk/debug").apply { mkdirs() }
+            val targetApk = File(outputDir, "app-debug.apk")
+            if (intermediateDir.exists()) {
+                intermediateDir.walk().filter { it.isFile && it.extension == "apk" }.forEach { foundApk ->
+                    foundApk.copyTo(targetApk, overwrite = true)
+                    println(">>> SUCCESSFULLY COPIED APK TO: ${targetApk.absolutePath} (${targetApk.length()} bytes)")
+                }
+            }
+        }
+    }
 }
 
 

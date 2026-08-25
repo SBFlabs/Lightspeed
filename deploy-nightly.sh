@@ -22,7 +22,7 @@ else
 fi
 
 echo "⚙️ [3/4] Compiling Lightspeed Nightly APK..."
-./gradlew assembleDebug --no-daemon
+./gradlew assembleDebug --no-daemon --rerun-tasks
 
 # Immediate cleanup of any transient build daemon, compiler workers, or aapt2 daemons
 killall -9 java aapt2 2>/dev/null || true

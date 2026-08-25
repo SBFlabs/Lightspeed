@@ -219,6 +219,14 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun startCruiseFromLeft(rawX: Float, rawY: Float) {
+        overlayView?.startCruiseFromFlank(isLeft = true, startRawX = rawX, startRawY = rawY)
+    }
+
+    fun forwardTouchEventToCruise(isLeft: Boolean, event: MotionEvent): Boolean {
+        return overlayView?.handleFlankTouchEvent(isLeft = isLeft, event = event) ?: false
+    }
+
     fun openCockpitFromLeft() {
         overlayView?.post {
             overlayView?.openHangarFromFlank(isLeftFlank = true)

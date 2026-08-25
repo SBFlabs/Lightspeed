@@ -1142,42 +1142,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
 
                 if (currentActiveZone == TouchZone.CENTER_CRUISE) {
-                    isOpenedFromLeftFlank = false
-                    isCruising = true
-                    categoryScrubbingEngaged = false
-                    maxVerticalDisplacement = 0f
-                    categoryVisualOffset = 0f
-                    entranceStartTime = System.currentTimeMillis()
-                    lastLoadedCategoryId = null
-                    snapAnimator?.cancel()
-                    categoryAppsCache.clear(); categoryGridCache.clear()
-                    val cPrefs = context.defaultPrefs()
-                    val prefVal = cPrefs.getString("pref_right_initial_gear_set", "0") ?: "0"
-                    if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                        activeGearSetIndex = cPrefs.getInt("last_active_set_index_right", cPrefs.getInt("last_active_set_index", 0))
-                    } else {
-                        activeGearSetIndex = prefVal.toIntOrNull() ?: 0
-                    }
-                    currentLayer = CruiseLayer.NEUTRAL
-                    updateMetricsDimensions()
-                    placedAppsList.clear(); cachedApps = emptyList()
-                    service?.updateWindowLayout(true)
-
-                    cachedCategories = dataBridge.getLiveCategories()
-                    if (cachedCategories.isNotEmpty()) {
-                        val hF = if (height > 0) height.toFloat() else resources.displayMetrics.heightPixels.toFloat()
-                        val startYArea = hF * 0.25f
-                        val endYArea = hF * 0.75f
-                        val usableHeight = endYArea - startYArea
-                        val normY = ((y - startYArea) / usableHeight).coerceIn(0f, 1f)
-                        initialCatIndex = floor(normY * cachedCategories.size).toInt().coerceIn(0, cachedCategories.size - 1)
-                        activeCatIndex = initialCatIndex
-                        val catLineH = usableHeight / cachedCategories.size
-                        categoryVisualOffset = (hF / 2f) - (startYArea + (activeCatIndex * catLineH) + (catLineH / 2f))
-                    }
-                    uiHandler.removeCallbacks(neutralToCategoryRunnable)
-                    uiHandler.postDelayed(neutralToCategoryRunnable, 140L)
-                    invalidate()
+                    startCruiseFromFlank(isLeft = false, startRawX = rawX, startRawY = rawY)
                 } else if (currentActiveZone != TouchZone.NONE) {
                     macroTrackingActive = true
                     uiHandler.postDelayed(holdTimerRunnable, ViewConfiguration.getLongPressTimeout().toLong())
@@ -1187,7 +1152,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> {
                 val density = resources.displayMetrics.density // Convert hardcoded pixels to device-agnostic DP
                 if (isCruising) {
-                    val deltaX = touchDownRawX - rawX
+                    val deltaX = if (isOpenedFromLeftFlank) (rawX - touchDownRawX) else (touchDownRawX - rawX)
                     val deltaY = abs(rawY - touchDownRawY)
                     if (deltaY > maxVerticalDisplacement) {
                         maxVerticalDisplacement = deltaY
@@ -1199,11 +1164,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
                         uiHandler.removeCallbacks(neutralToCategoryRunnable)
                         val cPrefs = context.defaultPrefs()
-                        val prefVal = cPrefs.getString("pref_right_initial_gear_set", "0") ?: "0"
+                        val prefKey = if (isOpenedFromLeftFlank) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+                        val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
+                        val defVal = if (isOpenedFromLeftFlank) "1" else "0"
+                        val prefVal = cPrefs.getString(prefKey, defVal) ?: defVal
                         if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
-                            activeGearSetIndex = cPrefs.getInt("last_active_set_index_right", cPrefs.getInt("last_active_set_index", 0))
+                            activeGearSetIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", if (isOpenedFromLeftFlank) 1 else 0))
                         } else {
-                            activeGearSetIndex = prefVal.toIntOrNull() ?: 0
+                            activeGearSetIndex = prefVal.toIntOrNull() ?: (if (isOpenedFromLeftFlank) 1 else 0)
                         }
                         currentLayer = CruiseLayer.FAVORITES_GEARS
                         triggerHardwareHaptic(30, 180)
@@ -1316,14 +1284,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             val itemCount = packages.size
                             val currentRotation = gearRingRotations[activeGearRing]
                             
-                            // Find which app icon rotated closest to the selection zone (180 degrees / straight left)
+                            val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
                             var targetedPackage: String? = null
                             var minAngleDiff = Float.MAX_VALUE
                             
                             for (i in packages.indices) {
                                 val itemAngle = (currentRotation + i * (360f / itemCount)) % 360f
                                 val normalizedAngle = if (itemAngle < 0) itemAngle + 360f else itemAngle
-                                val diff = abs(normalizedAngle - 180f)
+                                val diff = minOf(abs(normalizedAngle - targetAngle), 360f - abs(normalizedAngle - targetAngle))
                                 if (diff < minAngleDiff) {
                                     minAngleDiff = diff
                                     targetedPackage = packages[i]
@@ -1337,7 +1305,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
                                 val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
                                 val currentTrackRadius = if (activeGearRing == 0) rad0 else rad1
-                                val targetedX = cx - currentTrackRadius
+                                val targetedX = if (isOpenedFromLeftFlank) (cx + currentTrackRadius) else (cx - currentTrackRadius)
                                 val targetedY = cy
 
                                 triggerHyperdriveWarpLaunch(targetedX, targetedY) {
@@ -1554,14 +1522,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         val wF = width.toFloat(); val hF = height.toFloat()
         if (wF <= 0f || hF <= 0f) return
         val density = resources.displayMetrics.density
-        depthPercentage = ((wF - localX) / wF).coerceIn(0f, 1f)
+        depthPercentage = if (isOpenedFromLeftFlank) (localX / wF).coerceIn(0f, 1f) else ((wF - localX) / wF).coerceIn(0f, 1f)
         val verticalComfortScope = hF * 0.40f
         val verticalStartAnchor = hF * 0.30f
         val normalizedVerticalProgress = ((localY - verticalStartAnchor) / verticalComfortScope).coerceIn(0f, 1f)
 
         if (currentLayer == CruiseLayer.CATEGORY) {
             activeItem = null; viewportScrollOffset = 0f
-            val horizontalPull = touchDownRawX - rawX
+            val horizontalPull = if (isOpenedFromLeftFlank) (rawX - touchDownRawX) else (touchDownRawX - rawX)
             if (categoryScrubbingEngaged && horizontalPull > (28f * density)) {
                 currentLayer = CruiseLayer.GRID; loadActiveCategoryGrid(); invalidate(); return
             }
@@ -1608,12 +1576,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 if (closestIndex != activeCatIndex) activeCatIndex = closestIndex
             }
         } else {
-            val horizontalPull = touchDownRawX - rawX
+            val horizontalPull = if (isOpenedFromLeftFlank) (rawX - touchDownRawX) else (touchDownRawX - rawX)
             // In GRID mode, allow navigating all the way to the rightmost column without prematurely kicking back to CATEGORY.
             // Only exit back to CATEGORY if the thumb slides all the way back to the physical screen edge (< 6dp pull).
             val nextLayerState = when {
                 horizontalPull <= (6f * density) -> CruiseLayer.CATEGORY
-                (wF - localX) <= (wF * 0.42f) -> CruiseLayer.GRID
+                (if (isOpenedFromLeftFlank) localX else (wF - localX)) <= (wF * 0.42f) -> CruiseLayer.GRID
                 else -> CruiseLayer.STICKY_PIN
             }
             if (currentLayer == CruiseLayer.GRID && nextLayerState == CruiseLayer.CATEGORY) {
@@ -1643,10 +1611,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 invalidate(); return
             }
 
-            // Map cursor progress so that the rightmost column is reached cleanly with zero edge collision
-            val pullDistance = (wF - localX).coerceAtLeast(0f)
+            // Map cursor progress so that the outermost column is reached cleanly with zero edge collision
+            val pullDistance = if (isOpenedFromLeftFlank) localX.coerceAtLeast(0f) else (wF - localX).coerceAtLeast(0f)
             val cursorProgress = ((pullDistance - (10f * density)) / (wF * 0.28f)).coerceIn(0f, 1f)
-            virtualCursorX = (wF * 0.94f) - (cursorProgress * (wF * 0.88f))
+            virtualCursorX = if (isOpenedFromLeftFlank) ((wF * 0.06f) + (cursorProgress * (wF * 0.88f))) else ((wF * 0.94f) - (cursorProgress * (wF * 0.88f)))
 
             val gTop = hF * 0.16f; val gBot = hF * 0.94f; val gScope = gBot - gTop
             virtualCursorY = gTop + (normalizedVerticalProgress * gScope)
@@ -1740,6 +1708,221 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         service?.updateWindowLayout(false)
         updateMetricsDimensions()
         invalidate()
+    }
+
+    fun startCruiseFromFlank(isLeft: Boolean, startRawX: Float, startRawY: Float) {
+        isOpenedFromLeftFlank = isLeft
+        touchDownRawX = startRawX
+        touchDownRawY = startRawY
+        lastTouchRawX = startRawX
+        lastTouchRawY = startRawY
+        touchDownTime = System.currentTimeMillis()
+        gestureStartX = startRawX
+        gestureStartY = startRawY
+
+        trackingStateLocked = false
+        initialLeftSweepDistance = 0f
+        lowestXReached = startRawX
+        highestYReached = startRawY
+        lowestYReached = startRawY
+        aggregateScrubAccumulator = 0f
+        isScrubEntranceHapticFired = false
+        currentDetectedGesture = MacroGesture.NONE
+        overScrollBoundaryAccumulator = 0f
+        settingsCategoryAppended = false
+
+        currentActiveZone = TouchZone.CENTER_CRUISE
+        isCruising = true
+        categoryScrubbingEngaged = false
+        maxVerticalDisplacement = 0f
+        categoryVisualOffset = 0f
+        entranceStartTime = System.currentTimeMillis()
+        lastLoadedCategoryId = null
+        snapAnimator?.cancel()
+        categoryAppsCache.clear(); categoryGridCache.clear()
+
+        val cPrefs = context.defaultPrefs()
+        val prefKey = if (isLeft) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+        val lastActiveKey = if (isLeft) "last_active_set_index_left" else "last_active_set_index_right"
+        val defVal = if (isLeft) "1" else "0"
+        val prefVal = cPrefs.getString(prefKey, defVal) ?: defVal
+        if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
+            activeGearSetIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", if (isLeft) 1 else 0))
+        } else {
+            activeGearSetIndex = prefVal.toIntOrNull() ?: (if (isLeft) 1 else 0)
+        }
+
+        currentLayer = CruiseLayer.NEUTRAL
+        updateMetricsDimensions()
+        placedAppsList.clear(); cachedApps = emptyList()
+        service?.updateWindowLayout(true)
+
+        cachedCategories = dataBridge.getLiveCategories()
+        if (cachedCategories.isNotEmpty()) {
+            val hF = if (height > 0) height.toFloat() else resources.displayMetrics.heightPixels.toFloat()
+            val startYArea = hF * 0.25f
+            val endYArea = hF * 0.75f
+            val usableHeight = endYArea - startYArea
+            val normY = ((startRawY - startYArea) / usableHeight).coerceIn(0f, 1f)
+            initialCatIndex = kotlin.math.floor(normY * cachedCategories.size).toInt().coerceIn(0, cachedCategories.size - 1)
+            activeCatIndex = initialCatIndex
+            val catLineH = usableHeight / cachedCategories.size
+            categoryVisualOffset = (hF / 2f) - (startYArea + (activeCatIndex * catLineH) + (catLineH / 2f))
+        }
+        uiHandler.removeCallbacks(neutralToCategoryRunnable)
+        uiHandler.postDelayed(neutralToCategoryRunnable, 140L)
+        invalidate()
+    }
+
+    fun handleFlankTouchEvent(isLeft: Boolean, event: MotionEvent): Boolean {
+        val rawX = event.rawX
+        val rawY = event.rawY
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                startCruiseFromFlank(isLeft, rawX, rawY)
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val density = resources.displayMetrics.density
+                if (isCruising) {
+                    val deltaX = if (isOpenedFromLeftFlank) (rawX - touchDownRawX) else (touchDownRawX - rawX)
+                    val deltaY = kotlin.math.abs(rawY - touchDownRawY)
+                    if (deltaY > maxVerticalDisplacement) {
+                        maxVerticalDisplacement = deltaY
+                    }
+
+                    // 1. Direct Lateral Inward Swipe -> Open Gears
+                    if ((currentLayer == CruiseLayer.NEUTRAL || currentLayer == CruiseLayer.CATEGORY) &&
+                        !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
+                        uiHandler.removeCallbacks(neutralToCategoryRunnable)
+                        val cPrefs = context.defaultPrefs()
+                        val prefKey = if (isOpenedFromLeftFlank) "pref_left_initial_gear_set" else "pref_right_initial_gear_set"
+                        val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
+                        val defVal = if (isOpenedFromLeftFlank) "1" else "0"
+                        val prefVal = cPrefs.getString(prefKey, defVal) ?: defVal
+                        if (prefVal == "remember_last" || cPrefs.getString("cockpit_launch_behavior", "default") == "last") {
+                            activeGearSetIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", if (isOpenedFromLeftFlank) 1 else 0))
+                        } else {
+                            activeGearSetIndex = prefVal.toIntOrNull() ?: (if (isOpenedFromLeftFlank) 1 else 0)
+                        }
+                        currentLayer = CruiseLayer.FAVORITES_GEARS
+                        triggerHardwareHaptic(30, 180)
+                    }
+
+                    // 2. Deliberate vertical movement -> Engage Category 3D Cylinder
+                    if (currentLayer == CruiseLayer.NEUTRAL && maxVerticalDisplacement > (14f * density)) {
+                        uiHandler.removeCallbacks(neutralToCategoryRunnable)
+                        categoryScrubbingEngaged = true
+                        currentLayer = CruiseLayer.CATEGORY
+                        entranceStartTime = System.currentTimeMillis()
+                    }
+
+                    if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
+                        processGyroscopeTouchPhysics(rawX, rawY)
+                    } else if (currentLayer == CruiseLayer.CATEGORY || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN) {
+                        evaluateSpatialMetrics(rawX, rawY, rawX, rawY)
+                    }
+                    lastTouchRawX = rawX
+                    lastTouchRawY = rawY
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isScrubEntranceHapticFired = false
+                uiHandler.removeCallbacks(holdTimerRunnable)
+                if (isCruising) {
+                    if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
+                        val packages = getAppsForActiveGear(activeGearSetIndex, activeGearRing)
+                        if (packages.isNotEmpty() && activeGearRing in 0..1) {
+                            val itemCount = packages.size
+                            val currentRotation = gearRingRotations[activeGearRing]
+                            val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
+                            var targetedPackage: String? = null
+                            var minAngleDiff = Float.MAX_VALUE
+                            
+                            for (i in packages.indices) {
+                                val itemAngle = (currentRotation + i * (360f / itemCount)) % 360f
+                                val normalizedAngle = if (itemAngle < 0) itemAngle + 360f else itemAngle
+                                val diff = minOf(kotlin.math.abs(normalizedAngle - targetAngle), 360f - kotlin.math.abs(normalizedAngle - targetAngle))
+                                if (diff < minAngleDiff) {
+                                    minAngleDiff = diff
+                                    targetedPackage = packages[i]
+                                }
+                            }
+                            
+                            if (targetedPackage != null) {
+                                val density = resources.displayMetrics.density
+                                val cx = width / 2f
+                                val cy = height / 2f
+                                val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
+                                val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
+                                val currentTrackRadius = if (activeGearRing == 0) rad0 else rad1
+                                val targetedX = if (isOpenedFromLeftFlank) (cx + currentTrackRadius) else (cx - currentTrackRadius)
+                                val targetedY = cy
+
+                                triggerHyperdriveWarpLaunch(targetedX, targetedY) {
+                                    com.sbf.lightspeed.system.ActionDispatcher.execute(service ?: context, targetedPackage)
+                                }
+                                return true
+                            }
+                        } else if (activeGearRing == 2) {
+                            triggerHardwareHaptic(50, 220)
+                            persistActiveGearSetIndex()
+                            val cPrefs = context.defaultPrefs()
+                            val setsString = cPrefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
+                            val setsList = setsString.split(",").filter { it.isNotEmpty() }
+                            val d = resources.displayMetrics.density
+                            val deckW = width * 0.88f
+                            val bayCount = setsList.size + 1
+                            val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
+                            val totalBayRailW = bayCount * slotW
+                            val maxScroll = (totalBayRailW - deckW).coerceAtLeast(0f)
+                            if (totalBayRailW > deckW) {
+                                val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
+                                hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
+                            } else {
+                                hangarBayScrollOffset = 0f
+                            }
+                            currentLayer = CruiseLayer.COCKPIT_HANGAR
+                            invalidate()
+                            return true
+                        }
+                        currentLayer = CruiseLayer.HIDDEN
+                        isCruising = false
+                        service?.updateWindowLayout(false)
+                        updateMetricsDimensions()
+                        invalidate()
+                        return true
+                    }
+
+                    uiHandler.removeCallbacks(neutralToCategoryRunnable)
+                    if (currentLayer == CruiseLayer.STICKY_PIN) {
+                        isStickyPinned = true; currentLayer = CruiseLayer.GRID
+                        updateMetricsDimensions(); invalidate()
+                    } else if (currentLayer == CruiseLayer.CATEGORY && activeCatIndex in cachedCategories.indices && cachedCategories[activeCatIndex].id == "launcher_settings_virtual_id") {
+                        launchLauncherSettings()
+                    } else if (currentLayer == CruiseLayer.NEUTRAL) {
+                        dismissOverlay()
+                    } else {
+                        val launchTarget = activeItem
+                        if (launchTarget != null) {
+                            val placed = placedAppsList.find { it.app == launchTarget }
+                            val focalX = placed?.bounds?.centerX() ?: (width / 2f)
+                            val focalY = placed?.bounds?.centerY() ?: (height / 2f)
+                            triggerHyperdriveWarpLaunch(focalX, focalY) {
+                                executeLaunch(launchTarget)
+                            }
+                        } else {
+                            dismissOverlay()
+                        }
+                    }
+                    isCruising = false
+                }
+                invalidate()
+                return true
+            }
+        }
+        return false
     }
 
     fun openHangarDirectly(setIndex: Int = -1) {
@@ -1997,10 +2180,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
         }
         
-        // Horizontal Laser Alignment Lead Line extending to left bezel
+        // Horizontal Laser Alignment Lead Line extending to bezel
         elementPaint.strokeWidth = 1.2f * density
         elementPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-        canvas.drawLine(0f, targetCY, targetCX - half - 10f, targetCY, elementPaint)
+        if (isOpenedFromLeftFlank) {
+            canvas.drawLine(0f, targetCY, targetCX - half - 10f, targetCY, elementPaint)
+        } else {
+            canvas.drawLine(width.toFloat(), targetCY, targetCX + half + 10f, targetCY, elementPaint)
+        }
 
         // Holographic Telemetry Label above/adjacent target
         textPaint.textSize = 12f * density
@@ -2028,7 +2215,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         val finalBadgeWidth = maxOf(titleWidth, subWidth).coerceAtLeast(54f * density)
         
-        val badgeX = targetCX + half + 14f * density
+        val badgeX = if (isOpenedFromLeftFlank) (targetCX + half + 14f * density) else (targetCX - half - 14f * density - finalBadgeWidth)
         val badgeY = targetCY - 6f * density
         
         // Target Lock Badge Frame
@@ -2259,7 +2446,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private fun processGyroscopeTouchPhysics(rawX: Float, rawY: Float) {
         val density = resources.displayMetrics.density
-        val deltaX = touchDownRawX - rawX
+        val deltaX = if (isOpenedFromLeftFlank) (rawX - touchDownRawX) else (touchDownRawX - rawX)
         val deltaY = rawY - lastTouchRawY
 
         // Abort Track: Closing down gear layer if thumb slides back to bezel origin
@@ -2310,24 +2497,25 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             else -> 1.0f
         }
 
-        val baseDegreesPerDp = 1.35f * physicsMultiplier
+        val baseDegreesPerDp = (if (isOpenedFromLeftFlank) -1.35f else 1.35f) * physicsMultiplier
         val dyInDp = deltaY / density
 
         if (activeGearRing in 0..1) {
             val angularDeltaDeg = dyInDp * baseDegreesPerDp
             gearRingRotations[activeGearRing] += angularDeltaDeg
 
-            // Physical Mechanical Cog Notch Haptics as icons cross the 180° focus reticle
+            // Physical Mechanical Cog Notch Haptics as icons cross the focus reticle (0° for Left, 180° for Right)
             val packages = getAppsForActiveGear(activeGearSetIndex, activeGearRing)
             if (packages.isNotEmpty()) {
                 val itemCount = packages.size
                 val currentRot = gearRingRotations[activeGearRing]
+                val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
                 var closestIdx = 0
                 var minDiff = Float.MAX_VALUE
                 for (i in packages.indices) {
                     val itemAngle = (currentRot + i * (360f / itemCount)) % 360f
                     val norm = if (itemAngle < 0) itemAngle + 360f else itemAngle
-                    val diff = kotlin.math.abs(norm - 180f)
+                    val diff = minOf(kotlin.math.abs(norm - targetAngle), 360f - kotlin.math.abs(norm - targetAngle))
                     if (diff < minDiff) {
                         minDiff = diff
                         closestIdx = i
@@ -3086,9 +3274,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val iconCX = cx + radius * Math.cos(angleRad).toFloat()
                     val iconCY = cy + radius * Math.sin(angleRad).toFloat()
                     
-                    // Dynamic Focus Interpolation: Target angle is 180 deg (straight left)
+                    // Dynamic Focus Interpolation: Target angle is 0 deg for left flank, 180 deg for right flank
                     val normalizedDeg = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                    val isHighlighted = isRingFocused && abs(normalizedDeg - 180f) < (180f / count)
+                    val targetAngle = if (isOpenedFromLeftFlank) 0f else 180f
+                    val angleDiff = minOf(abs(normalizedDeg - targetAngle), 360f - abs(normalizedDeg - targetAngle))
+                    val isHighlighted = isRingFocused && angleDiff < (180f / count)
                     val currentScale = if (isHighlighted) 1.28f else 1.0f
                     val currentSize = (sizeRaw * currentScale).toInt()
                     
@@ -3137,7 +3327,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
             }
 
-            // 3. Draw 180° Flight Lock Targeting Reticle & Holographic Badge AFTER all rings & pods are drawn (Top of Z-Stack)
+            // 3. Draw Flight Lock Targeting Reticle & Holographic Badge AFTER all rings & pods are drawn (Top of Z-Stack)
             if (activeHighlightedLabel != null) {
                 drawFlightLockReticle(
                     canvas = canvas,
@@ -3184,7 +3374,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             textPaint.textSize = 8.5f * density
             textPaint.typeface = android.graphics.Typeface.DEFAULT
             textPaint.color = Color.argb(160, 180, 210, 245)
-            canvas.drawText("PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
+            canvas.drawText(if (isOpenedFromLeftFlank) "PULL RIGHT >> SWITCH PROFILE  •  SLIDE LEFT << CANCEL" else "PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
             return
         }
 
@@ -3229,7 +3419,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             textPaint.textSize = 8.5f * density
             textPaint.typeface = android.graphics.Typeface.DEFAULT
             textPaint.color = Color.argb((160 * decelerationFactor).toInt(), 180, 210, 245)
-            canvas.drawText("PULL LEFT >> ENTER STAR SYSTEM  •  SLIDE RIGHT << CANCEL", w / 2f, topBadgeY + 26f * density, textPaint)
+            canvas.drawText(if (isOpenedFromLeftFlank) "PULL RIGHT >> ENTER STAR SYSTEM  •  SLIDE LEFT << CANCEL" else "PULL LEFT >> ENTER STAR SYSTEM  •  SLIDE RIGHT << CANCEL", w / 2f, topBadgeY + 26f * density, textPaint)
 
             // 4. Galactic Horizon: Cruising Through Nebulae & Star Systems
             if (cachedCategories.isNotEmpty()) {
@@ -3241,8 +3431,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     val relativeDistanceFromCenter = centerY - (h / 2f)
                     val sweepAngleRad = (relativeDistanceFromCenter / ((endYArea - startYArea) / 2f)).coerceIn(-1.2f, 1.2f) * (PI / 2.6f)
                     
-                    // Natural right anchor with safe 28dp margin from screen edge
-                    val targetTextX = w - (28f * density) - (cos(sweepAngleRad).toFloat() * 160f * density)
+                    // Symmetrical anchor based on flank origin
+                    val targetTextX = if (isOpenedFromLeftFlank) {
+                        (28f * density) + (cos(sweepAngleRad).toFloat() * 160f * density)
+                    } else {
+                        w - (28f * density) - (cos(sweepAngleRad).toFloat() * 160f * density)
+                    }
                     val distanceRatio = (abs(relativeDistanceFromCenter) / ((endYArea - startYArea) / 2f)).coerceIn(0f, 1f)
                     val zoom = 0.70f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.35f
 
@@ -3250,7 +3444,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     if (idx == activeCatIndex) {
                         drawGalacticNebula(
                             canvas = canvas,
-                            cx = targetTextX - (100f * density),
+                            cx = if (isOpenedFromLeftFlank) targetTextX + (100f * density) else targetTextX - (100f * density),
                             cy = centerY,
                             radius = 185f * density,
                             m3Primary = m3Primary,
@@ -3281,7 +3475,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     // 2. Smoothly interpolate font size, alpha, and color with distance from center
                     val currentTextSize = 13f * density + (baseTargetSize - 13f * density) * focusFactor
                     catTextPaint.textSize = currentTextSize
-                    catTextPaint.textAlign = Paint.Align.RIGHT
+                    catTextPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
                     catTextPaint.typeface = if (focusFactor > 0.6f) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
 
                     // Color interpolation: Dim starlight (#9EA7B8) to blazing white
@@ -3298,12 +3492,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     if (focusFactor > 0.25f) {
                         val measuredLabelW = catTextPaint.measureText(labelText)
                         val beaconAlpha = ((focusFactor - 0.25f) / 0.75f).coerceIn(0f, 1f)
-                        textPaint.textAlign = Paint.Align.RIGHT
+                        textPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
                         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                         textPaint.textSize = (currentTextSize * 0.75f).coerceAtLeast(8.5f * density)
                         textPaint.color = m3Primary
                         textPaint.alpha = (255 * beaconAlpha * decelerationFactor).toInt()
-                        canvas.drawText("✦", targetTextX - measuredLabelW - 6f * density, centerY + 5.5f * density, textPaint)
+                        val beaconX = if (isOpenedFromLeftFlank) targetTextX + measuredLabelW + 6f * density else targetTextX - measuredLabelW - 6f * density
+                        canvas.drawText("✦", beaconX, centerY + 5.5f * density, textPaint)
                     }
                     canvas.restore()
                 }

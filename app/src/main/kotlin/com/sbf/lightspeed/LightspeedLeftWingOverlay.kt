@@ -170,12 +170,6 @@ class LightspeedLeftWingOverlay(
 
     private val holdRunnable = Runnable {
         if (!isScrubbing) {
-            if (activeZoneKey == "LEFT_CENTER") {
-                isHoldFired = true
-                triggerHaptic(35, 180)
-                (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
-                return@Runnable
-            }
             val gestureKey = if (currentGesture == "NONE") "TAP" else currentGesture
             val action = getEffectiveAction(activeZoneKey, gestureKey, true)
             if (action != "none") {
@@ -251,7 +245,12 @@ class LightspeedLeftWingOverlay(
                     else -> "LEFT_CENTER"
                 }
 
-                val scrubAction = if (activeZoneKey == "LEFT_CENTER") "none" else (prefs.getString("pref_macro_action_${activeZoneKey}_SCRUBBING", "none") ?: "none")
+                if (activeZoneKey == "LEFT_CENTER") {
+                    (service as? LightspeedAccessibilityService)?.startCruiseFromLeft(rawX, rawY)
+                    return true
+                }
+
+                val scrubAction = prefs.getString("pref_macro_action_${activeZoneKey}_SCRUBBING", "none") ?: "none"
                 scrubType = scrubAction
 
                 uiHandler.removeCallbacks(holdRunnable)
@@ -260,6 +259,11 @@ class LightspeedLeftWingOverlay(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                if (activeZoneKey == "LEFT_CENTER") {
+                    (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = event)
+                    return true
+                }
+
                 val dx = rawX - startRawX
                 val dy = rawY - startRawY
                 val totalDist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
@@ -331,6 +335,11 @@ class LightspeedLeftWingOverlay(
 
             MotionEvent.ACTION_UP -> {
                 uiHandler.removeCallbacks(holdRunnable)
+                if (activeZoneKey == "LEFT_CENTER") {
+                    (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = event)
+                    return true
+                }
+
                 val totalDist = hypot((rawX - startRawX).toDouble(), (rawY - startRawY).toDouble()).toFloat()
 
                 if (isScrubbing) {
@@ -343,10 +352,7 @@ class LightspeedLeftWingOverlay(
                 }
 
                 if (!isHoldFired) {
-                    if (activeZoneKey == "LEFT_CENTER") {
-                        triggerHaptic(35, 180)
-                        (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
-                    } else if (totalDist < 18f) {
+                    if (totalDist < 18f) {
                         handleTap()
                     } else if (currentGesture != "NONE") {
                         val action = getEffectiveAction(activeZoneKey, currentGesture, false)
@@ -361,6 +367,10 @@ class LightspeedLeftWingOverlay(
 
             MotionEvent.ACTION_CANCEL -> {
                 uiHandler.removeCallbacks(holdRunnable)
+                if (activeZoneKey == "LEFT_CENTER") {
+                    (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = event)
+                    return true
+                }
                 isTwoStepDownwardScrub = false
                 isScrubbing = false
                 hudTitle = ""

@@ -663,21 +663,6 @@ class GearPickerActivity : ComponentActivity() {
                                             is PickerRowItem.AppHeader -> {
                                                 val appKey = "app:${item.packageName}"
                                                 val isAppSelected = selectedTokens.contains(item.appToken)
-
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 2.dp)
-                                                        .clip(RoundedCornerShape(12.dp))
-                                                        .background(
-                                                            if (isAppSelected) dynamicPrimary.copy(alpha = 0.26f)
-                                                            else Color.White.copy(alpha = 0.05f)
-                                                        )
-                                                        .border(
-                                                            width = 1.dp,
-                                                            color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.06f),
-                                                            shape = RoundedCornerShape(12.dp)
-                                                        )
                                                 val hasShortcuts = item.totalShortcuts > 0
 
                                                 Row(

@@ -337,6 +337,13 @@ object LightspeedIconManager {
                         context.createPackageContext(extractedPkg, Context.CONTEXT_IGNORE_SECURITY)
                     } catch (_: Exception) { context }
 
+                    val themeRes = activityInfo.themeResource.takeIf { it != 0 }
+                        ?: activityInfo.applicationInfo.theme.takeIf { it != 0 }
+                        ?: 0
+                    if (themeRes != 0) {
+                        try { targetContext.setTheme(themeRes) } catch (_: Exception) {}
+                    }
+
                     val iconRes = activityInfo.iconResource.takeIf { it != 0 }
                         ?: activityInfo.applicationInfo.icon.takeIf { it != 0 }
                         ?: resolveInfo.iconResource.takeIf { it != 0 }

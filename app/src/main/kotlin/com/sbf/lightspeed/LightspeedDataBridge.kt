@@ -77,9 +77,9 @@ class LightspeedDataBridge(private val context: Context) {
                 val actv = resolveInfo.activityInfo.name
                 val label = resolveInfo.loadLabel(pm)?.toString() ?: pkg
 
-                // Background decode and cache icon
+                // Background decode and cache icon using themed IconManager
                 try {
-                    val icon = resolveInfo.loadIcon(pm)
+                    val icon = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, pkg)
                     if (icon != null) {
                         iconCache[pkg] = icon
                     }

@@ -99,22 +99,19 @@ object LightspeedShortcutManager {
         val w = bmp.width
         val h = bmp.height
         val first = bmp.getPixel(0, 0)
-        if (first == Color.BLACK || first == Color.WHITE || first == 0) {
-            val stepX = (w / 6).coerceAtLeast(1)
-            val stepY = (h / 6).coerceAtLeast(1)
-            var hasVariation = false
-            for (x in 0 until w step stepX) {
-                for (y in 0 until h step stepY) {
-                    if (bmp.getPixel(x, y) != first) {
-                        hasVariation = true
-                        break
-                    }
+        // If whole image is solid single color (e.g. solid unbroken black/transparent), check samples across center
+        val center = bmp.getPixel(w / 2, h / 2)
+        if (first != center) return false
+        val stepX = (w / 8).coerceAtLeast(1)
+        val stepY = (h / 8).coerceAtLeast(1)
+        for (x in stepX until w step stepX) {
+            for (y in stepY until h step stepY) {
+                if (bmp.getPixel(x, y) != first) {
+                    return false
                 }
-                if (hasVariation) break
             }
-            if (!hasVariation) return true
         }
-        return false
+        return true
     }
 
     fun purgeCorruptedIcons(context: Context) {

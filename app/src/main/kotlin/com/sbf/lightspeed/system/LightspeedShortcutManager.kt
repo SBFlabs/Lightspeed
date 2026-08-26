@@ -120,13 +120,33 @@ object LightspeedShortcutManager {
     fun purgeCorruptedIcons(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+                val allShortcutHashes = mutableSetOf<String>()
+                prefs.all.forEach { (k, v) ->
+                    val str = v?.toString() ?: ""
+                    if (str.startsWith("shortcut:") || str.startsWith("custom:")) {
+                        allShortcutHashes.add(str.hashCode().toString())
+                    }
+                    if (k.startsWith("gear_set_") && k.contains("_packages")) {
+                        str.split(",").map { it.trim() }.filter { it.startsWith("shortcut:") || it.startsWith("custom:") }.forEach {
+                            allShortcutHashes.add(it.hashCode().toString())
+                        }
+                    }
+                }
+
                 val dir = File(context.filesDir, "shortcut_icons")
                 if (dir.exists() && dir.isDirectory) {
                     dir.listFiles()?.forEach { file ->
                         if (file.isFile && file.name.endsWith(".png")) {
-                            val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
-                            if (bmp == null || isCorruptBitmap(bmp)) {
+                            val key = file.nameWithoutExtension
+                            // Delete if not an active shortcut or if bitmap is corrupted
+                            if (!allShortcutHashes.contains(key)) {
                                 file.delete()
+                            } else {
+                                val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                                if (bmp == null || isCorruptBitmap(bmp)) {
+                                    file.delete()
+                                }
                             }
                         }
                     }

@@ -53,14 +53,27 @@ object LightspeedBackupEngine {
             }
             put("settings", settingsObject)
 
-            // Embed custom shortcut icon bitmaps as Base64 strings
+            // Embed custom shortcut icon bitmaps as Base64 strings (Strictly for actual custom shortcuts)
             val iconsObject = JSONObject()
             try {
+                val validShortcutHashes = mutableSetOf<String>()
+                settingsObject.keys().forEach { k ->
+                    val v = settingsObject.optString(k, "")
+                    if (v.startsWith("shortcut:") || v.startsWith("custom:")) {
+                        validShortcutHashes.add(v.hashCode().toString())
+                    }
+                    if (k.startsWith("gear_set_") && k.contains("_packages")) {
+                        v.split(",").map { it.trim() }.filter { it.startsWith("shortcut:") || it.startsWith("custom:") }.forEach {
+                            validShortcutHashes.add(it.hashCode().toString())
+                        }
+                    }
+                }
+
                 val dir = java.io.File(context.filesDir, "shortcut_icons")
                 if (dir.exists() && dir.isDirectory) {
                     dir.listFiles()?.forEach { iconFile ->
-                        if (iconFile.isFile && iconFile.length() > 0 && iconFile.name.endsWith(".png")) {
-                            val key = iconFile.nameWithoutExtension
+                        val key = iconFile.nameWithoutExtension
+                        if (iconFile.isFile && iconFile.length() > 0 && iconFile.name.endsWith(".png") && validShortcutHashes.contains(key)) {
                             val bytes = iconFile.readBytes()
                             val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                             iconsObject.put(key, b64)
@@ -189,20 +202,38 @@ object LightspeedBackupEngine {
                 editor.apply()
             }
 
-            // Restore custom shortcut icons from Base64
+            // Restore custom shortcut icons from Base64 (Strictly for actual custom shortcuts)
             val iconsObject = root.optJSONObject("shortcut_icons")
             if (iconsObject != null) {
                 try {
+                    val validShortcutHashes = mutableSetOf<String>()
+                    val settingsObj = root.optJSONObject("settings")
+                    if (settingsObj != null) {
+                        settingsObj.keys().forEach { k ->
+                            val v = settingsObj.optString(k, "")
+                            if (v.startsWith("shortcut:") || v.startsWith("custom:")) {
+                                validShortcutHashes.add(v.hashCode().toString())
+                            }
+                            if (k.startsWith("gear_set_") && k.contains("_packages")) {
+                                v.split(",").map { it.trim() }.filter { it.startsWith("shortcut:") || it.startsWith("custom:") }.forEach {
+                                    validShortcutHashes.add(it.hashCode().toString())
+                                }
+                            }
+                        }
+                    }
+
                     val dir = java.io.File(context.filesDir, "shortcut_icons")
                     if (!dir.exists()) dir.mkdirs()
                     val iconKeys = iconsObject.keys()
                     while (iconKeys.hasNext()) {
                         val key = iconKeys.next()
-                        val b64 = iconsObject.getString(key)
-                        if (b64.isNotBlank()) {
-                            val bytes = android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)
-                            val file = java.io.File(dir, "$key.png")
-                            file.writeBytes(bytes)
+                        if (validShortcutHashes.contains(key)) {
+                            val b64 = iconsObject.getString(key)
+                            if (b64.isNotBlank()) {
+                                val bytes = android.util.Base64.decode(b64, android.util.Base64.NO_WRAP)
+                                val file = java.io.File(dir, "$key.png")
+                                file.writeBytes(bytes)
+                            }
                         }
                     }
                     LightspeedShortcutManager.clearMemoryCache()

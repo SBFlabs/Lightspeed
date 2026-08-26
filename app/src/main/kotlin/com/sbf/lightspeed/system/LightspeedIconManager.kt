@@ -319,22 +319,43 @@ object LightspeedIconManager {
             }
         }
 
-        // 3. Clean System App Icon Resolution (preserves authentic system styling)
+        // 3. Clean System App Icon Resolution (with Target App Theme Context)
         return try {
             val pm = context.packageManager
-
-            // A. Primary: QueryIntentActivities loadIcon (Resolves active launcher <activity-alias> and user custom in-app icons like Plus Messenger)
             var rawDrawable: Drawable? = null
+
+            // A. Primary: Query active launcher activity and inflate with Target App's Theme Context
             try {
                 val intent = Intent(Intent.ACTION_MAIN).apply {
                     addCategory(Intent.CATEGORY_LAUNCHER)
                     setPackage(extractedPkg)
                 }
                 val resolveInfo = pm.queryIntentActivities(intent, 0).firstOrNull()
-                rawDrawable = resolveInfo?.loadIcon(pm)
+                if (resolveInfo != null) {
+                    val activityInfo = resolveInfo.activityInfo
+                    val targetContext = try {
+                        context.createPackageContext(extractedPkg, Context.CONTEXT_IGNORE_SECURITY)
+                    } catch (_: Exception) { context }
+
+                    val iconRes = activityInfo.iconResource.takeIf { it != 0 }
+                        ?: activityInfo.applicationInfo.icon.takeIf { it != 0 }
+                        ?: resolveInfo.iconResource.takeIf { it != 0 }
+                        ?: 0
+
+                    if (iconRes != 0) {
+                        try {
+                            val density = context.resources.displayMetrics.densityDpi
+                            rawDrawable = targetContext.resources.getDrawableForDensity(iconRes, density, targetContext.theme)
+                        } catch (_: Exception) {}
+                    }
+
+                    if (rawDrawable == null) {
+                        rawDrawable = resolveInfo.loadIcon(pm)
+                    }
+                }
             } catch (_: Exception) {}
 
-            // B. Secondary: LauncherApps activity icon (preserves system overlays if available)
+            // B. Secondary: LauncherApps activity icon
             if (rawDrawable == null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                 try {
                     val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps

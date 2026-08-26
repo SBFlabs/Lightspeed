@@ -56,7 +56,6 @@ class LightspeedAccessibilityService : AccessibilityService() {
         instance = this
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
-        dataBridge?.refreshCacheAsync()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
         // 1. Initialize Right Sidebar Overlay Window

@@ -58,7 +58,7 @@ class LightspeedDataBridge(private val context: Context) {
     }
 
     fun getIcon(packageName: String): Drawable? {
-        return com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, packageName)
+        return iconCache[packageName] ?: com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, packageName)
     }
 
     fun refreshCacheAsync(onComplete: (() -> Unit)? = null) {

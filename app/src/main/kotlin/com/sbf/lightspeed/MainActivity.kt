@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {}
 
         checkAndRequest()
+        com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
 
         setContent {
             LightspeedTheme {

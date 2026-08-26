@@ -115,6 +115,8 @@ class GearPickerActivity : ComponentActivity() {
         val dynamicPrimary = Color(primaryAccent)
         val dynamicSecondary = Color(secondaryAccent)
 
+        com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
+        LightspeedActionRegistry.iconBitmapCache.clear()
         LightspeedActionRegistry.initializeSync(this)
 
         val prefs = defaultPrefs()

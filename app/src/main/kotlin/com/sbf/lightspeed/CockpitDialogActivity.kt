@@ -293,17 +293,7 @@ fun EditItemContent(
             contentAlignment = Alignment.Center
         ) {
             val bmp = remember(currentDrawable) {
-                if (currentDrawable is BitmapDrawable) {
-                    currentDrawable.bitmap
-                } else if (currentDrawable != null) {
-                    val w = currentDrawable.intrinsicWidth.coerceIn(48, 128)
-                    val h = currentDrawable.intrinsicHeight.coerceIn(48, 128)
-                    val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(b)
-                    currentDrawable.setBounds(0, 0, w, h)
-                    currentDrawable.draw(canvas)
-                    b
-                } else null
+                currentDrawable?.let { LightspeedIconManager.convertDrawableToBitmap(it) }
             }
 
             if (bmp != null) {

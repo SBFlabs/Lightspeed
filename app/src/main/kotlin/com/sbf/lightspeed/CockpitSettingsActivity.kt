@@ -44,6 +44,8 @@ class CockpitSettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
+        LightspeedActionRegistry.iconBitmapCache.clear()
         LightspeedActionRegistry.initializeSync(this)
 
         setContent {

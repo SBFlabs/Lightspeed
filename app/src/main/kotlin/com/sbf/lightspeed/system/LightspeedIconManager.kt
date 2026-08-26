@@ -354,6 +354,14 @@ object LightspeedIconManager {
             }
 
             val finalDrawable = rawDrawable ?: pm.getApplicationIcon(extractedPkg)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && finalDrawable is android.graphics.drawable.AdaptiveIconDrawable) {
+                val bmp = convertDrawableToBitmap(finalDrawable)
+                if (bmp != null) {
+                    val d = BitmapDrawable(context.resources, bmp)
+                    drawableCache[tokenOrPkg] = d
+                    return d
+                }
+            }
             val mutated = finalDrawable.constantState?.newDrawable()?.mutate() ?: finalDrawable.mutate()
             mutated.alpha = 255
             drawableCache[tokenOrPkg] = mutated
@@ -512,14 +520,59 @@ object LightspeedIconManager {
             }
         }
 
+        val size = 192
+
+        // Multi-Layer AdaptiveIconDrawable Composition (Bypasses Android 13/14 monochrome filter)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && workingDrawable is android.graphics.drawable.AdaptiveIconDrawable) {
+            return try {
+                val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bmp)
+
+                // 1. Clip canvas to system adaptive mask shape
+                val mask = workingDrawable.iconMask
+                if (mask != null) {
+                    val matrix = android.graphics.Matrix()
+                    // Mask is defined on a 100x100 viewport in AOSP
+                    matrix.setScale(size / 100f, size / 100f)
+                    val transformedMask = android.graphics.Path()
+                    mask.transform(matrix, transformedMask)
+                    canvas.clipPath(transformedMask)
+                }
+
+                // 2. Draw Background layer (with standard 1/6th margin inset for 108dp viewport)
+                val bg = workingDrawable.background?.constantState?.newDrawable()?.mutate() ?: workingDrawable.background?.mutate()
+                val inset = (size * 0.1667f).toInt()
+                if (bg != null) {
+                    bg.setBounds(-inset, -inset, size + inset, size + inset)
+                    bg.alpha = 255
+                    bg.draw(canvas)
+                } else {
+                    canvas.drawColor(android.graphics.Color.parseColor("#1C2230"))
+                }
+
+                // 3. Draw Foreground layer (with standard 1/6th margin inset for 108dp viewport)
+                val fg = workingDrawable.foreground?.constantState?.newDrawable()?.mutate() ?: workingDrawable.foreground?.mutate()
+                if (fg != null) {
+                    fg.setBounds(-inset, -inset, size + inset, size + inset)
+                    fg.alpha = 255
+                    fg.draw(canvas)
+                }
+
+                bmp
+            } catch (e: Exception) {
+                Log.w(TAG, "Error composing AdaptiveIconDrawable", e)
+                null
+            }
+        }
+
         val rawW = workingDrawable.intrinsicWidth
         val rawH = workingDrawable.intrinsicHeight
-        val size = if (rawW > 0 && rawH > 0) maxOf(rawW, rawH).coerceIn(96, 256) else 192
+        val targetSize = if (rawW > 0 && rawH > 0) maxOf(rawW, rawH).coerceIn(96, 256) else size
 
         return try {
-            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val bmp = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bmp)
-            workingDrawable.setBounds(0, 0, size, size)
+            workingDrawable.setBounds(0, 0, targetSize, targetSize)
             workingDrawable.draw(canvas)
             bmp
         } catch (e: Exception) {

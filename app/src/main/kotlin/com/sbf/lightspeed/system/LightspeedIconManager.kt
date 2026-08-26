@@ -338,10 +338,17 @@ object LightspeedIconManager {
             }
 
             val defaultDrawable = launcherDrawable ?: pm.getApplicationIcon(extractedPkg)
-            val mutated = defaultDrawable.constantState?.newDrawable()?.mutate() ?: defaultDrawable.mutate()
-            mutated.alpha = 255
-            drawableCache[tokenOrPkg] = mutated
-            mutated.constantState?.newDrawable()?.mutate() ?: mutated
+            val convertedBmp = convertDrawableToBitmap(defaultDrawable)
+            val finalDrawable = if (convertedBmp != null) {
+                BitmapDrawable(context.resources, convertedBmp)
+            } else {
+                val mutated = defaultDrawable.constantState?.newDrawable()?.mutate() ?: defaultDrawable.mutate()
+                mutated.alpha = 255
+                mutated
+            }
+
+            drawableCache[tokenOrPkg] = finalDrawable
+            finalDrawable.constantState?.newDrawable()?.mutate() ?: finalDrawable
         } catch (_: Exception) {
             null
         }
@@ -491,23 +498,60 @@ object LightspeedIconManager {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && bmp.config == Bitmap.Config.HARDWARE) {
                 return bmp.copy(Bitmap.Config.ARGB_8888, false)
             }
-            if (bmp.width > 0 && bmp.height > 0) {
+            if (bmp.width > 0 && bmp.height > 0 && !LightspeedShortcutManager.isCorruptBitmap(bmp)) {
                 return bmp
+            }
+        }
+
+        val targetSize = 192
+
+        // Explicitly render AdaptiveIconDrawable background + foreground layers
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && workingDrawable is android.graphics.drawable.AdaptiveIconDrawable) {
+            try {
+                val bmp = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bmp)
+
+                val path = android.graphics.Path().apply {
+                    addRoundRect(
+                        0f, 0f, targetSize.toFloat(), targetSize.toFloat(),
+                        targetSize * 0.22f, targetSize * 0.22f,
+                        android.graphics.Path.Direction.CW
+                    )
+                }
+                canvas.clipPath(path)
+
+                val bg = workingDrawable.background?.constantState?.newDrawable()?.mutate() ?: workingDrawable.background?.mutate()
+                if (bg != null) {
+                    bg.setBounds(0, 0, targetSize, targetSize)
+                    bg.alpha = 255
+                    bg.draw(canvas)
+                } else {
+                    canvas.drawColor(android.graphics.Color.argb(255, 24, 28, 38))
+                }
+
+                val fg = workingDrawable.foreground?.constantState?.newDrawable()?.mutate() ?: workingDrawable.foreground?.mutate()
+                if (fg != null) {
+                    fg.setBounds(0, 0, targetSize, targetSize)
+                    fg.alpha = 255
+                    fg.draw(canvas)
+                }
+
+                if (!LightspeedShortcutManager.isCorruptBitmap(bmp)) {
+                    return bmp
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Error rendering AdaptiveIconDrawable", e)
             }
         }
 
         val rawW = workingDrawable.intrinsicWidth
         val rawH = workingDrawable.intrinsicHeight
-        val targetSize = if (rawW > 0 && rawH > 0) {
-            maxOf(rawW, rawH).coerceIn(96, 256)
-        } else {
-            192
-        }
+        val size = if (rawW > 0 && rawH > 0) maxOf(rawW, rawH).coerceIn(96, 256) else targetSize
 
         return try {
-            val bmp = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
+            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bmp)
-            workingDrawable.setBounds(0, 0, targetSize, targetSize)
+            workingDrawable.setBounds(0, 0, size, size)
             workingDrawable.draw(canvas)
             bmp
         } catch (e: Exception) {

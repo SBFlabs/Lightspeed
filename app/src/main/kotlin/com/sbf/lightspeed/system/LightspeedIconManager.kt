@@ -323,25 +323,23 @@ object LightspeedIconManager {
         return try {
             val pm = context.packageManager
 
-            // A. Primary: LauncherApps activity icon (system adaptive shape & theme overlays)
+            // A. Primary: QueryIntentActivities loadIcon (Resolves active launcher <activity-alias> and user custom in-app icons like Plus Messenger)
             var rawDrawable: Drawable? = null
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                val intent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    setPackage(extractedPkg)
+                }
+                val resolveInfo = pm.queryIntentActivities(intent, 0).firstOrNull()
+                rawDrawable = resolveInfo?.loadIcon(pm)
+            } catch (_: Exception) {}
+
+            // B. Secondary: LauncherApps activity icon (preserves system overlays if available)
+            if (rawDrawable == null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                 try {
                     val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
                     val activities = launcherApps?.getActivityList(extractedPkg, android.os.Process.myUserHandle())
                     rawDrawable = activities?.firstOrNull()?.getIcon(0)
-                } catch (_: Exception) {}
-            }
-
-            // B. Secondary: QueryIntentActivities loadIcon
-            if (rawDrawable == null) {
-                try {
-                    val intent = Intent(Intent.ACTION_MAIN).apply {
-                        addCategory(Intent.CATEGORY_LAUNCHER)
-                        setPackage(extractedPkg)
-                    }
-                    val resolveInfo = pm.queryIntentActivities(intent, 0).firstOrNull()
-                    rawDrawable = resolveInfo?.loadIcon(pm)
                 } catch (_: Exception) {}
             }
 

@@ -136,6 +136,7 @@ object LightspeedShortcutManager {
     }
 
     fun loadCachedBitmap(context: Context, token: String): Bitmap? {
+        if (!token.startsWith("shortcut:") && !token.startsWith("custom:")) return null
         bitmapCache[token]?.let {
             if (!isCorruptBitmap(it)) return it
             bitmapCache.remove(token)

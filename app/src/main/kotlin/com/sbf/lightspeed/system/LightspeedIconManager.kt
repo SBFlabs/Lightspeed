@@ -313,10 +313,31 @@ object LightspeedIconManager {
             }
         }
 
-        // 3. Clean System App Icon Fallback
+        // 3. Clean System App Icon Fallback (LauncherApps -> ActivityIcon -> ApplicationIcon)
         return try {
             val pm = context.packageManager
-            val defaultDrawable = pm.getApplicationIcon(extractedPkg)
+
+            // A. Primary: LauncherApps LauncherActivityInfo (Resolves OEM RRO themes, Material You, and dynamic colors)
+            var launcherDrawable: Drawable? = null
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                try {
+                    val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
+                    val activities = launcherApps?.getActivityList(extractedPkg, android.os.Process.myUserHandle())
+                    launcherDrawable = activities?.firstOrNull()?.getIcon(0)
+                } catch (_: Exception) {}
+            }
+
+            // B. Secondary: Launch Intent Activity Icon
+            if (launcherDrawable == null) {
+                val launchIntent = pm.getLaunchIntentForPackage(extractedPkg)
+                if (launchIntent?.component != null) {
+                    try {
+                        launcherDrawable = pm.getActivityIcon(launchIntent.component!!)
+                    } catch (_: Exception) {}
+                }
+            }
+
+            val defaultDrawable = launcherDrawable ?: pm.getApplicationIcon(extractedPkg)
             val mutated = defaultDrawable.constantState?.newDrawable()?.mutate() ?: defaultDrawable.mutate()
             mutated.alpha = 255
             drawableCache[tokenOrPkg] = mutated

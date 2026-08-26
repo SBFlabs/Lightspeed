@@ -210,6 +210,7 @@ object LightspeedIconManager {
     }
 
     private fun loadCustomShortcutBitmap(context: Context, token: String): Bitmap? {
+        if (!token.startsWith("shortcut:") && !token.startsWith("custom:")) return null
         customShortcutBitmaps[token]?.let {
             if (!LightspeedShortcutManager.isCorruptBitmap(it)) return it
             customShortcutBitmaps.remove(token)
@@ -237,7 +238,12 @@ object LightspeedIconManager {
             return it.constantState?.newDrawable()?.mutate() ?: it
         }
 
-        if (tokenOrPkg.startsWith("shortcut:")) {
+        if (tokenOrPkg.startsWith("shortcut:") || tokenOrPkg.startsWith("custom:")) {
+            loadCustomShortcutBitmap(context, tokenOrPkg)?.let { bmp ->
+                val d = BitmapDrawable(context.resources, bmp)
+                drawableCache[tokenOrPkg] = d
+                return d
+            }
             val shortcutDrawable = LightspeedShortcutManager.resolveIconDrawable(context, tokenOrPkg)
             if (shortcutDrawable != null) {
                 val mutated = shortcutDrawable.constantState?.newDrawable()?.mutate() ?: shortcutDrawable.mutate()
@@ -313,42 +319,47 @@ object LightspeedIconManager {
             }
         }
 
-        // 3. Clean System App Icon Fallback (LauncherApps -> ActivityIcon -> ApplicationIcon)
+        // 3. Clean System App Icon Resolution (preserves authentic system styling)
         return try {
             val pm = context.packageManager
 
-            // A. Primary: LauncherApps LauncherActivityInfo (Resolves OEM RRO themes, Material You, and dynamic colors)
-            var launcherDrawable: Drawable? = null
+            // A. Primary: LauncherApps activity icon (system adaptive shape & theme overlays)
+            var rawDrawable: Drawable? = null
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
                 try {
                     val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
                     val activities = launcherApps?.getActivityList(extractedPkg, android.os.Process.myUserHandle())
-                    launcherDrawable = activities?.firstOrNull()?.getIcon(0)
+                    rawDrawable = activities?.firstOrNull()?.getIcon(0)
                 } catch (_: Exception) {}
             }
 
-            // B. Secondary: Launch Intent Activity Icon
-            if (launcherDrawable == null) {
+            // B. Secondary: QueryIntentActivities loadIcon
+            if (rawDrawable == null) {
+                try {
+                    val intent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                        setPackage(extractedPkg)
+                    }
+                    val resolveInfo = pm.queryIntentActivities(intent, 0).firstOrNull()
+                    rawDrawable = resolveInfo?.loadIcon(pm)
+                } catch (_: Exception) {}
+            }
+
+            // C. Tertiary: Launch Intent Activity Icon
+            if (rawDrawable == null) {
                 val launchIntent = pm.getLaunchIntentForPackage(extractedPkg)
                 if (launchIntent?.component != null) {
                     try {
-                        launcherDrawable = pm.getActivityIcon(launchIntent.component!!)
+                        rawDrawable = pm.getActivityIcon(launchIntent.component!!)
                     } catch (_: Exception) {}
                 }
             }
 
-            val defaultDrawable = launcherDrawable ?: pm.getApplicationIcon(extractedPkg)
-            val convertedBmp = convertDrawableToBitmap(defaultDrawable)
-            val finalDrawable = if (convertedBmp != null) {
-                BitmapDrawable(context.resources, convertedBmp)
-            } else {
-                val mutated = defaultDrawable.constantState?.newDrawable()?.mutate() ?: defaultDrawable.mutate()
-                mutated.alpha = 255
-                mutated
-            }
-
-            drawableCache[tokenOrPkg] = finalDrawable
-            finalDrawable.constantState?.newDrawable()?.mutate() ?: finalDrawable
+            val finalDrawable = rawDrawable ?: pm.getApplicationIcon(extractedPkg)
+            val mutated = finalDrawable.constantState?.newDrawable()?.mutate() ?: finalDrawable.mutate()
+            mutated.alpha = 255
+            drawableCache[tokenOrPkg] = mutated
+            mutated.constantState?.newDrawable()?.mutate() ?: mutated
         } catch (_: Exception) {
             null
         }

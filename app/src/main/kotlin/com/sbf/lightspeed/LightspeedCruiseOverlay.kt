@@ -3196,7 +3196,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val bottomTransparency = if (prefs.getBoolean("pref_sidebar_link_edges", false)) topTransparency else prefs.getInt("pref_sidebar_bottom_transparency", 0)
 
             fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean) {
-                val isReview = isExpanded || (isSidebarPreview && isExpanded)
+                val isReview = isExpanded && isSidebarPreview
                 val effectivePct = if (isReview) 100 else transparencyPct
                 if (effectivePct <= 0 && !isReview) return
 

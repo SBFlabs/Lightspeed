@@ -212,27 +212,28 @@ fun SidebarMatrixConfigurationFields(
         }
     }
 
-    // Auto-hide / auto-show preview when the user swipes between tabs
-    LaunchedEffect(pagerState.currentPage) {
-        val page = pagerState.currentPage
-        // Left flank preview — on only when on page 0 AND something is expanded
-        val leftActive = page == 0 && (
-            isLeftCenterExpanded ||
-            (if (isLeftFlankUnified) isLeftUnifiedExpanded else isLeftTopExpanded || isLeftBottomExpanded)
-        )
-        // Status-bar / canopy preview — on only when on page 1 AND expanded
-        val canopyActive = page == 1 && isStatusBarExpanded
-        // Right flank preview — on only when on page 2 AND something is expanded
-        val rightActive = page == 2 && (
-            isCenterExpanded ||
-            (if (isRightFlankUnified) isRightUnifiedExpanded else isTopExpanded || isBottomExpanded)
-        )
-        prefs.edit()
-            .putBoolean("pref_sidebar_left_preview", leftActive)
-            .putBoolean("pref_statusbar_preview", canopyActive)
-            .putBoolean("pref_sidebar_preview", rightActive)
-            .apply()
-        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+    // Auto-hide / auto-show preview on tab swipe — drop(1) skips initial composition
+    // so the previously-saved state is NOT overwritten the moment settings opens.
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .drop(1) // only react to actual user swipes, not the initial page value
+            .collect { page ->
+                val leftActive = page == 0 && (
+                    isLeftCenterExpanded ||
+                    (if (isLeftFlankUnified) isLeftUnifiedExpanded else isLeftTopExpanded || isLeftBottomExpanded)
+                )
+                val canopyActive = page == 1 && isStatusBarExpanded
+                val rightActive = page == 2 && (
+                    isCenterExpanded ||
+                    (if (isRightFlankUnified) isRightUnifiedExpanded else isTopExpanded || isBottomExpanded)
+                )
+                prefs.edit()
+                    .putBoolean("pref_sidebar_left_preview", leftActive)
+                    .putBoolean("pref_statusbar_preview", canopyActive)
+                    .putBoolean("pref_sidebar_preview", rightActive)
+                    .apply()
+                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+            }
     }
 
     val leftCustomVectors = listOf(

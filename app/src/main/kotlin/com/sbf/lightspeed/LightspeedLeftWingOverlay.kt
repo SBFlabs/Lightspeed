@@ -541,7 +541,7 @@ class LightspeedLeftWingOverlay(
         val bottomTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_bottom_transparency", 0) else prefs.getInt("pref_sidebar_left_bottom_transparency", 0)
 
         fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean) {
-            val isReview = isExpanded || (isPreview && isExpanded)
+            val isReview = isExpanded && isPreview
             val effectivePct = if (isReview) 100 else transparencyPct
             if (effectivePct <= 0 && !isReview) return
 

@@ -308,23 +308,14 @@ object LightspeedIconManager {
             }
         }
 
-        // 2. Official Google Calendar 31 APK Drawables
-        if (GOOGLE_CALENDAR_PACKAGES.contains(extractedPkg.lowercase())) {
-            val googleCalDrawable = loadGoogleCalendarDrawable(context, extractedPkg, dayOfMonth)
-            if (googleCalDrawable != null) {
-                val mutated = googleCalDrawable.constantState?.newDrawable()?.mutate() ?: googleCalDrawable.mutate()
-                mutated.alpha = 255
-                drawableCache[tokenOrPkg] = mutated
-                return mutated.constantState?.newDrawable()?.mutate() ?: mutated
-            }
-        }
-
-        // 3. Clean System App Icon Resolution (with Target App Theme Context)
+        // 2. Native System/OEM App Icon Resolution
+        // Uses resolveInfo.loadIcon(pm) which correctly handles: active <activity-alias>,
+        // density selection, and the app's own package-manager theming — without any forced theme injection.
         return try {
             val pm = context.packageManager
             var rawDrawable: Drawable? = null
 
-            // A. Primary: Query active launcher activity and inflate with Target App's Theme Context
+            // A. Primary: queryIntentActivities resolves active <activity-alias> (e.g. Plus Messenger NoxIcon)
             try {
                 val intent = Intent(Intent.ACTION_MAIN).apply {
                     addCategory(Intent.CATEGORY_LAUNCHER)
@@ -332,46 +323,11 @@ object LightspeedIconManager {
                 }
                 val resolveInfo = pm.queryIntentActivities(intent, 0).firstOrNull()
                 if (resolveInfo != null) {
-                    val activityInfo = resolveInfo.activityInfo
-                    val targetContext = try {
-                        context.createPackageContext(extractedPkg, Context.CONTEXT_IGNORE_SECURITY)
-                    } catch (_: Exception) { context }
-
-                    val themeRes = activityInfo.themeResource.takeIf { it != 0 }
-                        ?: activityInfo.applicationInfo.theme.takeIf { it != 0 }
-                        ?: 0
-                    if (themeRes != 0) {
-                        try { targetContext.setTheme(themeRes) } catch (_: Exception) {}
-                    }
-
-                    val iconRes = activityInfo.iconResource.takeIf { it != 0 }
-                        ?: activityInfo.applicationInfo.icon.takeIf { it != 0 }
-                        ?: resolveInfo.iconResource.takeIf { it != 0 }
-                        ?: 0
-
-                    if (iconRes != 0) {
-                        try {
-                            val density = context.resources.displayMetrics.densityDpi
-                            rawDrawable = targetContext.resources.getDrawableForDensity(iconRes, density, targetContext.theme)
-                        } catch (_: Exception) {}
-                    }
-
-                    if (rawDrawable == null) {
-                        rawDrawable = resolveInfo.loadIcon(pm)
-                    }
+                    rawDrawable = resolveInfo.loadIcon(pm)
                 }
             } catch (_: Exception) {}
 
-            // B. Secondary: LauncherApps activity icon
-            if (rawDrawable == null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                try {
-                    val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as? android.content.pm.LauncherApps
-                    val activities = launcherApps?.getActivityList(extractedPkg, android.os.Process.myUserHandle())
-                    rawDrawable = activities?.firstOrNull()?.getIcon(0)
-                } catch (_: Exception) {}
-            }
-
-            // C. Tertiary: Launch Intent Activity Icon
+            // B. Secondary: getLaunchIntentForPackage (covers apps with no CATEGORY_LAUNCHER alias)
             if (rawDrawable == null) {
                 val launchIntent = pm.getLaunchIntentForPackage(extractedPkg)
                 if (launchIntent?.component != null) {

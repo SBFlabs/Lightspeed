@@ -91,6 +91,7 @@ class LightspeedStatusBarOverlay(
     private var startRawY = 0f
     private var startX = 0f
     private var startY = 0f
+    private var furthestX = 0f   // tracks peak travel for rebound detection (mirrors lowestXReached / highestXReached on flanks)
     private var isScrubbing = false
     private var isHoldFired = false
     private var currentGesture = "NONE"
@@ -140,6 +141,7 @@ class LightspeedStatusBarOverlay(
                 startRawY = event.rawY
                 startX = event.x
                 startY = event.y
+                furthestX = event.x
                 isScrubbing = false
                 isHoldFired = false
                 isHorizontalEngaged = false
@@ -175,14 +177,20 @@ class LightspeedStatusBarOverlay(
                     if (abs(dx) > threshold * 0.7f && abs(dx) > abs(dy) * 1.3f) {
                         isHorizontalEngaged = true
                         currentGesture = if (dx > 0) "SWIPE_RIGHT" else "SWIPE_LEFT"
+                        furthestX = event.x
                     }
                 }
 
                 if (isHorizontalEngaged && !isScrubbing) {
-                    // Rebound detection: finger reversed past origin → upgrade to *_BACK
-                    if (currentGesture == "SWIPE_RIGHT" && dx < -(threshold * 0.4f)) {
+                    // Track peak travel (mirrors lowestXReached / highestXReached on flanks)
+                    if (currentGesture == "SWIPE_RIGHT" && event.x > furthestX) furthestX = event.x
+                    if (currentGesture == "SWIPE_LEFT"  && event.x < furthestX) furthestX = event.x
+
+                    // Rebound: finger has returned 18dp from its furthest point → upgrade to *_BACK
+                    val reboundThreshold = 18f * density
+                    if (currentGesture == "SWIPE_RIGHT" && (furthestX - event.x) > reboundThreshold) {
                         currentGesture = "SWIPE_RIGHT_BACK"
-                    } else if (currentGesture == "SWIPE_LEFT" && dx > threshold * 0.4f) {
+                    } else if (currentGesture == "SWIPE_LEFT" && (event.x - furthestX) > reboundThreshold) {
                         currentGesture = "SWIPE_LEFT_BACK"
                     }
                     if (dy > threshold * 0.9f) {

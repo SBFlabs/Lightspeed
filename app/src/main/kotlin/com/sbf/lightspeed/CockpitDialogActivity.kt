@@ -408,7 +408,7 @@ fun EditItemContent(
                     if (cleanLabel.isNotBlank()) {
                         prefs.edit().putString("custom_label_$safeKey", cleanLabel).apply()
                     }
-                    if (selectedBitmap != null && (token.startsWith("shortcut:") || token.startsWith("custom:"))) {
+                    if (selectedBitmap != null) {
                         LightspeedShortcutManager.saveShortcutBitmap(context, token, selectedBitmap!!)
                         LightspeedIconManager.saveCustomShortcutBitmap(context, token, selectedBitmap!!)
                     }

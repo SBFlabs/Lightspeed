@@ -190,11 +190,18 @@ object LightspeedIconManager {
 
     private val customShortcutBitmaps = ConcurrentHashMap<String, Bitmap>()
 
+    /** Saves a manually-chosen icon bitmap for any token (shortcut:, custom:, or app:packageName).
+     *  Writes to disk under shortcut_icons/ and records the token in the "manual_icon_overrides"
+     *  SharedPreferences set so backups know to include it. */
     fun saveCustomShortcutBitmap(context: Context, token: String, bitmap: Bitmap) {
         if (token.isBlank()) return
         customShortcutBitmaps[token] = bitmap
         bitmapCache[token] = bitmap
         drawableCache[token] = BitmapDrawable(context.resources, bitmap)
+
+        // Mark as manually overridden for backup tracking
+        markAsManuallyOverridden(context, token)
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val dir = java.io.File(context.filesDir, "shortcut_icons")
@@ -209,8 +216,40 @@ object LightspeedIconManager {
         }
     }
 
+    /** Records a token as manually icon-overridden in SharedPreferences. */
+    fun markAsManuallyOverridden(context: Context, token: String) {
+        val prefs = context.getSharedPreferences("lightspeed_prefs", android.content.Context.MODE_PRIVATE)
+        val current = prefs.getStringSet("manual_icon_overrides", emptySet())?.toMutableSet() ?: mutableSetOf()
+        current.add(token)
+        prefs.edit().putStringSet("manual_icon_overrides", current).apply()
+    }
+
+    /** Returns all tokens that the user has manually overridden icons for. */
+    fun getManuallyOverriddenTokens(context: Context): Set<String> {
+        val prefs = context.getSharedPreferences("lightspeed_prefs", android.content.Context.MODE_PRIVATE)
+        return prefs.getStringSet("manual_icon_overrides", emptySet()) ?: emptySet()
+    }
+
+    /** Removes a token from the manually overridden set (e.g. when the user resets to default). */
+    fun clearManualOverride(context: Context, token: String) {
+        val prefs = context.getSharedPreferences("lightspeed_prefs", android.content.Context.MODE_PRIVATE)
+        val current = prefs.getStringSet("manual_icon_overrides", emptySet())?.toMutableSet() ?: return
+        current.remove(token)
+        prefs.edit().putStringSet("manual_icon_overrides", current).apply()
+        customShortcutBitmaps.remove(token)
+        bitmapCache.remove(token)
+        drawableCache.remove(token)
+        try {
+            java.io.File(context.filesDir, "shortcut_icons/${token.hashCode()}.png").delete()
+        } catch (_: Exception) {}
+    }
+
     private fun loadCustomShortcutBitmap(context: Context, token: String): Bitmap? {
-        if (!token.startsWith("shortcut:") && !token.startsWith("custom:")) return null
+        // Load for shortcut:/custom: tokens, AND for any app: token that was manually overridden
+        val isShortcut = token.startsWith("shortcut:") || token.startsWith("custom:")
+        val isManualOverride = !isShortcut && getManuallyOverriddenTokens(context).contains(token)
+        if (!isShortcut && !isManualOverride) return null
+
         customShortcutBitmaps[token]?.let {
             if (!LightspeedShortcutManager.isCorruptBitmap(it)) return it
             customShortcutBitmaps.remove(token)
@@ -231,6 +270,7 @@ object LightspeedIconManager {
         } catch (_: Exception) {}
         return null
     }
+    }
 
     fun getIconDrawable(context: Context, tokenOrPkg: String): Drawable? {
         if (tokenOrPkg.isBlank()) return null
@@ -238,12 +278,14 @@ object LightspeedIconManager {
             return it.constantState?.newDrawable()?.mutate() ?: it
         }
 
+        // Custom shortcut bitmaps (shortcut:, custom:) and manually overridden app: icons
+        loadCustomShortcutBitmap(context, tokenOrPkg)?.let { bmp ->
+            val d = BitmapDrawable(context.resources, bmp)
+            drawableCache[tokenOrPkg] = d
+            return d
+        }
+
         if (tokenOrPkg.startsWith("shortcut:") || tokenOrPkg.startsWith("custom:")) {
-            loadCustomShortcutBitmap(context, tokenOrPkg)?.let { bmp ->
-                val d = BitmapDrawable(context.resources, bmp)
-                drawableCache[tokenOrPkg] = d
-                return d
-            }
             val shortcutDrawable = LightspeedShortcutManager.resolveIconDrawable(context, tokenOrPkg)
             if (shortcutDrawable != null) {
                 val mutated = shortcutDrawable.constantState?.newDrawable()?.mutate() ?: shortcutDrawable.mutate()

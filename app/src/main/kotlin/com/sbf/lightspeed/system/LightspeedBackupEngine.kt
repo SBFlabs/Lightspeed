@@ -53,10 +53,13 @@ object LightspeedBackupEngine {
             }
             put("settings", settingsObject)
 
-            // Embed custom shortcut icon bitmaps as Base64 strings (Strictly for actual custom shortcuts)
+            // Embed custom shortcut icon bitmaps as Base64 strings
+            // Includes: actual shortcuts (shortcut:/custom:) AND manually overridden app icons
             val iconsObject = JSONObject()
             try {
                 val validShortcutHashes = mutableSetOf<String>()
+
+                // 1. Active shortcut/custom tokens from settings
                 settingsObject.keys().forEach { k ->
                     val v = settingsObject.optString(k, "")
                     if (v.startsWith("shortcut:") || v.startsWith("custom:")) {
@@ -67,6 +70,12 @@ object LightspeedBackupEngine {
                             validShortcutHashes.add(it.hashCode().toString())
                         }
                     }
+                }
+
+                // 2. Manually overridden app: tokens (e.g. user replaced Settings icon via cockpit)
+                val manualOverrides = com.sbf.lightspeed.system.LightspeedIconManager.getManuallyOverriddenTokens(context)
+                manualOverrides.forEach { token ->
+                    validShortcutHashes.add(token.hashCode().toString())
                 }
 
                 val dir = java.io.File(context.filesDir, "shortcut_icons")
@@ -83,6 +92,16 @@ object LightspeedBackupEngine {
             } catch (_: Exception) {}
             if (iconsObject.length() > 0) {
                 put("shortcut_icons", iconsObject)
+            }
+
+            // Record which tokens were manually overridden so import can restore the flag
+            if (true) {
+                val manualOverrides = com.sbf.lightspeed.system.LightspeedIconManager.getManuallyOverriddenTokens(context)
+                if (manualOverrides.isNotEmpty()) {
+                    val arr = JSONArray()
+                    manualOverrides.forEach { arr.put(it) }
+                    put("manual_icon_overrides", arr)
+                }
             }
         }
 
@@ -202,7 +221,8 @@ object LightspeedBackupEngine {
                 editor.apply()
             }
 
-            // Restore custom shortcut icons from Base64 (Strictly for actual custom shortcuts)
+            // Restore custom shortcut icons from Base64
+            // Includes shortcuts AND manually overridden app: tokens
             val iconsObject = root.optJSONObject("shortcut_icons")
             if (iconsObject != null) {
                 try {
@@ -222,6 +242,19 @@ object LightspeedBackupEngine {
                         }
                     }
 
+                    // Also allow manually overridden tokens from backup metadata
+                    val manualOverridesArr = root.optJSONArray("manual_icon_overrides")
+                    val restoredManualTokens = mutableSetOf<String>()
+                    if (manualOverridesArr != null) {
+                        for (i in 0 until manualOverridesArr.length()) {
+                            val token = manualOverridesArr.optString(i, "")
+                            if (token.isNotBlank()) {
+                                validShortcutHashes.add(token.hashCode().toString())
+                                restoredManualTokens.add(token)
+                            }
+                        }
+                    }
+
                     val dir = java.io.File(context.filesDir, "shortcut_icons")
                     if (!dir.exists()) dir.mkdirs()
                     val iconKeys = iconsObject.keys()
@@ -236,6 +269,14 @@ object LightspeedBackupEngine {
                             }
                         }
                     }
+
+                    // Restore the manual override flag set in SharedPreferences
+                    if (restoredManualTokens.isNotEmpty()) {
+                        restoredManualTokens.forEach { token ->
+                            com.sbf.lightspeed.system.LightspeedIconManager.markAsManuallyOverridden(context, token)
+                        }
+                    }
+
                     LightspeedShortcutManager.clearMemoryCache()
                     LightspeedIconManager.clearCache()
                 } catch (_: Exception) {}

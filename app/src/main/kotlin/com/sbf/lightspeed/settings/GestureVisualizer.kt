@@ -179,32 +179,34 @@ fun GestureTrailTracer(
         var drawArrow = true
 
         when (direction) {
-            ArrowDirection.SWIPE_RIGHT, ArrowDirection.RIGHT_UP, ArrowDirection.SWIPE_UP_RIGHT -> {
+            ArrowDirection.SWIPE_RIGHT, ArrowDirection.SWIPE_UP_RIGHT -> {
                 arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
                 arrowheadPath.lineTo(endNode.x, endNode.y)
                 arrowheadPath.lineTo(endNode.x - arrowSize, endNode.y + arrowSize)
             }
-            ArrowDirection.SWIPE_LEFT, ArrowDirection.LEFT_UP, ArrowDirection.SWIPE_UP_LEFT -> {
+            ArrowDirection.SWIPE_LEFT, ArrowDirection.SWIPE_UP_LEFT -> {
                 arrowheadPath.moveTo(endNode.x + arrowSize, endNode.y - arrowSize)
                 arrowheadPath.lineTo(endNode.x, endNode.y)
                 arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
             }
-            ArrowDirection.SWIPE_UP -> {
+            // Two-Step "Inward → Up": final leg is vertical-up → arrowhead points UP
+            ArrowDirection.SWIPE_UP, ArrowDirection.LEFT_UP, ArrowDirection.RIGHT_UP -> {
                 arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y + arrowSize)
                 arrowheadPath.lineTo(endNode.x, endNode.y)
                 arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
             }
-            ArrowDirection.SWIPE_DOWN -> {
+            // Two-Step "Inward → Down": final leg is vertical-down → arrowhead points DOWN
+            ArrowDirection.SWIPE_DOWN, ArrowDirection.LEFT_DOWN, ArrowDirection.RIGHT_DOWN -> {
                 arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
                 arrowheadPath.lineTo(endNode.x, endNode.y)
                 arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y - arrowSize)
             }
-            ArrowDirection.SWIPE_DOWN_LEFT, ArrowDirection.LEFT_DOWN -> {
+            ArrowDirection.SWIPE_DOWN_LEFT -> {
                 arrowheadPath.moveTo(endNode.x + arrowSize, endNode.y - arrowSize)
                 arrowheadPath.lineTo(endNode.x, endNode.y)
                 arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
             }
-            ArrowDirection.SWIPE_DOWN_RIGHT, ArrowDirection.RIGHT_DOWN -> {
+            ArrowDirection.SWIPE_DOWN_RIGHT -> {
                 arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
                 arrowheadPath.lineTo(endNode.x, endNode.y)
                 arrowheadPath.lineTo(endNode.x - arrowSize, endNode.y + arrowSize)

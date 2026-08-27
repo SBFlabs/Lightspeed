@@ -645,10 +645,15 @@ fun SidebarMatrixConfigurationFields(
                                         }
                                     ) {
                                         val statusVectors = listOf(
-                                            "TAP" to ("Single Tap" to ArrowDirection.TAP),
-                                            "DOUBLE_TAP" to ("Double Tap" to ArrowDirection.DOUBLE_TAP),
+                                            // — Tap —
+                                            "TAP" to ("Tap" to ArrowDirection.TAP),
+                                            "DOUBLE_TAP" to ("Tap (Double)" to ArrowDirection.DOUBLE_TAP),
+                                            // — Swipe —
                                             "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
-                                            "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT)
+                                            "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT),
+                                            // — Rebound —
+                                            "SWIPE_LEFT_BACK" to ("Rebound Left" to ArrowDirection.LEFT_BACK),
+                                            "SWIPE_RIGHT_BACK" to ("Rebound Right" to ArrowDirection.RIGHT_BACK)
                                         )
 
                                         statusVectors.forEach { (vectorKey, pairInfo) ->

@@ -179,6 +179,12 @@ class LightspeedStatusBarOverlay(
                 }
 
                 if (isHorizontalEngaged && !isScrubbing) {
+                    // Rebound detection: finger reversed past origin → upgrade to *_BACK
+                    if (currentGesture == "SWIPE_RIGHT" && dx < -(threshold * 0.4f)) {
+                        currentGesture = "SWIPE_RIGHT_BACK"
+                    } else if (currentGesture == "SWIPE_LEFT" && dx > threshold * 0.4f) {
+                        currentGesture = "SWIPE_LEFT_BACK"
+                    }
                     if (dy > threshold * 0.9f) {
                         isScrubbing = true
                         isTwoStepDownwardScrub = true

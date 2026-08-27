@@ -41,6 +41,17 @@ import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class CockpitSettingsActivity : ComponentActivity() {
 
+    override fun onDestroy() {
+        super.onDestroy()
+        // Clear all overlay live-previews so nothing lingers after settings close
+        defaultPrefs().edit()
+            .putBoolean("pref_sidebar_left_preview", false)
+            .putBoolean("pref_statusbar_preview", false)
+            .putBoolean("pref_sidebar_preview", false)
+            .apply()
+        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 

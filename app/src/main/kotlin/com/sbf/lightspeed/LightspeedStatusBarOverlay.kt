@@ -178,6 +178,12 @@ class LightspeedStatusBarOverlay(
                         isHorizontalEngaged = true
                         currentGesture = if (dx > 0) "SWIPE_RIGHT" else "SWIPE_LEFT"
                         furthestX = event.x
+                        // Re-arm hold timer from the moment the swipe direction is committed
+                        // so "Swipe + Hold Modifier" can fire if finger stays held after stroke
+                        if (!isHoldFired) {
+                            uiHandler.removeCallbacks(holdRunnable)
+                            uiHandler.postDelayed(holdRunnable, 450L)
+                        }
                     }
                 }
 

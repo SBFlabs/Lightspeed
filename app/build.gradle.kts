@@ -24,8 +24,9 @@ android {
             manifestPlaceholders["appName"] = "Lightspeed Nightly"
         }
         release {
-            isMinifyEnabled = false
-            isDebuggable = true
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
             signingConfig = signingConfigs.getByName("debug")
             manifestPlaceholders["appName"] = "Lightspeed"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

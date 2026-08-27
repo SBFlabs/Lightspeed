@@ -452,7 +452,7 @@ object LightspeedShortcutManager {
         val parsed = parseToken(token)
 
         when (parsed.type) {
-            "pinned", "home_shortcut" -> {
+            "pinned" -> {
                 var launched = false
 
                 // 1. Primary: Extract authentic direct Intent from ShortcutInfo via LauncherApps (Android 7.1+)

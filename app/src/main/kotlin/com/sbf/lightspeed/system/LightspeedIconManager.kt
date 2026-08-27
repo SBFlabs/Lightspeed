@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
@@ -13,6 +14,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.Calendar
 import java.util.concurrent.ConcurrentHashMap
@@ -36,11 +39,6 @@ object LightspeedIconManager {
 
     private var currentLoadedPack: String? = null
     private var isPackLoaded = false
-
-    private val GOOGLE_CALENDAR_PACKAGES = setOf(
-        "com.google.android.calendar",
-        "com.google.android.apps.calendar"
-    )
 
     fun getAvailableIconPacks(context: Context): List<IconPackInfo> {
         val pm = context.packageManager
@@ -204,10 +202,10 @@ object LightspeedIconManager {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val dir = java.io.File(context.filesDir, "shortcut_icons")
+                val dir = File(context.filesDir, "shortcut_icons")
                 if (!dir.exists()) dir.mkdirs()
-                val file = java.io.File(dir, "${token.hashCode()}.png")
-                java.io.FileOutputStream(file).use { out ->
+                val file = File(dir, "${token.hashCode()}.png")
+                FileOutputStream(file).use { out ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                 }
             } catch (e: Exception) {
@@ -218,7 +216,7 @@ object LightspeedIconManager {
 
     /** Records a token as manually icon-overridden in SharedPreferences. */
     fun markAsManuallyOverridden(context: Context, token: String) {
-        val prefs = context.getSharedPreferences("lightspeed_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("lightspeed_prefs", Context.MODE_PRIVATE)
         val current = prefs.getStringSet("manual_icon_overrides", emptySet())?.toMutableSet() ?: mutableSetOf()
         current.add(token)
         prefs.edit().putStringSet("manual_icon_overrides", current).apply()
@@ -226,13 +224,13 @@ object LightspeedIconManager {
 
     /** Returns all tokens that the user has manually overridden icons for. */
     fun getManuallyOverriddenTokens(context: Context): Set<String> {
-        val prefs = context.getSharedPreferences("lightspeed_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("lightspeed_prefs", Context.MODE_PRIVATE)
         return prefs.getStringSet("manual_icon_overrides", emptySet()) ?: emptySet()
     }
 
     /** Removes a token from the manually overridden set (e.g. when the user resets to default). */
     fun clearManualOverride(context: Context, token: String) {
-        val prefs = context.getSharedPreferences("lightspeed_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("lightspeed_prefs", Context.MODE_PRIVATE)
         val current = prefs.getStringSet("manual_icon_overrides", emptySet())?.toMutableSet() ?: return
         current.remove(token)
         prefs.edit().putStringSet("manual_icon_overrides", current).apply()
@@ -240,7 +238,7 @@ object LightspeedIconManager {
         bitmapCache.remove(token)
         drawableCache.remove(token)
         try {
-            java.io.File(context.filesDir, "shortcut_icons/${token.hashCode()}.png").delete()
+            File(context.filesDir, "shortcut_icons/${token.hashCode()}.png").delete()
         } catch (_: Exception) {}
     }
 
@@ -255,9 +253,9 @@ object LightspeedIconManager {
             customShortcutBitmaps.remove(token)
         }
         try {
-            val file = java.io.File(context.filesDir, "shortcut_icons/${token.hashCode()}.png")
+            val file = File(context.filesDir, "shortcut_icons/${token.hashCode()}.png")
             if (file.exists()) {
-                val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                val bmp = BitmapFactory.decodeFile(file.absolutePath)
                 if (bmp != null) {
                     if (LightspeedShortcutManager.isCorruptBitmap(bmp)) {
                         file.delete()
@@ -400,49 +398,6 @@ object LightspeedIconManager {
         return bitmap
     }
 
-    private fun loadGoogleCalendarDrawable(context: Context, pkg: String, day: Int): Drawable? {
-        val pm = context.packageManager
-        try {
-            val res = pm.getResourcesForApplication(pkg)
-            val dayFormatted = day.toString().padStart(2, '0')
-
-            // Try dynamic_icons array from APK resources (Official Google Calendar array)
-            val arrayNames = listOf("calendar_icons_dynamic", "calendar_icons_dynamic_nexus_round", "dynamic_icons")
-            for (arrayName in arrayNames) {
-                val arrayId = res.getIdentifier(arrayName, "array", pkg)
-                if (arrayId != 0) {
-                    try {
-                        val typedArray = res.obtainTypedArray(arrayId)
-                        val idx = (day - 1).coerceIn(0, typedArray.length() - 1)
-                        val drawable = typedArray.getDrawable(idx)
-                        typedArray.recycle()
-                        if (drawable != null) return drawable
-                    } catch (_: Exception) {}
-                }
-            }
-
-            // Try direct authentic drawable resource names
-            val candidateNames = listOf(
-                "logo_calendar_${dayFormatted}_adaptive",
-                "logo_calendar_${dayFormatted}",
-                "calendar_icon_day_${day}",
-                "calendar_icon_day_${dayFormatted}",
-                "calendar_icon_${day}",
-                "calendar_icon_${dayFormatted}"
-            )
-            for (cand in candidateNames) {
-                val resId = res.getIdentifier(cand, "drawable", pkg)
-                if (resId != 0) {
-                    val drawable = res.getDrawable(resId, null)
-                    if (drawable != null) return drawable
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Error loading Google Calendar drawable", e)
-        }
-        return null
-    }
-
     fun getIconPackDrawableNames(context: Context, iconPackPkg: String): List<String> {
         if (iconPackPkg == "system" || iconPackPkg.isBlank()) return emptyList()
         val drawables = LinkedHashSet<String>()
@@ -456,8 +411,8 @@ object LightspeedIconManager {
                 if (drawableXmlId != 0) {
                     val parser = iconPackRes.getXml(drawableXmlId)
                     var eventType = parser.eventType
-                    while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
-                        if (eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
+                    while (eventType != XmlPullParser.END_DOCUMENT) {
+                        if (eventType == XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
                             val dr = parser.getAttributeValue(null, "drawable")
                             if (!dr.isNullOrBlank()) drawables.add(dr)
                         }
@@ -468,14 +423,14 @@ object LightspeedIconManager {
 
             // 2. Try reading appfilter.xml
             if (drawables.isEmpty()) {
-                var inputStream: java.io.InputStream? = null
+                var inputStream: InputStream? = null
                 try {
                     val appfilterResId = iconPackRes.getIdentifier("appfilter", "xml", iconPackPkg)
                     if (appfilterResId != 0) {
                         val parser = iconPackRes.getXml(appfilterResId)
                         var eventType = parser.eventType
-                        while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
-                            if (eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
+                        while (eventType != XmlPullParser.END_DOCUMENT) {
+                            if (eventType == XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
                                 val dr = parser.getAttributeValue(null, "drawable")
                                 if (!dr.isNullOrBlank()) drawables.add(dr)
                             }
@@ -493,12 +448,12 @@ object LightspeedIconManager {
                         } catch (_: Exception) {}
                     }
                     if (inputStream != null) {
-                        val factory = org.xmlpull.v1.XmlPullParserFactory.newInstance()
+                        val factory = XmlPullParserFactory.newInstance()
                         val parser = factory.newPullParser()
                         parser.setInput(inputStream, "UTF-8")
                         var eventType = parser.eventType
-                        while (eventType != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
-                            if (eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
+                        while (eventType != XmlPullParser.END_DOCUMENT) {
+                            if (eventType == XmlPullParser.START_TAG && parser.name.equals("item", ignoreCase = true)) {
                                 val dr = parser.getAttributeValue(null, "drawable")
                                 if (!dr.isNullOrBlank()) drawables.add(dr)
                             }

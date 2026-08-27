@@ -8,7 +8,6 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -44,8 +43,6 @@ import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedShortcutManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
-
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class CockpitDialogActivity : ComponentActivity() {
@@ -369,8 +366,9 @@ fun EditItemContent(
         TextButton(
             onClick = {
                 prefs.edit().remove("custom_label_$safeKey").apply()
-                val iconFile = File(context.filesDir, "shortcut_icons/$safeKey.png")
-                if (iconFile.exists()) iconFile.delete()
+                // clearManualOverride removes the override flag, clears all IconManager in-memory
+                // caches for this token, and deletes the disk file — fully symmetric with Save.
+                LightspeedIconManager.clearManualOverride(context, token)
                 LightspeedShortcutManager.clearMemoryCache()
                 selectedBitmap = null
                 customLabelText = LightspeedShortcutManager.resolveLabel(context, token)
@@ -409,7 +407,8 @@ fun EditItemContent(
                         prefs.edit().putString("custom_label_$safeKey", cleanLabel).apply()
                     }
                     if (selectedBitmap != null) {
-                        LightspeedShortcutManager.saveShortcutBitmap(context, token, selectedBitmap!!)
+                        // saveCustomShortcutBitmap is the canonical write path:
+                        // it updates all in-memory caches, persists to disk, and records the backup override flag.
                         LightspeedIconManager.saveCustomShortcutBitmap(context, token, selectedBitmap!!)
                     }
                     try {

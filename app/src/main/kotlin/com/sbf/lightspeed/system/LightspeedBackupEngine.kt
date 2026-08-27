@@ -7,9 +7,6 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import com.sbf.lightspeed.LightspeedAccessibilityService
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -73,7 +70,7 @@ object LightspeedBackupEngine {
                 }
 
                 // 2. Manually overridden app: tokens (e.g. user replaced Settings icon via cockpit)
-                val manualOverrides = com.sbf.lightspeed.system.LightspeedIconManager.getManuallyOverriddenTokens(context)
+                val manualOverrides = LightspeedIconManager.getManuallyOverriddenTokens(context)
                 manualOverrides.forEach { token ->
                     validShortcutHashes.add(token.hashCode().toString())
                 }
@@ -95,13 +92,11 @@ object LightspeedBackupEngine {
             }
 
             // Record which tokens were manually overridden so import can restore the flag
-            if (true) {
-                val manualOverrides = com.sbf.lightspeed.system.LightspeedIconManager.getManuallyOverriddenTokens(context)
-                if (manualOverrides.isNotEmpty()) {
-                    val arr = JSONArray()
-                    manualOverrides.forEach { arr.put(it) }
-                    put("manual_icon_overrides", arr)
-                }
+            val manualOverrides = LightspeedIconManager.getManuallyOverriddenTokens(context)
+            if (manualOverrides.isNotEmpty()) {
+                val arr = JSONArray()
+                manualOverrides.forEach { arr.put(it) }
+                put("manual_icon_overrides", arr)
             }
         }
 
@@ -273,7 +268,7 @@ object LightspeedBackupEngine {
                     // Restore the manual override flag set in SharedPreferences
                     if (restoredManualTokens.isNotEmpty()) {
                         restoredManualTokens.forEach { token ->
-                            com.sbf.lightspeed.system.LightspeedIconManager.markAsManuallyOverridden(context, token)
+                            LightspeedIconManager.markAsManuallyOverridden(context, token)
                         }
                     }
 

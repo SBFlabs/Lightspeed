@@ -572,14 +572,17 @@ fun SidebarMatrixConfigurationFields(
                                     // 1. Geometry & Sensitivity
                                     CollapsibleSubSection(
                                         title = "📐 Touch Vector Geometry & Sensitivity",
-                                        subtitle = "Sensor touch height, responsiveness & idle glow",
+                                        subtitle = "Span, thickness, offset & idle glow",
                                         isExpanded = isStatusBarGeoExpanded,
                                         onToggle = {
                                             isStatusBarGeoExpanded = !isStatusBarGeoExpanded
                                             prefs.edit().putBoolean("pref_sub_geo_statusbar", isStatusBarGeoExpanded).apply()
                                         }
                                     ) {
-                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_height", "", "Sensor Touch Height", 5, 80, 5, 24)
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Canopy Span (≥1000 = full width)", 50, 1080, 10, 1080)
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Canopy Thickness (Height)", 20, 300, 5, 80)
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset (X Axis)", -300, 300, 5, 0)
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset (Y Axis)", -100, 200, 5, 0)
                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Sensitivity", 10, 100, 5, 40)
                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
                                     }
@@ -597,10 +600,10 @@ fun SidebarMatrixConfigurationFields(
                                         GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Pull Down & Scrub Across", listOf("none", "system:screen_timeout", "system:brightness", "system:volume"), tokenLabelCache)
                                     }
 
-                                    // 3. Gestures
+                                    // 3. Gestures — SWIPE_DOWN excluded: conflicts with Android notification shade
                                     CollapsibleSubSection(
                                         title = "⚡ Canopy Gesture Actions & Macros",
-                                        subtitle = "Tap, double-tap, directional sweeps & hold modifiers",
+                                        subtitle = "Tap, double-tap, left & right sweeps with hold modifiers",
                                         isExpanded = isStatusBarGesturesExpanded,
                                         onToggle = {
                                             isStatusBarGesturesExpanded = !isStatusBarGesturesExpanded
@@ -611,8 +614,7 @@ fun SidebarMatrixConfigurationFields(
                                             "TAP" to ("Single Tap" to ArrowDirection.TAP),
                                             "DOUBLE_TAP" to ("Double Tap" to ArrowDirection.DOUBLE_TAP),
                                             "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
-                                            "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT),
-                                            "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN)
+                                            "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT)
                                         )
 
                                         statusVectors.forEach { (vectorKey, pairInfo) ->

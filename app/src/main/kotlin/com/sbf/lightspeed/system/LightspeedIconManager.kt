@@ -270,7 +270,6 @@ object LightspeedIconManager {
         } catch (_: Exception) {}
         return null
     }
-    }
 
     fun getIconDrawable(context: Context, tokenOrPkg: String): Drawable? {
         if (tokenOrPkg.isBlank()) return null

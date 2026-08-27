@@ -239,31 +239,39 @@ fun SidebarMatrixConfigurationFields(
     }
 
     val leftCustomVectors = listOf(
-        "TAP" to ("Single Tap" to ArrowDirection.TAP),
+        // — Tap —
+        "TAP" to ("Tap" to ArrowDirection.TAP),
+        // — Swipe —
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
         "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
-        "SWIPE_RIGHT" to ("Swipe Right (Inward)" to ArrowDirection.SWIPE_RIGHT),
-        "SWIPE_UP_RIGHT" to ("Swipe Up ➔ Inward" to ArrowDirection.SWIPE_UP_RIGHT),
-        "SWIPE_DOWN_RIGHT" to ("Swipe Down ➔ Inward" to ArrowDirection.SWIPE_DOWN_RIGHT),
-        "SWIPE_UP_DOWN" to ("Swipe Up & Down" to ArrowDirection.SWIPE_UP_DOWN),
-        "SWIPE_DOWN_UP" to ("Swipe Down & Up" to ArrowDirection.SWIPE_DOWN_UP),
-        "SWIPE_RIGHT_BACK" to ("Swipe Right & Return" to ArrowDirection.RIGHT_BACK),
-        "SWIPE_RIGHT_UP" to ("Swipe Right & Up" to ArrowDirection.RIGHT_UP),
-        "SWIPE_RIGHT_DOWN" to ("Swipe Right & Down" to ArrowDirection.RIGHT_DOWN)
+        "SWIPE_RIGHT" to ("Swipe Inward" to ArrowDirection.SWIPE_RIGHT),
+        // — Rebound —
+        "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
+        "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
+        "SWIPE_RIGHT_BACK" to ("Rebound Inward" to ArrowDirection.RIGHT_BACK),
+        // — Two-Step —
+        "SWIPE_UP_RIGHT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_RIGHT),
+        "SWIPE_DOWN_RIGHT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_RIGHT),
+        "SWIPE_RIGHT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.RIGHT_UP),
+        "SWIPE_RIGHT_DOWN" to ("Two-Step: Inward → Down" to ArrowDirection.RIGHT_DOWN)
     )
 
     val rightCustomVectors = listOf(
-        "TAP" to ("Single Tap" to ArrowDirection.TAP),
+        // — Tap —
+        "TAP" to ("Tap" to ArrowDirection.TAP),
+        // — Swipe —
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
         "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
-        "SWIPE_LEFT" to ("Swipe Left (Inward)" to ArrowDirection.SWIPE_LEFT),
-        "SWIPE_UP_LEFT" to ("Swipe Up ➔ Inward" to ArrowDirection.SWIPE_UP_LEFT),
-        "SWIPE_DOWN_LEFT" to ("Swipe Down ➔ Inward" to ArrowDirection.SWIPE_DOWN_LEFT),
-        "SWIPE_UP_DOWN" to ("Swipe Up & Down" to ArrowDirection.SWIPE_UP_DOWN),
-        "SWIPE_DOWN_UP" to ("Swipe Down & Up" to ArrowDirection.SWIPE_DOWN_UP),
-        "SWIPE_LEFT_BACK" to ("Swipe Left & Return" to ArrowDirection.LEFT_BACK),
-        "SWIPE_LEFT_UP" to ("Swipe Left & Up" to ArrowDirection.LEFT_UP),
-        "SWIPE_LEFT_DOWN" to ("Swipe Left & Down" to ArrowDirection.LEFT_DOWN)
+        "SWIPE_LEFT" to ("Swipe Inward" to ArrowDirection.SWIPE_LEFT),
+        // — Rebound —
+        "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
+        "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
+        "SWIPE_LEFT_BACK" to ("Rebound Inward" to ArrowDirection.LEFT_BACK),
+        // — Two-Step —
+        "SWIPE_UP_LEFT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_LEFT),
+        "SWIPE_DOWN_LEFT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_LEFT),
+        "SWIPE_LEFT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.LEFT_UP),
+        "SWIPE_LEFT_DOWN" to ("Two-Step: Inward → Down" to ArrowDirection.LEFT_DOWN)
     )
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -420,7 +428,7 @@ fun SidebarMatrixConfigurationFields(
                                         // 3. Gestures
                                         CollapsibleSubSection(
                                             title = "⚡ Unified Gesture Matrix",
-                                            subtitle = "Single configuration shared across both flank zones",
+                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                             isExpanded = isLeftUnifiedGesturesExpanded,
                                             onToggle = {
                                                 isLeftUnifiedGesturesExpanded = !isLeftUnifiedGesturesExpanded
@@ -482,7 +490,7 @@ fun SidebarMatrixConfigurationFields(
                                         // 3. Gestures
                                         CollapsibleSubSection(
                                             title = "⚡ Gesture Actions & Macro Mappings",
-                                            subtitle = "Upper vector directional swipes, tap & hold",
+                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                             isExpanded = isLeftTopGesturesExpanded,
                                             onToggle = {
                                                 isLeftTopGesturesExpanded = !isLeftTopGesturesExpanded
@@ -544,7 +552,7 @@ fun SidebarMatrixConfigurationFields(
                                         // 3. Gestures
                                         CollapsibleSubSection(
                                             title = "⚡ Gesture Actions & Macro Mappings",
-                                            subtitle = "Lower vector directional swipes, tap & hold",
+                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                             isExpanded = isLeftBottomGesturesExpanded,
                                             onToggle = {
                                                 isLeftBottomGesturesExpanded = !isLeftBottomGesturesExpanded
@@ -629,7 +637,7 @@ fun SidebarMatrixConfigurationFields(
                                     // 3. Gestures — SWIPE_DOWN excluded: conflicts with Android notification shade
                                     CollapsibleSubSection(
                                         title = "⚡ Canopy Gesture Actions & Macros",
-                                        subtitle = "Tap, double-tap, left & right sweeps with hold modifiers",
+                                        subtitle = "Tap, double-tap, left & right swipes with Hold Modifiers",
                                         isExpanded = isStatusBarGesturesExpanded,
                                         onToggle = {
                                             isStatusBarGesturesExpanded = !isStatusBarGesturesExpanded
@@ -856,7 +864,7 @@ fun SidebarMatrixConfigurationFields(
                                         // 3. Gestures
                                         CollapsibleSubSection(
                                             title = "⚡ Unified Gesture Matrix",
-                                            subtitle = "Single configuration shared across both flank zones",
+                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                             isExpanded = isRightUnifiedGesturesExpanded,
                                             onToggle = {
                                                 isRightUnifiedGesturesExpanded = !isRightUnifiedGesturesExpanded
@@ -919,7 +927,7 @@ fun SidebarMatrixConfigurationFields(
                                         // 3. Gestures
                                         CollapsibleSubSection(
                                             title = "⚡ Gesture Actions & Macro Mappings",
-                                            subtitle = "Upper vector directional swipes, tap & hold",
+                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                             isExpanded = isTopGesturesExpanded,
                                             onToggle = {
                                                 isTopGesturesExpanded = !isTopGesturesExpanded
@@ -982,7 +990,7 @@ fun SidebarMatrixConfigurationFields(
                                         // 3. Gestures
                                         CollapsibleSubSection(
                                             title = "⚡ Gesture Actions & Macro Mappings",
-                                            subtitle = "Lower vector directional swipes, tap & hold",
+                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                             isExpanded = isBottomGesturesExpanded,
                                             onToggle = {
                                                 isBottomGesturesExpanded = !isBottomGesturesExpanded

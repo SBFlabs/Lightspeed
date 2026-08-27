@@ -3184,9 +3184,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (currentLayer == CruiseLayer.HIDDEN) {
             val d = resources.displayMetrics.density
 
-            val isTopExpanded = prefs.getBoolean("pref_section_top_expanded", false)
+            val isRightFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
+            val isRightUnifiedExpanded = prefs.getBoolean("pref_section_right_unified_expanded", false)
+            val isTopExpanded = if (isRightFlankUnified) isRightUnifiedExpanded else prefs.getBoolean("pref_section_top_expanded", false)
             val isCenterExpanded = prefs.getBoolean("pref_section_center_expanded", false)
-            val isBottomExpanded = prefs.getBoolean("pref_section_bottom_expanded", false)
+            val isBottomExpanded = if (isRightFlankUnified) isRightUnifiedExpanded else prefs.getBoolean("pref_section_bottom_expanded", false)
             val isSidebarPreview = prefs.getBoolean("pref_sidebar_preview", false)
 
             val centerTransparency = prefs.getInt("pref_sidebar_center_transparency", 0)

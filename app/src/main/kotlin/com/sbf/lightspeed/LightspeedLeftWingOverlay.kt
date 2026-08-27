@@ -526,9 +526,11 @@ class LightspeedLeftWingOverlay(
         super.onDraw(canvas)
         val d = resources.displayMetrics.density
 
-        val isTopExpanded = prefs.getBoolean("pref_section_left_top_expanded", false)
+        val isFlankUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
+        val isUnifiedExpanded = prefs.getBoolean("pref_section_left_unified_expanded", false)
+        val isTopExpanded = if (isFlankUnified) isUnifiedExpanded else prefs.getBoolean("pref_section_left_top_expanded", false)
         val isCenterExpanded = prefs.getBoolean("pref_section_left_center_expanded", false)
-        val isBottomExpanded = prefs.getBoolean("pref_section_left_bottom_expanded", false)
+        val isBottomExpanded = if (isFlankUnified) isUnifiedExpanded else prefs.getBoolean("pref_section_left_bottom_expanded", false)
         val isPreview = prefs.getBoolean("pref_sidebar_left_preview", false)
 
         val geomMode = prefs.getString("pref_symmetry_geometry_mode", "independent") ?: "independent"

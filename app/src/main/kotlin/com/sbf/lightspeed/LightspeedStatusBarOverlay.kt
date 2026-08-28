@@ -163,7 +163,7 @@ class LightspeedStatusBarOverlay(
                 val dy = event.y - startY
                 val dist = hypot(dx, dy)
 
-                if (dist > threshold * 0.4f && !isHoldFired && !isScrubbing) {
+                if (dist > threshold * 0.4f && !isHoldFired && !isScrubbing && !isHorizontalEngaged) {
                     uiHandler.removeCallbacks(holdRunnable)
                 }
 

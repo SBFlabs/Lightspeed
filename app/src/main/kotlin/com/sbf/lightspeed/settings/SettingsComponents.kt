@@ -485,7 +485,7 @@ fun GestureMappingRow(
                     options.forEach { opt ->
                         val optLabel = when (opt) {
                             "none" -> "None"
-                            "system:screen_timeout" -> "Screen Timeout (15s – 10m)"
+                            "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
                             "system:volume" -> "Volume (Media Stream)"
                             "system:brightness" -> "Screen Brightness"
                             "system:scroll_to_top" -> "Scroll to Top"

@@ -36,6 +36,7 @@ import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedHudRenderer
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import java.net.URISyntaxException
@@ -230,7 +231,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         scrubHudValue = "${(currentBrightness * 100 / 255)}%"
                     }
                     "system:screen_timeout" -> {
-                        scrubHudTitle = "SCREEN TIMEOUT"
+                        scrubHudTitle = "SHIP GOES DARK IN"
                         scrubHudValue = LightspeedTimeoutEngine.getCurrentFormatted(context)
                     }
                 }
@@ -1451,7 +1452,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 val stepResult = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
                 val label = stepResult.second
                 if (scrubHudValue != label) {
-                    scrubHudTitle = "SCREEN TIMEOUT"
+                    scrubHudTitle = "SHIP GOES DARK IN"
                     scrubHudValue = label
                     triggerHardwareHaptic(22, 140)
                     invalidate()
@@ -3624,28 +3625,30 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val d = resources.displayMetrics.density
             val cx = w / 2f
             val cy = h / 2f
-            val text = "$scrubHudTitle: $scrubHudValue"
-            val textW = textPaint.measureText(text).coerceAtLeast(180f * d)
-            val rect = RectF(cx - (textW / 2f) - (20f * d), cy - (26f * d), cx + (textW / 2f) + (20f * d), cy + (26f * d))
 
-            val hudFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.FILL
-                color = Color.argb(220, 16, 20, 32)
-            }
-            val hudStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE
-                strokeWidth = 2f * d
-                color = m3Primary
-            }
-            val hudText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                textSize = 15f * d
-                textAlign = Paint.Align.CENTER
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-            }
-            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudFill)
-            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudStroke)
-            canvas.drawText(text, cx, cy + (6f * d), hudText)
+            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
+            val dynamicZone = if (isFlankUnified) "UNIFIED" else (if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM")
+            val hudStyle = prefs.getString("pref_macro_hud_style_${dynamicZone}_SCRUBBING", null)
+                ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
+
+            val totalSteps = if (activeHoldScrubAction == "system:screen_timeout" || scrubHudTitle == "SHIP GOES DARK IN") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
+            val stepIdx = if (totalSteps > 0) LightspeedTimeoutEngine.getCurrentTimeoutIndex(context) else -1
+
+            LightspeedHudRenderer.renderHud(
+                canvas = canvas,
+                style = hudStyle,
+                title = scrubHudTitle,
+                value = scrubHudValue,
+                stepIndex = stepIdx,
+                totalSteps = totalSteps,
+                centerX = cx,
+                centerY = cy,
+                topY = 70f * d,
+                primaryColor = m3Primary,
+                density = d,
+                isLeftFlank = false
+            )
         }
     }
 }

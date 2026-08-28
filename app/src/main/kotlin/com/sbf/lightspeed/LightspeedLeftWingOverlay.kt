@@ -22,6 +22,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedHudRenderer
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlin.math.abs
@@ -197,7 +198,7 @@ class LightspeedLeftWingOverlay(
                         }
                         "system:screen_timeout" -> {
                             initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                            hudTitle = "SCREEN TIMEOUT"
+                            hudTitle = "SHIP GOES DARK IN"
                             hudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
                         }
                     }
@@ -314,7 +315,7 @@ class LightspeedLeftWingOverlay(
                             }
                             "system:screen_timeout" -> {
                                 initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                                hudTitle = "SCREEN TIMEOUT"
+                                hudTitle = "SHIP GOES DARK IN"
                                 hudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
                             }
                         }
@@ -513,7 +514,7 @@ class LightspeedLeftWingOverlay(
                 val targetIndex = (initialScrubValue + stepOffset).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
                 val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
                 if (hudValue != label) {
-                    hudTitle = "SCREEN TIMEOUT"
+                    hudTitle = "SHIP GOES DARK IN"
                     hudValue = label
                     triggerHaptic(22, 140)
                     invalidate()
@@ -590,13 +591,25 @@ class LightspeedLeftWingOverlay(
         if (isScrubbing && hudTitle.isNotEmpty()) {
             val cx = width / 2f
             val cy = height / 2f
-            val text = "$hudTitle: $hudValue"
-            val textW = hudTextPaint.measureText(text).coerceAtLeast(180f * d)
-            val rect = RectF(cx - (textW / 2f) - (20f * d), cy - (26f * d), cx + (textW / 2f) + (20f * d), cy + (26f * d))
+            val hudStyle = prefs.getString("pref_macro_hud_style_${activeZoneKey}_SCRUBBING", null)
+                ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
+            val totalSteps = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
+            val stepIdx = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.getCurrentTimeoutIndex(context) else -1
 
-            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudFillPaint)
-            canvas.drawRoundRect(rect, 14f * d, 14f * d, hudPaint)
-            canvas.drawText(text, cx, cy + (7f * d), hudTextPaint)
+            LightspeedHudRenderer.renderHud(
+                canvas = canvas,
+                style = hudStyle,
+                title = hudTitle,
+                value = hudValue,
+                stepIndex = stepIdx,
+                totalSteps = totalSteps,
+                centerX = cx,
+                centerY = cy,
+                topY = 70f * d,
+                primaryColor = m3Primary,
+                density = d,
+                isLeftFlank = true
+            )
         }
     }
 

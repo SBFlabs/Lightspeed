@@ -17,11 +17,14 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.Settings
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedHudRenderer
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlin.math.abs
@@ -102,9 +105,40 @@ class LightspeedStatusBarOverlay(
     private var isHorizontalEngaged = false
     private var isTwoStepDownwardScrub = false
     private var initialScrubValue = 0
+    private var currentTimeoutStep = 0
     private var scrubAccumulator = 0f
     private var hudTitle = ""
     private var hudValue = ""
+
+    private fun expandForScrubbing() {
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
+        val lp = layoutParams as? WindowManager.LayoutParams ?: return
+        val d = resources.displayMetrics.density
+        val screenW = resources.displayMetrics.widthPixels
+        lp.width = screenW
+        lp.height = (250 * d).toInt()
+        lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
+    }
+
+    private fun restoreWindowLayout() {
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
+        val lp = layoutParams as? WindowManager.LayoutParams ?: return
+        val d = resources.displayMetrics.density
+        val screenWidthPx = resources.displayMetrics.widthPixels
+        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
+        val spanPx = if (spanPref >= 1000) screenWidthPx else (spanPref * d).toInt().coerceIn((50 * d).toInt(), screenWidthPx)
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 80)
+        val heightPx = (thicknessDp * d).toInt().coerceIn((20 * d).toInt(), (300 * d).toInt())
+        val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * d).toInt()
+        val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * d).toInt()
+        lp.width = spanPx
+        lp.height = heightPx
+        lp.x = offsetX
+        lp.y = offsetY
+        lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
+    }
 
     private val holdRunnable = Runnable {
         if (!isScrubbing) {
@@ -235,6 +269,7 @@ class LightspeedStatusBarOverlay(
                     isSecondTapInSequence = false
                     hudTitle = ""
                     hudValue = ""
+                    restoreWindowLayout()
                     invalidate()
                     return true
                 }
@@ -270,6 +305,7 @@ class LightspeedStatusBarOverlay(
                 isHoldFired = false
                 isSecondTapInSequence = false
                 currentGesture = "NONE"
+                restoreWindowLayout()
                 invalidate()
                 return true
             }
@@ -314,12 +350,13 @@ class LightspeedStatusBarOverlay(
     }
 
     private fun initScrubSession() {
+        expandForScrubbing()
         when (scrubType) {
             "system:screen_timeout" -> {
                 initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                val totalSteps = LightspeedTimeoutEngine.TIMEOUT_STEPS.size
+                currentTimeoutStep = initialScrubValue
                 val label = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
-                hudTitle = "⏱ IDLE LOCK  ${initialScrubValue + 1} / $totalSteps"
+                hudTitle = "SHIP GOES DARK IN"
                 hudValue = label
             }
             "system:volume" -> {
@@ -354,12 +391,11 @@ class LightspeedStatusBarOverlay(
             "system:screen_timeout" -> {
                 val stepOffset = (dy / stepDistance).toInt()
                 val targetIndex = (initialScrubValue + stepOffset).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
-                val totalSteps = LightspeedTimeoutEngine.TIMEOUT_STEPS.size
                 val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
-                val newTitle = "⏱ IDLE LOCK  ${targetIndex + 1} / $totalSteps"
-                if (hudValue != label) {
+                if (hudValue != label || currentTimeoutStep != targetIndex) {
+                    currentTimeoutStep = targetIndex
                     hudValue = label
-                    hudTitle = newTitle
+                    hudTitle = "SHIP GOES DARK IN"
                     triggerHaptic(18, 110)
                 }
             }
@@ -419,15 +455,25 @@ class LightspeedStatusBarOverlay(
         }
 
         if (isScrubbing && hudTitle.isNotEmpty()) {
-            val cx = width / 2f
-            val cy = height / 2f
-            val rectW = 280f
-            val rectH = 56f
-            val rect = RectF(cx - rectW / 2f, cy - rectH / 2f, cx + rectW / 2f, cy + rectH / 2f)
+            val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR_SCRUBBING", null)
+                ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+            val totalSteps = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
+            val stepIdx = if (scrubType == "system:screen_timeout") currentTimeoutStep else -1
+            val topY = (prefs.getInt("pref_statusbar_thickness", 80) * d).coerceAtLeast(36f * d) + (8f * d)
 
-            canvas.drawRoundRect(rect, 14f, 14f, hudFillPaint)
-            canvas.drawRoundRect(rect, 14f, 14f, hudPaint)
-            canvas.drawText("$hudTitle: $hudValue", cx, cy + 9f, hudTextPaint)
+            LightspeedHudRenderer.renderHud(
+                canvas = canvas,
+                style = hudStyle,
+                title = hudTitle,
+                value = hudValue,
+                stepIndex = stepIdx,
+                totalSteps = totalSteps,
+                centerX = w / 2f,
+                centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
+                topY = topY,
+                primaryColor = Color.argb(255, 0, 229, 255),
+                density = d
+            )
         }
     }
 

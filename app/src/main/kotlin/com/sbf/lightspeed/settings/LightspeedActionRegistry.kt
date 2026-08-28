@@ -188,7 +188,7 @@ object LightspeedActionRegistry {
 fun resolveDynamicTokenLabel(context: Context, token: String): String {
     return when {
         token == "none" -> "None"
-        token == "system:screen_timeout" -> "Screen Timeout (15s – 10m Scrubber)"
+        token == "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
         token == "system:volume" -> "Volume (Media Scrubber)"
         token == "system:brightness" -> "Brightness Scrubber"
         token == "system:close_app" || token == "shizuku:close_app" -> "Close App (Remove from Recents)"

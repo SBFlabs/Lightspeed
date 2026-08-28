@@ -42,12 +42,28 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import kotlinx.coroutines.launch
+
+private val ScrewdriverVector: ImageVector = ImageVector.Builder(
+    name = "Screwdriver",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f
+).addPath(
+    pathData = PathParser().parsePathString(
+        "M21.71,3.71L20.29,2.29C19.9,1.9 19.27,1.9 18.88,2.29L13.88,7.29L16.71,10.12L21.71,5.12C22.1,4.73 22.1,4.1 21.71,3.71M15.29,11.54L12.46,8.71L4.88,16.29L3.46,14.88L2.05,16.29L4.88,19.12L2.05,21.95L3.46,23.36L6.29,20.54L9.12,23.36L10.54,21.95L9.12,20.54L16.71,12.95L15.29,11.54Z"
+    ).toNodes(),
+    fill = SolidColor(Color.White)
+).build()
 
 sealed class PickerRowItem {
     abstract val key: String
@@ -56,8 +72,23 @@ sealed class PickerRowItem {
         override val key = "header_sys"
     }
 
-    data class SystemAction(val token: String, val label: String) : PickerRowItem() {
+    data class SystemAction(
+        val token: String,
+        val label: String,
+        val isCustomizable: Boolean = false,
+        val isExpanded: Boolean = false
+    ) : PickerRowItem() {
         override val key = "action_$token"
+    }
+
+    data class SystemCustomizationOption(
+        val parentToken: String,
+        val optionKey: String,
+        val title: String,
+        val subtitle: String,
+        val isSelected: Boolean
+    ) : PickerRowItem() {
+        override val key = "sys_opt_${parentToken}_$optionKey"
     }
 
     data class AppHeader(
@@ -285,7 +316,45 @@ class GearPickerActivity : ComponentActivity() {
                         list.add(PickerRowItem.SystemHeader(systemActions.size, isExpanded))
                         if (isExpanded) {
                             systemActions.forEach { token ->
-                                list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token))
+                                val isCustomizable = token == "system:screen_timeout"
+                                val customKey = "customization:$token"
+                                val isCustomExpanded = expandedSubsections.contains(customKey)
+                                list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded))
+
+                                if (isCustomizable && isCustomExpanded) {
+                                    val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
+                                        singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+                                    } else "pref_macro_hud_style_default"
+                                    val currentStyle = prefs.getString(hudPrefKey, "canopy_droppod") ?: "canopy_droppod"
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "canopy_droppod",
+                                            title = "Tactical Canopy Drop-Pod",
+                                            subtitle = "Chamfered visor below status bar with 7-segment quantum gauge",
+                                            isSelected = currentStyle == "canopy_droppod"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "cockpit_reticle",
+                                            title = "Holographic Cockpit Reticle",
+                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
+                                            isSelected = currentStyle == "cockpit_reticle"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "edge_blade",
+                                            title = "Dynamic Edge Blade",
+                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
+                                            isSelected = currentStyle == "edge_blade"
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
@@ -619,45 +688,171 @@ class GearPickerActivity : ComponentActivity() {
                                             }
                                             is PickerRowItem.SystemAction -> {
                                                 val isChecked = selectedTokens.contains(item.token)
+                                                val customKey = "customization:${item.token}"
+
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(start = 14.dp, top = 2.dp, bottom = 2.dp)
-                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .height(48.dp)
+                                                        .padding(start = 14.dp, top = 2.dp, bottom = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // 1. Primary Action Board (Left)
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .fillMaxHeight()
+                                                            .clip(
+                                                                RoundedCornerShape(
+                                                                    topStart = 10.dp,
+                                                                    bottomStart = 10.dp,
+                                                                    topEnd = if (item.isCustomizable) 4.dp else 10.dp,
+                                                                    bottomEnd = if (item.isCustomizable) 4.dp else 10.dp
+                                                                )
+                                                            )
+                                                            .background(
+                                                                color = if (isChecked) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.03f)
+                                                            )
+                                                            .border(
+                                                                width = 1.dp,
+                                                                color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.05f),
+                                                                shape = RoundedCornerShape(
+                                                                    topStart = 10.dp,
+                                                                    bottomStart = 10.dp,
+                                                                    topEnd = if (item.isCustomizable) 4.dp else 10.dp,
+                                                                    bottomEnd = if (item.isCustomizable) 4.dp else 10.dp
+                                                                )
+                                                            )
+                                                            .clickable {
+                                                                handleTokenSelection(item.token)
+                                                            }
+                                                            .padding(horizontal = 12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Column(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .fillMaxHeight(),
+                                                            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
+                                                        ) {
+                                                            Text(
+                                                                text = item.label,
+                                                                color = if (isChecked) dynamicPrimary else Color.White,
+                                                                fontSize = 13.sp,
+                                                                fontWeight = if (isChecked) FontWeight.Bold else FontWeight.SemiBold,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                            Text(
+                                                                text = item.token,
+                                                                color = Color.LightGray.copy(alpha = 0.40f),
+                                                                fontSize = 10.sp,
+                                                                maxLines = 1
+                                                            )
+                                                        }
+                                                        if (isChecked) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .background(dynamicPrimary, CircleShape)
+                                                                    .padding(horizontal = 8.dp, vertical = 2.5.dp),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = "SELECTED",
+                                                                    color = Color.Black,
+                                                                    fontSize = 8.sp,
+                                                                    fontWeight = FontWeight.ExtraBold
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 2. Customization Screwdriver Button (Right)
+                                                    if (item.isCustomizable) {
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .width(42.dp)
+                                                                .fillMaxHeight()
+                                                                .clip(RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 10.dp, bottomEnd = 10.dp))
+                                                                .background(
+                                                                    if (item.isExpanded) dynamicSecondary.copy(alpha = 0.35f)
+                                                                    else dynamicSecondary.copy(alpha = 0.12f)
+                                                                )
+                                                                .border(
+                                                                    width = 1.dp,
+                                                                    color = if (item.isExpanded) dynamicSecondary.copy(alpha = 0.65f) else dynamicSecondary.copy(alpha = 0.20f),
+                                                                    shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 10.dp, bottomEnd = 10.dp)
+                                                                )
+                                                                .clickable {
+                                                                    expandedSubsections = if (item.isExpanded) {
+                                                                        expandedSubsections - customKey
+                                                                    } else {
+                                                                        expandedSubsections + customKey
+                                                                    }
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = ScrewdriverVector,
+                                                                contentDescription = "Customize",
+                                                                tint = if (item.isExpanded) dynamicSecondary else dynamicSecondary.copy(alpha = 0.9f),
+                                                                modifier = Modifier.size(17.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            is PickerRowItem.SystemCustomizationOption -> {
+                                                val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
+                                                    singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+                                                } else "pref_macro_hud_style_default"
+
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = 24.dp, end = 2.dp, top = 2.dp, bottom = 2.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
                                                         .background(
-                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.03f)
+                                                            if (item.isSelected) dynamicSecondary.copy(alpha = 0.22f)
+                                                            else Color.White.copy(alpha = 0.04f)
                                                         )
                                                         .border(
                                                             width = 1.dp,
-                                                            color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.05f),
-                                                            shape = RoundedCornerShape(10.dp)
+                                                            color = if (item.isSelected) dynamicSecondary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.06f),
+                                                            shape = RoundedCornerShape(8.dp)
                                                         )
                                                         .clickable {
-                                                            handleTokenSelection(item.token)
+                                                            prefs.edit().putString(hudPrefKey, item.optionKey).apply()
+                                                            expandedSubsections = expandedSubsections.toSet()
                                                         }
-                                                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                                                        .padding(horizontal = 12.dp, vertical = 7.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     Column(modifier = Modifier.weight(1f)) {
                                                         Text(
-                                                            text = item.label,
-                                                            color = if (isChecked) dynamicPrimary else Color.White,
-                                                            fontSize = 13.sp,
-                                                            fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal
+                                                            text = item.title,
+                                                            color = if (item.isSelected) dynamicSecondary else Color.White,
+                                                            fontSize = 12.5.sp,
+                                                            fontWeight = if (item.isSelected) FontWeight.Bold else FontWeight.Medium
                                                         )
-                                                        Text(text = item.token, color = Color.LightGray.copy(alpha = 0.40f), fontSize = 10.sp)
+                                                        Text(
+                                                            text = item.subtitle,
+                                                            color = Color.LightGray.copy(alpha = 0.55f),
+                                                            fontSize = 10.sp
+                                                        )
                                                     }
-                                                    if (isChecked) {
+                                                    if (item.isSelected) {
                                                         Box(
                                                             modifier = Modifier
-                                                                .background(dynamicPrimary, CircleShape)
-                                                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                                .background(dynamicSecondary, CircleShape)
+                                                                .padding(horizontal = 7.dp, vertical = 2.5.dp),
                                                             contentAlignment = Alignment.Center
                                                         ) {
                                                             Text(
-                                                                text = "SELECTED",
+                                                                text = "ACTIVE",
                                                                 color = Color.Black,
-                                                                fontSize = 9.sp,
+                                                                fontSize = 8.sp,
                                                                 fontWeight = FontWeight.ExtraBold
                                                             )
                                                         }

@@ -589,12 +589,17 @@ class LightspeedLeftWingOverlay(
         drawWingBlade(bottomTouchBounds, lowerColor, bottomTransparency, isBottomExpanded)
 
         if (isScrubbing && hudTitle.isNotEmpty()) {
-            val cx = width / 2f
+            val screenW = resources.displayMetrics.widthPixels.toFloat()
+            val cx = screenW / 2f
             val cy = height / 2f
             val hudStyle = prefs.getString("pref_macro_hud_style_${activeZoneKey}_SCRUBBING", null)
                 ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
             val totalSteps = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
             val stepIdx = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.getCurrentTimeoutIndex(context) else -1
+
+            val primaryAccent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.resources.getColor(android.R.color.system_accent1_300, context.theme)
+            } else m3Primary
 
             LightspeedHudRenderer.renderHud(
                 canvas = canvas,
@@ -606,7 +611,7 @@ class LightspeedLeftWingOverlay(
                 centerX = cx,
                 centerY = cy,
                 topY = 70f * d,
-                primaryColor = m3Primary,
+                primaryColor = primaryAccent,
                 density = d,
                 isLeftFlank = true
             )

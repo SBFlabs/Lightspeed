@@ -106,7 +106,8 @@ class LightspeedStatusBarOverlay(
     private var isTwoStepDownwardScrub = false
     private var initialScrubValue = 0
     private var currentTimeoutStep = 0
-    private var scrubAccumulator = 0f
+    private var scrubAnchorX = 0f
+    private var scrubAnchorY = 0f
     private var hudTitle = ""
     private var hudValue = ""
 
@@ -115,9 +116,11 @@ class LightspeedStatusBarOverlay(
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
         val d = resources.displayMetrics.density
         val screenW = resources.displayMetrics.widthPixels
+        lp.x = 0
+        lp.y = 0
         lp.width = screenW
-        lp.height = (250 * d).toInt()
-        lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        lp.height = (260 * d).toInt()
+        lp.gravity = Gravity.TOP or Gravity.START
         try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
     }
 
@@ -144,12 +147,17 @@ class LightspeedStatusBarOverlay(
         if (!isScrubbing) {
             val gestureKey = if (currentGesture != "NONE") currentGesture else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
             val actionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
-            val action = prefs.getString(actionKey, "none") ?: "none"
+            var action = prefs.getString(actionKey, "none") ?: "none"
+            if (action == "none") {
+                action = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "system:screen_timeout") ?: "system:screen_timeout"
+            }
             if (action != "none") {
                 isHoldFired = true
                 if (action == "system:volume" || action == "system:brightness" || action == "system:screen_timeout" || action == "system:scroll_to_top") {
                     scrubType = action
                     isScrubbing = true
+                    scrubAnchorX = startRawX
+                    scrubAnchorY = startRawY
                     triggerHaptic(35, 180)
                     initScrubSession()
                     invalidate()
@@ -172,8 +180,6 @@ class LightspeedStatusBarOverlay(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                // If a new touch starts within the double-tap window, cancel the pending
-                // deferred single-tap — the new touch will resolve as double-tap or double-tap-and-hold.
                 val nowDown = SystemClock.uptimeMillis()
                 if (nowDown - lastTapTime < 280L) {
                     isSecondTapInSequence = true
@@ -195,63 +201,72 @@ class LightspeedStatusBarOverlay(
                 isHorizontalEngaged = false
                 isTwoStepDownwardScrub = false
                 currentGesture = "NONE"
-                scrubAccumulator = 0f
+                scrubAnchorX = event.rawX
+                scrubAnchorY = event.rawY
 
-                scrubType = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "none") ?: "none"
-                if (scrubType == "none") {
-                    scrubType = "system:screen_timeout"
-                }
+                scrubType = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "system:screen_timeout") ?: "system:screen_timeout"
 
-                uiHandler.postDelayed(holdRunnable, 420L)
+                uiHandler.postDelayed(holdRunnable, 360L)
                 return true
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val dx = event.x - startX
-                val dy = event.y - startY
-                val dist = hypot(dx, dy)
+                val rawDx = event.rawX - startRawX
+                val rawDy = event.rawY - startRawY
+                val dist = hypot(rawDx, rawDy)
 
-                if (dist > threshold * 0.4f && !isHoldFired && !isScrubbing && !isHorizontalEngaged) {
+                if (dist > threshold * 0.35f && !isHoldFired && !isScrubbing && !isHorizontalEngaged) {
                     uiHandler.removeCallbacks(holdRunnable)
                 }
 
                 if (isScrubbing) {
-                    handleScrubMove(dy)
+                    handleScrubMove(event.rawX, event.rawY)
                     invalidate()
                     return true
                 }
 
-                if (!isScrubbing && !isHorizontalEngaged) {
-                    if (abs(dx) > threshold * 0.7f && abs(dx) > abs(dy) * 1.3f) {
+                // Direct Pull-Down Scrub or Horizontal Scrubbing Engagement
+                if (!isScrubbing) {
+                    if (rawDy > threshold * 0.7f && rawDy > abs(rawDx) * 0.7f) {
+                        isScrubbing = true
+                        isTwoStepDownwardScrub = true
+                        scrubAnchorX = event.rawX
+                        scrubAnchorY = event.rawY
+                        triggerHaptic(30, 180)
+                        initScrubSession()
+                        invalidate()
+                        return true
+                    }
+
+                    if (!isHorizontalEngaged && abs(rawDx) > threshold * 0.7f) {
                         isHorizontalEngaged = true
-                        currentGesture = if (dx > 0) "SWIPE_RIGHT" else "SWIPE_LEFT"
+                        currentGesture = if (rawDx > 0) "SWIPE_RIGHT" else "SWIPE_LEFT"
                         furthestX = event.x
-                        // Re-arm hold timer from the moment the swipe direction is committed
-                        // so "Swipe + Hold Modifier" can fire if finger stays held after stroke
                         if (!isHoldFired) {
                             uiHandler.removeCallbacks(holdRunnable)
-                            uiHandler.postDelayed(holdRunnable, 420L)
+                            uiHandler.postDelayed(holdRunnable, 360L)
                         }
                     }
                 }
 
                 if (isHorizontalEngaged && !isScrubbing) {
-                    // Track peak travel (mirrors lowestXReached / highestXReached on flanks)
                     if (currentGesture == "SWIPE_RIGHT" && event.x > furthestX) furthestX = event.x
                     if (currentGesture == "SWIPE_LEFT"  && event.x < furthestX) furthestX = event.x
 
-                    // Rebound: finger has returned 18dp from its furthest point → upgrade to *_BACK
                     val reboundThreshold = 18f * density
                     if (currentGesture == "SWIPE_RIGHT" && (furthestX - event.x) > reboundThreshold) {
                         currentGesture = "SWIPE_RIGHT_BACK"
                     } else if (currentGesture == "SWIPE_LEFT" && (event.x - furthestX) > reboundThreshold) {
                         currentGesture = "SWIPE_LEFT_BACK"
                     }
-                    if (dy > threshold * 0.9f) {
+                    if (rawDy > threshold * 0.7f) {
                         isScrubbing = true
                         isTwoStepDownwardScrub = true
+                        scrubAnchorX = event.rawX
+                        scrubAnchorY = event.rawY
                         triggerHaptic(30, 180)
                         initScrubSession()
+                        invalidate()
                     }
                 }
                 return true
@@ -383,33 +398,37 @@ class LightspeedStatusBarOverlay(
         }
     }
 
-    private fun handleScrubMove(dy: Float) {
+    private fun handleScrubMove(rawX: Float, rawY: Float) {
         val density = resources.displayMetrics.density
         val stepDistance = 24f * density
 
+        val dx = rawX - scrubAnchorX
+        val dy = rawY - scrubAnchorY
+        val primaryDelta = if (abs(dx) >= abs(dy)) dx else dy
+
         when (scrubType) {
             "system:screen_timeout" -> {
-                val stepOffset = (dy / stepDistance).toInt()
+                val stepOffset = (primaryDelta / stepDistance).toInt()
                 val targetIndex = (initialScrubValue + stepOffset).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
-                val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
-                if (hudValue != label || currentTimeoutStep != targetIndex) {
+                if (targetIndex != currentTimeoutStep) {
                     currentTimeoutStep = targetIndex
+                    val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
                     hudValue = label
                     hudTitle = "SHIP GOES DARK IN"
-                    triggerHaptic(18, 110)
+                    triggerHaptic(18, 120)
                 }
             }
             "system:volume" -> {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
                 val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                val stepOffset = (dy / (stepDistance * 1.2f)).toInt()
+                val stepOffset = (primaryDelta / (stepDistance * 1.2f)).toInt()
                 val targetVol = (initialScrubValue + stepOffset).coerceIn(0, max)
                 am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, AudioManager.FLAG_SHOW_UI)
                 hudValue = "$targetVol / $max"
             }
             "system:brightness" -> {
                 if (Settings.System.canWrite(context)) {
-                    val stepOffset = ((dy / (stepDistance * 1.5f)) * 10).toInt()
+                    val stepOffset = ((primaryDelta / (stepDistance * 1.5f)) * 15).toInt()
                     val target = (initialScrubValue + stepOffset).coerceIn(10, 255)
                     try {
                         Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, target)
@@ -426,13 +445,20 @@ class LightspeedStatusBarOverlay(
         val isExpanded = prefs.getBoolean("pref_section_statusbar_expanded", false)
         val transparencyPct = prefs.getInt("pref_statusbar_transparency", 0)
         val d = resources.displayMetrics.density
+        val screenW = resources.displayMetrics.widthPixels.toFloat()
         val w = width.toFloat()
         val h = height.toFloat()
 
+        val m3Primary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.resources.getColor(android.R.color.system_accent1_300, context.theme)
+        } else {
+            Color.parseColor("#90CAF9")
+        }
+
         if (isPreview && isExpanded) {
-            // Holographic Cyan Canopy Live Preview — only when settings tab is active
+            // Live Preview — only when settings tab is active
             debugPaint.style = Paint.Style.FILL
-            debugPaint.color = Color.argb(120, 0, 229, 255)
+            debugPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(RectF(0f, 0f, w, h), 8f * d, 8f * d, debugPaint)
 
             debugPaint.style = Paint.Style.STROKE
@@ -447,10 +473,10 @@ class LightspeedStatusBarOverlay(
         } else if (transparencyPct > 0) {
             val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
             debugPaint.style = Paint.Style.FILL
-            debugPaint.color = Color.argb((alpha * 0.4f).toInt(), 0, 229, 255)
+            debugPaint.color = Color.argb((alpha * 0.4f).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(RectF(0f, 0f, w, 4f * d), 2f * d, 2f * d, debugPaint)
 
-            debugPaint.color = Color.argb(alpha, 0, 229, 255)
+            debugPaint.color = Color.argb(alpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(RectF(0f, 0f, w, 2.5f * d), 1.5f * d, 1.5f * d, debugPaint)
         }
 
@@ -468,10 +494,10 @@ class LightspeedStatusBarOverlay(
                 value = hudValue,
                 stepIndex = stepIdx,
                 totalSteps = totalSteps,
-                centerX = w / 2f,
+                centerX = screenW / 2f,
                 centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
                 topY = topY,
-                primaryColor = Color.argb(255, 0, 229, 255),
+                primaryColor = m3Primary,
                 density = d
             )
         }

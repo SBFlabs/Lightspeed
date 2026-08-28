@@ -479,6 +479,62 @@ fun GestureMappingRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text("Active Map: $activeLabel", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
         }
+        if (currentRawValue == "system:screen_timeout") {
+            val hudKey = key.replace("pref_macro_action_", "pref_macro_hud_style_")
+            var hudStyle by remember(currentRawValue) {
+                mutableStateOf(prefs.getString(hudKey, null) ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod")
+            }
+            var showHudMenu by remember { mutableStateOf(false) }
+
+            Box {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.clickable { showHudMenu = true }
+                ) {
+                    val hudName = when (hudStyle) {
+                        "canopy_droppod" -> "Drop-Pod"
+                        "cockpit_reticle" -> "Reticle"
+                        "edge_blade" -> "Blade"
+                        else -> "Drop-Pod"
+                    }
+                    Text(
+                        text = "HUD: $hudName ▾",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                    )
+                }
+                DropdownMenu(expanded = showHudMenu, onDismissRequest = { showHudMenu = false }) {
+                    listOf(
+                        "canopy_droppod" to "Tactical Canopy Drop-Pod",
+                        "cockpit_reticle" to "Holographic Cockpit Reticle",
+                        "edge_blade" to "Dynamic Edge Blade"
+                    ).forEach { (styleKey, styleTitle) ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = if (styleKey == hudStyle) "✓ $styleTitle" else styleTitle,
+                                    fontWeight = if (styleKey == hudStyle) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                hudStyle = styleKey
+                                prefs.edit()
+                                    .putString(hudKey, styleKey)
+                                    .putString("pref_macro_hud_style_default", styleKey)
+                                    .apply()
+                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                showHudMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+
         if (direction == ArrowDirection.SCRUB) {
             Box {
                 DropdownMenu(expanded = showScrubMenu, onDismissRequest = { showScrubMenu = false }) {

@@ -3623,7 +3623,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         if (currentDetectedGesture == MacroGesture.SCRUBBING && scrubHudTitle.isNotEmpty()) {
             val d = resources.displayMetrics.density
-            val cx = w / 2f
+            val screenW = resources.displayMetrics.widthPixels.toFloat()
+            val cx = screenW / 2f
             val cy = h / 2f
 
             val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
@@ -3635,6 +3636,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val totalSteps = if (activeHoldScrubAction == "system:screen_timeout" || scrubHudTitle == "SHIP GOES DARK IN") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
             val stepIdx = if (totalSteps > 0) LightspeedTimeoutEngine.getCurrentTimeoutIndex(context) else -1
 
+            val primaryAccent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                context.resources.getColor(android.R.color.system_accent1_300, context.theme)
+            } else m3Primary
+
             LightspeedHudRenderer.renderHud(
                 canvas = canvas,
                 style = hudStyle,
@@ -3645,7 +3650,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 centerX = cx,
                 centerY = cy,
                 topY = 70f * d,
-                primaryColor = m3Primary,
+                primaryColor = primaryAccent,
                 density = d,
                 isLeftFlank = false
             )

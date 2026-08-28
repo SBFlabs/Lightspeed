@@ -294,8 +294,10 @@ class GearPickerActivity : ComponentActivity() {
                 }
             }
 
+            var hudStyleVersion by remember { mutableStateOf(0) }
+
             // Build hierarchical items with stable keys
-            val flatItemsList by remember(allTokens.size, labelCache.size, searchQuery, expandedSubsections) {
+            val flatItemsList by remember(allTokens.size, labelCache.size, searchQuery, expandedSubsections, hudStyleVersion) {
                 derivedStateOf {
                     val list = mutableListOf<PickerRowItem>()
                     val validTokens = allTokens.filter { it != "none" }
@@ -823,8 +825,12 @@ class GearPickerActivity : ComponentActivity() {
                                                             shape = RoundedCornerShape(8.dp)
                                                         )
                                                         .clickable {
-                                                            prefs.edit().putString(hudPrefKey, item.optionKey).apply()
-                                                            expandedSubsections = expandedSubsections.toSet()
+                                                            prefs.edit()
+                                                                .putString(hudPrefKey, item.optionKey)
+                                                                .putString("pref_macro_hud_style_default", item.optionKey)
+                                                                .apply()
+                                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            hudStyleVersion++
                                                         }
                                                         .padding(horizontal = 12.dp, vertical = 7.dp),
                                                     verticalAlignment = Alignment.CenterVertically

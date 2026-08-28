@@ -285,6 +285,7 @@ class LightspeedStatusBarOverlay(
                     hudTitle = ""
                     hudValue = ""
                     restoreWindowLayout()
+                    triggerHaptic(28, 170)
                     invalidate()
                     return true
                 }

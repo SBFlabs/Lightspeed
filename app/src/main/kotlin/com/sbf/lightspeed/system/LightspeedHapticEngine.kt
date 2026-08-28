@@ -1,7 +1,9 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.os.Build
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -40,8 +42,46 @@ object LightspeedHapticEngine {
             val vibrator = getVibrator(context) ?: return
             if (!vibrator.hasVibrator()) return
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val clampedAmp = amplitude.coerceIn(1, 255)
+            val clampedAmp = amplitude.coerceIn(1, 255)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val effect = if (durationMs <= 20L) {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                } else if (durationMs <= 35L) {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                } else if (durationMs <= 60L) {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                } else {
+                    VibrationEffect.createOneShot(durationMs, clampedAmp)
+                }
+                val attrs = VibrationAttributes.Builder()
+                    .setUsage(VibrationAttributes.USAGE_TOUCH)
+                    .build()
+                try {
+                    vibrator.vibrate(effect, attrs)
+                } catch (_: Exception) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(durationMs, clampedAmp), attrs)
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val effect = if (durationMs <= 20L) {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                } else if (durationMs <= 35L) {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                } else if (durationMs <= 60L) {
+                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                } else {
+                    VibrationEffect.createOneShot(durationMs, clampedAmp)
+                }
+                val audioAttrs = AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .build()
+                try {
+                    vibrator.vibrate(effect, audioAttrs)
+                } catch (_: Exception) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(durationMs, clampedAmp), audioAttrs)
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 vibrator.vibrate(VibrationEffect.createOneShot(durationMs, clampedAmp))
             } else {
                 @Suppress("DEPRECATION")
@@ -56,34 +96,34 @@ object LightspeedHapticEngine {
      * Subtle tactile tick for category scrubbing, ring rotation, and item highlighting.
      */
     fun tick(context: Context) {
-        vibrate(context, durationMs = 15L, amplitude = 90)
+        vibrate(context, durationMs = 15L, amplitude = 110)
     }
 
     /**
      * Standard tactile click for gesture recognition, button presses, and selection locks.
      */
     fun click(context: Context) {
-        vibrate(context, durationMs = 30L, amplitude = 150)
+        vibrate(context, durationMs = 28L, amplitude = 170)
     }
 
     /**
      * Heavy tactile pulse for macro actions, app launch breakthroughs, and hold gates.
      */
     fun heavyClick(context: Context) {
-        vibrate(context, durationMs = 40L, amplitude = 210)
+        vibrate(context, durationMs = 45L, amplitude = 220)
     }
 
     /**
      * Scrubbing milestone tick for volume, brightness, or timeout parameter adjustments.
      */
     fun scrubTick(context: Context) {
-        vibrate(context, durationMs = 18L, amplitude = 130)
+        vibrate(context, durationMs = 18L, amplitude = 150)
     }
 
     /**
      * Alarm haptic pulse when Eject mode is armed or critical threshold is breached.
      */
     fun alert(context: Context) {
-        vibrate(context, durationMs = 50L, amplitude = 240)
+        vibrate(context, durationMs = 60L, amplitude = 255)
     }
 }

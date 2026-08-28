@@ -1150,6 +1150,7 @@ class GearPickerActivity : ComponentActivity() {
                                                         val label = when (item) {
                                                             is PickerRowItem.SystemHeader -> "System Actions"
                                                             is PickerRowItem.SystemAction -> item.label
+                                                            is PickerRowItem.SystemCustomizationOption -> item.title
                                                             is PickerRowItem.AppHeader -> item.appName
                                                             is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
                                                             is PickerRowItem.ShortcutAction -> item.label
@@ -1177,6 +1178,7 @@ class GearPickerActivity : ComponentActivity() {
                                                                 val label = when (item) {
                                                                     is PickerRowItem.SystemHeader -> "System Actions"
                                                                     is PickerRowItem.SystemAction -> item.label
+                                                                    is PickerRowItem.SystemCustomizationOption -> item.title
                                                                     is PickerRowItem.AppHeader -> item.appName
                                                                     is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
                                                                     is PickerRowItem.ShortcutAction -> item.label

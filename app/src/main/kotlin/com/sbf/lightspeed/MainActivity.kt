@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.sbf.lightspeed.settings.MainSettingsScreen
+import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import rikka.shizuku.Shizuku
@@ -50,6 +51,16 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         checkAndRequest()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        defaultPrefs().edit()
+            .putBoolean("pref_sidebar_left_preview", false)
+            .putBoolean("pref_statusbar_preview", false)
+            .putBoolean("pref_sidebar_preview", false)
+            .apply()
+        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
     }
 
     private fun checkAndRequest() {

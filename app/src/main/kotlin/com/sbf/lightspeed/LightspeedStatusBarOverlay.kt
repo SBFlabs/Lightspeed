@@ -94,6 +94,7 @@ class LightspeedStatusBarOverlay(
     private var furthestX = 0f   // tracks peak travel for rebound detection (mirrors lowestXReached / highestXReached on flanks)
     private var isScrubbing = false
     private var isHoldFired = false
+    private var isSecondTapInSequence = false
     private var currentGesture = "NONE"
     private var scrubType = "none"
 
@@ -107,7 +108,7 @@ class LightspeedStatusBarOverlay(
 
     private val holdRunnable = Runnable {
         if (!isScrubbing) {
-            val gestureKey = if (currentGesture == "NONE") "TAP" else currentGesture
+            val gestureKey = if (currentGesture != "NONE") currentGesture else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
             val actionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
             val action = prefs.getString(actionKey, "none") ?: "none"
             if (action != "none") {
@@ -138,9 +139,15 @@ class LightspeedStatusBarOverlay(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 // If a new touch starts within the double-tap window, cancel the pending
-                // deferred single-tap — the new touch will resolve as double-tap or hold.
+                // deferred single-tap — the new touch will resolve as double-tap or double-tap-and-hold.
                 val nowDown = SystemClock.uptimeMillis()
-                if (nowDown - lastTapTime < 240L) {
+                if (nowDown - lastTapTime < 280L) {
+                    isSecondTapInSequence = true
+                    pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
+                    pendingTapRunnable = null
+                    lastTapTime = 0L
+                } else {
+                    isSecondTapInSequence = false
                     pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
                     pendingTapRunnable = null
                 }
@@ -161,7 +168,7 @@ class LightspeedStatusBarOverlay(
                     scrubType = "system:screen_timeout"
                 }
 
-                uiHandler.postDelayed(holdRunnable, 450L)
+                uiHandler.postDelayed(holdRunnable, 420L)
                 return true
             }
 
@@ -189,7 +196,7 @@ class LightspeedStatusBarOverlay(
                         // so "Swipe + Hold Modifier" can fire if finger stays held after stroke
                         if (!isHoldFired) {
                             uiHandler.removeCallbacks(holdRunnable)
-                            uiHandler.postDelayed(holdRunnable, 450L)
+                            uiHandler.postDelayed(holdRunnable, 420L)
                         }
                     }
                 }
@@ -225,15 +232,20 @@ class LightspeedStatusBarOverlay(
                 if (isScrubbing) {
                     isScrubbing = false
                     isTwoStepDownwardScrub = false
+                    isSecondTapInSequence = false
                     hudTitle = ""
                     hudValue = ""
                     invalidate()
                     return true
                 }
 
-                if (isHoldFired) return true
+                if (isHoldFired) {
+                    isSecondTapInSequence = false
+                    return true
+                }
 
                 if (currentGesture != "NONE") {
+                    isSecondTapInSequence = false
                     val actionKey = "pref_macro_action_STATUSBAR_$currentGesture"
                     val action = prefs.getString(actionKey, "none") ?: "none"
                     if (action != "none") {
@@ -245,14 +257,18 @@ class LightspeedStatusBarOverlay(
                     handleTapSequence()
                     return true
                 }
+                isSecondTapInSequence = false
                 return true
             }
 
             MotionEvent.ACTION_CANCEL -> {
                 uiHandler.removeCallbacks(holdRunnable)
+                pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
+                pendingTapRunnable = null
                 isScrubbing = false
                 isTwoStepDownwardScrub = false
                 isHoldFired = false
+                isSecondTapInSequence = false
                 currentGesture = "NONE"
                 invalidate()
                 return true
@@ -262,30 +278,38 @@ class LightspeedStatusBarOverlay(
     }
 
     private fun handleTapSequence() {
-        val doubleTapAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", "none") ?: "none"
-        val singleTapAction = prefs.getString("pref_macro_action_STATUSBAR_TAP", "system:scroll_to_top") ?: "system:scroll_to_top"
-        val now = SystemClock.uptimeMillis()
-
-        if (doubleTapAction != "none") {
-            if (now - lastTapTime < 240L) {
-                pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
-                pendingTapRunnable = null
-                lastTapTime = 0L
+        if (isSecondTapInSequence) {
+            isSecondTapInSequence = false
+            lastTapTime = 0L
+            val doubleTapAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", "none") ?: "none"
+            if (doubleTapAction != "none") {
                 triggerHaptic(30, 180)
                 performActionByName(doubleTapAction)
-            } else {
-                lastTapTime = now
+            }
+        } else {
+            val doubleTapAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", "none") ?: "none"
+            val doubleTapHoldAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP_HOLD", "none") ?: "none"
+            val singleTapAction = prefs.getString("pref_macro_action_STATUSBAR_TAP", "system:scroll_to_top") ?: "system:scroll_to_top"
+
+            val hasDoubleTapAction = (doubleTapAction != "none" || doubleTapHoldAction != "none")
+            if (hasDoubleTapAction) {
+                lastTapTime = SystemClock.uptimeMillis()
                 val tapTask = Runnable {
-                    triggerHaptic(20, 120)
-                    performActionByName(singleTapAction)
+                    if (singleTapAction != "none") {
+                        triggerHaptic(20, 120)
+                        performActionByName(singleTapAction)
+                    }
                     pendingTapRunnable = null
+                    lastTapTime = 0L
                 }
                 pendingTapRunnable = tapTask
                 uiHandler.postDelayed(tapTask, 240L)
+            } else {
+                if (singleTapAction != "none") {
+                    triggerHaptic(20, 120)
+                    performActionByName(singleTapAction)
+                }
             }
-        } else {
-            triggerHaptic(20, 120)
-            performActionByName(singleTapAction)
         }
     }
 

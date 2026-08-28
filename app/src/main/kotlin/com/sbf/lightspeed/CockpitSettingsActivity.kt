@@ -41,9 +41,10 @@ import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class CockpitSettingsActivity : ComponentActivity() {
 
-    override fun onDestroy() {
-        super.onDestroy()
-        // Clear all overlay live-previews so nothing lingers after settings close
+    override fun onPause() {
+        super.onPause()
+        // Clear all overlay live-previews whenever settings loses foreground — covers
+        // onDestroy, back gesture, home gesture, or a canopy action launching another app.
         defaultPrefs().edit()
             .putBoolean("pref_sidebar_left_preview", false)
             .putBoolean("pref_statusbar_preview", false)

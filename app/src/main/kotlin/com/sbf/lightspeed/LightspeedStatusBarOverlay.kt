@@ -137,6 +137,13 @@ class LightspeedStatusBarOverlay(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                // If a new touch starts within the double-tap window, cancel the pending
+                // deferred single-tap — the new touch will resolve as double-tap or hold.
+                val nowDown = SystemClock.uptimeMillis()
+                if (nowDown - lastTapTime < 240L) {
+                    pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
+                    pendingTapRunnable = null
+                }
                 startRawX = event.rawX
                 startRawY = event.rawY
                 startX = event.x
@@ -286,8 +293,10 @@ class LightspeedStatusBarOverlay(
         when (scrubType) {
             "system:screen_timeout" -> {
                 initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                hudTitle = "SCREEN TIMEOUT"
-                hudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
+                val totalSteps = LightspeedTimeoutEngine.TIMEOUT_STEPS.size
+                val label = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
+                hudTitle = "⏱ IDLE LOCK  ${initialScrubValue + 1} / $totalSteps"
+                hudValue = label
             }
             "system:volume" -> {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -321,9 +330,12 @@ class LightspeedStatusBarOverlay(
             "system:screen_timeout" -> {
                 val stepOffset = (dy / stepDistance).toInt()
                 val targetIndex = (initialScrubValue + stepOffset).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
+                val totalSteps = LightspeedTimeoutEngine.TIMEOUT_STEPS.size
                 val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
+                val newTitle = "⏱ IDLE LOCK  ${targetIndex + 1} / $totalSteps"
                 if (hudValue != label) {
                     hudValue = label
+                    hudTitle = newTitle
                     triggerHaptic(18, 110)
                 }
             }

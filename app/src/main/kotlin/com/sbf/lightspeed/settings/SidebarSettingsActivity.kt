@@ -20,8 +20,8 @@ class SidebarSettingsActivity : ComponentActivity() {
         }
     }
 
-    override fun onStop() {
-        super.onStop()
+    override fun onPause() {
+        super.onPause()
         // Clear all preview highlights whenever settings leaves the screen — covers
         // every exit path: X button, background tap, back gesture, or an external
         // action (gesture launching another app) that kills the activity unexpectedly.

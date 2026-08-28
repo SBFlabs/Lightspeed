@@ -350,15 +350,15 @@ class LightspeedStatusBarOverlay(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val previewEnabled = prefs.getBoolean("pref_statusbar_preview", false) ||
-                prefs.getBoolean("pref_section_statusbar_expanded", false)
+        val isPreview  = prefs.getBoolean("pref_statusbar_preview", false)
+        val isExpanded = prefs.getBoolean("pref_section_statusbar_expanded", false)
         val transparencyPct = prefs.getInt("pref_statusbar_transparency", 0)
         val d = resources.displayMetrics.density
         val w = width.toFloat()
         val h = height.toFloat()
 
-        if (previewEnabled) {
-            // Holographic Cyan Canopy Live Preview
+        if (isPreview && isExpanded) {
+            // Holographic Cyan Canopy Live Preview — only when settings tab is active
             debugPaint.style = Paint.Style.FILL
             debugPaint.color = Color.argb(120, 0, 229, 255)
             canvas.drawRoundRect(RectF(0f, 0f, w, h), 8f * d, 8f * d, debugPaint)

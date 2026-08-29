@@ -305,4 +305,41 @@ object ElevatedTaskCloser {
             }, 80L)
         }
     }
+
+    fun launchInFreeform(context: Context) {
+        Log.i(TAG, "launchInFreeform() invoked")
+        exemptHiddenApis()
+
+        if (isShizukuActive) {
+            try {
+                val process = execShizuku("dumpsys window displays | grep -E 'mFocusedApp|mCurrentFocus'")
+                val reader = BufferedReader(InputStreamReader(process?.inputStream ?: return))
+                val focusedAppRegex = Regex("""ActivityRecord\{[^\}]*\s([a-zA-Z0-9_.]+)/([^\s\}]+)\s+t(\d+)""", RegexOption.IGNORE_CASE)
+                var targetComponent: String? = null
+                val myPkg = context.packageName
+
+                reader.useLines { lines ->
+                    for (line in lines) {
+                        val fam = focusedAppRegex.find(line)
+                        if (fam != null) {
+                            val (pkg, act, _) = fam.destructured
+                            if (pkg != myPkg && !isSystem(pkg)) {
+                                targetComponent = "$pkg/$act"
+                                break
+                            }
+                        }
+                    }
+                }
+                process?.waitFor()
+
+                if (targetComponent != null) {
+                    val launchProc = execShizuku("am start -n $targetComponent --windowingMode 5")
+                    launchProc?.waitFor()
+                    Log.i(TAG, "Launched $targetComponent in Freeform Pop-up view")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "launchInFreeform error", e)
+            }
+        }
+    }
 }

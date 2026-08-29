@@ -330,7 +330,7 @@ class GearPickerActivity : ComponentActivity() {
                                 Triple(
                                     "sys_nav",
                                     "Navigation & Multitasking",
-                                    listOf("system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen")
+                                    listOf("system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen", "system:popup_window")
                                 ),
                                 Triple(
                                     "sys_hw",
@@ -811,20 +811,28 @@ class GearPickerActivity : ComponentActivity() {
                                                                 .weight(1f)
                                                                 .fillMaxHeight(),
                                                             verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
-                                                        ) {
+                                                         ) {
                                                             Text(
                                                                 text = item.label,
                                                                 color = if (isChecked) dynamicPrimary else Color.White,
                                                                 fontSize = 13.sp,
                                                                 fontWeight = if (isChecked) FontWeight.Bold else FontWeight.SemiBold,
                                                                 maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
+                                                                overflow = TextOverflow.Ellipsis,
+                                                                style = TextStyle(
+                                                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                    lineHeight = 16.sp
+                                                                )
                                                             )
                                                             Text(
                                                                 text = item.token,
                                                                 color = Color.LightGray.copy(alpha = 0.40f),
                                                                 fontSize = 10.sp,
-                                                                maxLines = 1
+                                                                maxLines = 1,
+                                                                style = TextStyle(
+                                                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                    lineHeight = 12.sp
+                                                                )
                                                             )
                                                         }
                                                         if (isChecked) {
@@ -910,17 +918,28 @@ class GearPickerActivity : ComponentActivity() {
                                                         .padding(horizontal = 12.dp, vertical = 7.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Column(modifier = Modifier.weight(1f)) {
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
+                                                    ) {
                                                         Text(
                                                             text = item.title,
                                                             color = if (item.isSelected) dynamicSecondary else Color.White,
                                                             fontSize = 12.5.sp,
-                                                            fontWeight = if (item.isSelected) FontWeight.Bold else FontWeight.Medium
+                                                            fontWeight = if (item.isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                            style = TextStyle(
+                                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                lineHeight = 15.sp
+                                                            )
                                                         )
                                                         Text(
                                                             text = item.subtitle,
                                                             color = Color.LightGray.copy(alpha = 0.55f),
-                                                            fontSize = 10.sp
+                                                            fontSize = 10.sp,
+                                                            style = TextStyle(
+                                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                lineHeight = 12.sp
+                                                            )
                                                         )
                                                     }
                                                     if (item.isSelected) {
@@ -1131,6 +1150,7 @@ class GearPickerActivity : ComponentActivity() {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
+                                                        .height(48.dp)
                                                         .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
                                                         .clip(RoundedCornerShape(10.dp))
                                                         .background(
@@ -1153,7 +1173,7 @@ class GearPickerActivity : ComponentActivity() {
                                                                 handleTokenSelection(item.token)
                                                             }
                                                         }
-                                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                                        .padding(horizontal = 12.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     val shortcutBmp = remember(item.token) {
@@ -1169,21 +1189,32 @@ class GearPickerActivity : ComponentActivity() {
                                                     val displayLabel = remember(item.token) {
                                                         com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(this@GearPickerActivity, item.token)
                                                     }
-                                                    Column(modifier = Modifier.weight(1f)) {
+                                                    Column(
+                                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                                        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
+                                                    ) {
                                                         Text(
                                                             text = displayLabel,
                                                             color = if (isChecked) dynamicPrimary else Color.White,
                                                             fontSize = 13.sp,
                                                             fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal,
                                                             maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            style = TextStyle(
+                                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                lineHeight = 16.sp
+                                                            )
                                                         )
                                                         Text(
                                                             text = if (item.isPlugin) "Shortcut Creator Wizard" else item.token,
                                                             color = Color.LightGray.copy(alpha = 0.40f),
                                                             fontSize = 10.sp,
                                                             maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            style = TextStyle(
+                                                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                lineHeight = 12.sp
+                                                            )
                                                         )
                                                     }
 

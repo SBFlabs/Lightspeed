@@ -26,6 +26,9 @@ object ActionDispatcher {
                     service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
                 }
             }
+            token == "system:popup_window" || token == "system:freeform" || token == "popup_window" -> {
+                ElevatedTaskCloser.launchInFreeform(context)
+            }
             token == "system:flashlight" || token == "ACTION_FLASHLIGHT" || token == "flashlight" -> {
                 toggleFlashlight(context)
             }

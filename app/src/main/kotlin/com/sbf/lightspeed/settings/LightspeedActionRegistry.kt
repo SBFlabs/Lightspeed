@@ -39,6 +39,7 @@ object LightspeedActionRegistry {
         "system:home",
         "system:back",
         "system:split_screen",
+        "system:popup_window",
 
         // 2. Hardware & System Controls
         "system:flashlight",
@@ -211,7 +212,8 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:recents" -> "Recents Overview"
         token == "system:home" -> "Home"
         token == "system:back" -> "Back"
-        token == "system:split_screen" -> "Split Screen (Multi-Window)"
+        token == "system:split_screen" -> "Split Screen"
+        token == "system:popup_window" || token == "system:freeform" -> "Pop-up Window"
 
         token == "system:flashlight" -> "Flashlight / Torch"
         token == "system:screenshot" -> "Take Screenshot"

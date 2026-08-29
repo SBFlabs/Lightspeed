@@ -72,6 +72,15 @@ sealed class PickerRowItem {
         override val key = "header_sys"
     }
 
+    data class SystemCategoryHeader(
+        val categoryKey: String,
+        val title: String,
+        val count: Int,
+        val isExpanded: Boolean
+    ) : PickerRowItem() {
+        override val key = "sys_cat_$categoryKey"
+    }
+
     data class SystemAction(
         val token: String,
         val label: String,
@@ -310,52 +319,82 @@ class GearPickerActivity : ComponentActivity() {
                         }
                     }
 
-                    // 1. System Actions
+                    // 1. System Actions (Organized by Subcategories)
                     val systemActions = filtered.filter { it.startsWith("system:") }
                     if (systemActions.isNotEmpty()) {
                         val sysKey = "category:system"
                         val isExpanded = expandedSubsections.contains(sysKey) || searchQuery.isNotBlank()
                         list.add(PickerRowItem.SystemHeader(systemActions.size, isExpanded))
                         if (isExpanded) {
-                            systemActions.forEach { token ->
-                                val isCustomizable = token == "system:screen_timeout"
-                                val customKey = "customization:$token"
-                                val isCustomExpanded = expandedSubsections.contains(customKey)
-                                list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded))
+                            val categories = listOf(
+                                Triple(
+                                    "sys_nav",
+                                    "Navigation & Multitasking",
+                                    listOf("system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen")
+                                ),
+                                Triple(
+                                    "sys_hw",
+                                    "Hardware & System Controls",
+                                    listOf("system:flashlight", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top")
+                                ),
+                                Triple(
+                                    "sys_scrub",
+                                    "Gesture Scrubbers & Sliders",
+                                    listOf("system:screen_timeout", "system:volume", "system:brightness")
+                                )
+                            )
 
-                                if (isCustomizable && isCustomExpanded) {
-                                    val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
-                                        singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
-                                    } else "pref_macro_hud_style_default"
-                                    val currentStyle = prefs.getString(hudPrefKey, "canopy_droppod") ?: "canopy_droppod"
+                            categories.forEach { (catKey, catTitle, tokenList) ->
+                                val matchingTokens = systemActions.filter { tokenList.contains(it) }
+                                if (matchingTokens.isNotEmpty()) {
+                                    val collapseKey = "collapsed:$catKey"
+                                    val catExpanded = if (searchQuery.isNotBlank()) true else !expandedSubsections.contains(collapseKey)
 
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "canopy_droppod",
-                                            title = "Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with 7-segment quantum gauge",
-                                            isSelected = currentStyle == "canopy_droppod"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "cockpit_reticle",
-                                            title = "Holographic Cockpit Reticle",
-                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
-                                            isSelected = currentStyle == "cockpit_reticle"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "edge_blade",
-                                            title = "Dynamic Edge Blade",
-                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
-                                            isSelected = currentStyle == "edge_blade"
-                                        )
-                                    )
+                                    list.add(PickerRowItem.SystemCategoryHeader(catKey, catTitle, matchingTokens.size, catExpanded))
+
+                                    if (catExpanded) {
+                                        matchingTokens.forEach { token ->
+                                            val isCustomizable = token == "system:screen_timeout"
+                                            val customKey = "customization:$token"
+                                            val isCustomExpanded = expandedSubsections.contains(customKey)
+                                            list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded))
+
+                                            if (isCustomizable && isCustomExpanded) {
+                                                val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
+                                                    singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+                                                } else "pref_macro_hud_style_default"
+                                                val currentStyle = prefs.getString(hudPrefKey, "canopy_droppod") ?: "canopy_droppod"
+
+                                                list.add(
+                                                    PickerRowItem.SystemCustomizationOption(
+                                                        parentToken = token,
+                                                        optionKey = "canopy_droppod",
+                                                        title = "Tactical Canopy Drop-Pod",
+                                                        subtitle = "Chamfered visor below status bar with 7-segment quantum gauge",
+                                                        isSelected = currentStyle == "canopy_droppod"
+                                                    )
+                                                )
+                                                list.add(
+                                                    PickerRowItem.SystemCustomizationOption(
+                                                        parentToken = token,
+                                                        optionKey = "cockpit_reticle",
+                                                        title = "Holographic Cockpit Reticle",
+                                                        subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
+                                                        isSelected = currentStyle == "cockpit_reticle"
+                                                    )
+                                                )
+                                                list.add(
+                                                    PickerRowItem.SystemCustomizationOption(
+                                                        parentToken = token,
+                                                        optionKey = "edge_blade",
+                                                        title = "Dynamic Edge Blade",
+                                                        subtitle = "Lateral energy ladder aligned to active swipe edge",
+                                                        isSelected = currentStyle == "edge_blade"
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -684,6 +723,42 @@ class GearPickerActivity : ComponentActivity() {
                                                         tint = dynamicSecondary,
                                                         modifier = Modifier
                                                             .size(20.dp)
+                                                            .rotate(if (item.isExpanded) 180f else 0f)
+                                                    )
+                                                }
+                                            }
+                                            is PickerRowItem.SystemCategoryHeader -> {
+                                                val collapseKey = "collapsed:${item.categoryKey}"
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = 6.dp, end = 2.dp, top = 6.dp, bottom = 2.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(dynamicPrimary.copy(alpha = 0.08f))
+                                                        .border(1.dp, dynamicPrimary.copy(alpha = 0.20f), RoundedCornerShape(8.dp))
+                                                        .clickable {
+                                                            expandedSubsections = if (item.isExpanded) {
+                                                                expandedSubsections + collapseKey
+                                                            } else {
+                                                                expandedSubsections - collapseKey
+                                                            }
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "${item.title} (${item.count})",
+                                                        color = dynamicPrimary,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Icon(
+                                                        Icons.Default.ArrowDropDown,
+                                                        contentDescription = null,
+                                                        tint = dynamicPrimary,
+                                                        modifier = Modifier
+                                                            .size(18.dp)
                                                             .rotate(if (item.isExpanded) 180f else 0f)
                                                     )
                                                 }
@@ -1155,6 +1230,7 @@ class GearPickerActivity : ComponentActivity() {
                                                         val item = flatItemsList[idx]
                                                         val label = when (item) {
                                                             is PickerRowItem.SystemHeader -> "System Actions"
+                                                            is PickerRowItem.SystemCategoryHeader -> item.title
                                                             is PickerRowItem.SystemAction -> item.label
                                                             is PickerRowItem.SystemCustomizationOption -> item.title
                                                             is PickerRowItem.AppHeader -> item.appName
@@ -1183,6 +1259,7 @@ class GearPickerActivity : ComponentActivity() {
                                                                 val item = flatItemsList[idx]
                                                                 val label = when (item) {
                                                                     is PickerRowItem.SystemHeader -> "System Actions"
+                                                                    is PickerRowItem.SystemCategoryHeader -> item.title
                                                                     is PickerRowItem.SystemAction -> item.label
                                                                     is PickerRowItem.SystemCustomizationOption -> item.title
                                                                     is PickerRowItem.AppHeader -> item.appName

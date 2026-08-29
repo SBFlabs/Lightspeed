@@ -18,6 +18,31 @@ object ActionDispatcher {
         val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
 
         when {
+            token == "system:previous_app" || token == "ACTION_PREVIOUS_APP" || token == "previous_app" -> {
+                ElevatedTaskCloser.switchToPreviousApp(context)
+            }
+            token == "system:split_screen" || token == "ACTION_SPLIT_SCREEN" || token == "split_screen" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
+                }
+            }
+            token == "system:flashlight" || token == "ACTION_FLASHLIGHT" || token == "flashlight" -> {
+                toggleFlashlight(context)
+            }
+            token == "system:screenshot" || token == "ACTION_SCREENSHOT" || token == "screenshot" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT)
+                } else {
+                    ElevatedTaskCloser.execShizuku("input keyevent KEYCODE_SYSRQ")
+                }
+            }
+            token == "system:lock_screen" || token == "ACTION_LOCK_SCREEN" || token == "lock_screen" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN)
+                } else {
+                    ElevatedTaskCloser.execShizuku("input keyevent KEYCODE_POWER")
+                }
+            }
             token == "system:close_app" || token == "ACTION_CLOSE_APP" || token == "close_app" -> {
                 ElevatedTaskCloser.closeTopApp(context)
             }
@@ -132,5 +157,18 @@ object ActionDispatcher {
             return
         } catch (_: Exception) {}
         service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
+    }
+
+    private var isTorchOn = false
+
+    private fun toggleFlashlight(context: Context) {
+        try {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? android.hardware.camera2.CameraManager
+            val cameraId = cameraManager?.cameraIdList?.firstOrNull() ?: return
+            isTorchOn = !isTorchOn
+            cameraManager.setTorchMode(cameraId, isTorchOn)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to toggle flashlight", e)
+        }
     }
 }

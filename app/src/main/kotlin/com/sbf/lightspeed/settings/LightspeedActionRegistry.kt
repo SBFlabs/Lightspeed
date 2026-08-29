@@ -31,9 +31,27 @@ object LightspeedActionRegistry {
     }
 
     fun getBaseTokens(): List<String> = listOf(
-        "none", "system:screen_timeout", "system:volume", "system:brightness",
-        "system:close_app", "system:home", "system:back", "system:recents",
-        "system:notifications", "system:quick_settings", "system:scroll_to_top"
+        "none",
+        // 1. Navigation & Multitasking
+        "system:previous_app",
+        "system:close_app",
+        "system:recents",
+        "system:home",
+        "system:back",
+        "system:split_screen",
+
+        // 2. Hardware & System Controls
+        "system:flashlight",
+        "system:screenshot",
+        "system:lock_screen",
+        "system:notifications",
+        "system:quick_settings",
+        "system:scroll_to_top",
+
+        // 3. Gesture Scrubbers & Sliders
+        "system:screen_timeout",
+        "system:volume",
+        "system:brightness"
     )
 
     fun initializeSync(context: Context) {
@@ -188,16 +206,23 @@ object LightspeedActionRegistry {
 fun resolveDynamicTokenLabel(context: Context, token: String): String {
     return when {
         token == "none" -> "None"
-        token == "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
-        token == "system:volume" -> "Volume (Media Scrubber)"
-        token == "system:brightness" -> "Brightness Scrubber"
+        token == "system:previous_app" -> "Switch to Previous App"
         token == "system:close_app" || token == "shizuku:close_app" -> "Close App (Remove from Recents)"
+        token == "system:recents" -> "Recents Overview"
         token == "system:home" -> "Home"
         token == "system:back" -> "Back"
-        token == "system:recents" -> "Recents Overview"
+        token == "system:split_screen" -> "Split Screen (Multi-Window)"
+
+        token == "system:flashlight" -> "Flashlight / Torch"
+        token == "system:screenshot" -> "Take Screenshot"
+        token == "system:lock_screen" -> "Lock Screen / Sleep"
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
+
+        token == "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
+        token == "system:volume" -> "Volume (Media Scrubber)"
+        token == "system:brightness" -> "Brightness Scrubber"
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

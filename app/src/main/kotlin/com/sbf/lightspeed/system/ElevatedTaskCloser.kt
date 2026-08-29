@@ -186,4 +186,122 @@ object ElevatedTaskCloser {
             Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)).waitFor() == 0
         } catch (_: Exception) { false }
     }
+
+    fun switchToPreviousApp(context: Context) {
+        Log.i(TAG, "switchToPreviousApp() invoked")
+        exemptHiddenApis()
+
+        if (isShizukuActive && switchViaShizuku(context)) {
+            Log.i(TAG, "Task switched via Shizuku IActivityTaskManager")
+            return
+        }
+
+        if (isRootActive && switchViaRoot(context)) {
+            Log.i(TAG, "Task switched via Root")
+            return
+        }
+
+        switchViaAccessibility(context)
+    }
+
+    private fun switchViaShizuku(context: Context): Boolean {
+        return try {
+            val rawBinder = SystemServiceHelper.getSystemService("activity_task")
+                ?: SystemServiceHelper.getSystemService(Context.ACTIVITY_SERVICE)
+            val myPkg = context.packageName
+
+            if (rawBinder != null) {
+                val wrapped = ShizukuBinderWrapper(rawBinder)
+                val stubClass = Class.forName("android.app.IActivityTaskManager\$Stub")
+                val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+                val atm = asInterface.invoke(null, wrapped)
+
+                if (atm != null) {
+                    var recentTasksList: List<*>? = null
+                    try {
+                        val getRecentTasksMethod = atm.javaClass.methods.firstOrNull { it.name == "getRecentTasks" }
+                        if (getRecentTasksMethod != null) {
+                            val paramsCount = getRecentTasksMethod.parameterTypes.size
+                            val rawResult = when (paramsCount) {
+                                2 -> getRecentTasksMethod.invoke(atm, 10, 0x0002 /* RECENT_IGNORE_UNAVAILABLE */)
+                                3 -> getRecentTasksMethod.invoke(atm, 10, 0x0002, 0)
+                                else -> null
+                            }
+                            if (rawResult != null) {
+                                val getListMethod = rawResult.javaClass.getMethod("getList")
+                                recentTasksList = getListMethod.invoke(rawResult) as? List<*>
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.d(TAG, "getRecentTasks reflection failed", e)
+                    }
+
+                    if (!recentTasksList.isNullOrEmpty()) {
+                        var targetTaskId: Int? = null
+                        for (i in 1 until recentTasksList.size) {
+                            val taskInfo = recentTasksList[i] ?: continue
+                            val taskIdField = taskInfo.javaClass.getField("taskId")
+                            val tId = taskIdField.getInt(taskInfo)
+                            val baseIntentField = try { taskInfo.javaClass.getField("baseIntent") } catch (_: Exception) { null }
+                            val intent = baseIntentField?.get(taskInfo) as? Intent
+                            val pkg = intent?.component?.packageName ?: intent?.`package`
+
+                            if (pkg != null && !isSystem(pkg) && pkg != myPkg && tId > 0) {
+                                targetTaskId = tId
+                                break
+                            } else if (tId > 0 && targetTaskId == null) {
+                                targetTaskId = tId
+                            }
+                        }
+
+                        if (targetTaskId != null && targetTaskId > 0) {
+                            val startActivityFromRecentsMethod = atm.javaClass.methods.firstOrNull { it.name == "startActivityFromRecents" }
+                            if (startActivityFromRecentsMethod != null) {
+                                val pCount = startActivityFromRecentsMethod.parameterTypes.size
+                                when (pCount) {
+                                    2 -> startActivityFromRecentsMethod.invoke(atm, targetTaskId, null)
+                                    3 -> startActivityFromRecentsMethod.invoke(atm, targetTaskId, null, null)
+                                }
+                                return true
+                            }
+
+                            val moveTaskToFrontMethod = atm.javaClass.methods.firstOrNull { it.name == "moveTaskToFront" }
+                            if (moveTaskToFrontMethod != null) {
+                                val pCount = moveTaskToFrontMethod.parameterTypes.size
+                                when (pCount) {
+                                    2 -> moveTaskToFrontMethod.invoke(atm, targetTaskId, 0)
+                                    3 -> moveTaskToFrontMethod.invoke(atm, targetTaskId, 0, null)
+                                }
+                                return true
+                            }
+                        }
+                    }
+                }
+            }
+
+            val proc = execShizuku("input keyevent KEYCODE_APP_SWITCH && sleep 0.04 && input keyevent KEYCODE_APP_SWITCH")
+            proc?.waitFor()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "switchViaShizuku error", e)
+            false
+        }
+    }
+
+    private fun switchViaRoot(context: Context): Boolean {
+        return try {
+            val cmd = "input keyevent KEYCODE_APP_SWITCH && sleep 0.04 && input keyevent KEYCODE_APP_SWITCH"
+            Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)).waitFor() == 0
+        } catch (_: Exception) { false }
+    }
+
+    private fun switchViaAccessibility(context: Context) {
+        val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+        if (service != null) {
+            service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
+            Handler(Looper.getMainLooper()).postDelayed({
+                service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
+            }, 80L)
+        }
+    }
 }

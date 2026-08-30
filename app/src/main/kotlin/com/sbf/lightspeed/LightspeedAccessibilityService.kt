@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.Gravity
 import android.view.KeyEvent
@@ -13,6 +15,7 @@ import android.view.MotionEvent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import com.sbf.lightspeed.system.LightspeedKeyEngine
+import com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay
 import com.sbf.lightspeed.system.defaultPrefs
 
 class LightspeedAccessibilityService : AccessibilityService() {
@@ -23,6 +26,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     private var windowManager: WindowManager? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     // Edge Sidebar Overlay
     private var overlayView: LightspeedCruiseOverlay? = null
@@ -36,6 +40,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
     // Left Deflector Wing Overlay
     private var leftWingOverlayView: LightspeedLeftWingOverlay? = null
     private lateinit var leftWingWindowParams: WindowManager.LayoutParams
+
+    // Floating Media Scrubber Overlay
+    private var mediaScrubberOverlayView: LightspeedMediaScrubberOverlay? = null
 
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
@@ -250,6 +257,65 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun showMediaScrubber() {
+        handler.post {
+            if (mediaScrubberOverlayView != null) {
+                mediaScrubberOverlayView?.updateTrackInfo()
+                return@post
+            }
+
+            val d = resources.displayMetrics.density
+            val widthPx = (350 * d).toInt().coerceAtMost(resources.displayMetrics.widthPixels)
+            val heightPx = (116 * d).toInt()
+
+            val params = WindowManager.LayoutParams(
+                widthPx,
+                heightPx,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                y = (60 * d).toInt()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+
+            val overlay = LightspeedMediaScrubberOverlay(this) {
+                hideMediaScrubber()
+            }
+            mediaScrubberOverlayView = overlay
+            try {
+                windowManager?.addView(overlay, params)
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun hideMediaScrubber() {
+        handler.post {
+            mediaScrubberOverlayView?.let {
+                try {
+                    windowManager?.removeView(it)
+                } catch (_: Exception) {}
+                mediaScrubberOverlayView = null
+            }
+        }
+    }
+
+    fun updateMediaScrubberProgress() {
+        handler.post {
+            if (mediaScrubberOverlayView != null) {
+                mediaScrubberOverlayView?.updateTrackInfo()
+            } else {
+                showMediaScrubber()
+            }
+        }
+    }
+
     override fun onKeyEvent(event: KeyEvent?): Boolean {
         if (event == null) return false
         return LightspeedKeyEngine.onKeyEvent(this, event)
@@ -269,6 +335,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     private fun teardown() {
         LightspeedKeyEngine.reset()
+        mediaScrubberOverlayView?.let {
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
+            mediaScrubberOverlayView = null
+        }
         overlayView?.let {
             windowManager?.removeView(it)
             overlayView = null

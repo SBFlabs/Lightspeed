@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
+import com.sbf.lightspeed.settings.resolveDynamicTokenLabel
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import kotlinx.coroutines.launch
@@ -338,6 +339,19 @@ class GearPickerActivity : ComponentActivity() {
                                     listOf("system:flashlight", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top")
                                 ),
                                 Triple(
+                                    "sys_media",
+                                    "Media Actions",
+                                    listOf(
+                                        "system:media_play_pause",
+                                        "system:media_next",
+                                        "system:media_prev",
+                                        "system:media_skip_forward",
+                                        "system:media_skip_backward",
+                                        "system:media_scrubber",
+                                        "system:media_stop"
+                                    )
+                                ),
+                                Triple(
                                     "sys_scrub",
                                     "Gesture Scrubbers & Sliders",
                                     listOf("system:screen_timeout", "system:volume", "system:brightness")
@@ -354,44 +368,69 @@ class GearPickerActivity : ComponentActivity() {
 
                                     if (catExpanded) {
                                         matchingTokens.forEach { token ->
-                                            val isCustomizable = token == "system:screen_timeout"
+                                            val isCustomizable = token == "system:screen_timeout" ||
+                                                    token == "system:media_skip_forward" ||
+                                                    token == "system:media_skip_backward"
                                             val customKey = "customization:$token"
                                             val isCustomExpanded = expandedSubsections.contains(customKey)
                                             list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded))
 
                                             if (isCustomizable && isCustomExpanded) {
-                                                val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
-                                                    singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
-                                                } else "pref_macro_hud_style_default"
-                                                val currentStyle = prefs.getString(hudPrefKey, "canopy_droppod") ?: "canopy_droppod"
+                                                if (token == "system:media_skip_forward" || token == "system:media_skip_backward") {
+                                                    val currentSkip = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+                                                    val durations = listOf(
+                                                        Pair("5", "5 Seconds" to "Ultra-short quick leap"),
+                                                        Pair("10", "10 Seconds (Default)" to "Standard music & podcast skip"),
+                                                        Pair("15", "15 Seconds" to "Standard audiobook interval"),
+                                                        Pair("30", "30 Seconds" to "Fast commercial & sponsor leap"),
+                                                        Pair("60", "60 Seconds (1 Min)" to "Extended segment leap")
+                                                    )
+                                                    durations.forEach { (secStr, desc) ->
+                                                        val (title, subtitle) = desc
+                                                        list.add(
+                                                            PickerRowItem.SystemCustomizationOption(
+                                                                parentToken = token,
+                                                                optionKey = secStr,
+                                                                title = title,
+                                                                subtitle = subtitle,
+                                                                isSelected = currentSkip == secStr.toInt()
+                                                            )
+                                                        )
+                                                    }
+                                                } else {
+                                                    val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
+                                                        singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+                                                    } else "pref_macro_hud_style_default"
+                                                    val currentStyle = prefs.getString(hudPrefKey, "canopy_droppod") ?: "canopy_droppod"
 
-                                                list.add(
-                                                    PickerRowItem.SystemCustomizationOption(
-                                                        parentToken = token,
-                                                        optionKey = "canopy_droppod",
-                                                        title = "Tactical Canopy Drop-Pod",
-                                                        subtitle = "Chamfered visor below status bar with 7-segment quantum gauge",
-                                                        isSelected = currentStyle == "canopy_droppod"
+                                                    list.add(
+                                                        PickerRowItem.SystemCustomizationOption(
+                                                            parentToken = token,
+                                                            optionKey = "canopy_droppod",
+                                                            title = "Tactical Canopy Drop-Pod",
+                                                            subtitle = "Chamfered visor below status bar with 7-segment quantum gauge",
+                                                            isSelected = currentStyle == "canopy_droppod"
+                                                        )
                                                     )
-                                                )
-                                                list.add(
-                                                    PickerRowItem.SystemCustomizationOption(
-                                                        parentToken = token,
-                                                        optionKey = "cockpit_reticle",
-                                                        title = "Holographic Cockpit Reticle",
-                                                        subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
-                                                        isSelected = currentStyle == "cockpit_reticle"
+                                                    list.add(
+                                                        PickerRowItem.SystemCustomizationOption(
+                                                            parentToken = token,
+                                                            optionKey = "cockpit_reticle",
+                                                            title = "Holographic Cockpit Reticle",
+                                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
+                                                            isSelected = currentStyle == "cockpit_reticle"
+                                                        )
                                                     )
-                                                )
-                                                list.add(
-                                                    PickerRowItem.SystemCustomizationOption(
-                                                        parentToken = token,
-                                                        optionKey = "edge_blade",
-                                                        title = "Dynamic Edge Blade",
-                                                        subtitle = "Lateral energy ladder aligned to active swipe edge",
-                                                        isSelected = currentStyle == "edge_blade"
+                                                    list.add(
+                                                        PickerRowItem.SystemCustomizationOption(
+                                                            parentToken = token,
+                                                            optionKey = "edge_blade",
+                                                            title = "Dynamic Edge Blade",
+                                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
+                                                            isSelected = currentStyle == "edge_blade"
+                                                        )
                                                     )
-                                                )
+                                                }
                                             }
                                         }
                                     }
@@ -908,12 +947,23 @@ class GearPickerActivity : ComponentActivity() {
                                                             shape = RoundedCornerShape(8.dp)
                                                         )
                                                         .clickable {
-                                                            prefs.edit()
-                                                                .putString(hudPrefKey, item.optionKey)
-                                                                .putString("pref_macro_hud_style_default", item.optionKey)
-                                                                .apply()
-                                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                            hudStyleVersion++
+                                                            if (item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward") {
+                                                                val sec = item.optionKey.toIntOrNull() ?: 10
+                                                                prefs.edit()
+                                                                    .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec)
+                                                                    .apply()
+                                                                LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@GearPickerActivity, "system:media_skip_forward")
+                                                                LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@GearPickerActivity, "system:media_skip_backward")
+                                                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            } else {
+                                                                prefs.edit()
+                                                                    .putString(hudPrefKey, item.optionKey)
+                                                                    .putString("pref_macro_hud_style_default", item.optionKey)
+                                                                    .apply()
+                                                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
                                                         }
                                                         .padding(horizontal = 12.dp, vertical = 7.dp),
                                                     verticalAlignment = Alignment.CenterVertically

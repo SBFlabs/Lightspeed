@@ -82,6 +82,27 @@ object ActionDispatcher {
             token == "system:screen_timeout" -> {
                 LightspeedTimeoutEngine.cycleNext(context)
             }
+            token == "system:media_play_pause" || token == "ACTION_MEDIA_PLAY_PAUSE" || token == "media_play_pause" -> {
+                LightspeedMediaManager.playPause(context)
+            }
+            token == "system:media_next" || token == "ACTION_MEDIA_NEXT" || token == "media_next" -> {
+                LightspeedMediaManager.next(context)
+            }
+            token == "system:media_prev" || token == "ACTION_MEDIA_PREV" || token == "media_prev" -> {
+                LightspeedMediaManager.previous(context)
+            }
+            token == "system:media_skip_forward" || token == "ACTION_MEDIA_SKIP_FORWARD" || token == "media_skip_forward" -> {
+                LightspeedMediaManager.skipForward(context)
+            }
+            token == "system:media_skip_backward" || token == "ACTION_MEDIA_SKIP_BACKWARD" || token == "media_skip_backward" -> {
+                LightspeedMediaManager.skipBackward(context)
+            }
+            token == "system:media_scrubber" || token == "ACTION_MEDIA_SCRUBBER" || token == "media_scrubber" -> {
+                LightspeedMediaManager.showScrubber(context)
+            }
+            token == "system:media_stop" || token == "ACTION_MEDIA_STOP" || token == "media_stop" -> {
+                LightspeedMediaManager.stop(context)
+            }
             token == "system:volume" -> {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
                 audioManager?.adjustSuggestedStreamVolume(

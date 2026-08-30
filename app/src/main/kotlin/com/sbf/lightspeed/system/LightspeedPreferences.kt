@@ -41,6 +41,9 @@ object LightspeedPreferences {
     const val KEY_CHORD_UP_HOLD_DOWN_HOLD = "pref_key_chord_up_hold_down_hold"
     const val KEY_SEQ_UP_THEN_DOWN = "pref_key_seq_up_then_down"
     const val KEY_SEQ_DOWN_THEN_UP = "pref_key_seq_down_then_up"
+
+    // Media Actions Keys
+    const val KEY_MEDIA_SKIP_SECONDS = "pref_media_skip_seconds"
 }
 
 /**

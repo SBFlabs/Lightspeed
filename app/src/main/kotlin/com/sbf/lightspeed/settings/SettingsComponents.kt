@@ -535,6 +535,48 @@ fun GestureMappingRow(
             Spacer(modifier = Modifier.width(6.dp))
         }
 
+        if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {
+            var currentSkipSec by remember(currentRawValue) {
+                mutableStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10))
+            }
+            var showSkipMenu by remember { mutableStateOf(false) }
+
+            Box {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.clickable { showSkipMenu = true }
+                ) {
+                    Text(
+                        text = "Skip: ${currentSkipSec}s ▾",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                    )
+                }
+                DropdownMenu(expanded = showSkipMenu, onDismissRequest = { showSkipMenu = false }) {
+                    listOf(5, 10, 15, 30, 60).forEach { sec ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = if (sec == currentSkipSec) "✓ ${sec}s Interval" else "${sec}s Interval",
+                                    fontWeight = if (sec == currentSkipSec) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                currentSkipSec = sec
+                                prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
+                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                showSkipMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+
         if (direction == ArrowDirection.SCRUB) {
             Box {
                 DropdownMenu(expanded = showScrubMenu, onDismissRequest = { showScrubMenu = false }) {

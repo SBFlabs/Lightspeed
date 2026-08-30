@@ -394,4 +394,186 @@ object LightspeedHudRenderer {
             canvas.drawText("STEP ${stepIndex + 1} OF $totalSteps", textCx, rect.top + (61f * d), subTextPaint)
         }
     }
+
+    /**
+     * Formats milliseconds into clean MM:SS timestamp string.
+     */
+    fun formatTime(ms: Long): String {
+        val totalSeconds = (ms / 1000).coerceAtLeast(0)
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format("%02d:%02d", minutes, seconds)
+    }
+
+    /**
+     * Returns touch bounding box for the interactive seekbar.
+     */
+    fun getMediaScrubberBarBounds(cx: Float, topY: Float, d: Float): RectF {
+        val cardW = 330f * d
+        val rectLeft = cx - cardW / 2f
+        val rectRight = cx + cardW / 2f
+        val barLeft = rectLeft + (16f * d)
+        val barRight = rectRight - (16f * d)
+        val barY = topY + (72f * d)
+        val barH = 14f * d
+        return RectF(barLeft, barY - (4f * d), barRight, barY + barH)
+    }
+
+    /**
+     * Style 4: Interactive Liquid Glass Media Timeline Scrubber HUD.
+     * Displays current track title, artist, live position / duration, and glowing seekbar.
+     */
+    fun drawMediaScrubberHud(
+        canvas: Canvas,
+        title: String,
+        artist: String,
+        positionMs: Long,
+        durationMs: Long,
+        cx: Float,
+        topY: Float,
+        primaryColor: Int,
+        d: Float,
+        isSeeking: Boolean = false,
+        seekFraction: Float = -1f
+    ) {
+        val cardW = 330f * d
+        val cardH = 96f * d
+        val chamfer = 12f * d
+        val rect = RectF(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
+
+        val r = Color.red(primaryColor)
+        val g = Color.green(primaryColor)
+        val b = Color.blue(primaryColor)
+
+        // 1. Frosted Liquid Glass Backplane
+        val glassGrad = LinearGradient(
+            rect.left, rect.top, rect.left, rect.bottom,
+            intArrayOf(
+                Color.argb(225, (16 + r * 0.08f).toInt().coerceIn(0, 255), (20 + g * 0.08f).toInt().coerceIn(0, 255), (32 + b * 0.08f).toInt().coerceIn(0, 255)),
+                Color.argb(245, (10 + r * 0.04f).toInt().coerceIn(0, 255), (14 + g * 0.04f).toInt().coerceIn(0, 255), (24 + b * 0.04f).toInt().coerceIn(0, 255))
+            ),
+            floatArrayOf(0f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        glassFillPaint.shader = glassGrad
+        val path = createChamferedPath(rect, chamfer)
+        canvas.drawPath(path, glassFillPaint)
+        glassFillPaint.shader = null
+
+        // 2. Liquid Glass Refractive Rim
+        val rimGrad = LinearGradient(
+            rect.left, rect.top, rect.right, rect.bottom,
+            intArrayOf(
+                Color.argb(160, 255, 255, 255),
+                Color.argb(100, r, g, b),
+                Color.argb(35, 255, 255, 255),
+                Color.argb(120, r, g, b)
+            ),
+            floatArrayOf(0f, 0.35f, 0.7f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        glassRimPaint.strokeWidth = 1.4f * d
+        glassRimPaint.shader = rimGrad
+        canvas.drawPath(path, glassRimPaint)
+        glassRimPaint.shader = null
+
+        // 3. Specular Light Shimmer across top
+        val specGrad = LinearGradient(
+            rect.left + chamfer, rect.top, rect.right - chamfer, rect.top,
+            intArrayOf(
+                Color.argb(10, 255, 255, 255),
+                Color.argb(200, 255, 255, 255),
+                Color.argb(10, 255, 255, 255)
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
+        specularPaint.strokeWidth = 1.6f * d
+        specularPaint.shader = specGrad
+        canvas.drawLine(rect.left + chamfer, rect.top + 0.8f * d, rect.right - chamfer, rect.top + 0.8f * d, specularPaint)
+        specularPaint.shader = null
+
+        // 4. Header Telemetry
+        headerTextPaint.color = primaryColor
+        headerTextPaint.textSize = 10f * d
+        headerTextPaint.textAlign = Paint.Align.LEFT
+        canvas.drawText("✦ MEDIA TIMELINE SCRUBBER", rect.left + (16f * d), topY + (19f * d), headerTextPaint)
+
+        // 5. Time Readout (Top Right)
+        val posText = if (isSeeking && seekFraction >= 0f) {
+            val previewMs = (seekFraction * durationMs.coerceAtLeast(1L)).toLong()
+            formatTime(previewMs)
+        } else {
+            formatTime(positionMs)
+        }
+        val durText = formatTime(durationMs)
+        val timeDisplay = if (durationMs > 0L) "$posText / $durText" else posText
+        subTextPaint.color = Color.argb(210, 255, 255, 255)
+        subTextPaint.textSize = 10.5f * d
+        subTextPaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(timeDisplay, rect.right - (16f * d), topY + (19f * d), subTextPaint)
+
+        // 6. Track Title & Artist
+        valueTextPaint.textSize = 13.5f * d
+        valueTextPaint.textAlign = Paint.Align.LEFT
+        val cleanTitle = if (title.length > 28) title.take(26) + "…" else title
+        canvas.drawText(cleanTitle, rect.left + (16f * d), topY + (41f * d), valueTextPaint)
+
+        if (artist.isNotBlank()) {
+            subTextPaint.color = Color.argb(180, (150 + r * 0.4f).toInt().coerceIn(0, 255), (180 + g * 0.3f).toInt().coerceIn(0, 255), 255)
+            subTextPaint.textSize = 10.5f * d
+            subTextPaint.textAlign = Paint.Align.LEFT
+            val cleanArtist = if (artist.length > 34) artist.take(32) + "…" else artist
+            canvas.drawText(cleanArtist, rect.left + (16f * d), topY + (56f * d), subTextPaint)
+        }
+
+        // 7. Interactive Quantum Seekbar Track
+        val barLeft = rect.left + (16f * d)
+        val barRight = rect.right - (16f * d)
+        val barW = barRight - barLeft
+        val barY = topY + (74f * d)
+        val barH = 5f * d
+
+        val fraction = when {
+            seekFraction >= 0f -> seekFraction.coerceIn(0f, 1f)
+            durationMs > 0L -> (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+            else -> 0f
+        }
+
+        // Track Background
+        val trackRect = RectF(barLeft, barY, barRight, barY + barH)
+        gaugeEmptyPaint.color = Color.argb(45, 255, 255, 255)
+        canvas.drawRoundRect(trackRect, barH / 2f, barH / 2f, gaugeEmptyPaint)
+
+        // Track Progress
+        val progressW = barW * fraction
+        if (progressW > 0f) {
+            val progressRect = RectF(barLeft, barY, barLeft + progressW, barY + barH)
+            val progGrad = LinearGradient(
+                barLeft, barY, barLeft + progressW, barY,
+                intArrayOf(Color.argb(200, r, g, b), primaryColor),
+                null,
+                Shader.TileMode.CLAMP
+            )
+            gaugeFillPaint.shader = progGrad
+            canvas.drawRoundRect(progressRect, barH / 2f, barH / 2f, gaugeFillPaint)
+            gaugeFillPaint.shader = null
+        }
+
+        // Scrubber Thumb Pip
+        val thumbX = (barLeft + progressW).coerceIn(barLeft, barRight)
+        val thumbY = barY + (barH / 2f)
+
+        if (isSeeking) {
+            gaugeEmptyPaint.color = Color.argb(80, r, g, b)
+            canvas.drawCircle(thumbX, thumbY, 11f * d, gaugeEmptyPaint)
+        }
+
+        specularPaint.color = primaryColor
+        specularPaint.strokeWidth = 2f * d
+        canvas.drawCircle(thumbX, thumbY, 7f * d, specularPaint)
+
+        gaugeFillPaint.color = Color.WHITE
+        canvas.drawCircle(thumbX, thumbY, 5f * d, gaugeFillPaint)
+    }
 }

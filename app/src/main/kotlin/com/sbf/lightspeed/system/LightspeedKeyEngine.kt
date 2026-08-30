@@ -128,8 +128,17 @@ object LightspeedKeyEngine {
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    // Suppress repeat events once gesture or chord has engaged
+                    // Suppress repeat events once gesture or chord has engaged, and support continuous hardware scrubbing
                     if (event.repeatCount > 0) {
+                        if (isVolUpLongPressed) {
+                            val bound = getBoundAction(context, VolumeTriggerSlot.VOL_UP_LONG_PRESS)
+                            if (bound == "system:media_scrubber" || bound == "system:media_skip_forward" || bound == "system:media_skip_backward") {
+                                if (event.repeatCount % 2 == 0) {
+                                    LightspeedMediaManager.stepHardwareScrubber(context, isForward = true)
+                                    LightspeedHapticEngine.scrubTick(context)
+                                }
+                            }
+                        }
                         return isVolUpLongPressed || isChordHoldFired || isSequenceFired || isVolUpUsedInChord
                     }
 
@@ -229,8 +238,17 @@ object LightspeedKeyEngine {
 
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    // Suppress repeat events once gesture or chord has engaged
+                    // Suppress repeat events once gesture or chord has engaged, and support continuous hardware scrubbing
                     if (event.repeatCount > 0) {
+                        if (isVolDownLongPressed) {
+                            val bound = getBoundAction(context, VolumeTriggerSlot.VOL_DOWN_LONG_PRESS)
+                            if (bound == "system:media_scrubber" || bound == "system:media_skip_forward" || bound == "system:media_skip_backward") {
+                                if (event.repeatCount % 2 == 0) {
+                                    LightspeedMediaManager.stepHardwareScrubber(context, isForward = false)
+                                    LightspeedHapticEngine.scrubTick(context)
+                                }
+                            }
+                        }
                         return isVolDownLongPressed || isChordHoldFired || isSequenceFired || isVolDownUsedInChord
                     }
 

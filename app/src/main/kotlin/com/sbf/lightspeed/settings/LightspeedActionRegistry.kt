@@ -52,7 +52,16 @@ object LightspeedActionRegistry {
         // 3. Gesture Scrubbers & Sliders
         "system:screen_timeout",
         "system:volume",
-        "system:brightness"
+        "system:brightness",
+
+        // 4. Media & Playback Actions
+        "system:media_play_pause",
+        "system:media_next",
+        "system:media_prev",
+        "system:media_skip_forward",
+        "system:media_skip_backward",
+        "system:media_scrubber",
+        "system:media_stop"
     )
 
     fun initializeSync(context: Context) {
@@ -225,6 +234,20 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
         token == "system:volume" -> "Volume (Media Scrubber)"
         token == "system:brightness" -> "Brightness Scrubber"
+
+        token == "system:media_play_pause" -> "Media: Play / Pause"
+        token == "system:media_next" -> "Media: Next Track"
+        token == "system:media_prev" -> "Media: Previous Track"
+        token == "system:media_skip_forward" -> {
+            val skipSec = context.getSharedPreferences("default", Context.MODE_PRIVATE).getInt("pref_media_skip_seconds", 10)
+            "Media: Skip Forward (${skipSec}s)"
+        }
+        token == "system:media_skip_backward" -> {
+            val skipSec = context.getSharedPreferences("default", Context.MODE_PRIVATE).getInt("pref_media_skip_seconds", 10)
+            "Media: Skip Backward (${skipSec}s)"
+        }
+        token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"
+        token == "system:media_stop" -> "Media: Stop Playback"
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

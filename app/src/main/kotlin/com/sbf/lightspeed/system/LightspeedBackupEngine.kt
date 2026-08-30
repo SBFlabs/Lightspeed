@@ -196,7 +196,7 @@ object LightspeedBackupEngine {
                                     }
                                 } else {
                                     val intVal = value.toIntOrNull()
-                                    if (intVal != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("last_active_set_index"))) {
+                                    if (intVal != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID)) {
                                         editor.putInt(key, intVal)
                                     } else {
                                         editor.putString(key, value)

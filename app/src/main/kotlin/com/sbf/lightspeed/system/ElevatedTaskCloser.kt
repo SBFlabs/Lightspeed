@@ -87,10 +87,12 @@ object ElevatedTaskCloser {
 
         if (isShizukuActive && closeViaShizuku(context)) {
             Log.i(TAG, "Task dismissed and evicted from Recents via Shizuku")
+            com.sbf.lightspeed.LightspeedAccessibilityService.instance?.scheduleGeometryResync()
             return
         }
         if (isRootActive && closeViaRoot(context)) {
             Log.i(TAG, "Task dismissed via Root")
+            com.sbf.lightspeed.LightspeedAccessibilityService.instance?.scheduleGeometryResync()
             return
         }
         Handler(Looper.getMainLooper()).post {

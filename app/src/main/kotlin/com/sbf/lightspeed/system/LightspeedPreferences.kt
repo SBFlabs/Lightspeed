@@ -68,6 +68,16 @@ object LightspeedPreferences {
     // Status Bar & Notch Telemetry Keys
     const val KEY_TELEMETRY_DOWNLOADS_ROUTING = "pref_telemetry_downloads_routing"
     const val KEY_TELEMETRY_MEDIA_ROUTING = "pref_telemetry_media_routing"
+    const val KEY_NOTCH_TEXT_SCROLL_MODE = "pref_notch_text_scroll_mode" // "infinite", "loop_1x", "loop_2x", "static"
+    const val KEY_NOTCH_TEXT_TRUNCATE_ANCHOR = "pref_notch_text_truncate_anchor" // "tail", "head", "core"
+
+    // Orientation & Display Suppression Keys
+    const val KEY_ORIENTATION_OVERLAY_POLICY = "pref_orientation_overlay_policy" // "adaptive", "portrait_only"
+    const val KEY_HIDE_ON_LOCKSCREEN_AND_DOCK = "pref_hide_on_lockscreen_and_dock"
+
+    // Refueling Bay Keys
+    const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "landscape_charging", "always_charging"
+    const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id"
 
     // Media Actions Keys
     const val KEY_MEDIA_SKIP_SECONDS = "pref_media_skip_seconds"

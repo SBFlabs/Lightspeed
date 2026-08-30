@@ -62,7 +62,10 @@ object LightspeedActionRegistry {
         "system:media_skip_forward",
         "system:media_skip_backward",
         "system:media_scrubber",
-        "system:media_stop"
+        "system:media_stop",
+
+        // 5. Ambient Dashboards
+        "system:refueling_bay"
     )
 
     fun initializeSync(context: Context) {
@@ -250,6 +253,7 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         }
         token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"
         token == "system:media_stop" -> "Media: Stop Playback"
+        token == "system:refueling_bay" -> "Refueling Bay (Cryo Charging Dashboard)"
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

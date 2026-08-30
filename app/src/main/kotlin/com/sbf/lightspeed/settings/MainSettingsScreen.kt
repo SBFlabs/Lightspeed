@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -36,6 +37,10 @@ fun MainSettingsScreen() {
     LaunchedEffect(Unit) {
         isVisible = true
     }
+
+    var showGuidebook by remember { mutableStateOf(false) }
+    var targetJumpTab by remember { mutableIntStateOf(-1) }
+    var targetJumpSection by remember { mutableStateOf<String?>(null) }
 
     val dismissAction = {
         isVisible = false
@@ -101,28 +106,47 @@ fun MainSettingsScreen() {
                         title = "Deflector Wings Controller",
                         onDismiss = { dismissAction() },
                         headerControl = {
-                            IconButton(
-                                onClick = { toggleAllTrigger++ },
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
+                                IconButton(
+                                    onClick = { showGuidebook = true },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    )
                                 ) {
                                     Icon(
-                                        Icons.Default.KeyboardArrowUp,
-                                        contentDescription = "Expand All",
+                                        Icons.Default.MenuBook,
+                                        contentDescription = "The Stranded in Space Guidebook",
                                         tint = colorScheme.primary,
-                                        modifier = Modifier.size(16.dp).offset(y = 3.dp)
+                                        modifier = Modifier.size(19.dp)
                                     )
-                                    Icon(
-                                        Icons.Default.KeyboardArrowDown,
-                                        contentDescription = "Collapse All",
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(16.dp).offset(y = (-3).dp)
+                                }
+
+                                IconButton(
+                                    onClick = { toggleAllTrigger++ },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                     )
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.KeyboardArrowUp,
+                                            contentDescription = "Expand All",
+                                            tint = colorScheme.primary,
+                                            modifier = Modifier.size(16.dp).offset(y = 3.dp)
+                                        )
+                                        Icon(
+                                            Icons.Default.KeyboardArrowDown,
+                                            contentDescription = "Collapse All",
+                                            tint = colorScheme.primary,
+                                            modifier = Modifier.size(16.dp).offset(y = (-3).dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -132,9 +156,22 @@ fun MainSettingsScreen() {
                                 context = context,
                                 prefs = prefs,
                                 toggleAllTrigger = toggleAllTrigger,
+                                jumpTargetTab = targetJumpTab,
+                                jumpTargetSection = targetJumpSection,
                                 onRefreshNeeded = { refreshKey++ }
                             )
                         }
+                    }
+
+                    if (showGuidebook) {
+                        GuidebookBottomSheet(
+                            onDismiss = { showGuidebook = false },
+                            onNavigateToSection = { tabIdx, secKey ->
+                                targetJumpTab = tabIdx
+                                targetJumpSection = secKey
+                                showGuidebook = false
+                            }
+                        )
                     }
                 }
             }

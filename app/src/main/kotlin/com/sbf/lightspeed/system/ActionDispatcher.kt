@@ -106,6 +106,12 @@ object ActionDispatcher {
             token == "system:media_stop" || token == "ACTION_MEDIA_STOP" || token == "media_stop" -> {
                 LightspeedMediaManager.stop(context)
             }
+            token == "system:refueling_bay" || token == "ACTION_REFUELING_BAY" || token == "refueling_bay" -> {
+                val intent = Intent(context, com.sbf.lightspeed.LightspeedRefuelingActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                try { context.startActivity(intent) } catch (_: Exception) {}
+            }
             token == "system:volume" -> {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
                 audioManager?.adjustSuggestedStreamVolume(

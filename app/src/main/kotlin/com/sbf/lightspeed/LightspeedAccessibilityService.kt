@@ -1,21 +1,27 @@
 package com.sbf.lightspeed
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.Surface
+import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 
 class LightspeedAccessibilityService : AccessibilityService() {
@@ -26,6 +32,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     private var windowManager: WindowManager? = null
+    private var displayManager: DisplayManager? = null
     private val handler = Handler(Looper.getMainLooper())
 
     // Edge Sidebar Overlay
@@ -48,6 +55,16 @@ class LightspeedAccessibilityService : AccessibilityService() {
     // Floating Media Scrubber Overlay
     private var mediaScrubberOverlayView: LightspeedMediaScrubberOverlay? = null
 
+    private var systemStateReceiver: BroadcastReceiver? = null
+
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) {}
+        override fun onDisplayRemoved(displayId: Int) {}
+        override fun onDisplayChanged(displayId: Int) {
+            handleDisplayOrientationChange()
+        }
+    }
+
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             updateStatusBarOverlayFromPrefs(prefs)
@@ -63,6 +80,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
         if (key != null && key.startsWith("pref_back_tap_")) {
             com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
+        }
+        if (key == LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY) {
+            handleDisplayOrientationChange()
         }
     }
 
@@ -82,6 +102,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        displayManager = getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+        displayManager?.registerDisplayListener(displayListener, handler)
 
         // 1. Initialize Right Sidebar Overlay Window
         windowParams = WindowManager.LayoutParams(
@@ -135,6 +157,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         // 4. Initialize Back Tap Engine
         com.sbf.lightspeed.system.LightspeedBackTapEngine.init(this)
+
+        // 5. Register System State & Dock Receivers
+        registerSystemStateReceiver()
     }
 
     private fun setupNotchOverlay() {
@@ -144,7 +169,6 @@ class LightspeedAccessibilityService : AccessibilityService() {
             (80 * d).toInt(),
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -377,9 +401,134 @@ class LightspeedAccessibilityService : AccessibilityService() {
         teardown()
     }
 
+    private fun handleDisplayOrientationChange() {
+        val prefs = defaultPrefs()
+        val policy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager?.defaultDisplay
+        val rotation = display?.rotation ?: Surface.ROTATION_0
+        val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
+
+        if (policy == "portrait_only" && isLandscape) {
+            setOverlaysVisible(false)
+        } else {
+            setOverlaysVisible(true)
+            resyncOverlayMetrics()
+        }
+    }
+
+    private fun isSuppressedByOrientation(): Boolean {
+        val prefs = defaultPrefs()
+        val policy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager?.defaultDisplay
+        val rotation = display?.rotation ?: Surface.ROTATION_0
+        val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
+        return policy == "portrait_only" && isLandscape
+    }
+
+    private fun setOverlaysVisible(visible: Boolean) {
+        val v = if (visible) View.VISIBLE else View.GONE
+        overlayView?.visibility = v
+        leftWingOverlayView?.visibility = v
+        statusBarOverlayView?.visibility = v
+        notchOverlayView?.visibility = v
+    }
+
+    fun scheduleGeometryResync() {
+        handler.postDelayed({ resyncOverlayMetrics() }, 100L)
+        handler.postDelayed({ resyncOverlayMetrics() }, 300L)
+    }
+
+    private fun resyncOverlayMetrics() {
+        if (windowManager == null) return
+        overlayView?.updateMetricsDimensions()
+        leftWingOverlayView?.updateMetricsDimensions()
+        updateStatusBarOverlayFromPrefs(defaultPrefs())
+        notchOverlayView?.updateNotchMetrics()
+        overlayView?.postInvalidate()
+        leftWingOverlayView?.postInvalidate()
+        statusBarOverlayView?.postInvalidate()
+        notchOverlayView?.postInvalidate()
+    }
+
+    private fun registerSystemStateReceiver() {
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_DREAMING_STARTED)
+            addAction(Intent.ACTION_DREAMING_STOPPED)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+        }
+
+        systemStateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent == null) return
+                val action = intent.action ?: return
+                val prefs = defaultPrefs()
+                val hideOnLockAndDock = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true)
+
+                when (action) {
+                    Intent.ACTION_DREAMING_STARTED, Intent.ACTION_SCREEN_OFF -> {
+                        if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
+                            notchOverlayView?.visibility = View.GONE
+                            statusBarOverlayView?.visibility = View.GONE
+                        }
+                    }
+                    Intent.ACTION_DREAMING_STOPPED, Intent.ACTION_USER_PRESENT, Intent.ACTION_SCREEN_ON -> {
+                        if (!isSuppressedByOrientation()) {
+                            notchOverlayView?.visibility = View.VISIBLE
+                            statusBarOverlayView?.visibility = View.VISIBLE
+                            resyncOverlayMetrics()
+                        }
+                    }
+                    Intent.ACTION_POWER_CONNECTED -> {
+                        checkPowerConnectedRefuelingTrigger(prefs)
+                    }
+                }
+            }
+        }
+        try {
+            registerReceiver(systemStateReceiver, filter)
+        } catch (_: Exception) {}
+    }
+
+    private fun checkPowerConnectedRefuelingTrigger(prefs: SharedPreferences) {
+        val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
+        if (trigger == "disabled") return
+
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager?.defaultDisplay
+        val rotation = display?.rotation ?: Surface.ROTATION_0
+        val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
+
+        if (trigger == "always_charging" || (trigger == "landscape_charging" && isLandscape)) {
+            val intent = Intent(this, LightspeedRefuelingActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            try { startActivity(intent) } catch (_: Exception) {}
+        }
+    }
+
+    fun updateNotchWindowBounds(isExpanded: Boolean, targetX: Int, targetY: Int, targetWidth: Int, targetHeight: Int) {
+        if (windowManager == null || notchOverlayView == null) return
+        notchWindowParams.width = targetWidth
+        notchWindowParams.height = targetHeight
+        notchWindowParams.x = targetX
+        notchWindowParams.y = targetY
+        notchWindowParams.gravity = Gravity.TOP or Gravity.START
+        try {
+            windowManager?.updateViewLayout(notchOverlayView, notchWindowParams)
+        } catch (_: Exception) {}
+    }
+
     private fun teardown() {
         LightspeedKeyEngine.reset()
         com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
+        displayManager?.unregisterDisplayListener(displayListener)
+        systemStateReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) {}
+            systemStateReceiver = null
+        }
         mediaScrubberOverlayView?.let {
             try { windowManager?.removeView(it) } catch (_: Exception) {}
             mediaScrubberOverlayView = null

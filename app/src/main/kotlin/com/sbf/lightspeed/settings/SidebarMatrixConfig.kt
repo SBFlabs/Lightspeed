@@ -46,6 +46,8 @@ fun SidebarMatrixConfigurationFields(
     context: Context,
     prefs: SharedPreferences,
     toggleAllTrigger: Int = 0,
+    jumpTargetTab: Int = -1,
+    jumpTargetSection: String? = null,
     onRefreshNeeded: () -> Unit = {}
 ) {
     // Left Wing Accordion States
@@ -75,6 +77,7 @@ fun SidebarMatrixConfigurationFields(
     var isVolumeKeysExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_volumekeys_expanded", false)) }
     var isBackTapExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backtap_expanded", false)) }
     var isTelemetryExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_telemetry_expanded", false)) }
+    var isRefuelingExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_refueling_expanded", false)) }
     var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
 
     var showOemShieldDialog by remember { mutableStateOf(false) }
@@ -86,6 +89,8 @@ fun SidebarMatrixConfigurationFields(
     var isStatusBarScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
     var isStatusBarGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", true)) }
     var isNotchCalibExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", true)) }
+    var isMarqueeSubSectionExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", true)) }
+    var isOrientationSubSectionExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_orientation", true)) }
 
     // Live Impulse Calibration Meter State (Hull Tap)
     var currentZImpulse by remember { mutableFloatStateOf(0f) }
@@ -240,12 +245,14 @@ fun SidebarMatrixConfigurationFields(
                     isVolumeKeysExpanded = allExpandedState
                     isBackTapExpanded = allExpandedState
                     isTelemetryExpanded = allExpandedState
+                    isRefuelingExpanded = allExpandedState
                     isBackupExpanded = allExpandedState
                     prefs.edit()
                         .putBoolean("pref_section_statusbar_expanded", allExpandedState)
                         .putBoolean("pref_section_volumekeys_expanded", allExpandedState)
                         .putBoolean("pref_section_backtap_expanded", allExpandedState)
                         .putBoolean("pref_section_telemetry_expanded", allExpandedState)
+                        .putBoolean("pref_section_refueling_expanded", allExpandedState)
                         .putBoolean("pref_section_backup_expanded", allExpandedState)
                         .putBoolean("pref_statusbar_preview", allExpandedState)
                         .apply()
@@ -261,6 +268,24 @@ fun SidebarMatrixConfigurationFields(
                         .putBoolean("pref_sidebar_preview", allExpandedState)
                         .apply()
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(jumpTargetTab, jumpTargetSection) {
+        if (jumpTargetTab in 0..2) {
+            pagerState.animateScrollToPage(jumpTargetTab)
+        }
+        when (jumpTargetSection) {
+            "statusbar" -> isStatusBarExpanded = true
+            "telemetry" -> isTelemetryExpanded = true
+            "volumekeys" -> isVolumeKeysExpanded = true
+            "backtap" -> isBackTapExpanded = true
+            "refueling" -> isRefuelingExpanded = true
+            "backup" -> isBackupExpanded = true
+            "wings" -> {
+                if (jumpTargetTab == 0) isLeftCenterExpanded = true
+                else isCenterExpanded = true
             }
         }
     }
@@ -924,6 +949,174 @@ fun SidebarMatrixConfigurationFields(
                                             }
                                         }
                                     }
+
+                                    // Title Marquee & Truncation Engine
+                                    CollapsibleSubSection(
+                                        title = "📜 Title Overflow & Marquee Engine",
+                                        subtitle = "Scroll mode, loop count & ellipsis anchor",
+                                        isExpanded = isMarqueeSubSectionExpanded,
+                                        onToggle = {
+                                            isMarqueeSubSectionExpanded = !isMarqueeSubSectionExpanded
+                                            prefs.edit().putBoolean("pref_sub_notch_marquee", isMarqueeSubSectionExpanded).apply()
+                                        }
+                                    ) {
+                                        val currentScrollMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_TEXT_SCROLL_MODE, "loop_2x") ?: "loop_2x"
+                                        var isScrollDropdownOpen by remember { mutableStateOf(false) }
+                                        val scrollOptions = listOf(
+                                            "infinite" to "Infinite Marquee Loop",
+                                            "loop_2x" to "Loop 2x then Settle",
+                                            "loop_1x" to "Loop 1x then Settle",
+                                            "static" to "Static (No Scroll / Ellipsize Immediately)"
+                                        )
+
+                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                            Text("TEXT SCROLL BEHAVIOR", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Box {
+                                                OutlinedButton(
+                                                    onClick = { isScrollDropdownOpen = true },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(scrollOptions.firstOrNull { it.first == currentScrollMode }?.second ?: "Loop 2x then Settle", color = Color.White, fontSize = 12.sp)
+                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                }
+                                                DropdownMenu(
+                                                    expanded = isScrollDropdownOpen,
+                                                    onDismissRequest = { isScrollDropdownOpen = false }
+                                                ) {
+                                                    scrollOptions.forEach { (key, label) ->
+                                                        DropdownMenuItem(
+                                                            text = { Text(label) },
+                                                            onClick = {
+                                                                isScrollDropdownOpen = false
+                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_TEXT_SCROLL_MODE, key).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        val currentTruncateAnchor = prefs.getString(LightspeedPreferences.KEY_NOTCH_TEXT_TRUNCATE_ANCHOR, "tail") ?: "tail"
+                                        var isTruncateDropdownOpen by remember { mutableStateOf(false) }
+                                        val truncateOptions = listOf(
+                                            "tail" to "Tail Ellipsis (Track Name...)",
+                                            "head" to "Head Ellipsis (...Track Name)",
+                                            "core" to "Core Ellipsis (Tra...Name)"
+                                        )
+
+                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                            Text("ELLIPSIS TRUNCATION ANCHOR", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Box {
+                                                OutlinedButton(
+                                                    onClick = { isTruncateDropdownOpen = true },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(truncateOptions.firstOrNull { it.first == currentTruncateAnchor }?.second ?: "Tail Ellipsis", color = Color.White, fontSize = 12.sp)
+                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                }
+                                                DropdownMenu(
+                                                    expanded = isTruncateDropdownOpen,
+                                                    onDismissRequest = { isTruncateDropdownOpen = false }
+                                                ) {
+                                                    truncateOptions.forEach { (key, label) ->
+                                                        DropdownMenuItem(
+                                                            text = { Text(label) },
+                                                            onClick = {
+                                                                isTruncateDropdownOpen = false
+                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_TEXT_TRUNCATE_ANCHOR, key).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Display Orientation & Lockscreen Suppression
+                                    CollapsibleSubSection(
+                                        title = "🔄 Orientation & Ambient Suppression",
+                                        subtitle = "360° rotation policy & OEM dock protection",
+                                        isExpanded = isOrientationSubSectionExpanded,
+                                        onToggle = {
+                                            isOrientationSubSectionExpanded = !isOrientationSubSectionExpanded
+                                            prefs.edit().putBoolean("pref_sub_orientation", isOrientationSubSectionExpanded).apply()
+                                        }
+                                    ) {
+                                        val currentOrientationPolicy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
+                                        var isOrientationDropdownOpen by remember { mutableStateOf(false) }
+                                        val orientationOptions = listOf(
+                                            "adaptive" to "Adaptive (360° Follows All Rotations)",
+                                            "portrait_only" to "Portrait Only (Auto-Hide in Landscape)"
+                                        )
+
+                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                            Text("ORIENTATION OVERLAY POLICY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Box {
+                                                OutlinedButton(
+                                                    onClick = { isOrientationDropdownOpen = true },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: "Adaptive (360°)", color = Color.White, fontSize = 12.sp)
+                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                }
+                                                DropdownMenu(
+                                                    expanded = isOrientationDropdownOpen,
+                                                    onDismissRequest = { isOrientationDropdownOpen = false }
+                                                ) {
+                                                    orientationOptions.forEach { (key, label) ->
+                                                        DropdownMenuItem(
+                                                            text = { Text(label) },
+                                                            onClick = {
+                                                                isOrientationDropdownOpen = false
+                                                                prefs.edit().putString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, key).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        PrefToggleRow(
+                                            title = "Suppress on Lock Screen & OEM Screensavers",
+                                            subtitle = "Automatically hides Notch Pill and Status Line when device is locked or running OEM ambient dock.",
+                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true),
+                                            onCheckedChange = {
+                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, it).apply()
+                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                onRefreshNeeded()
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1345,6 +1538,106 @@ fun SidebarMatrixConfigurationFields(
                                         labelCache = tokenLabelCache,
                                         showMediaQuickAccess = true
                                     )
+                                }
+                            }
+                        }
+
+                        // Refueling Bay: Ambient Charging & Cryo Dashboard
+                        item {
+                            CompactAccordionSection(
+                                title = "Refueling Bay — Ambient Charging & Cryo Dashboard",
+                                isExpanded = isRefuelingExpanded,
+                                onToggle = {
+                                    isRefuelingExpanded = !isRefuelingExpanded
+                                    prefs.edit().putBoolean("pref_section_refueling_expanded", isRefuelingExpanded).apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    // Trigger Dropdown
+                                    val currentTrigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
+                                    var isTriggerDropdownOpen by remember { mutableStateOf(false) }
+                                    val triggerOptions = listOf(
+                                        "disabled" to "Disabled (Manual Launch Only)",
+                                        "landscape_charging" to "Landscape Only While Charging (Dock Mode)",
+                                        "always_charging" to "Whenever Charging (All Orientations)"
+                                    )
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Text("AUTO-LAUNCH CHARGING TRIGGER", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box {
+                                            OutlinedButton(
+                                                onClick = { isTriggerDropdownOpen = true },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(triggerOptions.firstOrNull { it.first == currentTrigger }?.second ?: "Disabled", color = Color.White, fontSize = 12.5.sp)
+                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                            DropdownMenu(
+                                                expanded = isTriggerDropdownOpen,
+                                                onDismissRequest = { isTriggerDropdownOpen = false }
+                                            ) {
+                                                triggerOptions.forEach { (key, label) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            isTriggerDropdownOpen = false
+                                                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, key).apply()
+                                                            onRefreshNeeded()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Feature Overview Card
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                    ) {
+                                        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Ambient Cryo Telemetry", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = Color.White)
+                                            }
+                                            Text(
+                                                "• Live charging wattage calculation (V × A / 1e9 W)\n• Accurate time-to-full remaining estimation\n• Minimalist cryo clock with next alarm indicator\n• AMOLED burn-in protection with periodic 1-2px drift\n• Dynamic AppWidgetHost: embed weather, music or note widgets",
+                                                fontSize = 11.5.sp,
+                                                color = Color.LightGray.copy(alpha = 0.85f),
+                                                lineHeight = 16.sp
+                                            )
+                                        }
+                                    }
+
+                                    // Launch Test Button
+                                    Button(
+                                        onClick = {
+                                            val intent = Intent(context, com.sbf.lightspeed.LightspeedRefuelingActivity::class.java).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                            }
+                                            context.startActivity(intent)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Launch Refueling Bay Dashboard", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
                                 }
                             }
                         }

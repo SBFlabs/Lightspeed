@@ -121,6 +121,7 @@ object LightspeedKeyEngine {
     private var volUpHoldJob: Job? = null
     private var volDownHoldJob: Job? = null
     private var seqTapHoldJob: Job? = null
+    private var autoRepeatJob: Job? = null
     private var accessibilityShortcutJob: Job? = null
     private var hudNavInactivityJob: Job? = null
 
@@ -129,15 +130,44 @@ object LightspeedKeyEngine {
         return prefs.getBoolean(LightspeedPreferences.KEY_VOL_GESTURES_ENABLED, true)
     }
 
-    fun isCleanSuppression(context: Context): Boolean {
+    fun getSuppressionProfile(context: Context): String {
         val prefs = context.defaultPrefs()
-        return prefs.getBoolean(LightspeedPreferences.KEY_CLEAN_VOLUME_SUPPRESSION, false)
+        val profile = prefs.getString(LightspeedPreferences.KEY_VOLUME_SUPPRESSION_PROFILE, null)
+        if (!profile.isNullOrEmpty()) return profile
+        val legacyClean = prefs.getBoolean(LightspeedPreferences.KEY_CLEAN_VOLUME_SUPPRESSION, false)
+        return if (legacyClean) "balanced_holds" else "instant_reflex"
+    }
+
+    fun isCleanSuppression(context: Context): Boolean {
+        val profile = getSuppressionProfile(context)
+        return profile == "balanced_holds" || profile == "total_clean"
     }
 
     fun getBoundAction(context: Context, slot: VolumeTriggerSlot): String? {
         val prefs = context.defaultPrefs()
         val raw = prefs.getString(slot.prefKey, null)?.trim()
         return if (raw.isNullOrEmpty() || raw == "none") null else raw
+    }
+
+    private fun startAutoRepeat(context: Context, actionToken: String) {
+        val prefs = context.defaultPrefs()
+        val autoRepeatEnabled = prefs.getBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, false)
+        if (!autoRepeatEnabled) return
+
+        val intervalMs = prefs.getInt(LightspeedPreferences.KEY_KEY_REPEAT_INTERVAL_MS, 200).toLong().coerceIn(80L, 1000L)
+        autoRepeatJob?.cancel()
+        autoRepeatJob = engineScope.launch {
+            while (true) {
+                delay(intervalMs)
+                LightspeedHapticEngine.scrubTick(context)
+                ActionDispatcher.dispatch(actionToken, context)
+            }
+        }
+    }
+
+    private fun stopAutoRepeat() {
+        autoRepeatJob?.cancel()
+        autoRepeatJob = null
     }
 
     /**
@@ -262,6 +292,7 @@ object LightspeedKeyEngine {
                                 lastVolDownReleaseTime = 0L
                                 LightspeedHapticEngine.heavyClick(context)
                                 ActionDispatcher.dispatch(tapHoldAction, context)
+                                startAutoRepeat(context, tapHoldAction)
                             }
                         }
                     }
@@ -274,6 +305,7 @@ object LightspeedKeyEngine {
                         volDownHoldJob = null
                         volUpHoldJob?.cancel()
                         volUpHoldJob = null
+                        stopAutoRepeat()
                         return true
                     }
 
@@ -289,6 +321,7 @@ object LightspeedKeyEngine {
                             isVolUpLongPressed = true
                             LightspeedHapticEngine.heavyClick(context)
                             ActionDispatcher.dispatch(longPressAction, context)
+                            startAutoRepeat(context, longPressAction)
                         }
                     }
 
@@ -299,6 +332,7 @@ object LightspeedKeyEngine {
                     volUpHoldJob = null
                     seqTapHoldJob?.cancel()
                     seqTapHoldJob = null
+                    stopAutoRepeat()
                     accessibilityShortcutJob?.cancel()
                     accessibilityShortcutJob = null
 
@@ -406,6 +440,7 @@ object LightspeedKeyEngine {
                                 lastVolUpReleaseTime = 0L
                                 LightspeedHapticEngine.heavyClick(context)
                                 ActionDispatcher.dispatch(tapHoldAction, context)
+                                startAutoRepeat(context, tapHoldAction)
                             }
                         }
                     }
@@ -418,6 +453,7 @@ object LightspeedKeyEngine {
                         volUpHoldJob = null
                         volDownHoldJob?.cancel()
                         volDownHoldJob = null
+                        stopAutoRepeat()
                         return true
                     }
 
@@ -433,6 +469,7 @@ object LightspeedKeyEngine {
                             isVolDownLongPressed = true
                             LightspeedHapticEngine.heavyClick(context)
                             ActionDispatcher.dispatch(longPressAction, context)
+                            startAutoRepeat(context, longPressAction)
                         }
                     }
 
@@ -443,6 +480,7 @@ object LightspeedKeyEngine {
                     volDownHoldJob = null
                     seqTapHoldJob?.cancel()
                     seqTapHoldJob = null
+                    stopAutoRepeat()
                     accessibilityShortcutJob?.cancel()
                     accessibilityShortcutJob = null
 
@@ -618,6 +656,8 @@ object LightspeedKeyEngine {
         volDownHoldJob = null
         seqTapHoldJob?.cancel()
         seqTapHoldJob = null
+        autoRepeatJob?.cancel()
+        autoRepeatJob = null
         accessibilityShortcutJob?.cancel()
         accessibilityShortcutJob = null
         hudNavInactivityJob?.cancel()

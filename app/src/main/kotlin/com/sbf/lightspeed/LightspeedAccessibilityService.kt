@@ -37,6 +37,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private var statusBarOverlayView: LightspeedStatusBarOverlay? = null
     private lateinit var statusBarWindowParams: WindowManager.LayoutParams
 
+    // Dedicated Notch Pill Overlay
+    private var notchOverlayView: LightspeedNotchOverlay? = null
+    private lateinit var notchWindowParams: WindowManager.LayoutParams
+
     // Left Deflector Wing Overlay
     private var leftWingOverlayView: LightspeedLeftWingOverlay? = null
     private lateinit var leftWingWindowParams: WindowManager.LayoutParams
@@ -47,6 +51,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             updateStatusBarOverlayFromPrefs(prefs)
+        }
+        if (key != null && (key.startsWith("pref_notch_") || key.startsWith("pref_telemetry_"))) {
+            notchOverlayView?.postInvalidate()
         }
         if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_top") || key.startsWith("pref_section_center") || key.startsWith("pref_section_bottom"))) {
             updateSidebarOverlayFromPrefs(prefs)
@@ -124,9 +131,38 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val prefs = defaultPrefs()
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         setupStatusBarOverlay(prefs)
+        setupNotchOverlay()
 
         // 4. Initialize Back Tap Engine
         com.sbf.lightspeed.system.LightspeedBackTapEngine.init(this)
+    }
+
+    private fun setupNotchOverlay() {
+        val d = resources.displayMetrics.density
+        notchWindowParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            (80 * d).toInt(),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+
+        notchOverlayView = LightspeedNotchOverlay(this)
+        try {
+            windowManager?.addView(notchOverlayView, notchWindowParams)
+        } catch (_: Exception) {}
     }
 
     private fun setupStatusBarOverlay(prefs: SharedPreferences) {
@@ -141,8 +177,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } else {
             (spanPref * density).toInt().coerceIn((50 * density).toInt(), screenWidthPx)
         }
-        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 80)
-        val heightPx = (thicknessDp * density).toInt().coerceIn((20 * density).toInt(), (300 * density).toInt())
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val heightPx = (thicknessDp * density).toInt()
         val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * density).toInt()
         val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).toInt()
 
@@ -188,8 +224,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } else {
             (spanPref * density).toInt().coerceIn((50 * density).toInt(), screenWidthPx)
         }
-        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 80)
-        val heightPx = (thicknessDp * density).toInt().coerceIn((20 * density).toInt(), (300 * density).toInt())
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val heightPx = (thicknessDp * density).toInt()
         val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * density).toInt()
         val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).toInt()
 
@@ -220,6 +256,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     fun reloadPreferences() {
         val prefs = defaultPrefs()
         updateStatusBarOverlayFromPrefs(prefs)
+        notchOverlayView?.postInvalidate()
         updateSidebarOverlayFromPrefs(prefs)
         updateLeftWingOverlayFromPrefs(prefs)
         com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
@@ -358,6 +395,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
         statusBarOverlayView?.let {
             windowManager?.removeView(it)
             statusBarOverlayView = null
+        }
+        notchOverlayView?.let {
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
+            notchOverlayView = null
         }
     }
 }

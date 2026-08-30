@@ -29,7 +29,13 @@ import androidx.compose.ui.unit.sp
 import android.content.Intent
 import com.sbf.lightspeed.GearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.system.LightspeedBackTapEngine
 import com.sbf.lightspeed.system.LightspeedBackupEngine
+import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedKeyEngine
+import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.OemNotchDetector
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.collect
@@ -79,6 +85,36 @@ fun SidebarMatrixConfigurationFields(
     var isStatusBarGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
     var isStatusBarScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
     var isStatusBarGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", true)) }
+    var isNotchCalibExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", true)) }
+
+    // Live Impulse Calibration Meter State (Hull Tap)
+    var currentZImpulse by remember { mutableFloatStateOf(0f) }
+    var currentThreshold by remember { mutableFloatStateOf(LightspeedBackTapEngine.getThreshold(context)) }
+    var thresholdCrossedFlash by remember { mutableStateOf(false) }
+
+    DisposableEffect(isBackTapExpanded) {
+        if (isBackTapExpanded) {
+            LightspeedBackTapEngine.startLiveSampling(context)
+            LightspeedBackTapEngine.onLiveImpulseListener = { zVal, thresh, isCrossed ->
+                currentZImpulse = zVal
+                currentThreshold = thresh
+                if (isCrossed) {
+                    thresholdCrossedFlash = true
+                }
+            }
+        }
+        onDispose {
+            LightspeedBackTapEngine.stopLiveSampling()
+        }
+    }
+
+    LaunchedEffect(thresholdCrossedFlash) {
+        if (thresholdCrossedFlash) {
+            LightspeedHapticEngine.tick(context)
+            kotlinx.coroutines.delay(180L)
+            thresholdCrossedFlash = false
+        }
+    }
 
     // Right Wing Accordion States
     var isCenterExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_center_expanded", false)) }
@@ -629,7 +665,7 @@ fun SidebarMatrixConfigurationFields(
                                         }
                                     ) {
                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Canopy Span (≥1000 = full width)", 50, 1080, 10, 1080)
-                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Canopy Thickness (Height)", 20, 300, 5, 80)
+                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Canopy Thickness (Height)", 20, 52, 2, 48)
                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset (X Axis)", -300, 300, 5, 0)
                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset (Y Axis)", -100, 200, 5, 0)
                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Sensitivity", 10, 100, 5, 40)
@@ -816,30 +852,76 @@ fun SidebarMatrixConfigurationFields(
                                         }
                                     }
 
-                                    // OEM Dynamic Pill Advisory Note
+                                    // Camera Cutout Notch Calibration
+                                    CollapsibleSubSection(
+                                        title = "📐 Camera Cutout Notch Calibration",
+                                        subtitle = "Live alignment, offsets & expansion",
+                                        isExpanded = isNotchCalibExpanded,
+                                        onToggle = {
+                                            isNotchCalibExpanded = !isNotchCalibExpanded
+                                            prefs.edit().putBoolean("pref_sub_notch_calib", isNotchCalibExpanded).apply()
+                                        }
+                                    ) {
+                                        PrefToggleRow(
+                                            title = "Test Beacon Live Alignment",
+                                            subtitle = "Projects a persistent illuminated liquid-glass pill around the cutout for live alignment.",
+                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false),
+                                            onCheckedChange = {
+                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, it).apply()
+                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                onRefreshNeeded()
+                                            }
+                                        )
+                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_OFFSET_Y, "", "Vertical Offset Y (-30 to +30dp)", -30, 30, 1, 0)
+                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_OFFSET_X, "", "Horizontal Offset X (-30 to +30dp)", -30, 30, 1, 0)
+                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Pill Expansion Width (0 to 80dp)", 0, 80, 2, 0)
+                                    }
+
+                                    // OEM Dynamic Pill Advisory Card
+                                    val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
                                     Card(
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = RoundedCornerShape(14.dp),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                                     ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Info,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Text(
-                                                text = "OEM Notice: If your device uses an OEM dynamic pill (such as Infinix Magic Ring or Dynamic Island clones), disable it in system settings to prevent overlapping indicators.",
-                                                fontSize = 11.5.sp,
-                                                color = Color.White.copy(alpha = 0.9f),
-                                                lineHeight = 15.sp
-                                            )
+                                        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Info,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Text(
+                                                    text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
+                                                    fontSize = 12.sp,
+                                                    color = Color.White.copy(alpha = 0.9f),
+                                                    lineHeight = 16.sp,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                            Button(
+                                                onClick = { OemNotchDetector.openSearch(context) },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(10.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        text = "Configure $oemFeatureName in Settings",
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -883,15 +965,100 @@ fun SidebarMatrixConfigurationFields(
                                         }
                                     )
 
+                                    // 3-Stage Volume Suppression Profile Selector
+                                    val currentProfile = remember(prefs.getString(LightspeedPreferences.KEY_VOLUME_SUPPRESSION_PROFILE, null)) {
+                                        LightspeedKeyEngine.getSuppressionProfile(context)
+                                    }
+                                    var selectedProfile by remember { mutableStateOf(currentProfile) }
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("VOLUME SUPPRESSION PROFILE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+
+                                        val profileOptions = listOf(
+                                            Triple("instant_reflex", "Instant Reflex (0ms)", "Raw pass-through. Volume steps on ACTION_DOWN; chords execute immediately with potential single volume tick leak."),
+                                            Triple("balanced_holds", "Balanced Holds", "Suppresses volume jumps during long-press holds; chords execute immediately."),
+                                            Triple("total_clean", "Total Clean (150ms Buffer)", "Consumes first key event and waits up to 150ms. If second chord key is pressed, fires chord with 0 volume changes. If released without chord/hold, steps volume manually.")
+                                        )
+
+                                        profileOptions.forEach { (profileKey, title, desc) ->
+                                            val isSelected = selectedProfile == profileKey
+                                            Card(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .clickable {
+                                                        selectedProfile = profileKey
+                                                        prefs.edit().putString(LightspeedPreferences.KEY_VOLUME_SUPPRESSION_PROFILE, profileKey).apply()
+                                                        onRefreshNeeded()
+                                                    },
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = CardDefaults.cardColors(
+                                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
+                                                ),
+                                                border = androidx.compose.foundation.BorderStroke(
+                                                    1.dp,
+                                                    if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f)
+                                                )
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    RadioButton(
+                                                        selected = isSelected,
+                                                        onClick = {
+                                                            selectedProfile = profileKey
+                                                            prefs.edit().putString(LightspeedPreferences.KEY_VOLUME_SUPPRESSION_PROFILE, profileKey).apply()
+                                                            onRefreshNeeded()
+                                                        },
+                                                        colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                        Text(desc, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), lineHeight = 14.sp)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        if (selectedProfile == "total_clean") {
+                                            Card(
+                                                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                                shape = RoundedCornerShape(10.dp),
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)),
+                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f))
+                                            ) {
+                                                Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        "Adds a 150ms buffer window before single volume taps register to guarantee zero volume leaks on chords.",
+                                                        fontSize = 11.sp,
+                                                        color = Color.White.copy(alpha = 0.9f),
+                                                        lineHeight = 14.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Key Hold Auto-Repeat
+                                    val autoRepeatEnabled = prefs.getBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, false)
                                     PrefToggleRow(
-                                        title = "Clean Volume Hold Suppression",
-                                        subtitle = "Zero audio jumps during hold gestures. Manually steps volume on tap.",
-                                        isChecked = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CLEAN_VOLUME_SUPPRESSION, false),
-                                        onCheckedChange = { checked ->
-                                            prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CLEAN_VOLUME_SUPPRESSION, checked).apply()
+                                        title = "Hardware Key Hold Auto-Repeat",
+                                        subtitle = "Continuous auto-repeat for hold actions while volume buttons remain pressed",
+                                        isChecked = autoRepeatEnabled,
+                                        onCheckedChange = {
+                                            prefs.edit().putBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, it).apply()
                                             onRefreshNeeded()
                                         }
                                     )
+
+                                    if (autoRepeatEnabled) {
+                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_KEY_REPEAT_INTERVAL_MS, "", "Auto-Repeat Interval (ms)", 100, 500, 25, 200)
+                                    }
 
                                     // Rocker Advisory Banner
                                     Card(
@@ -1040,6 +1207,119 @@ fun SidebarMatrixConfigurationFields(
                                             )
                                         }
                                     }
+
+                                    // Live Impulse Calibration Meter
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (thresholdCrossedFlash) Color(0xFF00E676).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
+                                        ),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.2.dp,
+                                            if (thresholdCrossedFlash) Color(0xFF00E676) else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                                        )
+                                    ) {
+                                        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        Icons.Default.Speed,
+                                                        contentDescription = null,
+                                                        tint = if (thresholdCrossedFlash) Color(0xFF00E676) else MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        "LIVE IMPULSE METER",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (thresholdCrossedFlash) Color(0xFF00E676) else MaterialTheme.colorScheme.primary,
+                                                        letterSpacing = 1.sp
+                                                    )
+                                                }
+                                                Text(
+                                                    text = String.format(Locale.US, "%.1f m/s²", currentZImpulse),
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (thresholdCrossedFlash) Color(0xFF00E676) else Color.White
+                                                )
+                                            }
+
+                                            // Gauge Bar with Vertical Threshold Marker
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(20.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(Color.White.copy(alpha = 0.08f))
+                                            ) {
+                                                val fraction = (currentZImpulse / 20f).coerceIn(0f, 1f)
+                                                val threshFraction = (currentThreshold / 20f).coerceIn(0f, 1f)
+
+                                                // Active Fill
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxHeight()
+                                                        .fillMaxWidth(fraction)
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(
+                                                            if (thresholdCrossedFlash) Color(0xFF00E676) else MaterialTheme.colorScheme.primary
+                                                        )
+                                                )
+
+                                                // Threshold Marker
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxHeight()
+                                                        .fillMaxWidth(threshFraction)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .align(Alignment.CenterEnd)
+                                                            .width(2.5.dp)
+                                                            .fillMaxHeight()
+                                                            .background(Color.White)
+                                                    )
+                                                }
+                                            }
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text("0.0", fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
+                                                Text(
+                                                    if (thresholdCrossedFlash) "✓ THRESHOLD BREACHED" else String.format(Locale.US, "Threshold: %.1f m/s²", currentThreshold),
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = if (thresholdCrossedFlash) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (thresholdCrossedFlash) Color(0xFF00E676) else MaterialTheme.colorScheme.primary
+                                                )
+                                                Text("20.0 m/s²", fontSize = 10.sp, color = Color.White.copy(alpha = 0.5f))
+                                            }
+                                        }
+                                    }
+
+                                    // Configurable Threshold Slider
+                                    PrefFloatDottedSliderRow(
+                                        context = context,
+                                        prefs = prefs,
+                                        keyResName = LightspeedPreferences.KEY_BACK_TAP_THRESHOLD,
+                                        title = "Strike Force Threshold",
+                                        minVal = 3.0f,
+                                        maxVal = 18.0f,
+                                        step = 0.5f,
+                                        defaultVal = 7.5f,
+                                        unit = "m/s²",
+                                        onValueChanged = {
+                                            currentThreshold = it
+                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        }
+                                    )
 
                                     // Gesture Mappings
                                     GestureMappingRow(

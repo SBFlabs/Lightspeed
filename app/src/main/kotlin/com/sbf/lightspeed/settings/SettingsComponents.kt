@@ -833,6 +833,71 @@ fun resStr(context: Context, resourceName: String, fallback: String): String {
 }
 
 @Composable
+fun PrefFloatDottedSliderRow(
+    context: Context,
+    prefs: SharedPreferences,
+    keyResName: String,
+    title: String,
+    minVal: Float,
+    maxVal: Float,
+    step: Float = 0.5f,
+    defaultVal: Float,
+    unit: String = "m/s²",
+    onValueChanged: (Float) -> Unit = {}
+) {
+    val key = remember(keyResName) { resKey(context, keyResName) }
+    var value by remember {
+        val current = try {
+            if (prefs.contains(key)) {
+                try {
+                    prefs.getFloat(key, defaultVal)
+                } catch (_: Exception) {
+                    prefs.getInt(key, (defaultVal * 10).toInt()) / 10f
+                }
+            } else defaultVal
+        } catch (_: Exception) { defaultVal }
+        mutableFloatStateOf(current)
+    }
+    val steps = remember(minVal, maxVal, step) { (((maxVal - minVal) / step).roundToInt() - 1).coerceAtLeast(0) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+            .padding(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(String.format(java.util.Locale.US, "%.1f %s", value, unit), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Slider(
+            value = value,
+            onValueChange = {
+                val near = ((it / step).roundToInt() * step).coerceIn(minVal, maxVal)
+                value = near
+                prefs.edit().putFloat(key, value).apply()
+                onValueChanged(value)
+            },
+            valueRange = minVal..maxVal,
+            steps = steps,
+            colors = SliderDefaults.colors(
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                activeTickColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f),
+                inactiveTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
 fun Material3ExpressiveLoader() {
     CircularProgressIndicator(
         modifier = Modifier.size(72.dp),

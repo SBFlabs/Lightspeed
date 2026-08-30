@@ -174,6 +174,8 @@ object LightspeedBackupEngine {
                     is Number -> {
                         if (key.endsWith("_time") || key.endsWith("_timestamp")) {
                             editor.putLong(key, value.toLong())
+                        } else if (key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
+                            editor.putFloat(key, value.toFloat())
                         } else {
                             editor.putInt(key, value.toInt())
                         }
@@ -185,12 +187,20 @@ object LightspeedBackupEngine {
                                 editor.putBoolean(key, value.toBoolean())
                             }
                             else -> {
-                                // If the key expects an integer but was serialized as string
-                                val intVal = value.toIntOrNull()
-                                if (intVal != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("last_active_set_index"))) {
-                                    editor.putInt(key, intVal)
+                                if (key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
+                                    val floatVal = value.toFloatOrNull()
+                                    if (floatVal != null) {
+                                        editor.putFloat(key, floatVal)
+                                    } else {
+                                        editor.putString(key, value)
+                                    }
                                 } else {
-                                    editor.putString(key, value)
+                                    val intVal = value.toIntOrNull()
+                                    if (intVal != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("last_active_set_index"))) {
+                                        editor.putInt(key, intVal)
+                                    } else {
+                                        editor.putString(key, value)
+                                    }
                                 }
                             }
                         }

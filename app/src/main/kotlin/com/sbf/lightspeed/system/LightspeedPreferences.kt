@@ -31,9 +31,18 @@ object LightspeedPreferences {
     const val KEY_SIDEBAR_RIGHT_LINK_FLANK = "pref_sidebar_right_link_flank_actions"
     const val KEY_SIDEBAR_LEFT_LINK_FLANK = "pref_sidebar_left_link_flank_actions"
 
+    // Notch Calibration & Test Beacon Keys
+    const val KEY_NOTCH_OFFSET_X = "pref_notch_offset_x"
+    const val KEY_NOTCH_OFFSET_Y = "pref_notch_offset_y"
+    const val KEY_NOTCH_EXPANSION_WIDTH = "pref_notch_expansion_width"
+    const val KEY_NOTCH_TEST_BEACON = "pref_notch_test_beacon"
+
     // Hardware Volume Button Gesture Keys
     const val KEY_VOL_GESTURES_ENABLED = "pref_key_vol_gestures_enabled"
     const val KEY_CLEAN_VOLUME_SUPPRESSION = "pref_clean_volume_suppression"
+    const val KEY_VOLUME_SUPPRESSION_PROFILE = "pref_volume_suppression_profile" // "instant_reflex", "balanced_holds", "total_clean"
+    const val KEY_KEY_HOLD_AUTO_REPEAT = "pref_key_hold_auto_repeat"
+    const val KEY_KEY_REPEAT_INTERVAL_MS = "pref_key_repeat_interval_ms"
     const val KEY_OEM_SHIELD_COMPLETED = "pref_oem_shield_completed"
     const val KEY_OEM_PRESERVE_SCREENSHOT = "pref_oem_preserve_screenshot"
     const val KEY_OEM_PRESERVE_ACCESSIBILITY = "pref_oem_preserve_accessibility"
@@ -52,6 +61,7 @@ object LightspeedPreferences {
     // Back Tap Gesture Keys
     const val KEY_BACK_TAP_ENABLED = "pref_back_tap_enabled"
     const val KEY_BACK_TAP_SCOPE = "pref_back_tap_scope"
+    const val KEY_BACK_TAP_THRESHOLD = "pref_back_tap_threshold"
     const val KEY_BACK_TAP_DOUBLE = "pref_back_tap_double"
     const val KEY_BACK_TAP_TRIPLE = "pref_back_tap_triple"
 

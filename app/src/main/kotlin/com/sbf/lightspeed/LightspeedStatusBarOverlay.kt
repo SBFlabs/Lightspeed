@@ -71,14 +71,6 @@ class LightspeedStatusBarOverlay(
         strokeCap = Paint.Cap.ROUND
     }
 
-    private val telemetryPillFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
-
-    private val telemetryPillRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-    }
-
     private val uiHandler = Handler(Looper.getMainLooper())
     private var pendingTapRunnable: Runnable? = null
     private var lastTapTime = 0L
@@ -160,8 +152,8 @@ class LightspeedStatusBarOverlay(
         val screenWidthPx = resources.displayMetrics.widthPixels
         val spanPref = prefs.getInt("pref_statusbar_span", 1080)
         val spanPx = if (spanPref >= 1000) screenWidthPx else (spanPref * d).toInt().coerceIn((50 * d).toInt(), screenWidthPx)
-        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 80)
-        val heightPx = (thicknessDp * d).toInt().coerceIn((20 * d).toInt(), (300 * d).toInt())
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val heightPx = (thicknessDp * d).toInt()
         val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * d).toInt()
         val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * d).toInt()
         lp.width = spanPx
@@ -534,55 +526,10 @@ class LightspeedStatusBarOverlay(
             canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
         }
 
-        // 2. Camera Cutout Notch Pill Telemetry Renderer
-        if (!isScrubbing && !com.sbf.lightspeed.system.LightspeedKeyEngine.isHudNavActive) {
-            val showDlPill = (dlRouting == "notch_pill" || dlRouting == "both") && primaryDl != null
-            val showMediaPill = (mediaRouting == "notch_pill" || mediaRouting == "both") && media != null && media.isPlaying
-
-            if (showDlPill || showMediaPill) {
-                val cutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
-                val topCutoutRect = cutout?.boundingRectTop ?: cutout?.boundingRects?.firstOrNull { it.top == 0 }
-                val notchCenterX = if (topCutoutRect != null && topCutoutRect.width() > 0) topCutoutRect.exactCenterX() else w / 2f
-                val notchTopY = if (topCutoutRect != null) topCutoutRect.top.toFloat() else 0f
-                val notchHeight = if (topCutoutRect != null && topCutoutRect.height() > 0) topCutoutRect.height().toFloat() else 26f * d
-                val pillCy = notchTopY + (notchHeight / 2f).coerceAtLeast(14f * d)
-
-                if (showDlPill && primaryDl != null) {
-                    val pillW = 126f * d
-                    val pillH = 26f * d
-                    val pillRect = RectF(notchCenterX - pillW / 2f, pillCy - pillH / 2f, notchCenterX + pillW / 2f, pillCy + pillH / 2f)
-                    telemetryPillFillPaint.color = Color.argb(225, 14, 18, 28)
-                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillFillPaint)
-                    telemetryPillRimPaint.strokeWidth = 1.2f * d
-                    telemetryPillRimPaint.color = Color.argb(140, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillRimPaint)
-
-                    hudTextPaint.textSize = 10f * d
-                    hudTextPaint.color = m3Primary
-                    val pctText = if (primaryDl.isIndeterminate) "⬇ DOWNLOADING…" else "⬇ ${(primaryDl.progressFraction * 100).toInt()}%"
-                    canvas.drawText(pctText, notchCenterX, pillCy + (3.5f * d), hudTextPaint)
-                } else if (showMediaPill && media != null) {
-                    val pillW = 156f * d
-                    val pillH = 26f * d
-                    val pillRect = RectF(notchCenterX - pillW / 2f, pillCy - pillH / 2f, notchCenterX + pillW / 2f, pillCy + pillH / 2f)
-                    telemetryPillFillPaint.color = Color.argb(225, 14, 18, 28)
-                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillFillPaint)
-                    telemetryPillRimPaint.strokeWidth = 1.2f * d
-                    telemetryPillRimPaint.color = Color.argb(140, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillRimPaint)
-
-                    hudTextPaint.textSize = 9.5f * d
-                    hudTextPaint.color = Color.WHITE
-                    val cleanTitle = if (media.title.length > 18) media.title.take(16) + "…" else media.title
-                    canvas.drawText("♫ $cleanTitle", notchCenterX, pillCy + (3.5f * d), hudTextPaint)
-                }
-            }
-        }
-
-        // 3. Hardware Gear Set HUD Navigation Renderer
+        // 2. Hardware Gear Set HUD Navigation Renderer
         val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
         if (navState != null && navState.isActive) {
-            val topY = (prefs.getInt("pref_statusbar_thickness", 80) * d).coerceAtLeast(36f * d) + (8f * d)
+            val topY = (prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52) * d) + (8f * d)
             LightspeedHudRenderer.renderHud(
                 canvas = canvas,
                 style = "canopy_droppod",
@@ -598,13 +545,13 @@ class LightspeedStatusBarOverlay(
             )
         }
 
-        // 4. Gesture Scrubbing HUD Renderer
+        // 3. Gesture Scrubbing HUD Renderer
         if (isScrubbing && hudTitle.isNotEmpty()) {
             val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR_SCRUBBING", null)
                 ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
             val totalSteps = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
             val stepIdx = if (scrubType == "system:screen_timeout") currentTimeoutStep else -1
-            val topY = (prefs.getInt("pref_statusbar_thickness", 80) * d).coerceAtLeast(36f * d) + (8f * d)
+            val topY = (prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52) * d) + (8f * d)
 
             LightspeedHudRenderer.renderHud(
                 canvas = canvas,

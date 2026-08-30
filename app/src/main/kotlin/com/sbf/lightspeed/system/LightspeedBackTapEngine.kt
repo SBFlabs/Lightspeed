@@ -9,6 +9,8 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.BatteryManager
+import android.os.Handler
+import android.os.HandlerThread
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
@@ -21,17 +23,17 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
- * Back Tap Engine for Lightspeed.
+ * Back Tap (Hull Tap) Engine for Lightspeed.
  *
  * Utilizes Sensor.TYPE_LINEAR_ACCELERATION (Z-axis) to detect sharp impulse peaks
  * for Double Tap (250-450ms) and Triple Tap (<= 700ms) gestures.
  *
- * Features a smart failsafe guardrail: automatically disables screen-off monitoring
- * and releases PARTIAL_WAKE_LOCK when battery <= 20% or system Battery Saver is active.
+ * Features a dedicated HandlerThread to prevent dropped sensor ticks, configurable impulse
+ * threshold slider, real-time live impulse calibration stream, and smart battery failsafe guardrails.
  */
 object LightspeedBackTapEngine : SensorEventListener {
     private const val TAG = "LightspeedBackTap"
-    private const val ACCEL_THRESHOLD = 14.0f // m/s^2 peak threshold
+    const val DEFAULT_THRESHOLD = 7.5f // m/s^2 peak threshold default
     private const val MIN_INTER_TAP_MS = 120L // debounces physical ringing of single tap
     private const val DOUBLE_TAP_MAX_WINDOW_MS = 450L
     private const val TRIPLE_TAP_MAX_WINDOW_MS = 700L
@@ -44,7 +46,12 @@ object LightspeedBackTapEngine : SensorEventListener {
     private var powerManager: PowerManager? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
+    // Dedicated background HandlerThread for sensor event processing
+    private var sensorThread: HandlerThread? = null
+    private var sensorHandler: Handler? = null
+
     private var isSensorRegistered = false
+    private var isLiveSamplingActive = false
     private var isScreenOn = true
     private var isBatteryLowOrPowerSave = false
     private var currentBatteryLevel = 100
@@ -52,6 +59,9 @@ object LightspeedBackTapEngine : SensorEventListener {
     private val tapTimestamps = mutableListOf<Long>()
     private var pendingDoubleTapJob: Job? = null
     private var lastPeakTime = 0L
+
+    // Live Impulse stream for UI calibration meter
+    var onLiveImpulseListener: ((currentZ: Float, threshold: Float, crossed: Boolean) -> Unit)? = null
 
     // Receiver for Battery, Power Save, Screen On/Off
     private val stateReceiver = object : BroadcastReceiver() {
@@ -112,6 +122,39 @@ object LightspeedBackTapEngine : SensorEventListener {
         evaluateMonitoringState()
     }
 
+    fun getThreshold(context: Context): Float {
+        val prefs = context.defaultPrefs()
+        return try {
+            if (prefs.contains(LightspeedPreferences.KEY_BACK_TAP_THRESHOLD)) {
+                try {
+                    prefs.getFloat(LightspeedPreferences.KEY_BACK_TAP_THRESHOLD, DEFAULT_THRESHOLD)
+                } catch (_: Exception) {
+                    prefs.getInt(LightspeedPreferences.KEY_BACK_TAP_THRESHOLD, (DEFAULT_THRESHOLD * 10).toInt()) / 10f
+                }
+            } else {
+                DEFAULT_THRESHOLD
+            }
+        } catch (_: Exception) {
+            DEFAULT_THRESHOLD
+        }
+    }
+
+    fun startLiveSampling(context: Context) {
+        if (appContext == null) {
+            appContext = context.applicationContext
+            sensorManager = appContext?.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+            linearAccelSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+        }
+        isLiveSamplingActive = true
+        startMonitoring(allowWakeLock = false)
+    }
+
+    fun stopLiveSampling() {
+        isLiveSamplingActive = false
+        onLiveImpulseListener = null
+        evaluateMonitoringState()
+    }
+
     private fun checkFailsafeStatus() {
         val ctx = appContext ?: return
         val pm = powerManager ?: (ctx.getSystemService(Context.POWER_SERVICE) as? PowerManager)
@@ -127,6 +170,11 @@ object LightspeedBackTapEngine : SensorEventListener {
     }
 
     private fun evaluateMonitoringState() {
+        if (isLiveSamplingActive) {
+            startMonitoring(allowWakeLock = false)
+            return
+        }
+
         val ctx = appContext ?: return
         val prefs = ctx.defaultPrefs()
         val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, false)
@@ -153,9 +201,18 @@ object LightspeedBackTapEngine : SensorEventListener {
 
     private fun startMonitoring(allowWakeLock: Boolean) {
         if (!isSensorRegistered && linearAccelSensor != null) {
-            val registered = sensorManager?.registerListener(this, linearAccelSensor, SensorManager.SENSOR_DELAY_GAME) == true
+            if (sensorThread == null) {
+                sensorThread = HandlerThread("LightspeedBackTapThread").apply { start() }
+                sensorHandler = Handler(sensorThread!!.looper)
+            }
+            val registered = sensorManager?.registerListener(
+                this,
+                linearAccelSensor,
+                SensorManager.SENSOR_DELAY_GAME,
+                sensorHandler
+            ) == true
             isSensorRegistered = registered
-            Log.d(TAG, "Back Tap sensor registered: $registered")
+            Log.d(TAG, "Back Tap sensor registered on HandlerThread: $registered")
         }
 
         if (allowWakeLock) {
@@ -178,6 +235,11 @@ object LightspeedBackTapEngine : SensorEventListener {
             isSensorRegistered = false
             Log.d(TAG, "Back Tap sensor unregistered")
         }
+
+        sensorThread?.quitSafely()
+        sensorThread = null
+        sensorHandler = null
+
         releaseWakeLock()
         resetState()
     }
@@ -194,10 +256,15 @@ object LightspeedBackTapEngine : SensorEventListener {
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null || event.sensor.type != Sensor.TYPE_LINEAR_ACCELERATION) return
 
-        val zAccel = event.values.getOrNull(2) ?: return
-        val now = SystemClock.uptimeMillis()
+        val zAccel = abs(event.values.getOrNull(2) ?: 0f)
+        val ctx = appContext ?: return
+        val threshold = getThreshold(ctx)
+        val crossed = zAccel >= threshold
 
-        if (abs(zAccel) >= ACCEL_THRESHOLD) {
+        onLiveImpulseListener?.invoke(zAccel, threshold, crossed)
+
+        if (crossed && !isLiveSamplingActive) {
+            val now = SystemClock.uptimeMillis()
             if (now - lastPeakTime < MIN_INTER_TAP_MS) {
                 return // Ignore ringing resonance from same physical tap
             }

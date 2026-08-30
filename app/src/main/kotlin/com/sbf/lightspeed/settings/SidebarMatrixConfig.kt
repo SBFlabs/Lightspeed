@@ -712,7 +712,8 @@ fun SidebarMatrixConfigurationFields(
                                             keyResName = prefKey,
                                             defaultTitle = title,
                                             options = dynamicActionTokens,
-                                            labelCache = tokenLabelCache
+                                            labelCache = tokenLabelCache,
+                                            showMediaQuickAccess = true
                                         )
                                     }
                                 }

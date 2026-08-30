@@ -417,7 +417,8 @@ fun GestureMappingRow(
     keyResName: String,
     defaultTitle: String,
     options: List<String>,
-    labelCache: Map<String, String>
+    labelCache: Map<String, String>,
+    showMediaQuickAccess: Boolean = false
 ) {
     val key = remember(keyResName) { resKey(context, keyResName) }
     var currentRawValue by remember { mutableStateOf(prefs.getString(key, "none") ?: "none") }
@@ -453,7 +454,11 @@ fun GestureMappingRow(
         }
     }
 
-    Row(
+    val hasControls = showMediaQuickAccess ||
+            (currentRawValue == "system:screen_timeout") ||
+            (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward")
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
@@ -469,183 +474,210 @@ fun GestureMappingRow(
                     pickerLauncher.launch(intent)
                 }
             }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(12.dp)
     ) {
-        GestureTrailTracer(direction, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
-        Spacer(modifier = Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(defaultTitle, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
-            Spacer(modifier = Modifier.height(2.dp))
-            Text("Active Map: $activeLabel", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-        }
-
-        // Quick Media Actions Dropdown Menu
-        var showMediaQuickMenu by remember { mutableStateOf(false) }
-
-        Box {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (currentRawValue.startsWith("system:media_")) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                },
-                modifier = Modifier.clickable { showMediaQuickMenu = true }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                ) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = "Media Actions",
-                        tint = if (currentRawValue.startsWith("system:media_")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = "Media ▾",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (currentRawValue.startsWith("system:media_")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            DropdownMenu(
-                expanded = showMediaQuickMenu,
-                onDismissRequest = { showMediaQuickMenu = false }
-            ) {
-                val skipSec = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
-                val mediaItems = listOf(
-                    "system:media_play_pause" to "Play / Pause",
-                    "system:media_next" to "Next Track",
-                    "system:media_prev" to "Previous Track",
-                    "system:media_skip_forward" to "Skip Forward (${skipSec}s)",
-                    "system:media_skip_backward" to "Skip Backward (${skipSec}s)",
-                    "system:media_scrubber" to "Media Timeline Scrubber (HUD)",
-                    "system:media_stop" to "Stop Playback"
+        // Line 1 & Line 2: Gesture Tracer Icon + Full-Width Title & Subtitle
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GestureTrailTracer(direction, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = defaultTitle,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    color = Color.White
                 )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Active Map: $activeLabel",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
 
-                mediaItems.forEach { (token, title) ->
-                    val isSelected = currentRawValue == token
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = if (isSelected) "✓ $title" else title,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Unspecified
-                            )
-                        },
-                        onClick = {
-                            currentRawValue = token
-                            prefs.edit().putString(key, token).apply()
-                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                            showMediaQuickMenu = false
+        // Line 3: Dedicated Action Chips & Dropdowns (No cramping / full horizontal space)
+        if (hasControls) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 46.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 1. Quick Media Actions Dropdown Menu (Hardware buttons only)
+                if (showMediaQuickAccess) {
+                    var showMediaQuickMenu by remember { mutableStateOf(false) }
+
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (currentRawValue.startsWith("system:media_")) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                            },
+                            modifier = Modifier.clickable { showMediaQuickMenu = true }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = "Media Actions",
+                                    tint = if (currentRawValue.startsWith("system:media_")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Media ▾",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (currentRawValue.startsWith("system:media_")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.width(6.dp))
 
-        if (currentRawValue == "system:screen_timeout") {
-            val hudKey = key.replace("pref_macro_action_", "pref_macro_hud_style_")
-            var hudStyle by remember(currentRawValue) {
-                mutableStateOf(prefs.getString(hudKey, null) ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod")
-            }
-            var showHudMenu by remember { mutableStateOf(false) }
+                        DropdownMenu(
+                            expanded = showMediaQuickMenu,
+                            onDismissRequest = { showMediaQuickMenu = false }
+                        ) {
+                            val skipSec = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+                            val mediaItems = listOf(
+                                "system:media_play_pause" to "Play / Pause",
+                                "system:media_next" to "Next Track",
+                                "system:media_prev" to "Previous Track",
+                                "system:media_skip_forward" to "Skip Forward (${skipSec}s)",
+                                "system:media_skip_backward" to "Skip Backward (${skipSec}s)",
+                                "system:media_scrubber" to "Media Timeline Scrubber (HUD)",
+                                "system:media_stop" to "Stop Playback"
+                            )
 
-            Box {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                    modifier = Modifier.clickable { showHudMenu = true }
-                ) {
-                    val hudName = when (hudStyle) {
-                        "canopy_droppod" -> "Drop-Pod"
-                        "cockpit_reticle" -> "Reticle"
-                        "edge_blade" -> "Blade"
-                        else -> "Drop-Pod"
-                    }
-                    Text(
-                        text = "HUD: $hudName ▾",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
-                }
-                DropdownMenu(expanded = showHudMenu, onDismissRequest = { showHudMenu = false }) {
-                    listOf(
-                        "canopy_droppod" to "Tactical Canopy Drop-Pod",
-                        "cockpit_reticle" to "Holographic Cockpit Reticle",
-                        "edge_blade" to "Dynamic Edge Blade"
-                    ).forEach { (styleKey, styleTitle) ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = if (styleKey == hudStyle) "✓ $styleTitle" else styleTitle,
-                                    fontWeight = if (styleKey == hudStyle) FontWeight.Bold else FontWeight.Normal
+                            mediaItems.forEach { (token, title) ->
+                                val isSelected = currentRawValue == token
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = if (isSelected) "✓ $title" else title,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Unspecified
+                                        )
+                                    },
+                                    onClick = {
+                                        currentRawValue = token
+                                        prefs.edit().putString(key, token).apply()
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        showMediaQuickMenu = false
+                                    }
                                 )
-                            },
-                            onClick = {
-                                hudStyle = styleKey
-                                prefs.edit()
-                                    .putString(hudKey, styleKey)
-                                    .putString("pref_macro_hud_style_default", styleKey)
-                                    .apply()
-                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                showHudMenu = false
                             }
-                        )
+                        }
                     }
                 }
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-        }
 
-        if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {
-            var currentSkipSec by remember(currentRawValue) {
-                mutableStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10))
-            }
-            var showSkipMenu by remember { mutableStateOf(false) }
+                // 2. HUD Style Selector for Screen Timeout
+                if (currentRawValue == "system:screen_timeout") {
+                    val hudKey = key.replace("pref_macro_action_", "pref_macro_hud_style_")
+                    var hudStyle by remember(currentRawValue) {
+                        mutableStateOf(prefs.getString(hudKey, null) ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod")
+                    }
+                    var showHudMenu by remember { mutableStateOf(false) }
 
-            Box {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                    modifier = Modifier.clickable { showSkipMenu = true }
-                ) {
-                    Text(
-                        text = "Skip: ${currentSkipSec}s ▾",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
-                }
-                DropdownMenu(expanded = showSkipMenu, onDismissRequest = { showSkipMenu = false }) {
-                    listOf(5, 10, 15, 30, 60).forEach { sec ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = if (sec == currentSkipSec) "✓ ${sec}s Interval" else "${sec}s Interval",
-                                    fontWeight = if (sec == currentSkipSec) FontWeight.Bold else FontWeight.Normal
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                            modifier = Modifier.clickable { showHudMenu = true }
+                        ) {
+                            val hudName = when (hudStyle) {
+                                "canopy_droppod" -> "Drop-Pod"
+                                "cockpit_reticle" -> "Reticle"
+                                "edge_blade" -> "Blade"
+                                else -> "Drop-Pod"
+                            }
+                            Text(
+                                text = "HUD: $hudName ▾",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            )
+                        }
+                        DropdownMenu(expanded = showHudMenu, onDismissRequest = { showHudMenu = false }) {
+                            listOf(
+                                "canopy_droppod" to "Tactical Canopy Drop-Pod",
+                                "cockpit_reticle" to "Holographic Cockpit Reticle",
+                                "edge_blade" to "Dynamic Edge Blade"
+                            ).forEach { (styleKey, styleTitle) ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = if (styleKey == hudStyle) "✓ $styleTitle" else styleTitle,
+                                            fontWeight = if (styleKey == hudStyle) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        hudStyle = styleKey
+                                        prefs.edit()
+                                            .putString(hudKey, styleKey)
+                                            .putString("pref_macro_hud_style_default", styleKey)
+                                            .apply()
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        showHudMenu = false
+                                    }
                                 )
-                            },
-                            onClick = {
-                                currentSkipSec = sec
-                                prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
-                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                showSkipMenu = false
                             }
-                        )
+                        }
+                    }
+                }
+
+                // 3. Skip Duration Selector for Media Skip Actions
+                if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {
+                    var currentSkipSec by remember(currentRawValue) {
+                        mutableStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10))
+                    }
+                    var showSkipMenu by remember { mutableStateOf(false) }
+
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                            modifier = Modifier.clickable { showSkipMenu = true }
+                        ) {
+                            Text(
+                                text = "Skip: ${currentSkipSec}s ▾",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            )
+                        }
+                        DropdownMenu(expanded = showSkipMenu, onDismissRequest = { showSkipMenu = false }) {
+                            listOf(5, 10, 15, 30, 60).forEach { sec ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = if (sec == currentSkipSec) "✓ ${sec}s Interval" else "${sec}s Interval",
+                                            fontWeight = if (sec == currentSkipSec) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        currentSkipSec = sec
+                                        prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        showSkipMenu = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(6.dp))
         }
 
         if (direction == ArrowDirection.SCRUB) {
@@ -675,6 +707,7 @@ fun GestureMappingRow(
         }
     }
 }
+
 
 @Composable
 fun PrefToggleRow(

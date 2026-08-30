@@ -479,6 +479,77 @@ fun GestureMappingRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text("Active Map: $activeLabel", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
         }
+
+        // Quick Media Actions Dropdown Menu
+        var showMediaQuickMenu by remember { mutableStateOf(false) }
+
+        Box {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (currentRawValue.startsWith("system:media_")) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                },
+                modifier = Modifier.clickable { showMediaQuickMenu = true }
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                ) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Media Actions",
+                        tint = if (currentRawValue.startsWith("system:media_")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Media ▾",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (currentRawValue.startsWith("system:media_")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            DropdownMenu(
+                expanded = showMediaQuickMenu,
+                onDismissRequest = { showMediaQuickMenu = false }
+            ) {
+                val skipSec = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+                val mediaItems = listOf(
+                    "system:media_play_pause" to "Play / Pause",
+                    "system:media_next" to "Next Track",
+                    "system:media_prev" to "Previous Track",
+                    "system:media_skip_forward" to "Skip Forward (${skipSec}s)",
+                    "system:media_skip_backward" to "Skip Backward (${skipSec}s)",
+                    "system:media_scrubber" to "Media Timeline Scrubber (HUD)",
+                    "system:media_stop" to "Stop Playback"
+                )
+
+                mediaItems.forEach { (token, title) ->
+                    val isSelected = currentRawValue == token
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (isSelected) "✓ $title" else title,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Unspecified
+                            )
+                        },
+                        onClick = {
+                            currentRawValue = token
+                            prefs.edit().putString(key, token).apply()
+                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                            showMediaQuickMenu = false
+                        }
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+
         if (currentRawValue == "system:screen_timeout") {
             val hudKey = key.replace("pref_macro_action_", "pref_macro_hud_style_")
             var hudStyle by remember(currentRawValue) {

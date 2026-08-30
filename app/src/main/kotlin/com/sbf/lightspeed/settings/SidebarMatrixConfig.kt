@@ -1604,8 +1604,9 @@ fun SidebarMatrixConfigurationFields(
                                     var isTriggerDropdownOpen by remember { mutableStateOf(false) }
                                     val triggerOptions = listOf(
                                         "disabled" to "Disabled (Manual Launch Only)",
-                                        "landscape_charging" to "Landscape Only While Charging (Dock Mode)",
-                                        "always_charging" to "Whenever Charging (All Orientations)"
+                                        "charging_screen_off" to "Screen-Off While Charging / Plugged While Locked",
+                                        "charging_dock_landscape" to "Charging in Landscape Dock Orientation",
+                                        "screensaver_only" to "Android Screensaver (DreamService Only)"
                                     )
 
                                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -1622,7 +1623,15 @@ fun SidebarMatrixConfigurationFields(
                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Text(triggerOptions.firstOrNull { it.first == currentTrigger }?.second ?: "Disabled", color = Color.White, fontSize = 12.5.sp)
+                                                    Text(
+                                                        triggerOptions.firstOrNull {
+                                                            it.first == currentTrigger ||
+                                                            (it.first == "charging_dock_landscape" && currentTrigger == "landscape_charging") ||
+                                                            (it.first == "charging_screen_off" && currentTrigger == "always_charging")
+                                                        }?.second ?: "Disabled",
+                                                        color = Color.White,
+                                                        fontSize = 12.sp
+                                                    )
                                                     Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                                 }
                                             }
@@ -1644,6 +1653,50 @@ fun SidebarMatrixConfigurationFields(
                                         }
                                     }
 
+                                    // Widget Layout Mode Selector
+                                    val currentWidgetLayout = prefs.getString(LightspeedPreferences.KEY_REFUELING_WIDGET_LAYOUT, "smart_stack") ?: "smart_stack"
+                                    var isWidgetLayoutDropdownOpen by remember { mutableStateOf(false) }
+                                    val widgetLayoutOptions = listOf(
+                                        "smart_stack" to "Smart Stack (Swipeable Pager)",
+                                        "adaptive_grid" to "Adaptive Grid (1 Col Portrait / 2 Col Landscape)"
+                                    )
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Text("MULTI-WIDGET ENGINE LAYOUT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box {
+                                            OutlinedButton(
+                                                onClick = { isWidgetLayoutDropdownOpen = true },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(widgetLayoutOptions.firstOrNull { it.first == currentWidgetLayout }?.second ?: "Smart Stack (Swipeable Pager)", color = Color.White, fontSize = 12.sp)
+                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                            DropdownMenu(
+                                                expanded = isWidgetLayoutDropdownOpen,
+                                                onDismissRequest = { isWidgetLayoutDropdownOpen = false }
+                                            ) {
+                                                widgetLayoutOptions.forEach { (key, label) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            isWidgetLayoutDropdownOpen = false
+                                                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_WIDGET_LAYOUT, key).apply()
+                                                            onRefreshNeeded()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     // Feature Overview Card
                                     Card(
                                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -1655,10 +1708,10 @@ fun SidebarMatrixConfigurationFields(
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                Text("Ambient Cryo Telemetry", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = Color.White)
+                                                Text("Ambient Cryo Dashboard & Multi-Widget", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = Color.White)
                                             }
                                             Text(
-                                                "• Live charging wattage calculation (V × A / 1e9 W)\n• Accurate time-to-full remaining estimation\n• Minimalist cryo clock with next alarm indicator\n• AMOLED burn-in protection with periodic 1-2px drift\n• Dynamic AppWidgetHost: embed weather, music or note widgets",
+                                                "• Lockscreen wake & launch over lock when charging / plugged\n• Orientation Sensor Reflow: adaptive Portrait & Landscape splits\n• Multi-Widget Engine: Unlimited widgets in Smart Stack or Adaptive Grid\n• Live charging wattage calculation (V × A / 1e9 W) & time-to-full\n• AMOLED burn-in protection with periodic micro-drift",
                                                 fontSize = 11.5.sp,
                                                 color = Color.LightGray.copy(alpha = 0.85f),
                                                 lineHeight = 16.sp

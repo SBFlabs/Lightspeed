@@ -16,6 +16,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import androidx.core.content.ContextCompat
+import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedMediaManager
@@ -95,6 +96,9 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     var isExpanded = false
         private set
 
+    var expandedPageIndex = 0
+        private set
+
     val collapsedPillBounds = RectF()
     private val expandedCardBounds = RectF()
     private val lastReportedBounds = RectF()
@@ -104,6 +108,15 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     private val btnPlayPauseBounds = RectF()
     private val btnNextBounds = RectF()
     private val btnCloseBounds = RectF()
+
+    // 2-Page Navigation & Quick Remote Targets
+    private val dot1Bounds = RectF()
+    private val dot2Bounds = RectF()
+    private val btnRemoteFlashlightBounds = RectF()
+    private val btnRemoteScreenshotBounds = RectF()
+    private val btnRemoteLockBounds = RectF()
+    private val btnRemoteTimeoutBounds = RectF()
+    private val btnRemoteRefuelBounds = RectF()
 
     // Touch interaction tracking
     private var touchDownX = 0f
@@ -160,6 +173,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     fun expandCard() {
         if (isExpanded) return
         isExpanded = true
+        expandedPageIndex = 0
         LightspeedHapticEngine.tick(context)
         resetAutoCollapseTimer()
         notifyWindowLayoutChanged()
@@ -177,7 +191,8 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
 
     private fun resetAutoCollapseTimer() {
         mainHandler.removeCallbacks(autoCollapseRunnable)
-        mainHandler.postDelayed(autoCollapseRunnable, 4000L)
+        val timeout = if (expandedPageIndex == 1) 8000L else 4000L
+        mainHandler.postDelayed(autoCollapseRunnable, timeout)
     }
 
     private fun notifyWindowLayoutChanged() {
@@ -305,31 +320,124 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                 }
             }
         } else {
-            // Expanded Card Touch Detection
-            resetAutoCollapseTimer()
+            // Expanded Card Touch Detection with 2-Page Horizontal Swipe Support
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    touchDownX = x
+                    touchDownY = y
+                    touchDownTime = SystemClock.uptimeMillis()
+                    resetAutoCollapseTimer()
+                    return true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    return true
+                }
+                MotionEvent.ACTION_UP -> {
+                    resetAutoCollapseTimer()
+                    val dx = x - touchDownX
+                    val dy = y - touchDownY
 
-            if (event.action == MotionEvent.ACTION_UP) {
-                if (btnCloseBounds.contains(x, y)) {
-                    collapseCard()
+                    // Horizontal Swipe Carousel Navigation
+                    if (abs(dx) > 28f * resources.displayMetrics.density && abs(dx) > abs(dy) * 1.1f) {
+                        if (dx < 0 && expandedPageIndex == 0) {
+                            expandedPageIndex = 1
+                            LightspeedHapticEngine.tick(context)
+                            resetAutoCollapseTimer()
+                            postInvalidate()
+                            return true
+                        } else if (dx > 0 && expandedPageIndex == 1) {
+                            expandedPageIndex = 0
+                            LightspeedHapticEngine.tick(context)
+                            resetAutoCollapseTimer()
+                            postInvalidate()
+                            return true
+                        }
+                    }
+
+                    // Close Button [✕]
+                    if (btnCloseBounds.contains(x, y)) {
+                        collapseCard()
+                        return true
+                    }
+
+                    // Page Indicator Dot Taps
+                    if (dot1Bounds.contains(x, y)) {
+                        if (expandedPageIndex != 0) {
+                            expandedPageIndex = 0
+                            LightspeedHapticEngine.tick(context)
+                            resetAutoCollapseTimer()
+                            postInvalidate()
+                        }
+                        return true
+                    }
+                    if (dot2Bounds.contains(x, y)) {
+                        if (expandedPageIndex != 1) {
+                            expandedPageIndex = 1
+                            LightspeedHapticEngine.tick(context)
+                            resetAutoCollapseTimer()
+                            postInvalidate()
+                        }
+                        return true
+                    }
+
+                    if (expandedPageIndex == 0) {
+                        // Page 1: Media Controls
+                        if (btnPrevBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            LightspeedMediaManager.previous(context)
+                            return true
+                        }
+                        if (btnPlayPauseBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            LightspeedMediaManager.playPause(context)
+                            return true
+                        }
+                        if (btnNextBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            LightspeedMediaManager.next(context)
+                            return true
+                        }
+                    } else {
+                        // Page 2: Micro-Widget & Quick Remote Controls
+                        if (btnRemoteFlashlightBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            ActionDispatcher.execute(context, "system:flashlight")
+                            resetAutoCollapseTimer()
+                            return true
+                        }
+                        if (btnRemoteScreenshotBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            ActionDispatcher.execute(context, "system:screenshot")
+                            resetAutoCollapseTimer()
+                            return true
+                        }
+                        if (btnRemoteLockBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            ActionDispatcher.execute(context, "system:lock_screen")
+                            resetAutoCollapseTimer()
+                            return true
+                        }
+                        if (btnRemoteTimeoutBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            ActionDispatcher.execute(context, "system:screen_timeout")
+                            resetAutoCollapseTimer()
+                            return true
+                        }
+                        if (btnRemoteRefuelBounds.contains(x, y)) {
+                            LightspeedHapticEngine.tick(context)
+                            ActionDispatcher.execute(context, "system:refueling_bay")
+                            resetAutoCollapseTimer()
+                            return true
+                        }
+                    }
+
+                    if (!expandedCardBounds.contains(x, y)) {
+                        collapseCard()
+                        return true
+                    }
                     return true
                 }
-                if (btnPrevBounds.contains(x, y)) {
-                    LightspeedHapticEngine.tick(context)
-                    LightspeedMediaManager.previous(context)
-                    return true
-                }
-                if (btnPlayPauseBounds.contains(x, y)) {
-                    LightspeedHapticEngine.tick(context)
-                    LightspeedMediaManager.playPause(context)
-                    return true
-                }
-                if (btnNextBounds.contains(x, y)) {
-                    LightspeedHapticEngine.tick(context)
-                    LightspeedMediaManager.next(context)
-                    return true
-                }
-                if (!expandedCardBounds.contains(x, y)) {
-                    collapseCard()
+                MotionEvent.ACTION_CANCEL -> {
                     return true
                 }
             }
@@ -394,10 +502,10 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
 
         if (isExpanded) {
             // =========================================================================
-            // INTERACTIVE EXPANDED LIQUID-GLASS MINI-PLAYER / TELEMETRY CARD
+            // INTERACTIVE EXPANDED LIQUID-GLASS 2-PAGE CAPSULE CARD
             // =========================================================================
             val cardW = (320f * d).coerceAtMost(w - 16f * d)
-            val cardH = 116f * d
+            val cardH = 118f * d
             val cardLeft = (w - cardW) / 2f
             val cardTop = pillTop
             expandedCardBounds.set(cardLeft, cardTop, cardLeft + cardW, cardTop + cardH)
@@ -413,106 +521,195 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             // Close Button [✕] at Top Right (Vector Drawable)
             val closeSize = 22f * d
             btnCloseBounds.set(expandedCardBounds.right - closeSize - 12f * d, expandedCardBounds.top + 10f * d, expandedCardBounds.right - 12f * d, expandedCardBounds.top + 10f * d + closeSize)
+            buttonBgPaint.color = Color.argb(80, 255, 255, 255)
             canvas.drawCircle(btnCloseBounds.centerX(), btnCloseBounds.centerY(), closeSize / 2f, buttonBgPaint)
             val closeIconBounds = RectF(btnCloseBounds.centerX() - 5.5f * d, btnCloseBounds.centerY() - 5.5f * d, btnCloseBounds.centerX() + 5.5f * d, btnCloseBounds.centerY() + 5.5f * d)
             drawVector(canvas, R.drawable.ic_close, closeIconBounds, Color.WHITE)
 
-            if (showMediaPill || media != null) {
-                val med = media ?: LightspeedNotificationListener.activeMediaTelemetry
-                val title = med?.title ?: "Active Media"
-                val artist = med?.artist ?: "Now Playing"
-                val isPlaying = med?.isPlaying ?: true
+            // Bottom Page Indicator Dots (Dot 1 = Media/Downloads, Dot 2 = Quick Remote / Micro-Widget)
+            val dotY = cardTop + cardH - 10f * d
+            val cX = cardLeft + cardW / 2f
+            val dot1W = if (expandedPageIndex == 0) 14f * d else 5f * d
+            val dot2W = if (expandedPageIndex == 1) 14f * d else 5f * d
+            val dotH = 4.5f * d
+            val dotGap = 6f * d
 
-                // Header Badge with Music Vector
-                val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 13f * d, cardLeft + 25f * d, cardTop + 22f * d)
-                drawVector(canvas, R.drawable.ic_music_note, badgeIconBounds, m3Primary)
+            dot1Bounds.set(cX - dotGap / 2f - dot1W, dotY - dotH / 2f, cX - dotGap / 2f, dotY + dotH / 2f)
+            dot2Bounds.set(cX + dotGap / 2f, dotY - dotH / 2f, cX + dotGap / 2f + dot2W, dotY + dotH / 2f)
+
+            buttonBgPaint.color = if (expandedPageIndex == 0) m3Primary else Color.argb(100, 255, 255, 255)
+            canvas.drawRoundRect(dot1Bounds, 2.5f * d, 2.5f * d, buttonBgPaint)
+
+            buttonBgPaint.color = if (expandedPageIndex == 1) m3Primary else Color.argb(100, 255, 255, 255)
+            canvas.drawRoundRect(dot2Bounds, 2.5f * d, 2.5f * d, buttonBgPaint)
+
+            if (expandedPageIndex == 0) {
+                // PAGE 1: Media Player / Download Telemetry
+                if (showMediaPill || media != null) {
+                    val med = media ?: LightspeedNotificationListener.activeMediaTelemetry
+                    val title = med?.title ?: "Active Media"
+                    val artist = med?.artist ?: "Now Playing"
+                    val isPlaying = med?.isPlaying ?: true
+
+                    // Header Badge with Music Vector
+                    val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 13f * d, cardLeft + 25f * d, cardTop + 22f * d)
+                    drawVector(canvas, R.drawable.ic_music_note, badgeIconBounds, m3Primary)
+                    hudTextPaint.textSize = 9.5f * d
+                    hudTextPaint.color = m3Primary
+                    canvas.drawText("NOW PLAYING", cardLeft + 28f * d, cardTop + 21f * d, hudTextPaint)
+
+                    // Track Title (Truncated if wide)
+                    hudTextPaint.textSize = 13.5f * d
+                    hudTextPaint.color = Color.WHITE
+                    val maxTitleW = cardW - 60f * d
+                    val ellipsizedTitle = TextUtils.ellipsize(title, hudTextPaint, maxTitleW, TextUtils.TruncateAt.END).toString()
+                    canvas.drawText(ellipsizedTitle, cardLeft + 16f * d, cardTop + 38f * d, hudTextPaint)
+
+                    // Artist
+                    subTextPaint.textSize = 11f * d
+                    subTextPaint.color = Color.argb(200, 255, 255, 255)
+                    val ellipsizedArtist = TextUtils.ellipsize(artist, subTextPaint, maxTitleW, TextUtils.TruncateAt.END).toString()
+                    canvas.drawText(ellipsizedArtist, cardLeft + 16f * d, cardTop + 53f * d, subTextPaint)
+
+                    // Progress Bar & Duration
+                    val progY = cardTop + 65f * d
+                    val progW = cardW - 32f * d
+                    val progRect = RectF(cardLeft + 16f * d, progY, cardLeft + 16f * d + progW, progY + 3.5f * d)
+                    canvas.drawRoundRect(progRect, 2f * d, 2f * d, progressBarBgPaint)
+
+                    val fraction = if ((med?.durationMs ?: 0L) > 0L) {
+                        (med!!.positionMs.toFloat() / med.durationMs.toFloat()).coerceIn(0f, 1f)
+                    } else 0.4f
+
+                    val fillRect = RectF(progRect.left, progRect.top, progRect.left + progW * fraction, progRect.bottom)
+                    progressBarFillPaint.color = m3Primary
+                    canvas.drawRoundRect(fillRect, 2f * d, 2f * d, progressBarFillPaint)
+
+                    // Transport Controls: [ ⏮ ] [ ⏯ ] [ ⏭ ]
+                    val btnY = cardTop + 86f * d
+                    val btnR = 13f * d
+                    val tcX = cardLeft + cardW / 2f
+
+                    btnPrevBounds.set(tcX - 45f * d - btnR, btnY - btnR, tcX - 45f * d + btnR, btnY + btnR)
+                    btnPlayPauseBounds.set(tcX - btnR - 2f * d, btnY - btnR - 2f * d, tcX + btnR + 2f * d, btnY + btnR + 2f * d)
+                    btnNextBounds.set(tcX + 45f * d - btnR, btnY - btnR, tcX + 45f * d + btnR, btnY + btnR)
+
+                    buttonBgPaint.color = Color.argb(80, 255, 255, 255)
+                    canvas.drawCircle(btnPrevBounds.centerX(), btnPrevBounds.centerY(), btnR, buttonBgPaint)
+                    canvas.drawCircle(btnPlayPauseBounds.centerX(), btnPlayPauseBounds.centerY(), btnR + 2f * d, buttonBgPaint)
+                    canvas.drawCircle(btnNextBounds.centerX(), btnNextBounds.centerY(), btnR, buttonBgPaint)
+
+                    val prevIconBounds = RectF(btnPrevBounds.centerX() - 6f * d, btnPrevBounds.centerY() - 6f * d, btnPrevBounds.centerX() + 6f * d, btnPrevBounds.centerY() + 6f * d)
+                    drawVector(canvas, R.drawable.ic_skip_previous, prevIconBounds, Color.WHITE)
+
+                    val playPauseR = 6.5f * d
+                    val playPauseBounds = RectF(btnPlayPauseBounds.centerX() - playPauseR, btnPlayPauseBounds.centerY() - playPauseR, btnPlayPauseBounds.centerX() + playPauseR, btnPlayPauseBounds.centerY() + playPauseR)
+                    drawVector(canvas, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow, playPauseBounds, Color.WHITE)
+
+                    val nextIconBounds = RectF(btnNextBounds.centerX() - 6f * d, btnNextBounds.centerY() - 6f * d, btnNextBounds.centerX() + 6f * d, btnNextBounds.centerY() + 6f * d)
+                    drawVector(canvas, R.drawable.ic_skip_next, nextIconBounds, Color.WHITE)
+                } else if (showDlPill) {
+                    // Header Badge with Download Vector
+                    val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 14f * d, cardLeft + 25f * d, cardTop + 23f * d)
+                    drawVector(canvas, R.drawable.ic_arrow_downward, badgeIconBounds, m3Primary)
+                    hudTextPaint.textSize = 9.5f * d
+                    hudTextPaint.color = m3Primary
+                    canvas.drawText("DOWNLOADING", cardLeft + 28f * d, cardTop + 22f * d, hudTextPaint)
+
+                    // File Name
+                    hudTextPaint.textSize = 13.5f * d
+                    hudTextPaint.color = Color.WHITE
+                    val maxTitleW = cardW - 60f * d
+                    val ellipsizedTitle = TextUtils.ellipsize(primaryDl.title, hudTextPaint, maxTitleW, TextUtils.TruncateAt.END).toString()
+                    canvas.drawText(ellipsizedTitle, cardLeft + 16f * d, cardTop + 42f * d, hudTextPaint)
+
+                    // Percentage / Status Text
+                    val pctStr = if (primaryDl.isIndeterminate) "Downloading in progress…" else "${(primaryDl.progressFraction * 100).toInt()}% • Active"
+                    subTextPaint.textSize = 11.5f * d
+                    subTextPaint.color = Color.argb(200, 255, 255, 255)
+                    canvas.drawText(pctStr, cardLeft + 16f * d, cardTop + 60f * d, subTextPaint)
+
+                    // Animated Progress Bar
+                    val progY = cardTop + 76f * d
+                    val progW = cardW - 32f * d
+                    val progRect = RectF(cardLeft + 16f * d, progY, cardLeft + 16f * d + progW, progY + 4f * d)
+                    canvas.drawRoundRect(progRect, 2f * d, 2f * d, progressBarBgPaint)
+
+                    val fraction = if (primaryDl.isIndeterminate) {
+                        ((SystemClock.uptimeMillis() % 1500L) / 1500f)
+                    } else primaryDl.progressFraction.coerceIn(0f, 1f)
+
+                    val fillRect = RectF(progRect.left, progRect.top, progRect.left + progW * fraction, progRect.bottom)
+                    progressBarFillPaint.color = m3Primary
+                    canvas.drawRoundRect(fillRect, 2f * d, 2f * d, progressBarFillPaint)
+                } else {
+                    // Fallback / Alignment Card
+                    val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 14f * d, cardLeft + 25f * d, cardTop + 23f * d)
+                    drawVector(canvas, R.drawable.ic_beacon_sparkle, badgeIconBounds, m3Primary)
+                    hudTextPaint.textSize = 9.5f * d
+                    hudTextPaint.color = m3Primary
+                    canvas.drawText("ORBITAL CAPSULE", cardLeft + 28f * d, cardTop + 22f * d, hudTextPaint)
+
+                    hudTextPaint.textSize = 13.5f * d
+                    hudTextPaint.color = Color.WHITE
+                    canvas.drawText("Lightspeed Telemetry Ready", cardLeft + 16f * d, cardTop + 44f * d, hudTextPaint)
+
+                    subTextPaint.textSize = 11f * d
+                    subTextPaint.color = Color.argb(200, 255, 255, 255)
+                    canvas.drawText("Swipe left for Quick Remote & Micro-Widgets", cardLeft + 16f * d, cardTop + 64f * d, subTextPaint)
+                }
+            } else {
+                // PAGE 2: Micro-Widget Container / Tactical Quick Remote Slot
+                val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 13f * d, cardLeft + 26f * d, cardTop + 23f * d)
+                drawVector(canvas, R.drawable.ic_widgets, badgeIconBounds, m3Primary)
                 hudTextPaint.textSize = 9.5f * d
                 hudTextPaint.color = m3Primary
-                canvas.drawText("NOW PLAYING", cardLeft + 28f * d, cardTop + 21f * d, hudTextPaint)
+                canvas.drawText("ORBITAL REMOTE & MICRO-SLOT", cardLeft + 30f * d, cardTop + 21f * d, hudTextPaint)
 
-                // Track Title (Truncated if wide)
-                hudTextPaint.textSize = 13.5f * d
-                hudTextPaint.color = Color.WHITE
-                val maxTitleW = cardW - 60f * d
-                val ellipsizedTitle = TextUtils.ellipsize(title, hudTextPaint, maxTitleW, TextUtils.TruncateAt.END).toString()
-                canvas.drawText(ellipsizedTitle, cardLeft + 16f * d, cardTop + 38f * d, hudTextPaint)
-
-                // Artist
-                subTextPaint.textSize = 11f * d
+                val capsuleWidgetId = prefs.getInt(LightspeedPreferences.KEY_CAPSULE_WIDGET_ID, -1)
+                val statusText = if (capsuleWidgetId != -1) "Widget Slot #$capsuleWidgetId Active • Swipe right for Media" else "Tactical Remote • Swipe right for Media"
+                subTextPaint.textSize = 10.5f * d
                 subTextPaint.color = Color.argb(200, 255, 255, 255)
-                val ellipsizedArtist = TextUtils.ellipsize(artist, subTextPaint, maxTitleW, TextUtils.TruncateAt.END).toString()
-                canvas.drawText(ellipsizedArtist, cardLeft + 16f * d, cardTop + 54f * d, subTextPaint)
+                canvas.drawText(statusText, cardLeft + 16f * d, cardTop + 36f * d, subTextPaint)
 
-                // Progress Bar & Duration
-                val progY = cardTop + 68f * d
-                val progW = cardW - 32f * d
-                val progRect = RectF(cardLeft + 16f * d, progY, cardLeft + 16f * d + progW, progY + 3.5f * d)
-                canvas.drawRoundRect(progRect, 2f * d, 2f * d, progressBarBgPaint)
-
-                val fraction = if ((med?.durationMs ?: 0L) > 0L) {
-                    (med!!.positionMs.toFloat() / med.durationMs.toFloat()).coerceIn(0f, 1f)
-                } else 0.4f
-
-                val fillRect = RectF(progRect.left, progRect.top, progRect.left + progW * fraction, progRect.bottom)
-                progressBarFillPaint.color = m3Primary
-                canvas.drawRoundRect(fillRect, 2f * d, 2f * d, progressBarFillPaint)
-
-                // Transport Controls: [ ⏮ ] [ ⏯ ] [ ⏭ ] (Vector Drawables)
-                val btnY = cardTop + 92f * d
+                // 5 Tactical Action Buttons
+                val btnY = cardTop + 58f * d
                 val btnR = 14f * d
-                val cX = cardLeft + cardW / 2f
+                val availableW = cardW - 32f * d
+                val spacing = availableW / 5f
 
-                btnPrevBounds.set(cX - 45f * d - btnR, btnY - btnR, cX - 45f * d + btnR, btnY + btnR)
-                btnPlayPauseBounds.set(cX - btnR - 2f * d, btnY - btnR - 2f * d, cX + btnR + 2f * d, btnY + btnR + 2f * d)
-                btnNextBounds.set(cX + 45f * d - btnR, btnY - btnR, cX + 45f * d + btnR, btnY + btnR)
+                val b1X = cardLeft + 16f * d + spacing * 0.5f
+                val b2X = cardLeft + 16f * d + spacing * 1.5f
+                val b3X = cardLeft + 16f * d + spacing * 2.5f
+                val b4X = cardLeft + 16f * d + spacing * 3.5f
+                val b5X = cardLeft + 16f * d + spacing * 4.5f
 
-                canvas.drawCircle(btnPrevBounds.centerX(), btnPrevBounds.centerY(), btnR, buttonBgPaint)
-                canvas.drawCircle(btnPlayPauseBounds.centerX(), btnPlayPauseBounds.centerY(), btnR + 2f * d, buttonBgPaint)
-                canvas.drawCircle(btnNextBounds.centerX(), btnNextBounds.centerY(), btnR, buttonBgPaint)
+                btnRemoteFlashlightBounds.set(b1X - btnR, btnY - btnR, b1X + btnR, btnY + btnR)
+                btnRemoteScreenshotBounds.set(b2X - btnR, btnY - btnR, b2X + btnR, btnY + btnR)
+                btnRemoteLockBounds.set(b3X - btnR, btnY - btnR, b3X + btnR, btnY + btnR)
+                btnRemoteTimeoutBounds.set(b4X - btnR, btnY - btnR, b4X + btnR, btnY + btnR)
+                btnRemoteRefuelBounds.set(b5X - btnR, btnY - btnR, b5X + btnR, btnY + btnR)
 
-                val prevIconBounds = RectF(btnPrevBounds.centerX() - 6f * d, btnPrevBounds.centerY() - 6f * d, btnPrevBounds.centerX() + 6f * d, btnPrevBounds.centerY() + 6f * d)
-                drawVector(canvas, R.drawable.ic_skip_previous, prevIconBounds, Color.WHITE)
+                val buttons = listOf(
+                    Pair(btnRemoteFlashlightBounds, R.drawable.ic_flashlight to "TORCH"),
+                    Pair(btnRemoteScreenshotBounds, R.drawable.ic_screenshot to "CAPTURE"),
+                    Pair(btnRemoteLockBounds, R.drawable.ic_lock to "LOCK"),
+                    Pair(btnRemoteTimeoutBounds, R.drawable.ic_beacon_sparkle to "TIMER"),
+                    Pair(btnRemoteRefuelBounds, R.drawable.ic_power to "REFUEL")
+                )
 
-                val playPauseR = 7f * d
-                val playPauseBounds = RectF(btnPlayPauseBounds.centerX() - playPauseR, btnPlayPauseBounds.centerY() - playPauseR, btnPlayPauseBounds.centerX() + playPauseR, btnPlayPauseBounds.centerY() + playPauseR)
-                drawVector(canvas, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow, playPauseBounds, Color.WHITE)
+                buttons.forEach { (bounds, iconAndLabel) ->
+                    buttonBgPaint.color = Color.argb(80, 255, 255, 255)
+                    canvas.drawCircle(bounds.centerX(), bounds.centerY(), btnR, buttonBgPaint)
+                    val iconR = 6.5f * d
+                    val iconBounds = RectF(bounds.centerX() - iconR, bounds.centerY() - iconR, bounds.centerX() + iconR, bounds.centerY() + iconR)
+                    drawVector(canvas, iconAndLabel.first, iconBounds, Color.WHITE)
 
-                val nextIconBounds = RectF(btnNextBounds.centerX() - 6f * d, btnNextBounds.centerY() - 6f * d, btnNextBounds.centerX() + 6f * d, btnNextBounds.centerY() + 6f * d)
-                drawVector(canvas, R.drawable.ic_skip_next, nextIconBounds, Color.WHITE)
-            } else if (showDlPill) {
-                // Header Badge with Download Vector
-                val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 14f * d, cardLeft + 25f * d, cardTop + 23f * d)
-                drawVector(canvas, R.drawable.ic_arrow_downward, badgeIconBounds, m3Primary)
-                hudTextPaint.textSize = 9.5f * d
-                hudTextPaint.color = m3Primary
-                canvas.drawText("DOWNLOADING", cardLeft + 28f * d, cardTop + 22f * d, hudTextPaint)
-
-                // File Name
-                hudTextPaint.textSize = 13.5f * d
-                hudTextPaint.color = Color.WHITE
-                val maxTitleW = cardW - 60f * d
-                val ellipsizedTitle = TextUtils.ellipsize(primaryDl.title, hudTextPaint, maxTitleW, TextUtils.TruncateAt.END).toString()
-                canvas.drawText(ellipsizedTitle, cardLeft + 16f * d, cardTop + 42f * d, hudTextPaint)
-
-                // Percentage / Status Text
-                val pctStr = if (primaryDl.isIndeterminate) "Downloading in progress…" else "${(primaryDl.progressFraction * 100).toInt()}% • Active"
-                subTextPaint.textSize = 11.5f * d
-                subTextPaint.color = Color.argb(200, 255, 255, 255)
-                canvas.drawText(pctStr, cardLeft + 16f * d, cardTop + 60f * d, subTextPaint)
-
-                // Animated Progress Bar
-                val progY = cardTop + 78f * d
-                val progW = cardW - 32f * d
-                val progRect = RectF(cardLeft + 16f * d, progY, cardLeft + 16f * d + progW, progY + 4f * d)
-                canvas.drawRoundRect(progRect, 2f * d, 2f * d, progressBarBgPaint)
-
-                val fraction = if (primaryDl.isIndeterminate) {
-                    ((SystemClock.uptimeMillis() % 1500L) / 1500f)
-                } else primaryDl.progressFraction.coerceIn(0f, 1f)
-
-                val fillRect = RectF(progRect.left, progRect.top, progRect.left + progW * fraction, progRect.bottom)
-                progressBarFillPaint.color = m3Primary
-                canvas.drawRoundRect(fillRect, 2f * d, 2f * d, progressBarFillPaint)
+                    hudTextPaint.textSize = 7.5f * d
+                    hudTextPaint.color = Color.argb(190, 255, 255, 255)
+                    val labelW = hudTextPaint.measureText(iconAndLabel.second)
+                    canvas.drawText(iconAndLabel.second, bounds.centerX() - labelW / 2f, bounds.bottom + 11f * d, hudTextPaint)
+                }
             }
             return
         }

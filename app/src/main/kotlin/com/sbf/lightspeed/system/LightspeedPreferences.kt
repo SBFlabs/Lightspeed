@@ -78,11 +78,46 @@ object LightspeedPreferences {
     const val KEY_HIDE_ON_LOCKSCREEN_AND_DOCK = "pref_hide_on_lockscreen_and_dock"
 
     // Refueling Bay Keys
-    const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "landscape_charging", "always_charging"
-    const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id"
+    const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screensaver_only"
+    const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id" // Legacy single ID
+    const val KEY_REFUELING_WIDGET_IDS = "pref_refueling_widget_ids" // JSON array string of widget IDs
+    const val KEY_REFUELING_WIDGET_LAYOUT = "pref_refueling_widget_layout" // "smart_stack", "adaptive_grid"
+
+    // Notch Orbital Capsule Keys
+    const val KEY_CAPSULE_WIDGET_ID = "pref_capsule_widget_id"
 
     // Media Actions Keys
     const val KEY_MEDIA_SKIP_SECONDS = "pref_media_skip_seconds"
+
+    fun getRefuelingWidgetIds(context: Context): List<Int> {
+        val prefs = context.defaultPrefs()
+        val jsonStr = prefs.getString(KEY_REFUELING_WIDGET_IDS, null)
+        if (!jsonStr.isNullOrBlank()) {
+            try {
+                val jsonArray = org.json.JSONArray(jsonStr)
+                val list = mutableListOf<Int>()
+                for (i in 0 until jsonArray.length()) {
+                    val id = jsonArray.getInt(i)
+                    if (id != -1 && !list.contains(id)) {
+                        list.add(id)
+                    }
+                }
+                return list
+            } catch (_: Exception) {}
+        }
+        val legacyId = prefs.getInt(KEY_REFUELING_WIDGET_ID, -1)
+        return if (legacyId != -1) listOf(legacyId) else emptyList()
+    }
+
+    fun saveRefuelingWidgetIds(context: Context, ids: List<Int>) {
+        val prefs = context.defaultPrefs()
+        val jsonArray = org.json.JSONArray()
+        ids.forEach { jsonArray.put(it) }
+        prefs.edit()
+            .putString(KEY_REFUELING_WIDGET_IDS, jsonArray.toString())
+            .putInt(KEY_REFUELING_WIDGET_ID, ids.firstOrNull() ?: -1)
+            .apply()
+    }
 }
 
 /**

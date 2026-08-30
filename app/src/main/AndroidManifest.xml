@@ -107,6 +107,11 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showForAllUsers="true"
+            android:screenOrientation="sensor"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <service

@@ -7,11 +7,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.app.KeyguardManager
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -423,6 +426,18 @@ class LightspeedAccessibilityService : AccessibilityService() {
             setOverlaysVisible(true)
             resyncOverlayMetrics()
         }
+
+        // Check if landscape dock charging trigger activates upon rotating to landscape
+        val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
+        if ((trigger == "charging_dock_landscape" || trigger == "landscape_charging") && isLandscape && isDeviceCharging() && !LightspeedRefuelingActivity.isActive) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            val isScreenOff = powerManager?.isInteractive == false
+            val isLocked = keyguardManager?.isKeyguardLocked == true
+            if (isScreenOff || isLocked) {
+                launchRefuelingActivity()
+            }
+        }
     }
 
     private fun isSuppressedByOrientation(): Boolean {
@@ -477,11 +492,18 @@ class LightspeedAccessibilityService : AccessibilityService() {
                 val hideOnLockAndDock = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true)
 
                 when (action) {
-                    Intent.ACTION_DREAMING_STARTED, Intent.ACTION_SCREEN_OFF -> {
+                    Intent.ACTION_DREAMING_STARTED -> {
                         if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
                             notchOverlayView?.visibility = View.GONE
                             statusBarOverlayView?.visibility = View.GONE
                         }
+                    }
+                    Intent.ACTION_SCREEN_OFF -> {
+                        if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
+                            notchOverlayView?.visibility = View.GONE
+                            statusBarOverlayView?.visibility = View.GONE
+                        }
+                        checkScreenOffRefuelingTrigger(prefs)
                     }
                     Intent.ACTION_DREAMING_STOPPED, Intent.ACTION_USER_PRESENT, Intent.ACTION_SCREEN_ON -> {
                         if (!isSuppressedByOrientation()) {
@@ -501,19 +523,81 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
+    private fun isDeviceCharging(): Boolean {
+        return try {
+            val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+            status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun checkPowerConnectedRefuelingTrigger(prefs: SharedPreferences) {
         val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
-        if (trigger == "disabled") return
+        if (trigger == "disabled" || trigger == "screensaver_only") return
 
         val rotation = getScreenRotation()
         val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
 
-        if (trigger == "always_charging" || (trigger == "landscape_charging" && isLandscape)) {
-            val intent = Intent(this, LightspeedRefuelingActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val isScreenOff = powerManager?.isInteractive == false
+        val isLocked = keyguardManager?.isKeyguardLocked == true
+
+        when (trigger) {
+            "charging_screen_off", "always_charging" -> {
+                // If cable plugged in while locked or screen off -> wake & launch Refueling Bay
+                if (isScreenOff || isLocked) {
+                    launchRefuelingActivity()
+                }
             }
-            try { startActivity(intent) } catch (_: Exception) {}
+            "charging_dock_landscape", "landscape_charging" -> {
+                if (isLandscape) {
+                    launchRefuelingActivity()
+                }
+            }
         }
+    }
+
+    private fun checkScreenOffRefuelingTrigger(prefs: SharedPreferences) {
+        val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
+        if (trigger == "disabled" || trigger == "screensaver_only") return
+
+        val rotation = getScreenRotation()
+        val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
+
+        if (isDeviceCharging()) {
+            when (trigger) {
+                "charging_screen_off", "always_charging" -> {
+                    // Screen went off while plugged in -> launch over lockscreen
+                    launchRefuelingActivity()
+                }
+                "charging_dock_landscape", "landscape_charging" -> {
+                    if (isLandscape) {
+                        launchRefuelingActivity()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun launchRefuelingActivity() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val wl = pm?.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                "lightspeed:refueling_wake"
+            )
+            wl?.acquire(3000L)
+        } catch (_: Exception) {}
+
+        val intent = Intent(this, LightspeedRefuelingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {}
     }
 
     fun updateNotchWindowBounds(isExpanded: Boolean, targetX: Int, targetY: Int, targetWidth: Int, targetHeight: Int) {

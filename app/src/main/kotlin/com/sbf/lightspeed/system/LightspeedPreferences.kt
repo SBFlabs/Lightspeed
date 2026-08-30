@@ -35,6 +35,8 @@ object LightspeedPreferences {
     const val KEY_NOTCH_OFFSET_X = "pref_notch_offset_x"
     const val KEY_NOTCH_OFFSET_Y = "pref_notch_offset_y"
     const val KEY_NOTCH_EXPANSION_WIDTH = "pref_notch_expansion_width"
+    const val KEY_NOTCH_PADDING_SNUGNESS = "pref_notch_padding_snugness"
+    const val KEY_NOTCH_CAPSULE_LAYOUT = "pref_notch_capsule_layout" // "unified_right", "dual_wing", "unified_left"
     const val KEY_NOTCH_TEST_BEACON = "pref_notch_test_beacon"
 
     // Hardware Volume Button Gesture Keys

@@ -27,6 +27,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.GearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
+import com.sbf.lightspeed.system.LightspeedHapticEngine
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -36,6 +48,15 @@ fun FloatingOverlayContainer(
     headerControl: @Composable (RowScope.() -> Unit) = {},
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val thresholdPx = with(density) { 90.dp.toPx() }
+    val dragOffsetY = remember { Animatable(0f) }
+    var hasCrossedThreshold by remember { mutableStateOf(false) }
+
     val glassBorder = Brush.verticalGradient(
         colors = listOf(
             Color.White.copy(alpha = 0.28f),
@@ -47,6 +68,7 @@ fun FloatingOverlayContainer(
     Card(
         modifier = Modifier
             .fillMaxSize()
+            .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
             .clip(RoundedCornerShape(32.dp))
             .background(
                 Brush.radialGradient(
@@ -61,31 +83,106 @@ fun FloatingOverlayContainer(
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(32.dp)
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    headerControl()
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = onDismiss,
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
+            // Scoped Drag Handle + Header Region (drag detection strictly scoped to header/handle)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                hasCrossedThreshold = false
+                            },
+                            onDragEnd = {
+                                if (dragOffsetY.value >= thresholdPx) {
+                                    onDismiss()
+                                } else {
+                                    coroutineScope.launch {
+                                        dragOffsetY.animateTo(
+                                            0f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            )
+                                        )
+                                    }
+                                }
+                            },
+                            onDragCancel = {
+                                coroutineScope.launch {
+                                    dragOffsetY.animateTo(
+                                        0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        )
+                                    )
+                                }
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                change.consume()
+                                val current = dragOffsetY.value + dragAmount
+                                val newOffset = if (current <= 0f) {
+                                    0f
+                                } else if (current <= thresholdPx) {
+                                    current
+                                } else {
+                                    thresholdPx + (current - thresholdPx) * 0.35f
+                                }
+
+                                if (!hasCrossedThreshold && newOffset >= thresholdPx) {
+                                    hasCrossedThreshold = true
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    LightspeedHapticEngine.tick(context)
+                                } else if (hasCrossedThreshold && newOffset < thresholdPx) {
+                                    hasCrossedThreshold = false
+                                }
+
+                                coroutineScope.launch {
+                                    dragOffsetY.snapTo(newOffset)
+                                }
+                            }
                         )
+                    }
+            ) {
+                // Sleek Drag Handle Pill
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp, bottom = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 38.dp, height = 4.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.35f))
+                    )
+                }
+
+                // Header Row (Title + strictly 2 action buttons)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                        headerControl()
                     }
                 }
             }
+
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(bottom = 12.dp))
             Box(modifier = Modifier.weight(1f)) {
                 content()

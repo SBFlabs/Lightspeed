@@ -7,10 +7,11 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.UnfoldLess
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +42,7 @@ fun MainSettingsScreen() {
     var showGuidebook by remember { mutableStateOf(false) }
     var targetJumpTab by remember { mutableIntStateOf(-1) }
     var targetJumpSection by remember { mutableStateOf<String?>(null) }
+    var isAllExpanded by remember { mutableStateOf(false) }
 
     val dismissAction = {
         isVisible = false
@@ -60,6 +62,10 @@ fun MainSettingsScreen() {
             delay(300)
             (context as? Activity)?.finishAndRemoveTask()
         }
+    }
+
+    BackHandler {
+        dismissAction()
     }
 
     val animatedScrimAlpha by animateFloatAsState(
@@ -117,36 +123,28 @@ fun MainSettingsScreen() {
                                     )
                                 ) {
                                     Icon(
-                                        Icons.Default.MenuBook,
+                                        Icons.AutoMirrored.Outlined.MenuBook,
                                         contentDescription = "The Stranded in Space Guidebook",
                                         tint = colorScheme.primary,
-                                        modifier = Modifier.size(19.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
 
                                 IconButton(
-                                    onClick = { toggleAllTrigger++ },
+                                    onClick = {
+                                        isAllExpanded = !isAllExpanded
+                                        toggleAllTrigger++
+                                    },
                                     colors = IconButtonDefaults.iconButtonColors(
                                         containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                     )
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.KeyboardArrowUp,
-                                            contentDescription = "Expand All",
-                                            tint = colorScheme.primary,
-                                            modifier = Modifier.size(16.dp).offset(y = 3.dp)
-                                        )
-                                        Icon(
-                                            Icons.Default.KeyboardArrowDown,
-                                            contentDescription = "Collapse All",
-                                            tint = colorScheme.primary,
-                                            modifier = Modifier.size(16.dp).offset(y = (-3).dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = if (isAllExpanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
+                                        contentDescription = "Expand or Collapse All",
+                                        tint = colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         }

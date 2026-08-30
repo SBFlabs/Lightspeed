@@ -897,6 +897,52 @@ fun SidebarMatrixConfigurationFields(
                                                 onRefreshNeeded()
                                             }
                                         )
+                                        val currentCapsuleLayout = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, "unified_right") ?: "unified_right"
+                                        var isCapsuleDropdownOpen by remember { mutableStateOf(false) }
+                                        val capsuleOptions = listOf(
+                                            "unified_right" to "Unified Right (Compact)",
+                                            "dual_wing" to "Dual-Wing Bridge",
+                                            "unified_left" to "Unified Left"
+                                        )
+
+                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                            Text("PILL CAPSULE LAYOUT MODE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Box {
+                                                OutlinedButton(
+                                                    onClick = { isCapsuleDropdownOpen = true },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(capsuleOptions.firstOrNull { it.first == currentCapsuleLayout }?.second ?: "Unified Right (Compact)", color = Color.White, fontSize = 12.sp)
+                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                    }
+                                                }
+                                                DropdownMenu(
+                                                    expanded = isCapsuleDropdownOpen,
+                                                    onDismissRequest = { isCapsuleDropdownOpen = false }
+                                                ) {
+                                                    capsuleOptions.forEach { (key, label) ->
+                                                        DropdownMenuItem(
+                                                            text = { Text(label) },
+                                                            onClick = {
+                                                                isCapsuleDropdownOpen = false
+                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, key).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_PADDING_SNUGNESS, "", "Pill Snugness Padding (0 to 8dp)", 0, 8, 1, 2)
                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_OFFSET_Y, "", "Vertical Offset Y (-30 to +30dp)", -30, 30, 1, 0)
                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_OFFSET_X, "", "Horizontal Offset X (-30 to +30dp)", -30, 30, 1, 0)
                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Pill Expansion Width (0 to 80dp)", 0, 80, 2, 0)

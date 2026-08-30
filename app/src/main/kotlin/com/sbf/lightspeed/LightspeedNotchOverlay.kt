@@ -15,21 +15,24 @@ import android.text.TextUtils
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import androidx.core.content.ContextCompat
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedMediaManager
 import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.hypot
-import kotlin.math.max
 
 /**
  * Dedicated, unclipped Camera Cutout Notch Pill overlay window for Lightspeed.
  *
- * Implements Dynamic Notch Geometry wrapping the physical camera cutout,
- * a Dual-Wing layout with a physical camera exclusion dead-zone,
- * a Title Marquee & Truncation engine, and an interactive liquid-glass Mini-Player card.
+ * Implements Dynamic Notch Geometry wrapping the physical camera cutout with configurable
+ * Snugness Padding, multiple Capsule Layout Modes ("Unified Right", "Dual-Wing Bridge", "Unified Left"),
+ * high-resolution circular application icons and VectorDrawables (zero raw text characters),
+ * Title Marquee & Truncation engine, and an interactive liquid-glass Mini-Player card.
  */
 class LightspeedNotchOverlay(context: Context) : View(context) {
 
@@ -50,12 +53,6 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         isFakeBoldText = true
     }
 
-    private val glyphTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textAlign = Paint.Align.CENTER
-        isFakeBoldText = true
-    }
-
     private val subTextPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.LTGRAY
         textAlign = Paint.Align.LEFT
@@ -70,10 +67,23 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         style = Paint.Style.FILL
     }
 
+    private val progressRingBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.argb(60, 255, 255, 255)
+    }
+
+    private val progressRingFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+
     private val buttonBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = Color.argb(80, 255, 255, 255)
     }
+
+    private val iconBitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val circularIconCache = ConcurrentHashMap<String, Bitmap>()
 
     // Marquee State Tracking
     private var currentTextKey = ""
@@ -87,6 +97,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
 
     val collapsedPillBounds = RectF()
     private val expandedCardBounds = RectF()
+    private val lastReportedBounds = RectF()
 
     // Transport button touch targets
     private val btnPrevBounds = RectF()
@@ -117,6 +128,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             currentTextKey = ""
             marqueeScrollOffset = 0f
             marqueeCompletedLoops = 0
+            circularIconCache.clear()
             postInvalidate()
         }
     }
@@ -138,6 +150,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         LightspeedNotificationListener.onTelemetryChanged = null
         mainHandler.removeCallbacksAndMessages(null)
+        circularIconCache.clear()
     }
 
     fun updateNotchMetrics() {
@@ -178,13 +191,54 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                 val targetY = collapsedPillBounds.top.toInt().coerceAtLeast(0)
                 LightspeedAccessibilityService.instance?.updateNotchWindowBounds(true, targetX, targetY, cardW, cardH)
             } else {
-                val pillW = (collapsedPillBounds.width()).toInt().coerceAtLeast((120 * d).toInt())
-                val pillH = (collapsedPillBounds.height()).toInt().coerceAtLeast((36 * d).toInt())
+                val pillW = (collapsedPillBounds.width()).toInt().coerceAtLeast((24 * d).toInt())
+                val pillH = (collapsedPillBounds.height()).toInt().coerceAtLeast((16 * d).toInt())
                 val targetX = collapsedPillBounds.left.toInt().coerceAtLeast(0)
                 val targetY = collapsedPillBounds.top.toInt().coerceAtLeast(0)
                 LightspeedAccessibilityService.instance?.updateNotchWindowBounds(false, targetX, targetY, pillW, pillH)
             }
         }
+    }
+
+    private fun getCircularAppIcon(packageName: String, sizePx: Int): Bitmap? {
+        if (packageName.isBlank() || sizePx <= 0) return null
+        val cacheKey = "$packageName:$sizePx"
+        circularIconCache[cacheKey]?.let { return it }
+
+        val rawDrawable = try {
+            context.packageManager.getApplicationIcon(packageName)
+        } catch (_: Exception) {
+            LightspeedIconManager.getIconDrawable(context, "app:$packageName")
+        } ?: return null
+
+        return try {
+            val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val path = Path().apply {
+                addCircle(sizePx / 2f, sizePx / 2f, sizePx / 2f, Path.Direction.CW)
+            }
+            canvas.clipPath(path)
+            rawDrawable.setBounds(0, 0, sizePx, sizePx)
+            rawDrawable.draw(canvas)
+            circularIconCache[cacheKey] = bitmap
+            bitmap
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun drawVector(canvas: Canvas, resId: Int, bounds: RectF, tintColor: Int? = null) {
+        val drawable = ContextCompat.getDrawable(context, resId)?.mutate() ?: return
+        if (tintColor != null) {
+            drawable.setTint(tintColor)
+        }
+        drawable.setBounds(
+            bounds.left.toInt(),
+            bounds.top.toInt(),
+            bounds.right.toInt(),
+            bounds.bottom.toInt()
+        )
+        drawable.draw(canvas)
     }
 
     private fun performLongPressAction() {
@@ -315,23 +369,28 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         val offsetX = prefs.getInt(LightspeedPreferences.KEY_NOTCH_OFFSET_X, 0) * d
         val offsetY = prefs.getInt(LightspeedPreferences.KEY_NOTCH_OFFSET_Y, 0) * d
         val expansionW = prefs.getInt(LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, 0) * d
+        val snugnessDp = prefs.getInt(LightspeedPreferences.KEY_NOTCH_PADDING_SNUGNESS, 2)
+        val snugnessPx = snugnessDp * d
+        val capsuleLayout = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, "unified_right") ?: "unified_right"
 
         val cutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
         val topCutoutRect = cutout?.boundingRectTop ?: cutout?.boundingRects?.firstOrNull { it.top == 0 }
 
-        val cutoutW = (topCutoutRect?.width()?.toFloat() ?: (28f * d)).coerceAtLeast(24f * d)
-        val cutoutH = (topCutoutRect?.height()?.toFloat() ?: (28f * d)).coerceAtLeast(24f * d)
+        val cutoutW = (topCutoutRect?.width()?.toFloat() ?: (28f * d)).coerceAtLeast(16f * d)
+        val cutoutH = (topCutoutRect?.height()?.toFloat() ?: (28f * d)).coerceAtLeast(16f * d)
         val cutoutCenterX = (if (topCutoutRect != null && topCutoutRect.width() > 0) topCutoutRect.exactCenterX() else w / 2f) + offsetX
         val cutoutTopY = (if (topCutoutRect != null) topCutoutRect.top.toFloat() else 0f) + offsetY
 
         val cutoutLeft = cutoutCenterX - cutoutW / 2f
         val cutoutRight = cutoutCenterX + cutoutW / 2f
+        val cutoutCy = cutoutTopY + cutoutH / 2f
 
-        // Dynamic Height Binding: max(cutout.height() + 12dp, 36dp)
-        val pillH = max(cutoutH + 12f * d, 36f * d)
-        val pillCy = cutoutTopY + (cutoutH / 2f).coerceAtLeast(14f * d)
+        // Dynamic Symmetrical Height: cutoutH + (2 * snugnessPx)
+        val pillH = cutoutH + (2f * snugnessPx)
+        val pillCy = cutoutCy
         val pillTop = (pillCy - pillH / 2f).coerceAtLeast(0f)
         val pillBottom = pillTop + pillH
+        val cornerRadius = pillH / 2f
 
         if (isExpanded) {
             // =========================================================================
@@ -351,13 +410,12 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             telemetryPillRimPaint.color = Color.argb(180, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(expandedCardBounds, 22f * d, 22f * d, telemetryPillRimPaint)
 
-            // Close Button [✕] at Top Right
+            // Close Button [✕] at Top Right (Vector Drawable)
             val closeSize = 22f * d
             btnCloseBounds.set(expandedCardBounds.right - closeSize - 12f * d, expandedCardBounds.top + 10f * d, expandedCardBounds.right - 12f * d, expandedCardBounds.top + 10f * d + closeSize)
             canvas.drawCircle(btnCloseBounds.centerX(), btnCloseBounds.centerY(), closeSize / 2f, buttonBgPaint)
-            glyphTextPaint.textSize = 11f * d
-            glyphTextPaint.color = Color.WHITE
-            canvas.drawText("✕", btnCloseBounds.centerX(), btnCloseBounds.centerY() + 4f * d, glyphTextPaint)
+            val closeIconBounds = RectF(btnCloseBounds.centerX() - 5.5f * d, btnCloseBounds.centerY() - 5.5f * d, btnCloseBounds.centerX() + 5.5f * d, btnCloseBounds.centerY() + 5.5f * d)
+            drawVector(canvas, R.drawable.ic_close, closeIconBounds, Color.WHITE)
 
             if (showMediaPill || media != null) {
                 val med = media ?: LightspeedNotificationListener.activeMediaTelemetry
@@ -365,10 +423,12 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                 val artist = med?.artist ?: "Now Playing"
                 val isPlaying = med?.isPlaying ?: true
 
-                // Header Badge
+                // Header Badge with Music Vector
+                val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 13f * d, cardLeft + 25f * d, cardTop + 22f * d)
+                drawVector(canvas, R.drawable.ic_music_note, badgeIconBounds, m3Primary)
                 hudTextPaint.textSize = 9.5f * d
                 hudTextPaint.color = m3Primary
-                canvas.drawText("♫ NOW PLAYING", cardLeft + 16f * d, cardTop + 20f * d, hudTextPaint)
+                canvas.drawText("NOW PLAYING", cardLeft + 28f * d, cardTop + 21f * d, hudTextPaint)
 
                 // Track Title (Truncated if wide)
                 hudTextPaint.textSize = 13.5f * d
@@ -397,7 +457,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                 progressBarFillPaint.color = m3Primary
                 canvas.drawRoundRect(fillRect, 2f * d, 2f * d, progressBarFillPaint)
 
-                // Transport Controls: [ ⏮ ] [ ⏯ ] [ ⏭ ]
+                // Transport Controls: [ ⏮ ] [ ⏯ ] [ ⏭ ] (Vector Drawables)
                 val btnY = cardTop + 92f * d
                 val btnR = 14f * d
                 val cX = cardLeft + cardW / 2f
@@ -410,15 +470,22 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                 canvas.drawCircle(btnPlayPauseBounds.centerX(), btnPlayPauseBounds.centerY(), btnR + 2f * d, buttonBgPaint)
                 canvas.drawCircle(btnNextBounds.centerX(), btnNextBounds.centerY(), btnR, buttonBgPaint)
 
-                glyphTextPaint.textSize = 12f * d
-                canvas.drawText("⏮", btnPrevBounds.centerX(), btnPrevBounds.centerY() + 4f * d, glyphTextPaint)
-                canvas.drawText(if (isPlaying) "⏸" else "▶", btnPlayPauseBounds.centerX(), btnPlayPauseBounds.centerY() + 4.5f * d, glyphTextPaint)
-                canvas.drawText("⏭", btnNextBounds.centerX(), btnNextBounds.centerY() + 4f * d, glyphTextPaint)
-            } else if (showDlPill && primaryDl != null) {
-                // Header Badge
+                val prevIconBounds = RectF(btnPrevBounds.centerX() - 6f * d, btnPrevBounds.centerY() - 6f * d, btnPrevBounds.centerX() + 6f * d, btnPrevBounds.centerY() + 6f * d)
+                drawVector(canvas, R.drawable.ic_skip_previous, prevIconBounds, Color.WHITE)
+
+                val playPauseR = 7f * d
+                val playPauseBounds = RectF(btnPlayPauseBounds.centerX() - playPauseR, btnPlayPauseBounds.centerY() - playPauseR, btnPlayPauseBounds.centerX() + playPauseR, btnPlayPauseBounds.centerY() + playPauseR)
+                drawVector(canvas, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow, playPauseBounds, Color.WHITE)
+
+                val nextIconBounds = RectF(btnNextBounds.centerX() - 6f * d, btnNextBounds.centerY() - 6f * d, btnNextBounds.centerX() + 6f * d, btnNextBounds.centerY() + 6f * d)
+                drawVector(canvas, R.drawable.ic_skip_next, nextIconBounds, Color.WHITE)
+            } else if (showDlPill) {
+                // Header Badge with Download Vector
+                val badgeIconBounds = RectF(cardLeft + 16f * d, cardTop + 14f * d, cardLeft + 25f * d, cardTop + 23f * d)
+                drawVector(canvas, R.drawable.ic_arrow_downward, badgeIconBounds, m3Primary)
                 hudTextPaint.textSize = 9.5f * d
                 hudTextPaint.color = m3Primary
-                canvas.drawText("⬇ DOWNLOADING", cardLeft + 16f * d, cardTop + 22f * d, hudTextPaint)
+                canvas.drawText("DOWNLOADING", cardLeft + 28f * d, cardTop + 22f * d, hudTextPaint)
 
                 // File Name
                 hudTextPaint.textSize = 13.5f * d
@@ -451,51 +518,18 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         }
 
         // =========================================================================
-        // COLLAPSED DUAL-WING NOTCH PILL RENDERING
+        // COLLAPSED CAPSULE NOTCH PILL RENDERING (3 MODES)
         // =========================================================================
         val scrollMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_TEXT_SCROLL_MODE, "loop_2x") ?: "loop_2x"
         val truncateAnchor = prefs.getString(LightspeedPreferences.KEY_NOTCH_TEXT_TRUNCATE_ANCHOR, "tail") ?: "tail"
 
-        // Layout Dimensions for Dual-Wing
-        val leftWingW = 32f * d
-        val rightWingBaseW = if (isTestBeacon) 110f * d else if (showDlPill) 100f * d else 135f * d
-        val rightWingW = (rightWingBaseW + expansionW).coerceIn(70f * d, 240f * d)
-
-        val pillLeft = cutoutLeft - leftWingW - 6f * d
-        val pillRight = cutoutRight + 6f * d + rightWingW + 8f * d
-        collapsedPillBounds.set(pillLeft, pillTop, pillRight, pillBottom)
-
-        // 1. Draw Liquid-Glass Capsule Pill Background
-        telemetryPillFillPaint.color = Color.argb(235, 14, 18, 28)
-        canvas.drawRoundRect(collapsedPillBounds, pillH / 2f, pillH / 2f, telemetryPillFillPaint)
-
-        // 2. Draw Capsule Rim Border
-        telemetryPillRimPaint.strokeWidth = 1.3f * d
-        telemetryPillRimPaint.color = Color.argb(160, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-        canvas.drawRoundRect(collapsedPillBounds, pillH / 2f, pillH / 2f, telemetryPillRimPaint)
-
-        // 3. Left Wing (Telemetry Icon): centered in Left Wing zone [pillLeft to cutoutLeft]
-        val leftWingCenterX = (pillLeft + cutoutLeft) / 2f
-        glyphTextPaint.textSize = 10.5f * d
-        glyphTextPaint.color = m3Primary
-
-        val iconGlyph = when {
-            isTestBeacon -> "✦"
-            showDlPill -> "⬇"
-            showMediaPill -> "♫"
-            else -> "✦"
-        }
-        canvas.drawText(iconGlyph, leftWingCenterX, pillCy + (3.8f * d), glyphTextPaint)
-
-        // 4. Center Exclusion Dead-Zone: [cutoutLeft to cutoutRight] -> ZERO text rendered!
-
-        // 5. Right Wing (Title / Marquee): Left-aligned from [cutoutRight + 6dp] to [pillRight - 8dp]
-        val rightWingLeft = cutoutRight + 6f * d
-        val rightWingRight = pillRight - 8f * d
-        val rightWingAvailableW = (rightWingRight - rightWingLeft).coerceAtLeast(20f * d)
+        val gap = 6f * d
+        val iconPad = 4.5f * d
+        val textMargin = 6f * d
+        val iconSize = (pillH - 4f * d).coerceIn(14f * d, 26f * d)
 
         val rawTitleText = when {
-            isTestBeacon -> "ALIGNMENT BEACON ✦"
+            isTestBeacon -> "ALIGNMENT BEACON"
             showDlPill -> {
                 if (primaryDl!!.isIndeterminate) "DOWNLOADING…" else "${(primaryDl.progressFraction * 100).toInt()}% • ${primaryDl.title}"
             }
@@ -505,7 +539,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
 
         if (rawTitleText.isBlank()) return
 
-        hudTextPaint.textSize = 10f * d
+        hudTextPaint.textSize = (pillH * 0.38f).coerceIn(9f * d, 11f * d)
         hudTextPaint.color = if (isTestBeacon) m3Primary else Color.WHITE
 
         val textW = hudTextPaint.measureText(rawTitleText)
@@ -513,11 +547,128 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         val separatorW = hudTextPaint.measureText(separator)
         val cycleLength = textW + separatorW
 
-        if (textW <= rightWingAvailableW) {
-            // Text fits cleanly without marquee
-            canvas.drawText(rawTitleText, rightWingLeft, pillCy + (3.6f * d), hudTextPaint)
+        // Layout mode calculations
+        val iconCenterX: Float
+        val iconCenterY = pillCy
+        val textLeft: Float
+        val textRight: Float
+
+        when (capsuleLayout) {
+            "dual_wing" -> {
+                // Dual-Wing Bridge: Left Wing (Icon), Center Camera Exclusion, Right Wing (Text)
+                val leftWingW = (iconSize + 2 * iconPad).coerceAtLeast(26f * d)
+                val rightWingBaseW = if (isTestBeacon) 110f * d else if (showDlPill) 100f * d else 135f * d
+                val rightWingW = (rightWingBaseW + expansionW).coerceIn(60f * d, 240f * d)
+
+                val pillLeft = cutoutLeft - gap - leftWingW
+                val pillRight = cutoutRight + gap + rightWingW + 8f * d
+                collapsedPillBounds.set(pillLeft, pillTop, pillRight, pillBottom)
+
+                iconCenterX = (pillLeft + (cutoutLeft - gap)) / 2f
+                textLeft = cutoutRight + gap
+                textRight = pillRight - 8f * d
+            }
+            "unified_left" -> {
+                // Unified Left: Single capsule to the left of the cutout
+                val baseTextW = if (isTestBeacon) 115f * d else if (showDlPill) 105f * d else 130f * d
+                val textCapacityW = (baseTextW + expansionW).coerceIn(60f * d, 240f * d)
+                val pillW = iconPad + iconSize + textMargin + textCapacityW + iconPad
+
+                val pillRight = cutoutLeft - gap
+                val pillLeft = pillRight - pillW
+                collapsedPillBounds.set(pillLeft, pillTop, pillRight, pillBottom)
+
+                iconCenterX = pillLeft + iconPad + iconSize / 2f
+                textLeft = pillLeft + iconPad + iconSize + textMargin
+                textRight = pillRight - iconPad
+            }
+            else -> {
+                // "unified_right" [Default]: Single compact capsule immediately to right of cutout
+                val baseTextW = if (isTestBeacon) 115f * d else if (showDlPill) 105f * d else 130f * d
+                val textCapacityW = (baseTextW + expansionW).coerceIn(60f * d, 240f * d)
+                val pillW = iconPad + iconSize + textMargin + textCapacityW + iconPad
+
+                val pillLeft = cutoutRight + gap
+                val pillRight = pillLeft + pillW
+                collapsedPillBounds.set(pillLeft, pillTop, pillRight, pillBottom)
+
+                iconCenterX = pillLeft + iconPad + iconSize / 2f
+                textLeft = pillLeft + iconPad + iconSize + textMargin
+                textRight = pillRight - iconPad
+            }
+        }
+
+        // Notify layout manager if bounds changed
+        if (abs(lastReportedBounds.left - collapsedPillBounds.left) > 1f ||
+            abs(lastReportedBounds.top - collapsedPillBounds.top) > 1f ||
+            abs(lastReportedBounds.right - collapsedPillBounds.right) > 1f ||
+            abs(lastReportedBounds.bottom - collapsedPillBounds.bottom) > 1f) {
+            lastReportedBounds.set(collapsedPillBounds)
+            notifyWindowLayoutChanged()
+        }
+
+        // 1. Draw Liquid-Glass Capsule Pill Background & Border
+        telemetryPillFillPaint.color = Color.argb(235, 14, 18, 28)
+        canvas.drawRoundRect(collapsedPillBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
+
+        telemetryPillRimPaint.strokeWidth = 1.3f * d
+        telemetryPillRimPaint.color = Color.argb(160, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+        canvas.drawRoundRect(collapsedPillBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
+
+        // 2. Draw Native Application Icon / Vector Drawable in Icon Slot
+        val iconSlotBounds = RectF(iconCenterX - iconSize / 2f, iconCenterY - iconSize / 2f, iconCenterX + iconSize / 2f, iconCenterY + iconSize / 2f)
+
+        if (showMediaPill || (media != null && media.isPlaying)) {
+            val pkg = media?.packageName ?: LightspeedMediaManager.getActiveTrackInfo(context).packageName
+            val appIconBmp = if (!pkg.isNullOrBlank()) getCircularAppIcon(pkg, iconSize.toInt()) else null
+            if (appIconBmp != null) {
+                canvas.drawBitmap(appIconBmp, null, iconSlotBounds, iconBitmapPaint)
+            } else {
+                drawVector(canvas, R.drawable.ic_music_note, iconSlotBounds, m3Primary)
+            }
+        } else if (showDlPill) {
+            val pkg = primaryDl.packageName
+            val appIconBmp = if (!pkg.isNullOrBlank()) getCircularAppIcon(pkg, (iconSize - 3f * d).toInt()) else null
+
+            // Circular download progress ring
+            val ringPadding = 1f * d
+            val ringBounds = RectF(iconSlotBounds.left - ringPadding, iconSlotBounds.top - ringPadding, iconSlotBounds.right + ringPadding, iconSlotBounds.bottom + ringPadding)
+            progressRingBgPaint.strokeWidth = 1.6f * d
+            progressRingFillPaint.strokeWidth = 1.6f * d
+            progressRingFillPaint.color = m3Primary
+            canvas.drawOval(ringBounds, progressRingBgPaint)
+
+            if (primaryDl.isIndeterminate) {
+                val sweepAngle = 90f
+                val startAngle = ((SystemClock.uptimeMillis() % 1200L) / 1200f) * 360f
+                canvas.drawArc(ringBounds, startAngle, sweepAngle, false, progressRingFillPaint)
+                postInvalidateOnAnimation()
+            } else {
+                val sweepAngle = (primaryDl.progressFraction.coerceIn(0f, 1f)) * 360f
+                canvas.drawArc(ringBounds, -90f, sweepAngle, false, progressRingFillPaint)
+            }
+
+            if (appIconBmp != null) {
+                val innerBounds = RectF(iconSlotBounds.left + 1.5f * d, iconSlotBounds.top + 1.5f * d, iconSlotBounds.right - 1.5f * d, iconSlotBounds.bottom - 1.5f * d)
+                canvas.drawBitmap(appIconBmp, null, innerBounds, iconBitmapPaint)
+            } else {
+                val innerBounds = RectF(iconSlotBounds.left + 2f * d, iconSlotBounds.top + 2f * d, iconSlotBounds.right - 2f * d, iconSlotBounds.bottom - 2f * d)
+                drawVector(canvas, R.drawable.ic_arrow_downward, innerBounds, m3Primary)
+            }
         } else {
-            // Text overflows available Right Wing space -> Execute Marquee Engine
+            // Test Beacon / Default
+            drawVector(canvas, R.drawable.ic_beacon_sparkle, iconSlotBounds, m3Primary)
+        }
+
+        // 3. Draw Title / Marquee Text
+        val availableW = (textRight - textLeft).coerceAtLeast(10f * d)
+        val textBaseline = pillCy - (hudTextPaint.descent() + hudTextPaint.ascent()) / 2f
+
+        if (textW <= availableW) {
+            // Text fits cleanly
+            canvas.drawText(rawTitleText, textLeft, textBaseline, hudTextPaint)
+        } else {
+            // Text overflows -> Run Marquee Engine
             if (rawTitleText != currentTextKey) {
                 currentTextKey = rawTitleText
                 marqueeScrollOffset = 0f
@@ -539,7 +690,6 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             val isLoopingActive = marqueeCompletedLoops < targetLoops && scrollMode != "static"
 
             if (isLoopingActive) {
-                // Scroll ticker
                 val scrollSpeed = 36f * d // px per second
                 marqueeScrollOffset += scrollSpeed * dt
                 if (marqueeScrollOffset >= cycleLength) {
@@ -551,28 +701,24 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                     }
                 }
 
-                // Render clipped dual-cycle marquee
                 canvas.save()
-                canvas.clipRect(rightWingLeft, pillTop, rightWingRight, pillBottom)
+                canvas.clipRect(textLeft, pillTop, textRight, pillBottom)
 
-                val x1 = rightWingLeft - marqueeScrollOffset
-                val x2 = x1 + cycleLength
-
-                canvas.drawText(rawTitleText, x1, pillCy + (3.6f * d), hudTextPaint)
-                canvas.drawText(separator + rawTitleText, x1 + textW, pillCy + (3.6f * d), hudTextPaint)
+                val x1 = textLeft - marqueeScrollOffset
+                canvas.drawText(rawTitleText, x1, textBaseline, hudTextPaint)
+                canvas.drawText(separator + rawTitleText, x1 + textW, textBaseline, hudTextPaint)
                 canvas.restore()
 
                 postInvalidateOnAnimation()
             } else {
-                // Settled state or static: apply selected Truncate Anchor
                 val truncateAt = when (truncateAnchor) {
                     "head" -> TextUtils.TruncateAt.START
                     "core" -> TextUtils.TruncateAt.MIDDLE
                     else -> TextUtils.TruncateAt.END // "tail"
                 }
 
-                val ellipsizedText = TextUtils.ellipsize(rawTitleText, hudTextPaint, rightWingAvailableW, truncateAt).toString()
-                canvas.drawText(ellipsizedText, rightWingLeft, pillCy + (3.6f * d), hudTextPaint)
+                val ellipsizedText = TextUtils.ellipsize(rawTitleText, hudTextPaint, availableW, truncateAt).toString()
+                canvas.drawText(ellipsizedText, textLeft, textBaseline, hudTextPaint)
             }
         }
     }

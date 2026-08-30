@@ -123,9 +123,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
             }
         }
 
-        overlayView = LightspeedCruiseOverlay(this)
-        windowManager?.addView(overlayView, windowParams)
-        overlayView?.post { overlayView?.updateMetricsDimensions() }
+        try {
+            overlayView = LightspeedCruiseOverlay(this)
+            windowManager?.addView(overlayView, windowParams)
+            overlayView?.post { overlayView?.updateMetricsDimensions() }
+        } catch (_: Exception) {}
 
         // 2. Initialize Left Deflector Wing Overlay Window
         leftWingWindowParams = WindowManager.LayoutParams(
@@ -145,9 +147,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
             }
         }
 
-        leftWingOverlayView = LightspeedLeftWingOverlay(this, this)
-        windowManager?.addView(leftWingOverlayView, leftWingWindowParams)
-        leftWingOverlayView?.post { leftWingOverlayView?.updateMetricsDimensions() }
+        try {
+            leftWingOverlayView = LightspeedLeftWingOverlay(this, this)
+            windowManager?.addView(leftWingOverlayView, leftWingWindowParams)
+            leftWingOverlayView?.post { leftWingOverlayView?.updateMetricsDimensions() }
+        } catch (_: Exception) {}
 
         // 3. Initialize Status Bar Overlay Window
         val prefs = defaultPrefs()
@@ -401,11 +405,16 @@ class LightspeedAccessibilityService : AccessibilityService() {
         teardown()
     }
 
+    private fun getScreenRotation(): Int {
+        val dm = displayManager ?: (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
+        val disp = dm?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+        return disp?.rotation ?: Surface.ROTATION_0
+    }
+
     private fun handleDisplayOrientationChange() {
         val prefs = defaultPrefs()
         val policy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
-        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager?.defaultDisplay
-        val rotation = display?.rotation ?: Surface.ROTATION_0
+        val rotation = getScreenRotation()
         val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
 
         if (policy == "portrait_only" && isLandscape) {
@@ -419,8 +428,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private fun isSuppressedByOrientation(): Boolean {
         val prefs = defaultPrefs()
         val policy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
-        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager?.defaultDisplay
-        val rotation = display?.rotation ?: Surface.ROTATION_0
+        val rotation = getScreenRotation()
         val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
         return policy == "portrait_only" && isLandscape
     }
@@ -497,8 +505,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
         if (trigger == "disabled") return
 
-        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else windowManager?.defaultDisplay
-        val rotation = display?.rotation ?: Surface.ROTATION_0
+        val rotation = getScreenRotation()
         val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
 
         if (trigger == "always_charging" || (trigger == "landscape_charging" && isLandscape)) {

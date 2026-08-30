@@ -6,10 +6,13 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Build
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.defaultPrefs
 
 class LightspeedAccessibilityService : AccessibilityService() {
@@ -54,6 +57,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+
+        val info = serviceInfo ?: AccessibilityServiceInfo()
+        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        serviceInfo = info
+
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -242,6 +250,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
+    override fun onKeyEvent(event: KeyEvent?): Boolean {
+        if (event == null) return false
+        return LightspeedKeyEngine.onKeyEvent(this, event)
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() { teardown() }
     override fun onDestroy() {
@@ -255,6 +268,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     private fun teardown() {
+        LightspeedKeyEngine.reset()
         overlayView?.let {
             windowManager?.removeView(it)
             overlayView = null

@@ -30,6 +30,17 @@ object LightspeedPreferences {
     const val KEY_SYMMETRY_GESTURE_MODE = "pref_symmetry_gesture_mode"
     const val KEY_SIDEBAR_RIGHT_LINK_FLANK = "pref_sidebar_right_link_flank_actions"
     const val KEY_SIDEBAR_LEFT_LINK_FLANK = "pref_sidebar_left_link_flank_actions"
+
+    // Hardware Volume Button Gesture Keys
+    const val KEY_VOL_GESTURES_ENABLED = "pref_key_vol_gestures_enabled"
+    const val KEY_VOL_UP_LONG_PRESS = "pref_key_vol_up_long_press"
+    const val KEY_VOL_DOWN_LONG_PRESS = "pref_key_vol_down_long_press"
+    const val KEY_CHORD_DOWN_HOLD_UP_TAP = "pref_key_chord_down_hold_up_tap"
+    const val KEY_CHORD_UP_HOLD_DOWN_TAP = "pref_key_chord_up_hold_down_tap"
+    const val KEY_CHORD_DOWN_HOLD_UP_HOLD = "pref_key_chord_down_hold_up_hold"
+    const val KEY_CHORD_UP_HOLD_DOWN_HOLD = "pref_key_chord_up_hold_down_hold"
+    const val KEY_SEQ_UP_THEN_DOWN = "pref_key_seq_up_then_down"
+    const val KEY_SEQ_DOWN_THEN_UP = "pref_key_seq_down_then_up"
 }
 
 /**

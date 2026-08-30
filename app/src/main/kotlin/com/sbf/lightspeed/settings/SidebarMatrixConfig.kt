@@ -63,8 +63,9 @@ fun SidebarMatrixConfigurationFields(
     var isLeftBottomScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_bottom", true)) }
     var isLeftBottomGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
 
-    // Center Avionics (Canopy / Status Bar) States
+    // Center Avionics (Canopy / Status Bar / Hardware Keys) States
     var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", true)) }
+    var isVolumeKeysExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_volumekeys_expanded", false)) }
     var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
 
     var isStatusBarGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
@@ -164,7 +165,7 @@ fun SidebarMatrixConfigurationFields(
 
     LaunchedEffect(Unit) {
         LightspeedActionRegistry.initializeSync(context)
-        val activeKeys = prefs.all.filterKeys { it.startsWith("pref_macro_action_") }
+        val activeKeys = prefs.all.filterKeys { it.startsWith("pref_macro_action_") || it.startsWith("pref_key_") }
         activeKeys.values.forEach { rawVal ->
             val str = rawVal?.toString() ?: ""
             if (str.isNotBlank()) {
@@ -661,6 +662,55 @@ fun SidebarMatrixConfigurationFields(
                                             GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_STATUSBAR_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
                                             GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Hardware Volume Key Matrix
+                        item {
+                            CompactAccordionSection(
+                                title = "Hardware Volume Key Matrix — Tactical Triggers",
+                                isExpanded = isVolumeKeysExpanded,
+                                onToggle = {
+                                    isVolumeKeysExpanded = !isVolumeKeysExpanded
+                                    prefs.edit().putBoolean("pref_section_volumekeys_expanded", isVolumeKeysExpanded).apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    PrefToggleRow(
+                                        title = "Enable Volume Key Gestures",
+                                        subtitle = "Low-latency hardware chording, sequences & hold triggers",
+                                        isChecked = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOL_GESTURES_ENABLED, true),
+                                        onCheckedChange = { checked ->
+                                            prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOL_GESTURES_ENABLED, checked).apply()
+                                            onRefreshNeeded()
+                                        }
+                                    )
+
+                                    val volumeGestures = listOf(
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOL_UP_LONG_PRESS, "Volume Up Long Press (~400ms)", Pair(ArrowDirection.SWIPE_UP, true)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS, "Volume Down Long Press (~400ms)", Pair(ArrowDirection.SWIPE_DOWN, true)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP, "Hold Vol Down + Tap Vol Up", Pair(ArrowDirection.SWIPE_UP, false)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP, "Hold Vol Up + Tap Vol Down", Pair(ArrowDirection.SWIPE_DOWN, false)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_HOLD, "Hold Vol Down + Hold Vol Up (~400ms)", Pair(ArrowDirection.SWIPE_UP, true)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_HOLD, "Hold Vol Up + Hold Vol Down (~400ms)", Pair(ArrowDirection.SWIPE_DOWN, true)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<250ms)", Pair(ArrowDirection.SWIPE_UP_DOWN, false)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<250ms)", Pair(ArrowDirection.SWIPE_DOWN_UP, false))
+                                    )
+
+                                    volumeGestures.forEach { (prefKey, title, visual) ->
+                                        val (arrow, isHold) = visual
+                                        GestureMappingRow(
+                                            context = context,
+                                            prefs = prefs,
+                                            direction = arrow,
+                                            isHold = isHold,
+                                            keyResName = prefKey,
+                                            defaultTitle = title,
+                                            options = dynamicActionTokens,
+                                            labelCache = tokenLabelCache
+                                        )
                                     }
                                 }
                             }

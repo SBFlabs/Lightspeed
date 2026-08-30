@@ -11,6 +11,14 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 object ActionDispatcher {
     private const val TAG = "ActionDispatcher"
 
+    fun dispatch(token: String?, context: Context) {
+        execute(context, token)
+    }
+
+    fun dispatch(context: Context, token: String?) {
+        execute(context, token)
+    }
+
     fun execute(context: Context, token: String?, onScrollToTop: () -> Unit = {}) {
         if (token.isNullOrBlank() || token == "none") return
         Log.i(TAG, "Executing action token: '$token'")

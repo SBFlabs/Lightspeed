@@ -26,6 +26,9 @@ object ActionDispatcher {
         val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
 
         when {
+            token == "action_enter_gearset_nav" || token == "system:gearset_nav" || token == "ACTION_ENTER_GEARSET_NAV" -> {
+                LightspeedKeyEngine.startHudNav(context)
+            }
             token == "system:previous_app" || token == "ACTION_PREVIOUS_APP" || token == "previous_app" -> {
                 ElevatedTaskCloser.switchToPreviousApp(context)
             }

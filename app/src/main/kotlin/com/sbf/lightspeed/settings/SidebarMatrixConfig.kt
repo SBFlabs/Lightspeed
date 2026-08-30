@@ -67,7 +67,13 @@ fun SidebarMatrixConfigurationFields(
     // Center Avionics (Canopy / Status Bar / Hardware Keys) States
     var isStatusBarExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_statusbar_expanded", true)) }
     var isVolumeKeysExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_volumekeys_expanded", false)) }
+    var isBackTapExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backtap_expanded", false)) }
+    var isTelemetryExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_telemetry_expanded", false)) }
     var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
+
+    var showOemShieldDialog by remember { mutableStateOf(false) }
+    var showBatteryWarningDialog by remember { mutableStateOf(false) }
+    var pendingBackTapScope by remember { mutableStateOf("screen_on") }
 
     var isStatusBarGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
     var isStatusBarScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
@@ -194,9 +200,15 @@ fun SidebarMatrixConfigurationFields(
                 }
                 1 -> {
                     isStatusBarExpanded = allExpandedState
+                    isVolumeKeysExpanded = allExpandedState
+                    isBackTapExpanded = allExpandedState
+                    isTelemetryExpanded = allExpandedState
                     isBackupExpanded = allExpandedState
                     prefs.edit()
                         .putBoolean("pref_section_statusbar_expanded", allExpandedState)
+                        .putBoolean("pref_section_volumekeys_expanded", allExpandedState)
+                        .putBoolean("pref_section_backtap_expanded", allExpandedState)
+                        .putBoolean("pref_section_telemetry_expanded", allExpandedState)
                         .putBoolean("pref_section_backup_expanded", allExpandedState)
                         .putBoolean("pref_statusbar_preview", allExpandedState)
                         .apply()
@@ -668,6 +680,133 @@ fun SidebarMatrixConfigurationFields(
                             }
                         }
 
+                        // Status Bar & Notch Telemetry
+                        item {
+                            CompactAccordionSection(
+                                title = "Status Bar & Notch Telemetry — Live HUD Indicators",
+                                isExpanded = isTelemetryExpanded,
+                                onToggle = {
+                                    isTelemetryExpanded = !isTelemetryExpanded
+                                    prefs.edit().putBoolean("pref_section_telemetry_expanded", isTelemetryExpanded).apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    // Downloads Telemetry Selector
+                                    val currentDl = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+                                    var isDlDropdownOpen by remember { mutableStateOf(false) }
+                                    val routingOptions = listOf(
+                                        "none" to "None (Disabled)",
+                                        "top_line" to "Top-Edge Line",
+                                        "notch_pill" to "Camera Cutout Notch Pill",
+                                        "both" to "Both (Top Line & Notch Pill)"
+                                    )
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Text("DOWNLOADS TELEMETRY ROUTING", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box {
+                                            OutlinedButton(
+                                                onClick = { isDlDropdownOpen = true },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(routingOptions.firstOrNull { it.first == currentDl }?.second ?: "Camera Cutout Notch Pill", color = Color.White)
+                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                            DropdownMenu(
+                                                expanded = isDlDropdownOpen,
+                                                onDismissRequest = { isDlDropdownOpen = false }
+                                            ) {
+                                                routingOptions.forEach { (key, label) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            isDlDropdownOpen = false
+                                                            prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, key).apply()
+                                                            onRefreshNeeded()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Media Telemetry Selector
+                                    val currentMedia = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+                                    var isMediaDropdownOpen by remember { mutableStateOf(false) }
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Text("MEDIA PLAYBACK TELEMETRY ROUTING", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box {
+                                            OutlinedButton(
+                                                onClick = { isMediaDropdownOpen = true },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(routingOptions.firstOrNull { it.first == currentMedia }?.second ?: "None (Disabled)", color = Color.White)
+                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                            DropdownMenu(
+                                                expanded = isMediaDropdownOpen,
+                                                onDismissRequest = { isMediaDropdownOpen = false }
+                                            ) {
+                                                routingOptions.forEach { (key, label) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            isMediaDropdownOpen = false
+                                                            prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, key).apply()
+                                                            onRefreshNeeded()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // OEM Dynamic Pill Advisory Note
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Info,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = "OEM Notice: If your device uses an OEM dynamic pill (such as Infinix Magic Ring or Dynamic Island clones), disable it in system settings to prevent overlapping indicators.",
+                                                fontSize = 11.5.sp,
+                                                color = Color.White.copy(alpha = 0.9f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Hardware Volume Key Matrix
                         item {
                             CompactAccordionSection(
@@ -676,6 +815,22 @@ fun SidebarMatrixConfigurationFields(
                                 onToggle = {
                                     isVolumeKeysExpanded = !isVolumeKeysExpanded
                                     prefs.edit().putBoolean("pref_section_volumekeys_expanded", isVolumeKeysExpanded).apply()
+                                    if (isVolumeKeysExpanded && !prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_SHIELD_COMPLETED, false)) {
+                                        showOemShieldDialog = true
+                                    }
+                                },
+                                headerTrailing = {
+                                    IconButton(
+                                        onClick = { showOemShieldDialog = true },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Security,
+                                            contentDescription = "OEM Compatibility Shield",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -689,17 +844,52 @@ fun SidebarMatrixConfigurationFields(
                                         }
                                     )
 
+                                    PrefToggleRow(
+                                        title = "Clean Volume Hold Suppression",
+                                        subtitle = "Zero audio jumps during hold gestures. Manually steps volume on tap.",
+                                        isChecked = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CLEAN_VOLUME_SUPPRESSION, false),
+                                        onCheckedChange = { checked ->
+                                            prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CLEAN_VOLUME_SUPPRESSION, checked).apply()
+                                            onRefreshNeeded()
+                                        }
+                                    )
 
+                                    // Rocker Advisory Banner
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Info,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = "Rocker Notice: Devices with a single physical rocker bar may mechanically lever switches when pressing both ends. If chords misfire, Sequential gestures are recommended for 100% reliability.",
+                                                fontSize = 11.5.sp,
+                                                color = Color.White.copy(alpha = 0.9f),
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
 
                                     val volumeGestures = listOf(
                                         Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOL_UP_LONG_PRESS, "Volume Up Long Press (~400ms)", Pair(ArrowDirection.SWIPE_UP, true)),
                                         Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS, "Volume Down Long Press (~400ms)", Pair(ArrowDirection.SWIPE_DOWN, true)),
                                         Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP, "Hold Vol Down + Tap Vol Up", Pair(ArrowDirection.SWIPE_UP, false)),
                                         Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP, "Hold Vol Up + Tap Vol Down", Pair(ArrowDirection.SWIPE_DOWN, false)),
-                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_HOLD, "Hold Vol Down + Hold Vol Up (~400ms)", Pair(ArrowDirection.SWIPE_UP, true)),
-                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_HOLD, "Hold Vol Up + Hold Vol Down (~400ms)", Pair(ArrowDirection.SWIPE_DOWN, true)),
-                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<250ms)", Pair(ArrowDirection.SWIPE_UP_DOWN, false)),
-                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<250ms)", Pair(ArrowDirection.SWIPE_DOWN_UP, false))
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<300ms)", Pair(ArrowDirection.SWIPE_UP_DOWN, false)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<300ms)", Pair(ArrowDirection.SWIPE_DOWN_UP, false)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD, "Tap Vol Down → Hold Vol Up (~400ms)", Pair(ArrowDirection.SWIPE_UP, true)),
+                                        Triple(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD, "Tap Vol Up → Hold Vol Down (~400ms)", Pair(ArrowDirection.SWIPE_DOWN, true))
                                     )
 
                                     volumeGestures.forEach { (prefKey, title, visual) ->
@@ -716,6 +906,126 @@ fun SidebarMatrixConfigurationFields(
                                             showMediaQuickAccess = true
                                         )
                                     }
+                                }
+                            }
+                        }
+
+                        // Back Tap Sensor Matrix
+                        item {
+                            CompactAccordionSection(
+                                title = "Back Tap Sensor Matrix — Linear Acceleration Triggers",
+                                isExpanded = isBackTapExpanded,
+                                onToggle = {
+                                    isBackTapExpanded = !isBackTapExpanded
+                                    prefs.edit().putBoolean("pref_section_backtap_expanded", isBackTapExpanded).apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    PrefToggleRow(
+                                        title = "Enable Back Tap Gestures",
+                                        subtitle = "Detect double and triple taps on the back of your device",
+                                        isChecked = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_ENABLED, false),
+                                        onCheckedChange = { checked ->
+                                            prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_ENABLED, checked).apply()
+                                            onRefreshNeeded()
+                                        }
+                                    )
+
+                                    // Activation Scope Dropdown
+                                    val currentScope = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_SCOPE, "screen_on") ?: "screen_on"
+                                    var isScopeDropdownOpen by remember { mutableStateOf(false) }
+                                    val scopeOptions = listOf(
+                                        "screen_on" to "Screen On Only",
+                                        "screen_off" to "Screen Off (⚡ High Drain)",
+                                        "always" to "Always (⚡ High Drain)"
+                                    )
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Text("ACTIVATION SCOPE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box {
+                                            OutlinedButton(
+                                                onClick = { isScopeDropdownOpen = true },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(scopeOptions.firstOrNull { it.first == currentScope }?.second ?: "Screen On Only", color = Color.White)
+                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                            DropdownMenu(
+                                                expanded = isScopeDropdownOpen,
+                                                onDismissRequest = { isScopeDropdownOpen = false }
+                                            ) {
+                                                scopeOptions.forEach { (key, label) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            isScopeDropdownOpen = false
+                                                            if (key == "screen_off" || key == "always") {
+                                                                pendingBackTapScope = key
+                                                                showBatteryWarningDialog = true
+                                                            } else {
+                                                                prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_SCOPE, key).apply()
+                                                                onRefreshNeeded()
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Smart Battery Failsafe Banner
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(20.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "⚡ Smart Battery Failsafe Active: Screen-off sensor is automatically paused and wake lock released if battery drops ≤ 20% or Battery Saver is on.",
+                                                fontSize = 11.sp,
+                                                color = Color.LightGray.copy(alpha = 0.85f),
+                                                lineHeight = 14.sp
+                                            )
+                                        }
+                                    }
+
+                                    // Gesture Mappings
+                                    GestureMappingRow(
+                                        context = context,
+                                        prefs = prefs,
+                                        direction = ArrowDirection.DOUBLE_TAP,
+                                        isHold = false,
+                                        keyResName = com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_DOUBLE,
+                                        defaultTitle = "Double Back Tap (250-450ms)",
+                                        options = dynamicActionTokens,
+                                        labelCache = tokenLabelCache,
+                                        showMediaQuickAccess = true
+                                    )
+
+                                    GestureMappingRow(
+                                        context = context,
+                                        prefs = prefs,
+                                        direction = ArrowDirection.TAP,
+                                        isHold = true,
+                                        keyResName = com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_TRIPLE,
+                                        defaultTitle = "Triple Back Tap (≤ 700ms)",
+                                        options = dynamicActionTokens,
+                                        labelCache = tokenLabelCache,
+                                        showMediaQuickAccess = true
+                                    )
                                 }
                             }
                         }
@@ -1428,6 +1738,109 @@ fun SidebarMatrixConfigurationFields(
                 dismissButton = {
                     TextButton(onClick = { showUnifyTemplateDialogForRight = false }) {
                         Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showOemShieldDialog) {
+            var preserveScreenshot by remember { mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_SCREENSHOT, true)) }
+            var preserveAccessibility by remember { mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_ACCESSIBILITY, true)) }
+
+            AlertDialog(
+                onDismissRequest = { showOemShieldDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("OEM Compatibility Shield", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+                    }
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "Configure hardware-level passthrough guardrails to ensure native Android system shortcuts remain responsive on your specific device hardware.",
+                            fontSize = 13.sp,
+                            color = Color.LightGray.copy(alpha = 0.85f),
+                            lineHeight = 17.sp
+                        )
+                        PrefToggleRow(
+                            title = "Preserve Screenshot Shortcut",
+                            subtitle = "Whitelist immediate pass-through for Power + Vol Down screenshot captures",
+                            isChecked = preserveScreenshot,
+                            onCheckedChange = { preserveScreenshot = it }
+                        )
+                        PrefToggleRow(
+                            title = "Preserve Accessibility Shortcut",
+                            subtitle = "Bypass custom chords after 1.5s simultaneous hold and yield directly to Android TalkBack / accessibility shortcut",
+                            isChecked = preserveAccessibility,
+                            onCheckedChange = { preserveAccessibility = it }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            prefs.edit()
+                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_SHIELD_COMPLETED, true)
+                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_SCREENSHOT, preserveScreenshot)
+                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_ACCESSIBILITY, preserveAccessibility)
+                                .apply()
+                            showOemShieldDialog = false
+                            onRefreshNeeded()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("APPLY SHIELD", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOemShieldDialog = false }) {
+                        Text("DISMISS", color = Color.White.copy(alpha = 0.7f))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showBatteryWarningDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showBatteryWarningDialog = false
+                },
+                title = {
+                    Text("⚠️ High Battery Usage Warning", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                },
+                text = {
+                    Text(
+                        "Detecting back taps while the screen is off keeps your CPU awake (Partial Wake Lock), preventing Android from entering deep sleep. This typically consumes 2% to 4% battery per hour while idle.",
+                        fontSize = 13.sp,
+                        color = Color.LightGray.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_SCOPE, pendingBackTapScope).apply()
+                            showBatteryWarningDialog = false
+                            onRefreshNeeded()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("ENABLE ANYWAY", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_SCOPE, "screen_on").apply()
+                            showBatteryWarningDialog = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("CANCEL", color = Color.White.copy(alpha = 0.7f))
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant

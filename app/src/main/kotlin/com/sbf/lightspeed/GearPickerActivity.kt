@@ -321,7 +321,7 @@ class GearPickerActivity : ComponentActivity() {
                     }
 
                     // 1. System Actions (Organized by Subcategories)
-                    val systemActions = filtered.filter { it.startsWith("system:") }
+                    val systemActions = filtered.filter { it.startsWith("system:") || it == "action_enter_gearset_nav" }
                     if (systemActions.isNotEmpty()) {
                         val sysKey = "category:system"
                         val isExpanded = expandedSubsections.contains(sysKey) || searchQuery.isNotBlank()
@@ -331,7 +331,7 @@ class GearPickerActivity : ComponentActivity() {
                                 Triple(
                                     "sys_nav",
                                     "Navigation & Multitasking",
-                                    listOf("system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen", "system:popup_window")
+                                    listOf("action_enter_gearset_nav", "system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen", "system:popup_window")
                                 ),
                                 Triple(
                                     "sys_hw",
@@ -440,7 +440,7 @@ class GearPickerActivity : ComponentActivity() {
                     }
 
                     // 2. Apps and Shortcuts grouped by package
-                    val nonSystem = filtered.filter { !it.startsWith("system:") }
+                    val nonSystem = filtered.filter { !it.startsWith("system:") && it != "action_enter_gearset_nav" }
                     val appMap = mutableMapOf<String, MutableList<String>>()
                     nonSystem.forEach { token ->
                         val pkg = when {

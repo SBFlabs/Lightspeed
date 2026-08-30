@@ -1,8 +1,10 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.SystemClock
 import android.view.KeyEvent
+import com.sbf.lightspeed.settings.resolveDynamicTokenLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,14 +15,15 @@ import kotlinx.coroutines.launch
 /**
  * Low-latency, customizable hardware volume button gesture engine for Lightspeed.
  *
- * Provides non-debounced, zero-latency passthrough for standard single clicks and
- * hardware system shortcuts (e.g. Power + Vol Down screenshot) while detecting
- * extended hold triggers, chords, and multi-key sequences using lightweight coroutines.
+ * Supports Zero-Lag or Clean Suppression, Tap-then-Hold sequences, OEM Shield
+ * accessibility bypasses, and interactive Hardware Gear Set HUD Navigation.
  */
 object LightspeedKeyEngine {
 
     const val LONG_PRESS_TIMEOUT_MS = 400L
-    const val SEQUENCE_TIMEOUT_MS = 250L
+    const val SEQUENCE_TIMEOUT_MS = 300L
+    const val ACCESSIBILITY_SHORTCUT_TIMEOUT_MS = 1500L
+    const val HUD_NAV_INACTIVITY_TIMEOUT_MS = 5000L
 
     enum class VolumeTriggerSlot(
         val prefKey: String,
@@ -47,27 +50,40 @@ object LightspeedKeyEngine {
             "Hold Vol Up + Tap Vol Down",
             "Hold Volume Up, tap Volume Down"
         ),
-        CHORD_DOWN_HOLD_UP_HOLD(
-            LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_HOLD,
-            "Hold Vol Down + Hold Vol Up",
-            "Hold Volume Down, hold Volume Up for ~400ms"
-        ),
-        CHORD_UP_HOLD_DOWN_HOLD(
-            LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_HOLD,
-            "Hold Vol Up + Hold Vol Down",
-            "Hold Volume Up, hold Volume Down for ~400ms"
-        ),
         SEQ_UP_THEN_DOWN(
             LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN,
             "Sequence: Vol Up → Vol Down",
-            "Tap Volume Up, then tap Volume Down within 250ms"
+            "Tap Volume Up, then tap Volume Down within 300ms"
         ),
         SEQ_DOWN_THEN_UP(
             LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP,
             "Sequence: Vol Down → Vol Up",
-            "Tap Volume Down, then tap Volume Up within 250ms"
+            "Tap Volume Down, then tap Volume Up within 300ms"
+        ),
+        SEQ_DOWN_TAP_THEN_UP_HOLD(
+            LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD,
+            "Tap Vol Down → Hold Vol Up",
+            "Tap Vol Down, then press & hold Vol Up within 300ms for ~400ms"
+        ),
+        SEQ_UP_TAP_THEN_DOWN_HOLD(
+            LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD,
+            "Tap Vol Up → Hold Vol Down",
+            "Tap Vol Up, then press & hold Vol Down within 300ms for ~400ms"
         )
     }
+
+    data class HudNavState(
+        val isActive: Boolean,
+        val setName: String,
+        val currentToken: String,
+        val currentLabel: String,
+        val currentIndex: Int,
+        val totalCount: Int
+    )
+
+    var currentNavState: HudNavState? = null
+        private set
+    var onNavStateListener: ((HudNavState?) -> Unit)? = null
 
     private val engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -82,21 +98,40 @@ object LightspeedKeyEngine {
     // Chord States
     private var isVolUpUsedInChord = false
     private var isVolDownUsedInChord = false
-    private var isChordHoldFired = false
 
-    // Sequence States
+    // Sequence & Tap-Then-Hold States
     private var isSequenceFired = false
+    private var isSeqTapHoldFired = false
     private var lastVolUpReleaseTime = 0L
     private var lastVolDownReleaseTime = 0L
 
-    // Coroutine Hold Timer Jobs
+    // OEM Accessibility Shortcut State
+    private var isAccessibilityBypassed = false
+
+    // Hardware HUD Navigation States
+    var isHudNavActive = false
+        private set
+    private var navItems: List<String> = emptyList()
+    private var navIndex = 0
+    private var navSetName = ""
+    private var isVolUpNavHoldFired = false
+    private var isVolDownNavHoldFired = false
+
+    // Coroutine Jobs
     private var volUpHoldJob: Job? = null
     private var volDownHoldJob: Job? = null
-    private var chordHoldJob: Job? = null
+    private var seqTapHoldJob: Job? = null
+    private var accessibilityShortcutJob: Job? = null
+    private var hudNavInactivityJob: Job? = null
 
     fun isEnabled(context: Context): Boolean {
         val prefs = context.defaultPrefs()
         return prefs.getBoolean(LightspeedPreferences.KEY_VOL_GESTURES_ENABLED, true)
+    }
+
+    fun isCleanSuppression(context: Context): Boolean {
+        val prefs = context.defaultPrefs()
+        return prefs.getBoolean(LightspeedPreferences.KEY_CLEAN_VOLUME_SUPPRESSION, false)
     }
 
     fun getBoundAction(context: Context, slot: VolumeTriggerSlot): String? {
@@ -107,10 +142,6 @@ object LightspeedKeyEngine {
 
     /**
      * Intercepts and processes hardware volume key events routed from LightspeedAccessibilityService.
-     *
-     * @param context Context (AccessibilityService instance)
-     * @param event The KeyEvent received
-     * @return true if consumed (gesture matched and action executed); false to allow native OS passthrough
      */
     fun onKeyEvent(context: Context, event: KeyEvent): Boolean {
         val keyCode = event.keyCode
@@ -118,17 +149,77 @@ object LightspeedKeyEngine {
             return false
         }
 
-        if (!isEnabled(context)) {
+        if (!isEnabled(context) && !isHudNavActive) {
             return false
         }
 
         val action = event.action
         val now = SystemClock.uptimeMillis()
+        val cleanSuppression = isCleanSuppression(context)
+        val prefs = context.defaultPrefs()
+        val preserveAccessibility = prefs.getBoolean(LightspeedPreferences.KEY_OEM_PRESERVE_ACCESSIBILITY, true)
 
+        // =========================================================================
+        // MODE A: HARDWARE GEAR SET HUD NAVIGATION MODE (100% Volume Consumption)
+        // =========================================================================
+        if (isHudNavActive) {
+            resetNavInactivityTimer()
+
+            when (keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    if (action == KeyEvent.ACTION_DOWN) {
+                        if (event.repeatCount > 0) return true
+                        isVolUpNavHoldFired = false
+                        volUpHoldJob?.cancel()
+                        volUpHoldJob = engineScope.launch {
+                            delay(LONG_PRESS_TIMEOUT_MS)
+                            isVolUpNavHoldFired = true
+                            LightspeedHapticEngine.heavyClick(context)
+                            navLaunch(context)
+                        }
+                        return true
+                    } else if (action == KeyEvent.ACTION_UP) {
+                        volUpHoldJob?.cancel()
+                        volUpHoldJob = null
+                        if (!isVolUpNavHoldFired) {
+                            navigatePrevious(context)
+                        }
+                        isVolUpNavHoldFired = false
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    if (action == KeyEvent.ACTION_DOWN) {
+                        if (event.repeatCount > 0) return true
+                        isVolDownNavHoldFired = false
+                        volDownHoldJob?.cancel()
+                        volDownHoldJob = engineScope.launch {
+                            delay(LONG_PRESS_TIMEOUT_MS)
+                            isVolDownNavHoldFired = true
+                            LightspeedHapticEngine.heavyClick(context)
+                            exitHudNav()
+                        }
+                        return true
+                    } else if (action == KeyEvent.ACTION_UP) {
+                        volDownHoldJob?.cancel()
+                        volDownHoldJob = null
+                        if (!isVolDownNavHoldFired) {
+                            navigateNext(context)
+                        }
+                        isVolDownNavHoldFired = false
+                        return true
+                    }
+                }
+            }
+            return true
+        }
+
+        // =========================================================================
+        // MODE B: STANDARD HARDWARE GESTURES & CHORDS
+        // =========================================================================
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    // Suppress repeat events once gesture or chord has engaged, and support continuous hardware scrubbing
                     if (event.repeatCount > 0) {
                         if (isVolUpLongPressed) {
                             val bound = getBoundAction(context, VolumeTriggerSlot.VOL_UP_LONG_PRESS)
@@ -139,27 +230,43 @@ object LightspeedKeyEngine {
                                 }
                             }
                         }
-                        return isVolUpLongPressed || isChordHoldFired || isSequenceFired || isVolUpUsedInChord
+                        return isVolUpLongPressed || isSequenceFired || isSeqTapHoldFired || isVolUpUsedInChord
                     }
 
                     isVolUpPressed = true
                     isVolUpLongPressed = false
-                    isChordHoldFired = false
+                    isSeqTapHoldFired = false
 
-                    // 1. Sequence Trigger Check: SEQ_DOWN_THEN_UP
-                    val diffDown = now - lastVolDownReleaseTime
-                    if (lastVolDownReleaseTime > 0L && diffDown <= SEQUENCE_TIMEOUT_MS && !isVolDownPressed) {
-                        lastVolDownReleaseTime = 0L
-                        val boundAction = getBoundAction(context, VolumeTriggerSlot.SEQ_DOWN_THEN_UP)
-                        if (boundAction != null) {
-                            isSequenceFired = true
-                            LightspeedHapticEngine.click(context)
-                            ActionDispatcher.dispatch(boundAction, context)
-                            return true
+                    // Check OEM Accessibility Shortcut simultaneous hold bypass
+                    if (isVolDownPressed && preserveAccessibility) {
+                        accessibilityShortcutJob?.cancel()
+                        accessibilityShortcutJob = engineScope.launch {
+                            delay(ACCESSIBILITY_SHORTCUT_TIMEOUT_MS)
+                            isAccessibilityBypassed = true
                         }
                     }
 
-                    // 2. Chord Trigger Check: Vol Down is held down
+                    if (isAccessibilityBypassed) {
+                        return false
+                    }
+
+                    // 1. Sequence Tap-Then-Hold Check: SEQ_DOWN_TAP_THEN_UP_HOLD
+                    val diffDown = now - lastVolDownReleaseTime
+                    if (lastVolDownReleaseTime > 0L && diffDown <= SEQUENCE_TIMEOUT_MS && !isVolDownPressed) {
+                        val tapHoldAction = getBoundAction(context, VolumeTriggerSlot.SEQ_DOWN_TAP_THEN_UP_HOLD)
+                        if (tapHoldAction != null) {
+                            seqTapHoldJob?.cancel()
+                            seqTapHoldJob = engineScope.launch {
+                                delay(LONG_PRESS_TIMEOUT_MS)
+                                isSeqTapHoldFired = true
+                                lastVolDownReleaseTime = 0L
+                                LightspeedHapticEngine.heavyClick(context)
+                                ActionDispatcher.dispatch(tapHoldAction, context)
+                            }
+                        }
+                    }
+
+                    // 2. Chord Check: Vol Down is held down
                     if (isVolDownPressed) {
                         isVolDownUsedInChord = true
                         isVolUpUsedInChord = true
@@ -167,21 +274,10 @@ object LightspeedKeyEngine {
                         volDownHoldJob = null
                         volUpHoldJob?.cancel()
                         volUpHoldJob = null
-
-                        val chordHoldAction = getBoundAction(context, VolumeTriggerSlot.CHORD_DOWN_HOLD_UP_HOLD)
-                        if (chordHoldAction != null) {
-                            chordHoldJob?.cancel()
-                            chordHoldJob = engineScope.launch {
-                                delay(LONG_PRESS_TIMEOUT_MS)
-                                isChordHoldFired = true
-                                LightspeedHapticEngine.heavyClick(context)
-                                ActionDispatcher.dispatch(chordHoldAction, context)
-                            }
-                        }
                         return true
                     }
 
-                    // 3. Single Key Press: Start long press timer
+                    // 3. Single Key Long Press Timer
                     isVolUpUsedInChord = false
                     isSequenceFired = false
                     volUpHoldJob?.cancel()
@@ -196,14 +292,25 @@ object LightspeedKeyEngine {
                         }
                     }
 
-                    // Pass through DOWN event so native volume adjustment has 0ms latency
-                    return false
+                    return cleanSuppression
                 } else if (action == KeyEvent.ACTION_UP) {
                     isVolUpPressed = false
                     volUpHoldJob?.cancel()
                     volUpHoldJob = null
-                    chordHoldJob?.cancel()
-                    chordHoldJob = null
+                    seqTapHoldJob?.cancel()
+                    seqTapHoldJob = null
+                    accessibilityShortcutJob?.cancel()
+                    accessibilityShortcutJob = null
+
+                    if (isAccessibilityBypassed) {
+                        isAccessibilityBypassed = false
+                        return false
+                    }
+
+                    if (isSeqTapHoldFired) {
+                        isSeqTapHoldFired = false
+                        return true
+                    }
 
                     if (isSequenceFired) {
                         isSequenceFired = false
@@ -212,11 +319,6 @@ object LightspeedKeyEngine {
 
                     if (isVolUpLongPressed) {
                         isVolUpLongPressed = false
-                        return true
-                    }
-
-                    if (isChordHoldFired) {
-                        isChordHoldFired = false
                         return true
                     }
 
@@ -230,15 +332,38 @@ object LightspeedKeyEngine {
                         return true
                     }
 
-                    // Record release timestamp for upcoming sequence window
+                    // Check Single Tap Sequence SEQ_DOWN_THEN_UP
+                    val diffDown = now - lastVolDownReleaseTime
+                    if (lastVolDownReleaseTime > 0L && diffDown <= SEQUENCE_TIMEOUT_MS && !isVolDownPressed) {
+                        lastVolDownReleaseTime = 0L
+                        val seqAction = getBoundAction(context, VolumeTriggerSlot.SEQ_DOWN_THEN_UP)
+                        if (seqAction != null) {
+                            isSequenceFired = true
+                            LightspeedHapticEngine.click(context)
+                            ActionDispatcher.dispatch(seqAction, context)
+                            return true
+                        }
+                    }
+
                     lastVolUpReleaseTime = now
+
+                    // Clean Hold Suppression Manual Volume Step
+                    if (cleanSuppression) {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                        audioManager?.adjustSuggestedStreamVolume(
+                            AudioManager.ADJUST_RAISE,
+                            AudioManager.USE_DEFAULT_STREAM_TYPE,
+                            AudioManager.FLAG_SHOW_UI
+                        )
+                        return true
+                    }
+
                     return false
                 }
             }
 
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 if (action == KeyEvent.ACTION_DOWN) {
-                    // Suppress repeat events once gesture or chord has engaged, and support continuous hardware scrubbing
                     if (event.repeatCount > 0) {
                         if (isVolDownLongPressed) {
                             val bound = getBoundAction(context, VolumeTriggerSlot.VOL_DOWN_LONG_PRESS)
@@ -249,27 +374,43 @@ object LightspeedKeyEngine {
                                 }
                             }
                         }
-                        return isVolDownLongPressed || isChordHoldFired || isSequenceFired || isVolDownUsedInChord
+                        return isVolDownLongPressed || isSequenceFired || isSeqTapHoldFired || isVolDownUsedInChord
                     }
 
                     isVolDownPressed = true
                     isVolDownLongPressed = false
-                    isChordHoldFired = false
+                    isSeqTapHoldFired = false
 
-                    // 1. Sequence Trigger Check: SEQ_UP_THEN_DOWN
-                    val diffUp = now - lastVolUpReleaseTime
-                    if (lastVolUpReleaseTime > 0L && diffUp <= SEQUENCE_TIMEOUT_MS && !isVolUpPressed) {
-                        lastVolUpReleaseTime = 0L
-                        val boundAction = getBoundAction(context, VolumeTriggerSlot.SEQ_UP_THEN_DOWN)
-                        if (boundAction != null) {
-                            isSequenceFired = true
-                            LightspeedHapticEngine.click(context)
-                            ActionDispatcher.dispatch(boundAction, context)
-                            return true
+                    // Check OEM Accessibility Shortcut simultaneous hold bypass
+                    if (isVolUpPressed && preserveAccessibility) {
+                        accessibilityShortcutJob?.cancel()
+                        accessibilityShortcutJob = engineScope.launch {
+                            delay(ACCESSIBILITY_SHORTCUT_TIMEOUT_MS)
+                            isAccessibilityBypassed = true
                         }
                     }
 
-                    // 2. Chord Trigger Check: Vol Up is held down
+                    if (isAccessibilityBypassed) {
+                        return false
+                    }
+
+                    // 1. Sequence Tap-Then-Hold Check: SEQ_UP_TAP_THEN_DOWN_HOLD
+                    val diffUp = now - lastVolUpReleaseTime
+                    if (lastVolUpReleaseTime > 0L && diffUp <= SEQUENCE_TIMEOUT_MS && !isVolUpPressed) {
+                        val tapHoldAction = getBoundAction(context, VolumeTriggerSlot.SEQ_UP_TAP_THEN_DOWN_HOLD)
+                        if (tapHoldAction != null) {
+                            seqTapHoldJob?.cancel()
+                            seqTapHoldJob = engineScope.launch {
+                                delay(LONG_PRESS_TIMEOUT_MS)
+                                isSeqTapHoldFired = true
+                                lastVolUpReleaseTime = 0L
+                                LightspeedHapticEngine.heavyClick(context)
+                                ActionDispatcher.dispatch(tapHoldAction, context)
+                            }
+                        }
+                    }
+
+                    // 2. Chord Check: Vol Up is held down
                     if (isVolUpPressed) {
                         isVolUpUsedInChord = true
                         isVolDownUsedInChord = true
@@ -277,21 +418,10 @@ object LightspeedKeyEngine {
                         volUpHoldJob = null
                         volDownHoldJob?.cancel()
                         volDownHoldJob = null
-
-                        val chordHoldAction = getBoundAction(context, VolumeTriggerSlot.CHORD_UP_HOLD_DOWN_HOLD)
-                        if (chordHoldAction != null) {
-                            chordHoldJob?.cancel()
-                            chordHoldJob = engineScope.launch {
-                                delay(LONG_PRESS_TIMEOUT_MS)
-                                isChordHoldFired = true
-                                LightspeedHapticEngine.heavyClick(context)
-                                ActionDispatcher.dispatch(chordHoldAction, context)
-                            }
-                        }
                         return true
                     }
 
-                    // 3. Single Key Press: Start long press timer
+                    // 3. Single Key Long Press Timer
                     isVolDownUsedInChord = false
                     isSequenceFired = false
                     volDownHoldJob?.cancel()
@@ -306,14 +436,25 @@ object LightspeedKeyEngine {
                         }
                     }
 
-                    // Pass through DOWN event so screenshot (Power + Vol Down) and native volume down work with 0ms latency
-                    return false
+                    return cleanSuppression
                 } else if (action == KeyEvent.ACTION_UP) {
                     isVolDownPressed = false
                     volDownHoldJob?.cancel()
                     volDownHoldJob = null
-                    chordHoldJob?.cancel()
-                    chordHoldJob = null
+                    seqTapHoldJob?.cancel()
+                    seqTapHoldJob = null
+                    accessibilityShortcutJob?.cancel()
+                    accessibilityShortcutJob = null
+
+                    if (isAccessibilityBypassed) {
+                        isAccessibilityBypassed = false
+                        return false
+                    }
+
+                    if (isSeqTapHoldFired) {
+                        isSeqTapHoldFired = false
+                        return true
+                    }
 
                     if (isSequenceFired) {
                         isSequenceFired = false
@@ -322,11 +463,6 @@ object LightspeedKeyEngine {
 
                     if (isVolDownLongPressed) {
                         isVolDownLongPressed = false
-                        return true
-                    }
-
-                    if (isChordHoldFired) {
-                        isChordHoldFired = false
                         return true
                     }
 
@@ -340,14 +476,136 @@ object LightspeedKeyEngine {
                         return true
                     }
 
-                    // Record release timestamp for upcoming sequence window
+                    // Check Single Tap Sequence SEQ_UP_THEN_DOWN
+                    val diffUp = now - lastVolUpReleaseTime
+                    if (lastVolUpReleaseTime > 0L && diffUp <= SEQUENCE_TIMEOUT_MS && !isVolUpPressed) {
+                        lastVolUpReleaseTime = 0L
+                        val seqAction = getBoundAction(context, VolumeTriggerSlot.SEQ_UP_THEN_DOWN)
+                        if (seqAction != null) {
+                            isSequenceFired = true
+                            LightspeedHapticEngine.click(context)
+                            ActionDispatcher.dispatch(seqAction, context)
+                            return true
+                        }
+                    }
+
                     lastVolDownReleaseTime = now
+
+                    // Clean Hold Suppression Manual Volume Step
+                    if (cleanSuppression) {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                        audioManager?.adjustSuggestedStreamVolume(
+                            AudioManager.ADJUST_LOWER,
+                            AudioManager.USE_DEFAULT_STREAM_TYPE,
+                            AudioManager.FLAG_SHOW_UI
+                        )
+                        return true
+                    }
+
                     return false
                 }
             }
         }
 
         return false
+    }
+
+    /**
+     * Starts Hardware Gear Set HUD Navigation Mode.
+     */
+    fun startHudNav(context: Context) {
+        val prefs = context.defaultPrefs()
+        val activeSetIndex = prefs.getInt("last_active_set_index", 0)
+        val setsOrderStr = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
+        val setIds = setsOrderStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        val currentSetId = setIds.getOrNull(activeSetIndex) ?: setIds.firstOrNull() ?: "0"
+
+        val rawName = prefs.getString("gear_set_${currentSetId}_name", "") ?: ""
+        navSetName = if (rawName.isEmpty() || rawName in listOf("SET A", "SET B", "SET C", "SET D", "SET")) {
+            when (currentSetId) {
+                "0" -> "POWER USER ANDROID"
+                "1" -> "MY APP STORES"
+                "2" -> "UTILITIES SECTOR"
+                "3" -> "ENTERTAINMENT DECK"
+                else -> "GEAR SET ${activeSetIndex + 1}"
+            }
+        } else rawName
+
+        val r0 = prefs.getString("gear_set_${currentSetId}_ring_0_packages", "") ?: ""
+        val r1 = prefs.getString("gear_set_${currentSetId}_ring_1_packages", "") ?: ""
+        val combined = (r0.split(",") + r1.split(","))
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it != "none" }
+            .distinct()
+
+        navItems = if (combined.isNotEmpty()) combined else listOf("system:recents", "system:previous_app", "system:screenshot", "system:flashlight")
+        navIndex = 0
+        isHudNavActive = true
+
+        publishHudNavState(context)
+        resetNavInactivityTimer()
+        LightspeedHapticEngine.heavyClick(context)
+    }
+
+    /**
+     * Exits Hardware Gear Set HUD Navigation Mode.
+     */
+    fun exitHudNav() {
+        isHudNavActive = false
+        hudNavInactivityJob?.cancel()
+        hudNavInactivityJob = null
+        currentNavState = null
+        onNavStateListener?.invoke(null)
+    }
+
+    private fun resetNavInactivityTimer() {
+        hudNavInactivityJob?.cancel()
+        hudNavInactivityJob = engineScope.launch {
+            delay(HUD_NAV_INACTIVITY_TIMEOUT_MS)
+            exitHudNav()
+        }
+    }
+
+    private fun navigatePrevious(context: Context) {
+        if (navItems.isEmpty()) return
+        navIndex = (navIndex - 1 + navItems.size) % navItems.size
+        publishHudNavState(context)
+        LightspeedHapticEngine.click(context)
+    }
+
+    private fun navigateNext(context: Context) {
+        if (navItems.isEmpty()) return
+        navIndex = (navIndex + 1) % navItems.size
+        publishHudNavState(context)
+        LightspeedHapticEngine.click(context)
+    }
+
+    private fun navLaunch(context: Context) {
+        val token = navItems.getOrNull(navIndex)
+        exitHudNav()
+        if (!token.isNullOrBlank()) {
+            ActionDispatcher.dispatch(token, context)
+        }
+    }
+
+    private fun publishHudNavState(context: Context) {
+        val token = navItems.getOrNull(navIndex) ?: "none"
+        val label = if (token.startsWith("shortcut:")) {
+            LightspeedShortcutManager.resolveLabel(context, token)
+        } else {
+            resolveDynamicTokenLabel(context, token)
+        }
+
+        val state = HudNavState(
+            isActive = true,
+            setName = navSetName,
+            currentToken = token,
+            currentLabel = label,
+            currentIndex = navIndex,
+            totalCount = navItems.size
+        )
+        currentNavState = state
+        onNavStateListener?.invoke(state)
     }
 
     /**
@@ -358,8 +616,12 @@ object LightspeedKeyEngine {
         volUpHoldJob = null
         volDownHoldJob?.cancel()
         volDownHoldJob = null
-        chordHoldJob?.cancel()
-        chordHoldJob = null
+        seqTapHoldJob?.cancel()
+        seqTapHoldJob = null
+        accessibilityShortcutJob?.cancel()
+        accessibilityShortcutJob = null
+        hudNavInactivityJob?.cancel()
+        hudNavInactivityJob = null
 
         isVolUpPressed = false
         isVolDownPressed = false
@@ -367,9 +629,13 @@ object LightspeedKeyEngine {
         isVolDownLongPressed = false
         isVolUpUsedInChord = false
         isVolDownUsedInChord = false
-        isChordHoldFired = false
         isSequenceFired = false
+        isSeqTapHoldFired = false
+        isAccessibilityBypassed = false
+        isHudNavActive = false
+        currentNavState = null
         lastVolUpReleaseTime = 0L
         lastVolDownReleaseTime = 0L
     }
 }
+

@@ -61,9 +61,22 @@ class LightspeedStatusBarOverlay(
     }
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_STATUSBAR"))) {
+        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_STATUSBAR") || key.startsWith("pref_telemetry_"))) {
             postInvalidate()
         }
+    }
+
+    private val telemetryGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    private val telemetryPillFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+
+    private val telemetryPillRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
     }
 
     private val uiHandler = Handler(Looper.getMainLooper())
@@ -74,6 +87,20 @@ class LightspeedStatusBarOverlay(
         isClickable = true
         isFocusable = false
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
+
+        com.sbf.lightspeed.system.LightspeedNotificationListener.onTelemetryChanged = {
+            postInvalidate()
+        }
+        com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = { state ->
+            uiHandler.post {
+                if (state?.isActive == true) {
+                    expandForScrubbing()
+                } else if (!isScrubbing) {
+                    restoreWindowLayout()
+                }
+                postInvalidate()
+            }
+        }
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -86,6 +113,8 @@ class LightspeedStatusBarOverlay(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
+        com.sbf.lightspeed.system.LightspeedNotificationListener.onTelemetryChanged = null
+        com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = null
         pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
         uiHandler.removeCallbacks(holdRunnable)
     }
@@ -481,6 +510,95 @@ class LightspeedStatusBarOverlay(
             canvas.drawRoundRect(RectF(0f, 0f, w, 2.5f * d), 1.5f * d, 1.5f * d, debugPaint)
         }
 
+        // 1. Top-Edge Line Telemetry Renderer
+        val dlRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+        val mediaRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+        val primaryDl = com.sbf.lightspeed.system.LightspeedNotificationListener.getPrimaryDownload()
+        val media = com.sbf.lightspeed.system.LightspeedNotificationListener.activeMediaTelemetry
+
+        if ((dlRouting == "top_line" || dlRouting == "both") && primaryDl != null && primaryDl.progressFraction >= 0f) {
+            val prog = primaryDl.progressFraction.coerceIn(0f, 1f)
+            telemetryGlowPaint.strokeWidth = 3.5f * d
+            telemetryGlowPaint.color = Color.argb(100, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
+            telemetryGlowPaint.strokeWidth = 2f * d
+            telemetryGlowPaint.color = m3Primary
+            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
+        } else if ((mediaRouting == "top_line" || mediaRouting == "both") && media != null && media.isPlaying && media.durationMs > 0) {
+            val prog = (media.positionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
+            telemetryGlowPaint.strokeWidth = 3.5f * d
+            telemetryGlowPaint.color = Color.argb(100, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
+            telemetryGlowPaint.strokeWidth = 2f * d
+            telemetryGlowPaint.color = m3Primary
+            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
+        }
+
+        // 2. Camera Cutout Notch Pill Telemetry Renderer
+        if (!isScrubbing && !com.sbf.lightspeed.system.LightspeedKeyEngine.isHudNavActive) {
+            val showDlPill = (dlRouting == "notch_pill" || dlRouting == "both") && primaryDl != null
+            val showMediaPill = (mediaRouting == "notch_pill" || mediaRouting == "both") && media != null && media.isPlaying
+
+            if (showDlPill || showMediaPill) {
+                val cutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
+                val topCutoutRect = cutout?.boundingRectTop ?: cutout?.boundingRects?.firstOrNull { it.top == 0 }
+                val notchCenterX = if (topCutoutRect != null && topCutoutRect.width() > 0) topCutoutRect.exactCenterX() else w / 2f
+                val notchTopY = if (topCutoutRect != null) topCutoutRect.top.toFloat() else 0f
+                val notchHeight = if (topCutoutRect != null && topCutoutRect.height() > 0) topCutoutRect.height().toFloat() else 26f * d
+                val pillCy = notchTopY + (notchHeight / 2f).coerceAtLeast(14f * d)
+
+                if (showDlPill && primaryDl != null) {
+                    val pillW = 126f * d
+                    val pillH = 26f * d
+                    val pillRect = RectF(notchCenterX - pillW / 2f, pillCy - pillH / 2f, notchCenterX + pillW / 2f, pillCy + pillH / 2f)
+                    telemetryPillFillPaint.color = Color.argb(225, 14, 18, 28)
+                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillFillPaint)
+                    telemetryPillRimPaint.strokeWidth = 1.2f * d
+                    telemetryPillRimPaint.color = Color.argb(140, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillRimPaint)
+
+                    hudTextPaint.textSize = 10f * d
+                    hudTextPaint.color = m3Primary
+                    val pctText = if (primaryDl.isIndeterminate) "⬇ DOWNLOADING…" else "⬇ ${(primaryDl.progressFraction * 100).toInt()}%"
+                    canvas.drawText(pctText, notchCenterX, pillCy + (3.5f * d), hudTextPaint)
+                } else if (showMediaPill && media != null) {
+                    val pillW = 156f * d
+                    val pillH = 26f * d
+                    val pillRect = RectF(notchCenterX - pillW / 2f, pillCy - pillH / 2f, notchCenterX + pillW / 2f, pillCy + pillH / 2f)
+                    telemetryPillFillPaint.color = Color.argb(225, 14, 18, 28)
+                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillFillPaint)
+                    telemetryPillRimPaint.strokeWidth = 1.2f * d
+                    telemetryPillRimPaint.color = Color.argb(140, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+                    canvas.drawRoundRect(pillRect, pillH / 2f, pillH / 2f, telemetryPillRimPaint)
+
+                    hudTextPaint.textSize = 9.5f * d
+                    hudTextPaint.color = Color.WHITE
+                    val cleanTitle = if (media.title.length > 18) media.title.take(16) + "…" else media.title
+                    canvas.drawText("♫ $cleanTitle", notchCenterX, pillCy + (3.5f * d), hudTextPaint)
+                }
+            }
+        }
+
+        // 3. Hardware Gear Set HUD Navigation Renderer
+        val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
+        if (navState != null && navState.isActive) {
+            val topY = (prefs.getInt("pref_statusbar_thickness", 80) * d).coerceAtLeast(36f * d) + (8f * d)
+            LightspeedHudRenderer.renderHud(
+                canvas = canvas,
+                style = "canopy_droppod",
+                title = "GEAR SET NAV: ${navState.setName}",
+                value = navState.currentLabel,
+                stepIndex = navState.currentIndex,
+                totalSteps = navState.totalCount,
+                centerX = screenW / 2f,
+                centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
+                topY = topY,
+                primaryColor = m3Primary,
+                density = d
+            )
+        }
+
+        // 4. Gesture Scrubbing HUD Renderer
         if (isScrubbing && hudTitle.isNotEmpty()) {
             val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR_SCRUBBING", null)
                 ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"

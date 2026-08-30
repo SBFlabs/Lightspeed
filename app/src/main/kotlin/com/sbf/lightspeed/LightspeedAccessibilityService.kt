@@ -54,6 +54,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (key != null && (key.startsWith("pref_sidebar_left_") || key.startsWith("pref_section_left_") || key.startsWith("pref_macro_action_LEFT_"))) {
             updateLeftWingOverlayFromPrefs(prefs)
         }
+        if (key != null && key.startsWith("pref_back_tap_")) {
+            com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -121,6 +124,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val prefs = defaultPrefs()
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         setupStatusBarOverlay(prefs)
+
+        // 4. Initialize Back Tap Engine
+        com.sbf.lightspeed.system.LightspeedBackTapEngine.init(this)
     }
 
     private fun setupStatusBarOverlay(prefs: SharedPreferences) {
@@ -216,6 +222,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         updateStatusBarOverlayFromPrefs(prefs)
         updateSidebarOverlayFromPrefs(prefs)
         updateLeftWingOverlayFromPrefs(prefs)
+        com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
     }
 
     fun updateWindowLayout(expand: Boolean) {
@@ -335,6 +342,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     private fun teardown() {
         LightspeedKeyEngine.reset()
+        com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
         mediaScrubberOverlayView?.let {
             try { windowManager?.removeView(it) } catch (_: Exception) {}
             mediaScrubberOverlayView = null

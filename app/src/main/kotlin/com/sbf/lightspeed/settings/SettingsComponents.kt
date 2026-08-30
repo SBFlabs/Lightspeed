@@ -99,6 +99,7 @@ fun CompactAccordionSection(
     title: String,
     isExpanded: Boolean,
     onToggle: () -> Unit,
+    headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     Card(
@@ -122,6 +123,10 @@ fun CompactAccordionSection(
                     color = Color.White,
                     modifier = Modifier.weight(1f).padding(end = 8.dp)
                 )
+                if (headerTrailing != null) {
+                    headerTrailing()
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,

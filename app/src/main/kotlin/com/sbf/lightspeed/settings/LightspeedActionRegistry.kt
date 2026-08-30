@@ -33,6 +33,7 @@ object LightspeedActionRegistry {
     fun getBaseTokens(): List<String> = listOf(
         "none",
         // 1. Navigation & Multitasking
+        "action_enter_gearset_nav",
         "system:previous_app",
         "system:close_app",
         "system:recents",
@@ -216,6 +217,7 @@ object LightspeedActionRegistry {
 fun resolveDynamicTokenLabel(context: Context, token: String): String {
     return when {
         token == "none" -> "None"
+        token == "action_enter_gearset_nav" || token == "system:gearset_nav" -> "Gear Set HUD Navigation Mode"
         token == "system:previous_app" -> "Switch to Previous App"
         token == "system:close_app" || token == "shizuku:close_app" -> "Close App (Remove from Recents)"
         token == "system:recents" -> "Recents Overview"

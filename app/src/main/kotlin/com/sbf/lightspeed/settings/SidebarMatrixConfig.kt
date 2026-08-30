@@ -73,6 +73,7 @@ fun SidebarMatrixConfigurationFields(
 
     var showOemShieldDialog by remember { mutableStateOf(false) }
     var showBatteryWarningDialog by remember { mutableStateOf(false) }
+    var showNotificationAccessDialog by remember { mutableStateOf(false) }
     var pendingBackTapScope by remember { mutableStateOf("screen_on") }
 
     var isStatusBarGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
@@ -691,6 +692,38 @@ fun SidebarMatrixConfigurationFields(
                                 }
                             ) {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    val isNotifAccessGranted = remember(isTelemetryExpanded) {
+                                        val pkgName = context.packageName
+                                        val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                                        flat?.contains(pkgName) == true || com.sbf.lightspeed.system.LightspeedNotificationListener.instance != null
+                                    }
+
+                                    if (!isNotifAccessGranted) {
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable { showNotificationAccessDialog = true }
+                                                .padding(vertical = 2.dp),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                                    Text("Tap here to grant permission in Android Settings so Lightspeed can read download progress and media metadata.", fontSize = 11.sp, color = Color.White.copy(alpha = 0.85f))
+                                                }
+                                                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.6f))
+                                            }
+                                        }
+                                    }
+
                                     // Downloads Telemetry Selector
                                     val currentDl = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
                                     var isDlDropdownOpen by remember { mutableStateOf(false) }
@@ -729,6 +762,9 @@ fun SidebarMatrixConfigurationFields(
                                                         onClick = {
                                                             isDlDropdownOpen = false
                                                             prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, key).apply()
+                                                            if (key != "none" && !isNotifAccessGranted) {
+                                                                showNotificationAccessDialog = true
+                                                            }
                                                             onRefreshNeeded()
                                                         }
                                                     )
@@ -769,6 +805,9 @@ fun SidebarMatrixConfigurationFields(
                                                         onClick = {
                                                             isMediaDropdownOpen = false
                                                             prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, key).apply()
+                                                            if (key != "none" && !isNotifAccessGranted) {
+                                                                showNotificationAccessDialog = true
+                                                            }
                                                             onRefreshNeeded()
                                                         }
                                                     )
@@ -1841,6 +1880,56 @@ fun SidebarMatrixConfigurationFields(
                         }
                     ) {
                         Text("CANCEL", color = Color.White.copy(alpha = 0.7f))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showNotificationAccessDialog) {
+            AlertDialog(
+                onDismissRequest = { showNotificationAccessDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                    }
+                },
+                text = {
+                    Text(
+                        "To display real-time download progress and active media playback in your status bar or notch pill, Android requires Notification Access (Device & App Notifications).\n\nLightspeed is 100% offline and never records, stores, or transmits your personal notifications.",
+                        fontSize = 13.sp,
+                        color = Color.LightGray.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showNotificationAccessDialog = false
+                            try {
+                                val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                try {
+                                    val intent = Intent(android.provider.Settings.ACTION_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("OPEN SETTINGS", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showNotificationAccessDialog = false }) {
+                        Text("NOT NOW", color = Color.White.copy(alpha = 0.7f))
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant

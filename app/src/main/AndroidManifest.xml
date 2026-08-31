@@ -108,6 +108,26 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
+        <activity
+            android:name=".system.LightspeedPowerGestureActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showForAllUsers="true"
+            android:theme="@style/Theme.Lightspeed.Floating">
+            <intent-filter android:priority="1000">
+                <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
+                <action android:name="android.media.action.STILL_IMAGE_CAMERA_SECURE" />
+                <action android:name="android.media.action.IMAGE_CAPTURE" />
+                <action android:name="android.media.action.IMAGE_CAPTURE_SECURE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".settings.SidebarTileService"
             android:icon="@mipmap/ic_launcher"

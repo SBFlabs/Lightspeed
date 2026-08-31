@@ -46,8 +46,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -65,6 +67,7 @@ import com.sbf.lightspeed.system.defaultPrefs
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.*
+import kotlinx.coroutines.launch
 
 /**
  * Refueling Bay: Ambient Charging & Cryo Dashboard for Lightspeed.
@@ -152,23 +155,25 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         loadWidgetsForCurrentMode(initialMode)
 
         setContent {
-            RefuelingBayScreen(
-                activity = this,
-                widgetIds = widgetIdsState,
-                widgetLayoutMode = widgetLayoutModeState.value,
-                isEditMode = isEditModeState.value,
-                appWidgetHost = appWidgetHost,
-                appWidgetManager = appWidgetManager,
-                onPickWidget = { pickAppWidget() },
-                onRemoveWidget = { widgetId -> removeWidgetId(widgetId) },
-                onReorderWidget = { fromIdx, toIdx -> reorderWidget(fromIdx, toIdx) },
-                onToggleLayoutMode = { toggleLayoutMode() },
-                onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
-                onDismiss = {
-                    isChargingSessionDismissed = true
-                    finish()
-                }
-            )
+            com.sbf.lightspeed.ui.theme.LightspeedTheme(forceDark = true) {
+                RefuelingBayScreen(
+                    activity = this,
+                    widgetIds = widgetIdsState,
+                    widgetLayoutMode = widgetLayoutModeState.value,
+                    isEditMode = isEditModeState.value,
+                    appWidgetHost = appWidgetHost,
+                    appWidgetManager = appWidgetManager,
+                    onPickWidget = { pickAppWidget() },
+                    onRemoveWidget = { widgetId -> removeWidgetId(widgetId) },
+                    onReorderWidget = { fromIdx, toIdx -> reorderWidget(fromIdx, toIdx) },
+                    onToggleLayoutMode = { toggleLayoutMode() },
+                    onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
+                    onDismiss = {
+                        isChargingSessionDismissed = true
+                        finish()
+                    }
+                )
+            }
         }
     }
 
@@ -583,18 +588,6 @@ fun RefuelingBayScreen(
                             .fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        var isInfinixBannerDismissed by remember {
-                            mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, false))
-                        }
-                        if (!isInfinixBannerDismissed) {
-                            InfinixStandbyWarningBanner(
-                                onDismiss = {
-                                    isInfinixBannerDismissed = true
-                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, true).apply()
-                                }
-                            )
-                        }
-
                         // Header Toolbar for Widget Controls
                         WidgetEngineToolbar(
                             widgetCount = widgetIds.size,
@@ -636,17 +629,6 @@ fun RefuelingBayScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    var isInfinixBannerDismissed by remember {
-                        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, false))
-                    }
-                    if (!isInfinixBannerDismissed) {
-                        InfinixStandbyWarningBanner(
-                            onDismiss = {
-                                isInfinixBannerDismissed = true
-                                prefs.edit().putBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, true).apply()
-                            }
-                        )
-                    }
                     // Header: Minimalist Cryo Clock
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1012,7 +994,7 @@ fun WidgetEngineToolbar(
                 imageVector = Icons.Default.Widgets,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(16.dp)
             )
             Text(
                 text = if (widgetLayoutMode == "smart_stack") "SMART STACK ($widgetCount)" else "ADAPTIVE GRID ($widgetCount)",
@@ -1025,14 +1007,15 @@ fun WidgetEngineToolbar(
 
         // Right Action Controls
         Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.wrapContentSize(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Mode Switcher (Stack vs Grid)
             IconButton(
                 onClick = onToggleLayoutMode,
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.08f))
             ) {
@@ -1040,7 +1023,7 @@ fun WidgetEngineToolbar(
                     imageVector = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
                     contentDescription = "Switch Layout",
                     tint = Color.White,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
@@ -1048,7 +1031,7 @@ fun WidgetEngineToolbar(
             IconButton(
                 onClick = onToggleEditMode,
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(if (isEditMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.08f))
             ) {
@@ -1056,7 +1039,7 @@ fun WidgetEngineToolbar(
                     imageVector = if (isEditMode) Icons.Default.Check else Icons.Default.Edit,
                     contentDescription = "Edit Widgets",
                     tint = if (isEditMode) MaterialTheme.colorScheme.primary else Color.White,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
@@ -1064,7 +1047,7 @@ fun WidgetEngineToolbar(
             IconButton(
                 onClick = onAddWidget,
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             ) {
@@ -1072,7 +1055,7 @@ fun WidgetEngineToolbar(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Add Widget",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
@@ -1080,7 +1063,7 @@ fun WidgetEngineToolbar(
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.08f))
             ) {
@@ -1088,7 +1071,7 @@ fun WidgetEngineToolbar(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Exit",
                     tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -1129,9 +1112,10 @@ fun MultiWidgetContainer(
 
     if (widgetLayoutMode == "smart_stack") {
         // =========================================================================
-        // MODE 1: SMART STACK (SWIPEABLE PAGER)
+        // MODE 1: SMART STACK (SWIPEABLE PAGER WITH 3D CUBE & 2D NAVIGATION)
         // =========================================================================
         val pagerState = rememberPagerState(pageCount = { widgetIds.size })
+        val coroutineScope = rememberCoroutineScope()
 
         Card(
             modifier = Modifier
@@ -1146,14 +1130,37 @@ fun MultiWidgetContainer(
             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
             shape = RoundedCornerShape(20.dp)
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(pagerState.pageCount) {
+                        detectVerticalDragGestures { change, dragAmount ->
+                            change.consume()
+                            if (abs(dragAmount) > 25f) {
+                                val target = if (dragAmount < 0) pagerState.currentPage + 1 else pagerState.currentPage - 1
+                                if (target in 0 until pagerState.pageCount) {
+                                    coroutineScope.launch { pagerState.animateScrollToPage(target) }
+                                }
+                            }
+                        }
+                    }
+            ) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { pageIndex ->
                     val widgetId = widgetIds.getOrNull(pageIndex)
                     if (widgetId != null && appWidgetHost != null && appWidgetManager != null) {
-                        Box(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val pageOffset = (pagerState.currentPage - pageIndex) + pagerState.currentPageOffsetFraction
+                                    transformOrigin = TransformOrigin(if (pageOffset > 0) 0f else 1f, 0.5f)
+                                    rotationY = pageOffset * 90f
+                                    alpha = 1f - abs(pageOffset).coerceIn(0f, 0.5f)
+                                }
+                        ) {
                             AppWidgetContainerView(
                                 activity = activity,
                                 widgetId = widgetId,

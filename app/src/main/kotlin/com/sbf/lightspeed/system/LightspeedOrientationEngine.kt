@@ -249,7 +249,7 @@ object LightspeedOrientationEngine {
         }
     }
 
-    private fun isDefaultLauncherPackage(context: Context, pkg: String?): Boolean {
+    fun isDefaultLauncherPackage(context: Context, pkg: String?): Boolean {
         if (pkg.isNullOrBlank()) return false
         return try {
             val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {

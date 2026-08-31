@@ -19,6 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -149,13 +152,16 @@ fun SidebarMatrixConfigurationFields(
             LightspeedBackTapEngine.onLiveImpulseListener = { zVal, thresh, isCrossed ->
                 currentZImpulse = zVal
                 currentThreshold = thresh
-                if (isCrossed) {
-                    thresholdCrossedFlash = true
-                }
+                thresholdCrossedFlash = isCrossed
             }
+        } else {
+            currentZImpulse = 0f
+            thresholdCrossedFlash = false
         }
         onDispose {
             LightspeedBackTapEngine.stopLiveSampling()
+            currentZImpulse = 0f
+            thresholdCrossedFlash = false
         }
     }
 
@@ -634,6 +640,14 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "left_center") {
                                             CompactAccordionSection(
                                                 title = "Left Deflector — Astrogation Core Zone",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Navigation,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
                                                 isExpanded = isLeftCenterExpanded,
                                                 onToggle = {
                                                     toggleSection(0, "left_center", isLeftCenterExpanded) { isLeftCenterExpanded = it }
@@ -645,7 +659,7 @@ fun SidebarMatrixConfigurationFields(
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     CollapsibleSubSection(
-                                                        title = "📐 Touch Vector Geometry & Position",
+                                                        title = "Touch Vector Geometry & Position",
                                                         subtitle = "Deflector span, touch reach, offset & stealth glow",
                                                         isExpanded = isLeftCenterGeoExpanded,
                                                         onToggle = {
@@ -667,6 +681,14 @@ fun SidebarMatrixConfigurationFields(
                                             item(key = "left_unified") {
                                                 CompactAccordionSection(
                                                     title = "Left Deflector — Flank Vector Zones (Upper & Lower)",
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.SwapVert,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    },
                                                     isExpanded = isLeftUnifiedExpanded,
                                                     onToggle = {
                                                         toggleSection(0, "left_unified", isLeftUnifiedExpanded) { isLeftUnifiedExpanded = it }
@@ -678,7 +700,7 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "📐 Upper & Lower Deflector Geometry",
+                                                            title = "Upper & Lower Deflector Geometry",
                                                             subtitle = "Independent height, touch reach & stealth glow",
                                                             isExpanded = isLeftUnifiedGeoExpanded,
                                                             onToggle = {
@@ -686,20 +708,20 @@ fun SidebarMatrixConfigurationFields(
                                                                 prefs.edit().putBoolean("pref_sub_geo_left_unified", isLeftUnifiedGeoExpanded).apply()
                                                             }
                                                         ) {
-                                                            Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Upper Deflector Span (Height)", 50, 600, 10, 200)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
 
                                                             Spacer(modifier = Modifier.height(4.dp))
-                                                            Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Text("LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Lower Deflector Span (Height)", 50, 600, 10, 200)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "🎛️ Dual Inward Scrubber Controls",
+                                                            title = "Dual Inward Scrubber Controls",
                                                             subtitle = "Independent upper & lower half scrubbers",
                                                             isExpanded = isLeftUnifiedScrubExpanded,
                                                             onToggle = {
@@ -712,7 +734,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "⚡ Unified Gesture Matrix",
+                                                            title = "Unified Gesture Matrix",
                                                             subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                                             isExpanded = isLeftUnifiedGesturesExpanded,
                                                             onToggle = {
@@ -736,6 +758,14 @@ fun SidebarMatrixConfigurationFields(
                                             item(key = "left_top") {
                                                 CompactAccordionSection(
                                                     title = "Left Deflector — Upper Vector Zone",
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.KeyboardArrowUp,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    },
                                                     isExpanded = isLeftTopExpanded,
                                                     onToggle = {
                                                         toggleSection(0, "left_top", isLeftTopExpanded) { isLeftTopExpanded = it }
@@ -747,7 +777,7 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "📐 Touch Vector Geometry & Position",
+                                                            title = "Touch Vector Geometry & Position",
                                                             subtitle = "Upper deflector span, touch reach & stealth glow",
                                                             isExpanded = isLeftTopGeoExpanded,
                                                             onToggle = {
@@ -761,7 +791,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "🎛️ Inward Scrubbing Control",
+                                                            title = "Inward Scrubbing Control",
                                                             subtitle = "Upper vector inward sweep scrubber",
                                                             isExpanded = isLeftTopScrubExpanded,
                                                             onToggle = {
@@ -773,7 +803,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                                            title = "Gesture Actions & Macro Mappings",
                                                             subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                                             isExpanded = isLeftTopGesturesExpanded,
                                                             onToggle = {
@@ -797,6 +827,14 @@ fun SidebarMatrixConfigurationFields(
                                             item(key = "left_bottom") {
                                                 CompactAccordionSection(
                                                     title = "Left Deflector — Lower Vector Zone",
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.KeyboardArrowDown,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    },
                                                     isExpanded = isLeftBottomExpanded,
                                                     onToggle = {
                                                         toggleSection(0, "left_bottom", isLeftBottomExpanded) { isLeftBottomExpanded = it }
@@ -808,7 +846,7 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "📐 Touch Vector Geometry & Position",
+                                                            title = "Touch Vector Geometry & Position",
                                                             subtitle = "Lower deflector span, touch reach & stealth glow",
                                                             isExpanded = isLeftBottomGeoExpanded,
                                                             onToggle = {
@@ -822,7 +860,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "🎛️ Inward Scrubbing Control",
+                                                            title = "Inward Scrubbing Control",
                                                             subtitle = "Lower vector inward sweep scrubber",
                                                             isExpanded = isLeftBottomScrubExpanded,
                                                             onToggle = {
@@ -834,7 +872,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                                            title = "Gesture Actions & Macro Mappings",
                                                             subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                                             isExpanded = isLeftBottomGesturesExpanded,
                                                             onToggle = {
@@ -913,6 +951,14 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "sensor_deck") {
                                             CompactAccordionSection(
                                                 title = "Sensor Deck",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Sensors,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
                                                 isExpanded = isSensorDeckExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "sensor_deck", isSensorDeckExpanded) { isSensorDeckExpanded = it }
@@ -936,12 +982,15 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // 1. Geometry & Sensitivity
                                                     CollapsibleSubSection(
-                                                        title = "📐 Touch Vector Geometry & Sensitivity",
+                                                        title = "Touch Vector Geometry & Sensitivity",
                                                         subtitle = "Horizon rail span, thickness, offset & idle glow",
                                                         isExpanded = isStatusBarGeoExpanded,
                                                         onToggle = {
                                                             isStatusBarGeoExpanded = !isStatusBarGeoExpanded
-                                                            prefs.edit().putBoolean("pref_sub_geo_statusbar", isStatusBarGeoExpanded).apply()
+                                                            prefs.edit()
+                                                                .putBoolean("pref_sub_geo_statusbar", isStatusBarGeoExpanded)
+                                                                .putBoolean("pref_statusbar_preview", isSensorDeckExpanded && isStatusBarGeoExpanded)
+                                                                .apply()
                                                         }
                                                     ) {
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Horizon Rail Span (≥1000 = full width)", 50, 1080, 10, 1080)
@@ -952,22 +1001,25 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
                                                     }
 
-                                                    // 2. Scrubbers
-                                                    CollapsibleSubSection(
-                                                        title = "🎛️ Pull-Down Scrubbing Control",
-                                                        subtitle = "Horizontal scrubbing selector for sensor bar",
-                                                        isExpanded = isStatusBarScrubExpanded,
-                                                        onToggle = {
-                                                            isStatusBarScrubExpanded = !isStatusBarScrubExpanded
-                                                            prefs.edit().putBoolean("pref_sub_scrub_statusbar", isStatusBarScrubExpanded).apply()
+                                                    // 2. Scrubbers (Gated: only available if rail thickness >= 12dp)
+                                                    val horizonThickness = prefs.getInt("pref_statusbar_thickness", 48)
+                                                    if (horizonThickness >= 12) {
+                                                        CollapsibleSubSection(
+                                                            title = "Pull-Down Scrubbing Control",
+                                                            subtitle = "Horizontal scrubbing selector for sensor bar",
+                                                            isExpanded = isStatusBarScrubExpanded,
+                                                            onToggle = {
+                                                                isStatusBarScrubExpanded = !isStatusBarScrubExpanded
+                                                                prefs.edit().putBoolean("pref_sub_scrub_statusbar", isStatusBarScrubExpanded).apply()
+                                                            }
+                                                        ) {
+                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Pull Down & Scrub Across", listOf("none", "system:screen_timeout", "system:brightness", "system:volume"), tokenLabelCache)
                                                         }
-                                                    ) {
-                                                        GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Pull Down & Scrub Across", listOf("none", "system:screen_timeout", "system:brightness", "system:volume"), tokenLabelCache)
                                                     }
 
                                                     // 3. Gestures
                                                     CollapsibleSubSection(
-                                                        title = "⚡ Sensor Deck Gestures & Macros",
+                                                        title = "Sensor Deck Gestures & Macros",
                                                         subtitle = "Tap, double-tap, left & right swipes with Hold Modifiers",
                                                         isExpanded = isStatusBarGesturesExpanded,
                                                         onToggle = {
@@ -998,6 +1050,14 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "telemetry_indicators") {
                                             CompactAccordionSection(
                                                 title = "Telemetry & Indicators",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Speed,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
                                                 isExpanded = isTelemetryExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "telemetry_indicators", isTelemetryExpanded) { isTelemetryExpanded = it }
@@ -1067,10 +1127,16 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                             DropdownMenu(
                                                                 expanded = isDlDropdownOpen,
-                                                                onDismissRequest = { isDlDropdownOpen = false }
+                                                                onDismissRequest = { isDlDropdownOpen = false },
+                                                                modifier = Modifier
+                                                                    .background(Color(0xF012141A))
+                                                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                shape = RoundedCornerShape(16.dp),
+                                                                containerColor = Color(0xF012141A)
                                                             ) {
                                                                 routingOptions.forEach { (key, label) ->
                                                                     DropdownMenuItem(
+                                                                        modifier = Modifier.heightIn(min = 48.dp),
                                                                         text = { Text(label) },
                                                                         onClick = {
                                                                             isDlDropdownOpen = false
@@ -1110,10 +1176,16 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                             DropdownMenu(
                                                                 expanded = isMediaDropdownOpen,
-                                                                onDismissRequest = { isMediaDropdownOpen = false }
+                                                                onDismissRequest = { isMediaDropdownOpen = false },
+                                                                modifier = Modifier
+                                                                    .background(Color(0xF012141A))
+                                                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                shape = RoundedCornerShape(16.dp),
+                                                                containerColor = Color(0xF012141A)
                                                             ) {
                                                                 routingOptions.forEach { (key, label) ->
                                                                     DropdownMenuItem(
+                                                                        modifier = Modifier.heightIn(min = 48.dp),
                                                                         text = { Text(label) },
                                                                         onClick = {
                                                                             isMediaDropdownOpen = false
@@ -1131,7 +1203,7 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // Orbital Capsule Calibration
                                                     CollapsibleSubSection(
-                                                        title = "📐 Orbital Capsule Calibration",
+                                                        title = "Orbital Capsule Calibration",
                                                         subtitle = "Live alignment, offsets & expansion",
                                                         isExpanded = isNotchCalibExpanded,
                                                         onToggle = {
@@ -1232,10 +1304,16 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                                 DropdownMenu(
                                                                     expanded = isCapsuleDropdownOpen,
-                                                                    onDismissRequest = { isCapsuleDropdownOpen = false }
+                                                                    onDismissRequest = { isCapsuleDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
                                                                 ) {
                                                                     capsuleOptions.forEach { (key, label) ->
                                                                         DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
                                                                             text = { Text(label) },
                                                                             onClick = {
                                                                                 isCapsuleDropdownOpen = false
@@ -1257,7 +1335,7 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // Title Overflow & Marquee Engine
                                                     CollapsibleSubSection(
-                                                        title = "📜 Title Overflow & Marquee Engine",
+                                                        title = "Title Overflow & Marquee Engine",
                                                         subtitle = "Marquee speed, pause delays, clipping & truncation",
                                                         isExpanded = isMarqueeSubSectionExpanded,
                                                         onToggle = {
@@ -1306,8 +1384,16 @@ fun SidebarMatrixConfigurationFields(
                                                     }
 
                                                     CollapsibleSubSection(
-                                                        title = "🧭 System Attitude & Orientation Engine",
+                                                        title = "Synthetic Gravity Engine",
                                                         subtitle = "Auto-rotate, face detection, 2x2 mode buckets & context guardrails",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.Rotate90DegreesCw,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
                                                         isExpanded = isOrientationSubSectionExpanded,
                                                         onToggle = {
                                                             isOrientationSubSectionExpanded = !isOrientationSubSectionExpanded
@@ -1507,10 +1593,16 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                                 DropdownMenu(
                                                                     expanded = isOrientationDropdownOpen,
-                                                                    onDismissRequest = { isOrientationDropdownOpen = false }
+                                                                    onDismissRequest = { isOrientationDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
                                                                 ) {
                                                                     orientationOptions.forEach { (key, label) ->
                                                                         DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
                                                                             text = { Text(label) },
                                                                             onClick = {
                                                                                 isOrientationDropdownOpen = false
@@ -1544,45 +1636,6 @@ fun SidebarMatrixConfigurationFields(
                                                                 onRefreshNeeded()
                                                             }
                                                         )
-
-                                                        // Quick Attitude Overrides
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                            Text("QUICK ATTITUDE OVERRIDES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                                Button(
-                                                                    onClick = { LightspeedOrientationEngine.forcePortrait(context) },
-                                                                    modifier = Modifier.weight(1f),
-                                                                    shape = RoundedCornerShape(10.dp),
-                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                                                                ) {
-                                                                    Text("Force 0°", fontSize = 11.sp, color = Color.White)
-                                                                }
-                                                                Button(
-                                                                    onClick = { LightspeedOrientationEngine.setSensorPortrait(context) },
-                                                                    modifier = Modifier.weight(1f),
-                                                                    shape = RoundedCornerShape(10.dp),
-                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                                                                ) {
-                                                                    Text("0°/180° Port", fontSize = 11.sp, color = Color.White)
-                                                                }
-                                                                Button(
-                                                                    onClick = { LightspeedOrientationEngine.forceLandscape(context) },
-                                                                    modifier = Modifier.weight(1f),
-                                                                    shape = RoundedCornerShape(10.dp),
-                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                                                                ) {
-                                                                    Text("Landscape", fontSize = 11.sp, color = Color.White)
-                                                                }
-                                                                Button(
-                                                                    onClick = { LightspeedOrientationEngine.forceSensor360(context) },
-                                                                    modifier = Modifier.weight(1f),
-                                                                    shape = RoundedCornerShape(10.dp),
-                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                                                                ) {
-                                                                    Text("Gyro 360°", fontSize = 11.sp, color = Color.White)
-                                                                }
-                                                            }
-                                                        }
                                                     }
                                                 }
                                             }
@@ -1592,6 +1645,14 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "tactical_hardware") {
                                             CompactAccordionSection(
                                                 title = "Tactical Hardware Deck",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Tune,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
                                                 isExpanded = isTacticalHardwareExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "tactical_hardware", isTacticalHardwareExpanded) { isTacticalHardwareExpanded = it }
@@ -1617,8 +1678,16 @@ fun SidebarMatrixConfigurationFields(
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     // Volume Key Matrix (Combos & Chords)
                                                     CollapsibleSubSection(
-                                                        title = "🎛️ Volume Key Matrix",
+                                                        title = "Volume Key Matrix",
                                                         subtitle = "Hardware chording, sequences, hold auto-repeat & suppression",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.Tune,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
                                                         isExpanded = isSubVolumeExpanded,
                                                         onToggle = {
                                                             isSubVolumeExpanded = !isSubVolumeExpanded
@@ -1758,14 +1827,14 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         val volumeGestures = listOf(
-                                                            Triple(LightspeedPreferences.KEY_VOL_UP_LONG_PRESS, "Volume Up Long Press (~400ms)", "[ VOL ▲ ] (HOLD)"),
-                                                            Triple(LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS, "Volume Down Long Press (~400ms)", "[ VOL ▼ ] (HOLD)"),
-                                                            Triple(LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP, "Hold Vol Down + Tap Vol Up", "[ VOL ▼ ] + [ VOL ▲ ]"),
-                                                            Triple(LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP, "Hold Vol Up + Tap Vol Down", "[ VOL ▲ ] + [ VOL ▼ ]"),
-                                                            Triple(LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<300ms)", "[ VOL ▲ ] ➔ [ VOL ▼ ]"),
-                                                            Triple(LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<300ms)", "[ VOL ▼ ] ➔ [ VOL ▲ ]"),
-                                                            Triple(LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD, "Tap Vol Down → Hold Vol Up (~400ms)", "[ VOL ▼ ] ➔ [ VOL ▲ ] (HOLD)"),
-                                                            Triple(LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD, "Tap Vol Up → Hold Vol Down (~400ms)", "[ VOL ▲ ] ➔ [ VOL ▼ ] (HOLD)")
+                                                            Triple(LightspeedPreferences.KEY_VOL_UP_LONG_PRESS, "Volume Up Long Press (~400ms)", "VOL ▲ (HOLD)"),
+                                                            Triple(LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS, "Volume Down Long Press (~400ms)", "VOL ▼ (HOLD)"),
+                                                            Triple(LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP, "Hold Vol Down + Tap Vol Up", "VOL ▼ + VOL ▲"),
+                                                            Triple(LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP, "Hold Vol Up + Tap Vol Down", "VOL ▲ + VOL ▼"),
+                                                            Triple(LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<300ms)", "VOL ▲ ➔ VOL ▼"),
+                                                            Triple(LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<300ms)", "VOL ▼ ➔ VOL ▲"),
+                                                            Triple(LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD, "Tap Vol Down → Hold Vol Up (~400ms)", "VOL ▼ ➔ VOL ▲ (HOLD)"),
+                                                            Triple(LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD, "Tap Vol Up → Hold Vol Down (~400ms)", "VOL ▲ ➔ VOL ▼ (HOLD)")
                                                         )
 
                                                         volumeGestures.forEach { (prefKey, title, badge) ->
@@ -1786,8 +1855,16 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // Power Button Engine
                                                     CollapsibleSubSection(
-                                                        title = "⚡ Power Button Engine",
+                                                        title = "Power Button Engine",
                                                         subtitle = "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.PowerSettingsNew,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
                                                         isExpanded = isSubPowerExpanded,
                                                         onToggle = {
                                                             isSubPowerExpanded = !isSubPowerExpanded
@@ -1867,7 +1944,7 @@ fun SidebarMatrixConfigurationFields(
                                                                 )
                                                                 Spacer(modifier = Modifier.width(8.dp))
                                                                 Text(
-                                                                    text = "⚠️ Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
+                                                                    text = "Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
                                                                     fontSize = 11.sp,
                                                                     color = Color.LightGray.copy(alpha = 0.85f),
                                                                     lineHeight = 14.sp
@@ -1878,8 +1955,16 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // Hull Tap Sensors (Back Tap)
                                                     CollapsibleSubSection(
-                                                        title = "🎯 Hull Tap Sensors",
+                                                        title = "Hull Tap Sensors",
                                                         subtitle = "Accelerometer Z-axis impulse detection for double & triple back taps",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.TouchApp,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
                                                         isExpanded = isSubHullTapExpanded,
                                                         onToggle = {
                                                             isSubHullTapExpanded = !isSubHullTapExpanded
@@ -1892,6 +1977,10 @@ fun SidebarMatrixConfigurationFields(
                                                             isChecked = prefs.getBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, false),
                                                             onCheckedChange = { checked ->
                                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, checked).apply()
+                                                                if (!checked) {
+                                                                    currentZImpulse = 0f
+                                                                    thresholdCrossedFlash = false
+                                                                }
                                                                 onRefreshNeeded()
                                                             }
                                                         )
@@ -1900,8 +1989,8 @@ fun SidebarMatrixConfigurationFields(
                                                         var isScopeDropdownOpen by remember { mutableStateOf(false) }
                                                         val scopeOptions = listOf(
                                                             "screen_on" to "Screen On Only",
-                                                            "screen_off" to "Screen Off (⚡ High Drain)",
-                                                            "always" to "Always (⚡ High Drain)"
+                                                            "screen_off" to "Screen Off (High Drain)",
+                                                            "always" to "Always (High Drain)"
                                                         )
 
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -1924,10 +2013,16 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                                 DropdownMenu(
                                                                     expanded = isScopeDropdownOpen,
-                                                                    onDismissRequest = { isScopeDropdownOpen = false }
+                                                                    onDismissRequest = { isScopeDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
                                                                 ) {
                                                                     scopeOptions.forEach { (key, label) ->
                                                                         DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
                                                                             text = { Text(label) },
                                                                             onClick = {
                                                                                 isScopeDropdownOpen = false
@@ -2104,6 +2199,14 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "refueling_bay") {
                                             CompactAccordionSection(
                                                 title = "Refueling Bay",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.BatteryChargingFull,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
                                                 isExpanded = isRefuelingExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "refueling_bay", isRefuelingExpanded) { isRefuelingExpanded = it }
@@ -2111,6 +2214,23 @@ fun SidebarMatrixConfigurationFields(
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                    val isInfinixOrTranssion = remember {
+                                                        val m = android.os.Build.MANUFACTURER.lowercase()
+                                                        val b = android.os.Build.BRAND.lowercase()
+                                                        m.contains("infinix") || m.contains("transsion") || m.contains("tecno") || m.contains("itel") ||
+                                                        b.contains("infinix") || b.contains("transsion") || b.contains("tecno") || b.contains("itel")
+                                                    }
+                                                    var isWarningDismissed by remember { mutableStateOf(prefs.getBoolean("pref_infinix_standby_warning_dismissed", false)) }
+
+                                                    if (isInfinixOrTranssion && !isWarningDismissed) {
+                                                        com.sbf.lightspeed.InfinixStandbyWarningBanner(
+                                                            onDismiss = {
+                                                                isWarningDismissed = true
+                                                                prefs.edit().putBoolean("pref_infinix_standby_warning_dismissed", true).apply()
+                                                            }
+                                                        )
+                                                    }
+
                                                     val currentTrigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
                                                     var isTriggerDropdownOpen by remember { mutableStateOf(false) }
                                                     val triggerOptions = listOf(
@@ -2148,10 +2268,16 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                             DropdownMenu(
                                                                 expanded = isTriggerDropdownOpen,
-                                                                onDismissRequest = { isTriggerDropdownOpen = false }
+                                                                onDismissRequest = { isTriggerDropdownOpen = false },
+                                                                modifier = Modifier
+                                                                    .background(Color(0xF012141A))
+                                                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                shape = RoundedCornerShape(16.dp),
+                                                                containerColor = Color(0xF012141A)
                                                             ) {
                                                                 triggerOptions.forEach { (key, label) ->
                                                                     DropdownMenuItem(
+                                                                        modifier = Modifier.heightIn(min = 48.dp),
                                                                         text = { Text(label) },
                                                                         onClick = {
                                                                             isTriggerDropdownOpen = false
@@ -2194,10 +2320,16 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                             DropdownMenu(
                                                                 expanded = isTimeoutDropdownOpen,
-                                                                onDismissRequest = { isTimeoutDropdownOpen = false }
+                                                                onDismissRequest = { isTimeoutDropdownOpen = false },
+                                                                modifier = Modifier
+                                                                    .background(Color(0xF012141A))
+                                                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                shape = RoundedCornerShape(16.dp),
+                                                                containerColor = Color(0xF012141A)
                                                             ) {
                                                                 timeoutOptions.forEach { (key, label) ->
                                                                     DropdownMenuItem(
+                                                                        modifier = Modifier.heightIn(min = 48.dp),
                                                                         text = { Text(label) },
                                                                         onClick = {
                                                                             isTimeoutDropdownOpen = false
@@ -2249,6 +2381,14 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "config_vault") {
                                             CompactAccordionSection(
                                                 title = "Configuration Vault",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Lock,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
                                                 isExpanded = isConfigVaultExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "config_vault", isConfigVaultExpanded) { isConfigVaultExpanded = it }
@@ -2364,7 +2504,7 @@ fun SidebarMatrixConfigurationFields(
                                                             Icon(Icons.Default.WarningAmber, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(18.dp))
                                                             Spacer(modifier = Modifier.width(8.dp))
                                                             Text(
-                                                                text = "⚠️ Experimental Labs: Features in this deck are unstable and/or not well tested yet. Use at your own discretion.",
+                                                                text = "Experimental Labs: Features in this deck are unstable and/or not well tested yet. Use at your own discretion.",
                                                                 fontSize = 11.sp,
                                                                 color = cautionAmber.copy(alpha = 0.95f),
                                                                 lineHeight = 14.sp
@@ -2375,8 +2515,16 @@ fun SidebarMatrixConfigurationFields(
                                                     // 1. Space Watchdog
                                                     var isWatchdogExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_watchdog_labs", true)) }
                                                     CollapsibleSubSection(
-                                                        title = "🛰️ Space Watchdog",
+                                                        title = "Space Watchdog",
                                                         subtitle = "Auto-revives Accessibility Service via Shizuku if stopped by battery optimizer.",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.Shield,
+                                                                contentDescription = null,
+                                                                tint = cautionAmber,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
                                                         isExpanded = isWatchdogExpanded,
                                                         onToggle = {
                                                             isWatchdogExpanded = !isWatchdogExpanded
@@ -2468,8 +2616,16 @@ fun SidebarMatrixConfigurationFields(
                                                     // 2. Core Cooling Schedule
                                                     var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
                                                     CollapsibleSubSection(
-                                                        title = "❄️ Core Cooling Schedule",
+                                                        title = "Core Cooling Schedule",
                                                         subtitle = "Configurable weekly maintenance reminder",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.AcUnit,
+                                                                contentDescription = null,
+                                                                tint = cautionAmber,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
                                                         isExpanded = isCoreCoolingExpanded,
                                                         onToggle = {
                                                             isCoreCoolingExpanded = !isCoreCoolingExpanded
@@ -2529,10 +2685,16 @@ fun SidebarMatrixConfigurationFields(
 
                                                                     DropdownMenu(
                                                                         expanded = isDayDropdownOpen,
-                                                                        onDismissRequest = { isDayDropdownOpen = false }
+                                                                        onDismissRequest = { isDayDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
                                                                     ) {
                                                                         daysList.forEach { (calDay, name) ->
                                                                             DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
                                                                                 text = { Text(name, fontWeight = if (targetDay == calDay) FontWeight.Bold else FontWeight.Normal) },
                                                                                 onClick = {
                                                                                     targetDay = calDay
@@ -2570,11 +2732,17 @@ fun SidebarMatrixConfigurationFields(
 
                                                                     DropdownMenu(
                                                                         expanded = isHourDropdownOpen,
-                                                                        onDismissRequest = { isHourDropdownOpen = false }
+                                                                        onDismissRequest = { isHourDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
                                                                     ) {
                                                                         (0..23).forEach { hour ->
                                                                             val label = String.format(Locale.US, "%02d:00 (%s)", hour, if (hour < 12) if (hour == 0) "12 AM" else "$hour AM" else if (hour == 12) "12 PM" else "${hour - 12} PM")
                                                                             DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
                                                                                 text = { Text(label, fontWeight = if (targetHour == hour) FontWeight.Bold else FontWeight.Normal) },
                                                                                 onClick = {
                                                                                     targetHour = hour
@@ -2597,7 +2765,7 @@ fun SidebarMatrixConfigurationFields(
                                                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
                                                         ) {
                                                             Text(
-                                                                text = "🛡️ STRICT COLD-START POLICY: Zero automatic reboots. When weekly cooling cycle is reached, dispatches a silent status reminder to the HUD and Orbital Capsule.",
+                                                                text = "STRICT COLD-START POLICY: Zero automatic reboots. When weekly cooling cycle is reached, dispatches a silent status reminder to the HUD and Orbital Capsule.",
                                                                 fontSize = 10.5.sp,
                                                                 color = Color.LightGray.copy(alpha = 0.8f),
                                                                 modifier = Modifier.padding(10.dp),
@@ -2686,6 +2854,14 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "center") {
                                             CompactAccordionSection(
                                                 title = "Right Deflector — Astrogation Core Zone",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Navigation,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
                                                 isExpanded = isCenterExpanded,
                                                 onToggle = {
                                                     toggleSection(2, "center", isCenterExpanded) { isCenterExpanded = it }
@@ -2697,7 +2873,7 @@ fun SidebarMatrixConfigurationFields(
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     CollapsibleSubSection(
-                                                        title = "📐 Touch Vector Geometry & Position",
+                                                        title = "Touch Vector Geometry & Position",
                                                         subtitle = "Deflector span, touch reach, offset & stealth glow",
                                                         isExpanded = isCenterGeoExpanded,
                                                         onToggle = {
@@ -2719,6 +2895,14 @@ fun SidebarMatrixConfigurationFields(
                                             item(key = "unified") {
                                                 CompactAccordionSection(
                                                     title = "Right Deflector — Flank Vector Zones (Upper & Lower)",
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.SwapVert,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    },
                                                     isExpanded = isRightUnifiedExpanded,
                                                     onToggle = {
                                                         toggleSection(2, "unified", isRightUnifiedExpanded) { isRightUnifiedExpanded = it }
@@ -2730,7 +2914,7 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "📐 Upper & Lower Deflector Geometry",
+                                                            title = "Upper & Lower Deflector Geometry",
                                                             subtitle = "Independent height, touch reach & stealth glow",
                                                             isExpanded = isRightUnifiedGeoExpanded,
                                                             onToggle = {
@@ -2738,20 +2922,20 @@ fun SidebarMatrixConfigurationFields(
                                                                 prefs.edit().putBoolean("pref_sub_geo_unified", isRightUnifiedGeoExpanded).apply()
                                                             }
                                                         ) {
-                                                            Text("📐 UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Upper Deflector Span (Height)", 50, 600, 10, 200)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
 
                                                             Spacer(modifier = Modifier.height(4.dp))
-                                                            Text("📐 LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Text("LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Lower Deflector Span (Height)", 50, 600, 10, 200)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "🎛️ Dual Inward Scrubber Controls",
+                                                            title = "Dual Inward Scrubber Controls",
                                                             subtitle = "Independent upper & lower half scrubbers",
                                                             isExpanded = isRightUnifiedScrubExpanded,
                                                             onToggle = {
@@ -2764,7 +2948,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "⚡ Unified Gesture Matrix",
+                                                            title = "Unified Gesture Matrix",
                                                             subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                                             isExpanded = isRightUnifiedGesturesExpanded,
                                                             onToggle = {
@@ -2788,6 +2972,14 @@ fun SidebarMatrixConfigurationFields(
                                             item(key = "top") {
                                                 CompactAccordionSection(
                                                     title = "Right Deflector — Upper Vector Zone",
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.KeyboardArrowUp,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    },
                                                     isExpanded = isTopExpanded,
                                                     onToggle = {
                                                         toggleSection(2, "top", isTopExpanded) { isTopExpanded = it }
@@ -2800,7 +2992,7 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "📐 Touch Vector Geometry & Position",
+                                                            title = "Touch Vector Geometry & Position",
                                                             subtitle = "Upper deflector span, touch reach & stealth glow",
                                                             isExpanded = isTopGeoExpanded,
                                                             onToggle = {
@@ -2814,7 +3006,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "🎛️ Inward Scrubbing Control",
+                                                            title = "Inward Scrubbing Control",
                                                             subtitle = "Upper vector inward sweep scrubber",
                                                             isExpanded = isTopScrubExpanded,
                                                             onToggle = {
@@ -2826,7 +3018,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                                            title = "Gesture Actions & Macro Mappings",
                                                             subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                                             isExpanded = isTopGesturesExpanded,
                                                             onToggle = {
@@ -2850,6 +3042,14 @@ fun SidebarMatrixConfigurationFields(
                                             item(key = "bottom") {
                                                 CompactAccordionSection(
                                                     title = "Right Deflector — Lower Vector Zone",
+                                                    icon = {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.KeyboardArrowDown,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    },
                                                     isExpanded = isBottomExpanded,
                                                     onToggle = {
                                                         toggleSection(2, "bottom", isBottomExpanded) { isBottomExpanded = it }
@@ -2862,7 +3062,7 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "📐 Touch Vector Geometry & Position",
+                                                            title = "Touch Vector Geometry & Position",
                                                             subtitle = "Lower deflector span, touch reach & stealth glow",
                                                             isExpanded = isBottomGeoExpanded,
                                                             onToggle = {
@@ -2876,7 +3076,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "🎛️ Inward Scrubbing Control",
+                                                            title = "Inward Scrubbing Control",
                                                             subtitle = "Lower vector inward sweep scrubber",
                                                             isExpanded = isBottomScrubExpanded,
                                                             onToggle = {
@@ -2888,7 +3088,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         CollapsibleSubSection(
-                                                            title = "⚡ Gesture Actions & Macro Mappings",
+                                                            title = "Gesture Actions & Macro Mappings",
                                                             subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
                                                             isExpanded = isBottomGesturesExpanded,
                                                             onToggle = {
@@ -3611,12 +3811,19 @@ fun TabAccordionPopover(
                                     Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
                                     if (modeKey == "custom_pinned" && pinnedSectionId != null) {
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            "[Anchor: ${sectionTitles[pinnedSectionId] ?: pinnedSectionId}]",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            border = androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                                        ) {
+                                            Text(
+                                                text = "Anchor: ${sectionTitles[pinnedSectionId] ?: pinnedSectionId}",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(2.dp))

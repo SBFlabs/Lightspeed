@@ -49,6 +49,11 @@ object LightspeedActionRegistry {
         "system:notifications",
         "system:quick_settings",
         "system:scroll_to_top",
+        "system:gravity_reset",
+        "system:gravity_toggle_master",
+        "system:gravity_override_360",
+        "system:gravity_override_landscape",
+        "system:gravity_override_portrait",
         "system:orientation_toggle",
         "system:orientation_portrait",
         "system:orientation_sensor_360",
@@ -250,10 +255,11 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
-        token == "system:orientation_toggle" -> "Orientation: Toggle Auto-Rotate"
-        token == "system:orientation_portrait" -> "Orientation: Force Portrait (0°)"
-        token == "system:orientation_sensor_360" -> "Orientation: Sensor 360° (Full 4-Way)"
-        token == "system:orientation_sensor_portrait" -> "Orientation: Sensor Portrait (0° / 180°)"
+        token == "system:gravity_reset" || token == "ACTION_GRAVITY_RESET" -> "Restore Default Gravity"
+        token == "system:gravity_toggle_master" || token == "ACTION_GRAVITY_TOGGLE_MASTER" || token == "system:orientation_toggle" -> "Toggle Master Auto-Rotate"
+        token == "system:gravity_override_360" || token == "ACTION_GRAVITY_OVERRIDE_360" || token == "system:orientation_sensor_360" -> "Force Transient 360° Gyro"
+        token == "system:gravity_override_landscape" || token == "ACTION_GRAVITY_OVERRIDE_LANDSCAPE" -> "Force Transient Landscape"
+        token == "system:gravity_override_portrait" || token == "ACTION_GRAVITY_OVERRIDE_PORTRAIT" || token == "system:orientation_portrait" || token == "system:orientation_sensor_portrait" -> "Force Transient Portrait"
 
         token == "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
         token == "system:volume" -> "Volume (Media Scrubber)"

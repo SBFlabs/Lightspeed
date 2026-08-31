@@ -91,17 +91,20 @@ object ActionDispatcher {
                 ElevatedTaskCloser.closeTopApp(context)
             }
             token == "system:scroll_to_top" || token == "ACTION_SCROLL_TO_TOP" || token == "scroll_to_top" -> onScrollToTop()
-            token == LightspeedOrientationManager.ACTION_TOGGLE_ROTATION || token == "system:orientation_toggle" || token == "orientation_toggle" -> {
-                LightspeedOrientationManager.toggleRotation(context)
+            token == LightspeedOrientationManager.ACTION_GRAVITY_RESET || token == "system:gravity_reset" || token == "ACTION_GRAVITY_RESET" -> {
+                LightspeedOrientationManager.resetGravity(context)
             }
-            token == LightspeedOrientationManager.ACTION_FORCE_PORTRAIT || token == "system:orientation_portrait" || token == "orientation_portrait" -> {
-                LightspeedOrientationManager.forcePortrait(context)
+            token == LightspeedOrientationManager.ACTION_GRAVITY_TOGGLE_MASTER || token == "system:gravity_toggle_master" || token == LightspeedOrientationManager.ACTION_TOGGLE_ROTATION || token == "system:orientation_toggle" || token == "orientation_toggle" -> {
+                LightspeedOrientationManager.toggleMasterAutoRotate(context)
             }
-            token == LightspeedOrientationManager.ACTION_FORCE_SENSOR_360 || token == "system:orientation_sensor_360" || token == "orientation_sensor_360" -> {
-                LightspeedOrientationManager.forceSensor360(context)
+            token == LightspeedOrientationManager.ACTION_GRAVITY_OVERRIDE_360 || token == "system:gravity_override_360" || token == LightspeedOrientationManager.ACTION_FORCE_SENSOR_360 || token == "system:orientation_sensor_360" || token == "orientation_sensor_360" -> {
+                LightspeedOrientationManager.overrideTransient360(context)
             }
-            token == LightspeedOrientationManager.ACTION_SENSOR_PORTRAIT || token == "system:orientation_sensor_portrait" || token == "orientation_sensor_portrait" -> {
-                LightspeedOrientationManager.setSensorPortrait(context)
+            token == LightspeedOrientationManager.ACTION_GRAVITY_OVERRIDE_LANDSCAPE || token == "system:gravity_override_landscape" -> {
+                LightspeedOrientationManager.overrideTransientLandscape(context)
+            }
+            token == LightspeedOrientationManager.ACTION_GRAVITY_OVERRIDE_PORTRAIT || token == "system:gravity_override_portrait" || token == LightspeedOrientationManager.ACTION_FORCE_PORTRAIT || token == "system:orientation_portrait" || token == "orientation_portrait" || token == LightspeedOrientationManager.ACTION_SENSOR_PORTRAIT || token == "system:orientation_sensor_portrait" || token == "orientation_sensor_portrait" -> {
+                LightspeedOrientationManager.overrideTransientPortrait(context)
             }
             token == "system:home" || token == "ACTION_HOME" || token == "home" -> {
                 if (service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME) != true) {

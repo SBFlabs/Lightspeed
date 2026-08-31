@@ -362,7 +362,7 @@ fun GuidebookBottomSheet(
                             // Body Content based on View Mode
                             if (viewMode == GuidebookViewMode.BILINGUAL || viewMode == GuidebookViewMode.VESSEL_LORE_ONLY) {
                                 Text(
-                                    text = "🚀 Vessel Protocol: ${entry.vesselLore}",
+                                    text = "Vessel Protocol: ${entry.vesselLore}",
                                     fontSize = 12.sp,
                                     color = Color.White.copy(alpha = 0.85f),
                                     lineHeight = 16.sp
@@ -371,7 +371,7 @@ fun GuidebookBottomSheet(
 
                             if (viewMode == GuidebookViewMode.BILINGUAL || viewMode == GuidebookViewMode.TACTICAL_ANDROID_ONLY) {
                                 Text(
-                                    text = "📱 Android Utility: ${entry.androidUtility}",
+                                    text = "Android Utility: ${entry.androidUtility}",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
                                     lineHeight = 16.sp

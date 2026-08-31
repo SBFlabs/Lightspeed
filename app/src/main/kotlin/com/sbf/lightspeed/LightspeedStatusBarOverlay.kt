@@ -463,8 +463,11 @@ class LightspeedStatusBarOverlay(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        val isCentralCommandVisible = com.sbf.lightspeed.settings.SidebarSettingsActivity.isActive
+        val isGeoExpanded = prefs.getBoolean("pref_sub_geo_statusbar", true)
         val isPreview  = prefs.getBoolean("pref_statusbar_preview", false)
         val isExpanded = prefs.getBoolean("pref_section_statusbar_expanded", false)
+        val isGeometryPreviewActive = isCentralCommandVisible && isPreview && isExpanded && isGeoExpanded
         val transparencyPct = prefs.getInt("pref_statusbar_transparency", 0)
         val d = resources.displayMetrics.density
         val screenW = resources.displayMetrics.widthPixels.toFloat()
@@ -477,8 +480,8 @@ class LightspeedStatusBarOverlay(
             Color.parseColor("#90CAF9")
         }
 
-        if (isPreview && isExpanded) {
-            // Live Preview — only when settings tab is active
+        if (isGeometryPreviewActive) {
+            // Live Preview — strictly when Central Command is active in foreground AND Touch Vector Geometry is expanded
             debugPaint.style = Paint.Style.FILL
             debugPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(RectF(0f, 0f, w, h), 8f * d, 8f * d, debugPaint)

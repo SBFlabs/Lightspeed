@@ -198,6 +198,7 @@ fun CompactAccordionSection(
     title: String,
     isExpanded: Boolean,
     onToggle: () -> Unit,
+    icon: (@Composable () -> Unit)? = null,
     headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
@@ -215,6 +216,10 @@ fun CompactAccordionSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (icon != null) {
+                    icon()
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
                 Text(
                     text = title,
                     fontWeight = FontWeight.Bold,
@@ -690,7 +695,12 @@ fun GestureMappingRow(
 
                         DropdownMenu(
                             expanded = showMediaQuickMenu,
-                            onDismissRequest = { showMediaQuickMenu = false }
+                            onDismissRequest = { showMediaQuickMenu = false },
+                            modifier = Modifier
+                                .background(Color(0xF012141A))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color(0xF012141A)
                         ) {
                             val skipSec = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
                             val mediaItems = listOf(
@@ -706,6 +716,7 @@ fun GestureMappingRow(
                             mediaItems.forEach { (token, title) ->
                                 val isSelected = currentRawValue == token
                                 DropdownMenuItem(
+                                    modifier = Modifier.heightIn(min = 48.dp),
                                     text = {
                                         Text(
                                             text = if (isSelected) "✓ $title" else title,
@@ -753,13 +764,22 @@ fun GestureMappingRow(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
                             )
                         }
-                        DropdownMenu(expanded = showHudMenu, onDismissRequest = { showHudMenu = false }) {
+                        DropdownMenu(
+                            expanded = showHudMenu,
+                            onDismissRequest = { showHudMenu = false },
+                            modifier = Modifier
+                                .background(Color(0xF012141A))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color(0xF012141A)
+                        ) {
                             listOf(
                                 "canopy_droppod" to "Tactical Canopy Drop-Pod",
                                 "cockpit_reticle" to "Holographic Cockpit Reticle",
                                 "edge_blade" to "Dynamic Edge Blade"
                             ).forEach { (styleKey, styleTitle) ->
                                 DropdownMenuItem(
+                                    modifier = Modifier.heightIn(min = 48.dp),
                                     text = {
                                         Text(
                                             text = if (styleKey == hudStyle) "✓ $styleTitle" else styleTitle,
@@ -802,9 +822,18 @@ fun GestureMappingRow(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
                             )
                         }
-                        DropdownMenu(expanded = showSkipMenu, onDismissRequest = { showSkipMenu = false }) {
+                        DropdownMenu(
+                            expanded = showSkipMenu,
+                            onDismissRequest = { showSkipMenu = false },
+                            modifier = Modifier
+                                .background(Color(0xF012141A))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color(0xF012141A)
+                        ) {
                             listOf(5, 10, 15, 30, 60).forEach { sec ->
                                 DropdownMenuItem(
+                                    modifier = Modifier.heightIn(min = 48.dp),
                                     text = {
                                         Text(
                                             text = if (sec == currentSkipSec) "✓ ${sec}s Interval" else "${sec}s Interval",
@@ -827,7 +856,15 @@ fun GestureMappingRow(
 
         if (direction == ArrowDirection.SCRUB) {
             Box {
-                DropdownMenu(expanded = showScrubMenu, onDismissRequest = { showScrubMenu = false }) {
+                DropdownMenu(
+                    expanded = showScrubMenu,
+                    onDismissRequest = { showScrubMenu = false },
+                    modifier = Modifier
+                        .background(Color(0xF012141A))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = Color(0xF012141A)
+                ) {
                     options.forEach { opt ->
                         val optLabel = when (opt) {
                             "none" -> "None"
@@ -838,6 +875,7 @@ fun GestureMappingRow(
                             else -> labelCache[opt] ?: opt
                         }
                         DropdownMenuItem(
+                            modifier = Modifier.heightIn(min = 48.dp),
                             text = { Text(optLabel) },
                             onClick = {
                                 currentRawValue = opt
@@ -1193,10 +1231,10 @@ fun CoreCoolingTripleLockButton(
     }
 
     val buttonText = when (lockState) {
-        0 -> "❄️ Initiate Core Cooling (Reboot)"
-        1 -> "⚠️ Are you sure? (Tap again)"
-        2 -> "🚨 Are you sure sure? (Confirm Reboot)"
-        else -> "❄️ Initiate Core Cooling"
+        0 -> "Initiate Core Cooling (Reboot)"
+        1 -> "Are you sure? (Tap again)"
+        2 -> "Are you sure? (Confirm Reboot)"
+        else -> "Initiate Core Cooling"
     }
 
     Button(
@@ -1392,14 +1430,21 @@ fun PowerGestureMappingRow(
                             color = if (isLocked) Color.LightGray else Color.White
                         )
                         if (isLocked) {
-                            Text(
-                                text = "[ Mapped to Default: System Sleep / Wake ]",
-                                fontSize = 11.5.sp,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                                maxLines = 1
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                modifier = Modifier.padding(vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Mapped to Default: System Sleep / Wake",
+                                    fontSize = 11.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    maxLines = 1
+                                )
+                            }
                             Text(
                                 text = "Native OS Interlock (Tap 7× to unlock override)",
                                 fontSize = 10.5.sp,

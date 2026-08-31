@@ -109,7 +109,7 @@ fun MainSettingsScreen() {
                     var toggleAllTrigger by remember { mutableStateOf(0) }
 
                     FloatingOverlayContainer(
-                        title = "Central Command Matrix",
+                        title = "Central Command",
                         onDismiss = { dismissAction() },
                         headerControl = {
                             Row(

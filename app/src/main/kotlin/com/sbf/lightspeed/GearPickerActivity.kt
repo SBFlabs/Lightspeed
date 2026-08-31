@@ -25,9 +25,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -179,6 +178,9 @@ class GearPickerActivity : ComponentActivity() {
             var sideBarHeight by remember { mutableStateOf(1f) }
             var isDragging by remember { mutableStateOf(false) }
             var hudLetter by remember { mutableStateOf("") }
+            var pendingDeepActivityToken by remember { mutableStateOf<String?>(null) }
+            var showDeepActivityWarning by remember { mutableStateOf(false) }
+            var doNotShowAgain by remember { mutableStateOf(false) }
 
             fun handleTokenSelection(token: String) {
                 if (isSingleSelect) {
@@ -1243,6 +1245,14 @@ class GearPickerActivity : ComponentActivity() {
                                                                     setClassName(pkg, act)
                                                                 }
                                                                 shortcutConfigLauncher.launch(intent)
+                                                            } else if (item.token.contains(";type=activity;") && !isChecked) {
+                                                                val suppressWarning = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, false)
+                                                                if (!suppressWarning) {
+                                                                    pendingDeepActivityToken = item.token
+                                                                    showDeepActivityWarning = true
+                                                                } else {
+                                                                    handleTokenSelection(item.token)
+                                                                }
                                                             } else {
                                                                 handleTokenSelection(item.token)
                                                             }
@@ -1451,6 +1461,123 @@ class GearPickerActivity : ComponentActivity() {
                                     modifier = Modifier.weight(1f).height(46.dp)
                                 ) {
                                     Text("SAVE (${selectedTokens.size})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (showDeepActivityWarning && pendingDeepActivityToken != null) {
+                    androidx.compose.ui.window.Dialog(
+                        onDismissRequest = {
+                            showDeepActivityWarning = false
+                            pendingDeepActivityToken = null
+                        }
+                    ) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color(0xFF161822).copy(alpha = 0.95f))
+                                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF161822).copy(alpha = 0.95f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFB300),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Text(
+                                        text = "Deep Activity Warning",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(
+                                    text = "Launching internal activities directly may cause instability or unexpected behavior.",
+                                    fontSize = 13.sp,
+                                    color = Color.LightGray.copy(alpha = 0.85f),
+                                    lineHeight = 18.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Checkbox: "Do not show again"
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { doNotShowAgain = !doNotShowAgain }
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = doNotShowAgain,
+                                        onCheckedChange = { doNotShowAgain = it },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = dynamicPrimary,
+                                            uncheckedColor = Color.Gray
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Do not show again",
+                                        fontSize = 13.sp,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            showDeepActivityWarning = false
+                                            pendingDeepActivityToken = null
+                                        },
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Cancel", color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Button(
+                                        onClick = {
+                                            if (doNotShowAgain) {
+                                                prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, true).apply()
+                                            }
+                                            val tokenToAssign = pendingDeepActivityToken
+                                            showDeepActivityWarning = false
+                                            pendingDeepActivityToken = null
+                                            if (tokenToAssign != null) {
+                                                handleTokenSelection(tokenToAssign)
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = dynamicPrimary,
+                                            contentColor = Color.Black
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Launch Anyway", fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }

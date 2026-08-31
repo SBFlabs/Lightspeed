@@ -513,6 +513,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         }
                     }
                     Intent.ACTION_SCREEN_OFF -> {
+                        com.sbf.lightspeed.system.LightspeedOrientationManager.onScreenOff(this@LightspeedAccessibilityService)
                         if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
                             notchOverlayView?.visibility = View.GONE
                             statusBarOverlayView?.visibility = View.GONE

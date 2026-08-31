@@ -118,12 +118,14 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:showForAllUsers="true"
-            android:theme="@style/Theme.Lightspeed.Floating">
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter android:priority="1000">
                 <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
                 <action android:name="android.media.action.STILL_IMAGE_CAMERA_SECURE" />
                 <action android:name="android.media.action.IMAGE_CAPTURE" />
                 <action android:name="android.media.action.IMAGE_CAPTURE_SECURE" />
+                <action android:name="android.intent.action.ASSIST" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

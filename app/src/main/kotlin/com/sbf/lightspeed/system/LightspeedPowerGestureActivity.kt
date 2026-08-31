@@ -29,24 +29,10 @@ class LightspeedPowerGestureActivity : Activity() {
                 LightspeedHapticEngine.click(this)
                 ActionDispatcher.dispatch(boundAction, this)
 
-                val isBackgroundAction = boundAction.startsWith("system:torch") ||
-                        boundAction.startsWith("system:media") ||
-                        boundAction.startsWith("system:volume") ||
-                        boundAction.startsWith("system:mute") ||
-                        boundAction.startsWith("system:brightness")
-
-                if (wasScreenOn) {
-                    val km = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                    km?.requestDismissKeyguard(this, null)
-                    if (ElevatedTaskCloser.isShizukuActive) {
-                        ElevatedTaskCloser.execShizuku("input keyevent 82")
-                    }
-                } else {
-                    if (isBackgroundAction) {
-                        LightspeedAccessibilityService.instance?.performGlobalAction(
-                            android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN
-                        )
-                    }
+                val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                km?.requestDismissKeyguard(this, null)
+                if (ElevatedTaskCloser.isShizukuActive) {
+                    ElevatedTaskCloser.execShizuku("input keyevent 82")
                 }
             } else {
                 launchDefaultCamera()

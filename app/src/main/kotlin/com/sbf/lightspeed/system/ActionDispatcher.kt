@@ -24,34 +24,9 @@ object ActionDispatcher {
         }
     }
 
-    private fun isDeepActivity(token: String): Boolean {
-        if (token.startsWith("shortcut:")) {
-            val parsed = LightspeedShortcutManager.parseToken(token)
-            return (parsed.type == "activity" || parsed.type == "app_shortcut") &&
-                    parsed.packageName.isNotBlank() && parsed.activityName.isNotBlank()
-        }
-        return false
-    }
-
     fun execute(context: Context, token: String?, onScrollToTop: () -> Unit = {}) {
         if (token.isNullOrBlank() || token == "none") return
         Log.i(TAG, "Executing action token: '$token'")
-
-        if (isDeepActivity(token)) {
-            val prefs = context.defaultPrefs()
-            val suppressWarning = prefs.getBoolean(LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, false)
-            if (!suppressWarning) {
-                val intent = Intent(context, com.sbf.lightspeed.CockpitDialogActivity::class.java).apply {
-                    action = com.sbf.lightspeed.CockpitDialogActivity.ACTION_CONFIRM_DEEP_ACTIVITY
-                    putExtra(com.sbf.lightspeed.CockpitDialogActivity.EXTRA_TOKEN, token)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                }
-                try {
-                    context.startActivity(intent)
-                } catch (_: Exception) {}
-                return
-            }
-        }
 
         val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
 
@@ -188,18 +163,30 @@ object ActionDispatcher {
             }
             token == "system:camera_photo" || token == "ACTION_CAMERA_PHOTO" || token == "camera_photo" || token == "system:camera" -> {
                 try {
-                    val intent = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                    val isLocked = keyguardManager?.isKeyguardLocked == true
+                    val cameraIntent = if (isLocked) {
+                        Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE)
+                    } else {
+                        Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+                    }.apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     }
-                    context.startActivity(intent)
+                    context.startActivity(cameraIntent)
                 } catch (_: Exception) {}
             }
             token == "system:camera_video" || token == "ACTION_CAMERA_VIDEO" || token == "camera_video" -> {
                 try {
-                    val intent = Intent(android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                    val isLocked = keyguardManager?.isKeyguardLocked == true
+                    val cameraIntent = if (isLocked) {
+                        Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE)
+                    } else {
+                        Intent(android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA)
+                    }.apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     }
-                    context.startActivity(intent)
+                    context.startActivity(cameraIntent)
                 } catch (_: Exception) {}
             }
             token == "system:core_cooling" || token == "ACTION_CORE_COOLING" || token == "core_cooling" -> {
@@ -294,11 +281,27 @@ object ActionDispatcher {
     }
 
     private var isTorchOn = false
+    private var torchCallbackRegistered = false
+
+    private fun ensureTorchCallback(cameraManager: android.hardware.camera2.CameraManager) {
+        if (!torchCallbackRegistered) {
+            try {
+                cameraManager.registerTorchCallback(object : android.hardware.camera2.CameraManager.TorchCallback() {
+                    override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+                        super.onTorchModeChanged(cameraId, enabled)
+                        isTorchOn = enabled
+                    }
+                }, null)
+                torchCallbackRegistered = true
+            } catch (_: Exception) {}
+        }
+    }
 
     private fun toggleFlashlight(context: Context) {
         try {
-            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? android.hardware.camera2.CameraManager
-            val cameraId = cameraManager?.cameraIdList?.firstOrNull() ?: return
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? android.hardware.camera2.CameraManager ?: return
+            ensureTorchCallback(cameraManager)
+            val cameraId = cameraManager.cameraIdList.firstOrNull() ?: return
             isTorchOn = !isTorchOn
             cameraManager.setTorchMode(cameraId, isTorchOn)
         } catch (e: Exception) {

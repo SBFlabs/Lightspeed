@@ -32,12 +32,17 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import kotlinx.coroutines.launch
@@ -957,6 +962,129 @@ fun PrefToggleRow(
 }
 
 @Composable
+fun DragOnlySlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val range = valueRange.endInclusive - valueRange.start
+    var isDragging by remember { mutableStateOf(false) }
+    var dragProgress by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(value) {
+        if (!isDragging) {
+            dragProgress = if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .pointerInput(enabled, valueRange, steps) {
+                if (!enabled) return@pointerInput
+                detectHorizontalDragGestures(
+                    onDragStart = { _ ->
+                        isDragging = true
+                        dragProgress = if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+                    },
+                    onDragEnd = {
+                        isDragging = false
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        val totalW = size.width.toFloat()
+                        val thumbRadiusPx = 10.dp.toPx()
+                        val usableWidth = (totalW - thumbRadiusPx * 2f).coerceAtLeast(1f)
+                        val deltaProgress = dragAmount / usableWidth
+                        dragProgress = (dragProgress + deltaProgress).coerceIn(0f, 1f)
+                        val rawValue = valueRange.start + dragProgress * range
+                        val steppedValue = if (steps > 0) {
+                            val stepSize = range / (steps + 1)
+                            (kotlin.math.round((rawValue - valueRange.start) / stepSize) * stepSize + valueRange.start).coerceIn(valueRange.start, valueRange.endInclusive)
+                        } else {
+                            rawValue.coerceIn(valueRange.start, valueRange.endInclusive)
+                        }
+                        onValueChange(steppedValue)
+                    }
+                )
+            },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        val currentProgress = if (isDragging) dragProgress else {
+            if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+        }
+
+        val primaryColor = MaterialTheme.colorScheme.primary
+        val inactiveColor = primaryColor.copy(alpha = 0.18f)
+
+        // 1. Inactive Track (Full Width)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(CircleShape)
+                .background(inactiveColor)
+        )
+
+        // 2. Active Track
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(currentProgress.coerceIn(0.005f, 1f))
+                .height(6.dp)
+                .clip(CircleShape)
+                .background(primaryColor)
+        )
+
+        // 3. Ticks
+        if (steps in 1..30) {
+            val stepFraction = 1f / (steps + 1)
+            for (i in 1..steps) {
+                val tickPos = i * stepFraction
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(tickPos)
+                        .wrapContentWidth(Alignment.End)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (tickPos <= currentProgress) Color.White.copy(alpha = 0.8f)
+                                else primaryColor.copy(alpha = 0.4f)
+                            )
+                    )
+                }
+            }
+        }
+
+        // 4. Thumb Indicator
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(currentProgress.coerceIn(0f, 1f))
+                .wrapContentWidth(Alignment.End)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .size(if (isDragging) 22.dp else 18.dp)
+                    .clip(CircleShape),
+                shape = CircleShape,
+                color = primaryColor,
+                shadowElevation = if (isDragging) 6.dp else 2.dp,
+                border = androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.9f))
+            ) {}
+        }
+    }
+}
+
+@Composable
 fun PrefDottedSliderRow(
     context: Context,
     prefs: SharedPreferences,
@@ -989,7 +1117,7 @@ fun PrefDottedSliderRow(
             Text(value.toString(), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
         }
         Spacer(modifier = Modifier.height(6.dp))
-        Slider(
+        DragOnlySlider(
             value = value.toFloat(),
             onValueChange = {
                 val near = (it.roundToInt() / step) * step
@@ -998,12 +1126,6 @@ fun PrefDottedSliderRow(
             },
             valueRange = minVal.toFloat()..maxVal.toFloat(),
             steps = steps,
-            colors = SliderDefaults.colors(
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                activeTickColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f),
-                inactiveTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-            ),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1061,7 +1183,7 @@ fun PrefFloatDottedSliderRow(
             Text(String.format(java.util.Locale.US, "%.1f %s", value, unit), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
         }
         Spacer(modifier = Modifier.height(6.dp))
-        Slider(
+        DragOnlySlider(
             value = value,
             onValueChange = {
                 val near = ((it / step).roundToInt() * step).coerceIn(minVal, maxVal)
@@ -1071,14 +1193,176 @@ fun PrefFloatDottedSliderRow(
             },
             valueRange = minVal..maxVal,
             steps = steps,
-            colors = SliderDefaults.colors(
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                activeTickColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f),
-                inactiveTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-            ),
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun <T> RotaryWheelColumn(
+    items: List<T>,
+    selectedIndex: Int,
+    onItemSelected: (Int, T) -> Unit,
+    labelProvider: (T) -> String,
+    modifier: Modifier = Modifier
+) {
+    val itemHeight = 40.dp
+    val visibleItems = 3
+    val totalHeight = itemHeight * visibleItems
+    val initialIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+
+    val centerIndex by remember {
+        derivedStateOf {
+            val firstIdx = listState.firstVisibleItemIndex
+            val offset = listState.firstVisibleItemScrollOffset
+            if (offset > itemHeight.value / 2) (firstIdx + 1).coerceIn(0, items.size - 1)
+            else firstIdx.coerceIn(0, items.size - 1)
+        }
+    }
+
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            val target = centerIndex
+            if (target in items.indices && target != selectedIndex) {
+                onItemSelected(target, items[target])
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .height(totalHeight)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF10131A))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(14.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        // Optical Center Selection Lens
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(itemHeight)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.60f), RoundedCornerShape(8.dp))
+        )
+
+        androidx.compose.foundation.lazy.LazyColumn(
+            state = listState,
+            flingBehavior = snapFlingBehavior,
+            contentPadding = PaddingValues(vertical = itemHeight),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            itemsIndexed(items) { index, item ->
+                val isSelected = (index == centerIndex)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = labelProvider(item),
+                        fontSize = if (isSelected) 14.5.sp else 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.45f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CoreCoolingRotarySchedulePicker(
+    selectedDay: Int,
+    selectedHour: Int,
+    onScheduleChanged: (day: Int, hour: Int) -> Unit
+) {
+    val daysList = remember {
+        listOf(
+            Pair(java.util.Calendar.MONDAY, "Monday"),
+            Pair(java.util.Calendar.TUESDAY, "Tuesday"),
+            Pair(java.util.Calendar.WEDNESDAY, "Wednesday"),
+            Pair(java.util.Calendar.THURSDAY, "Thursday"),
+            Pair(java.util.Calendar.FRIDAY, "Friday"),
+            Pair(java.util.Calendar.SATURDAY, "Saturday"),
+            Pair(java.util.Calendar.SUNDAY, "Sunday")
+        )
+    }
+
+    val hoursList = remember {
+        (0..23).map { h ->
+            val hourStr = String.format(java.util.Locale.US, "%02d:00 (%s)", h, if (h < 12) if (h == 0) "12 AM" else "$h AM" else if (h == 12) "12 PM" else "${h - 12} PM")
+            Pair(h, hourStr)
+        }
+    }
+
+    val currentDayIndex = remember(selectedDay) {
+        val idx = daysList.indexOfFirst { it.first == selectedDay }
+        if (idx >= 0) idx else 6 // Default Sunday
+    }
+
+    val currentHourIndex = remember(selectedHour) {
+        selectedHour.coerceIn(0, 23)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.35f))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "ROTARY DAY SELECTOR",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f).padding(start = 4.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                "ROTARY HOUR SELECTOR",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f).padding(start = 4.dp)
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            RotaryWheelColumn(
+                items = daysList,
+                selectedIndex = currentDayIndex,
+                onItemSelected = { _, item ->
+                    onScheduleChanged(item.first, selectedHour)
+                },
+                labelProvider = { it.second },
+                modifier = Modifier.weight(1f)
+            )
+
+            RotaryWheelColumn(
+                items = hoursList,
+                selectedIndex = currentHourIndex,
+                onItemSelected = { _, item ->
+                    onScheduleChanged(selectedDay, item.first)
+                },
+                labelProvider = { it.second },
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 
@@ -1422,7 +1706,7 @@ fun PowerGestureMappingRow(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = title,
                             fontWeight = FontWeight.SemiBold,
@@ -1433,7 +1717,10 @@ fun PowerGestureMappingRow(
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                modifier = Modifier.padding(vertical = 2.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight()
+                                    .padding(vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "Mapped to Default: System Sleep / Wake",
@@ -1442,7 +1729,7 @@ fun PowerGestureMappingRow(
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    maxLines = 1
+                                    overflow = TextOverflow.Visible
                                 )
                             }
                             Text(

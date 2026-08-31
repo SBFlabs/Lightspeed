@@ -178,7 +178,7 @@ class GearPickerActivity : ComponentActivity() {
             var sideBarHeight by remember { mutableStateOf(1f) }
             var isDragging by remember { mutableStateOf(false) }
             var hudLetter by remember { mutableStateOf("") }
-            var pendingDeepActivityToken by remember { mutableStateOf<String?>(null) }
+            var pendingDeepActivitySubKey by remember { mutableStateOf<String?>(null) }
             var showDeepActivityWarning by remember { mutableStateOf(false) }
             var doNotShowAgain by remember { mutableStateOf(false) }
 
@@ -654,6 +654,37 @@ class GearPickerActivity : ComponentActivity() {
                                         Text("ACTIVE", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                                     }
                                 }
+                            }
+                        }
+
+                        // Sticky Top Advisory Warning Banner Card
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFB300).copy(alpha = 0.12f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.35f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.WarningAmber,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFB300),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Deep activities bypass standard app entry points and may produce unpredictable results.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFFFE082),
+                                    lineHeight = 14.sp
+                                )
                             }
                         }
 
@@ -1193,6 +1224,15 @@ class GearPickerActivity : ComponentActivity() {
                                                         .padding(start = 12.dp, top = 2.dp, bottom = 2.dp)
                                                         .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
                                                         .clickable {
+                                                            val isDeepActivitiesHeader = item.subKey.endsWith("|DeepActivities")
+                                                            if (isDeepActivitiesHeader && !item.isExpanded) {
+                                                                val isSuppressed = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, false)
+                                                                if (!isSuppressed) {
+                                                                    pendingDeepActivitySubKey = item.subKey
+                                                                    showDeepActivityWarning = true
+                                                                    return@clickable
+                                                                }
+                                                            }
                                                             expandedSubsections = if (item.isExpanded) {
                                                                 expandedSubsections - item.subKey
                                                             } else {
@@ -1245,14 +1285,6 @@ class GearPickerActivity : ComponentActivity() {
                                                                     setClassName(pkg, act)
                                                                 }
                                                                 shortcutConfigLauncher.launch(intent)
-                                                            } else if (item.token.contains(";type=activity;") && !isChecked) {
-                                                                val suppressWarning = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, false)
-                                                                if (!suppressWarning) {
-                                                                    pendingDeepActivityToken = item.token
-                                                                    showDeepActivityWarning = true
-                                                                } else {
-                                                                    handleTokenSelection(item.token)
-                                                                }
                                                             } else {
                                                                 handleTokenSelection(item.token)
                                                             }
@@ -1467,11 +1499,11 @@ class GearPickerActivity : ComponentActivity() {
                     }
                 }
 
-                if (showDeepActivityWarning && pendingDeepActivityToken != null) {
+                if (showDeepActivityWarning && pendingDeepActivitySubKey != null) {
                     androidx.compose.ui.window.Dialog(
                         onDismissRequest = {
                             showDeepActivityWarning = false
-                            pendingDeepActivityToken = null
+                            pendingDeepActivitySubKey = null
                         }
                     ) {
                         Card(
@@ -1551,7 +1583,7 @@ class GearPickerActivity : ComponentActivity() {
                                     TextButton(
                                         onClick = {
                                             showDeepActivityWarning = false
-                                            pendingDeepActivityToken = null
+                                            pendingDeepActivitySubKey = null
                                         },
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
@@ -1563,11 +1595,11 @@ class GearPickerActivity : ComponentActivity() {
                                             if (doNotShowAgain) {
                                                 prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, true).apply()
                                             }
-                                            val tokenToAssign = pendingDeepActivityToken
+                                            val subKeyToExpand = pendingDeepActivitySubKey
                                             showDeepActivityWarning = false
-                                            pendingDeepActivityToken = null
-                                            if (tokenToAssign != null) {
-                                                handleTokenSelection(tokenToAssign)
+                                            pendingDeepActivitySubKey = null
+                                            if (subKeyToExpand != null) {
+                                                expandedSubsections = expandedSubsections + subKeyToExpand
                                             }
                                         },
                                         colors = ButtonDefaults.buttonColors(
@@ -1576,7 +1608,7 @@ class GearPickerActivity : ComponentActivity() {
                                         ),
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
-                                        Text("Launch Anyway", fontWeight = FontWeight.Bold)
+                                        Text("Understood", fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }

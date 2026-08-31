@@ -169,8 +169,12 @@ fun SidebarMatrixConfigurationFields(
     var isCenterExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", false)) }
     var isTopExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" else prefs.getBoolean("pref_section_top_expanded", true)) }
     var isBottomExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" else prefs.getBoolean("pref_section_bottom_expanded", false)) }
-    var isRightFlankUnified by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sidebar_link_flank_actions", false)) }
+    var isRightFlankUnified by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_LINK_FLANK, false)) }
     var isRightUnifiedExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" else prefs.getBoolean("pref_section_right_unified_expanded", false)) }
+
+    // Dual Watchdog Sub-Section States
+    var isInnerWatchdogExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_inner_watchdog_labs", true)) }
+    var isOuterWatchdogExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_outer_watchdog_labs", true)) }
 
     // Right Deflector Sub-Section States
     var isCenterGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
@@ -625,7 +629,7 @@ fun SidebarMatrixConfigurationFields(
                                             showUnifyTemplateDialogForLeft = true
                                         } else {
                                             isLeftFlankUnified = false
-                                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", false).apply()
+                                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", false).commit()
                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                             onRefreshNeeded()
                                         }
@@ -1001,9 +1005,49 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
                                                     }
 
-                                                    // 2. Scrubbers (Gated: only available if rail thickness >= 12dp)
+                                                    // 2. Scrubbers & Scrub Gating Status Banner
                                                     val horizonThickness = prefs.getInt("pref_statusbar_thickness", 48)
-                                                    if (horizonThickness >= 12) {
+                                                    val isScrubArmed = horizonThickness >= 12
+
+                                                    Card(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(vertical = 4.dp),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        colors = CardDefaults.cardColors(
+                                                            containerColor = if (isScrubArmed) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.12f)
+                                                        ),
+                                                        border = androidx.compose.foundation.BorderStroke(
+                                                            1.dp,
+                                                            if (isScrubArmed) Color(0xFF00E676).copy(alpha = 0.40f) else Color(0xFFFF9800).copy(alpha = 0.40f)
+                                                        )
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = if (isScrubArmed) Icons.Default.CheckCircle else Icons.Default.Info,
+                                                                contentDescription = null,
+                                                                tint = if (isScrubArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Text(
+                                                                text = if (isScrubArmed)
+                                                                    "Scrubbing Protocol: Armed (Thickness meets threshold)"
+                                                                else
+                                                                    "Scrubbing Protocol: Inactive (Requires >= 12dp thickness)",
+                                                                fontSize = 11.5.sp,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                color = if (isScrubArmed) Color(0xFFB9F6CA) else Color(0xFFFFE0B2)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    if (isScrubArmed) {
                                                         CollapsibleSubSection(
                                                             title = "Pull-Down Scrubbing Control",
                                                             subtitle = "Horizontal scrubbing selector for sensor bar",
@@ -1871,6 +1915,33 @@ fun SidebarMatrixConfigurationFields(
                                                             prefs.edit().putBoolean("pref_sub_power_expanded", isSubPowerExpanded).apply()
                                                         }
                                                     ) {
+                                                        // Emergency Reset Hardware Notice Banner
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.WarningAmber,
+                                                                    contentDescription = null,
+                                                                    tint = MaterialTheme.colorScheme.primary,
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Text(
+                                                                    text = "Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
+                                                                    fontSize = 11.sp,
+                                                                    color = Color.LightGray.copy(alpha = 0.85f),
+                                                                    lineHeight = 14.sp
+                                                                )
+                                                            }
+                                                        }
+
                                                         PrefToggleRow(
                                                             title = "Enable Power Button Gestures",
                                                             subtitle = "Low-latency physical power button gesture interception",
@@ -1923,33 +1994,6 @@ fun SidebarMatrixConfigurationFields(
                                                                 labelCache = tokenLabelCache,
                                                                 onRefreshNeeded = onRefreshNeeded
                                                             )
-                                                        }
-
-                                                        // Emergency Reset Hardware Notice Banner
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                                                        ) {
-                                                            Row(
-                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                Icon(
-                                                                    imageVector = Icons.Default.WarningAmber,
-                                                                    contentDescription = null,
-                                                                    tint = MaterialTheme.colorScheme.primary,
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                Text(
-                                                                    text = "Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
-                                                                    fontSize = 11.sp,
-                                                                    color = Color.LightGray.copy(alpha = 0.85f),
-                                                                    lineHeight = 14.sp
-                                                                )
-                                                            }
                                                         }
                                                     }
 
@@ -2512,11 +2556,10 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // 1. Space Watchdog
-                                                    var isWatchdogExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_watchdog_labs", true)) }
+                                                    // 1. Inner Space Watchdog
                                                     CollapsibleSubSection(
-                                                        title = "Space Watchdog",
-                                                        subtitle = "Auto-revives Accessibility Service via Shizuku if stopped by battery optimizer.",
+                                                        title = "Inner Space Watchdog",
+                                                        subtitle = "Monitors and revives Lightspeed's accessibility service via Shizuku.",
                                                         icon = {
                                                             Icon(
                                                                 imageVector = Icons.Outlined.Shield,
@@ -2525,10 +2568,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 modifier = Modifier.size(16.dp)
                                                             )
                                                         },
-                                                        isExpanded = isWatchdogExpanded,
+                                                        isExpanded = isInnerWatchdogExpanded,
                                                         onToggle = {
-                                                            isWatchdogExpanded = !isWatchdogExpanded
-                                                            prefs.edit().putBoolean("pref_sub_watchdog_labs", isWatchdogExpanded).apply()
+                                                            isInnerWatchdogExpanded = !isInnerWatchdogExpanded
+                                                            prefs.edit().putBoolean("pref_sub_inner_watchdog_labs", isInnerWatchdogExpanded).apply()
                                                         }
                                                     ) {
                                                         val sentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
@@ -2562,13 +2605,13 @@ fun SidebarMatrixConfigurationFields(
                                                                     Spacer(modifier = Modifier.width(8.dp))
                                                                     Column {
                                                                         Text(
-                                                                            text = if (isServiceRunning) "SERVICE STATUS: ONLINE" else "SERVICE STATUS: OFFLINE",
+                                                                            text = if (isServiceRunning) "LIGHTSPEED SERVICE: ONLINE" else "LIGHTSPEED SERVICE: OFFLINE",
                                                                             fontWeight = FontWeight.Bold,
                                                                             fontSize = 11.5.sp,
                                                                             color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00)
                                                                         )
                                                                         Text(
-                                                                            text = if (isSentinelActive) "Watchdog: Active (20s cycle)" else "Watchdog: Standby",
+                                                                            text = if (isSentinelActive) "Inner Sentinel: Active (20s cycle)" else "Inner Sentinel: Standby",
                                                                             fontSize = 10.5.sp,
                                                                             color = Color.LightGray.copy(alpha = 0.75f)
                                                                         )
@@ -2578,8 +2621,8 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         PrefToggleRow(
-                                                            title = "Enable Space Watchdog",
-                                                            subtitle = "Background sentinel thread polls service health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
+                                                            title = "Enable Inner Space Sentinel",
+                                                            subtitle = "Background sentinel thread polls Lightspeed health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
                                                             isChecked = sentinelEnabled,
                                                             onCheckedChange = { checked ->
                                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
@@ -2608,12 +2651,147 @@ fun SidebarMatrixConfigurationFields(
                                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                                 Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
                                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                                Text("Trigger Watchdog Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = cautionAmber)
+                                                                Text("Trigger Inner Sentinel Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = cautionAmber)
                                                             }
                                                         }
                                                     }
 
-                                                    // 2. Core Cooling Schedule
+                                                    // 2. Outer Space Watchdog
+                                                    CollapsibleSubSection(
+                                                        title = "Outer Space Watchdog",
+                                                        subtitle = "Sentinel overview and monitor for third-party accessibility services.",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.Security,
+                                                                contentDescription = null,
+                                                                tint = cautionAmber,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
+                                                        isExpanded = isOuterWatchdogExpanded,
+                                                        onToggle = {
+                                                            isOuterWatchdogExpanded = !isOuterWatchdogExpanded
+                                                            prefs.edit().putBoolean("pref_sub_outer_watchdog_labs", isOuterWatchdogExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
+                                                        val pm = context.packageManager
+                                                        val installedA11y = remember(isOuterWatchdogExpanded) {
+                                                            try {
+                                                                a11yManager?.getInstalledAccessibilityServiceList() ?: emptyList()
+                                                            } catch (_: Exception) {
+                                                                emptyList()
+                                                            }
+                                                        }
+                                                        val enabledA11y = remember(isOuterWatchdogExpanded) {
+                                                            try {
+                                                                a11yManager?.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK) ?: emptyList()
+                                                            } catch (_: Exception) {
+                                                                emptyList()
+                                                            }
+                                                        }
+                                                        val enabledPkgSet = remember(enabledA11y) {
+                                                            enabledA11y.mapNotNull { it.resolveInfo?.serviceInfo?.packageName }.toSet()
+                                                        }
+                                                        val thirdPartyServices = remember(installedA11y) {
+                                                            installedA11y.filter { it.resolveInfo?.serviceInfo?.packageName != context.packageName }
+                                                        }
+                                                        val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
+
+                                                        // Shizuku Status Banner
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(
+                                                                containerColor = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.12f)
+                                                            ),
+                                                            border = androidx.compose.foundation.BorderStroke(
+                                                                1.dp,
+                                                                if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.4f) else Color(0xFFFF9800).copy(alpha = 0.4f)
+                                                            )
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = if (isShizukuActive) Icons.Default.CheckCircle else Icons.Default.Info,
+                                                                    contentDescription = null,
+                                                                    tint = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Column {
+                                                                    Text(
+                                                                        text = if (isShizukuActive) "SHIZUKU PRIVILEGED BRIDGE: ACTIVE" else "SHIZUKU PRIVILEGED BRIDGE: STANDBY",
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        fontSize = 11.sp,
+                                                                        color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                    )
+                                                                    Text(
+                                                                        text = if (isShizukuActive) "Ready to monitor & revive external accessibility sentinels" else "Requires Shizuku authorization for outer sentinel management",
+                                                                        fontSize = 10.sp,
+                                                                        color = Color.LightGray.copy(alpha = 0.75f)
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+
+                                                        if (thirdPartyServices.isEmpty()) {
+                                                            Text(
+                                                                text = "No third-party accessibility services detected.",
+                                                                fontSize = 11.5.sp,
+                                                                color = Color.LightGray.copy(alpha = 0.6f),
+                                                                modifier = Modifier.padding(vertical = 8.dp)
+                                                            )
+                                                        } else {
+                                                            Column(
+                                                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                                                modifier = Modifier.padding(top = 4.dp)
+                                                            ) {
+                                                                thirdPartyServices.forEach { sInfo ->
+                                                                    val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: "unknown"
+                                                                    val sLabel = try {
+                                                                        sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
+                                                                    } catch (_: Exception) { sPkg }
+                                                                    val isServiceEnabled = enabledPkgSet.contains(sPkg)
+
+                                                                    Surface(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(10.dp),
+                                                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                                                                            verticalAlignment = Alignment.CenterVertically,
+                                                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                                        ) {
+                                                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                                                                Text(sLabel, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Color.White, maxLines = 1)
+                                                                                Text(sPkg, fontSize = 10.sp, color = Color.Gray, maxLines = 1)
+                                                                            }
+                                                                            Surface(
+                                                                                shape = RoundedCornerShape(6.dp),
+                                                                                color = if (isServiceEnabled) Color(0xFF00E676).copy(alpha = 0.18f) else Color.Gray.copy(alpha = 0.2f),
+                                                                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceEnabled) Color(0xFF00E676).copy(alpha = 0.5f) else Color.Gray.copy(alpha = 0.3f))
+                                                                            ) {
+                                                                                Text(
+                                                                                    text = if (isServiceEnabled) "ENABLED" else "DISABLED",
+                                                                                    fontSize = 9.sp,
+                                                                                    fontWeight = FontWeight.Bold,
+                                                                                    color = if (isServiceEnabled) Color(0xFF00E676) else Color.LightGray,
+                                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 3. Core Cooling Schedule
                                                     var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
                                                     CollapsibleSubSection(
                                                         title = "Core Cooling Schedule",
@@ -2635,18 +2813,6 @@ fun SidebarMatrixConfigurationFields(
                                                         val coreCoolingEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)
                                                         var targetDay by rememberSaveable { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_DAY_OF_WEEK, java.util.Calendar.SUNDAY)) }
                                                         var targetHour by rememberSaveable { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, 3)) }
-                                                        var isDayDropdownOpen by remember { mutableStateOf(false) }
-                                                        var isHourDropdownOpen by remember { mutableStateOf(false) }
-
-                                                        val daysList = listOf(
-                                                            Pair(java.util.Calendar.MONDAY, "Monday"),
-                                                            Pair(java.util.Calendar.TUESDAY, "Tuesday"),
-                                                            Pair(java.util.Calendar.WEDNESDAY, "Wednesday"),
-                                                            Pair(java.util.Calendar.THURSDAY, "Thursday"),
-                                                            Pair(java.util.Calendar.FRIDAY, "Friday"),
-                                                            Pair(java.util.Calendar.SATURDAY, "Saturday"),
-                                                            Pair(java.util.Calendar.SUNDAY, "Sunday")
-                                                        )
 
                                                         PrefToggleRow(
                                                             title = "Scheduled Core Cooling Reminder",
@@ -2659,103 +2825,21 @@ fun SidebarMatrixConfigurationFields(
                                                         )
 
                                                         if (coreCoolingEnabled) {
-                                                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                // Day of Week Selector
-                                                                Surface(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .clip(RoundedCornerShape(12.dp))
-                                                                        .clickable { isDayDropdownOpen = true },
-                                                                    shape = RoundedCornerShape(12.dp),
-                                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                                                                ) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Column {
-                                                                            Text("Weekly Cooling Day", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                                                            val dayName = daysList.firstOrNull { it.first == targetDay }?.second ?: "Sunday"
-                                                                            Text(dayName, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
-                                                                        }
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                                    }
-
-                                                                    DropdownMenu(
-                                                                        expanded = isDayDropdownOpen,
-                                                                        onDismissRequest = { isDayDropdownOpen = false },
-                                                                        modifier = Modifier
-                                                                            .background(Color(0xF012141A))
-                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                                                        shape = RoundedCornerShape(16.dp),
-                                                                        containerColor = Color(0xF012141A)
-                                                                    ) {
-                                                                        daysList.forEach { (calDay, name) ->
-                                                                            DropdownMenuItem(
-                                                                                modifier = Modifier.heightIn(min = 48.dp),
-                                                                                text = { Text(name, fontWeight = if (targetDay == calDay) FontWeight.Bold else FontWeight.Normal) },
-                                                                                onClick = {
-                                                                                    targetDay = calDay
-                                                                                    prefs.edit().putInt(LightspeedPreferences.KEY_CORE_COOLING_DAY_OF_WEEK, calDay).apply()
-                                                                                    isDayDropdownOpen = false
-                                                                                    onRefreshNeeded()
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                    }
+                                                            CoreCoolingRotarySchedulePicker(
+                                                                selectedDay = targetDay,
+                                                                selectedHour = targetHour,
+                                                                onScheduleChanged = { day, hour ->
+                                                                    targetDay = day
+                                                                    targetHour = hour
+                                                                    prefs.edit()
+                                                                        .putInt(LightspeedPreferences.KEY_CORE_COOLING_DAY_OF_WEEK, day)
+                                                                        .putInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, hour)
+                                                                        .apply()
+                                                                    onRefreshNeeded()
                                                                 }
-
-                                                                // Hour of Day Selector
-                                                                Surface(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .clip(RoundedCornerShape(12.dp))
-                                                                        .clickable { isHourDropdownOpen = true },
-                                                                    shape = RoundedCornerShape(12.dp),
-                                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                                                                ) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Column {
-                                                                            Text("Preferred Time (Hour)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                                                            val hourStr = String.format(Locale.US, "%02d:00 (%s)", targetHour, if (targetHour < 12) if (targetHour == 0) "12 AM" else "$targetHour AM" else if (targetHour == 12) "12 PM" else "${targetHour - 12} PM")
-                                                                            Text(hourStr, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
-                                                                        }
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                                    }
-
-                                                                    DropdownMenu(
-                                                                        expanded = isHourDropdownOpen,
-                                                                        onDismissRequest = { isHourDropdownOpen = false },
-                                                                        modifier = Modifier
-                                                                            .background(Color(0xF012141A))
-                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                                                        shape = RoundedCornerShape(16.dp),
-                                                                        containerColor = Color(0xF012141A)
-                                                                    ) {
-                                                                        (0..23).forEach { hour ->
-                                                                            val label = String.format(Locale.US, "%02d:00 (%s)", hour, if (hour < 12) if (hour == 0) "12 AM" else "$hour AM" else if (hour == 12) "12 PM" else "${hour - 12} PM")
-                                                                            DropdownMenuItem(
-                                                                                modifier = Modifier.heightIn(min = 48.dp),
-                                                                                text = { Text(label, fontWeight = if (targetHour == hour) FontWeight.Bold else FontWeight.Normal) },
-                                                                                onClick = {
-                                                                                    targetHour = hour
-                                                                                    prefs.edit().putInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, hour).apply()
-                                                                                    isHourDropdownOpen = false
-                                                                                    onRefreshNeeded()
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
+                                                            )
                                                         }
+                                                    }
 
                                                         // Strict Cold-Start Policy Notice
                                                         Card(
@@ -2781,7 +2865,6 @@ fun SidebarMatrixConfigurationFields(
                             }
                         }
                     }
-                }
 
                 // PAGE 2: RIGHT DEFLECTOR
                 2 -> {
@@ -2839,7 +2922,7 @@ fun SidebarMatrixConfigurationFields(
                                             showUnifyTemplateDialogForRight = true
                                         } else {
                                             isRightFlankUnified = false
-                                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", false).apply()
+                                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", false).commit()
                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                             onRefreshNeeded()
                                         }
@@ -3401,7 +3484,7 @@ fun SidebarMatrixConfigurationFields(
                                 cloneFlankActions("LEFT_BOTTOM", "LEFT_UNIFIED")
                             }
                             isLeftFlankUnified = true
-                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", true).apply()
+                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", true).commit()
                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                             showUnifyTemplateDialogForLeft = false
                             onRefreshNeeded()
@@ -3460,7 +3543,7 @@ fun SidebarMatrixConfigurationFields(
                                 cloneFlankActions("BOTTOM", "UNIFIED")
                             }
                             isRightFlankUnified = true
-                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", true).apply()
+                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", true).commit()
                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                             showUnifyTemplateDialogForRight = false
                             onRefreshNeeded()

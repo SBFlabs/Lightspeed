@@ -187,12 +187,15 @@ object LightspeedKeyEngine {
         } catch (_: Exception) {}
     }
 
-    private fun releasePowerScreenWakeLock() {
-        try {
-            if (powerWakeLock?.isHeld == true) {
-                powerWakeLock?.release()
-            }
-        } catch (_: Exception) {}
+    fun onPowerGestureHandled() {
+        powerSinglePressJob?.cancel()
+        powerSinglePressJob = null
+        powerPressHoldJob?.cancel()
+        powerPressHoldJob = null
+        powerHoldJob?.cancel()
+        powerHoldJob = null
+        lastPowerReleaseTime = 0L
+        releasePowerScreenWakeLock()
     }
 
     fun isAssistantActiveOrPending(context: Context): Boolean {
@@ -414,11 +417,6 @@ object LightspeedKeyEngine {
                             ActionDispatcher.dispatch(singleAction, context)
                         } else {
                             releasePowerScreenWakeLock()
-                            if (wasScreenInteractiveAtDown) {
-                                LightspeedAccessibilityService.instance?.performGlobalAction(
-                                    AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN
-                                )
-                            }
                         }
                     }
                     return true

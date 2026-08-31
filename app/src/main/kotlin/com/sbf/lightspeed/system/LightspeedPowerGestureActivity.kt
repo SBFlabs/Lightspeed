@@ -16,6 +16,7 @@ class LightspeedPowerGestureActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         try {
+            LightspeedKeyEngine.onPowerGestureHandled()
             val boundAction = LightspeedKeyEngine.getBoundPowerAction(this, PowerTriggerSlot.POWER_DOUBLE_PRESS)
 
             if (!boundAction.isNullOrBlank() && boundAction != "none") {

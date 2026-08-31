@@ -468,7 +468,7 @@ fun SidebarMatrixConfigurationFields(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val tabTitles = listOf("[ ◀ Deflectors ]", "[ HUD STRIP ]", "[ Deflectors ▶ ]")
+            val tabTitles = listOf("◀ Deflectors", "HUD STRIP", "Deflectors ▶")
             tabTitles.forEachIndexed { index, tabTitle ->
                 val isSelected = pagerState.currentPage == index
                 Box(
@@ -504,7 +504,7 @@ fun SidebarMatrixConfigurationFields(
 
         // High-Performance Swipable Pages
         HorizontalPager(
-state = pagerState,
+            state = pagerState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
             beyondViewportPageCount = 0
         ) { pageIndex ->
@@ -518,7 +518,7 @@ state = pagerState,
 
                     if (blueprintTabTarget == 0) {
                         BlueprintWireframeView(
-                            tabTitle = "[ ◀ Deflectors ]",
+                            tabTitle = "◀ Deflectors",
                             sectionIds = currentOrder0,
                             pinnedSectionId = pinnedSection0,
                             sectionTitles = sectionTitles0,
@@ -813,7 +813,7 @@ state = pagerState,
 
                     if (blueprintTabTarget == 1) {
                         BlueprintWireframeView(
-                            tabTitle = "[ HUD STRIP ]",
+                            tabTitle = "HUD STRIP",
                             sectionIds = currentOrder1,
                             pinnedSectionId = pinnedSection1,
                             sectionTitles = sectionTitles1,
@@ -1549,13 +1549,13 @@ state = pagerState,
                                                         )
 
                                                         val powerGestures = listOf(
-                                                            Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", "[ POWER ] (1× TAP)"),
-                                                            Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", "[ POWER ] ➔ [ POWER ]"),
-                                                            Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", "[ POWER ] (HOLD)"),
-                                                            Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", "[ POWER ] ➔ [ POWER ] (HOLD)")
+                                                            Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS),
+                                                            Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS),
+                                                            Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD),
+                                                            Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
                                                         )
 
-                                                        powerGestures.forEach { (prefKey, title, badge) ->
+                                                        powerGestures.forEach { (prefKey, title, slot) ->
                                                             GestureMappingRow(
                                                                 context = context,
                                                                 prefs = prefs,
@@ -1565,8 +1565,70 @@ state = pagerState,
                                                                 defaultTitle = title,
                                                                 options = dynamicActionTokens,
                                                                 labelCache = tokenLabelCache,
-                                                                badgeText = badge,
-                                                                showMediaQuickAccess = true
+                                                                showMediaQuickAccess = false,
+                                                                customLeading = {
+                                                                    Surface(
+                                                                        modifier = Modifier.wrapContentWidth(),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                                                                            verticalAlignment = Alignment.CenterVertically,
+                                                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                                                        ) {
+                                                                            Icon(
+                                                                                imageVector = Icons.Default.PowerSettingsNew,
+                                                                                contentDescription = null,
+                                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                                modifier = Modifier.size(15.dp)
+                                                                            )
+                                                                            when (slot) {
+                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS -> {
+                                                                                    Text(
+                                                                                        text = "1×",
+                                                                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                                                        fontWeight = FontWeight.Bold,
+                                                                                        fontSize = 11.sp,
+                                                                                        color = MaterialTheme.colorScheme.primary
+                                                                                    )
+                                                                                }
+                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS -> {
+                                                                                    Text(
+                                                                                        text = "2×",
+                                                                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                                                        fontWeight = FontWeight.Bold,
+                                                                                        fontSize = 11.sp,
+                                                                                        color = MaterialTheme.colorScheme.primary
+                                                                                    )
+                                                                                }
+                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD -> {
+                                                                                    Icon(
+                                                                                        imageVector = Icons.Default.Timer,
+                                                                                        contentDescription = "Hold",
+                                                                                        tint = MaterialTheme.colorScheme.primary,
+                                                                                        modifier = Modifier.size(13.dp)
+                                                                                    )
+                                                                                }
+                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD -> {
+                                                                                    Text(
+                                                                                        text = "➔",
+                                                                                        fontSize = 10.sp,
+                                                                                        fontWeight = FontWeight.Bold,
+                                                                                        color = MaterialTheme.colorScheme.primary
+                                                                                    )
+                                                                                    Icon(
+                                                                                        imageVector = Icons.Default.Timer,
+                                                                                        contentDescription = "Hold",
+                                                                                        tint = MaterialTheme.colorScheme.primary,
+                                                                                        modifier = Modifier.size(13.dp)
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
                                                             )
                                                         }
 
@@ -2063,7 +2125,7 @@ state = pagerState,
 
                     if (blueprintTabTarget == 2) {
                         BlueprintWireframeView(
-                            tabTitle = "[ Deflectors ▶ ]",
+                            tabTitle = "Deflectors ▶",
                             sectionIds = currentOrder2,
                             pinnedSectionId = pinnedSection2,
                             sectionTitles = sectionTitles2,
@@ -2921,16 +2983,16 @@ state = pagerState,
         if (popoverTabTarget != null) {
             val tabId = popoverTabTarget!!
             val tabTitle = when (tabId) {
-                0 -> "[ ◀ Deflectors ]"
-                1 -> "[ HUD STRIP ]"
-                2 -> "[ Deflectors ▶ ]"
+                0 -> "◀ Deflectors"
+                1 -> "HUD STRIP"
+                2 -> "Deflectors ▶"
                 else -> "Avionics Tab"
             }
             val currentMode = when (tabId) {
                 0 -> tabMode0
                 1 -> tabMode1
                 2 -> tabMode2
-                else -> "custom_pinned"
+                else -> "sticky"
             }
             val currentPinned = when (tabId) {
                 0 -> pinnedSection0
@@ -3009,6 +3071,7 @@ fun TabAccordionPopover(
                 )
 
                 val modes = listOf(
+                    Triple("sticky", "Remember Last State (Sticky)", "Preserve the exact open and collapsed states of each section across app restarts."),
                     Triple("all_expanded", "All Expanded", "All accordion cards default open on tab entry."),
                     Triple("all_collapsed", "All Collapsed", "All accordion cards default closed on tab entry."),
                     Triple("solo", "Focus / Solo Mode", "Expanding any card automatically snaps all other cards shut."),

@@ -199,7 +199,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             onClick = { selectedFlankTab = 0 },
                                             label = {
                                                 Text(
-                                                    "[ ◀ Deflectors ]",
+                                                    "◀ Deflectors",
                                                     fontSize = 11.sp,
                                                     fontWeight = if (selectedFlankTab == 0) FontWeight.Bold else FontWeight.Normal
                                                 )
@@ -215,7 +215,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             onClick = { selectedFlankTab = 1 },
                                             label = {
                                                 Text(
-                                                    "[ Deflectors ▶ ]",
+                                                    "Deflectors ▶",
                                                     fontSize = 11.sp,
                                                     fontWeight = if (selectedFlankTab == 1) FontWeight.Bold else FontWeight.Normal
                                                 )

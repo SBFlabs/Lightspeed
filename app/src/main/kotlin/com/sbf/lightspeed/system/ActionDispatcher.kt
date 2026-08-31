@@ -203,17 +203,29 @@ object ActionDispatcher {
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")
                 context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                    val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                    if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
+                        ElevatedTaskCloser.execShizuku("input keyevent 82")
+                    }
                     try { context.startActivity(intent) } catch (_: Exception) {}
                 }
             }
             token.startsWith("shortcut:") -> {
+                val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
+                    ElevatedTaskCloser.execShizuku("input keyevent 82")
+                }
                 LightspeedShortcutManager.launch(context, token)
             }
             else -> {
                 val launchIntent = context.packageManager.getLaunchIntentForPackage(token)
                 if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                    val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                    if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
+                        ElevatedTaskCloser.execShizuku("input keyevent 82")
+                    }
                     try { context.startActivity(launchIntent) } catch (_: Exception) {}
                 } else {
                     Log.w(TAG, "Unhandled action token: $token")

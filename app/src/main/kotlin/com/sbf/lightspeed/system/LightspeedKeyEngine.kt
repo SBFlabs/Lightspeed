@@ -312,15 +312,12 @@ object LightspeedKeyEngine {
                 isPowerHoldFired = false
                 isPowerPressHoldFired = false
 
-                // Screen Sleep Failsafe: acquire WakeLock on power press to prevent immediate display sleep
-                acquirePowerScreenWakeLock(context, 450L)
-
-                // 1. Check Press-then-Hold Trigger (Second press within sequence window)
+                // 1. Check Press-then-Hold / Double-Press Trigger (Second press within sequence window)
                 val diffPower = now - lastPowerReleaseTime
                 if (lastPowerReleaseTime > 0L && diffPower <= SEQUENCE_TIMEOUT_MS) {
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = null
-                    acquirePowerScreenWakeLock(context, 1000L)
+                    acquirePowerScreenWakeLock(context, 3000L)
                     if (pressHoldAction != null) {
                         powerPressHoldJob?.cancel()
                         powerPressHoldJob = engineScope.launch {
@@ -355,7 +352,13 @@ object LightspeedKeyEngine {
                         ActionDispatcher.dispatch(holdAction, context)
                     }
                 }
-                return true
+
+                // Only consume down event if single press is remapped or hold action is active
+                if (singleAction != null || holdAction != null) {
+                    acquirePowerScreenWakeLock(context, 450L)
+                    return true
+                }
+                return false
             } else if (action == KeyEvent.ACTION_UP) {
                 isPowerPressed = false
                 powerHoldJob?.cancel()
@@ -387,17 +390,16 @@ object LightspeedKeyEngine {
                         ActionDispatcher.dispatch(doubleAction, context)
                         return true
                     } else {
-                        // Unmapped double press: keep screen awake, release wake lock
+                        // Unmapped double press: release wake lock
                         releasePowerScreenWakeLock()
                         return true
                     }
                 }
 
-                // 4. Single Press Disambiguation Trigger
+                // 4. Single Press Disambiguation Trigger (Only active if Single Press is explicitly remapped)
                 lastPowerReleaseTime = now
-                val shouldDisambiguate = doubleAction != null || pressHoldAction != null || singleAction != null
+                val shouldDisambiguate = singleAction != null
                 if (shouldDisambiguate) {
-                    // Keep screen awake during disambiguation window so display does not turn off/lock prematurely
                     acquirePowerScreenWakeLock(context, SEQUENCE_TIMEOUT_MS + 100L)
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = engineScope.launch {
@@ -408,7 +410,6 @@ object LightspeedKeyEngine {
                             LightspeedHapticEngine.click(context)
                             ActionDispatcher.dispatch(singleAction, context)
                         } else {
-                            // Default behavior: if screen was ON when gesture started, lock screen now!
                             releasePowerScreenWakeLock()
                             if (wasScreenInteractiveAtDown) {
                                 LightspeedAccessibilityService.instance?.performGlobalAction(

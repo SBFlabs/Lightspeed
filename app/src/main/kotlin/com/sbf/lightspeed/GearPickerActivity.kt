@@ -145,6 +145,20 @@ class GearPickerActivity : ComponentActivity() {
         overridePendingTransition(0, 0)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        val setId = intent.getStringExtra("SET_ID")
+        val isSingleSelect = !intent.getStringExtra("SINGLE_SELECT_PREF_KEY").isNullOrBlank()
+        if (!isSingleSelect && !setId.isNullOrBlank()) {
+            val setIndex = setId.toIntOrNull() ?: -1
+            if (setIndex >= 0) {
+                try {
+                    com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
     @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

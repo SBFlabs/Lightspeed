@@ -73,6 +73,8 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:autoRemoveFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
@@ -81,6 +83,8 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:autoRemoveFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
@@ -89,6 +93,8 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:autoRemoveFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
@@ -98,6 +104,8 @@
             android:excludeFromRecents="true"
             android:autoRemoveFromRecents="true"
             android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <service

@@ -888,7 +888,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                             }
                             context.startActivity(intent)
-                            dismissOverlay()
+                            uiHandler.postDelayed({ dismissOverlay() }, 150)
                             return true
                         }
 
@@ -919,8 +919,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, activeGearSetIndex)
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                                     }
-                                    dismissOverlay()
                                     context.startActivity(intent)
+                                    uiHandler.postDelayed({ dismissOverlay() }, 150)
                                 }
                                 longPressCogRunnable = runnable
                                 postDelayed(runnable, 400)

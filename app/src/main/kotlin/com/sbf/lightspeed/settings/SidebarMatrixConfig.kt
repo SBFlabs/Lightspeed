@@ -227,12 +227,14 @@ fun SidebarMatrixConfigurationFields(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                val result = LightspeedBackupEngine.exportToFile(context, uri)
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    LightspeedBackupEngine.exportToFile(context, uri)
+                }
                 if (result.isSuccess) {
                     Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "Failed to export backup.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Failed to export backup: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -242,8 +244,10 @@ fun SidebarMatrixConfigurationFields(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                val result = LightspeedBackupEngine.importFromFile(context, uri)
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    LightspeedBackupEngine.importFromFile(context, uri)
+                }
                 result.onSuccess { count ->
                     isImportSuccess = true
                     importStatusMessage = "Successfully restored $count settings and shortcut configurations!"

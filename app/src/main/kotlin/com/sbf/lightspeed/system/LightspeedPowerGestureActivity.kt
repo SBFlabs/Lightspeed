@@ -29,18 +29,49 @@ class LightspeedPowerGestureActivity : Activity() {
                 LightspeedHapticEngine.click(this)
                 ActionDispatcher.dispatch(boundAction, this)
 
-                val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-                km?.requestDismissKeyguard(this, null)
                 if (ElevatedTaskCloser.isShizukuActive) {
                     ElevatedTaskCloser.execShizuku("input keyevent 82")
                 }
+
+                val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                if (km?.isKeyguardLocked == true) {
+                    km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                        override fun onDismissSucceeded() {
+                            super.onDismissSucceeded()
+                            finishAndRemoveTask()
+                            overridePendingTransition(0, 0)
+                        }
+
+                        override fun onDismissError() {
+                            super.onDismissError()
+                            finishAndRemoveTask()
+                            overridePendingTransition(0, 0)
+                        }
+
+                        override fun onDismissCancelled() {
+                            super.onDismissCancelled()
+                            finishAndRemoveTask()
+                            overridePendingTransition(0, 0)
+                        }
+                    })
+                    window.decorView.postDelayed({
+                        if (!isFinishing && !isDestroyed) {
+                            finishAndRemoveTask()
+                            overridePendingTransition(0, 0)
+                        }
+                    }, 350)
+                } else {
+                    finishAndRemoveTask()
+                    overridePendingTransition(0, 0)
+                }
             } else {
                 launchDefaultCamera()
+                finishAndRemoveTask()
+                overridePendingTransition(0, 0)
             }
         } catch (_: Exception) {
             launchDefaultCamera()
-        } finally {
-            finish()
+            finishAndRemoveTask()
             overridePendingTransition(0, 0)
         }
     }

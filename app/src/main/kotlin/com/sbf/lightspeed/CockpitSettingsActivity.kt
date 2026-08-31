@@ -41,6 +41,11 @@ import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class CockpitSettingsActivity : ComponentActivity() {
 
+    override fun finish() {
+        finishAndRemoveTask()
+        super.finish()
+    }
+
     override fun onPause() {
         super.onPause()
         // Clear all overlay live-previews whenever settings loses foreground — covers

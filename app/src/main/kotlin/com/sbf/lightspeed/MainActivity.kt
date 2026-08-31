@@ -71,6 +71,11 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {}
     }
 
+    override fun finish() {
+        finishAndRemoveTask()
+        super.finish()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         try {

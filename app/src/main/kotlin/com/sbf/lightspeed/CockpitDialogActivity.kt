@@ -58,6 +58,11 @@ class CockpitDialogActivity : ComponentActivity() {
         const val EXTRA_TOKEN = "EXTRA_TOKEN"
     }
 
+    override fun finish() {
+        finishAndRemoveTask()
+        super.finish()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         val setIndex = intent.getIntExtra(EXTRA_SET_INDEX, -1)

@@ -29,7 +29,9 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:theme="@style/Theme.Lightspeed.Floating">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -60,31 +62,42 @@
         <activity
             android:name=".CockpitSettingsActivity"
             android:exported="false"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
             android:name=".CockpitDialogActivity"
             android:exported="false"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
             android:name=".GearPickerActivity"
             android:exported="false"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
             android:name=".settings.SidebarSettingsActivity"
             android:exported="false"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
             android:name=".system.TacticalFlyoutActivity"
             android:exported="false"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <service
@@ -111,7 +124,9 @@
         <activity
             android:name=".LightspeedRefuelingActivity"
             android:exported="false"
+            android:taskAffinity=""
             android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
             android:launchMode="singleTask"
             android:showWhenLocked="true"
             android:turnScreenOn="true"

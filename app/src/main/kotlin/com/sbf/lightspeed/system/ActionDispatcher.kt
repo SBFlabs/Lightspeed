@@ -128,7 +128,7 @@ object ActionDispatcher {
             }
             token == "system:refueling_bay" || token == "ACTION_REFUELING_BAY" || token == "refueling_bay" -> {
                 val intent = Intent(context, com.sbf.lightspeed.LightspeedRefuelingActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                 }
                 try { context.startActivity(intent) } catch (_: Exception) {}
             }

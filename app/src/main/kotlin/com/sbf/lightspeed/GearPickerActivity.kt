@@ -133,6 +133,11 @@ sealed class PickerRowItem {
 }
 
 class GearPickerActivity : ComponentActivity() {
+    override fun finish() {
+        finishAndRemoveTask()
+        super.finish()
+    }
+
     @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

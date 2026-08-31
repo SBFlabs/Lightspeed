@@ -93,6 +93,11 @@ class LightspeedRefuelingActivity : ComponentActivity() {
             set(value) { isChargingSessionDismissed = value }
     }
 
+    override fun finish() {
+        finishAndRemoveTask()
+        super.finish()
+    }
+
     private var appWidgetHost: AppWidgetHost? = null
     private var appWidgetManager: AppWidgetManager? = null
     private var pendingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID

@@ -593,7 +593,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         putExtra(CockpitDialogActivity.EXTRA_SET_ID, targetSetId)
                                         putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, gIndex)
                                         putExtra(CockpitDialogActivity.EXTRA_CURRENT_NAME, currentName)
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                                     }
                                     dismissOverlay()
                                     context.startActivity(intent)
@@ -885,7 +885,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                             val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
                                 putExtra("SET_ID", currentSetId)
                                 putExtra("RING_INDEX", activeHangarRing)
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                             }
                             context.startActivity(intent)
                             dismissOverlay()
@@ -917,7 +917,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         action = CockpitDialogActivity.ACTION_EDIT_ITEM
                                         putExtra(CockpitDialogActivity.EXTRA_TOKEN, targetedToken)
                                         putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, activeGearSetIndex)
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                                     }
                                     dismissOverlay()
                                     context.startActivity(intent)
@@ -1694,12 +1694,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         dismissOverlay()
         try {
             val settingsIntent = Intent(context, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
             }
             context.startActivity(settingsIntent)
         } catch (_: Exception) {
             val alternativeIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
             }
             alternativeIntent?.let { context.startActivity(it) }
         }

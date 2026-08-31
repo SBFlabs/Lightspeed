@@ -2462,7 +2462,7 @@ fun SidebarMatrixConfigurationFields(
                                                     Button(
                                                         onClick = {
                                                             val intent = Intent(context, com.sbf.lightspeed.LightspeedRefuelingActivity::class.java).apply {
-                                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                                                             }
                                                             context.startActivity(intent)
                                                         },

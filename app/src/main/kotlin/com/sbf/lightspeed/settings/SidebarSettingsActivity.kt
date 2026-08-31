@@ -46,6 +46,11 @@ class SidebarSettingsActivity : ComponentActivity() {
         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
     }
 
+    override fun finish() {
+        finishAndRemoveTask()
+        super.finish()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         isActive = false

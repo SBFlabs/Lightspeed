@@ -58,9 +58,16 @@ class CockpitDialogActivity : ComponentActivity() {
         const val EXTRA_TOKEN = "EXTRA_TOKEN"
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        finishAndRemoveTask()
+        overridePendingTransition(0, 0)
+    }
+
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
+        overridePendingTransition(0, 0)
     }
 
     override fun onDestroy() {

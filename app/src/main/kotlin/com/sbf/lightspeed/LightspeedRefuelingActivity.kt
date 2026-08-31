@@ -93,9 +93,16 @@ class LightspeedRefuelingActivity : ComponentActivity() {
             set(value) { isChargingSessionDismissed = value }
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        finishAndRemoveTask()
+        overridePendingTransition(0, 0)
+    }
+
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
+        overridePendingTransition(0, 0)
     }
 
     private var appWidgetHost: AppWidgetHost? = null

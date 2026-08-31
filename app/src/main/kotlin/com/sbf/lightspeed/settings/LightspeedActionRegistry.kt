@@ -74,9 +74,13 @@ object LightspeedActionRegistry {
         "system:tactical_audio",
         "system:lens",
         "system:qr_scanner",
+        "system:camera_photo",
+        "system:camera_video",
         "system:chatgpt",
         "system:claude",
-        "system:gemini"
+        "system:gemini",
+        "system:folax",
+        "system:core_cooling"
     )
 
     fun initializeSync(context: Context) {
@@ -273,9 +277,13 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:tactical_audio" || token == "ACTION_TACTICAL_AUDIO" -> "Tactical Audio: Toggle Capture"
         token == "system:lens" || token == "ACTION_LENS" -> "Google Lens (Visual Search)"
         token == "system:qr_scanner" || token == "ACTION_QR_SCANNER" -> "QR Scanner (Optical Scan)"
+        token == "system:camera_photo" || token == "ACTION_CAMERA_PHOTO" || token == "camera_photo" -> "Camera (Photo Mode)"
+        token == "system:camera_video" || token == "ACTION_CAMERA_VIDEO" || token == "camera_video" -> "Camera (Video Mode)"
         token == "system:chatgpt" || token == "ACTION_CHATGPT" -> "ChatGPT (AI Assistant)"
         token == "system:claude" || token == "ACTION_CLAUDE" -> "Claude (AI Assistant)"
         token == "system:gemini" || token == "ACTION_GEMINI" -> "Gemini (Google AI)"
+        token == "system:folax" || token == "ACTION_FOLAX" -> "Folax (Transsion AI)"
+        token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> "Core Cooling (Reboot System)"
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

@@ -81,6 +81,13 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         @Volatile
         var isActive: Boolean = false
             private set
+
+        @Volatile
+        var isChargingSessionDismissed: Boolean = false
+
+        var isSessionDismissed: Boolean
+            get() = isChargingSessionDismissed
+            set(value) { isChargingSessionDismissed = value }
     }
 
     private var appWidgetHost: AppWidgetHost? = null
@@ -157,7 +164,10 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                 onReorderWidget = { fromIdx, toIdx -> reorderWidget(fromIdx, toIdx) },
                 onToggleLayoutMode = { toggleLayoutMode() },
                 onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
-                onDismiss = { finish() }
+                onDismiss = {
+                    isChargingSessionDismissed = true
+                    finish()
+                }
             )
         }
     }
@@ -573,6 +583,18 @@ fun RefuelingBayScreen(
                             .fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        var isInfinixBannerDismissed by remember {
+                            mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, false))
+                        }
+                        if (!isInfinixBannerDismissed) {
+                            InfinixStandbyWarningBanner(
+                                onDismiss = {
+                                    isInfinixBannerDismissed = true
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, true).apply()
+                                }
+                            )
+                        }
+
                         // Header Toolbar for Widget Controls
                         WidgetEngineToolbar(
                             widgetCount = widgetIds.size,
@@ -591,6 +613,7 @@ fun RefuelingBayScreen(
                                 .weight(1f)
                         ) {
                             MultiWidgetContainer(
+                                activity = activity,
                                 widgetIds = widgetIds,
                                 widgetLayoutMode = widgetLayoutMode,
                                 isEditMode = isEditMode,
@@ -613,6 +636,17 @@ fun RefuelingBayScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
+                    var isInfinixBannerDismissed by remember {
+                        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, false))
+                    }
+                    if (!isInfinixBannerDismissed) {
+                        InfinixStandbyWarningBanner(
+                            onDismiss = {
+                                isInfinixBannerDismissed = true
+                                prefs.edit().putBoolean(LightspeedPreferences.KEY_INFINIX_STANDBY_DISMISSED, true).apply()
+                            }
+                        )
+                    }
                     // Header: Minimalist Cryo Clock
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -690,6 +724,7 @@ fun RefuelingBayScreen(
                                 .heightIn(min = 160.dp, max = 240.dp)
                         ) {
                             MultiWidgetContainer(
+                                activity = activity,
                                 widgetIds = widgetIds,
                                 widgetLayoutMode = widgetLayoutMode,
                                 isEditMode = isEditMode,
@@ -1062,6 +1097,7 @@ fun WidgetEngineToolbar(
 
 @Composable
 fun MultiWidgetContainer(
+    activity: Activity,
     widgetIds: List<Int>,
     widgetLayoutMode: String,
     isEditMode: Boolean,
@@ -1119,6 +1155,7 @@ fun MultiWidgetContainer(
                     if (widgetId != null && appWidgetHost != null && appWidgetManager != null) {
                         Box(modifier = Modifier.fillMaxSize()) {
                             AppWidgetContainerView(
+                                activity = activity,
                                 widgetId = widgetId,
                                 appWidgetHost = appWidgetHost,
                                 appWidgetManager = appWidgetManager,
@@ -1224,6 +1261,7 @@ fun MultiWidgetContainer(
                     Box(modifier = Modifier.fillMaxSize()) {
                         if (appWidgetHost != null && appWidgetManager != null) {
                             AppWidgetContainerView(
+                                activity = activity,
                                 widgetId = widgetId,
                                 appWidgetHost = appWidgetHost,
                                 appWidgetManager = appWidgetManager,
@@ -1268,7 +1306,7 @@ fun MultiWidgetContainer(
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(Color.Red.copy(alpha = 0.7f))
-                                    ) {
+                                ) {
                                     Icon(Icons.Default.Close, contentDescription = "Delete Widget", tint = Color.White, modifier = Modifier.size(12.dp))
                                 }
                             }
@@ -1311,6 +1349,7 @@ fun MultiWidgetContainer(
 
 @Composable
 fun AppWidgetContainerView(
+    activity: Activity,
     widgetId: Int,
     appWidgetHost: AppWidgetHost,
     appWidgetManager: AppWidgetManager,
@@ -1331,6 +1370,17 @@ fun AppWidgetContainerView(
                 try {
                     val hostView = appWidgetHost.createView(ctx, widgetId, appWidgetInfo)
                     hostView.setAppWidget(widgetId, appWidgetInfo)
+                    hostView.setOnTouchListener { _, ev ->
+                        if (ev.action == android.view.MotionEvent.ACTION_DOWN) {
+                            try {
+                                val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                                if (km?.isKeyguardLocked == true) {
+                                    km.requestDismissKeyguard(activity, null)
+                                }
+                            } catch (_: Exception) {}
+                        }
+                        false
+                    }
                     hostView
                 } catch (e: Exception) {
                     android.widget.TextView(ctx).apply {
@@ -1347,6 +1397,85 @@ fun AppWidgetContainerView(
                 color = Color.LightGray.copy(alpha = 0.6f),
                 fontSize = 11.5.sp
             )
+        }
+    }
+}
+
+@Composable
+fun InfinixStandbyWarningBanner(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.75f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.WarningAmber,
+                contentDescription = null,
+                tint = Color(0xFFFFB300),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "OEM Standby Conflict",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = "Infinix XOS Standby Style may conflict with Refueling Bay. Disable in System Settings -> Special Function -> Standby Style.",
+                    fontSize = 10.5.sp,
+                    color = Color.LightGray.copy(alpha = 0.85f),
+                    lineHeight = 13.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "OPEN SETTINGS",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable {
+                            try {
+                                val intent = Intent("com.transsion.specialfunction.ACTION_STANDBY").apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                try {
+                                    context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    })
+                                } catch (_: Exception) {}
+                            }
+                        }
+                        .padding(vertical = 2.dp, horizontal = 4.dp)
+                )
+            }
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
     }
 }

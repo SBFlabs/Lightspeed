@@ -1049,3 +1049,439 @@ fun Material3ExpressiveLoader() {
         color = MaterialTheme.colorScheme.primary
     )
 }
+
+/**
+ * Maintenance Bay styled Accordion with 45° alternating electric-blue and black hazard stripe border.
+ */
+@Composable
+fun HazardAccordionSection(
+    title: String,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    headerTrailing: @Composable (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                1.5.dp,
+                Brush.horizontalGradient(
+                    listOf(
+                        Color(0xFF00E5FF).copy(alpha = 0.8f),
+                        Color(0xFF0A0E14),
+                        Color(0xFF00E5FF).copy(alpha = 0.8f)
+                    )
+                ),
+                RoundedCornerShape(18.dp)
+            ),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 45° Alternating Electric Blue and Deep Black Diagonal Hazard Hatch Stripe
+            androidx.compose.foundation.Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            ) {
+                val w = size.width
+                val h = size.height
+                val stripeWidth = 10.dp.toPx()
+                var x = -h
+                var isCyan = true
+                val cyanColor = Color(0xFF00E5FF)
+                val darkColor = Color(0xFF0A0E14)
+                while (x < w + h) {
+                    val path = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(x, 0f)
+                        lineTo(x + stripeWidth, 0f)
+                        lineTo(x + stripeWidth + h, h)
+                        lineTo(x + h, h)
+                        close()
+                    }
+                    drawPath(path, if (isCyan) cyanColor else darkColor)
+                    x += stripeWidth
+                    isCyan = !isCyan
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Science,
+                        contentDescription = null,
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color(0xFF00E5FF)
+                    )
+                }
+                if (headerTrailing != null) {
+                    headerTrailing()
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = Color(0xFF00E5FF),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            AnimatedVisibility(visible = isExpanded) {
+                Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * In-place morphing button with triple-lock safety confirmation before executing reboot.
+ */
+@Composable
+fun CoreCoolingTripleLockButton(
+    onExecuteReboot: () -> Unit
+) {
+    var lockState by remember { mutableIntStateOf(0) } // 0: Idle, 1: Are you sure?, 2: Are you sure sure?
+
+    // 5-second inactivity auto-reset timer
+    LaunchedEffect(lockState) {
+        if (lockState > 0) {
+            kotlinx.coroutines.delay(5000L)
+            lockState = 0
+        }
+    }
+
+    val buttonColor = when (lockState) {
+        1 -> Color(0xFFFFB300) // Amber
+        2 -> Color(0xFFFF3D00) // Red
+        else -> Color(0xFF00E5FF) // Electric Blue
+    }
+
+    val buttonText = when (lockState) {
+        0 -> "❄️ Initiate Core Cooling (Reboot)"
+        1 -> "⚠️ Are you sure? (Tap again)"
+        2 -> "🚨 Are you sure sure? (Confirm Reboot)"
+        else -> "❄️ Initiate Core Cooling"
+    }
+
+    Button(
+        onClick = {
+            when (lockState) {
+                0 -> lockState = 1
+                1 -> lockState = 2
+                2 -> {
+                    lockState = 0
+                    onExecuteReboot()
+                }
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = buttonColor.copy(alpha = if (lockState == 0) 0.18f else 0.85f),
+            contentColor = if (lockState == 0) buttonColor else Color.Black
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, buttonColor)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = if (lockState == 0) Icons.Default.RestartAlt else Icons.Default.Warning,
+                contentDescription = null,
+                tint = if (lockState == 0) buttonColor else Color.Black,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = buttonText,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+/**
+ * Power Button gesture mapping row with 7-tap safety interlock for single-press
+ * and inline runtime installed tools dropdown.
+ */
+@Composable
+fun PowerGestureMappingRow(
+    context: Context,
+    prefs: SharedPreferences,
+    prefKey: String,
+    title: String,
+    slot: com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot,
+    isSinglePress: Boolean,
+    isSinglePressUnlocked: Boolean,
+    onSinglePressUnlockStep: () -> Unit,
+    installedTools: List<com.sbf.lightspeed.system.TacticalToolItem>,
+    options: List<String>,
+    labelCache: Map<String, String>,
+    onRefreshNeeded: () -> Unit
+) {
+    var currentValue by remember {
+        mutableStateOf(
+            if (isSinglePress && !isSinglePressUnlocked) "none"
+            else prefs.getString(prefKey, if (slot == com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD) "system:tactical_flyout" else "none") ?: "none"
+        )
+    }
+
+    LaunchedEffect(isSinglePressUnlocked) {
+        currentValue = if (isSinglePress && !isSinglePressUnlocked) "none"
+        else prefs.getString(prefKey, if (slot == com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD) "system:tactical_flyout" else "none") ?: "none"
+    }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            currentValue = prefs.getString(prefKey, "none") ?: "none"
+            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+            onRefreshNeeded()
+        }
+    }
+
+    var isToolsDropdownOpen by remember { mutableStateOf(false) }
+
+    val isLocked = isSinglePress && !isSinglePressUnlocked
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable {
+                if (isLocked) {
+                    onSinglePressUnlockStep()
+                } else {
+                    val intent = Intent(context, GearPickerActivity::class.java).apply {
+                        putExtra("SINGLE_SELECT_PREF_KEY", prefKey)
+                        putExtra("SINGLE_SELECT_TITLE", "$title Action")
+                    }
+                    launcher.launch(intent)
+                }
+            },
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isLocked) 0.15f else 0.35f),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isLocked) Color.Gray.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                ) {
+                    // Custom Leading Badge
+                    Surface(
+                        modifier = Modifier.wrapContentWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = (if (isLocked) Color.Gray else MaterialTheme.colorScheme.primary).copy(alpha = 0.16f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            (if (isLocked) Color.Gray else MaterialTheme.colorScheme.primary).copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.PowerSettingsNew,
+                                contentDescription = null,
+                                tint = if (isLocked) Color.LightGray else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            when (slot) {
+                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS -> {
+                                    Text(
+                                        text = "1×",
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = if (isLocked) Color.LightGray else MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS -> {
+                                    Text(
+                                        text = "2×",
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD -> {
+                                    Icon(
+                                        imageVector = Icons.Default.Timer,
+                                        contentDescription = "Hold",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD -> {
+                                    Text(
+                                        text = "➔",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Timer,
+                                        contentDescription = "Hold",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            color = if (isLocked) Color.LightGray else Color.White
+                        )
+                        val displayLabel = if (isLocked) {
+                            "🔒 Native Sleep (Tap 7× to Unlock)"
+                        } else {
+                            labelCache[currentValue] ?: resolveDynamicTokenLabel(context, currentValue)
+                        }
+                        Text(
+                            text = displayLabel,
+                            fontSize = 11.5.sp,
+                            color = if (isLocked) Color.Gray else MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                if (!isLocked) {
+                    // Inline Installed Tools Dropdown Button
+                    Box {
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { isToolsDropdownOpen = true },
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Bolt,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Tools",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = isToolsDropdownOpen,
+                            onDismissRequest = { isToolsDropdownOpen = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("None (Native / Sleep)", fontWeight = FontWeight.Normal, fontSize = 12.sp) },
+                                onClick = {
+                                    isToolsDropdownOpen = false
+                                    currentValue = "none"
+                                    prefs.edit().putString(prefKey, "none").apply()
+                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                    onRefreshNeeded()
+                                }
+                            )
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                            var currentCategory = ""
+                            installedTools.forEach { tool ->
+                                if (tool.category != currentCategory) {
+                                    currentCategory = tool.category
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = currentCategory.uppercase(java.util.Locale.US),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        onClick = {},
+                                        enabled = false
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = tool.label,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (currentValue == tool.token) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (currentValue == tool.token) MaterialTheme.colorScheme.primary else Color.White
+                                        )
+                                    },
+                                    onClick = {
+                                        isToolsDropdownOpen = false
+                                        currentValue = tool.token
+                                        prefs.edit().putString(prefKey, tool.token).apply()
+                                        LightspeedHapticEngine.tick(context)
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        onRefreshNeeded()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

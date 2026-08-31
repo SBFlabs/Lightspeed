@@ -68,7 +68,7 @@ fun SidebarMatrixConfigurationFields(
 
     var tabMode1 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_1, "custom_pinned") ?: "custom_pinned") }
     var pinnedSection1 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, "sensor_deck") ?: "sensor_deck") }
-    var sectionOrder1Str by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault") ?: "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault") }
+    var sectionOrder1Str by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") }
 
     var tabMode2 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
     var pinnedSection2 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "top") ?: "top") }
@@ -105,6 +105,12 @@ fun SidebarMatrixConfigurationFields(
     var isTacticalHardwareExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean("pref_section_tactical_hardware_expanded", false)) }
     var isRefuelingExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "refueling_bay" else prefs.getBoolean("pref_section_refueling_expanded", false)) }
     var isConfigVaultExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean("pref_section_backup_expanded", false)) }
+    var isExperimentalLabsExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "experimental_labs" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, false)) }
+
+    // Power Button Safety Interlock & Dynamic Tools
+    var singlePressTapCount by remember { mutableIntStateOf(0) }
+    var isSinglePressUnlocked by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)) }
+    val installedTacticalTools = remember { com.sbf.lightspeed.system.InstalledTacticalToolsScanner.scan(context) }
 
     // Tactical Hardware Deck Sub-Sections
     var isSubVolumeExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", true)) }
@@ -274,7 +280,8 @@ fun SidebarMatrixConfigurationFields(
             "telemetry_indicators" to "Telemetry & Indicators",
             "tactical_hardware" to "Tactical Hardware Deck",
             "refueling_bay" to "Refueling Bay",
-            "config_vault" to "Configuration Vault"
+            "config_vault" to "Configuration Vault",
+            "experimental_labs" to "Experimental Labs"
         )
     }
 
@@ -321,6 +328,7 @@ fun SidebarMatrixConfigurationFields(
                         isTacticalHardwareExpanded = false
                         isRefuelingExpanded = false
                         isConfigVaultExpanded = false
+                        isExperimentalLabsExpanded = false
                     }
                     2 -> {
                         isCenterExpanded = false
@@ -352,6 +360,7 @@ fun SidebarMatrixConfigurationFields(
                             if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
                             if (pinned != "refueling_bay") isRefuelingExpanded = false
                             if (pinned != "config_vault") isConfigVaultExpanded = false
+                            if (pinned != "experimental_labs") isExperimentalLabsExpanded = false
                         }
                         2 -> {
                             if (pinned != "center") isCenterExpanded = false
@@ -394,12 +403,14 @@ fun SidebarMatrixConfigurationFields(
                     isTacticalHardwareExpanded = allExpandedState
                     isRefuelingExpanded = allExpandedState
                     isConfigVaultExpanded = allExpandedState
+                    isExperimentalLabsExpanded = allExpandedState
                     prefs.edit()
                         .putBoolean("pref_section_statusbar_expanded", allExpandedState)
                         .putBoolean("pref_section_telemetry_expanded", allExpandedState)
                         .putBoolean("pref_section_tactical_hardware_expanded", allExpandedState)
                         .putBoolean("pref_section_refueling_expanded", allExpandedState)
                         .putBoolean("pref_section_backup_expanded", allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, allExpandedState)
                         .putBoolean("pref_statusbar_preview", allExpandedState)
                         .apply()
                 }
@@ -429,7 +440,8 @@ fun SidebarMatrixConfigurationFields(
             "telemetry", "telemetry_indicators" -> isTelemetryExpanded = true
             "volumekeys", "tactical_hardware", "power", "backtap" -> isTacticalHardwareExpanded = true
             "refueling", "refueling_bay" -> isRefuelingExpanded = true
-            "backup", "config_vault", "watchdog", "shizuku_jettison" -> isConfigVaultExpanded = true
+            "backup", "config_vault", "shizuku_jettison" -> isConfigVaultExpanded = true
+            "experimental_labs", "labs", "experimental", "watchdog", "core_cooling" -> isExperimentalLabsExpanded = true
             "wings" -> {
                 if (jumpTargetTab == 0) isLeftCenterExpanded = true
                 else isCenterExpanded = true
@@ -848,7 +860,7 @@ fun SidebarMatrixConfigurationFields(
 
                 // PAGE 1: HUD STRIP
                 1 -> {
-                    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "tactical_hardware", "refueling_bay", "config_vault")
+                    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "tactical_hardware", "refueling_bay", "config_vault", "experimental_labs")
                     val currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
                         list + (defaultOrder1 - list.toSet())
                     }
@@ -1799,80 +1811,67 @@ fun SidebarMatrixConfigurationFields(
                                                         )
 
                                                         powerGestures.forEach { (prefKey, title, slot) ->
-                                                            GestureMappingRow(
+                                                            PowerGestureMappingRow(
                                                                 context = context,
                                                                 prefs = prefs,
-                                                                direction = ArrowDirection.TAP,
-                                                                isHold = prefKey == LightspeedPreferences.KEY_POWER_HOLD || prefKey == LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD,
-                                                                keyResName = prefKey,
-                                                                defaultTitle = title,
+                                                                prefKey = prefKey,
+                                                                title = title,
+                                                                slot = slot,
+                                                                isSinglePress = slot == LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS,
+                                                                isSinglePressUnlocked = isSinglePressUnlocked,
+                                                                onSinglePressUnlockStep = {
+                                                                    singlePressTapCount++
+                                                                    if (singlePressTapCount in 4..6) {
+                                                                        android.widget.Toast.makeText(
+                                                                            context,
+                                                                            "You are ${7 - singlePressTapCount} steps away from unlocking Single Press remap.",
+                                                                            android.widget.Toast.LENGTH_SHORT
+                                                                        ).show()
+                                                                    } else if (singlePressTapCount >= 7) {
+                                                                        isSinglePressUnlocked = true
+                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, true).apply()
+                                                                        android.widget.Toast.makeText(
+                                                                            context,
+                                                                            "Single Press Remapping Unlocked",
+                                                                            android.widget.Toast.LENGTH_SHORT
+                                                                        ).show()
+                                                                        com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
+                                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                        onRefreshNeeded()
+                                                                    }
+                                                                },
+                                                                installedTools = installedTacticalTools,
                                                                 options = dynamicActionTokens,
                                                                 labelCache = tokenLabelCache,
-                                                                showMediaQuickAccess = false,
-                                                                customLeading = {
-                                                                    Surface(
-                                                                        modifier = Modifier.wrapContentWidth(),
-                                                                        shape = RoundedCornerShape(8.dp),
-                                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
-                                                                    ) {
-                                                                        Row(
-                                                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                                                                            verticalAlignment = Alignment.CenterVertically,
-                                                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                                                        ) {
-                                                                            Icon(
-                                                                                imageVector = Icons.Default.PowerSettingsNew,
-                                                                                contentDescription = null,
-                                                                                tint = MaterialTheme.colorScheme.primary,
-                                                                                modifier = Modifier.size(15.dp)
-                                                                            )
-                                                                            when (slot) {
-                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS -> {
-                                                                                    Text(
-                                                                                        text = "1×",
-                                                                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        fontSize = 11.sp,
-                                                                                        color = MaterialTheme.colorScheme.primary
-                                                                                    )
-                                                                                }
-                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS -> {
-                                                                                    Text(
-                                                                                        text = "2×",
-                                                                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        fontSize = 11.sp,
-                                                                                        color = MaterialTheme.colorScheme.primary
-                                                                                    )
-                                                                                }
-                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD -> {
-                                                                                    Icon(
-                                                                                        imageVector = Icons.Default.Timer,
-                                                                                        contentDescription = "Hold",
-                                                                                        tint = MaterialTheme.colorScheme.primary,
-                                                                                        modifier = Modifier.size(13.dp)
-                                                                                    )
-                                                                                }
-                                                                                LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD -> {
-                                                                                    Text(
-                                                                                        text = "➔",
-                                                                                        fontSize = 10.sp,
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        color = MaterialTheme.colorScheme.primary
-                                                                                    )
-                                                                                    Icon(
-                                                                                        imageVector = Icons.Default.Timer,
-                                                                                        contentDescription = "Hold",
-                                                                                        tint = MaterialTheme.colorScheme.primary,
-                                                                                        modifier = Modifier.size(13.dp)
-                                                                                    )
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
+                                                                onRefreshNeeded = onRefreshNeeded
                                                             )
+                                                        }
+
+                                                        // Emergency Reset Hardware Notice Banner
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.WarningAmber,
+                                                                    contentDescription = null,
+                                                                    tint = MaterialTheme.colorScheme.primary,
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Text(
+                                                                    text = "⚠️ Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
+                                                                    fontSize = 11.sp,
+                                                                    color = Color.LightGray.copy(alpha = 0.85f),
+                                                                    lineHeight = 14.sp
+                                                                )
+                                                            }
                                                         }
                                                     }
 
@@ -2436,6 +2435,252 @@ fun SidebarMatrixConfigurationFields(
                                                             Text("Reset to Factory Defaults", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = MaterialTheme.colorScheme.error)
                                                             Text("Wipe custom settings and revert to pristine defaults", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
                                                         }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    "experimental_labs" -> {
+                                        item(key = "experimental_labs") {
+                                            HazardAccordionSection(
+                                                title = "Experimental Labs",
+                                                isExpanded = isExperimentalLabsExpanded,
+                                                onToggle = {
+                                                    toggleSection(1, "experimental_labs", isExperimentalLabsExpanded) { isExperimentalLabsExpanded = it }
+                                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, isExperimentalLabsExpanded).apply()
+                                                }
+                                            ) {
+                                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                                    // Maintenance Bay Intro Badge
+                                                    Card(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF00E5FF).copy(alpha = 0.08f)),
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.25f))
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Icon(Icons.Default.Build, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(18.dp))
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Text(
+                                                                text = "Experimental Maintenance Bay: Advanced hardware watchdog & core thermal management subsystems.",
+                                                                fontSize = 11.sp,
+                                                                color = Color(0xFF00E5FF).copy(alpha = 0.9f),
+                                                                lineHeight = 14.sp
+                                                            )
+                                                        }
+                                                    }
+
+                                                    // 1. Space Watchdog (Accessibility Service Sentinel)
+                                                    var isWatchdogExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_watchdog_labs", true)) }
+                                                    CollapsibleSubSection(
+                                                        title = "🛰️ Space Watchdog (Service Sentinel)",
+                                                        subtitle = "Autonomous health verification & Shizuku-powered service revival",
+                                                        isExpanded = isWatchdogExpanded,
+                                                        onToggle = {
+                                                            isWatchdogExpanded = !isWatchdogExpanded
+                                                            prefs.edit().putBoolean("pref_sub_watchdog_labs", isWatchdogExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        val sentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
+                                                        val isServiceRunning = LightspeedAccessibilityService.instance != null
+                                                        val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
+
+                                                        // Sentinel Health Status Badge
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(
+                                                                containerColor = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF3D00).copy(alpha = 0.15f)
+                                                            ),
+                                                            border = androidx.compose.foundation.BorderStroke(
+                                                                1.dp,
+                                                                if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.4f) else Color(0xFFFF3D00).copy(alpha = 0.5f)
+                                                            )
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                            ) {
+                                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                    Icon(
+                                                                        imageVector = if (isServiceRunning) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                                                        contentDescription = null,
+                                                                        tint = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
+                                                                        modifier = Modifier.size(18.dp)
+                                                                    )
+                                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                                    Column {
+                                                                        Text(
+                                                                            text = if (isServiceRunning) "SERVICE STATUS: ONLINE" else "SERVICE STATUS: OFFLINE",
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            fontSize = 11.5.sp,
+                                                                            color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00)
+                                                                        )
+                                                                        Text(
+                                                                            text = if (isSentinelActive) "Watchdog Sentinel: Polling (20s cycle)" else "Watchdog Sentinel: Standby",
+                                                                            fontSize = 10.5.sp,
+                                                                            color = Color.LightGray.copy(alpha = 0.75f)
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        PrefToggleRow(
+                                                            title = "Enable Space Watchdog Sentinel",
+                                                            subtitle = "Background sentinel thread polls service health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
+                                                            isChecked = sentinelEnabled,
+                                                            onCheckedChange = { checked ->
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
+                                                                if (checked) {
+                                                                    LightspeedWatchdogEngine.initSentinel(context)
+                                                                } else {
+                                                                    LightspeedWatchdogEngine.stopSentinel()
+                                                                }
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+
+                                                        OutlinedButton(
+                                                            onClick = {
+                                                                val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
+                                                                if (ok) {
+                                                                    android.widget.Toast.makeText(context, "Space Watchdog pulse sent via Shizuku", android.widget.Toast.LENGTH_SHORT).show()
+                                                                } else {
+                                                                    android.widget.Toast.makeText(context, "Shizuku or Root required for service revival", android.widget.Toast.LENGTH_SHORT).show()
+                                                                }
+                                                            },
+                                                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f))
+                                                        ) {
+                                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Text("Trigger Sentinel Revival Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF00E5FF))
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 2. Core Cooling (Scheduled Reboot Reminder & Triple-Lock Reboot)
+                                                    var isCoreCoolingExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
+                                                    CollapsibleSubSection(
+                                                        title = "❄️ Core Cooling (System Reboot & Reminder)",
+                                                        subtitle = "Configurable maintenance cycle & triple-lock hardware reboot safety",
+                                                        isExpanded = isCoreCoolingExpanded,
+                                                        onToggle = {
+                                                            isCoreCoolingExpanded = !isCoreCoolingExpanded
+                                                            prefs.edit().putBoolean("pref_sub_core_cooling_labs", isCoreCoolingExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        val coreCoolingEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)
+                                                        var scheduleChoice by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "weekly_sunday") ?: "weekly_sunday") }
+                                                        var isScheduleDropdownOpen by remember { mutableStateOf(false) }
+
+                                                        PrefToggleRow(
+                                                            title = "Scheduled Core Cooling Reminder",
+                                                            subtitle = "Dispatches a gentle reminder when system core cooling (reboot) is recommended.",
+                                                            isChecked = coreCoolingEnabled,
+                                                            onCheckedChange = { checked ->
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, checked).apply()
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+
+                                                        if (coreCoolingEnabled) {
+                                                            Surface(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .padding(vertical = 4.dp)
+                                                                    .clip(RoundedCornerShape(12.dp))
+                                                                    .clickable { isScheduleDropdownOpen = true },
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Column {
+                                                                        Text("Cooling Cycle Frequency", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                                        val scheduleLabel = when (scheduleChoice) {
+                                                                            "nightly" -> "Nightly (Every 24 Hours · 03:00 AM)"
+                                                                            "biweekly" -> "Bi-Weekly (Every 14 Days)"
+                                                                            else -> "Weekly (Sundays · 03:00 AM)"
+                                                                        }
+                                                                        Text(scheduleLabel, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                }
+
+                                                                DropdownMenu(
+                                                                    expanded = isScheduleDropdownOpen,
+                                                                    onDismissRequest = { isScheduleDropdownOpen = false }
+                                                                ) {
+                                                                    DropdownMenuItem(
+                                                                        text = { Text("Weekly (Sundays · 03:00 AM)") },
+                                                                        onClick = {
+                                                                            scheduleChoice = "weekly_sunday"
+                                                                            prefs.edit().putString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "weekly_sunday").apply()
+                                                                            isScheduleDropdownOpen = false
+                                                                            onRefreshNeeded()
+                                                                        }
+                                                                    )
+                                                                    DropdownMenuItem(
+                                                                        text = { Text("Nightly (Every 24 Hours · 03:00 AM)") },
+                                                                        onClick = {
+                                                                            scheduleChoice = "nightly"
+                                                                            prefs.edit().putString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "nightly").apply()
+                                                                            isScheduleDropdownOpen = false
+                                                                            onRefreshNeeded()
+                                                                        }
+                                                                    )
+                                                                    DropdownMenuItem(
+                                                                        text = { Text("Bi-Weekly (Every 14 Days)") },
+                                                                        onClick = {
+                                                                            scheduleChoice = "biweekly"
+                                                                            prefs.edit().putString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "biweekly").apply()
+                                                                            isScheduleDropdownOpen = false
+                                                                            onRefreshNeeded()
+                                                                        }
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // Strict Cold-Start Policy Notice
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                                        ) {
+                                                            Text(
+                                                                text = "🛡️ STRICT COLD-START POLICY: Zero automatic reboots. When cooling cycle is reached, dispatches a silent status reminder to the HUD.",
+                                                                fontSize = 10.5.sp,
+                                                                color = Color.LightGray.copy(alpha = 0.8f),
+                                                                modifier = Modifier.padding(10.dp),
+                                                                lineHeight = 13.sp
+                                                            )
+                                                        }
+
+                                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                                        // Triple-Lock Safety Morphing Reboot Button
+                                                        CoreCoolingTripleLockButton(
+                                                            onExecuteReboot = {
+                                                                val ok = LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
+                                                                if (!ok) {
+                                                                    android.widget.Toast.makeText(context, "Shizuku or Root required for reboot", android.widget.Toast.LENGTH_SHORT).show()
+                                                                }
+                                                            }
+                                                        )
                                                     }
                                                 }
                                             }

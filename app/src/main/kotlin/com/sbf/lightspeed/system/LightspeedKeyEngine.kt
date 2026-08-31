@@ -165,6 +165,28 @@ object LightspeedKeyEngine {
     private var powerHoldJob: Job? = null
     private var powerPressHoldJob: Job? = null
     private var powerSinglePressJob: Job? = null
+    private var powerWakeLock: android.os.PowerManager.WakeLock? = null
+
+    private fun acquirePowerScreenWakeLock(context: Context, durationMs: Long = 3000L) {
+        try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            if (powerWakeLock == null) {
+                powerWakeLock = pm?.newWakeLock(
+                    android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                            android.os.PowerManager.ON_AFTER_RELEASE,
+                    "lightspeed:power_sleep_failsafe"
+                )
+                powerWakeLock?.setReferenceCounted(false)
+            }
+            powerWakeLock?.acquire(durationMs)
+        } catch (_: Exception) {}
+    }
+
+    fun isSinglePressUnlocked(context: Context): Boolean {
+        val prefs = context.defaultPrefs()
+        return prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)
+    }
 
     fun isPowerEnabled(context: Context): Boolean {
         val prefs = context.defaultPrefs()
@@ -173,6 +195,9 @@ object LightspeedKeyEngine {
 
     fun getBoundPowerAction(context: Context, slot: PowerTriggerSlot): String? {
         val prefs = context.defaultPrefs()
+        if (slot == PowerTriggerSlot.POWER_SINGLE_PRESS && !isSinglePressUnlocked(context)) {
+            return null // Locked to native system sleep by default
+        }
         val raw = prefs.getString(slot.prefKey, null)?.trim()
         if (!raw.isNullOrEmpty() && raw != "none") return raw
         if (slot == PowerTriggerSlot.POWER_HOLD) {
@@ -249,6 +274,9 @@ object LightspeedKeyEngine {
 
             val hasAnyPowerAction = singleAction != null || doubleAction != null || holdAction != null || pressHoldAction != null
             if (!hasAnyPowerAction) return false
+
+            // Screen Sleep Failsafe: keep display alive during multi-press/hold evaluation
+            acquirePowerScreenWakeLock(context, 3000L)
 
             if (action == KeyEvent.ACTION_DOWN) {
                 if (event.repeatCount > 0) return true

@@ -80,6 +80,18 @@ object LightspeedPreferences {
     const val ACTION_CHATGPT = "system:chatgpt"
     const val ACTION_CLAUDE = "system:claude"
     const val ACTION_GEMINI = "system:gemini"
+    const val ACTION_CAMERA_PHOTO = "system:camera_photo"
+    const val ACTION_CAMERA_VIDEO = "system:camera_video"
+    const val ACTION_FOLAX = "system:folax"
+    const val ACTION_CORE_COOLING = "system:core_cooling"
+
+    // Power Button Safety & Experimental Labs Keys
+    const val KEY_POWER_SINGLE_PRESS_UNLOCKED = "pref_power_single_press_unlocked"
+    const val KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED = "pref_section_experimental_labs_expanded"
+    const val KEY_CORE_COOLING_ENABLED = "pref_core_cooling_enabled"
+    const val KEY_CORE_COOLING_SCHEDULE = "pref_core_cooling_schedule"
+    const val KEY_CORE_COOLING_LAST_TRIGGER = "pref_core_cooling_last_trigger"
+    const val KEY_INFINIX_STANDBY_DISMISSED = "pref_infinix_standby_dismissed"
 
     // Tab Accordion Display Profiles & Blueprint Keys
     const val KEY_TAB_ACCORDION_MODE_0 = "pref_tab_accordion_mode_0" // "all_expanded", "all_collapsed", "solo", "custom_pinned"

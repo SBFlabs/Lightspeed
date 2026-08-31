@@ -142,6 +142,78 @@ object LightspeedWatchdogEngine {
         }
     }
 
+    fun isSentinelRunning(): Boolean = sentinelJob?.isActive == true
+
+    /**
+     * Checks if scheduled Core Cooling reminder is currently due.
+     * STRICT RULE: Zero automatic reboots. Only triggers silent UI telemetry indicator.
+     */
+    fun isCoreCoolingDue(context: Context): Boolean {
+        val prefs = context.defaultPrefs()
+        val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)
+        if (!isEnabled) return false
+
+        val schedule = prefs.getString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "weekly_sunday") ?: "weekly_sunday"
+        val lastTrigger = prefs.getLong(LightspeedPreferences.KEY_CORE_COOLING_LAST_TRIGGER, 0L)
+        val now = System.currentTimeMillis()
+
+        val intervalMs = when (schedule) {
+            "nightly" -> 24 * 60 * 60 * 1000L // 24 hours
+            "biweekly" -> 14 * 24 * 60 * 60 * 1000L // 14 days
+            else -> 7 * 24 * 60 * 60 * 1000L // 7 days (weekly)
+        }
+
+        if (lastTrigger == 0L) {
+            // First run: initialize timestamp
+            prefs.edit().putLong(LightspeedPreferences.KEY_CORE_COOLING_LAST_TRIGGER, now).apply()
+            return false
+        }
+
+        return (now - lastTrigger) >= intervalMs
+    }
+
+    /**
+     * Dismisses active Core Cooling reminder until the next cycle.
+     */
+    fun dismissCoreCoolingReminder(context: Context) {
+        val prefs = context.defaultPrefs()
+        prefs.edit().putLong(LightspeedPreferences.KEY_CORE_COOLING_LAST_TRIGGER, System.currentTimeMillis()).apply()
+    }
+
+    /**
+     * Executes Core Cooling Hardware Reboot via Shizuku shell or Root privilege.
+     * Invoked strictly after Triple-Lock safety confirmation.
+     */
+    fun executeCoreCoolingReboot(context: Context): Boolean {
+        Log.i(TAG, "Executing Core Cooling Reboot via elevated interface...")
+        dismissCoreCoolingReminder(context)
+
+        if (ElevatedTaskCloser.isShizukuActive) {
+            try {
+                val proc = ElevatedTaskCloser.execShizuku("svc power reboot")
+                proc?.waitFor()
+                Log.i(TAG, "Reboot dispatched via Shizuku svc power reboot")
+                return true
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku reboot error", e)
+            }
+        }
+
+        if (ElevatedTaskCloser.isRootActive) {
+            try {
+                val proc = Runtime.getRuntime().exec(arrayOf("su", "-c", "svc power reboot"))
+                proc.waitFor()
+                Log.i(TAG, "Reboot dispatched via Root svc power reboot")
+                return true
+            } catch (e: Exception) {
+                Log.e(TAG, "Root reboot error", e)
+            }
+        }
+
+        Log.w(TAG, "Core Cooling reboot failed: Neither Shizuku nor Root is active")
+        return false
+    }
+
     fun stopSentinel() {
         sentinelJob?.cancel()
         sentinelJob = null

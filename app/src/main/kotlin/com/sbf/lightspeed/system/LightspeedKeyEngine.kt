@@ -353,8 +353,8 @@ object LightspeedKeyEngine {
                     }
                 }
 
-                // Only consume down event if single press is remapped or hold action is active
-                if (singleAction != null || holdAction != null) {
+                val hasMultiTapAction = doubleAction != null || pressHoldAction != null || singleAction != null || holdAction != null
+                if (hasMultiTapAction) {
                     acquirePowerScreenWakeLock(context, 450L)
                     return true
                 }
@@ -390,17 +390,16 @@ object LightspeedKeyEngine {
                         ActionDispatcher.dispatch(doubleAction, context)
                         return true
                     } else {
-                        // Unmapped double press: release wake lock
                         releasePowerScreenWakeLock()
                         return true
                     }
                 }
 
-                // 4. Single Press Disambiguation Trigger (Only active if Single Press is explicitly remapped)
+                // 4. Single Press Disambiguation Trigger (Active when multi-tap power gestures are mapped)
                 lastPowerReleaseTime = now
-                val shouldDisambiguate = singleAction != null
+                val shouldDisambiguate = doubleAction != null || pressHoldAction != null || singleAction != null
                 if (shouldDisambiguate) {
-                    acquirePowerScreenWakeLock(context, SEQUENCE_TIMEOUT_MS + 100L)
+                    acquirePowerScreenWakeLock(context, SEQUENCE_TIMEOUT_MS + 150L)
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = engineScope.launch {
                         delay(SEQUENCE_TIMEOUT_MS)

@@ -40,13 +40,6 @@ import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class CockpitSettingsActivity : ComponentActivity() {
-
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        finishAndRemoveTask()
-        overridePendingTransition(0, 0)
-    }
-
     override fun finish() {
         finishAndRemoveTask()
         super.finish()

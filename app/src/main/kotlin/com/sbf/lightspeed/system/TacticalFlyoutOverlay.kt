@@ -207,12 +207,6 @@ class TacticalFlyoutActivity : ComponentActivity() {
         }
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        finishAndRemoveTask()
-        overridePendingTransition(0, 0)
-    }
-
     override fun finish() {
         finishAndRemoveTask()
         super.finish()

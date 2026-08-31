@@ -1271,7 +1271,7 @@ fun SidebarMatrixConfigurationFields(
                                                                     }
                                                                 }
                                                             }
-
+                                                        }
 
                                                         PrefToggleRow(
                                                             title = "Test Beacon Live Alignment",
@@ -1942,65 +1942,6 @@ fun SidebarMatrixConfigurationFields(
                                                                 onRefreshNeeded()
                                                             }
                                                         )
-
-                                                        val isDoublePressDefault = remember(prefs) {
-                                                            try {
-                                                                val pm = context.packageManager
-                                                                val intent = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE)
-                                                                val resolve = pm.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-                                                                resolve?.activityInfo?.packageName == context.packageName
-                                                            } catch (_: Exception) { false }
-                                                        }
-
-                                                        if (prefs.getBoolean(LightspeedPreferences.KEY_POWER_GESTURES_ENABLED, true) && !isDoublePressDefault) {
-                                                            Surface(
-                                                                modifier = Modifier
-                                                                    .fillMaxWidth()
-                                                                    .padding(vertical = 6.dp),
-                                                                shape = RoundedCornerShape(14.dp),
-                                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
-                                                            ) {
-                                                                Column(modifier = Modifier.padding(14.dp)) {
-                                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                        Icon(
-                                                                            Icons.Default.Bolt,
-                                                                            contentDescription = null,
-                                                                            tint = MaterialTheme.colorScheme.primary,
-                                                                            modifier = Modifier.size(18.dp)
-                                                                        )
-                                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                                        Text(
-                                                                            "Hardware Double-Press Authorization",
-                                                                            fontWeight = FontWeight.Bold,
-                                                                            fontSize = 12.5.sp,
-                                                                            color = MaterialTheme.colorScheme.onSurface
-                                                                        )
-                                                                    }
-                                                                    Spacer(modifier = Modifier.height(5.dp))
-                                                                    Text(
-                                                                        "Android routes physical double-press power clicks through the hardware camera trigger. Tap below and select 'Lightspeed' -> 'Always' for instant 0ms power remapping.",
-                                                                        fontSize = 11.sp,
-                                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                                        lineHeight = 14.5.sp
-                                                                    )
-                                                                    Spacer(modifier = Modifier.height(10.dp))
-                                                                    Button(
-                                                                        onClick = {
-                                                                            val intent = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE).apply {
-                                                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                                            }
-                                                                            try { context.startActivity(intent) } catch (_: Exception) {}
-                                                                        },
-                                                                        shape = RoundedCornerShape(10.dp),
-                                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                                                        modifier = Modifier.fillMaxWidth().height(38.dp)
-                                                                    ) {
-                                                                        Text("Authorize Double-Press (Choose 'Always')", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
 
                                                         val powerGestures = listOf(
                                                             Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS),

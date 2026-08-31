@@ -135,6 +135,28 @@ object InstalledTacticalToolsScanner {
             )
         }
 
+        // =========================================================================
+        // 3. Cockpit & Hardware Quick Tools
+        // =========================================================================
+
+        // Flashlight / Torch (Built-in)
+        tools.add(
+            TacticalToolItem(
+                token = "system:torch",
+                label = "Flashlight / Torch",
+                category = "Cockpit Tools"
+            )
+        )
+
+        // Tactical Audio Recorder (Built-in)
+        tools.add(
+            TacticalToolItem(
+                token = "system:tactical_audio",
+                label = "Tactical Audio Recorder",
+                category = "Cockpit Tools"
+            )
+        )
+
         // Tactical Flyout HUD Dashboard (Built-in)
         tools.add(
             TacticalToolItem(

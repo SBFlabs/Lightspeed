@@ -171,15 +171,24 @@ object LightspeedKeyEngine {
         try {
             val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
             if (powerWakeLock == null) {
+                @Suppress("DEPRECATION")
                 powerWakeLock = pm?.newWakeLock(
                     android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
                             android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or
                             android.os.PowerManager.ON_AFTER_RELEASE,
-                    "lightspeed:power_sleep_failsafe"
+                    "Lightspeed:PowerWakeLock"
                 )
                 powerWakeLock?.setReferenceCounted(false)
             }
             powerWakeLock?.acquire(durationMs)
+        } catch (_: Exception) {}
+    }
+
+    private fun releasePowerScreenWakeLock() {
+        try {
+            if (powerWakeLock?.isHeld == true) {
+                powerWakeLock?.release()
+            }
         } catch (_: Exception) {}
     }
 
@@ -295,6 +304,7 @@ object LightspeedKeyEngine {
                             delay(LONG_PRESS_TIMEOUT_MS)
                             isPowerPressHoldFired = true
                             lastPowerReleaseTime = 0L
+                            releasePowerScreenWakeLock()
                             LightspeedHapticEngine.heavyClick(context)
                             ActionDispatcher.dispatch(pressHoldAction, context)
                         }
@@ -308,6 +318,7 @@ object LightspeedKeyEngine {
                     powerHoldJob = engineScope.launch {
                         delay(LONG_PRESS_TIMEOUT_MS)
                         isPowerHoldFired = true
+                        releasePowerScreenWakeLock()
                         LightspeedHapticEngine.heavyClick(context)
                         ActionDispatcher.dispatch(holdAction, context)
                     }
@@ -322,11 +333,13 @@ object LightspeedKeyEngine {
 
                 if (isPowerPressHoldFired) {
                     isPowerPressHoldFired = false
+                    releasePowerScreenWakeLock()
                     return true
                 }
 
                 if (isPowerHoldFired) {
                     isPowerHoldFired = false
+                    releasePowerScreenWakeLock()
                     return true
                 }
 
@@ -336,6 +349,7 @@ object LightspeedKeyEngine {
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = null
                     lastPowerReleaseTime = 0L
+                    releasePowerScreenWakeLock()
                     if (doubleAction != null) {
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(doubleAction, context)
@@ -350,10 +364,14 @@ object LightspeedKeyEngine {
                     powerSinglePressJob = engineScope.launch {
                         delay(SEQUENCE_TIMEOUT_MS)
                         lastPowerReleaseTime = 0L
+                        releasePowerScreenWakeLock()
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(singleAction, context)
                     }
                     return true
+                } else {
+                    // Solitary single press (unmapped / default): release WakeLock immediately so system sleep proceeds
+                    releasePowerScreenWakeLock()
                 }
 
                 return false
@@ -870,6 +888,7 @@ object LightspeedKeyEngine {
         lastVolUpReleaseTime = 0L
         lastVolDownReleaseTime = 0L
         lastPowerReleaseTime = 0L
+        releasePowerScreenWakeLock()
     }
 
     private var shizukuMonitorJob: Job? = null

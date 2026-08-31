@@ -2256,110 +2256,6 @@ fun SidebarMatrixConfigurationFields(
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                    // Subspace Watchdog & Sentinel
-                                                    var isWatchdogSubSectionExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_watchdog", true)) }
-                                                    CollapsibleSubSection(
-                                                        title = "🛡️ Subspace Watchdog & Sentinel",
-                                                        subtitle = "Elevated task jettison & accessibility service auto-revival",
-                                                        isExpanded = isWatchdogSubSectionExpanded,
-                                                        onToggle = {
-                                                            isWatchdogSubSectionExpanded = !isWatchdogSubSectionExpanded
-                                                            prefs.edit().putBoolean("pref_sub_watchdog", isWatchdogSubSectionExpanded).apply()
-                                                        }
-                                                    ) {
-                                                        // 1. Accessibility Sentinel Toggle
-                                                        val sentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
-                                                        PrefToggleRow(
-                                                            title = "Accessibility Sentinel Watchdog",
-                                                            subtitle = "Periodically checks accessibility health; automatically revives service via Shizuku if killed by OEM battery management.",
-                                                            isChecked = sentinelEnabled,
-                                                            onCheckedChange = { checked ->
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
-                                                                if (checked) {
-                                                                    LightspeedWatchdogEngine.initSentinel(context)
-                                                                } else {
-                                                                    LightspeedWatchdogEngine.stopSentinel()
-                                                                }
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
-
-                                                        // Manual Revive Button
-                                                        OutlinedButton(
-                                                            onClick = {
-                                                                val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
-                                                                if (ok) {
-                                                                    Toast.makeText(context, "Revival command sent via Shizuku", Toast.LENGTH_SHORT).show()
-                                                                } else {
-                                                                    Toast.makeText(context, "Shizuku/Root required for auto-revival", Toast.LENGTH_SHORT).show()
-                                                                }
-                                                            },
-                                                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                                                            shape = RoundedCornerShape(10.dp),
-                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-                                                        ) {
-                                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                Text("Revive Accessibility Service Now", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                                                            }
-                                                        }
-
-                                                        // 2. Emergency Shizuku Jettison Card
-                                                        var jettisonPkgInput by remember { mutableStateOf("") }
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.08f)),
-                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
-                                                        ) {
-                                                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                                    Text("Emergency Shizuku Jettison", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                                                                }
-                                                                Text("Forcibly terminates and evicts frozen or leaking background apps via Shizuku Binder IPC / force-stop.", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.8f))
-
-                                                                Button(
-                                                                    onClick = {
-                                                                        ElevatedTaskCloser.closeTopApp(context)
-                                                                    },
-                                                                    modifier = Modifier.fillMaxWidth(),
-                                                                    shape = RoundedCornerShape(10.dp),
-                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.25f))
-                                                                ) {
-                                                                    Text("Jettison Foreground Active App", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
-                                                                }
-
-                                                                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                                                    OutlinedTextField(
-                                                                        value = jettisonPkgInput,
-                                                                        onValueChange = { jettisonPkgInput = it },
-                                                                        placeholder = { Text("package.to.terminate", fontSize = 11.sp) },
-                                                                        modifier = Modifier.weight(1f).height(46.dp),
-                                                                        singleLine = true,
-                                                                        shape = RoundedCornerShape(10.dp)
-                                                                    )
-                                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                                    Button(
-                                                                        onClick = {
-                                                                            if (jettisonPkgInput.isNotBlank()) {
-                                                                                val ok = LightspeedWatchdogEngine.jettisonPackage(context, jettisonPkgInput.trim())
-                                                                                Toast.makeText(context, if (ok) "Jettisoned $jettisonPkgInput" else "Failed (Check Shizuku)", Toast.LENGTH_SHORT).show()
-                                                                            }
-                                                                        },
-                                                                        shape = RoundedCornerShape(10.dp),
-                                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
-                                                                        modifier = Modifier.height(46.dp)
-                                                                    ) {
-                                                                        Text("Purge", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color.White)
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
                                                     // Export Card
                                                     Row(
                                                         modifier = Modifier
@@ -2446,6 +2342,7 @@ fun SidebarMatrixConfigurationFields(
                                             val cautionAmber = Color(0xFFFFB300)
                                             HazardAccordionSection(
                                                 title = "Experimental Labs",
+                                                subtitle = "Features in this deck are unstable and/or not well tested yet. Use at your own discretion.",
                                                 isExpanded = isExperimentalLabsExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "experimental_labs", isExperimentalLabsExpanded) { isExperimentalLabsExpanded = it }
@@ -2464,10 +2361,10 @@ fun SidebarMatrixConfigurationFields(
                                                             modifier = Modifier.fillMaxWidth().padding(10.dp),
                                                             verticalAlignment = Alignment.CenterVertically
                                                         ) {
-                                                            Icon(Icons.Default.Build, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(18.dp))
+                                                            Icon(Icons.Default.WarningAmber, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(18.dp))
                                                             Spacer(modifier = Modifier.width(8.dp))
                                                             Text(
-                                                                text = "Experimental Maintenance Bay: Advanced hardware watchdog & core thermal management subsystems.",
+                                                                text = "⚠️ Experimental Labs: Features in this deck are unstable and/or not well tested yet. Use at your own discretion.",
                                                                 fontSize = 11.sp,
                                                                 color = cautionAmber.copy(alpha = 0.95f),
                                                                 lineHeight = 14.sp

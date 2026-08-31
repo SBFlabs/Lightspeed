@@ -84,9 +84,11 @@ object LightspeedPreferences {
     const val ACTION_CAMERA_VIDEO = "system:camera_video"
     const val ACTION_FOLAX = "system:folax"
     const val ACTION_CORE_COOLING = "system:core_cooling"
+    const val ACTION_TORCH = "system:torch"
 
     // Power Button Safety & Experimental Labs Keys
     const val KEY_POWER_SINGLE_PRESS_UNLOCKED = "pref_power_single_press_unlocked"
+    const val KEY_SUPPRESS_DEEP_ACTIVITY_WARNING = "pref_suppress_deep_activity_warning"
     const val KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED = "pref_section_experimental_labs_expanded"
     const val KEY_CORE_COOLING_ENABLED = "pref_core_cooling_enabled"
     const val KEY_CORE_COOLING_SCHEDULE = "pref_core_cooling_schedule"

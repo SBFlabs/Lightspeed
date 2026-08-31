@@ -15,13 +15,43 @@ object ActionDispatcher {
         execute(context, token)
     }
 
-    fun dispatch(context: Context, token: String?) {
-        execute(context, token)
+    fun executeDirect(context: Context, token: String?) {
+        if (token.isNullOrBlank() || token == "none") return
+        if (token.startsWith("shortcut:")) {
+            LightspeedShortcutManager.launch(context, token)
+        } else {
+            execute(context, token)
+        }
+    }
+
+    private fun isDeepActivity(token: String): Boolean {
+        if (token.startsWith("shortcut:")) {
+            val parsed = LightspeedShortcutManager.parseToken(token)
+            return (parsed.type == "activity" || parsed.type == "app_shortcut") &&
+                    parsed.packageName.isNotBlank() && parsed.activityName.isNotBlank()
+        }
+        return false
     }
 
     fun execute(context: Context, token: String?, onScrollToTop: () -> Unit = {}) {
         if (token.isNullOrBlank() || token == "none") return
         Log.i(TAG, "Executing action token: '$token'")
+
+        if (isDeepActivity(token)) {
+            val prefs = context.defaultPrefs()
+            val suppressWarning = prefs.getBoolean(LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, false)
+            if (!suppressWarning) {
+                val intent = Intent(context, com.sbf.lightspeed.CockpitDialogActivity::class.java).apply {
+                    action = com.sbf.lightspeed.CockpitDialogActivity.ACTION_CONFIRM_DEEP_ACTIVITY
+                    putExtra(com.sbf.lightspeed.CockpitDialogActivity.EXTRA_TOKEN, token)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                try {
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+                return
+            }
+        }
 
         val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
 
@@ -40,7 +70,7 @@ object ActionDispatcher {
             token == "system:popup_window" || token == "system:freeform" || token == "popup_window" -> {
                 ElevatedTaskCloser.launchInFreeform(context)
             }
-            token == "system:flashlight" || token == "ACTION_FLASHLIGHT" || token == "flashlight" -> {
+            token == "system:flashlight" || token == "system:torch" || token == "ACTION_FLASHLIGHT" || token == "flashlight" -> {
                 toggleFlashlight(context)
             }
             token == "system:screenshot" || token == "ACTION_SCREENSHOT" || token == "screenshot" -> {

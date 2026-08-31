@@ -50,6 +50,7 @@ class CockpitDialogActivity : ComponentActivity() {
     companion object {
         const val ACTION_RENAME_GEAR = "com.sbf.lightspeed.action.RENAME_GEAR"
         const val ACTION_EDIT_ITEM = "com.sbf.lightspeed.action.EDIT_ITEM"
+        const val ACTION_CONFIRM_DEEP_ACTIVITY = "com.sbf.lightspeed.action.CONFIRM_DEEP_ACTIVITY"
 
         const val EXTRA_SET_ID = "EXTRA_SET_ID"
         const val EXTRA_SET_INDEX = "EXTRA_SET_INDEX"
@@ -60,9 +61,11 @@ class CockpitDialogActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         val setIndex = intent.getIntExtra(EXTRA_SET_INDEX, -1)
-        try {
-            LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
-        } catch (_: Exception) {}
+        if (setIndex >= 0) {
+            try {
+                LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
+            } catch (_: Exception) {}
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,11 +86,11 @@ class CockpitDialogActivity : ComponentActivity() {
                             .fillMaxWidth(0.92f)
                             .clickable(enabled = false, onClick = {}),
                         shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        color = Color(0xF012141A),
                         tonalElevation = 6.dp,
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            Color(0x33FFFFFF)
                         )
                     ) {
                         Box(modifier = Modifier.padding(22.dp)) {
@@ -98,6 +101,10 @@ class CockpitDialogActivity : ComponentActivity() {
                                     onDismiss = { finish() }
                                 )
                                 ACTION_EDIT_ITEM -> EditItemContent(
+                                    token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
+                                    onDismiss = { finish() }
+                                )
+                                ACTION_CONFIRM_DEEP_ACTIVITY -> DeepActivityWarningContent(
                                     token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
                                     onDismiss = { finish() }
                                 )
@@ -754,3 +761,103 @@ fun IconPackBrowserModal(
         }
     }
 }
+
+@Composable
+fun DeepActivityWarningContent(
+    token: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("default", Context.MODE_PRIVATE) }
+    var doNotShowAgain by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.WarningAmber,
+                contentDescription = null,
+                tint = Color(0xFFFFB300),
+                modifier = Modifier.size(26.dp)
+            )
+            Text(
+                text = "Deep Activity Warning",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(
+            text = "⚠️ Deep Activity Warning: Launching internal activities directly may cause instability or unexpected behavior.",
+            fontSize = 13.5.sp,
+            color = Color.LightGray.copy(alpha = 0.9f),
+            lineHeight = 19.sp
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Checkbox: "Do not show again"
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { doNotShowAgain = !doNotShowAgain }
+                .padding(vertical = 4.dp)
+        ) {
+            Checkbox(
+                checked = doNotShowAgain,
+                onCheckedChange = { doNotShowAgain = it },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                    uncheckedColor = Color.Gray
+                )
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Do not show again",
+                fontSize = 13.sp,
+                color = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    if (doNotShowAgain) {
+                        prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, true).apply()
+                    }
+                    try {
+                        com.sbf.lightspeed.system.ActionDispatcher.executeDirect(context, token)
+                    } catch (_: Exception) {}
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Launch Anyway", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+

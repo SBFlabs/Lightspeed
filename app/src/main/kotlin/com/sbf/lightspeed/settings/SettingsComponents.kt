@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.GearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.system.LightspeedPreferences
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -1058,6 +1060,7 @@ fun HazardAccordionSection(
     title: String,
     isExpanded: Boolean,
     onToggle: () -> Unit,
+    subtitle: String? = null,
     headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
@@ -1116,23 +1119,35 @@ fun HazardAccordionSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Column(
                     modifier = Modifier.weight(1f).padding(end = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Science,
-                        contentDescription = null,
-                        tint = cautionAmber,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = cautionAmber
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Science,
+                            contentDescription = null,
+                            tint = cautionAmber,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = cautionAmber
+                        )
+                    }
+                    if (!subtitle.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.5.sp,
+                            color = Color.LightGray.copy(alpha = 0.85f),
+                            lineHeight = 15.sp
+                        )
+                    }
                 }
                 if (headerTrailing != null) {
                     headerTrailing()
@@ -1271,6 +1286,7 @@ fun PowerGestureMappingRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .alpha(if (isLocked) 0.6f else 1f)
             .clip(RoundedCornerShape(14.dp))
             .clickable {
                 if (isLocked) {
@@ -1375,17 +1391,30 @@ fun PowerGestureMappingRow(
                             fontSize = 13.sp,
                             color = if (isLocked) Color.LightGray else Color.White
                         )
-                        val displayLabel = if (isLocked) {
-                            "🔒 Native Sleep (Tap 7× to Unlock)"
+                        if (isLocked) {
+                            Text(
+                                text = "[ Mapped to Default: System Sleep / Wake ]",
+                                fontSize = 11.5.sp,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "Native OS Interlock (Tap 7× to unlock override)",
+                                fontSize = 10.5.sp,
+                                color = Color.Gray,
+                                maxLines = 1
+                            )
                         } else {
-                            labelCache[currentValue] ?: resolveDynamicTokenLabel(context, currentValue)
+                            val displayLabel = labelCache[currentValue] ?: resolveDynamicTokenLabel(context, currentValue)
+                            Text(
+                                text = displayLabel,
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                maxLines = 1
+                            )
                         }
-                        Text(
-                            text = displayLabel,
-                            fontSize = 11.5.sp,
-                            color = if (isLocked) Color.Gray else MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                            maxLines = 1
-                        )
                     }
                 }
 
@@ -1428,10 +1457,24 @@ fun PowerGestureMappingRow(
 
                         DropdownMenu(
                             expanded = isToolsDropdownOpen,
-                            onDismissRequest = { isToolsDropdownOpen = false }
+                            onDismissRequest = { isToolsDropdownOpen = false },
+                            modifier = Modifier
+                                .background(Color(0xF012141A))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color(0xF012141A)
                         ) {
                             DropdownMenuItem(
-                                text = { Text("None (Native / Sleep)", fontWeight = FontWeight.Normal, fontSize = 12.sp) },
+                                modifier = Modifier.heightIn(min = 48.dp),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.PowerSettingsNew,
+                                        contentDescription = null,
+                                        tint = Color.LightGray,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                text = { Text("None (Native / Sleep)", fontWeight = FontWeight.Normal, fontSize = 12.5.sp, color = Color.LightGray) },
                                 onClick = {
                                     isToolsDropdownOpen = false
                                     currentValue = "none"
@@ -1441,13 +1484,14 @@ fun PowerGestureMappingRow(
                                 }
                             )
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color(0x33FFFFFF))
 
                             var currentCategory = ""
                             installedTools.forEach { tool ->
                                 if (tool.category != currentCategory) {
                                     currentCategory = tool.category
                                     DropdownMenuItem(
+                                        modifier = Modifier.heightIn(min = 36.dp),
                                         text = {
                                             Text(
                                                 text = currentCategory.uppercase(java.util.Locale.US),
@@ -1460,13 +1504,37 @@ fun PowerGestureMappingRow(
                                         enabled = false
                                     )
                                 }
+                                val isSelected = (currentValue == tool.token)
                                 DropdownMenuItem(
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                    leadingIcon = {
+                                        val icon = when (tool.token) {
+                                            "system:torch", "system:flashlight" -> Icons.Default.FlashlightOn
+                                            "system:tactical_audio" -> Icons.Default.Mic
+                                            "system:tactical_flyout" -> Icons.Default.Dashboard
+                                            LightspeedPreferences.ACTION_CHATGPT -> Icons.Default.AutoAwesome
+                                            LightspeedPreferences.ACTION_CLAUDE -> Icons.Default.Psychology
+                                            LightspeedPreferences.ACTION_GEMINI -> Icons.Default.Stars
+                                            LightspeedPreferences.ACTION_FOLAX -> Icons.Default.Assistant
+                                            LightspeedPreferences.ACTION_LENS -> Icons.Default.CenterFocusStrong
+                                            LightspeedPreferences.ACTION_QR_SCANNER -> Icons.Default.QrCodeScanner
+                                            LightspeedPreferences.ACTION_CAMERA_PHOTO -> Icons.Default.CameraAlt
+                                            LightspeedPreferences.ACTION_CAMERA_VIDEO -> Icons.Default.Videocam
+                                            else -> Icons.Default.Widgets
+                                        }
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
                                     text = {
                                         Text(
                                             text = tool.label,
-                                            fontSize = 12.sp,
-                                            fontWeight = if (currentValue == tool.token) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (currentValue == tool.token) MaterialTheme.colorScheme.primary else Color.White
+                                            fontSize = 12.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White
                                         )
                                     },
                                     onClick = {

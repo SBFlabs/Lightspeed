@@ -117,6 +117,11 @@ object LightspeedPreferences {
     const val KEY_ORIENTATION_CONTEXT_GUARD_ENABLED = "pref_orientation_context_guard_enabled"
     const val KEY_SAVED_ACCEL_ROTATION = "pref_saved_accel_rotation"
     const val KEY_SAVED_USER_ROTATION = "pref_saved_user_rotation"
+    const val KEY_ATTITUDE_BUCKET_STRICT_PORTRAIT = "pref_attitude_bucket_strict_portrait"
+    const val KEY_ATTITUDE_BUCKET_SENSOR_PORTRAIT = "pref_attitude_bucket_sensor_portrait"
+    const val KEY_ATTITUDE_BUCKET_SENSOR_LANDSCAPE = "pref_attitude_bucket_sensor_landscape"
+    const val KEY_ATTITUDE_BUCKET_SENSOR_360 = "pref_attitude_bucket_sensor_360"
+    const val KEY_ACCESSIBILITY_SENTINEL_ENABLED = "pref_accessibility_sentinel_enabled"
 
     // Refueling Bay Keys
     const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screensaver_only"

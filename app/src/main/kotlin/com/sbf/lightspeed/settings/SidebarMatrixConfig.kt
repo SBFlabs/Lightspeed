@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -31,11 +32,16 @@ import androidx.compose.ui.unit.sp
 import android.content.Intent
 import com.sbf.lightspeed.GearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.sbf.lightspeed.system.LightspeedBackTapEngine
 import com.sbf.lightspeed.system.LightspeedBackupEngine
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedKeyEngine
+import com.sbf.lightspeed.system.LightspeedOrientationEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedWatchdogEngine
+import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.OemNotchDetector
 import com.sbf.lightspeed.system.TacticalFlyoutLauncher
 import com.sbf.lightspeed.system.TacticalAudioEngine
@@ -146,27 +152,19 @@ fun SidebarMatrixConfigurationFields(
         }
     }
 
-    LaunchedEffect(thresholdCrossedFlash) {
-        if (thresholdCrossedFlash) {
-            LightspeedHapticEngine.tick(context)
-            kotlinx.coroutines.delay(180L)
-            thresholdCrossedFlash = false
-        }
-    }
-
     // Right Deflector Accordion States
     var isCenterExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", false)) }
     var isTopExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" else prefs.getBoolean("pref_section_top_expanded", true)) }
     var isBottomExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" else prefs.getBoolean("pref_section_bottom_expanded", false)) }
-    var isRightFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)) }
+    var isRightFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_link_flank_actions", false)) }
     var isRightUnifiedExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" else prefs.getBoolean("pref_section_right_unified_expanded", false)) }
 
-    // Right Wing Sub-Section States
+    // Right Deflector Sub-Section States
     var isCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
 
-    var isRightUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_unified", true)) }
-    var isRightUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_unified", true)) }
-    var isRightUnifiedGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_unified", true)) }
+    var isRightUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_right_unified", true)) }
+    var isRightUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_right_unified", true)) }
+    var isRightUnifiedGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_right_unified", true)) }
 
     var isTopGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_top", true)) }
     var isTopScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_top", true)) }
@@ -176,29 +174,37 @@ fun SidebarMatrixConfigurationFields(
     var isBottomScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_bottom", true)) }
     var isBottomGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_bottom", true)) }
 
-    var showSymmetryInfoDialog by remember { mutableStateOf(false) }
-    var showUnifyInfoDialog by remember { mutableStateOf(false) }
-    var showUnifyTemplateDialogForLeft by remember { mutableStateOf(false) }
-    var showUnifyTemplateDialogForRight by remember { mutableStateOf(false) }
-    var selectedTemplateOption by remember { mutableStateOf(0) }
+    val listState0 = rememberLazyListState()
+    val listState1 = rememberLazyListState()
+    val listState2 = rememberLazyListState()
 
-    fun cloneFlankActions(fromZone: String, toZone: String) {
-        val keys = prefs.all.keys.filter { it.startsWith("pref_macro_action_${fromZone}_") }
-        val edit = prefs.edit()
-        keys.forEach { srcKey ->
-            val suffix = srcKey.removePrefix("pref_macro_action_${fromZone}_")
-            val value = prefs.getString(srcKey, "none") ?: "none"
-            edit.putString("pref_macro_action_${toZone}_$suffix", value)
+    var showUnifyInfoDialog by remember { mutableStateOf(false) }
+    var showSymmetryInfoDialog by remember { mutableStateOf(false) }
+    var showPasteJsonDialog by remember { mutableStateOf(false) }
+    var pastedJsonText by remember { mutableStateOf("") }
+    var selectedTemplateOption by remember { mutableIntStateOf(0) }
+
+    fun cloneFlankActions(sourcePrefix: String, targetPrefix: String) {
+        val editor = prefs.edit()
+        val allEntries = prefs.all
+        for ((key, value) in allEntries) {
+            if (key.startsWith("pref_macro_action_${sourcePrefix}_")) {
+                val suffix = key.removePrefix("pref_macro_action_${sourcePrefix}_")
+                val targetKey = "pref_macro_action_${targetPrefix}_$suffix"
+                if (value is String) {
+                    editor.putString(targetKey, value)
+                }
+            }
         }
-        edit.apply()
+        editor.apply()
     }
 
+    var showUnifyTemplateDialogForLeft by remember { mutableStateOf(false) }
+    var showUnifyTemplateDialogForRight by remember { mutableStateOf(false) }
+    var showImportOptionsDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var importStatusMessage by remember { mutableStateOf<String?>(null) }
     var isImportSuccess by remember { mutableStateOf(false) }
-    var showImportOptionsDialog by remember { mutableStateOf(false) }
-    var showPasteJsonDialog by remember { mutableStateOf(false) }
-    var pastedJsonText by remember { mutableStateOf("") }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -206,14 +212,10 @@ fun SidebarMatrixConfigurationFields(
         if (uri != null) {
             scope.launch(Dispatchers.IO) {
                 val result = LightspeedBackupEngine.exportToFile(context, uri)
-                result.onSuccess { count ->
-                    launch(Dispatchers.Main) {
-                        Toast.makeText(context, "Exported $count settings to JSON successfully!", Toast.LENGTH_SHORT).show()
-                    }
-                }.onFailure { err ->
-                    launch(Dispatchers.Main) {
-                        Toast.makeText(context, "Export failed: ${err.message}", Toast.LENGTH_LONG).show()
-                    }
+                if (result.isSuccess) {
+                    Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Failed to export backup.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -296,6 +298,13 @@ fun SidebarMatrixConfigurationFields(
             else -> "custom_pinned"
         }
 
+        val pinned = when (tabId) {
+            0 -> pinnedSection0
+            1 -> pinnedSection1
+            2 -> pinnedSection2
+            else -> null
+        }
+
         if (mode == "solo") {
             if (!currentExpanded) {
                 // Focus / Solo Mode: snaps all other cards shut in this tab
@@ -323,6 +332,38 @@ fun SidebarMatrixConfigurationFields(
                 onSetExpanded(true)
             } else {
                 onSetExpanded(false)
+            }
+        } else if (mode == "custom_pinned") {
+            // Anchored Solo: Designated anchor stays permanently open; opening any other card operates in Solo mode
+            if (sectionId == pinned) {
+                onSetExpanded(!currentExpanded)
+            } else {
+                if (!currentExpanded) {
+                    when (tabId) {
+                        0 -> {
+                            if (pinned != "left_center") isLeftCenterExpanded = false
+                            if (pinned != "left_top") isLeftTopExpanded = false
+                            if (pinned != "left_bottom") isLeftBottomExpanded = false
+                            if (pinned != "left_unified") isLeftUnifiedExpanded = false
+                        }
+                        1 -> {
+                            if (pinned != "sensor_deck") isSensorDeckExpanded = false
+                            if (pinned != "telemetry_indicators") isTelemetryExpanded = false
+                            if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
+                            if (pinned != "refueling_bay") isRefuelingExpanded = false
+                            if (pinned != "config_vault") isConfigVaultExpanded = false
+                        }
+                        2 -> {
+                            if (pinned != "center") isCenterExpanded = false
+                            if (pinned != "top") isTopExpanded = false
+                            if (pinned != "bottom") isBottomExpanded = false
+                            if (pinned != "unified") isRightUnifiedExpanded = false
+                        }
+                    }
+                    onSetExpanded(true)
+                } else {
+                    onSetExpanded(false)
+                }
             }
         } else {
             onSetExpanded(!currentExpanded)
@@ -388,7 +429,7 @@ fun SidebarMatrixConfigurationFields(
             "telemetry", "telemetry_indicators" -> isTelemetryExpanded = true
             "volumekeys", "tactical_hardware", "power", "backtap" -> isTacticalHardwareExpanded = true
             "refueling", "refueling_bay" -> isRefuelingExpanded = true
-            "backup", "config_vault" -> isConfigVaultExpanded = true
+            "backup", "config_vault", "watchdog", "shizuku_jettison" -> isConfigVaultExpanded = true
             "wings" -> {
                 if (jumpTargetTab == 0) isLeftCenterExpanded = true
                 else isCenterExpanded = true
@@ -506,7 +547,7 @@ fun SidebarMatrixConfigurationFields(
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            beyondViewportPageCount = 0
+            beyondViewportPageCount = 1
         ) { pageIndex ->
             when (pageIndex) {
                 // PAGE 0: LEFT DEFLECTOR
@@ -522,7 +563,7 @@ fun SidebarMatrixConfigurationFields(
                             sectionIds = currentOrder0,
                             pinnedSectionId = pinnedSection0,
                             sectionTitles = sectionTitles0,
-                            onMoveUp = { idx ->
+                            onMoveUp = { idx: Int ->
                                 if (idx > 0) {
                                     val mutable = currentOrder0.toMutableList()
                                     val item = mutable.removeAt(idx)
@@ -532,7 +573,7 @@ fun SidebarMatrixConfigurationFields(
                                     prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, newStr).apply()
                                 }
                             },
-                            onMoveDown = { idx ->
+                            onMoveDown = { idx: Int ->
                                 if (idx < currentOrder0.size - 1) {
                                     val mutable = currentOrder0.toMutableList()
                                     val item = mutable.removeAt(idx)
@@ -542,7 +583,7 @@ fun SidebarMatrixConfigurationFields(
                                     prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, newStr).apply()
                                 }
                             },
-                            onPinSection = { secId ->
+                            onPinSection = { secId: String ->
                                 pinnedSection0 = secId
                                 prefs.edit().putString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0, secId).apply()
                             },
@@ -552,6 +593,7 @@ fun SidebarMatrixConfigurationFields(
                         )
                     } else {
                         LazyColumn(
+                            state = listState0,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 20.dp)
@@ -817,7 +859,7 @@ fun SidebarMatrixConfigurationFields(
                             sectionIds = currentOrder1,
                             pinnedSectionId = pinnedSection1,
                             sectionTitles = sectionTitles1,
-                            onMoveUp = { idx ->
+                            onMoveUp = { idx: Int ->
                                 if (idx > 0) {
                                     val mutable = currentOrder1.toMutableList()
                                     val item = mutable.removeAt(idx)
@@ -827,7 +869,7 @@ fun SidebarMatrixConfigurationFields(
                                     prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, newStr).apply()
                                 }
                             },
-                            onMoveDown = { idx ->
+                            onMoveDown = { idx: Int ->
                                 if (idx < currentOrder1.size - 1) {
                                     val mutable = currentOrder1.toMutableList()
                                     val item = mutable.removeAt(idx)
@@ -837,7 +879,7 @@ fun SidebarMatrixConfigurationFields(
                                     prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, newStr).apply()
                                 }
                             },
-                            onPinSection = { secId ->
+                            onPinSection = { secId: String ->
                                 pinnedSection1 = secId
                                 prefs.edit().putString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, secId).apply()
                             },
@@ -847,6 +889,7 @@ fun SidebarMatrixConfigurationFields(
                         )
                     } else {
                         LazyColumn(
+                            state = listState1,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 20.dp)
@@ -1083,6 +1126,61 @@ fun SidebarMatrixConfigurationFields(
                                                             prefs.edit().putBoolean("pref_sub_notch_calib", isNotchCalibExpanded).apply()
                                                         }
                                                     ) {
+                                                        // OEM Dynamic Notch / Dynamic Bar Advisory Glass Callout
+                                                        val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
+                                                        var isOemNoticeDismissed by remember { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_dismissed", false)) }
+                                                        if (!isOemNoticeDismissed && !oemFeatureName.isNullOrBlank()) {
+                                                            Card(
+                                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                                                            ) {
+                                                                Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.Info,
+                                                                            contentDescription = null,
+                                                                            tint = MaterialTheme.colorScheme.primary,
+                                                                            modifier = Modifier.size(20.dp)
+                                                                        )
+                                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                                        Text(
+                                                                            text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
+                                                                            fontSize = 11.5.sp,
+                                                                            color = Color.White.copy(alpha = 0.9f),
+                                                                            lineHeight = 15.sp,
+                                                                            modifier = Modifier.weight(1f)
+                                                                        )
+                                                                        IconButton(
+                                                                            onClick = {
+                                                                                isOemNoticeDismissed = true
+                                                                                prefs.edit().putBoolean("pref_oem_notch_notice_dismissed", true).apply()
+                                                                            },
+                                                                            modifier = Modifier.size(24.dp)
+                                                                        ) {
+                                                                            Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                                                        }
+                                                                    }
+                                                                    Button(
+                                                                        onClick = { OemNotchDetector.openSearch(context) },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                                                                    ) {
+                                                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                                            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Text("Open $oemFeatureName Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
                                                         PrefToggleRow(
                                                             title = "Test Beacon Live Alignment",
                                                             subtitle = "Projects a persistent illuminated liquid-glass capsule around the cutout for live alignment.",
@@ -1144,49 +1242,6 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Capsule Expansion Width (0 to 80dp)", 0, 80, 2, 0)
                                                     }
 
-                                                    // OEM Dynamic Notch Advisory Card
-                                                    val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
-                                                    Card(
-                                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                        shape = RoundedCornerShape(14.dp),
-                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                                                    ) {
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                            Row(
-                                                                modifier = Modifier.fillMaxWidth(),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                Icon(
-                                                                    imageVector = Icons.Default.Info,
-                                                                    contentDescription = null,
-                                                                    tint = MaterialTheme.colorScheme.primary,
-                                                                    modifier = Modifier.size(22.dp)
-                                                                )
-                                                                Spacer(modifier = Modifier.width(10.dp))
-                                                                Text(
-                                                                    text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
-                                                                    fontSize = 12.sp,
-                                                                    color = Color.White.copy(alpha = 0.9f),
-                                                                    lineHeight = 16.sp,
-                                                                    modifier = Modifier.weight(1f)
-                                                                )
-                                                            }
-                                                            Button(
-                                                                onClick = { OemNotchDetector.openSearch(context) },
-                                                                modifier = Modifier.fillMaxWidth(),
-                                                                shape = RoundedCornerShape(10.dp),
-                                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                                                            ) {
-                                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                                                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                                    Text("Open $oemFeatureName Settings", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
                                                     // Title Overflow & Marquee Engine
                                                     CollapsibleSubSection(
                                                         title = "📜 Title Overflow & Marquee Engine",
@@ -1212,16 +1267,206 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MAX_CAPSULE_WIDTH, "", "Max HUD Capsule Width (dp)", 120, 320, 10, 200)
                                                     }
 
-                                                    // Orientation Context & Guardrails
+                                                    // System Attitude & Orientation Engine
+                                                    var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
+                                                    var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
+                                                    var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
+
+                                                    DisposableEffect(Unit) {
+                                                        val observer = LightspeedOrientationEngine.registerObserver(
+                                                            context,
+                                                            onAutoRotateChanged = { isAutoRotateActive = it },
+                                                            onFaceRotateChanged = { isFaceRotateActive = it }
+                                                        )
+                                                        onDispose {
+                                                            try { context.contentResolver.unregisterContentObserver(observer) } catch (_: Exception) {}
+                                                        }
+                                                    }
+
+                                                    if (selectedAttitudeBucketForAppPicker != null) {
+                                                        AttitudeAppAssignmentSheet(
+                                                            context = context,
+                                                            bucket = selectedAttitudeBucketForAppPicker!!,
+                                                            onDismiss = { selectedAttitudeBucketForAppPicker = null },
+                                                            onUpdated = { onRefreshNeeded() }
+                                                        )
+                                                    }
+
                                                     CollapsibleSubSection(
-                                                        title = "🧭 Orientation Context & Guardrails",
-                                                        subtitle = "Landscape behavior, lock screen suppression & VoIP auto-portrait",
+                                                        title = "🧭 System Attitude & Orientation Engine",
+                                                        subtitle = "Auto-rotate, face detection, 2x2 mode buckets & context guardrails",
                                                         isExpanded = isOrientationSubSectionExpanded,
                                                         onToggle = {
                                                             isOrientationSubSectionExpanded = !isOrientationSubSectionExpanded
                                                             prefs.edit().putBoolean("pref_sub_orientation", isOrientationSubSectionExpanded).apply()
                                                         }
                                                     ) {
+                                                        // 1. Master Auto-Rotate Switch
+                                                        PrefToggleRow(
+                                                            title = "Master Auto-Rotate",
+                                                            subtitle = "Global Android accelerometer orientation trigger (Settings.System.ACCELEROMETER_ROTATION)",
+                                                            isChecked = isAutoRotateActive,
+                                                            onCheckedChange = {
+                                                                LightspeedOrientationEngine.setAutoRotateEnabled(context, it)
+                                                                isAutoRotateActive = it
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+
+                                                        // 2. Face-Oriented Auto-Rotate (CAMERA_AUTOROTATE)
+                                                        if (isAutoRotateActive && LightspeedOrientationEngine.isFaceRotateSupported(context)) {
+                                                            Card(
+                                                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                                ) {
+                                                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                            Icon(Icons.Default.Face, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Text("Face-Oriented Auto-Rotate", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                                        }
+                                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                                        Text("Uses front camera facial posture to prevent accidental rotations while lying down", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
+                                                                    }
+                                                                    Switch(
+                                                                        checked = isFaceRotateActive,
+                                                                        onCheckedChange = {
+                                                                            val ok = LightspeedOrientationEngine.setFaceRotateEnabled(context, it)
+                                                                            if (ok) isFaceRotateActive = it
+                                                                            onRefreshNeeded()
+                                                                        },
+                                                                        colors = SwitchDefaults.colors(
+                                                                            checkedThumbColor = Color.White,
+                                                                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                                                            checkedBorderColor = Color.Transparent,
+                                                                            uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                                                                            uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                                                                            uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                                                                        )
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // 3. 2x2 Attitude Mode Bucket Grid
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                            Text("ATTITUDE MODE BUCKETS (PER-APP RULES)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Text("Tap a bucket to assign apps to automatically enforce that rotation policy upon launch:", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.75f))
+
+                                                            val buckets = listOf(
+                                                                LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT,
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT,
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE,
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_360
+                                                            )
+
+                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                listOf(buckets[0], buckets[1]).forEach { bucket ->
+                                                                    val assignedCount = remember(bucket, prefs.getStringSet(bucket.prefKey, null)) {
+                                                                        LightspeedOrientationEngine.getAssignedPackages(context, bucket).size
+                                                                    }
+                                                                    Card(
+                                                                        modifier = Modifier
+                                                                            .weight(1f)
+                                                                            .clip(RoundedCornerShape(12.dp))
+                                                                            .clickable { selectedAttitudeBucketForAppPicker = bucket }
+                                                                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                                                        shape = RoundedCornerShape(12.dp),
+                                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                                                    ) {
+                                                                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                                                                Icon(
+                                                                                    imageVector = when (bucket) {
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
+                                                                                        else -> Icons.Default.ScreenRotation
+                                                                                    },
+                                                                                    contentDescription = null,
+                                                                                    tint = MaterialTheme.colorScheme.primary,
+                                                                                    modifier = Modifier.size(18.dp)
+                                                                                )
+                                                                                Surface(
+                                                                                    shape = RoundedCornerShape(6.dp),
+                                                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                                                ) {
+                                                                                    Text(
+                                                                                        text = "$assignedCount apps",
+                                                                                        fontSize = 9.5.sp,
+                                                                                        fontWeight = FontWeight.Bold,
+                                                                                        color = MaterialTheme.colorScheme.primary,
+                                                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                            Spacer(modifier = Modifier.height(6.dp))
+                                                                            Text(bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                                            Text(bucket.subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f), lineHeight = 12.sp)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                listOf(buckets[2], buckets[3]).forEach { bucket ->
+                                                                    val assignedCount = remember(bucket, prefs.getStringSet(bucket.prefKey, null)) {
+                                                                        LightspeedOrientationEngine.getAssignedPackages(context, bucket).size
+                                                                    }
+                                                                    Card(
+                                                                        modifier = Modifier
+                                                                            .weight(1f)
+                                                                            .clip(RoundedCornerShape(12.dp))
+                                                                            .clickable { selectedAttitudeBucketForAppPicker = bucket }
+                                                                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                                                        shape = RoundedCornerShape(12.dp),
+                                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                                                    ) {
+                                                                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                                                                Icon(
+                                                                                    imageVector = when (bucket) {
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
+                                                                                        else -> Icons.Default.ScreenRotation
+                                                                                    },
+                                                                                    contentDescription = null,
+                                                                                    tint = MaterialTheme.colorScheme.primary,
+                                                                                    modifier = Modifier.size(18.dp)
+                                                                                )
+                                                                                Surface(
+                                                                                    shape = RoundedCornerShape(6.dp),
+                                                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                                                ) {
+                                                                                    Text(
+                                                                                        text = "$assignedCount apps",
+                                                                                        fontSize = 9.5.sp,
+                                                                                        fontWeight = FontWeight.Bold,
+                                                                                        color = MaterialTheme.colorScheme.primary,
+                                                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                            Spacer(modifier = Modifier.height(6.dp))
+                                                                            Text(bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                                            Text(bucket.subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f), lineHeight = 12.sp)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // 4. Orientation Policy & Guardrails
                                                         val currentOrientationPolicy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
                                                         var isOrientationDropdownOpen by remember { mutableStateOf(false) }
                                                         val orientationOptions = listOf(
@@ -1287,43 +1532,41 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         )
 
-                                                        // System Rotation Engine Controls
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                            Text("SYSTEM ROTATION ENGINE CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                        // Quick Attitude Overrides
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                            Text("QUICK ATTITUDE OVERRIDES", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                                                 Button(
-                                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.toggleRotation(context) },
-                                                                    modifier = Modifier.weight(1f),
-                                                                    shape = RoundedCornerShape(10.dp),
-                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                                                                ) {
-                                                                    Text("Toggle Auto", fontSize = 11.sp, color = Color.White)
-                                                                }
-                                                                Button(
-                                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.forcePortrait(context) },
+                                                                    onClick = { LightspeedOrientationEngine.forcePortrait(context) },
                                                                     modifier = Modifier.weight(1f),
                                                                     shape = RoundedCornerShape(10.dp),
                                                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                                                                 ) {
                                                                     Text("Force 0°", fontSize = 11.sp, color = Color.White)
                                                                 }
-                                                            }
-                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                                                 Button(
-                                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.forceSensor360(context) },
+                                                                    onClick = { LightspeedOrientationEngine.setSensorPortrait(context) },
                                                                     modifier = Modifier.weight(1f),
                                                                     shape = RoundedCornerShape(10.dp),
                                                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                                                                 ) {
-                                                                    Text("Sensor 360°", fontSize = 11.sp, color = Color.White)
+                                                                    Text("0°/180° Port", fontSize = 11.sp, color = Color.White)
                                                                 }
                                                                 Button(
-                                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.setSensorPortrait(context) },
+                                                                    onClick = { LightspeedOrientationEngine.forceLandscape(context) },
                                                                     modifier = Modifier.weight(1f),
                                                                     shape = RoundedCornerShape(10.dp),
                                                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                                                                 ) {
-                                                                    Text("Portrait Only", fontSize = 11.sp, color = Color.White)
+                                                                    Text("Landscape", fontSize = 11.sp, color = Color.White)
+                                                                }
+                                                                Button(
+                                                                    onClick = { LightspeedOrientationEngine.forceSensor360(context) },
+                                                                    modifier = Modifier.weight(1f),
+                                                                    shape = RoundedCornerShape(10.dp),
+                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                                                ) {
+                                                                    Text("Gyro 360°", fontSize = 11.sp, color = Color.White)
                                                                 }
                                                             }
                                                         }
@@ -1630,22 +1873,6 @@ fun SidebarMatrixConfigurationFields(
                                                                     }
                                                                 }
                                                             )
-                                                        }
-
-                                                        // Quick Flyout Launch Test Button
-                                                        Button(
-                                                            onClick = {
-                                                                TacticalFlyoutLauncher.launch(context)
-                                                            },
-                                                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
-                                                        ) {
-                                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                                                Icon(Icons.Default.RocketLaunch, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                Text("Launch Tactical Quick Flyout", fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = MaterialTheme.colorScheme.primary)
-                                                            }
                                                         }
                                                     }
 
@@ -2029,6 +2256,110 @@ fun SidebarMatrixConfigurationFields(
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                    // Subspace Watchdog & Sentinel
+                                                    var isWatchdogSubSectionExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_watchdog", true)) }
+                                                    CollapsibleSubSection(
+                                                        title = "🛡️ Subspace Watchdog & Sentinel",
+                                                        subtitle = "Elevated task jettison & accessibility service auto-revival",
+                                                        isExpanded = isWatchdogSubSectionExpanded,
+                                                        onToggle = {
+                                                            isWatchdogSubSectionExpanded = !isWatchdogSubSectionExpanded
+                                                            prefs.edit().putBoolean("pref_sub_watchdog", isWatchdogSubSectionExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        // 1. Accessibility Sentinel Toggle
+                                                        val sentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
+                                                        PrefToggleRow(
+                                                            title = "Accessibility Sentinel Watchdog",
+                                                            subtitle = "Periodically checks accessibility health; automatically revives service via Shizuku if killed by OEM battery management.",
+                                                            isChecked = sentinelEnabled,
+                                                            onCheckedChange = { checked ->
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
+                                                                if (checked) {
+                                                                    LightspeedWatchdogEngine.initSentinel(context)
+                                                                } else {
+                                                                    LightspeedWatchdogEngine.stopSentinel()
+                                                                }
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+
+                                                        // Manual Revive Button
+                                                        OutlinedButton(
+                                                            onClick = {
+                                                                val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
+                                                                if (ok) {
+                                                                    Toast.makeText(context, "Revival command sent via Shizuku", Toast.LENGTH_SHORT).show()
+                                                                } else {
+                                                                    Toast.makeText(context, "Shizuku/Root required for auto-revival", Toast.LENGTH_SHORT).show()
+                                                                }
+                                                            },
+                                                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                                            shape = RoundedCornerShape(10.dp),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                                                        ) {
+                                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Text("Revive Accessibility Service Now", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                                            }
+                                                        }
+
+                                                        // 2. Emergency Shizuku Jettison Card
+                                                        var jettisonPkgInput by remember { mutableStateOf("") }
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.08f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+                                                        ) {
+                                                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                                    Text("Emergency Shizuku Jettison", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                                                }
+                                                                Text("Forcibly terminates and evicts frozen or leaking background apps via Shizuku Binder IPC / force-stop.", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.8f))
+
+                                                                Button(
+                                                                    onClick = {
+                                                                        ElevatedTaskCloser.closeTopApp(context)
+                                                                    },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(10.dp),
+                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.25f))
+                                                                ) {
+                                                                    Text("Jettison Foreground Active App", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                                                                }
+
+                                                                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                                                    OutlinedTextField(
+                                                                        value = jettisonPkgInput,
+                                                                        onValueChange = { jettisonPkgInput = it },
+                                                                        placeholder = { Text("package.to.terminate", fontSize = 11.sp) },
+                                                                        modifier = Modifier.weight(1f).height(46.dp),
+                                                                        singleLine = true,
+                                                                        shape = RoundedCornerShape(10.dp)
+                                                                    )
+                                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                                    Button(
+                                                                        onClick = {
+                                                                            if (jettisonPkgInput.isNotBlank()) {
+                                                                                val ok = LightspeedWatchdogEngine.jettisonPackage(context, jettisonPkgInput.trim())
+                                                                                Toast.makeText(context, if (ok) "Jettisoned $jettisonPkgInput" else "Failed (Check Shizuku)", Toast.LENGTH_SHORT).show()
+                                                                            }
+                                                                        },
+                                                                        shape = RoundedCornerShape(10.dp),
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.35f)),
+                                                                        modifier = Modifier.height(46.dp)
+                                                                    ) {
+                                                                        Text("Purge", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color.White)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
                                                     // Export Card
                                                     Row(
                                                         modifier = Modifier
@@ -2129,7 +2460,7 @@ fun SidebarMatrixConfigurationFields(
                             sectionIds = currentOrder2,
                             pinnedSectionId = pinnedSection2,
                             sectionTitles = sectionTitles2,
-                            onMoveUp = { idx ->
+                            onMoveUp = { idx: Int ->
                                 if (idx > 0) {
                                     val mutable = currentOrder2.toMutableList()
                                     val item = mutable.removeAt(idx)
@@ -2139,7 +2470,7 @@ fun SidebarMatrixConfigurationFields(
                                     prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, newStr).apply()
                                 }
                             },
-                            onMoveDown = { idx ->
+                            onMoveDown = { idx: Int ->
                                 if (idx < currentOrder2.size - 1) {
                                     val mutable = currentOrder2.toMutableList()
                                     val item = mutable.removeAt(idx)
@@ -2149,7 +2480,7 @@ fun SidebarMatrixConfigurationFields(
                                     prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, newStr).apply()
                                 }
                             },
-                            onPinSection = { secId ->
+                            onPinSection = { secId: String ->
                                 pinnedSection2 = secId
                                 prefs.edit().putString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, secId).apply()
                             },
@@ -2159,6 +2490,7 @@ fun SidebarMatrixConfigurationFields(
                         )
                     } else {
                         LazyColumn(
+                            state = listState2,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 20.dp)
@@ -3013,7 +3345,7 @@ fun SidebarMatrixConfigurationFields(
                 currentMode = currentMode,
                 pinnedSectionId = currentPinned,
                 sectionTitles = secTitles,
-                onSelectMode = { newMode ->
+                onSelectMode = { newMode: String ->
                     when (tabId) {
                         0 -> {
                             tabMode0 = newMode
@@ -3072,10 +3404,10 @@ fun TabAccordionPopover(
 
                 val modes = listOf(
                     Triple("sticky", "Remember Last State (Sticky)", "Preserve the exact open and collapsed states of each section across app restarts."),
-                    Triple("all_expanded", "All Expanded", "All accordion cards default open on tab entry."),
-                    Triple("all_collapsed", "All Collapsed", "All accordion cards default closed on tab entry."),
+                    Triple("custom_pinned", "Anchored Solo", "Designated anchor card stays open; non-pinned cards swap in Solo focus mode."),
                     Triple("solo", "Focus / Solo Mode", "Expanding any card automatically snaps all other cards shut."),
-                    Triple("custom_pinned", "Custom Pinned", "Designated anchor card starts open while others start closed.")
+                    Triple("all_expanded", "All Expanded", "All accordion cards default open on tab entry."),
+                    Triple("all_collapsed", "All Collapsed", "All accordion cards default closed on tab entry.")
                 )
 
                 modes.forEach { (modeKey, title, desc) ->
@@ -3112,7 +3444,7 @@ fun TabAccordionPopover(
                                     if (modeKey == "custom_pinned" && pinnedSectionId != null) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            "[Pinned: ${sectionTitles[pinnedSectionId] ?: pinnedSectionId}]",
+                                            "[Anchor: ${sectionTitles[pinnedSectionId] ?: pinnedSectionId}]",
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
@@ -3152,6 +3484,140 @@ fun TabAccordionPopover(
         shape = RoundedCornerShape(20.dp),
         containerColor = Color(0xFF10121C)
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AttitudeAppAssignmentSheet(
+    context: Context,
+    bucket: LightspeedOrientationEngine.AttitudeBucket,
+    onDismiss: () -> Unit,
+    onUpdated: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val assignedPackages = remember(bucket) {
+        mutableStateListOf<String>().apply {
+            addAll(LightspeedOrientationEngine.getAssignedPackages(context, bucket))
+        }
+    }
+
+    val installedApps = remember {
+        val pm = context.packageManager
+        val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+        pm.queryIntentActivities(intent, 0).map {
+            val pkg = it.activityInfo.packageName
+            val label = it.loadLabel(pm).toString()
+            Pair(pkg, label)
+        }.distinctBy { it.first }.sortedBy { it.second.lowercase(Locale.ROOT) }
+    }
+
+    val filteredApps = remember(searchQuery, installedApps) {
+        if (searchQuery.isBlank()) installedApps
+        else installedApps.filter { it.second.contains(searchQuery, ignoreCase = true) || it.first.contains(searchQuery, ignoreCase = true) }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF10121C),
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = when (bucket) {
+                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
+                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
+                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
+                        else -> Icons.Default.ScreenRotation
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Assign Apps: ${bucket.title}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = bucket.subtitle,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search installed apps...", fontSize = 13.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 380.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(count = filteredApps.size, key = { filteredApps[it].first }) { index ->
+                    val app = filteredApps[index]
+                    val pkg = app.first
+                    val label = app.second
+                    val isAssigned = assignedPackages.contains(pkg)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable {
+                                if (isAssigned) assignedPackages.remove(pkg)
+                                else assignedPackages.add(pkg)
+                                LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
+                                onUpdated()
+                            },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isAssigned) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isAssigned,
+                                onCheckedChange = { checked ->
+                                    if (checked) assignedPackages.add(pkg)
+                                    else assignedPackages.remove(pkg)
+                                    LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
+                                    onUpdated()
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                Text(pkg, fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.6f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

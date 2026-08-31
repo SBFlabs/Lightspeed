@@ -109,12 +109,12 @@ val GUIDEBOOK_ENTRIES = listOf(
     GuidebookEntry(
         id = "shizuku_jettison",
         vesselTitle = "Emergency Shizuku Jettison",
-        androidTitle = "Elevated Task Closer & Memory Eviction",
+        androidTitle = "Elevated Task Closer & Subspace Watchdog",
         icon = Icons.Default.Close,
         vesselLore = "High-priority sub-space purge protocol that forcibly vents unresponsive background subroutines and memory leaks into deep vacuum.",
         androidUtility = "Uses Shizuku or Root to execute elevated task termination, instantly removing frozen games or heavy apps completely from the Android Recents overview.",
         tabIndex = 1,
-        sectionKey = "volumekeys"
+        sectionKey = "watchdog"
     )
 )
 

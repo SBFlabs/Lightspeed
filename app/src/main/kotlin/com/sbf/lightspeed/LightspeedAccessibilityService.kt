@@ -104,6 +104,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
+        com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
+        com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         displayManager = getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
         displayManager?.registerDisplayListener(displayListener, handler)
@@ -291,6 +293,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
         updateSidebarOverlayFromPrefs(prefs)
         updateLeftWingOverlayFromPrefs(prefs)
         com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
+        com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
+        com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
     }
 
     fun updateWindowLayout(expand: Boolean) {
@@ -413,6 +417,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
         val prefs = defaultPrefs()
         prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
+        com.sbf.lightspeed.system.LightspeedKeyEngine.stopShizukuPowerMonitor()
+        com.sbf.lightspeed.system.LightspeedWatchdogEngine.stopSentinel()
         teardown()
     }
 

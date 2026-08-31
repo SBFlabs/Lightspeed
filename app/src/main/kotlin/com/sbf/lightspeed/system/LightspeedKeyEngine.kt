@@ -3,6 +3,7 @@ package com.sbf.lightspeed.system
 import android.content.Context
 import android.media.AudioManager
 import android.os.SystemClock
+import android.util.Log
 import android.view.KeyEvent
 import com.sbf.lightspeed.settings.resolveDynamicTokenLabel
 import kotlinx.coroutines.CoroutineScope
@@ -10,7 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Low-latency, customizable hardware volume button gesture engine for Lightspeed.
@@ -839,6 +842,51 @@ object LightspeedKeyEngine {
         lastVolUpReleaseTime = 0L
         lastVolDownReleaseTime = 0L
         lastPowerReleaseTime = 0L
+    }
+
+    private var shizukuMonitorJob: Job? = null
+    private var shizukuProcess: Process? = null
+
+    fun startShizukuPowerMonitor(context: Context) {
+        if (!isPowerEnabled(context) || !ElevatedTaskCloser.isShizukuActive) {
+            stopShizukuPowerMonitor()
+            return
+        }
+        if (shizukuMonitorJob?.isActive == true) return
+
+        shizukuMonitorJob = engineScope.launch(Dispatchers.IO) {
+            try {
+                val proc = ElevatedTaskCloser.execShizuku("getevent -l") ?: return@launch
+                shizukuProcess = proc
+                val reader = proc.inputStream.bufferedReader()
+                while (isActive) {
+                    val line = reader.readLine() ?: break
+                    val lower = line.lowercase()
+                    if (lower.contains("key_power") || lower.contains(" 0074 ") || lower.contains("key_wakeup")) {
+                        val isDown = lower.contains("down") || lower.contains(" 00000001") || lower.contains(" 1")
+                        val isUp = lower.contains("up") || lower.contains(" 00000000") || lower.contains(" 0")
+                        withContext(Dispatchers.Main) {
+                            if (isDown) {
+                                onKeyEvent(context, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_POWER))
+                            } else if (isUp) {
+                                onKeyEvent(context, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_POWER))
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("LightspeedKeyEngine", "Shizuku power monitor stopped: ${e.message}")
+            }
+        }
+    }
+
+    fun stopShizukuPowerMonitor() {
+        shizukuMonitorJob?.cancel()
+        shizukuMonitorJob = null
+        try {
+            shizukuProcess?.destroy()
+            shizukuProcess = null
+        } catch (_: Exception) {}
     }
 }
 

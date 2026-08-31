@@ -352,6 +352,30 @@ class GearPickerActivity : ComponentActivity() {
                                     )
                                 ),
                                 Triple(
+                                    "sys_tactical",
+                                    "Tactical Quick Action & AI Tools",
+                                    listOf(
+                                        "system:tactical_flyout",
+                                        "system:tactical_audio",
+                                        "system:lens",
+                                        "system:qr_scanner",
+                                        "system:chatgpt",
+                                        "system:claude",
+                                        "system:gemini",
+                                        "system:refueling_bay"
+                                    )
+                                ),
+                                Triple(
+                                    "sys_orient",
+                                    "System Attitude & Orientation",
+                                    listOf(
+                                        "system:orientation_toggle",
+                                        "system:orientation_portrait",
+                                        "system:orientation_sensor_360",
+                                        "system:orientation_sensor_portrait"
+                                    )
+                                ),
+                                Triple(
                                     "sys_scrub",
                                     "Gesture Scrubbers & Sliders",
                                     listOf("system:screen_timeout", "system:volume", "system:brightness")

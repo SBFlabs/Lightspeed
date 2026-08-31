@@ -78,11 +78,13 @@ fun SidebarMatrixConfigurationFields(
     var isBackTapExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backtap_expanded", false)) }
     var isTelemetryExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_telemetry_expanded", false)) }
     var isRefuelingExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_refueling_expanded", false)) }
+    var isPowerAssistExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_powerassist_expanded", false)) }
     var isBackupExpanded by remember { mutableStateOf(prefs.getBoolean("pref_section_backup_expanded", false)) }
 
     var showOemShieldDialog by remember { mutableStateOf(false) }
     var showBatteryWarningDialog by remember { mutableStateOf(false) }
     var showNotificationAccessDialog by remember { mutableStateOf(false) }
+    var showAmoledWarningDialog by remember { mutableStateOf(false) }
     var pendingBackTapScope by remember { mutableStateOf("screen_on") }
 
     var isStatusBarGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
@@ -362,7 +364,7 @@ fun SidebarMatrixConfigurationFields(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val tabTitles = listOf("PORT WING", "CANOPY DECK", "STARBOARD WING")
+            val tabTitles = listOf("LEFT DEFLECTOR", "HUD STRIP", "RIGHT DEFLECTOR")
             tabTitles.forEachIndexed { index, tabTitle ->
                 val isSelected = pagerState.currentPage == index
                 Box(
@@ -1154,7 +1156,7 @@ fun SidebarMatrixConfigurationFields(
 
                                         PrefToggleRow(
                                             title = "Suppress on Lock Screen & OEM Screensavers",
-                                            subtitle = "Automatically hides Notch Pill and Status Line when device is locked or running OEM ambient dock.",
+                                            subtitle = "Automatically hides Orbital Capsule and HUD Strip when device is locked or running OEM ambient dock.",
                                             isChecked = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true),
                                             onCheckedChange = {
                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, it).apply()
@@ -1162,6 +1164,57 @@ fun SidebarMatrixConfigurationFields(
                                                 onRefreshNeeded()
                                             }
                                         )
+
+                                        PrefToggleRow(
+                                            title = "Smart Orientation Context Guardrails",
+                                            subtitle = "Forces strict portrait during in-progress phone/VoIP calls, and suppresses landscape rotation glitches on Default Launcher & Lock Screen (auto-reverts when leaving protected apps).",
+                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, true),
+                                            onCheckedChange = {
+                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, it).apply()
+                                                onRefreshNeeded()
+                                            }
+                                        )
+
+                                        // Quick Rotation Triggers
+                                        Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text("SYSTEM ROTATION ENGINE CONTROLS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Button(
+                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.toggleRotation(context) },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                                ) {
+                                                    Text("Toggle Auto", fontSize = 11.sp, color = Color.White)
+                                                }
+                                                Button(
+                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.forcePortrait(context) },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                                ) {
+                                                    Text("Force 0°", fontSize = 11.sp, color = Color.White)
+                                                }
+                                            }
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Button(
+                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.forceSensor360(context) },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                                ) {
+                                                    Text("Sensor 360°", fontSize = 11.sp, color = Color.White)
+                                                }
+                                                Button(
+                                                    onClick = { com.sbf.lightspeed.system.LightspeedOrientationManager.setSensorPortrait(context) },
+                                                    modifier = Modifier.weight(1f),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                                ) {
+                                                    Text("Portrait Only", fontSize = 11.sp, color = Color.White)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1350,6 +1403,66 @@ fun SidebarMatrixConfigurationFields(
                                             labelCache = tokenLabelCache,
                                             showMediaQuickAccess = true
                                         )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Power Button Assist Remap
+                        item {
+                            CompactAccordionSection(
+                                title = "Power Button Assist Remap — Tactical Remap",
+                                isExpanded = isPowerAssistExpanded,
+                                onToggle = {
+                                    isPowerAssistExpanded = !isPowerAssistExpanded
+                                    prefs.edit().putBoolean("pref_section_powerassist_expanded", isPowerAssistExpanded).apply()
+                                }
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        "Remap Android Digital Assistant (Hold Power Button / Long-Press Home / Corner Swipe) to execute any tactical cockpit action instantly without opening Google Assistant.",
+                                        fontSize = 12.sp,
+                                        color = Color.LightGray.copy(alpha = 0.85f),
+                                        lineHeight = 16.sp
+                                    )
+
+                                    GestureMappingRow(
+                                        context = context,
+                                        prefs = prefs,
+                                        direction = ArrowDirection.TAP,
+                                        isHold = true,
+                                        keyResName = LightspeedPreferences.KEY_POWER_LONG_PRESS_ACTION,
+                                        defaultTitle = "Power Long-Press Assist Action",
+                                        options = dynamicActionTokens,
+                                        labelCache = tokenLabelCache,
+                                        showMediaQuickAccess = true
+                                    )
+
+                                    Button(
+                                        onClick = {
+                                            try {
+                                                val intent = Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS).apply {
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (_: Exception) {
+                                                try {
+                                                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (_: Exception) {}
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                            Icon(Icons.Default.SettingsVoice, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("Set Lightspeed as Default Digital Assistant", fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = MaterialTheme.colorScheme.primary)
+                                        }
                                     }
                                 }
                             }
@@ -1696,6 +1809,114 @@ fun SidebarMatrixConfigurationFields(
                                             }
                                         }
                                     }
+
+                                    // Battery Arc Visual Style Selector
+                                    val currentArcStyle = prefs.getString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, "halo") ?: "halo"
+                                    var isArcStyleDropdownOpen by remember { mutableStateOf(false) }
+                                    val arcStyleOptions = listOf(
+                                        "halo" to "Halo (Continuous Neon Arc)",
+                                        "reactor_ticks" to "Reactor Ticks (20 Laser Ticks + Pulse)",
+                                        "dual_wings" to "Dual Wings (Symmetrical Upward Brackets)",
+                                        "tachometer" to "Tachometer Cockpit (240° Cockpit Sweep)"
+                                    )
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Text("BATTERY ARC VISUAL STYLE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box {
+                                            OutlinedButton(
+                                                onClick = { isArcStyleDropdownOpen = true },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(arcStyleOptions.firstOrNull { it.first == currentArcStyle }?.second ?: "Halo", color = Color.White, fontSize = 12.sp)
+                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                            DropdownMenu(
+                                                expanded = isArcStyleDropdownOpen,
+                                                onDismissRequest = { isArcStyleDropdownOpen = false }
+                                            ) {
+                                                arcStyleOptions.forEach { (key, label) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            isArcStyleDropdownOpen = false
+                                                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, key).apply()
+                                                            onRefreshNeeded()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // OLED Burn-In Auto-Sleep Shield Selector
+                                    val currentSleepTimeout = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s"
+                                    var isSleepDropdownOpen by remember { mutableStateOf(false) }
+                                    val sleepTimeoutOptions = listOf(
+                                        "30s" to "30 Seconds",
+                                        "60s" to "60 Seconds (Default)",
+                                        "3m" to "3 Minutes",
+                                        "5m" to "5 Minutes",
+                                        "never" to "Never (Always-On AMOLED)"
+                                    )
+
+                                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                        Text("OLED BURN-IN AUTO-SLEEP SHIELD", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box {
+                                            OutlinedButton(
+                                                onClick = { isSleepDropdownOpen = true },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(sleepTimeoutOptions.firstOrNull { it.first == currentSleepTimeout }?.second ?: "60 Seconds (Default)", color = Color.White, fontSize = 12.sp)
+                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                            DropdownMenu(
+                                                expanded = isSleepDropdownOpen,
+                                                onDismissRequest = { isSleepDropdownOpen = false }
+                                            ) {
+                                                sleepTimeoutOptions.forEach { (key, label) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            isSleepDropdownOpen = false
+                                                            if (key == "never") {
+                                                                showAmoledWarningDialog = true
+                                                            } else {
+                                                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, key).apply()
+                                                                onRefreshNeeded()
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Lock Screen Curtain Mode Toggle
+                                    PrefToggleRow(
+                                        title = "Launch Over Lock Screen on Screen-On",
+                                        subtitle = "Instantly presents Refueling Bay over Keyguard when display turns on; dismisses directly to system lock with upward swipe",
+                                        isChecked = prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_AS_LOCKSCREEN, false),
+                                        onCheckedChange = { checked ->
+                                            prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_AS_LOCKSCREEN, checked).apply()
+                                            onRefreshNeeded()
+                                        }
+                                    )
 
                                     // Feature Overview Card
                                     Card(
@@ -2602,6 +2823,55 @@ fun SidebarMatrixConfigurationFields(
                 dismissButton = {
                     TextButton(onClick = { showNotificationAccessDialog = false }) {
                         Text("NOT NOW", color = Color.White.copy(alpha = 0.7f))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showAmoledWarningDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showAmoledWarningDialog = false
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s").apply()
+                    onRefreshNeeded()
+                },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Hardware Notice: AMOLED Image Retention", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                    }
+                },
+                text = {
+                    Text(
+                        "Prolonged static display on OLED panels can cause permanent subpixel degradation (burn-in). Keep auto-sleep enabled?",
+                        fontSize = 13.sp,
+                        color = Color.LightGray.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s").apply()
+                            showAmoledWarningDialog = false
+                            onRefreshNeeded()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Keep Auto-Sleep (Recommended)", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "never").apply()
+                            showAmoledWarningDialog = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("Enable Always-On (I Understand the Risks)", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant

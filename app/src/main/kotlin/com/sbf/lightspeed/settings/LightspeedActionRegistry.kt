@@ -49,6 +49,10 @@ object LightspeedActionRegistry {
         "system:notifications",
         "system:quick_settings",
         "system:scroll_to_top",
+        "system:orientation_toggle",
+        "system:orientation_portrait",
+        "system:orientation_sensor_360",
+        "system:orientation_sensor_portrait",
 
         // 3. Gesture Scrubbers & Sliders
         "system:screen_timeout",
@@ -235,6 +239,10 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
+        token == "system:orientation_toggle" -> "Orientation: Toggle Auto-Rotate"
+        token == "system:orientation_portrait" -> "Orientation: Force Portrait (0°)"
+        token == "system:orientation_sensor_360" -> "Orientation: Sensor 360° (Full 4-Way)"
+        token == "system:orientation_sensor_portrait" -> "Orientation: Sensor Portrait (0° / 180°)"
 
         token == "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
         token == "system:volume" -> "Volume (Media Scrubber)"

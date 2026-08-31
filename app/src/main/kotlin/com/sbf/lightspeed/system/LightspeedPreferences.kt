@@ -22,8 +22,12 @@ object LightspeedPreferences {
     const val KEY_GEAR_PHYSICS_PROFILE = "pref_gear_physics_profile"
     const val KEY_GEAR_HAPTIC_STRENGTH = "pref_gear_haptic_strength"
 
-    // Icon Pack Keys
-    const val KEY_ACTIVE_ICON_PACK = "pref_active_icon_pack"
+    // Icon Pack & Pipeline Keys
+    const val KEY_ACTIVE_ICON_PACK = "pref_active_icon_pack" // Legacy key for backward compatibility
+    const val KEY_CATEGORY_CRUISE_ICON_PACK = "pref_category_cruise_icon_pack" // Meta-category glyph tokens
+    const val KEY_CATEGORY_CRUISE_ICON_STYLE = "pref_category_cruise_icon_style" // Meta-category icon styling
+    const val KEY_COCKPIT_ICON_PACK = "pref_cockpit_icon_pack" // Target app icon pack (default: "system")
+    const val KEY_COCKPIT_ICON_RENDER_MODE = "pref_cockpit_icon_render_mode" // "pack_native", "adaptive_squircle", "original"
 
     // Symmetry & Coupling Keys
     const val KEY_SYMMETRY_GEOMETRY_MODE = "pref_symmetry_geometry_mode"
@@ -60,6 +64,9 @@ object LightspeedPreferences {
     const val KEY_SEQ_DOWN_TAP_THEN_UP_HOLD = "pref_key_seq_down_tap_then_up_hold"
     const val KEY_SEQ_UP_TAP_THEN_DOWN_HOLD = "pref_key_seq_up_tap_then_down_hold"
 
+    // Power Button Assist Remap Key
+    const val KEY_POWER_LONG_PRESS_ACTION = "pref_power_long_press_action"
+
     // Back Tap Gesture Keys
     const val KEY_BACK_TAP_ENABLED = "pref_back_tap_enabled"
     const val KEY_BACK_TAP_SCOPE = "pref_back_tap_scope"
@@ -76,11 +83,19 @@ object LightspeedPreferences {
     // Orientation & Display Suppression Keys
     const val KEY_ORIENTATION_OVERLAY_POLICY = "pref_orientation_overlay_policy" // "adaptive", "portrait_only"
     const val KEY_HIDE_ON_LOCKSCREEN_AND_DOCK = "pref_hide_on_lockscreen_and_dock"
+    const val KEY_ORIENTATION_CONTEXT_GUARD_ENABLED = "pref_orientation_context_guard_enabled"
+    const val KEY_SAVED_ACCEL_ROTATION = "pref_saved_accel_rotation"
+    const val KEY_SAVED_USER_ROTATION = "pref_saved_user_rotation"
 
     // Refueling Bay Keys
     const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screensaver_only"
+    const val KEY_REFUELING_BATTERY_STYLE = "pref_refueling_battery_style" // "halo", "reactor_ticks", "dual_wings", "tachometer"
+    const val KEY_REFUELING_SLEEP_TIMEOUT = "pref_refueling_sleep_timeout" // "30s", "60s", "3m", "5m", "never"
+    const val KEY_REFUELING_AS_LOCKSCREEN = "pref_refueling_as_lockscreen" // Boolean
     const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id" // Legacy single ID
     const val KEY_REFUELING_WIDGET_IDS = "pref_refueling_widget_ids" // JSON array string of widget IDs
+    const val KEY_REFUELING_STACK_PROFILE = "pref_refueling_stack_profile" // JSON array string of Stack widget IDs
+    const val KEY_REFUELING_GRID_PROFILE = "pref_refueling_grid_profile" // JSON array string of Grid widget IDs
     const val KEY_REFUELING_WIDGET_LAYOUT = "pref_refueling_widget_layout" // "smart_stack", "adaptive_grid"
 
     // Notch Orbital Capsule Keys
@@ -91,7 +106,18 @@ object LightspeedPreferences {
 
     fun getRefuelingWidgetIds(context: Context): List<Int> {
         val prefs = context.defaultPrefs()
-        val jsonStr = prefs.getString(KEY_REFUELING_WIDGET_IDS, null)
+        val mode = prefs.getString(KEY_REFUELING_WIDGET_LAYOUT, "smart_stack") ?: "smart_stack"
+        return if (mode == "smart_stack") {
+            getRefuelingStackWidgetIds(context)
+        } else {
+            getRefuelingGridWidgetIds(context)
+        }
+    }
+
+    fun getRefuelingStackWidgetIds(context: Context): List<Int> {
+        val prefs = context.defaultPrefs()
+        val jsonStr = prefs.getString(KEY_REFUELING_STACK_PROFILE, null)
+            ?: prefs.getString(KEY_REFUELING_WIDGET_IDS, null)
         if (!jsonStr.isNullOrBlank()) {
             try {
                 val jsonArray = org.json.JSONArray(jsonStr)
@@ -109,14 +135,57 @@ object LightspeedPreferences {
         return if (legacyId != -1) listOf(legacyId) else emptyList()
     }
 
-    fun saveRefuelingWidgetIds(context: Context, ids: List<Int>) {
+    fun saveRefuelingStackWidgetIds(context: Context, ids: List<Int>) {
         val prefs = context.defaultPrefs()
         val jsonArray = org.json.JSONArray()
         ids.forEach { jsonArray.put(it) }
         prefs.edit()
+            .putString(KEY_REFUELING_STACK_PROFILE, jsonArray.toString())
             .putString(KEY_REFUELING_WIDGET_IDS, jsonArray.toString())
             .putInt(KEY_REFUELING_WIDGET_ID, ids.firstOrNull() ?: -1)
             .apply()
+    }
+
+    fun getRefuelingGridWidgetIds(context: Context): List<Int> {
+        val prefs = context.defaultPrefs()
+        val jsonStr = prefs.getString(KEY_REFUELING_GRID_PROFILE, null)
+            ?: prefs.getString(KEY_REFUELING_WIDGET_IDS, null)
+        if (!jsonStr.isNullOrBlank()) {
+            try {
+                val jsonArray = org.json.JSONArray(jsonStr)
+                val list = mutableListOf<Int>()
+                for (i in 0 until jsonArray.length()) {
+                    val id = jsonArray.getInt(i)
+                    if (id != -1 && !list.contains(id)) {
+                        list.add(id)
+                    }
+                }
+                return list
+            } catch (_: Exception) {}
+        }
+        val legacyId = prefs.getInt(KEY_REFUELING_WIDGET_ID, -1)
+        return if (legacyId != -1) listOf(legacyId) else emptyList()
+    }
+
+    fun saveRefuelingGridWidgetIds(context: Context, ids: List<Int>) {
+        val prefs = context.defaultPrefs()
+        val jsonArray = org.json.JSONArray()
+        ids.forEach { jsonArray.put(it) }
+        prefs.edit()
+            .putString(KEY_REFUELING_GRID_PROFILE, jsonArray.toString())
+            .putString(KEY_REFUELING_WIDGET_IDS, jsonArray.toString())
+            .putInt(KEY_REFUELING_WIDGET_ID, ids.firstOrNull() ?: -1)
+            .apply()
+    }
+
+    fun saveRefuelingWidgetIds(context: Context, ids: List<Int>) {
+        val prefs = context.defaultPrefs()
+        val mode = prefs.getString(KEY_REFUELING_WIDGET_LAYOUT, "smart_stack") ?: "smart_stack"
+        if (mode == "smart_stack") {
+            saveRefuelingStackWidgetIds(context, ids)
+        } else {
+            saveRefuelingGridWidgetIds(context, ids)
+        }
     }
 }
 

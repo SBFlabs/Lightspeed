@@ -2,15 +2,16 @@ package com.sbf.lightspeed
 
 import android.app.Activity
 import android.app.AlarmManager
+import android.app.KeyguardManager
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProviderInfo
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
+import android.graphics.Paint
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -23,6 +24,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -38,11 +41,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -57,14 +64,14 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.abs
-import kotlin.math.roundToInt
+import kotlin.math.*
 
 /**
  * Refueling Bay: Ambient Charging & Cryo Dashboard for Lightspeed.
  * Features lockscreen wake-over-lock, sensor-adaptive portrait/landscape reflow,
- * live charging wattage, time to full, minimalist cryo-clock,
- * AMOLED burn-in drift protection, and an interactive Multi-Widget Engine (Smart Stack & Adaptive Grid).
+ * real-time battery thermal telemetry (°C), 4 selectable Battery Arc styles (Halo, Reactor Ticks, Dual Wings, Tachometer),
+ * dynamic thermal/wattage color shifts, OLED Burn-In Shields (auto-sleep to true black & tap/swipe wake),
+ * and Dual Docking Profiles (Smart Stack & Adaptive Grid layout memory).
  */
 class LightspeedRefuelingActivity : ComponentActivity() {
 
@@ -132,10 +139,10 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         appWidgetManager = AppWidgetManager.getInstance(applicationContext)
         appWidgetHost?.startListening()
 
-        // Load configured widget IDs and layout mode
-        widgetIdsState.clear()
-        widgetIdsState.addAll(LightspeedPreferences.getRefuelingWidgetIds(this))
-        widgetLayoutModeState.value = defaultPrefs().getString(LightspeedPreferences.KEY_REFUELING_WIDGET_LAYOUT, "smart_stack") ?: "smart_stack"
+        // Load configured widget layout mode & independent profile memory
+        val initialMode = defaultPrefs().getString(LightspeedPreferences.KEY_REFUELING_WIDGET_LAYOUT, "smart_stack") ?: "smart_stack"
+        widgetLayoutModeState.value = initialMode
+        loadWidgetsForCurrentMode(initialMode)
 
         setContent {
             RefuelingBayScreen(
@@ -152,6 +159,15 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                 onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
                 onDismiss = { finish() }
             )
+        }
+    }
+
+    private fun loadWidgetsForCurrentMode(mode: String) {
+        widgetIdsState.clear()
+        if (mode == "smart_stack") {
+            widgetIdsState.addAll(LightspeedPreferences.getRefuelingStackWidgetIds(this))
+        } else {
+            widgetIdsState.addAll(LightspeedPreferences.getRefuelingGridWidgetIds(this))
         }
     }
 
@@ -184,7 +200,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
         if (!widgetIdsState.contains(widgetId)) {
             widgetIdsState.add(widgetId)
-            LightspeedPreferences.saveRefuelingWidgetIds(this, widgetIdsState.toList())
+            saveCurrentModeWidgets()
         }
     }
 
@@ -192,7 +208,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         if (widgetIdsState.contains(widgetId)) {
             appWidgetHost?.deleteAppWidgetId(widgetId)
             widgetIdsState.remove(widgetId)
-            LightspeedPreferences.saveRefuelingWidgetIds(this, widgetIdsState.toList())
+            saveCurrentModeWidgets()
         }
     }
 
@@ -200,14 +216,31 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         if (fromIndex in widgetIdsState.indices && toIndex in widgetIdsState.indices && fromIndex != toIndex) {
             val item = widgetIdsState.removeAt(fromIndex)
             widgetIdsState.add(toIndex, item)
-            LightspeedPreferences.saveRefuelingWidgetIds(this, widgetIdsState.toList())
+            saveCurrentModeWidgets()
+        }
+    }
+
+    private fun saveCurrentModeWidgets() {
+        if (widgetLayoutModeState.value == "smart_stack") {
+            LightspeedPreferences.saveRefuelingStackWidgetIds(this, widgetIdsState.toList())
+        } else {
+            LightspeedPreferences.saveRefuelingGridWidgetIds(this, widgetIdsState.toList())
         }
     }
 
     private fun toggleLayoutMode() {
-        val newMode = if (widgetLayoutModeState.value == "smart_stack") "adaptive_grid" else "smart_stack"
+        val currentMode = widgetLayoutModeState.value
+        val newMode = if (currentMode == "smart_stack") "adaptive_grid" else "smart_stack"
+
+        // 1. Save state of current profile before switching
+        saveCurrentModeWidgets()
+
+        // 2. Switch layout mode state
         widgetLayoutModeState.value = newMode
         defaultPrefs().edit().putString(LightspeedPreferences.KEY_REFUELING_WIDGET_LAYOUT, newMode).apply()
+
+        // 3. Load target profile without deleting widget allocations
+        loadWidgetsForCurrentMode(newMode)
     }
 
     override fun onStart() {
@@ -243,11 +276,13 @@ fun RefuelingBayScreen(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val prefs = remember { context.defaultPrefs() }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // Live Telemetry States
     var batteryPct by remember { mutableIntStateOf(0) }
+    var batteryTempC by remember { mutableFloatStateOf(28.0f) }
     var isCharging by remember { mutableStateOf(false) }
     var isFull by remember { mutableStateOf(false) }
     var wattage by remember { mutableFloatStateOf(0f) }
@@ -255,6 +290,24 @@ fun RefuelingBayScreen(
     var currentMa by remember { mutableIntStateOf(0) }
     var timeRemainingMinutes by remember { mutableLongStateOf(-1L) }
     var chargeTypeLabel by remember { mutableStateOf("Standard Charge") }
+
+    // Style & Sleep Settings
+    val batteryStyle = prefs.getString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, "halo") ?: "halo"
+    val sleepTimeoutSetting = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s"
+    val sleepTimeoutMs = remember(sleepTimeoutSetting) {
+        when (sleepTimeoutSetting) {
+            "30s" -> 30_000L
+            "60s" -> 60_000L
+            "3m" -> 180_000L
+            "5m" -> 300_000L
+            "never" -> Long.MAX_VALUE
+            else -> 60_000L
+        }
+    }
+
+    // OLED Burn-In Sleep Shield States
+    var isSleeping by remember { mutableStateOf(false) }
+    var lastInteractionTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     // Cryo Clock States
     var currentTimeStr by remember { mutableStateOf("") }
@@ -265,7 +318,7 @@ fun RefuelingBayScreen(
     var driftOffsetX by remember { mutableFloatStateOf(0f) }
     var driftOffsetY by remember { mutableFloatStateOf(0f) }
 
-    // Receiver for Live Battery Telemetry
+    // Receiver for Live Battery & Thermal Telemetry
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: Intent?) {
@@ -275,6 +328,9 @@ fun RefuelingBayScreen(
                 if (level >= 0 && scale > 0) {
                     batteryPct = (level * 100f / scale).roundToInt()
                 }
+
+                val tempRaw = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)
+                batteryTempC = tempRaw / 10.0f
 
                 val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
                 isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
@@ -292,8 +348,8 @@ fun RefuelingBayScreen(
                     chargeTypeLabel = when {
                         !isCharging -> "Discharging (Auxiliary Power)"
                         wattage >= 45f -> "⚡ Cryo-Hyper Turbo Charge"
-                        wattage >= 25f -> "⚡ Super Fast Warp Charge"
-                        wattage >= 15f -> "⚡ Fast Refueling"
+                        wattage >= 20f -> "⚡ Super Fast Warp Charge"
+                        wattage >= 10f -> "⚡ Fast Refueling"
                         else -> "⚡ Standard Dock Refuel"
                     }
 
@@ -313,7 +369,22 @@ fun RefuelingBayScreen(
         }
     }
 
-    // Ticking Clock & Burn-In Drift Loop
+    // Dynamic Arc Colors
+    val dynamicArcColor = when {
+        batteryPct >= 100 -> Color(0xFF00E676) // Emerald Fusion (100%)
+        batteryTempC >= 40.0f -> Color(0xFFFF3D00) // High Thermal Crimson (>40°C)
+        wattage >= 20.0f -> Color(0xFF00E5FF) // Warp Electric Cyan (>20W)
+        wattage >= 10.0f -> Color(0xFFFFB300) // Cruising Solar Gold (10W-20W)
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    val thermalBadgeColor = when {
+        batteryTempC > 42.0f -> Color(0xFFFF3D00) // Throttle (>42°C)
+        batteryTempC >= 38.0f -> Color(0xFFFFB300) // Warm Caution (38°C-42°C)
+        else -> Color(0xFF00E5FF).copy(alpha = 0.85f) // Normal (<38°C)
+    }
+
+    // Ticking Clock, Sleep Shield Timer & Burn-In Drift Loop
     LaunchedEffect(Unit) {
         val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
         val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
@@ -334,6 +405,15 @@ fun RefuelingBayScreen(
                 nextAlarmStr = null
             }
 
+            // Check auto-sleep timeout
+            val idleDuration = System.currentTimeMillis() - lastInteractionTimestamp
+            if (sleepTimeoutMs < Long.MAX_VALUE && idleDuration >= sleepTimeoutMs && !isSleeping) {
+                isSleeping = true
+                val lp = activity.window.attributes
+                lp.screenBrightness = 0.01f
+                activity.window.attributes = lp
+            }
+
             // Drift every 60 iterations (60 seconds)
             driftCounter++
             if (driftCounter >= 60) {
@@ -347,225 +427,291 @@ fun RefuelingBayScreen(
         }
     }
 
-    // True Black OLED Background with click-to-dismiss
+    // Function to wake up from sleep shield
+    fun wakeShield(durationMs: Long = 15_000L) {
+        isSleeping = false
+        val lp = activity.window.attributes
+        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        activity.window.attributes = lp
+        if (sleepTimeoutMs < Long.MAX_VALUE) {
+            lastInteractionTimestamp = System.currentTimeMillis() - (sleepTimeoutMs - durationMs).coerceAtLeast(0L)
+        } else {
+            lastInteractionTimestamp = System.currentTimeMillis()
+        }
+    }
+
+    val animatedContentAlpha by animateFloatAsState(
+        targetValue = if (isSleeping) 0f else 1f,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "sleep_fade"
+    )
+
+    // True Black OLED Background with gestures
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .clickable { onDismiss() }
+            .pointerInput(isSleeping) {
+                detectTapGestures(
+                    onTap = {
+                        if (isSleeping) {
+                            wakeShield(15_000L)
+                        } else {
+                            onDismiss()
+                        }
+                    },
+                    onDoubleTap = {
+                        onDismiss()
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                var totalDragY = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { totalDragY = 0f },
+                    onDragEnd = {
+                        if (totalDragY < -120f) {
+                            // Swipe-Up gesture: dismiss keyguard and finish
+                            try {
+                                val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                                km?.requestDismissKeyguard(activity, null)
+                            } catch (_: Exception) {}
+                            onDismiss()
+                        }
+                    },
+                    onDragCancel = { totalDragY = 0f },
+                    onVerticalDrag = { _, dragAmount ->
+                        totalDragY += dragAmount
+                    }
+                )
+            }
             .offset { IntOffset(driftOffsetX.roundToInt(), driftOffsetY.roundToInt()) }
             .padding(16.dp)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        if (isLandscape) {
-            // =========================================================================
-            // LANDSCAPE: HORIZONTAL SPLIT (Left = Cryo Telemetry, Right = Multi-Widget Container)
-            // =========================================================================
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left Column: Cryo Clock & Battery Ring Telemetry
-                Column(
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(animatedContentAlpha)
+        ) {
+            if (isLandscape) {
+                // =========================================================================
+                // LANDSCAPE: HORIZONTAL SPLIT (Left = Cryo Telemetry, Right = Multi-Widget Container)
+                // =========================================================================
+                Row(
                     modifier = Modifier
-                        .weight(0.42f)
-                        .fillMaxHeight(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Minimalist Monospace Cryo Clock
-                    Text(
-                        text = currentTimeStr,
-                        fontSize = 38.sp,
-                        fontWeight = FontWeight.Light,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp,
-                        color = Color.White.copy(alpha = 0.95f)
-                    )
-                    Text(
-                        text = currentDateStr.uppercase(Locale.US),
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 1.2.sp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-                    )
-                    if (nextAlarmStr != null) {
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Alarm,
-                                contentDescription = null,
-                                tint = Color.LightGray.copy(alpha = 0.7f),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = nextAlarmStr!!,
-                                fontSize = 10.5.sp,
-                                color = Color.LightGray.copy(alpha = 0.7f)
+                    // Left Column: Cryo Clock & Battery Arc Telemetry
+                    Column(
+                        modifier = Modifier
+                            .weight(0.44f)
+                            .fillMaxHeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        // Minimalist Monospace Cryo Clock
+                        Text(
+                            text = currentTimeStr,
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Light,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 2.sp,
+                            color = Color.White.copy(alpha = 0.95f)
+                        )
+                        Text(
+                            text = currentDateStr.uppercase(Locale.US),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.2.sp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                        )
+                        if (nextAlarmStr != null) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Alarm,
+                                    contentDescription = null,
+                                    tint = Color.LightGray.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = nextAlarmStr!!,
+                                    fontSize = 10.5.sp,
+                                    color = Color.LightGray.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Battery Telemetry Arc (Selectable Style)
+                        BatteryTelemetryCircle(
+                            batteryPct = batteryPct,
+                            wattage = wattage,
+                            batteryTempC = batteryTempC,
+                            chargeTypeLabel = chargeTypeLabel,
+                            timeRemainingMinutes = timeRemainingMinutes,
+                            isCharging = isCharging,
+                            isFull = isFull,
+                            batteryStyle = batteryStyle,
+                            dynamicArcColor = dynamicArcColor,
+                            thermalBadgeColor = thermalBadgeColor,
+                            sizeDp = 156.dp
+                        )
+                    }
+
+                    // Right Column: Multi-Widget Engine Container
+                    Column(
+                        modifier = Modifier
+                            .weight(0.56f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Header Toolbar for Widget Controls
+                        WidgetEngineToolbar(
+                            widgetCount = widgetIds.size,
+                            widgetLayoutMode = widgetLayoutMode,
+                            isEditMode = isEditMode,
+                            onToggleLayoutMode = onToggleLayoutMode,
+                            onToggleEditMode = onToggleEditMode,
+                            onAddWidget = onPickWidget,
+                            onDismiss = onDismiss
+                        )
+
+                        // Multi-Widget Surface
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            MultiWidgetContainer(
+                                widgetIds = widgetIds,
+                                widgetLayoutMode = widgetLayoutMode,
+                                isEditMode = isEditMode,
+                                isLandscape = true,
+                                appWidgetHost = appWidgetHost,
+                                appWidgetManager = appWidgetManager,
+                                onPickWidget = onPickWidget,
+                                onRemoveWidget = onRemoveWidget,
+                                onReorderWidget = onReorderWidget
                             )
                         }
                     }
+                }
+            } else {
+                // =========================================================================
+                // PORTRAIT: VERTICAL STACK (Top = Clock & Battery Telemetry, Bottom = Multi-Widget Container)
+                // =========================================================================
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Header: Minimalist Cryo Clock
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text(
+                            text = currentTimeStr,
+                            fontSize = 44.sp,
+                            fontWeight = FontWeight.Light,
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 2.sp,
+                            color = Color.White.copy(alpha = 0.95f)
+                        )
+                        Text(
+                            text = currentDateStr.uppercase(Locale.US),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.4.sp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                        )
+                        if (nextAlarmStr != null) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Alarm,
+                                    contentDescription = null,
+                                    tint = Color.LightGray.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = nextAlarmStr!!,
+                                    fontSize = 11.sp,
+                                    color = Color.LightGray.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Battery Telemetry Ring
+                    // Center Battery Telemetry Arc (Selectable Style)
                     BatteryTelemetryCircle(
                         batteryPct = batteryPct,
                         wattage = wattage,
+                        batteryTempC = batteryTempC,
                         chargeTypeLabel = chargeTypeLabel,
                         timeRemainingMinutes = timeRemainingMinutes,
                         isCharging = isCharging,
                         isFull = isFull,
-                        sizeDp = 150.dp
-                    )
-                }
-
-                // Right Column: Multi-Widget Engine Container
-                Column(
-                    modifier = Modifier
-                        .weight(0.58f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Header Toolbar for Widget Controls
-                    WidgetEngineToolbar(
-                        widgetCount = widgetIds.size,
-                        widgetLayoutMode = widgetLayoutMode,
-                        isEditMode = isEditMode,
-                        onToggleLayoutMode = onToggleLayoutMode,
-                        onToggleEditMode = onToggleEditMode,
-                        onAddWidget = onPickWidget,
-                        onDismiss = onDismiss
+                        batteryStyle = batteryStyle,
+                        dynamicArcColor = dynamicArcColor,
+                        thermalBadgeColor = thermalBadgeColor,
+                        sizeDp = 184.dp
                     )
 
-                    // Multi-Widget Surface
-                    Box(
+                    // Multi-Widget Section & Toolbar
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
+                            .fillMaxWidth(0.96f)
+                            .padding(bottom = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        MultiWidgetContainer(
-                            widgetIds = widgetIds,
+                        WidgetEngineToolbar(
+                            widgetCount = widgetIds.size,
                             widgetLayoutMode = widgetLayoutMode,
                             isEditMode = isEditMode,
-                            isLandscape = true,
-                            appWidgetHost = appWidgetHost,
-                            appWidgetManager = appWidgetManager,
-                            onPickWidget = onPickWidget,
-                            onRemoveWidget = onRemoveWidget,
-                            onReorderWidget = onReorderWidget
+                            onToggleLayoutMode = onToggleLayoutMode,
+                            onToggleEditMode = onToggleEditMode,
+                            onAddWidget = onPickWidget,
+                            onDismiss = onDismiss
                         )
-                    }
-                }
-            }
-        } else {
-            // =========================================================================
-            // PORTRAIT: VERTICAL STACK (Top = Clock & Battery Telemetry, Bottom = Multi-Widget Container)
-            // =========================================================================
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Header: Minimalist Cryo Clock
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Text(
-                        text = currentTimeStr,
-                        fontSize = 46.sp,
-                        fontWeight = FontWeight.Light,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 2.sp,
-                        color = Color.White.copy(alpha = 0.95f)
-                    )
-                    Text(
-                        text = currentDateStr.uppercase(Locale.US),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 1.4.sp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-                    )
-                    if (nextAlarmStr != null) {
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Alarm,
-                                contentDescription = null,
-                                tint = Color.LightGray.copy(alpha = 0.7f),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = nextAlarmStr!!,
-                                fontSize = 11.sp,
-                                color = Color.LightGray.copy(alpha = 0.7f)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 160.dp, max = 240.dp)
+                        ) {
+                            MultiWidgetContainer(
+                                widgetIds = widgetIds,
+                                widgetLayoutMode = widgetLayoutMode,
+                                isEditMode = isEditMode,
+                                isLandscape = false,
+                                appWidgetHost = appWidgetHost,
+                                appWidgetManager = appWidgetManager,
+                                onPickWidget = onPickWidget,
+                                onRemoveWidget = onRemoveWidget,
+                                onReorderWidget = onReorderWidget
                             )
                         }
                     }
-                }
 
-                // Center Battery Telemetry Ring
-                BatteryTelemetryCircle(
-                    batteryPct = batteryPct,
-                    wattage = wattage,
-                    chargeTypeLabel = chargeTypeLabel,
-                    timeRemainingMinutes = timeRemainingMinutes,
-                    isCharging = isCharging,
-                    isFull = isFull,
-                    sizeDp = 180.dp
-                )
-
-                // Multi-Widget Section & Toolbar
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth(0.96f)
-                        .padding(bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    WidgetEngineToolbar(
-                        widgetCount = widgetIds.size,
-                        widgetLayoutMode = widgetLayoutMode,
-                        isEditMode = isEditMode,
-                        onToggleLayoutMode = onToggleLayoutMode,
-                        onToggleEditMode = onToggleEditMode,
-                        onAddWidget = onPickWidget,
-                        onDismiss = onDismiss
+                    // Bottom Exit Note & Gestures
+                    Text(
+                        text = "✦ Tap to Exit · Swipe Up for Keyguard ✦",
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.45f),
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 160.dp, max = 240.dp)
-                    ) {
-                        MultiWidgetContainer(
-                            widgetIds = widgetIds,
-                            widgetLayoutMode = widgetLayoutMode,
-                            isEditMode = isEditMode,
-                            isLandscape = false,
-                            appWidgetHost = appWidgetHost,
-                            appWidgetManager = appWidgetManager,
-                            onPickWidget = onPickWidget,
-                            onRemoveWidget = onRemoveWidget,
-                            onReorderWidget = onReorderWidget
-                        )
-                    }
                 }
-
-                // Bottom Exit Note
-                Text(
-                    text = "✦ Tap background to exit Refueling Bay ✦",
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.45f),
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
             }
         }
     }
@@ -575,14 +721,28 @@ fun RefuelingBayScreen(
 fun BatteryTelemetryCircle(
     batteryPct: Int,
     wattage: Float,
+    batteryTempC: Float,
     chargeTypeLabel: String,
     timeRemainingMinutes: Long,
     isCharging: Boolean,
     isFull: Boolean,
+    batteryStyle: String,
+    dynamicArcColor: Color,
+    thermalBadgeColor: Color,
     sizeDp: androidx.compose.ui.unit.Dp
 ) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
+    // Fast-charge (>20W) pulsating glow transition
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse_glow")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha"
+    )
+    val isPulseActive = isCharging && wattage >= 20.0f
 
     Box(
         modifier = Modifier
@@ -590,22 +750,137 @@ fun BatteryTelemetryCircle(
             .padding(4.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Background track and progress arc
         androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                color = Color.White.copy(alpha = 0.06f),
-                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-            )
-            val sweep = (batteryPct / 100f) * 360f
-            drawArc(
-                brush = Brush.sweepGradient(
-                    listOf(primaryColor.copy(alpha = 0.6f), secondaryColor, primaryColor)
-                ),
-                startAngle = -90f,
-                sweepAngle = sweep,
-                useCenter = false,
-                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
-            )
+            val strokeWidthPx = 8.dp.toPx()
+            val radius = (size.minDimension - strokeWidthPx) / 2f
+            val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+
+            when (batteryStyle) {
+                "reactor_ticks" -> {
+                    // Style 2: 20 discrete laser-cut radial tick marks
+                    val tickCount = 20
+                    val activeTicks = (batteryPct / 100f * tickCount).roundToInt()
+                    val tickLength = 10.dp.toPx()
+
+                    for (i in 0 until tickCount) {
+                        val angleDeg = i * (360f / tickCount) - 90f
+                        val angleRad = Math.toRadians(angleDeg.toDouble())
+                        val cosVal = cos(angleRad).toFloat()
+                        val sinVal = sin(angleRad).toFloat()
+
+                        val outerX = center.x + radius * cosVal
+                        val outerY = center.y + radius * sinVal
+                        val innerX = center.x + (radius - tickLength) * cosVal
+                        val innerY = center.y + (radius - tickLength) * sinVal
+
+                        val isActive = i < activeTicks
+                        val tickColor = if (isActive) {
+                            if (isPulseActive) dynamicArcColor.copy(alpha = pulseAlpha) else dynamicArcColor
+                        } else {
+                            Color.White.copy(alpha = 0.12f)
+                        }
+                        val tickWidth = if (isActive) 3.5.dp.toPx() else 2.dp.toPx()
+
+                        drawLine(
+                            color = tickColor,
+                            start = androidx.compose.ui.geometry.Offset(innerX, innerY),
+                            end = androidx.compose.ui.geometry.Offset(outerX, outerY),
+                            strokeWidth = tickWidth,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+
+                "dual_wings" -> {
+                    // Style 3: Symmetrical brackets sweeping upward from bottom (90°) to top (270° / -90°)
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.06f),
+                        style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                    )
+                    val halfSweep = (batteryPct / 100f) * 180f
+                    // Left wing (counter-clockwise from bottom 90°)
+                    drawArc(
+                        color = dynamicArcColor,
+                        startAngle = 90f,
+                        sweepAngle = -halfSweep,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                    )
+                    // Right wing (clockwise from bottom 90°)
+                    drawArc(
+                        color = dynamicArcColor,
+                        startAngle = 90f,
+                        sweepAngle = halfSweep,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                    )
+                }
+
+                "tachometer" -> {
+                    // Style 4: 240° cockpit sweep (7 to 5 o'clock, 150° to 390°) with micro-graduations
+                    // Background track (150° with sweep 240°)
+                    drawArc(
+                        color = Color.White.copy(alpha = 0.08f),
+                        startAngle = 150f,
+                        sweepAngle = 240f,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                    )
+
+                    // Micro-graduations along the 240° sweep
+                    val subTickLength = 5.dp.toPx()
+                    val majorTickLength = 9.dp.toPx()
+                    for (step in 0..24) {
+                        val angleDeg = 150f + step * 10f
+                        val angleRad = Math.toRadians(angleDeg.toDouble())
+                        val cosVal = cos(angleRad).toFloat()
+                        val sinVal = sin(angleRad).toFloat()
+                        val isMajor = step % 6 == 0
+                        val tLen = if (isMajor) majorTickLength else subTickLength
+
+                        val outerX = center.x + (radius - strokeWidthPx / 2f - 2.dp.toPx()) * cosVal
+                        val outerY = center.y + (radius - strokeWidthPx / 2f - 2.dp.toPx()) * sinVal
+                        val innerX = center.x + (radius - strokeWidthPx / 2f - 2.dp.toPx() - tLen) * cosVal
+                        val innerY = center.y + (radius - strokeWidthPx / 2f - 2.dp.toPx() - tLen) * sinVal
+
+                        drawLine(
+                            color = Color.White.copy(alpha = if (isMajor) 0.35f else 0.15f),
+                            start = androidx.compose.ui.geometry.Offset(innerX, innerY),
+                            end = androidx.compose.ui.geometry.Offset(outerX, outerY),
+                            strokeWidth = if (isMajor) 2.dp.toPx() else 1.2.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
+
+                    // Active sweep arc
+                    val activeSweep = (batteryPct / 100f) * 240f
+                    drawArc(
+                        brush = Brush.sweepGradient(listOf(dynamicArcColor.copy(alpha = 0.7f), dynamicArcColor)),
+                        startAngle = 150f,
+                        sweepAngle = activeSweep,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                    )
+                }
+
+                else -> {
+                    // Style 1: "halo" (Default smooth continuous neon arc)
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.06f),
+                        style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                    )
+                    val sweep = (batteryPct / 100f) * 360f
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            listOf(dynamicArcColor.copy(alpha = 0.6f), dynamicArcColor, dynamicArcColor.copy(alpha = 0.9f))
+                        ),
+                        startAngle = -90f,
+                        sweepAngle = sweep,
+                        useCenter = false,
+                        style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+                    )
+                }
+            }
         }
 
         Column(
@@ -615,31 +890,45 @@ fun BatteryTelemetryCircle(
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = "$batteryPct",
-                    fontSize = if (sizeDp > 160.dp) 48.sp else 38.sp,
+                    fontSize = if (sizeDp > 160.dp) 44.sp else 36.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Text(
                     text = "%",
-                    fontSize = if (sizeDp > 160.dp) 20.sp else 16.sp,
+                    fontSize = if (sizeDp > 160.dp) 18.sp else 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = dynamicArcColor,
                     modifier = Modifier.padding(bottom = 6.dp, start = 2.dp)
                 )
             }
 
-            if (wattage > 0f) {
+            // Wattage & Thermal Telemetry (°C) Row
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (wattage > 0f) {
+                    Text(
+                        text = String.format(Locale.US, "%.1f W", wattage),
+                        fontSize = if (sizeDp > 160.dp) 13.5.sp else 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = dynamicArcColor
+                    )
+                }
+
+                // Real-time SoC Thermal Telemetry
                 Text(
-                    text = String.format(Locale.US, "%.1f W", wattage),
-                    fontSize = if (sizeDp > 160.dp) 16.sp else 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (wattage >= 25f) Color(0xFF00E676) else MaterialTheme.colorScheme.secondary
+                    text = String.format(Locale.US, "%.1f°C", batteryTempC),
+                    fontSize = if (sizeDp > 160.dp) 12.5.sp else 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = thermalBadgeColor
                 )
             }
 
             Text(
                 text = if (isFull) "FULL TANK" else chargeTypeLabel,
-                fontSize = if (sizeDp > 160.dp) 11.sp else 9.5.sp,
+                fontSize = if (sizeDp > 160.dp) 10.5.sp else 9.sp,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.8.sp,
                 color = Color.White.copy(alpha = 0.75f),
@@ -654,7 +943,7 @@ fun BatteryTelemetryCircle(
                     } else {
                         "Full in ${timeRemainingMinutes}m"
                     },
-                    fontSize = 10.sp,
+                    fontSize = 9.5.sp,
                     color = Color.LightGray.copy(alpha = 0.8f)
                 )
             }
@@ -979,7 +1268,7 @@ fun MultiWidgetContainer(
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(Color.Red.copy(alpha = 0.7f))
-                                ) {
+                                    ) {
                                     Icon(Icons.Default.Close, contentDescription = "Delete Widget", tint = Color.White, modifier = Modifier.size(12.dp))
                                 }
                             }

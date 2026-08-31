@@ -73,15 +73,59 @@ object LightspeedIconManager {
     }
 
     fun getActiveIconPack(context: Context): String {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-        return prefs.getString(PREF_ICON_PACK, "system") ?: "system"
+        return getCockpitIconPack(context)
     }
 
     fun setActiveIconPack(context: Context, iconPackPkg: String) {
+        setCockpitIconPack(context, iconPackPkg)
+    }
+
+    fun getCockpitIconPack(context: Context): String {
         val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
-        prefs.edit().putString(PREF_ICON_PACK, iconPackPkg).apply()
+        return prefs.getString(LightspeedPreferences.KEY_COCKPIT_ICON_PACK, null)
+            ?: prefs.getString(PREF_ICON_PACK, "system") ?: "system"
+    }
+
+    fun setCockpitIconPack(context: Context, iconPackPkg: String) {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString(LightspeedPreferences.KEY_COCKPIT_ICON_PACK, iconPackPkg)
+            .putString(PREF_ICON_PACK, iconPackPkg)
+            .apply()
         clearCache()
         loadIconPackAsync(context, iconPackPkg)
+    }
+
+    fun getCockpitRenderMode(context: Context): String {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        return prefs.getString(LightspeedPreferences.KEY_COCKPIT_ICON_RENDER_MODE, "pack_native") ?: "pack_native"
+    }
+
+    fun setCockpitRenderMode(context: Context, mode: String) {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        prefs.edit().putString(LightspeedPreferences.KEY_COCKPIT_ICON_RENDER_MODE, mode).apply()
+        bitmapCache.clear()
+        drawableCache.clear()
+    }
+
+    fun getCategoryCruiseIconPack(context: Context): String {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        return prefs.getString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_PACK, "system") ?: "system"
+    }
+
+    fun setCategoryCruiseIconPack(context: Context, iconPackPkg: String) {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        prefs.edit().putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_PACK, iconPackPkg).apply()
+    }
+
+    fun getCategoryCruiseIconStyle(context: Context): String {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        return prefs.getString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_STYLE, "default") ?: "default"
+    }
+
+    fun setCategoryCruiseIconStyle(context: Context, style: String) {
+        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        prefs.edit().putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_STYLE, style).apply()
     }
 
     fun clearCache() {

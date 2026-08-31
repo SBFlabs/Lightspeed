@@ -398,10 +398,11 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             }
                                         }
 
-                                        // 3. Icon Pack & Visuals Card
+                                        // 3. Icon Pack & Rendering Pipeline Card (Decoupled from Category Cruise)
                                         item {
                                             val availableIconPacks = remember { com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context) }
-                                            var activeIconPack by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)) }
+                                            var activeIconPack by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedIconManager.getCockpitIconPack(context)) }
+                                            var activeRenderMode by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedIconManager.getCockpitRenderMode(context)) }
 
                                             Column(
                                                 modifier = Modifier
@@ -410,12 +411,13 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                     .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                                                     .padding(12.dp)
                                             ) {
-                                                Text("Icon Pack & Visuals", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-                                                Text("Applied across Gimbal Gears, Category Horizon & Star System Grid", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.7f), modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+                                                Text("The Cockpit App Icon Engine", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                                Text("Applies to launcher app icons in The Cockpit pods (isolated from Category Cruise glyphs)", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.7f), modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
 
+                                                Text("App Icon Pack:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.85f))
                                                 LazyRow(
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    modifier = Modifier.fillMaxWidth()
+                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)
                                                 ) {
                                                     items(availableIconPacks.size) { idx ->
                                                         val pack = availableIconPacks[idx]
@@ -434,7 +436,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                                 )
                                                                 .clickable {
                                                                     activeIconPack = pack.packageName
-                                                                    com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, pack.packageName)
+                                                                    com.sbf.lightspeed.system.LightspeedIconManager.setCockpitIconPack(context, pack.packageName)
                                                                 }
                                                                 .padding(horizontal = 10.dp, vertical = 7.dp)
                                                         ) {
@@ -445,6 +447,30 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                                 color = if (isSelected) Color.White else Color.LightGray
                                                             )
                                                         }
+                                                    }
+                                                }
+
+                                                Text("Icon Render Mask:", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color.White.copy(alpha = 0.85f))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    val renderModes = listOf(
+                                                        "pack_native" to "Pack Native",
+                                                        "adaptive_squircle" to "Adaptive Squircle",
+                                                        "original" to "System Original"
+                                                    )
+                                                    renderModes.forEach { (modeKey, modeLabel) ->
+                                                        val isSelected = activeRenderMode == modeKey
+                                                        FilterChip(
+                                                            selected = isSelected,
+                                                            onClick = {
+                                                                activeRenderMode = modeKey
+                                                                com.sbf.lightspeed.system.LightspeedIconManager.setCockpitRenderMode(context, modeKey)
+                                                            },
+                                                            label = { Text(modeLabel, fontSize = 11.sp) },
+                                                            colors = FilterChipDefaults.filterChipColors(selectedContainerColor = dynamicColorScheme.primary, selectedLabelColor = Color.White)
+                                                        )
                                                     }
                                                 }
                                             }

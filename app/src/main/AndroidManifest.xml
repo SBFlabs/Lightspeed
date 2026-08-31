@@ -129,6 +129,45 @@
                 android:resource="@xml/dream_info" />
         </service>
 
+        <service
+            android:name=".system.LightspeedVoiceInteractionService"
+            android:label="${appName} Power Assist"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/voice_interaction_service_config" />
+        </service>
+
+        <service
+            android:name=".system.LightspeedAssistSessionService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true" />
+
+        <service
+            android:name=".system.LightspeedRecognitionService"
+            android:permission="android.permission.BIND_RECOGNITION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".system.LightspeedAssistActivity"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
     </application>
 
 </manifest>

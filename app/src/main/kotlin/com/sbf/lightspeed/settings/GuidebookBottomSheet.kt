@@ -38,17 +38,17 @@ data class GuidebookEntry(
 val GUIDEBOOK_ENTRIES = listOf(
     GuidebookEntry(
         id = "canopy",
-        vesselTitle = "Canopy Deck & Atmospheric Sensor",
+        vesselTitle = "HUD Strip & Horizon Rail Sensor Deck",
         androidTitle = "Top Status Bar Overlay & Sensor Scrubbers",
         icon = Icons.Default.Speed,
-        vesselLore = "The vessel's forward transparent canopy projects real-time atmospheric density and warp reactor telemetry along the upper rim of the bridge.",
+        vesselLore = "The vessel's forward transparent HUD strip projects real-time atmospheric density and warp reactor telemetry along the horizon rail of the bridge.",
         androidUtility = "A non-intrusive top-edge overlay supporting pull-down scrubbers for instant brightness, volume, and screen timeout control without opening notification shades.",
         tabIndex = 1,
         sectionKey = "statusbar"
     ),
     GuidebookEntry(
         id = "deflectors",
-        vesselTitle = "Port & Starboard Deflector Wings",
+        vesselTitle = "Left & Right Deflectors",
         androidTitle = "Left & Right Flank Gesture Sidebars",
         icon = Icons.Default.SwapHoriz,
         vesselLore = "Flank-mounted kinetic deflector arrays calibrated for sub-second impulse sweeps, multi-axis vector rebound maneuvers, and rapid macro execution.",
@@ -58,11 +58,11 @@ val GUIDEBOOK_ENTRIES = listOf(
     ),
     GuidebookEntry(
         id = "notch_beacon",
-        vesselTitle = "Sub-Space Beacon & Notch Pill",
+        vesselTitle = "Sub-Space Beacon & Orbital Capsule",
         androidTitle = "Dynamic Camera Cutout HUD & Mini-Player",
         icon = Icons.Default.Sensors,
-        vesselLore = "A localized quantum capsule that wraps around the optical sensor pod. Displays incoming subspace audio transmissions and data download streams.",
-        androidUtility = "Dynamic notch pill with dual-wing layout, zero optical lens clipping, title marquee engine, and tap-to-expand liquid-glass media card with transport buttons.",
+        vesselLore = "A localized quantum orbital capsule that wraps around the optical sensor pod. Displays incoming subspace audio transmissions and data download streams.",
+        androidUtility = "Dynamic orbital capsule with dual-wing layout, zero optical lens clipping, title marquee engine, and tap-to-expand liquid-glass media card with transport buttons.",
         tabIndex = 1,
         sectionKey = "telemetry"
     ),

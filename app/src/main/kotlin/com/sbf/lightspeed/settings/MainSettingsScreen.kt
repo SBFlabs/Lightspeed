@@ -109,7 +109,7 @@ fun MainSettingsScreen() {
                     var toggleAllTrigger by remember { mutableStateOf(0) }
 
                     FloatingOverlayContainer(
-                        title = "Deflector Wings Controller",
+                        title = "Central Command Matrix",
                         onDismiss = { dismissAction() },
                         headerControl = {
                             Row(

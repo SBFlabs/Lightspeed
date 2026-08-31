@@ -396,7 +396,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
         return LightspeedKeyEngine.onKeyEvent(this, event)
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            val isLocked = keyguardManager?.isKeyguardLocked == true
+            val currentPkg = event.packageName?.toString()
+            com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this, isLocked, currentPkg)
+        }
+    }
     override fun onInterrupt() { teardown() }
     override fun onDestroy() {
         super.onDestroy()
@@ -505,12 +513,30 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         }
                         checkScreenOffRefuelingTrigger(prefs)
                     }
-                    Intent.ACTION_DREAMING_STOPPED, Intent.ACTION_USER_PRESENT, Intent.ACTION_SCREEN_ON -> {
+                    Intent.ACTION_SCREEN_ON -> {
                         if (!isSuppressedByOrientation()) {
                             notchOverlayView?.visibility = View.VISIBLE
                             statusBarOverlayView?.visibility = View.VISIBLE
                             resyncOverlayMetrics()
                         }
+                        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                        val isLocked = keyguardManager?.isKeyguardLocked == true
+                        com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this@LightspeedAccessibilityService, isLocked, null)
+
+                        val asLockscreen = prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_AS_LOCKSCREEN, false)
+                        if (asLockscreen && isLocked && !LightspeedRefuelingActivity.isActive) {
+                            launchRefuelingActivity()
+                        }
+                    }
+                    Intent.ACTION_DREAMING_STOPPED, Intent.ACTION_USER_PRESENT -> {
+                        if (!isSuppressedByOrientation()) {
+                            notchOverlayView?.visibility = View.VISIBLE
+                            statusBarOverlayView?.visibility = View.VISIBLE
+                            resyncOverlayMetrics()
+                        }
+                        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                        val isLocked = keyguardManager?.isKeyguardLocked == true
+                        com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this@LightspeedAccessibilityService, isLocked, null)
                     }
                     Intent.ACTION_POWER_CONNECTED -> {
                         checkPowerConnectedRefuelingTrigger(prefs)

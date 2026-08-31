@@ -17,6 +17,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -105,7 +107,8 @@ sealed class PickerRowItem {
         val packageName: String,
         val appToken: String,
         val isExpanded: Boolean,
-        val totalShortcuts: Int
+        val totalShortcuts: Int,
+        val isPinned: Boolean = false
     ) : PickerRowItem() {
         override val key = "app_header_$packageName"
     }
@@ -130,6 +133,7 @@ sealed class PickerRowItem {
 }
 
 class GearPickerActivity : ComponentActivity() {
+    @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -160,6 +164,15 @@ class GearPickerActivity : ComponentActivity() {
         LightspeedActionRegistry.initializeSync(this)
 
         val prefs = defaultPrefs()
+        if (!prefs.contains(com.sbf.lightspeed.system.LightspeedPreferences.KEY_PICKER_PINNED_APPS)) {
+            val defaultTools = listOf("com.arlosoft.macrodroid", "net.dinglisch.android.taskerm", "io.github.sds100.keymapper", "rk.android.app.shortcutmaker")
+            val pm = packageManager
+            val installedDefaults = defaultTools.filter { pkg ->
+                try { pm.getPackageInfo(pkg, 0); true } catch (_: Exception) { false }
+            }.toSet()
+            prefs.edit().putStringSet(com.sbf.lightspeed.system.LightspeedPreferences.KEY_PICKER_PINNED_APPS, installedDefaults).apply()
+        }
+
         val initialItems = if (isSingleSelect) {
             val currentToken = prefs.getString(singleSelectPrefKey, "none") ?: "none"
             if (currentToken != "none") listOf(currentToken) else emptyList()
@@ -178,6 +191,10 @@ class GearPickerActivity : ComponentActivity() {
             var sideBarHeight by remember { mutableStateOf(1f) }
             var isDragging by remember { mutableStateOf(false) }
             var hudLetter by remember { mutableStateOf("") }
+            var pinnedApps by remember {
+                mutableStateOf(prefs.getStringSet(com.sbf.lightspeed.system.LightspeedPreferences.KEY_PICKER_PINNED_APPS, emptySet()) ?: emptySet())
+            }
+            var pendingPinApp by remember { mutableStateOf<Pair<String, String>?>(null) }
             var pendingDeepActivitySubKey by remember { mutableStateOf<String?>(null) }
             var showDeepActivityWarning by remember { mutableStateOf(false) }
             var doNotShowAgain by remember { mutableStateOf(false) }
@@ -480,10 +497,12 @@ class GearPickerActivity : ComponentActivity() {
 
                     val sortedApps = appMap.keys.map { pkg ->
                         val appLabel = labelCache["app:$pkg"] ?: pkg
-                        Triple(pkg, appLabel, appMap[pkg] ?: emptyList())
-                    }.sortedBy { it.second.lowercase() }
+                        val isPinned = pinnedApps.contains(pkg)
+                        Triple(pkg, appLabel, appMap[pkg] ?: emptyList()) to isPinned
+                    }.sortedWith(compareByDescending<Pair<Triple<String, String, List<String>>, Boolean>> { it.second }.thenBy { it.first.second.lowercase() })
 
-                    sortedApps.forEach { (pkg, appName, tokens) ->
+                    sortedApps.forEach { (triple, isPinned) ->
+                        val (pkg, appName, tokens) = triple
                         val appToken = tokens.firstOrNull { it.startsWith("app:") } ?: "app:$pkg"
                         val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
                         val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
@@ -493,7 +512,7 @@ class GearPickerActivity : ComponentActivity() {
                         val isExpanded = expandedSubsections.contains(appKey) || searchQuery.isNotBlank()
                         val totalShortcuts = appShortcuts.size + homeShortcuts.size + deepActivities.size
 
-                        list.add(PickerRowItem.AppHeader(appName, pkg, appToken, isExpanded, totalShortcuts))
+                        list.add(PickerRowItem.AppHeader(appName, pkg, appToken, isExpanded, totalShortcuts, isPinned))
 
                         if (isExpanded) {
                             if (appShortcuts.isNotEmpty()) {
@@ -1093,11 +1112,14 @@ class GearPickerActivity : ComponentActivity() {
                                                             )
                                                             .background(
                                                                 if (isAppSelected) dynamicPrimary.copy(alpha = 0.28f)
+                                                                else if (item.isPinned) Color(0x18FFD700)
                                                                 else Color.White.copy(alpha = 0.06f)
                                                             )
                                                             .border(
                                                                 width = 1.dp,
-                                                                color = if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.07f),
+                                                                color = if (item.isPinned) Color(0x66FFD700)
+                                                                else if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f)
+                                                                else Color.White.copy(alpha = 0.07f),
                                                                 shape = RoundedCornerShape(
                                                                     topStart = 12.dp,
                                                                     bottomStart = 12.dp,
@@ -1105,9 +1127,12 @@ class GearPickerActivity : ComponentActivity() {
                                                                     bottomEnd = if (hasShortcuts) 4.dp else 12.dp
                                                                 )
                                                             )
-                                                            .clickable {
-                                                                handleTokenSelection(item.appToken)
-                                                            }
+                                                            .combinedClickable(
+                                                                onClick = { handleTokenSelection(item.appToken) },
+                                                                onLongClick = {
+                                                                    pendingPinApp = Pair(item.packageName, item.appName)
+                                                                }
+                                                            )
                                                             .padding(horizontal = 10.dp),
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
@@ -1133,18 +1158,28 @@ class GearPickerActivity : ComponentActivity() {
                                                                 .fillMaxHeight(),
                                                             verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
                                                         ) {
-                                                            Text(
-                                                                text = item.appName,
-                                                                color = if (isAppSelected) dynamicPrimary else Color.White,
-                                                                fontSize = 13.5.sp,
-                                                                fontWeight = if (isAppSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                                                style = TextStyle(
-                                                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                                                                    lineHeight = 16.sp
-                                                                ),
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
-                                                            )
+                                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                if (item.isPinned) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Outlined.PushPin,
+                                                                        contentDescription = "Pinned",
+                                                                        tint = Color(0xFFFFD700),
+                                                                        modifier = Modifier.size(14.dp).padding(end = 4.dp)
+                                                                    )
+                                                                }
+                                                                Text(
+                                                                    text = item.appName,
+                                                                    color = if (isAppSelected) dynamicPrimary else if (item.isPinned) Color(0xFFFFF176) else Color.White,
+                                                                    fontSize = 13.5.sp,
+                                                                    fontWeight = if (isAppSelected || item.isPinned) FontWeight.Bold else FontWeight.SemiBold,
+                                                                    style = TextStyle(
+                                                                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                                        lineHeight = 16.sp
+                                                                    ),
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis
+                                                                )
+                                                            }
                                                             if (hasShortcuts) {
                                                                 Text(
                                                                     text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
@@ -1497,6 +1532,61 @@ class GearPickerActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
+
+                if (pendingPinApp != null) {
+                    val (pinPkg, pinName) = pendingPinApp!!
+                    val isCurrentlyPinned = pinnedApps.contains(pinPkg)
+                    AlertDialog(
+                        onDismissRequest = { pendingPinApp = null },
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Outlined.PushPin,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFD700),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (isCurrentlyPinned) "Unpin App?" else "Pin to Quick Deck?",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        },
+                        text = {
+                            Text(
+                                text = if (isCurrentlyPinned)
+                                    "Remove $pinName from the Quick Deck top list?"
+                                else
+                                    "Pin $pinName to the Quick Deck top list for immediate access?",
+                                color = Color.LightGray,
+                                fontSize = 13.sp
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    val newSet = if (isCurrentlyPinned) pinnedApps - pinPkg else pinnedApps + pinPkg
+                                    pinnedApps = newSet
+                                    prefs.edit().putStringSet(com.sbf.lightspeed.system.LightspeedPreferences.KEY_PICKER_PINNED_APPS, newSet).apply()
+                                    pendingPinApp = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = dynamicPrimary)
+                            ) {
+                                Text(if (isCurrentlyPinned) "UNPIN" else "PIN", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { pendingPinApp = null }) {
+                                Text("CANCEL", color = Color.LightGray)
+                            }
+                        },
+                        containerColor = Color(0xFF181B24),
+                        shape = RoundedCornerShape(16.dp)
+                    )
                 }
 
                 if (showDeepActivityWarning && pendingDeepActivitySubKey != null) {

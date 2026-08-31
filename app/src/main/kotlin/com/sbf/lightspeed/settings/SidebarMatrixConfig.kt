@@ -661,14 +661,17 @@ fun SidebarMatrixConfigurationFields(
                                                         .apply()
                                                 }
                                             ) {
-                                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     CollapsibleSubSection(
-                                                        title = "Touch Vector Geometry & Position",
+                                                        title = "Sensor Geometry",
                                                         subtitle = "Deflector span, touch reach, offset & stealth glow",
                                                         isExpanded = isLeftCenterGeoExpanded,
                                                         onToggle = {
                                                             isLeftCenterGeoExpanded = !isLeftCenterGeoExpanded
-                                                            prefs.edit().putBoolean("pref_sub_geo_left_center", isLeftCenterGeoExpanded).apply()
+                                                            prefs.edit()
+                                                                .putBoolean("pref_sub_geo_left_center", isLeftCenterGeoExpanded)
+                                                                .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded && isLeftCenterGeoExpanded)
+                                                                .apply()
                                                         }
                                                     ) {
                                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_height", "", "Deflector Span (Height)", 50, 1000, 10, 400)
@@ -698,18 +701,21 @@ fun SidebarMatrixConfigurationFields(
                                                         toggleSection(0, "left_unified", isLeftUnifiedExpanded) { isLeftUnifiedExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_left_unified_expanded", isLeftUnifiedExpanded)
-                                                            .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftUnifiedExpanded)
+                                                            .putBoolean("pref_sidebar_left_preview", (isLeftCenterExpanded && isLeftCenterGeoExpanded) || (isLeftUnifiedExpanded && isLeftUnifiedGeoExpanded))
                                                             .apply()
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "Upper & Lower Deflector Geometry",
+                                                            title = "Sensor Geometry",
                                                             subtitle = "Independent height, touch reach & stealth glow",
                                                             isExpanded = isLeftUnifiedGeoExpanded,
                                                             onToggle = {
                                                                 isLeftUnifiedGeoExpanded = !isLeftUnifiedGeoExpanded
-                                                                prefs.edit().putBoolean("pref_sub_geo_left_unified", isLeftUnifiedGeoExpanded).apply()
+                                                                prefs.edit()
+                                                                    .putBoolean("pref_sub_geo_left_unified", isLeftUnifiedGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_left_preview", isLeftUnifiedExpanded && isLeftUnifiedGeoExpanded)
+                                                                    .apply()
                                                             }
                                                         ) {
                                                             Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
@@ -781,12 +787,15 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "Touch Vector Geometry & Position",
+                                                            title = "Sensor Geometry",
                                                             subtitle = "Upper deflector span, touch reach & stealth glow",
                                                             isExpanded = isLeftTopGeoExpanded,
                                                             onToggle = {
                                                                 isLeftTopGeoExpanded = !isLeftTopGeoExpanded
-                                                                prefs.edit().putBoolean("pref_sub_geo_left_top", isLeftTopGeoExpanded).apply()
+                                                                prefs.edit()
+                                                                    .putBoolean("pref_sub_geo_left_top", isLeftTopGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_left_preview", isLeftTopExpanded && isLeftTopGeoExpanded)
+                                                                    .apply()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
@@ -850,12 +859,15 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "Touch Vector Geometry & Position",
+                                                            title = "Sensor Geometry",
                                                             subtitle = "Lower deflector span, touch reach & stealth glow",
                                                             isExpanded = isLeftBottomGeoExpanded,
                                                             onToggle = {
                                                                 isLeftBottomGeoExpanded = !isLeftBottomGeoExpanded
-                                                                prefs.edit().putBoolean("pref_sub_geo_left_bottom", isLeftBottomGeoExpanded).apply()
+                                                                prefs.edit()
+                                                                    .putBoolean("pref_sub_geo_left_bottom", isLeftBottomGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_left_preview", isLeftBottomExpanded && isLeftBottomGeoExpanded)
+                                                                    .apply()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
@@ -968,7 +980,7 @@ fun SidebarMatrixConfigurationFields(
                                                     toggleSection(1, "sensor_deck", isSensorDeckExpanded) { isSensorDeckExpanded = it }
                                                     prefs.edit()
                                                         .putBoolean("pref_section_statusbar_expanded", isSensorDeckExpanded)
-                                                        .putBoolean("pref_statusbar_preview", isSensorDeckExpanded)
+                                                        .putBoolean("pref_statusbar_preview", isSensorDeckExpanded && isStatusBarGeoExpanded)
                                                         .apply()
                                                 }
                                             ) {
@@ -986,7 +998,7 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // 1. Geometry & Sensitivity
                                                     CollapsibleSubSection(
-                                                        title = "Touch Vector Geometry & Sensitivity",
+                                                        title = "Sensor Geometry",
                                                         subtitle = "Horizon rail span, thickness, offset & idle glow",
                                                         isExpanded = isStatusBarGeoExpanded,
                                                         onToggle = {
@@ -1003,62 +1015,6 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset (Y Axis)", -100, 200, 5, 0)
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Sensitivity", 10, 100, 5, 40)
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-                                                    }
-
-                                                    // 2. Scrubbers & Scrub Gating Status Banner
-                                                    val horizonThickness = prefs.getInt("pref_statusbar_thickness", 48)
-                                                    val isScrubArmed = horizonThickness >= 12
-
-                                                    Card(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(vertical = 4.dp),
-                                                        shape = RoundedCornerShape(12.dp),
-                                                        colors = CardDefaults.cardColors(
-                                                            containerColor = if (isScrubArmed) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.12f)
-                                                        ),
-                                                        border = androidx.compose.foundation.BorderStroke(
-                                                            1.dp,
-                                                            if (isScrubArmed) Color(0xFF00E676).copy(alpha = 0.40f) else Color(0xFFFF9800).copy(alpha = 0.40f)
-                                                        )
-                                                    ) {
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .padding(horizontal = 12.dp, vertical = 9.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            Icon(
-                                                                imageVector = if (isScrubArmed) Icons.Default.CheckCircle else Icons.Default.Info,
-                                                                contentDescription = null,
-                                                                tint = if (isScrubArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                            Spacer(modifier = Modifier.width(8.dp))
-                                                            Text(
-                                                                text = if (isScrubArmed)
-                                                                    "Scrubbing Protocol: Armed (Thickness meets threshold)"
-                                                                else
-                                                                    "Scrubbing Protocol: Inactive (Requires >= 12dp thickness)",
-                                                                fontSize = 11.5.sp,
-                                                                fontWeight = FontWeight.SemiBold,
-                                                                color = if (isScrubArmed) Color(0xFFB9F6CA) else Color(0xFFFFE0B2)
-                                                            )
-                                                        }
-                                                    }
-
-                                                    if (isScrubArmed) {
-                                                        CollapsibleSubSection(
-                                                            title = "Pull-Down Scrubbing Control",
-                                                            subtitle = "Horizontal scrubbing selector for sensor bar",
-                                                            isExpanded = isStatusBarScrubExpanded,
-                                                            onToggle = {
-                                                                isStatusBarScrubExpanded = !isStatusBarScrubExpanded
-                                                                prefs.edit().putBoolean("pref_sub_scrub_statusbar", isStatusBarScrubExpanded).apply()
-                                                            }
-                                                        ) {
-                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_STATUSBAR_SCRUBBING", "Pull Down & Scrub Across", listOf("none", "system:screen_timeout", "system:brightness", "system:volume"), tokenLabelCache)
-                                                        }
                                                     }
 
                                                     // 3. Gestures
@@ -1109,6 +1065,8 @@ fun SidebarMatrixConfigurationFields(
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                    val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
+                                                    var isOemNoticeDemoted by remember { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_demoted", false)) }
                                                     val isNotifAccessGranted = remember(isTelemetryExpanded) {
                                                         val pkgName = context.packageName
                                                         val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
@@ -1256,9 +1214,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     ) {
                                                         // OEM Dynamic Notch / Dynamic Bar Advisory Glass Callout
-                                                        val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
-                                                        var isOemNoticeDismissed by remember { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_dismissed", false)) }
-                                                        if (!isOemNoticeDismissed && !oemFeatureName.isNullOrBlank()) {
+                                                        if (!isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
                                                             Card(
                                                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                                                 shape = RoundedCornerShape(12.dp),
@@ -1277,21 +1233,28 @@ fun SidebarMatrixConfigurationFields(
                                                                             modifier = Modifier.size(20.dp)
                                                                         )
                                                                         Spacer(modifier = Modifier.width(8.dp))
-                                                                        Text(
-                                                                            text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
-                                                                            fontSize = 11.5.sp,
-                                                                            color = Color.White.copy(alpha = 0.9f),
-                                                                            lineHeight = 15.sp,
-                                                                            modifier = Modifier.weight(1f)
-                                                                        )
+                                                                        Column(modifier = Modifier.weight(1f)) {
+                                                                            Text(
+                                                                                text = "OEM Dynamic Island Conflicts",
+                                                                                fontSize = 12.sp,
+                                                                                fontWeight = FontWeight.Bold,
+                                                                                color = Color.White
+                                                                            )
+                                                                            Text(
+                                                                                text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
+                                                                                fontSize = 11.sp,
+                                                                                color = Color.LightGray.copy(alpha = 0.85f),
+                                                                                lineHeight = 14.sp
+                                                                            )
+                                                                        }
                                                                         IconButton(
                                                                             onClick = {
-                                                                                isOemNoticeDismissed = true
-                                                                                prefs.edit().putBoolean("pref_oem_notch_notice_dismissed", true).apply()
+                                                                                isOemNoticeDemoted = true
+                                                                                prefs.edit().putBoolean("pref_oem_notch_notice_demoted", true).apply()
                                                                             },
                                                                             modifier = Modifier.size(24.dp)
                                                                         ) {
-                                                                            Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                                                            Icon(Icons.Outlined.VerticalAlignBottom, contentDescription = "Demote to Footnote", tint = Color.LightGray, modifier = Modifier.size(16.dp))
                                                                         }
                                                                     }
                                                                     Button(
@@ -1671,7 +1634,7 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         )
 
-                                                        PrefToggleRow(
+                                                         PrefToggleRow(
                                                             title = "Smart Orientation Context Guardrails",
                                                             subtitle = "Forces strict portrait during in-progress phone/VoIP calls, and suppresses landscape rotation glitches on Default Launcher & Lock Screen (auto-reverts when leaving protected apps).",
                                                             isChecked = prefs.getBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, true),
@@ -1680,6 +1643,34 @@ fun SidebarMatrixConfigurationFields(
                                                                 onRefreshNeeded()
                                                             }
                                                         )
+
+                                                        // OEM Advisory Footnote: OEM Dynamic Island Conflicts (Demoted)
+                                                        if (isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
+                                                            Card(
+                                                                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                                    Column(modifier = Modifier.weight(1f)) {
+                                                                        Text("OEM Advisory Footnote: OEM Dynamic Island Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+                                                                        Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f))
+                                                                    }
+                                                                    TextButton(
+                                                                        onClick = { OemNotchDetector.openSearch(context) },
+                                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                                    ) {
+                                                                        Text("SETTINGS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
@@ -2264,15 +2255,83 @@ fun SidebarMatrixConfigurationFields(
                                                         m.contains("infinix") || m.contains("transsion") || m.contains("tecno") || m.contains("itel") ||
                                                         b.contains("infinix") || b.contains("transsion") || b.contains("tecno") || b.contains("itel")
                                                     }
-                                                    var isWarningDismissed by remember { mutableStateOf(prefs.getBoolean("pref_infinix_standby_warning_dismissed", false)) }
+                                                    var isWarningDemoted by remember { mutableStateOf(prefs.getBoolean("pref_infinix_standby_warning_demoted", false)) }
 
-                                                    if (isInfinixOrTranssion && !isWarningDismissed) {
-                                                        com.sbf.lightspeed.InfinixStandbyWarningBanner(
-                                                            onDismiss = {
-                                                                isWarningDismissed = true
-                                                                prefs.edit().putBoolean("pref_infinix_standby_warning_dismissed", true).apply()
+                                                    if (isInfinixOrTranssion && !isWarningDemoted) {
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                                                        ) {
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Default.Info,
+                                                                        contentDescription = null,
+                                                                        tint = MaterialTheme.colorScheme.primary,
+                                                                        modifier = Modifier.size(20.dp)
+                                                                    )
+                                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                                    Column(modifier = Modifier.weight(1f)) {
+                                                                        Text(
+                                                                            text = "OEM Ambient Display / Dock Conflicts",
+                                                                            fontSize = 12.sp,
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            color = Color.White
+                                                                        )
+                                                                        Text(
+                                                                            text = "OEM standby display style may overlap with Refueling Bay. Disable it in system settings to prevent screen collisions.",
+                                                                            fontSize = 11.sp,
+                                                                            color = Color.LightGray.copy(alpha = 0.85f),
+                                                                            lineHeight = 14.sp
+                                                                        )
+                                                                    }
+                                                                    IconButton(
+                                                                        onClick = {
+                                                                            isWarningDemoted = true
+                                                                            prefs.edit().putBoolean("pref_infinix_standby_warning_demoted", true).apply()
+                                                                        },
+                                                                        modifier = Modifier.size(24.dp)
+                                                                    ) {
+                                                                        Icon(
+                                                                            imageVector = Icons.Outlined.VerticalAlignBottom,
+                                                                            contentDescription = "Demote to Footnote",
+                                                                            tint = Color.LightGray,
+                                                                            modifier = Modifier.size(16.dp)
+                                                                        )
+                                                                    }
+                                                                }
+                                                                Button(
+                                                                    onClick = {
+                                                                        try {
+                                                                            val intent = Intent("com.transsion.specialfunction.ACTION_STANDBY").apply {
+                                                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                                            }
+                                                                            context.startActivity(intent)
+                                                                        } catch (_: Exception) {
+                                                                            try {
+                                                                                context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).apply {
+                                                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                                                })
+                                                                            } catch (_: Exception) {}
+                                                                        }
+                                                                    },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(8.dp),
+                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                                                                ) {
+                                                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text("Open OEM Standby Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
                                                             }
-                                                        )
+                                                        }
                                                     }
 
                                                     val currentTrigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
@@ -2417,6 +2476,47 @@ fun SidebarMatrixConfigurationFields(
                                                             Text("Launch Refueling Bay Dashboard", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                                                         }
                                                     }
+
+                                                    // OEM Advisory Footnote: OEM Ambient Display / Dock Conflicts (Demoted)
+                                                    if (isWarningDemoted && isInfinixOrTranssion) {
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Column(modifier = Modifier.weight(1f)) {
+                                                                    Text("OEM Advisory Footnote: OEM Ambient Display / Dock Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+                                                                    Text("OEM standby display style may overlap with Refueling Bay. Tap to manage settings.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f))
+                                                                }
+                                                                TextButton(
+                                                                    onClick = {
+                                                                        try {
+                                                                            val intent = Intent("com.transsion.specialfunction.ACTION_STANDBY").apply {
+                                                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                                            }
+                                                                            context.startActivity(intent)
+                                                                        } catch (_: Exception) {
+                                                                            try {
+                                                                                context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).apply {
+                                                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                                                })
+                                                                            } catch (_: Exception) {}
+                                                                        }
+                                                                    },
+                                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                                ) {
+                                                                    Text("SETTINGS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -2556,9 +2656,13 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // 1. Inner Space Watchdog
+                                                    // 1. Core Watchdog
+                                                    val sentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
+                                                    val isServiceRunning = LightspeedAccessibilityService.instance != null
+                                                    val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
+
                                                     CollapsibleSubSection(
-                                                        title = "Inner Space Watchdog",
+                                                        title = "Core Watchdog",
                                                         subtitle = "Monitors and revives Lightspeed's accessibility service via Shizuku.",
                                                         icon = {
                                                             Icon(
@@ -2568,15 +2672,42 @@ fun SidebarMatrixConfigurationFields(
                                                                 modifier = Modifier.size(16.dp)
                                                             )
                                                         },
+                                                        trailingBadge = {
+                                                            Surface(
+                                                                shape = RoundedCornerShape(6.dp),
+                                                                color = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF3D00).copy(alpha = 0.18f),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF3D00).copy(alpha = 0.5f))
+                                                            ) {
+                                                                Text(
+                                                                    text = if (isServiceRunning) "ONLINE" else "OFFLINE",
+                                                                    fontSize = 9.sp,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
+                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                )
+                                                            }
+                                                        },
                                                         isExpanded = isInnerWatchdogExpanded,
                                                         onToggle = {
                                                             isInnerWatchdogExpanded = !isInnerWatchdogExpanded
                                                             prefs.edit().putBoolean("pref_sub_inner_watchdog_labs", isInnerWatchdogExpanded).apply()
                                                         }
                                                     ) {
-                                                        val sentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
-                                                        val isServiceRunning = LightspeedAccessibilityService.instance != null
-                                                        val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
+                                                        // Row 1: Master Enable Toggle
+                                                        PrefToggleRow(
+                                                            title = "Enable Core Watchdog Sentinel",
+                                                            subtitle = "Background sentinel thread polls Lightspeed health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
+                                                            isChecked = sentinelEnabled,
+                                                            onCheckedChange = { checked ->
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
+                                                                if (checked) {
+                                                                    LightspeedWatchdogEngine.initSentinel(context)
+                                                                } else {
+                                                                    LightspeedWatchdogEngine.stopSentinel()
+                                                                }
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
 
                                                         // Health Status Badge
                                                         Card(
@@ -2611,7 +2742,7 @@ fun SidebarMatrixConfigurationFields(
                                                                             color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00)
                                                                         )
                                                                         Text(
-                                                                            text = if (isSentinelActive) "Inner Sentinel: Active (20s cycle)" else "Inner Sentinel: Standby",
+                                                                            text = if (isSentinelActive) "Core Sentinel: Active (20s cycle)" else "Core Sentinel: Standby",
                                                                             fontSize = 10.5.sp,
                                                                             color = Color.LightGray.copy(alpha = 0.75f)
                                                                         )
@@ -2619,21 +2750,6 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                             }
                                                         }
-
-                                                        PrefToggleRow(
-                                                            title = "Enable Inner Space Sentinel",
-                                                            subtitle = "Background sentinel thread polls Lightspeed health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
-                                                            isChecked = sentinelEnabled,
-                                                            onCheckedChange = { checked ->
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
-                                                                if (checked) {
-                                                                    LightspeedWatchdogEngine.initSentinel(context)
-                                                                } else {
-                                                                    LightspeedWatchdogEngine.stopSentinel()
-                                                                }
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
 
                                                         OutlinedButton(
                                                             onClick = {
@@ -2651,15 +2767,39 @@ fun SidebarMatrixConfigurationFields(
                                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                                 Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
                                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                                Text("Trigger Inner Sentinel Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = cautionAmber)
+                                                                Text("Trigger Core Sentinel Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = cautionAmber)
                                                             }
                                                         }
                                                     }
 
-                                                    // 2. Outer Space Watchdog
+                                                    // 2. Perimeter Watchdog
+                                                    val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
+                                                    val pm = context.packageManager
+                                                    val installedA11y = remember(isOuterWatchdogExpanded) {
+                                                        try {
+                                                            a11yManager?.getInstalledAccessibilityServiceList() ?: emptyList()
+                                                        } catch (_: Exception) {
+                                                            emptyList()
+                                                        }
+                                                    }
+                                                    val enabledA11y = remember(isOuterWatchdogExpanded) {
+                                                        try {
+                                                            a11yManager?.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK) ?: emptyList()
+                                                        } catch (_: Exception) {
+                                                            emptyList()
+                                                        }
+                                                    }
+                                                    val enabledPkgSet = remember(enabledA11y) {
+                                                        enabledA11y.mapNotNull { it.resolveInfo?.serviceInfo?.packageName }.toSet()
+                                                    }
+                                                    val thirdPartyServices = remember(installedA11y) {
+                                                        installedA11y.filter { it.resolveInfo?.serviceInfo?.packageName != context.packageName }
+                                                    }
+                                                    val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
+
                                                     CollapsibleSubSection(
-                                                        title = "Outer Space Watchdog",
-                                                        subtitle = "Sentinel overview and monitor for third-party accessibility services.",
+                                                        title = "Perimeter Watchdog",
+                                                        subtitle = "Monitors and reports status on third-party accessibility sentinels.",
                                                         icon = {
                                                             Icon(
                                                                 imageVector = Icons.Outlined.Security,
@@ -2668,37 +2808,28 @@ fun SidebarMatrixConfigurationFields(
                                                                 modifier = Modifier.size(16.dp)
                                                             )
                                                         },
+                                                        trailingBadge = {
+                                                            Surface(
+                                                                shape = RoundedCornerShape(6.dp),
+                                                                color = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF9800).copy(alpha = 0.5f))
+                                                            ) {
+                                                                Text(
+                                                                    text = if (isShizukuActive) "ACTIVE" else "STANDBY",
+                                                                    fontSize = 9.sp,
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
+                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                )
+                                                            }
+                                                        },
                                                         isExpanded = isOuterWatchdogExpanded,
                                                         onToggle = {
                                                             isOuterWatchdogExpanded = !isOuterWatchdogExpanded
                                                             prefs.edit().putBoolean("pref_sub_outer_watchdog_labs", isOuterWatchdogExpanded).apply()
                                                         }
                                                     ) {
-                                                        val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
-                                                        val pm = context.packageManager
-                                                        val installedA11y = remember(isOuterWatchdogExpanded) {
-                                                            try {
-                                                                a11yManager?.getInstalledAccessibilityServiceList() ?: emptyList()
-                                                            } catch (_: Exception) {
-                                                                emptyList()
-                                                            }
-                                                        }
-                                                        val enabledA11y = remember(isOuterWatchdogExpanded) {
-                                                            try {
-                                                                a11yManager?.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK) ?: emptyList()
-                                                            } catch (_: Exception) {
-                                                                emptyList()
-                                                            }
-                                                        }
-                                                        val enabledPkgSet = remember(enabledA11y) {
-                                                            enabledA11y.mapNotNull { it.resolveInfo?.serviceInfo?.packageName }.toSet()
-                                                        }
-                                                        val thirdPartyServices = remember(installedA11y) {
-                                                            installedA11y.filter { it.resolveInfo?.serviceInfo?.packageName != context.packageName }
-                                                        }
-                                                        val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
-
-                                                        // Shizuku Status Banner
+                                                        // Row 1: Shizuku Status Banner
                                                         Card(
                                                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                                             shape = RoundedCornerShape(12.dp),
@@ -2729,7 +2860,7 @@ fun SidebarMatrixConfigurationFields(
                                                                         color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800)
                                                                     )
                                                                     Text(
-                                                                        text = if (isShizukuActive) "Ready to monitor & revive external accessibility sentinels" else "Requires Shizuku authorization for outer sentinel management",
+                                                                        text = if (isShizukuActive) "Ready to monitor & report external accessibility sentinels" else "Requires Shizuku authorization for outer sentinel management",
                                                                         fontSize = 10.sp,
                                                                         color = Color.LightGray.copy(alpha = 0.75f)
                                                                     )
@@ -2839,11 +2970,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                             )
                                                         }
-                                                    }
 
-                                                        // Strict Cold-Start Policy Notice
+                                                        // Strict Cold-Start Policy Notice (Strictly Placed Inside Core Cooling at Bottom)
                                                         Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                                                             shape = RoundedCornerShape(10.dp),
                                                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
                                                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
@@ -2865,6 +2995,7 @@ fun SidebarMatrixConfigurationFields(
                             }
                         }
                     }
+                }
 
                 // PAGE 2: RIGHT DEFLECTOR
                 2 -> {
@@ -2954,14 +3085,17 @@ fun SidebarMatrixConfigurationFields(
                                                         .apply()
                                                 }
                                             ) {
-                                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     CollapsibleSubSection(
-                                                        title = "Touch Vector Geometry & Position",
+                                                        title = "Sensor Geometry",
                                                         subtitle = "Deflector span, touch reach, offset & stealth glow",
                                                         isExpanded = isCenterGeoExpanded,
                                                         onToggle = {
                                                             isCenterGeoExpanded = !isCenterGeoExpanded
-                                                            prefs.edit().putBoolean("pref_sub_geo_center", isCenterGeoExpanded).apply()
+                                                            prefs.edit()
+                                                                .putBoolean("pref_sub_geo_center", isCenterGeoExpanded)
+                                                                .putBoolean("pref_sidebar_preview", isCenterExpanded && isCenterGeoExpanded)
+                                                                .apply()
                                                         }
                                                     ) {
                                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Deflector Span (Height)", 50, 1000, 10, 400)
@@ -2991,18 +3125,21 @@ fun SidebarMatrixConfigurationFields(
                                                         toggleSection(2, "unified", isRightUnifiedExpanded) { isRightUnifiedExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_right_unified_expanded", isRightUnifiedExpanded)
-                                                            .putBoolean("pref_sidebar_preview", isCenterExpanded || isRightUnifiedExpanded)
+                                                            .putBoolean("pref_sidebar_preview", (isCenterExpanded && isCenterGeoExpanded) || (isRightUnifiedExpanded && isRightUnifiedGeoExpanded))
                                                             .apply()
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "Upper & Lower Deflector Geometry",
+                                                            title = "Sensor Geometry",
                                                             subtitle = "Independent height, touch reach & stealth glow",
                                                             isExpanded = isRightUnifiedGeoExpanded,
                                                             onToggle = {
                                                                 isRightUnifiedGeoExpanded = !isRightUnifiedGeoExpanded
-                                                                prefs.edit().putBoolean("pref_sub_geo_unified", isRightUnifiedGeoExpanded).apply()
+                                                                prefs.edit()
+                                                                    .putBoolean("pref_sub_geo_unified", isRightUnifiedGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_preview", isRightUnifiedExpanded && isRightUnifiedGeoExpanded)
+                                                                    .apply()
                                                             }
                                                         ) {
                                                             Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
@@ -3075,12 +3212,15 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "Touch Vector Geometry & Position",
+                                                            title = "Sensor Geometry",
                                                             subtitle = "Upper deflector span, touch reach & stealth glow",
                                                             isExpanded = isTopGeoExpanded,
                                                             onToggle = {
                                                                 isTopGeoExpanded = !isTopGeoExpanded
-                                                                prefs.edit().putBoolean("pref_sub_geo_top", isTopGeoExpanded).apply()
+                                                                prefs.edit()
+                                                                    .putBoolean("pref_sub_geo_top", isTopGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_preview", isTopExpanded && isTopGeoExpanded)
+                                                                    .apply()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
@@ -3145,12 +3285,15 @@ fun SidebarMatrixConfigurationFields(
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                         CollapsibleSubSection(
-                                                            title = "Touch Vector Geometry & Position",
+                                                            title = "Sensor Geometry",
                                                             subtitle = "Lower deflector span, touch reach & stealth glow",
                                                             isExpanded = isBottomGeoExpanded,
                                                             onToggle = {
                                                                 isBottomGeoExpanded = !isBottomGeoExpanded
-                                                                prefs.edit().putBoolean("pref_sub_geo_bottom", isBottomGeoExpanded).apply()
+                                                                prefs.edit()
+                                                                    .putBoolean("pref_sub_geo_bottom", isBottomGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_preview", isBottomExpanded && isBottomGeoExpanded)
+                                                                    .apply()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Deflector Span (Height)", 50, 600, 10, 200)

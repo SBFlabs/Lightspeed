@@ -43,7 +43,9 @@ object LightspeedBackupEngine {
                     is String -> settingsObject.put(key, value)
                     is Set<*> -> {
                         val arr = JSONArray()
-                        value.forEach { arr.put(it) }
+                        value.forEach { item ->
+                            if (item != null) arr.put(item.toString())
+                        }
                         settingsObject.put(key, arr)
                     }
                 }

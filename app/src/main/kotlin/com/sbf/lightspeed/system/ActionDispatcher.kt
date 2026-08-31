@@ -153,40 +153,40 @@ object ActionDispatcher {
             token == "system:gemini" || token == "ACTION_GEMINI" || token == "gemini" -> {
                 TacticalFlyoutLauncher.launchGemini(context)
             }
-            token == "system:folax" || token == "ACTION_FOLAX" || token == "folax" -> {
-                val folaxIntent = context.packageManager.getLaunchIntentForPackage("com.transsion.folax")
-                    ?: context.packageManager.getLaunchIntentForPackage("com.transsion.folaxclient")
-                if (folaxIntent != null) {
-                    folaxIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    try { context.startActivity(folaxIntent) } catch (_: Exception) {}
-                }
-            }
             token == "system:camera_photo" || token == "ACTION_CAMERA_PHOTO" || token == "camera_photo" || token == "system:camera" -> {
                 try {
                     val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
                     val isLocked = keyguardManager?.isKeyguardLocked == true
-                    val cameraIntent = if (isLocked) {
-                        Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE)
-                    } else {
-                        Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
-                    }.apply {
+                    val pm = context.packageManager
+                    val secureIntent = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     }
-                    context.startActivity(cameraIntent)
+                    val targetIntent = if (isLocked && secureIntent.resolveActivity(pm) != null) {
+                        secureIntent
+                    } else {
+                        Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                    }
+                    context.startActivity(targetIntent)
                 } catch (_: Exception) {}
             }
             token == "system:camera_video" || token == "ACTION_CAMERA_VIDEO" || token == "camera_video" -> {
                 try {
                     val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
                     val isLocked = keyguardManager?.isKeyguardLocked == true
-                    val cameraIntent = if (isLocked) {
-                        Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE)
-                    } else {
-                        Intent(android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA)
-                    }.apply {
+                    val pm = context.packageManager
+                    val secureIntent = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     }
-                    context.startActivity(cameraIntent)
+                    val targetIntent = if (isLocked && secureIntent.resolveActivity(pm) != null) {
+                        secureIntent
+                    } else {
+                        Intent(android.provider.MediaStore.INTENT_ACTION_VIDEO_CAMERA).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                    }
+                    context.startActivity(targetIntent)
                 } catch (_: Exception) {}
             }
             token == "system:core_cooling" || token == "ACTION_CORE_COOLING" || token == "core_cooling" -> {

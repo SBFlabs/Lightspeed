@@ -173,10 +173,10 @@ object LightspeedKeyEngine {
             if (powerWakeLock == null) {
                 @Suppress("DEPRECATION")
                 powerWakeLock = pm?.newWakeLock(
-                    android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                    android.os.PowerManager.PARTIAL_WAKE_LOCK or
                             android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or
-                            android.os.PowerManager.ON_AFTER_RELEASE,
-                    "Lightspeed:PowerWakeLock"
+                            android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK,
+                    "Lightspeed:PowerFailsafeWakeLock"
                 )
                 powerWakeLock?.setReferenceCounted(false)
             }
@@ -190,6 +190,21 @@ object LightspeedKeyEngine {
                 powerWakeLock?.release()
             }
         } catch (_: Exception) {}
+    }
+
+    fun isAssistantActiveOrPending(context: Context): Boolean {
+        try {
+            val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+            if (km?.isKeyguardLocked == true) {
+                val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+                val topTasks = am?.getRunningTasks(1)
+                val topPkg = topTasks?.firstOrNull()?.topActivity?.packageName?.lowercase()
+                if (topPkg != null && (topPkg.contains("assistant") || topPkg.contains("googlequicksearchbox") || topPkg.contains("gemini"))) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {}
+        return false
     }
 
     fun isSinglePressUnlocked(context: Context): Boolean {
@@ -284,8 +299,8 @@ object LightspeedKeyEngine {
             val hasAnyPowerAction = singleAction != null || doubleAction != null || holdAction != null || pressHoldAction != null
             if (!hasAnyPowerAction) return false
 
-            // Screen Sleep Failsafe: keep display alive during multi-press/hold evaluation
-            acquirePowerScreenWakeLock(context, 3000L)
+            // Screen Sleep Failsafe: immediately acquire 450ms WakeLock on power press
+            acquirePowerScreenWakeLock(context, 450L)
 
             if (action == KeyEvent.ACTION_DOWN) {
                 if (event.repeatCount > 0) return true
@@ -302,9 +317,13 @@ object LightspeedKeyEngine {
                         powerPressHoldJob?.cancel()
                         powerPressHoldJob = engineScope.launch {
                             delay(LONG_PRESS_TIMEOUT_MS)
+                            if (isAssistantActiveOrPending(context)) {
+                                reset()
+                                return@launch
+                            }
                             isPowerPressHoldFired = true
                             lastPowerReleaseTime = 0L
-                            releasePowerScreenWakeLock()
+                            acquirePowerScreenWakeLock(context, 3000L)
                             LightspeedHapticEngine.heavyClick(context)
                             ActionDispatcher.dispatch(pressHoldAction, context)
                         }
@@ -317,8 +336,12 @@ object LightspeedKeyEngine {
                     powerHoldJob?.cancel()
                     powerHoldJob = engineScope.launch {
                         delay(LONG_PRESS_TIMEOUT_MS)
+                        if (isAssistantActiveOrPending(context)) {
+                            reset()
+                            return@launch
+                        }
                         isPowerHoldFired = true
-                        releasePowerScreenWakeLock()
+                        acquirePowerScreenWakeLock(context, 3000L)
                         LightspeedHapticEngine.heavyClick(context)
                         ActionDispatcher.dispatch(holdAction, context)
                     }
@@ -349,8 +372,8 @@ object LightspeedKeyEngine {
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = null
                     lastPowerReleaseTime = 0L
-                    releasePowerScreenWakeLock()
                     if (doubleAction != null) {
+                        acquirePowerScreenWakeLock(context, 3000L)
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(doubleAction, context)
                         return true
@@ -364,7 +387,7 @@ object LightspeedKeyEngine {
                     powerSinglePressJob = engineScope.launch {
                         delay(SEQUENCE_TIMEOUT_MS)
                         lastPowerReleaseTime = 0L
-                        releasePowerScreenWakeLock()
+                        acquirePowerScreenWakeLock(context, 3000L)
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(singleAction, context)
                     }

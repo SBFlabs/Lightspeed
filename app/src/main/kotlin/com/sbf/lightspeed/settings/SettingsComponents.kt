@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.GearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -259,6 +261,7 @@ fun CollapsibleSubSection(
     isExpanded: Boolean,
     onToggle: () -> Unit,
     icon: @Composable (() -> Unit)? = null,
+    trailingBadge: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -301,12 +304,20 @@ fun CollapsibleSubSection(
                         }
                     }
                 }
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (trailingBadge != null) {
+                        trailingBadge()
+                    }
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             AnimatedVisibility(visible = isExpanded) {
                 Column(
@@ -970,13 +981,16 @@ fun DragOnlySlider(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    val context = LocalContext.current
     val range = valueRange.endInclusive - valueRange.start
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
+    var lastHapticSteppedVal by remember { mutableFloatStateOf(value) }
 
     LaunchedEffect(value) {
         if (!isDragging) {
             dragProgress = if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+            lastHapticSteppedVal = value
         }
     }
 
@@ -990,6 +1004,7 @@ fun DragOnlySlider(
                     onDragStart = { _ ->
                         isDragging = true
                         dragProgress = if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+                        lastHapticSteppedVal = value
                     },
                     onDragEnd = {
                         isDragging = false
@@ -1000,7 +1015,7 @@ fun DragOnlySlider(
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         val totalW = size.width.toFloat()
-                        val thumbRadiusPx = 10.dp.toPx()
+                        val thumbRadiusPx = 14.dp.toPx()
                         val usableWidth = (totalW - thumbRadiusPx * 2f).coerceAtLeast(1f)
                         val deltaProgress = dragAmount / usableWidth
                         dragProgress = (dragProgress + deltaProgress).coerceIn(0f, 1f)
@@ -1010,6 +1025,10 @@ fun DragOnlySlider(
                             (kotlin.math.round((rawValue - valueRange.start) / stepSize) * stepSize + valueRange.start).coerceIn(valueRange.start, valueRange.endInclusive)
                         } else {
                             rawValue.coerceIn(valueRange.start, valueRange.endInclusive)
+                        }
+                        if (steppedValue != lastHapticSteppedVal) {
+                            LightspeedHapticEngine.scrubTick(context)
+                            lastHapticSteppedVal = steppedValue
                         }
                         onValueChange(steppedValue)
                     }
@@ -1065,7 +1084,26 @@ fun DragOnlySlider(
             }
         }
 
-        // 4. Thumb Indicator
+        // 4. M3 Liquid-Glass Reactive Thumb Indicator
+        val thumbWidth by animateDpAsState(
+            targetValue = if (isDragging) 28.dp else 18.dp,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "thumbWidth"
+        )
+        val thumbHeight by animateDpAsState(
+            targetValue = if (isDragging) 20.dp else 18.dp,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "thumbHeight"
+        )
+        val thumbFill by animateColorAsState(
+            targetValue = if (isDragging) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+            label = "thumbFill"
+        )
+        val thumbBorderColor by animateColorAsState(
+            targetValue = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+            label = "thumbBorder"
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxWidth(currentProgress.coerceIn(0f, 1f))
@@ -1073,13 +1111,29 @@ fun DragOnlySlider(
         ) {
             Surface(
                 modifier = Modifier
-                    .size(if (isDragging) 22.dp else 18.dp)
-                    .clip(CircleShape),
-                shape = CircleShape,
-                color = primaryColor,
-                shadowElevation = if (isDragging) 6.dp else 2.dp,
-                border = androidx.compose.foundation.BorderStroke(2.dp, Color.White.copy(alpha = 0.9f))
-            ) {}
+                    .size(width = thumbWidth, height = thumbHeight)
+                    .clip(RoundedCornerShape(10.dp)),
+                shape = RoundedCornerShape(10.dp),
+                color = thumbFill,
+                shadowElevation = if (isDragging) 8.dp else 2.dp,
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, thumbBorderColor)
+            ) {
+                if (isDragging) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 4.dp, height = 10.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1318,27 +1372,6 @@ fun CoreCoolingRotarySchedulePicker(
             .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
             .padding(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                "ROTARY DAY SELECTOR",
-                fontSize = 10.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f).padding(start = 4.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                "ROTARY HOUR SELECTOR",
-                fontSize = 10.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f).padding(start = 4.dp)
-            )
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)

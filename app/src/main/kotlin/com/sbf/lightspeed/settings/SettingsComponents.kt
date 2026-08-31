@@ -1061,6 +1061,9 @@ fun HazardAccordionSection(
     headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
+    val cautionAmber = Color(0xFFFFB300)
+    val deepBlack = Color(0xFF0F1115)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1068,9 +1071,9 @@ fun HazardAccordionSection(
                 1.5.dp,
                 Brush.horizontalGradient(
                     listOf(
-                        Color(0xFF00E5FF).copy(alpha = 0.8f),
-                        Color(0xFF0A0E14),
-                        Color(0xFF00E5FF).copy(alpha = 0.8f)
+                        cautionAmber.copy(alpha = 0.85f),
+                        deepBlack,
+                        cautionAmber.copy(alpha = 0.85f)
                     )
                 ),
                 RoundedCornerShape(18.dp)
@@ -1079,7 +1082,7 @@ fun HazardAccordionSection(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // 45° Alternating Electric Blue and Deep Black Diagonal Hazard Hatch Stripe
+            // 45° Alternating Industrial Caution Amber and Deep Black Diagonal Hazard Hatch Stripe
             androidx.compose.foundation.Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1090,9 +1093,7 @@ fun HazardAccordionSection(
                 val h = size.height
                 val stripeWidth = 10.dp.toPx()
                 var x = -h
-                var isCyan = true
-                val cyanColor = Color(0xFF00E5FF)
-                val darkColor = Color(0xFF0A0E14)
+                var isAmber = true
                 while (x < w + h) {
                     val path = androidx.compose.ui.graphics.Path().apply {
                         moveTo(x, 0f)
@@ -1101,9 +1102,9 @@ fun HazardAccordionSection(
                         lineTo(x + h, h)
                         close()
                     }
-                    drawPath(path, if (isCyan) cyanColor else darkColor)
+                    drawPath(path, if (isAmber) cautionAmber else deepBlack)
                     x += stripeWidth
-                    isCyan = !isCyan
+                    isAmber = !isAmber
                 }
             }
 
@@ -1123,14 +1124,14 @@ fun HazardAccordionSection(
                     Icon(
                         imageVector = Icons.Default.Science,
                         contentDescription = null,
-                        tint = Color(0xFF00E5FF),
+                        tint = cautionAmber,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = title,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color(0xFF00E5FF)
+                        color = cautionAmber
                     )
                 }
                 if (headerTrailing != null) {
@@ -1140,7 +1141,7 @@ fun HazardAccordionSection(
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = Color(0xFF00E5FF),
+                    tint = cautionAmber,
                     modifier = Modifier.size(24.dp)
                 )
             }

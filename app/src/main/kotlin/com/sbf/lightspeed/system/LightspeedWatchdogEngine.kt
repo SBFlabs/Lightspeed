@@ -153,23 +153,26 @@ object LightspeedWatchdogEngine {
         val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)
         if (!isEnabled) return false
 
-        val schedule = prefs.getString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "weekly_sunday") ?: "weekly_sunday"
+        val targetDay = prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_DAY_OF_WEEK, java.util.Calendar.SUNDAY)
+        val targetHour = prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, 3)
         val lastTrigger = prefs.getLong(LightspeedPreferences.KEY_CORE_COOLING_LAST_TRIGGER, 0L)
         val now = System.currentTimeMillis()
 
-        val intervalMs = when (schedule) {
-            "nightly" -> 24 * 60 * 60 * 1000L // 24 hours
-            "biweekly" -> 14 * 24 * 60 * 60 * 1000L // 14 days
-            else -> 7 * 24 * 60 * 60 * 1000L // 7 days (weekly)
-        }
+        val cal = java.util.Calendar.getInstance()
+        val currentDay = cal.get(java.util.Calendar.DAY_OF_WEEK)
+        val currentHour = cal.get(java.util.Calendar.HOUR_OF_DAY)
 
-        if (lastTrigger == 0L) {
-            // First run: initialize timestamp
-            prefs.edit().putLong(LightspeedPreferences.KEY_CORE_COOLING_LAST_TRIGGER, now).apply()
+        // Prevent multiple triggers on the same day (minimum 24h cooldown)
+        val minIntervalMs = 24 * 60 * 60 * 1000L
+        if (lastTrigger != 0L && (now - lastTrigger) < minIntervalMs) {
             return false
         }
 
-        return (now - lastTrigger) >= intervalMs
+        if (currentDay == targetDay && currentHour >= targetHour) {
+            return true
+        }
+
+        return false
     }
 
     /**

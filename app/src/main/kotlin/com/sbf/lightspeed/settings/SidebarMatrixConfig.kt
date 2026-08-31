@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,73 +63,73 @@ fun SidebarMatrixConfigurationFields(
     onRefreshNeeded: () -> Unit = {}
 ) {
     // Tab Display Profiles & Blueprint State
-    var tabMode0 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_0, "custom_pinned") ?: "custom_pinned") }
-    var pinnedSection0 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0, "left_top") ?: "left_top") }
-    var sectionOrder0Str by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_top,left_bottom") ?: "left_center,left_top,left_bottom") }
+    var tabMode0 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_0, "custom_pinned") ?: "custom_pinned") }
+    var pinnedSection0 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0, "left_top") ?: "left_top") }
+    var sectionOrder0Str by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_top,left_bottom") ?: "left_center,left_top,left_bottom") }
 
-    var tabMode1 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_1, "custom_pinned") ?: "custom_pinned") }
-    var pinnedSection1 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, "sensor_deck") ?: "sensor_deck") }
-    var sectionOrder1Str by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") }
+    var tabMode1 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_1, "custom_pinned") ?: "custom_pinned") }
+    var pinnedSection1 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, "sensor_deck") ?: "sensor_deck") }
+    var sectionOrder1Str by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") }
 
-    var tabMode2 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
-    var pinnedSection2 by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "top") ?: "top") }
-    var sectionOrder2Str by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,top,bottom") ?: "center,top,bottom") }
+    var tabMode2 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
+    var pinnedSection2 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "top") ?: "top") }
+    var sectionOrder2Str by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,top,bottom") ?: "center,top,bottom") }
 
-    var popoverTabTarget by remember { mutableStateOf<Int?>(null) }
-    var blueprintTabTarget by remember { mutableStateOf<Int?>(null) }
+    var popoverTabTarget by rememberSaveable { mutableStateOf<Int?>(null) }
+    var blueprintTabTarget by rememberSaveable { mutableStateOf<Int?>(null) }
 
     // Left Deflector Accordion States
-    var isLeftCenterExpanded by remember { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_center" else prefs.getBoolean("pref_section_left_center_expanded", false)) }
-    var isLeftTopExpanded by remember { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_top" else prefs.getBoolean("pref_section_left_top_expanded", true)) }
-    var isLeftBottomExpanded by remember { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_bottom" else prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
-    var isLeftFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)) }
-    var isLeftUnifiedExpanded by remember { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_unified" else prefs.getBoolean("pref_section_left_unified_expanded", false)) }
+    var isLeftCenterExpanded by rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_center" else prefs.getBoolean("pref_section_left_center_expanded", false)) }
+    var isLeftTopExpanded by rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_top" else prefs.getBoolean("pref_section_left_top_expanded", true)) }
+    var isLeftBottomExpanded by rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_bottom" else prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
+    var isLeftFlankUnified by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)) }
+    var isLeftUnifiedExpanded by rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_unified" else prefs.getBoolean("pref_section_left_unified_expanded", false)) }
 
     // Left Deflector Sub-Section States
-    var isLeftCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", true)) }
+    var isLeftCenterGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", true)) }
 
-    var isLeftUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_unified", true)) }
-    var isLeftUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_unified", true)) }
-    var isLeftUnifiedGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_unified", true)) }
+    var isLeftUnifiedGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_unified", true)) }
+    var isLeftUnifiedScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_unified", true)) }
+    var isLeftUnifiedGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_unified", true)) }
 
-    var isLeftTopGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_top", true)) }
-    var isLeftTopScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_top", true)) }
-    var isLeftTopGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_top", true)) }
+    var isLeftTopGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_top", true)) }
+    var isLeftTopScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_top", true)) }
+    var isLeftTopGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_top", true)) }
 
-    var isLeftBottomGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_bottom", true)) }
-    var isLeftBottomScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_bottom", true)) }
-    var isLeftBottomGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
+    var isLeftBottomGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_bottom", true)) }
+    var isLeftBottomScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_bottom", true)) }
+    var isLeftBottomGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
 
     // HUD Strip Accordion States
-    var isSensorDeckExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean("pref_section_statusbar_expanded", true)) }
-    var isTelemetryExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean("pref_section_telemetry_expanded", false)) }
-    var isTacticalHardwareExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean("pref_section_tactical_hardware_expanded", false)) }
-    var isRefuelingExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "refueling_bay" else prefs.getBoolean("pref_section_refueling_expanded", false)) }
-    var isConfigVaultExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean("pref_section_backup_expanded", false)) }
-    var isExperimentalLabsExpanded by remember { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "experimental_labs" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, false)) }
+    var isSensorDeckExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean("pref_section_statusbar_expanded", true)) }
+    var isTelemetryExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean("pref_section_telemetry_expanded", false)) }
+    var isTacticalHardwareExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean("pref_section_tactical_hardware_expanded", false)) }
+    var isRefuelingExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "refueling_bay" else prefs.getBoolean("pref_section_refueling_expanded", false)) }
+    var isConfigVaultExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean("pref_section_backup_expanded", false)) }
+    var isExperimentalLabsExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "experimental_labs" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, false)) }
 
     // Power Button Safety Interlock & Dynamic Tools
-    var singlePressTapCount by remember { mutableIntStateOf(0) }
-    var isSinglePressUnlocked by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)) }
+    var singlePressTapCount by rememberSaveable { mutableIntStateOf(0) }
+    var isSinglePressUnlocked by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)) }
     val installedTacticalTools = remember { com.sbf.lightspeed.system.InstalledTacticalToolsScanner.scan(context) }
 
     // Tactical Hardware Deck Sub-Sections
-    var isSubVolumeExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", true)) }
-    var isSubPowerExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_power_expanded", true)) }
-    var isSubHullTapExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_hulltap_expanded", false)) }
+    var isSubVolumeExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", true)) }
+    var isSubPowerExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_power_expanded", true)) }
+    var isSubHullTapExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_hulltap_expanded", false)) }
 
-    var showOemShieldDialog by remember { mutableStateOf(false) }
-    var showBatteryWarningDialog by remember { mutableStateOf(false) }
-    var showNotificationAccessDialog by remember { mutableStateOf(false) }
-    var showAmoledWarningDialog by remember { mutableStateOf(false) }
-    var pendingBackTapScope by remember { mutableStateOf("screen_on") }
+    var showOemShieldDialog by rememberSaveable { mutableStateOf(false) }
+    var showBatteryWarningDialog by rememberSaveable { mutableStateOf(false) }
+    var showNotificationAccessDialog by rememberSaveable { mutableStateOf(false) }
+    var showAmoledWarningDialog by rememberSaveable { mutableStateOf(false) }
+    var pendingBackTapScope by rememberSaveable { mutableStateOf("screen_on") }
 
-    var isStatusBarGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
-    var isStatusBarScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
-    var isStatusBarGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", true)) }
-    var isNotchCalibExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", true)) }
-    var isMarqueeSubSectionExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", true)) }
-    var isOrientationSubSectionExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_orientation", true)) }
+    var isStatusBarGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
+    var isStatusBarScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
+    var isStatusBarGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", true)) }
+    var isNotchCalibExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", true)) }
+    var isMarqueeSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", true)) }
+    var isOrientationSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_orientation", true)) }
 
     // Live Impulse Calibration Meter State (Hull Tap)
     var currentZImpulse by remember { mutableFloatStateOf(0f) }
@@ -159,26 +160,26 @@ fun SidebarMatrixConfigurationFields(
     }
 
     // Right Deflector Accordion States
-    var isCenterExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", false)) }
-    var isTopExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" else prefs.getBoolean("pref_section_top_expanded", true)) }
-    var isBottomExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" else prefs.getBoolean("pref_section_bottom_expanded", false)) }
-    var isRightFlankUnified by remember { mutableStateOf(prefs.getBoolean("pref_sidebar_link_flank_actions", false)) }
-    var isRightUnifiedExpanded by remember { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" else prefs.getBoolean("pref_section_right_unified_expanded", false)) }
+    var isCenterExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", false)) }
+    var isTopExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" else prefs.getBoolean("pref_section_top_expanded", true)) }
+    var isBottomExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" else prefs.getBoolean("pref_section_bottom_expanded", false)) }
+    var isRightFlankUnified by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sidebar_link_flank_actions", false)) }
+    var isRightUnifiedExpanded by rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" else prefs.getBoolean("pref_section_right_unified_expanded", false)) }
 
     // Right Deflector Sub-Section States
-    var isCenterGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
+    var isCenterGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
 
-    var isRightUnifiedGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_right_unified", true)) }
-    var isRightUnifiedScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_right_unified", true)) }
-    var isRightUnifiedGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_right_unified", true)) }
+    var isRightUnifiedGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_right_unified", true)) }
+    var isRightUnifiedScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_right_unified", true)) }
+    var isRightUnifiedGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_right_unified", true)) }
 
-    var isTopGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_top", true)) }
-    var isTopScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_top", true)) }
-    var isTopGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_top", true)) }
+    var isTopGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_top", true)) }
+    var isTopScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_top", true)) }
+    var isTopGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_top", true)) }
 
-    var isBottomGeoExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_geo_bottom", true)) }
-    var isBottomScrubExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_scrub_bottom", true)) }
-    var isBottomGesturesExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_gestures_bottom", true)) }
+    var isBottomGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_bottom", true)) }
+    var isBottomScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_bottom", true)) }
+    var isBottomGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_bottom", true)) }
 
     val listState0 = rememberLazyListState()
     val listState1 = rememberLazyListState()
@@ -2442,6 +2443,7 @@ fun SidebarMatrixConfigurationFields(
                                     }
                                     "experimental_labs" -> {
                                         item(key = "experimental_labs") {
+                                            val cautionAmber = Color(0xFFFFB300)
                                             HazardAccordionSection(
                                                 title = "Experimental Labs",
                                                 isExpanded = isExperimentalLabsExpanded,
@@ -2455,29 +2457,29 @@ fun SidebarMatrixConfigurationFields(
                                                     Card(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         shape = RoundedCornerShape(12.dp),
-                                                        colors = CardDefaults.cardColors(containerColor = Color(0xFF00E5FF).copy(alpha = 0.08f)),
-                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.25f))
+                                                        colors = CardDefaults.cardColors(containerColor = cautionAmber.copy(alpha = 0.08f)),
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.35f))
                                                     ) {
                                                         Row(
                                                             modifier = Modifier.fillMaxWidth().padding(10.dp),
                                                             verticalAlignment = Alignment.CenterVertically
                                                         ) {
-                                                            Icon(Icons.Default.Build, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(18.dp))
+                                                            Icon(Icons.Default.Build, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(18.dp))
                                                             Spacer(modifier = Modifier.width(8.dp))
                                                             Text(
                                                                 text = "Experimental Maintenance Bay: Advanced hardware watchdog & core thermal management subsystems.",
                                                                 fontSize = 11.sp,
-                                                                color = Color(0xFF00E5FF).copy(alpha = 0.9f),
+                                                                color = cautionAmber.copy(alpha = 0.95f),
                                                                 lineHeight = 14.sp
                                                             )
                                                         }
                                                     }
 
-                                                    // 1. Space Watchdog (Accessibility Service Sentinel)
-                                                    var isWatchdogExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_watchdog_labs", true)) }
+                                                    // 1. Space Watchdog
+                                                    var isWatchdogExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_watchdog_labs", true)) }
                                                     CollapsibleSubSection(
-                                                        title = "🛰️ Space Watchdog (Service Sentinel)",
-                                                        subtitle = "Autonomous health verification & Shizuku-powered service revival",
+                                                        title = "🛰️ Space Watchdog",
+                                                        subtitle = "Auto-revives Accessibility Service via Shizuku if stopped by battery optimizer.",
                                                         isExpanded = isWatchdogExpanded,
                                                         onToggle = {
                                                             isWatchdogExpanded = !isWatchdogExpanded
@@ -2488,7 +2490,7 @@ fun SidebarMatrixConfigurationFields(
                                                         val isServiceRunning = LightspeedAccessibilityService.instance != null
                                                         val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
 
-                                                        // Sentinel Health Status Badge
+                                                        // Health Status Badge
                                                         Card(
                                                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                                             shape = RoundedCornerShape(12.dp),
@@ -2521,7 +2523,7 @@ fun SidebarMatrixConfigurationFields(
                                                                             color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00)
                                                                         )
                                                                         Text(
-                                                                            text = if (isSentinelActive) "Watchdog Sentinel: Polling (20s cycle)" else "Watchdog Sentinel: Standby",
+                                                                            text = if (isSentinelActive) "Watchdog: Active (20s cycle)" else "Watchdog: Standby",
                                                                             fontSize = 10.5.sp,
                                                                             color = Color.LightGray.copy(alpha = 0.75f)
                                                                         )
@@ -2531,7 +2533,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         PrefToggleRow(
-                                                            title = "Enable Space Watchdog Sentinel",
+                                                            title = "Enable Space Watchdog",
                                                             subtitle = "Background sentinel thread polls service health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
                                                             isChecked = sentinelEnabled,
                                                             onCheckedChange = { checked ->
@@ -2556,21 +2558,21 @@ fun SidebarMatrixConfigurationFields(
                                                             },
                                                             modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
                                                             shape = RoundedCornerShape(10.dp),
-                                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.5f))
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f))
                                                         ) {
                                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                                                                Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
                                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                                Text("Trigger Sentinel Revival Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFF00E5FF))
+                                                                Text("Trigger Watchdog Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = cautionAmber)
                                                             }
                                                         }
                                                     }
 
-                                                    // 2. Core Cooling (Scheduled Reboot Reminder & Triple-Lock Reboot)
-                                                    var isCoreCoolingExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
+                                                    // 2. Core Cooling Schedule
+                                                    var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
                                                     CollapsibleSubSection(
-                                                        title = "❄️ Core Cooling (System Reboot & Reminder)",
-                                                        subtitle = "Configurable maintenance cycle & triple-lock hardware reboot safety",
+                                                        title = "❄️ Core Cooling Schedule",
+                                                        subtitle = "Configurable weekly maintenance reminder",
                                                         isExpanded = isCoreCoolingExpanded,
                                                         onToggle = {
                                                             isCoreCoolingExpanded = !isCoreCoolingExpanded
@@ -2578,12 +2580,24 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     ) {
                                                         val coreCoolingEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)
-                                                        var scheduleChoice by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "weekly_sunday") ?: "weekly_sunday") }
-                                                        var isScheduleDropdownOpen by remember { mutableStateOf(false) }
+                                                        var targetDay by rememberSaveable { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_DAY_OF_WEEK, java.util.Calendar.SUNDAY)) }
+                                                        var targetHour by rememberSaveable { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, 3)) }
+                                                        var isDayDropdownOpen by remember { mutableStateOf(false) }
+                                                        var isHourDropdownOpen by remember { mutableStateOf(false) }
+
+                                                        val daysList = listOf(
+                                                            Pair(java.util.Calendar.MONDAY, "Monday"),
+                                                            Pair(java.util.Calendar.TUESDAY, "Tuesday"),
+                                                            Pair(java.util.Calendar.WEDNESDAY, "Wednesday"),
+                                                            Pair(java.util.Calendar.THURSDAY, "Thursday"),
+                                                            Pair(java.util.Calendar.FRIDAY, "Friday"),
+                                                            Pair(java.util.Calendar.SATURDAY, "Saturday"),
+                                                            Pair(java.util.Calendar.SUNDAY, "Sunday")
+                                                        )
 
                                                         PrefToggleRow(
                                                             title = "Scheduled Core Cooling Reminder",
-                                                            subtitle = "Dispatches a gentle reminder when system core cooling (reboot) is recommended.",
+                                                            subtitle = "Dispatches a gentle reminder when system core cooling is recommended.",
                                                             isChecked = coreCoolingEnabled,
                                                             onCheckedChange = { checked ->
                                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, checked).apply()
@@ -2592,64 +2606,88 @@ fun SidebarMatrixConfigurationFields(
                                                         )
 
                                                         if (coreCoolingEnabled) {
-                                                            Surface(
-                                                                modifier = Modifier
-                                                                    .fillMaxWidth()
-                                                                    .padding(vertical = 4.dp)
-                                                                    .clip(RoundedCornerShape(12.dp))
-                                                                    .clickable { isScheduleDropdownOpen = true },
-                                                                shape = RoundedCornerShape(12.dp),
-                                                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                                                            ) {
-                                                                Row(
-                                                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                                    verticalAlignment = Alignment.CenterVertically
+                                                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                // Day of Week Selector
+                                                                Surface(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .clip(RoundedCornerShape(12.dp))
+                                                                        .clickable { isDayDropdownOpen = true },
+                                                                    shape = RoundedCornerShape(12.dp),
+                                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                                                                 ) {
-                                                                    Column {
-                                                                        Text("Cooling Cycle Frequency", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                                                        val scheduleLabel = when (scheduleChoice) {
-                                                                            "nightly" -> "Nightly (Every 24 Hours · 03:00 AM)"
-                                                                            "biweekly" -> "Bi-Weekly (Every 14 Days)"
-                                                                            else -> "Weekly (Sundays · 03:00 AM)"
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Column {
+                                                                            Text("Weekly Cooling Day", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                                            val dayName = daysList.firstOrNull { it.first == targetDay }?.second ?: "Sunday"
+                                                                            Text(dayName, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                                                                         }
-                                                                        Text(scheduleLabel, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                                                     }
-                                                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+
+                                                                    DropdownMenu(
+                                                                        expanded = isDayDropdownOpen,
+                                                                        onDismissRequest = { isDayDropdownOpen = false }
+                                                                    ) {
+                                                                        daysList.forEach { (calDay, name) ->
+                                                                            DropdownMenuItem(
+                                                                                text = { Text(name, fontWeight = if (targetDay == calDay) FontWeight.Bold else FontWeight.Normal) },
+                                                                                onClick = {
+                                                                                    targetDay = calDay
+                                                                                    prefs.edit().putInt(LightspeedPreferences.KEY_CORE_COOLING_DAY_OF_WEEK, calDay).apply()
+                                                                                    isDayDropdownOpen = false
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    }
                                                                 }
 
-                                                                DropdownMenu(
-                                                                    expanded = isScheduleDropdownOpen,
-                                                                    onDismissRequest = { isScheduleDropdownOpen = false }
+                                                                // Hour of Day Selector
+                                                                Surface(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .clip(RoundedCornerShape(12.dp))
+                                                                        .clickable { isHourDropdownOpen = true },
+                                                                    shape = RoundedCornerShape(12.dp),
+                                                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
                                                                 ) {
-                                                                    DropdownMenuItem(
-                                                                        text = { Text("Weekly (Sundays · 03:00 AM)") },
-                                                                        onClick = {
-                                                                            scheduleChoice = "weekly_sunday"
-                                                                            prefs.edit().putString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "weekly_sunday").apply()
-                                                                            isScheduleDropdownOpen = false
-                                                                            onRefreshNeeded()
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Column {
+                                                                            Text("Preferred Time (Hour)", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                                            val hourStr = String.format(Locale.US, "%02d:00 (%s)", targetHour, if (targetHour < 12) if (targetHour == 0) "12 AM" else "$targetHour AM" else if (targetHour == 12) "12 PM" else "${targetHour - 12} PM")
+                                                                            Text(hourStr, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                                                                         }
-                                                                    )
-                                                                    DropdownMenuItem(
-                                                                        text = { Text("Nightly (Every 24 Hours · 03:00 AM)") },
-                                                                        onClick = {
-                                                                            scheduleChoice = "nightly"
-                                                                            prefs.edit().putString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "nightly").apply()
-                                                                            isScheduleDropdownOpen = false
-                                                                            onRefreshNeeded()
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                    }
+
+                                                                    DropdownMenu(
+                                                                        expanded = isHourDropdownOpen,
+                                                                        onDismissRequest = { isHourDropdownOpen = false }
+                                                                    ) {
+                                                                        (0..23).forEach { hour ->
+                                                                            val label = String.format(Locale.US, "%02d:00 (%s)", hour, if (hour < 12) if (hour == 0) "12 AM" else "$hour AM" else if (hour == 12) "12 PM" else "${hour - 12} PM")
+                                                                            DropdownMenuItem(
+                                                                                text = { Text(label, fontWeight = if (targetHour == hour) FontWeight.Bold else FontWeight.Normal) },
+                                                                                onClick = {
+                                                                                    targetHour = hour
+                                                                                    prefs.edit().putInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, hour).apply()
+                                                                                    isHourDropdownOpen = false
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
                                                                         }
-                                                                    )
-                                                                    DropdownMenuItem(
-                                                                        text = { Text("Bi-Weekly (Every 14 Days)") },
-                                                                        onClick = {
-                                                                            scheduleChoice = "biweekly"
-                                                                            prefs.edit().putString(LightspeedPreferences.KEY_CORE_COOLING_SCHEDULE, "biweekly").apply()
-                                                                            isScheduleDropdownOpen = false
-                                                                            onRefreshNeeded()
-                                                                        }
-                                                                    )
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -2662,25 +2700,13 @@ fun SidebarMatrixConfigurationFields(
                                                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
                                                         ) {
                                                             Text(
-                                                                text = "🛡️ STRICT COLD-START POLICY: Zero automatic reboots. When cooling cycle is reached, dispatches a silent status reminder to the HUD.",
+                                                                text = "🛡️ STRICT COLD-START POLICY: Zero automatic reboots. When weekly cooling cycle is reached, dispatches a silent status reminder to the HUD and Orbital Capsule.",
                                                                 fontSize = 10.5.sp,
                                                                 color = Color.LightGray.copy(alpha = 0.8f),
                                                                 modifier = Modifier.padding(10.dp),
                                                                 lineHeight = 13.sp
                                                             )
                                                         }
-
-                                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                                        // Triple-Lock Safety Morphing Reboot Button
-                                                        CoreCoolingTripleLockButton(
-                                                            onExecuteReboot = {
-                                                                val ok = LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
-                                                                if (!ok) {
-                                                                    android.widget.Toast.makeText(context, "Shizuku or Root required for reboot", android.widget.Toast.LENGTH_SHORT).show()
-                                                                }
-                                                            }
-                                                        )
                                                     }
                                                 }
                                             }

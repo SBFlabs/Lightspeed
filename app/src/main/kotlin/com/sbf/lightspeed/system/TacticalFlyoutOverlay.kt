@@ -440,6 +440,27 @@ fun TacticalFlyoutContent(
                             )
                         }
                     }
+
+                    // Section 4: Core Cooling System Reboot
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "CORE THERMAL / SYSTEM REBOOT",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White.copy(alpha = 0.6f),
+                            letterSpacing = 1.sp
+                        )
+
+                        com.sbf.lightspeed.settings.CoreCoolingTripleLockButton(
+                            onExecuteReboot = {
+                                val ok = com.sbf.lightspeed.system.LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
+                                if (!ok) {
+                                    Toast.makeText(context, "Shizuku or Root required for reboot", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

@@ -90,6 +90,8 @@ object LightspeedPreferences {
     const val KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED = "pref_section_experimental_labs_expanded"
     const val KEY_CORE_COOLING_ENABLED = "pref_core_cooling_enabled"
     const val KEY_CORE_COOLING_SCHEDULE = "pref_core_cooling_schedule"
+    const val KEY_CORE_COOLING_DAY_OF_WEEK = "pref_core_cooling_day_of_week"
+    const val KEY_CORE_COOLING_HOUR = "pref_core_cooling_hour"
     const val KEY_CORE_COOLING_LAST_TRIGGER = "pref_core_cooling_last_trigger"
     const val KEY_INFINIX_STANDBY_DISMISSED = "pref_infinix_standby_dismissed"
 

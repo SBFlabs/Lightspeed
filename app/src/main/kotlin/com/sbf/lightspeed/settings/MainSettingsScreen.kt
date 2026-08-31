@@ -149,16 +149,14 @@ fun MainSettingsScreen() {
                             }
                         }
                     ) {
-                        key(refreshKey) {
-                            SidebarMatrixConfigurationFields(
-                                context = context,
-                                prefs = prefs,
-                                toggleAllTrigger = toggleAllTrigger,
-                                jumpTargetTab = targetJumpTab,
-                                jumpTargetSection = targetJumpSection,
-                                onRefreshNeeded = { refreshKey++ }
-                            )
-                        }
+                        SidebarMatrixConfigurationFields(
+                            context = context,
+                            prefs = prefs,
+                            toggleAllTrigger = toggleAllTrigger,
+                            jumpTargetTab = targetJumpTab,
+                            jumpTargetSection = targetJumpSection,
+                            onRefreshNeeded = { /* Local state reacts immediately without recreating hierarchy */ }
+                        )
                     }
 
                     if (showGuidebook) {

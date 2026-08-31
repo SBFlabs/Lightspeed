@@ -117,6 +117,16 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     private val btnRemoteLockBounds = RectF()
     private val btnRemoteTimeoutBounds = RectF()
     private val btnRemoteRefuelBounds = RectF()
+    private val btnCoreCoolingBounds = RectF()
+
+    // Core Cooling Triple-Lock State
+    private var coreCoolingStep = 0 // 0 = default, 1 = are you sure (amber), 2 = are you sure sure (red)
+    private val coreCoolingResetRunnable = Runnable {
+        if (coreCoolingStep != 0) {
+            coreCoolingStep = 0
+            postInvalidate()
+        }
+    }
 
     // Touch interaction tracking
     private var touchDownX = 0f
@@ -174,6 +184,8 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         if (isExpanded) return
         isExpanded = true
         expandedPageIndex = 0
+        coreCoolingStep = 0
+        mainHandler.removeCallbacks(coreCoolingResetRunnable)
         LightspeedHapticEngine.tick(context)
         resetAutoCollapseTimer()
         notifyWindowLayoutChanged()
@@ -183,6 +195,8 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     fun collapseCard() {
         if (!isExpanded) return
         isExpanded = false
+        coreCoolingStep = 0
+        mainHandler.removeCallbacks(coreCoolingResetRunnable)
         mainHandler.removeCallbacks(autoCollapseRunnable)
         LightspeedHapticEngine.tick(context)
         notifyWindowLayoutChanged()
@@ -201,7 +215,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             val screenW = resources.displayMetrics.widthPixels
             if (isExpanded) {
                 val cardW = (320 * d).toInt().coerceAtMost(screenW - (16 * d).toInt())
-                val cardH = (120 * d).toInt()
+                val cardH = (126 * d).toInt()
                 val targetX = (screenW - cardW) / 2
                 val targetY = collapsedPillBounds.top.toInt().coerceAtLeast(0)
                 LightspeedAccessibilityService.instance?.updateNotchWindowBounds(true, targetX, targetY, cardW, cardH)
@@ -429,6 +443,31 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                             resetAutoCollapseTimer()
                             return true
                         }
+                        if (btnCoreCoolingBounds.contains(x, y)) {
+                            resetAutoCollapseTimer()
+                            mainHandler.removeCallbacks(coreCoolingResetRunnable)
+                            when (coreCoolingStep) {
+                                0 -> {
+                                    coreCoolingStep = 1
+                                    LightspeedHapticEngine.click(context)
+                                    mainHandler.postDelayed(coreCoolingResetRunnable, 5000L)
+                                    postInvalidate()
+                                }
+                                1 -> {
+                                    coreCoolingStep = 2
+                                    LightspeedHapticEngine.click(context)
+                                    mainHandler.postDelayed(coreCoolingResetRunnable, 5000L)
+                                    postInvalidate()
+                                }
+                                2 -> {
+                                    coreCoolingStep = 0
+                                    LightspeedHapticEngine.heavyClick(context)
+                                    collapseCard()
+                                    com.sbf.lightspeed.system.LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
+                                }
+                            }
+                            return true
+                        }
                     }
 
                     if (!expandedCardBounds.contains(x, y)) {
@@ -505,7 +544,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             // INTERACTIVE EXPANDED LIQUID-GLASS 2-PAGE CAPSULE CARD
             // =========================================================================
             val cardW = (320f * d).coerceAtMost(w - 16f * d)
-            val cardH = 118f * d
+            val cardH = 126f * d
             val cardLeft = (w - cardW) / 2f
             val cardTop = pillTop
             expandedCardBounds.set(cardLeft, cardTop, cardLeft + cardW, cardTop + cardH)
@@ -710,6 +749,45 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                     val labelW = hudTextPaint.measureText(iconAndLabel.second)
                     canvas.drawText(iconAndLabel.second, bounds.centerX() - labelW / 2f, bounds.bottom + 11f * d, hudTextPaint)
                 }
+
+                // Core Cooling Triple-Lock Interactive Bar
+                val ccY = cardTop + 95f * d
+                val ccH = 19f * d
+                val ccW = cardW - 32f * d
+                btnCoreCoolingBounds.set(cardLeft + 16f * d, ccY - ccH / 2f, cardLeft + 16f * d + ccW, ccY + ccH / 2f)
+
+                val ccBg = when (coreCoolingStep) {
+                    1 -> Color.argb(80, 255, 179, 0)
+                    2 -> Color.argb(100, 255, 61, 0)
+                    else -> Color.argb(45, 255, 255, 255)
+                }
+                val ccBorder = when (coreCoolingStep) {
+                    1 -> Color.argb(220, 255, 179, 0)
+                    2 -> Color.argb(255, 255, 61, 0)
+                    else -> Color.argb(100, 255, 255, 255)
+                }
+                val ccTextColor = when (coreCoolingStep) {
+                    1 -> Color.rgb(255, 179, 0)
+                    2 -> Color.rgb(255, 61, 0)
+                    else -> Color.WHITE
+                }
+                val ccLabel = when (coreCoolingStep) {
+                    1 -> "⚠️ ARE YOU SURE? (TAP 2/3)"
+                    2 -> "🚨 ARE YOU SURE SURE? (TAP 3/3)"
+                    else -> "❄️ INITIATE CORE COOLING (REBOOT)"
+                }
+
+                buttonBgPaint.color = ccBg
+                canvas.drawRoundRect(btnCoreCoolingBounds, 9.5f * d, 9.5f * d, buttonBgPaint)
+                telemetryPillRimPaint.color = ccBorder
+                telemetryPillRimPaint.strokeWidth = 1.1f * d
+                canvas.drawRoundRect(btnCoreCoolingBounds, 9.5f * d, 9.5f * d, telemetryPillRimPaint)
+
+                hudTextPaint.textSize = 8.5f * d
+                hudTextPaint.color = ccTextColor
+                val ccLabelW = hudTextPaint.measureText(ccLabel)
+                val ccBaseline = btnCoreCoolingBounds.centerY() - (hudTextPaint.descent() + hudTextPaint.ascent()) / 2f
+                canvas.drawText(ccLabel, btnCoreCoolingBounds.centerX() - ccLabelW / 2f, ccBaseline, hudTextPaint)
             }
             return
         }

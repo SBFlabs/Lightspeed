@@ -16,8 +16,8 @@ APK_PATH="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
 cd "$PROJECT_DIR"
 
 echo "📱 [1/4] Connecting to device via Wireless ADB ($DEVICE_IP)..."
-adb disconnect 2>/dev/null || true
-adb connect "$DEVICE_IP"
+adb disconnect 2>/dev/null 200>&- || true
+adb connect "$DEVICE_IP" 200>&-
 
 echo "💾 [2/4] Checking and auto-committing workspace changes..."
 if [[ -n $(git status --porcelain) ]]; then

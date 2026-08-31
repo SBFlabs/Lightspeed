@@ -1,10 +1,12 @@
 package com.sbf.lightspeed.system
 
+import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.media.AudioManager
 import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.settings.resolveDynamicTokenLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -140,6 +142,7 @@ object LightspeedKeyEngine {
     private var isPowerHoldFired = false
     private var isPowerPressHoldFired = false
     private var lastPowerReleaseTime = 0L
+    private var wasScreenInteractiveAtDown = true
 
     // OEM Accessibility Shortcut State
     private var isAccessibilityBypassed = false
@@ -299,20 +302,26 @@ object LightspeedKeyEngine {
             val hasAnyPowerAction = singleAction != null || doubleAction != null || holdAction != null || pressHoldAction != null
             if (!hasAnyPowerAction) return false
 
-            // Screen Sleep Failsafe: immediately acquire 450ms WakeLock on power press
-            acquirePowerScreenWakeLock(context, 450L)
-
             if (action == KeyEvent.ACTION_DOWN) {
                 if (event.repeatCount > 0) return true
+
+                val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                if (!isPowerPressed) {
+                    wasScreenInteractiveAtDown = pm?.isInteractive == true
+                }
                 isPowerPressed = true
                 isPowerHoldFired = false
                 isPowerPressHoldFired = false
 
-                // 1. Check Press-then-Hold Trigger
+                // Screen Sleep Failsafe: acquire WakeLock on power press to prevent immediate display sleep
+                acquirePowerScreenWakeLock(context, 450L)
+
+                // 1. Check Press-then-Hold Trigger (Second press within sequence window)
                 val diffPower = now - lastPowerReleaseTime
                 if (lastPowerReleaseTime > 0L && diffPower <= SEQUENCE_TIMEOUT_MS) {
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = null
+                    acquirePowerScreenWakeLock(context, 1000L)
                     if (pressHoldAction != null) {
                         powerPressHoldJob?.cancel()
                         powerPressHoldJob = engineScope.launch {
@@ -329,9 +338,10 @@ object LightspeedKeyEngine {
                         }
                         return true
                     }
+                    return true
                 }
 
-                // 2. Standard Power Hold Trigger
+                // 2. Standard Power Hold Trigger (First press hold)
                 if (holdAction != null) {
                     powerHoldJob?.cancel()
                     powerHoldJob = engineScope.launch {
@@ -366,7 +376,7 @@ object LightspeedKeyEngine {
                     return true
                 }
 
-                // 3. Double Press Trigger Check
+                // 3. Double Press Trigger Check (Quick second tap release)
                 val diffPower = now - lastPowerReleaseTime
                 if (lastPowerReleaseTime > 0L && diffPower <= SEQUENCE_TIMEOUT_MS) {
                     powerSinglePressJob?.cancel()
@@ -377,27 +387,42 @@ object LightspeedKeyEngine {
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(doubleAction, context)
                         return true
+                    } else {
+                        // Unmapped double press: keep screen awake, release wake lock
+                        releasePowerScreenWakeLock()
+                        return true
                     }
                 }
 
                 // 4. Single Press Disambiguation Trigger
                 lastPowerReleaseTime = now
-                if (singleAction != null) {
+                val shouldDisambiguate = doubleAction != null || pressHoldAction != null || singleAction != null
+                if (shouldDisambiguate) {
+                    // Keep screen awake during disambiguation window so display does not turn off/lock prematurely
+                    acquirePowerScreenWakeLock(context, SEQUENCE_TIMEOUT_MS + 100L)
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = engineScope.launch {
                         delay(SEQUENCE_TIMEOUT_MS)
                         lastPowerReleaseTime = 0L
-                        acquirePowerScreenWakeLock(context, 3000L)
-                        LightspeedHapticEngine.click(context)
-                        ActionDispatcher.dispatch(singleAction, context)
+                        if (singleAction != null) {
+                            acquirePowerScreenWakeLock(context, 3000L)
+                            LightspeedHapticEngine.click(context)
+                            ActionDispatcher.dispatch(singleAction, context)
+                        } else {
+                            // Default behavior: if screen was ON when gesture started, lock screen now!
+                            releasePowerScreenWakeLock()
+                            if (wasScreenInteractiveAtDown) {
+                                LightspeedAccessibilityService.instance?.performGlobalAction(
+                                    AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN
+                                )
+                            }
+                        }
                     }
                     return true
                 } else {
-                    // Solitary single press (unmapped / default): release WakeLock immediately so system sleep proceeds
                     releasePowerScreenWakeLock()
+                    return false
                 }
-
-                return false
             }
             return false
         }
@@ -905,6 +930,7 @@ object LightspeedKeyEngine {
         isPowerPressed = false
         isPowerHoldFired = false
         isPowerPressHoldFired = false
+        wasScreenInteractiveAtDown = true
         isAccessibilityBypassed = false
         isHudNavActive = false
         currentNavState = null

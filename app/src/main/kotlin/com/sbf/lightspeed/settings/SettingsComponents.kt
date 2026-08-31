@@ -32,13 +32,15 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -970,6 +972,385 @@ fun PrefToggleRow(
             prefs.edit().putBoolean(key, it).apply()
         }
     )
+object SliderPresetManager {
+    fun getPresets(prefs: SharedPreferences, sliderKey: String): List<String> {
+        val raw = prefs.getString("pref_slider_presets_$sliderKey", null) ?: return emptyList()
+        return raw.split(";;").map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
+    fun addPreset(prefs: SharedPreferences, sliderKey: String, valueStr: String) {
+        val current = getPresets(prefs, sliderKey).toMutableList()
+        if (!current.contains(valueStr)) {
+            current.add(0, valueStr)
+            prefs.edit().putString("pref_slider_presets_$sliderKey", current.joinToString(";;")).apply()
+        }
+    }
+
+    fun removePreset(prefs: SharedPreferences, sliderKey: String, valueStr: String) {
+        val current = getPresets(prefs, sliderKey).toMutableList()
+        current.remove(valueStr)
+        prefs.edit().putString("pref_slider_presets_$sliderKey", current.joinToString(";;")).apply()
+    }
+}
+
+@Composable
+fun SliderCalibrationFlyoutDialog(
+    title: String,
+    sliderKey: String,
+    currentValueStr: String,
+    defaultValueStr: String,
+    onResetToDefault: () -> Unit,
+    onSelectProfile: (String) -> Unit,
+    onDismiss: () -> Unit,
+    prefs: SharedPreferences,
+    context: Context,
+    isTapToJumpEnabled: Boolean,
+    onTapToJumpChanged: (Boolean) -> Unit
+) {
+    var presets by remember { mutableStateOf(SliderPresetManager.getPresets(prefs, sliderKey)) }
+    var isProfilesExpanded by remember { mutableStateOf(true) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(22.dp))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(22.dp)),
+            shape = RoundedCornerShape(22.dp),
+            color = Color(0xF0141822)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(18.dp)
+                    .fillMaxWidth()
+            ) {
+                // 1. Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = title.ifEmpty { "Slider Calibration" },
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.5.sp,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Precision Control & Presets",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.LightGray,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = Color.White.copy(alpha = 0.1f)
+                )
+
+                // 2. Current & Default Value Chips
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("Current Value", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                            Text(currentValueStr, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text("Factory Default", fontSize = 10.sp, color = Color.Gray)
+                            Text(defaultValueStr, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 3. Toggles Section (Tap to Jump)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onTapToJumpChanged(!isTapToJumpEnabled) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Tap-to-Jump on Track",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Instantly snap thumb to tap position on rail",
+                                fontSize = 10.5.sp,
+                                color = Color.Gray
+                            )
+                        }
+                        Switch(
+                            checked = isTapToJumpEnabled,
+                            onCheckedChange = onTapToJumpChanged,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            modifier = Modifier.scale(0.8f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 4. Reset to Default Button
+                Button(
+                    onClick = {
+                        LightspeedHapticEngine.heavyClick(context)
+                        onResetToDefault()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Reset to Default ($defaultValueStr)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 5. User Saved Profiles Dropdown Menu Section
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isProfilesExpanded = !isProfilesExpanded },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Bookmarks,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Saved Profiles (${presets.size})",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                            Icon(
+                                imageVector = if (isProfilesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = Color.LightGray,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        if (isProfilesExpanded) {
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Add Current Profile Row ("Add +")
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        LightspeedHapticEngine.click(context)
+                                        SliderPresetManager.addPreset(prefs, sliderKey, currentValueStr)
+                                        presets = SliderPresetManager.getPresets(prefs, sliderKey)
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Add",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Add + (Save '$currentValueStr' as Profile)",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            // Profiles List
+                            if (presets.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No saved profiles for this slider yet.",
+                                        fontSize = 11.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                presets.forEach { profileVal ->
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0x22FFFFFF),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp)
+                                            .clickable {
+                                                LightspeedHapticEngine.click(context)
+                                                onSelectProfile(profileVal)
+                                            }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Bookmark,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = profileVal,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color.White
+                                                )
+                                            }
+
+                                            IconButton(
+                                                onClick = {
+                                                    LightspeedHapticEngine.tick(context)
+                                                    SliderPresetManager.removePreset(prefs, sliderKey, profileVal)
+                                                    presets = SliderPresetManager.getPresets(prefs, sliderKey)
+                                                },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Delete Profile",
+                                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -979,7 +1360,8 @@ fun DragOnlySlider(
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    tapToJump: Boolean = false
 ) {
     val context = LocalContext.current
     val range = valueRange.endInclusive - valueRange.start
@@ -998,6 +1380,29 @@ fun DragOnlySlider(
         modifier = modifier
             .fillMaxWidth()
             .height(44.dp)
+            .pointerInput(enabled, valueRange, steps, tapToJump) {
+                if (!enabled || !tapToJump) return@pointerInput
+                detectTapGestures(
+                    onTap = { offset ->
+                        val totalW = size.width.toFloat()
+                        val thumbRadiusPx = 14.dp.toPx()
+                        val usableWidth = (totalW - thumbRadiusPx * 2f).coerceAtLeast(1f)
+                        val clickProgress = ((offset.x - thumbRadiusPx) / usableWidth).coerceIn(0f, 1f)
+                        val rawValue = valueRange.start + clickProgress * range
+                        val steppedValue = if (steps > 0) {
+                            val stepSize = range / (steps + 1)
+                            (kotlin.math.round((rawValue - valueRange.start) / stepSize) * stepSize + valueRange.start).coerceIn(valueRange.start, valueRange.endInclusive)
+                        } else {
+                            rawValue.coerceIn(valueRange.start, valueRange.endInclusive)
+                        }
+                        if (steppedValue != lastHapticSteppedVal) {
+                            LightspeedHapticEngine.scrubTick(context)
+                            lastHapticSteppedVal = steppedValue
+                        }
+                        onValueChange(steppedValue)
+                    }
+                )
+            }
             .pointerInput(enabled, valueRange, steps) {
                 if (!enabled) return@pointerInput
                 detectHorizontalDragGestures(
@@ -1138,6 +1543,7 @@ fun DragOnlySlider(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PrefDottedSliderRow(
     context: Context,
@@ -1154,6 +1560,8 @@ fun PrefDottedSliderRow(
     val title = remember(titleResName) { resStr(context, titleResName, defaultTitle) }
     var value by remember { mutableStateOf(prefs.getInt(key, defaultVal)) }
     val steps = remember(minVal, maxVal, step) { ((maxVal - minVal) / step) - 1 }
+    var isFlyoutOpen by remember { mutableStateOf(false) }
+    var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_$key", false)) }
 
     Column(
         modifier = Modifier
@@ -1168,7 +1576,34 @@ fun PrefDottedSliderRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1)
-            Text(value.toString(), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
+
+            // Interactive Tactile Value Pill
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .combinedClickable(
+                        onClick = {
+                            LightspeedHapticEngine.tick(context)
+                            isFlyoutOpen = true
+                        },
+                        onLongClick = {
+                            LightspeedHapticEngine.heavyClick(context)
+                            isFlyoutOpen = true
+                        }
+                    )
+            ) {
+                Text(
+                    text = value.toString(),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.5.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
         DragOnlySlider(
@@ -1180,7 +1615,36 @@ fun PrefDottedSliderRow(
             },
             valueRange = minVal.toFloat()..maxVal.toFloat(),
             steps = steps,
+            tapToJump = isTapToJumpEnabled,
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    if (isFlyoutOpen) {
+        SliderCalibrationFlyoutDialog(
+            title = title,
+            sliderKey = key,
+            currentValueStr = value.toString(),
+            defaultValueStr = defaultVal.toString(),
+            onResetToDefault = {
+                value = defaultVal
+                prefs.edit().putInt(key, defaultVal).apply()
+            },
+            onSelectProfile = { profileStr ->
+                val parsed = profileStr.filter { it.isDigit() || it == '-' }.toIntOrNull()
+                if (parsed != null) {
+                    value = parsed.coerceIn(minVal, maxVal)
+                    prefs.edit().putInt(key, value).apply()
+                }
+            },
+            onDismiss = { isFlyoutOpen = false },
+            prefs = prefs,
+            context = context,
+            isTapToJumpEnabled = isTapToJumpEnabled,
+            onTapToJumpChanged = { enabled ->
+                isTapToJumpEnabled = enabled
+                prefs.edit().putBoolean("pref_slider_tap_to_jump_$key", enabled).apply()
+            }
         )
     }
 }
@@ -1193,6 +1657,7 @@ fun resStr(context: Context, resourceName: String, fallback: String): String {
     return fallback.ifEmpty { resourceName }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PrefFloatDottedSliderRow(
     context: Context,
@@ -1220,6 +1685,8 @@ fun PrefFloatDottedSliderRow(
         mutableFloatStateOf(current)
     }
     val steps = remember(minVal, maxVal, step) { (((maxVal - minVal) / step).roundToInt() - 1).coerceAtLeast(0) }
+    var isFlyoutOpen by remember { mutableStateOf(false) }
+    var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_$key", false)) }
 
     Column(
         modifier = Modifier
@@ -1234,7 +1701,34 @@ fun PrefFloatDottedSliderRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1)
-            Text(String.format(java.util.Locale.US, "%.1f %s", value, unit), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
+
+            // Interactive Tactile Value Pill
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .combinedClickable(
+                        onClick = {
+                            LightspeedHapticEngine.tick(context)
+                            isFlyoutOpen = true
+                        },
+                        onLongClick = {
+                            LightspeedHapticEngine.heavyClick(context)
+                            isFlyoutOpen = true
+                        }
+                    )
+            ) {
+                Text(
+                    text = String.format(java.util.Locale.US, "%.1f %s", value, unit),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.5.sp,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(6.dp))
         DragOnlySlider(
@@ -1247,7 +1741,38 @@ fun PrefFloatDottedSliderRow(
             },
             valueRange = minVal..maxVal,
             steps = steps,
+            tapToJump = isTapToJumpEnabled,
             modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    if (isFlyoutOpen) {
+        SliderCalibrationFlyoutDialog(
+            title = title,
+            sliderKey = key,
+            currentValueStr = String.format(java.util.Locale.US, "%.1f %s", value, unit),
+            defaultValueStr = String.format(java.util.Locale.US, "%.1f %s", defaultVal, unit),
+            onResetToDefault = {
+                value = defaultVal
+                prefs.edit().putFloat(key, defaultVal).apply()
+                onValueChanged(defaultVal)
+            },
+            onSelectProfile = { profileStr ->
+                val parsed = profileStr.split(" ").firstOrNull()?.toFloatOrNull()
+                if (parsed != null) {
+                    value = parsed.coerceIn(minVal, maxVal)
+                    prefs.edit().putFloat(key, value).apply()
+                    onValueChanged(value)
+                }
+            },
+            onDismiss = { isFlyoutOpen = false },
+            prefs = prefs,
+            context = context,
+            isTapToJumpEnabled = isTapToJumpEnabled,
+            onTapToJumpChanged = { enabled ->
+                isTapToJumpEnabled = enabled
+                prefs.edit().putBoolean("pref_slider_tap_to_jump_$key", enabled).apply()
+            }
         )
     }
 }

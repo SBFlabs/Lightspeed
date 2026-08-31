@@ -461,6 +461,7 @@ fun SidebarMatrixConfigurationFields(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 8.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.White.copy(alpha = 0.06f))
                 .padding(4.dp),
@@ -484,17 +485,18 @@ fun SidebarMatrixConfigurationFields(
                                 popoverTabTarget = index
                             }
                         )
-                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = tabTitle,
                         style = MaterialTheme.typography.labelSmall,
-                        fontSize = 11.5.sp,
+                        fontSize = 11.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
                         textAlign = TextAlign.Center,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }
@@ -1357,9 +1359,9 @@ state = pagerState,
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                    // Subsection A: Volume Key Matrix (Combos & Chords)
+                                                    // Volume Key Matrix (Combos & Chords)
                                                     CollapsibleSubSection(
-                                                        title = "🎛️ Subsection A: Volume Key Matrix (Combos & Chords)",
+                                                        title = "🎛️ Volume Key Matrix",
                                                         subtitle = "Hardware chording, sequences, hold auto-repeat & suppression",
                                                         isExpanded = isSubVolumeExpanded,
                                                         onToggle = {
@@ -1526,9 +1528,9 @@ state = pagerState,
                                                         }
                                                     }
 
-                                                    // Subsection B: Power Button Engine
+                                                    // Power Button Engine
                                                     CollapsibleSubSection(
-                                                        title = "⚡ Subsection B: Power Button Engine",
+                                                        title = "⚡ Power Button Engine",
                                                         subtitle = "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
                                                         isExpanded = isSubPowerExpanded,
                                                         onToggle = {
@@ -1547,10 +1549,10 @@ state = pagerState,
                                                         )
 
                                                         val powerGestures = listOf(
-                                                            Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Power Button Single Press", "[ POWER ] (1× TAP)"),
-                                                            Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Power Button Double Press (<300ms)", "[ POWER ] ➔ [ POWER ]"),
-                                                            Triple(LightspeedPreferences.KEY_POWER_HOLD, "Power Button Hold (Long Press ~400ms)", "[ POWER ] (HOLD)"),
-                                                            Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Power Button Press-then-Hold", "[ POWER ] ➔ [ POWER ] (HOLD)")
+                                                            Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", "[ POWER ] (1× TAP)"),
+                                                            Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", "[ POWER ] ➔ [ POWER ]"),
+                                                            Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", "[ POWER ] (HOLD)"),
+                                                            Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", "[ POWER ] ➔ [ POWER ] (HOLD)")
                                                         )
 
                                                         powerGestures.forEach { (prefKey, title, badge) ->
@@ -1585,9 +1587,9 @@ state = pagerState,
                                                         }
                                                     }
 
-                                                    // Subsection C: Hull Tap Sensors (Back Tap)
+                                                    // Hull Tap Sensors (Back Tap)
                                                     CollapsibleSubSection(
-                                                        title = "🎯 Subsection C: Hull Tap Sensors (Back Tap)",
+                                                        title = "🎯 Hull Tap Sensors",
                                                         subtitle = "Accelerometer Z-axis impulse detection for double & triple back taps",
                                                         isExpanded = isSubHullTapExpanded,
                                                         onToggle = {

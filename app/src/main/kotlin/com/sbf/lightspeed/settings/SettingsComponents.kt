@@ -565,6 +565,7 @@ fun GestureMappingRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .wrapContentHeight()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
             .clickable {
@@ -586,10 +587,13 @@ fun GestureMappingRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (customLeading != null) {
-                customLeading()
-                Spacer(modifier = Modifier.width(14.dp))
+                Box(modifier = Modifier.wrapContentWidth()) {
+                    customLeading()
+                }
+                Spacer(modifier = Modifier.width(10.dp))
             } else if (!badgeText.isNullOrBlank()) {
                 Surface(
+                    modifier = Modifier.wrapContentWidth(),
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
@@ -598,28 +602,38 @@ fun GestureMappingRow(
                         text = badgeText,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 11.5.sp,
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(10.dp))
             } else {
                 GestureTrailTracer(direction, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(10.dp))
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 2.dp)
+            ) {
                 Text(
                     text = defaultTitle,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    color = Color.White
+                    fontSize = 13.5.sp,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Active Map: $activeLabel",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
         }

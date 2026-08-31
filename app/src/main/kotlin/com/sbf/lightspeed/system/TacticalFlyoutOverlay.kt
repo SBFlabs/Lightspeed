@@ -186,6 +186,8 @@ class TacticalFlyoutActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setDimAmount(0.65f)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         setContent {
             LightspeedTheme(forceDark = true) {
                 TacticalFlyoutContent(
@@ -250,18 +252,12 @@ fun TacticalFlyoutContent(
                         indication = null
                     ) { /* prevent click through */ }
                     .border(
-                        1.5.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                Color.White.copy(alpha = 0.15f),
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
-                            )
-                        ),
+                        1.dp,
+                        Color(0x33FFFFFF),
                         RoundedCornerShape(24.dp)
                     ),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0C0D14).copy(alpha = 0.95f))
+                colors = CardDefaults.cardColors(containerColor = Color(0xF0101216))
             ) {
                 Column(
                     modifier = Modifier

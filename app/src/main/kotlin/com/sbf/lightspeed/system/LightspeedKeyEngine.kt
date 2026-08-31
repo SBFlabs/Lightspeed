@@ -176,9 +176,8 @@ object LightspeedKeyEngine {
             if (powerWakeLock == null) {
                 @Suppress("DEPRECATION")
                 powerWakeLock = pm?.newWakeLock(
-                    android.os.PowerManager.PARTIAL_WAKE_LOCK or
-                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or
-                            android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK,
+                    android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP,
                     "Lightspeed:PowerFailsafeWakeLock"
                 )
                 powerWakeLock?.setReferenceCounted(false)

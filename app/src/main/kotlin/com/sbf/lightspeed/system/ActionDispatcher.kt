@@ -124,6 +124,27 @@ object ActionDispatcher {
                 }
                 try { context.startActivity(intent) } catch (_: Exception) {}
             }
+            token == "system:tactical_flyout" || token == "ACTION_TACTICAL_FLYOUT" || token == "action_quick_flyout" || token == "system:quick_flyout" -> {
+                TacticalFlyoutLauncher.launch(context)
+            }
+            token == "system:tactical_audio" || token == "ACTION_TACTICAL_AUDIO" || token == "tactical_audio" -> {
+                TacticalAudioEngine.toggle(context)
+            }
+            token == "system:lens" || token == "ACTION_LENS" || token == "google_lens" -> {
+                TacticalFlyoutLauncher.launchLens(context)
+            }
+            token == "system:qr_scanner" || token == "ACTION_QR_SCANNER" || token == "qr_scanner" -> {
+                TacticalFlyoutLauncher.launchQrScanner(context)
+            }
+            token == "system:chatgpt" || token == "ACTION_CHATGPT" || token == "chatgpt" -> {
+                TacticalFlyoutLauncher.launchChatGPT(context)
+            }
+            token == "system:claude" || token == "ACTION_CLAUDE" || token == "claude" -> {
+                TacticalFlyoutLauncher.launchClaude(context)
+            }
+            token == "system:gemini" || token == "ACTION_GEMINI" || token == "gemini" -> {
+                TacticalFlyoutLauncher.launchGemini(context)
+            }
             token == "system:volume" -> {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
                 audioManager?.adjustSuggestedStreamVolume(

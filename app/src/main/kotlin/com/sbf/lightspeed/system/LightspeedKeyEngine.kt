@@ -72,6 +72,33 @@ object LightspeedKeyEngine {
         )
     }
 
+    enum class PowerTriggerSlot(
+        val prefKey: String,
+        val title: String,
+        val description: String
+    ) {
+        POWER_SINGLE_PRESS(
+            LightspeedPreferences.KEY_POWER_SINGLE_PRESS,
+            "Power Single Press",
+            "Tap Power button once"
+        ),
+        POWER_DOUBLE_PRESS(
+            LightspeedPreferences.KEY_POWER_DOUBLE_PRESS,
+            "Power Double Press",
+            "Double-tap Power button within 300ms"
+        ),
+        POWER_HOLD(
+            LightspeedPreferences.KEY_POWER_HOLD,
+            "Power Button Hold (Long Press)",
+            "Hold Power button for ~400ms"
+        ),
+        POWER_PRESS_THEN_HOLD(
+            LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD,
+            "Power Tap-then-Hold",
+            "Tap Power button, then immediately press & hold for ~400ms"
+        )
+    }
+
     data class HudNavState(
         val isActive: Boolean,
         val setName: String,
@@ -87,23 +114,29 @@ object LightspeedKeyEngine {
 
     private val engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // Live Key Press States
+    // Live Key Press States (Volume)
     private var isVolUpPressed = false
     private var isVolDownPressed = false
 
-    // Long Press States
+    // Long Press States (Volume)
     private var isVolUpLongPressed = false
     private var isVolDownLongPressed = false
 
-    // Chord States
+    // Chord States (Volume)
     private var isVolUpUsedInChord = false
     private var isVolDownUsedInChord = false
 
-    // Sequence & Tap-Then-Hold States
+    // Sequence & Tap-Then-Hold States (Volume)
     private var isSequenceFired = false
     private var isSeqTapHoldFired = false
     private var lastVolUpReleaseTime = 0L
     private var lastVolDownReleaseTime = 0L
+
+    // Live Key Press & Trigger States (Power Button Engine)
+    private var isPowerPressed = false
+    private var isPowerHoldFired = false
+    private var isPowerPressHoldFired = false
+    private var lastPowerReleaseTime = 0L
 
     // OEM Accessibility Shortcut State
     private var isAccessibilityBypassed = false
@@ -117,13 +150,35 @@ object LightspeedKeyEngine {
     private var isVolUpNavHoldFired = false
     private var isVolDownNavHoldFired = false
 
-    // Coroutine Jobs
+    // Coroutine Jobs (Volume & Nav)
     private var volUpHoldJob: Job? = null
     private var volDownHoldJob: Job? = null
     private var seqTapHoldJob: Job? = null
     private var autoRepeatJob: Job? = null
     private var accessibilityShortcutJob: Job? = null
     private var hudNavInactivityJob: Job? = null
+
+    // Coroutine Jobs (Power Button Engine)
+    private var powerHoldJob: Job? = null
+    private var powerPressHoldJob: Job? = null
+    private var powerSinglePressJob: Job? = null
+
+    fun isPowerEnabled(context: Context): Boolean {
+        val prefs = context.defaultPrefs()
+        return prefs.getBoolean(LightspeedPreferences.KEY_POWER_GESTURES_ENABLED, true)
+    }
+
+    fun getBoundPowerAction(context: Context, slot: PowerTriggerSlot): String? {
+        val prefs = context.defaultPrefs()
+        val raw = prefs.getString(slot.prefKey, null)?.trim()
+        if (!raw.isNullOrEmpty() && raw != "none") return raw
+        if (slot == PowerTriggerSlot.POWER_HOLD) {
+            val legacy = prefs.getString(LightspeedPreferences.KEY_POWER_LONG_PRESS_ACTION, null)?.trim()
+            if (!legacy.isNullOrEmpty() && legacy != "none") return legacy
+            return "system:tactical_flyout" // Default quick action for power hold
+        }
+        return null
+    }
 
     fun isEnabled(context: Context): Boolean {
         val prefs = context.defaultPrefs()
@@ -171,10 +226,110 @@ object LightspeedKeyEngine {
     }
 
     /**
-     * Intercepts and processes hardware volume key events routed from LightspeedAccessibilityService.
+     * Intercepts and processes hardware volume and power key events routed from LightspeedAccessibilityService.
      */
     fun onKeyEvent(context: Context, event: KeyEvent): Boolean {
         val keyCode = event.keyCode
+        val action = event.action
+        val now = SystemClock.uptimeMillis()
+
+        // =========================================================================
+        // MODE C: POWER BUTTON ENGINE (4 HARDWARE TRIGGER STATES)
+        // =========================================================================
+        if (keyCode == KeyEvent.KEYCODE_POWER) {
+            if (!isPowerEnabled(context)) return false
+
+            val singleAction = getBoundPowerAction(context, PowerTriggerSlot.POWER_SINGLE_PRESS)
+            val doubleAction = getBoundPowerAction(context, PowerTriggerSlot.POWER_DOUBLE_PRESS)
+            val holdAction = getBoundPowerAction(context, PowerTriggerSlot.POWER_HOLD)
+            val pressHoldAction = getBoundPowerAction(context, PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
+
+            val hasAnyPowerAction = singleAction != null || doubleAction != null || holdAction != null || pressHoldAction != null
+            if (!hasAnyPowerAction) return false
+
+            if (action == KeyEvent.ACTION_DOWN) {
+                if (event.repeatCount > 0) return true
+                isPowerPressed = true
+                isPowerHoldFired = false
+                isPowerPressHoldFired = false
+
+                // 1. Check Press-then-Hold Trigger
+                val diffPower = now - lastPowerReleaseTime
+                if (lastPowerReleaseTime > 0L && diffPower <= SEQUENCE_TIMEOUT_MS) {
+                    powerSinglePressJob?.cancel()
+                    powerSinglePressJob = null
+                    if (pressHoldAction != null) {
+                        powerPressHoldJob?.cancel()
+                        powerPressHoldJob = engineScope.launch {
+                            delay(LONG_PRESS_TIMEOUT_MS)
+                            isPowerPressHoldFired = true
+                            lastPowerReleaseTime = 0L
+                            LightspeedHapticEngine.heavyClick(context)
+                            ActionDispatcher.dispatch(pressHoldAction, context)
+                        }
+                        return true
+                    }
+                }
+
+                // 2. Standard Power Hold Trigger
+                if (holdAction != null) {
+                    powerHoldJob?.cancel()
+                    powerHoldJob = engineScope.launch {
+                        delay(LONG_PRESS_TIMEOUT_MS)
+                        isPowerHoldFired = true
+                        LightspeedHapticEngine.heavyClick(context)
+                        ActionDispatcher.dispatch(holdAction, context)
+                    }
+                }
+                return true
+            } else if (action == KeyEvent.ACTION_UP) {
+                isPowerPressed = false
+                powerHoldJob?.cancel()
+                powerHoldJob = null
+                powerPressHoldJob?.cancel()
+                powerPressHoldJob = null
+
+                if (isPowerPressHoldFired) {
+                    isPowerPressHoldFired = false
+                    return true
+                }
+
+                if (isPowerHoldFired) {
+                    isPowerHoldFired = false
+                    return true
+                }
+
+                // 3. Double Press Trigger Check
+                val diffPower = now - lastPowerReleaseTime
+                if (lastPowerReleaseTime > 0L && diffPower <= SEQUENCE_TIMEOUT_MS) {
+                    powerSinglePressJob?.cancel()
+                    powerSinglePressJob = null
+                    lastPowerReleaseTime = 0L
+                    if (doubleAction != null) {
+                        LightspeedHapticEngine.click(context)
+                        ActionDispatcher.dispatch(doubleAction, context)
+                        return true
+                    }
+                }
+
+                // 4. Single Press Disambiguation Trigger
+                lastPowerReleaseTime = now
+                if (singleAction != null) {
+                    powerSinglePressJob?.cancel()
+                    powerSinglePressJob = engineScope.launch {
+                        delay(SEQUENCE_TIMEOUT_MS)
+                        lastPowerReleaseTime = 0L
+                        LightspeedHapticEngine.click(context)
+                        ActionDispatcher.dispatch(singleAction, context)
+                    }
+                    return true
+                }
+
+                return false
+            }
+            return false
+        }
+
         if (keyCode != KeyEvent.KEYCODE_VOLUME_UP && keyCode != KeyEvent.KEYCODE_VOLUME_DOWN) {
             return false
         }
@@ -183,8 +338,6 @@ object LightspeedKeyEngine {
             return false
         }
 
-        val action = event.action
-        val now = SystemClock.uptimeMillis()
         val cleanSuppression = isCleanSuppression(context)
         val prefs = context.defaultPrefs()
         val preserveAccessibility = prefs.getBoolean(LightspeedPreferences.KEY_OEM_PRESERVE_ACCESSIBILITY, true)
@@ -662,6 +815,12 @@ object LightspeedKeyEngine {
         accessibilityShortcutJob = null
         hudNavInactivityJob?.cancel()
         hudNavInactivityJob = null
+        powerHoldJob?.cancel()
+        powerHoldJob = null
+        powerPressHoldJob?.cancel()
+        powerPressHoldJob = null
+        powerSinglePressJob?.cancel()
+        powerSinglePressJob = null
 
         isVolUpPressed = false
         isVolDownPressed = false
@@ -671,11 +830,15 @@ object LightspeedKeyEngine {
         isVolDownUsedInChord = false
         isSequenceFired = false
         isSeqTapHoldFired = false
+        isPowerPressed = false
+        isPowerHoldFired = false
+        isPowerPressHoldFired = false
         isAccessibilityBypassed = false
         isHudNavActive = false
         currentNavState = null
         lastVolUpReleaseTime = 0L
         lastVolDownReleaseTime = 0L
+        lastPowerReleaseTime = 0L
     }
 }
 

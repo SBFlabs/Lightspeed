@@ -64,8 +64,35 @@ object LightspeedPreferences {
     const val KEY_SEQ_DOWN_TAP_THEN_UP_HOLD = "pref_key_seq_down_tap_then_up_hold"
     const val KEY_SEQ_UP_TAP_THEN_DOWN_HOLD = "pref_key_seq_up_tap_then_down_hold"
 
-    // Power Button Assist Remap Key
-    const val KEY_POWER_LONG_PRESS_ACTION = "pref_power_long_press_action"
+    // Power Button Engine Keys (4 Hardware Trigger States)
+    const val KEY_POWER_GESTURES_ENABLED = "pref_key_power_gestures_enabled"
+    const val KEY_POWER_SINGLE_PRESS = "pref_key_power_single_press"
+    const val KEY_POWER_DOUBLE_PRESS = "pref_key_power_double_press"
+    const val KEY_POWER_HOLD = "pref_key_power_hold"
+    const val KEY_POWER_PRESS_THEN_HOLD = "pref_key_power_press_then_hold"
+    const val KEY_POWER_LONG_PRESS_ACTION = "pref_power_long_press_action" // Legacy compatibility alias
+
+    // Action Tokens
+    const val ACTION_TACTICAL_FLYOUT = "system:tactical_flyout"
+    const val ACTION_TACTICAL_AUDIO = "system:tactical_audio"
+    const val ACTION_LENS = "system:lens"
+    const val ACTION_QR_SCANNER = "system:qr_scanner"
+    const val ACTION_CHATGPT = "system:chatgpt"
+    const val ACTION_CLAUDE = "system:claude"
+    const val ACTION_GEMINI = "system:gemini"
+
+    // Tab Accordion Display Profiles & Blueprint Keys
+    const val KEY_TAB_ACCORDION_MODE_0 = "pref_tab_accordion_mode_0" // "all_expanded", "all_collapsed", "solo", "custom_pinned"
+    const val KEY_TAB_PINNED_ACCORDION_0 = "pref_tab_pinned_accordion_0"
+    const val KEY_TAB_SECTION_ORDER_0 = "pref_tab_section_order_0"
+
+    const val KEY_TAB_ACCORDION_MODE_1 = "pref_tab_accordion_mode_1"
+    const val KEY_TAB_PINNED_ACCORDION_1 = "pref_tab_pinned_accordion_1"
+    const val KEY_TAB_SECTION_ORDER_1 = "pref_tab_section_order_1"
+
+    const val KEY_TAB_ACCORDION_MODE_2 = "pref_tab_accordion_mode_2"
+    const val KEY_TAB_PINNED_ACCORDION_2 = "pref_tab_pinned_accordion_2"
+    const val KEY_TAB_SECTION_ORDER_2 = "pref_tab_section_order_2"
 
     // Back Tap Gesture Keys
     const val KEY_BACK_TAP_ENABLED = "pref_back_tap_enabled"
@@ -77,6 +104,10 @@ object LightspeedPreferences {
     // Status Bar & Notch Telemetry Keys
     const val KEY_TELEMETRY_DOWNLOADS_ROUTING = "pref_telemetry_downloads_routing"
     const val KEY_TELEMETRY_MEDIA_ROUTING = "pref_telemetry_media_routing"
+    const val KEY_NOTCH_MARQUEE_ENABLED = "pref_notch_marquee_enabled"
+    const val KEY_NOTCH_MARQUEE_SPEED = "pref_notch_marquee_speed"
+    const val KEY_NOTCH_MARQUEE_INITIAL_DELAY = "pref_notch_marquee_initial_delay"
+    const val KEY_NOTCH_MAX_CAPSULE_WIDTH = "pref_notch_max_capsule_width"
     const val KEY_NOTCH_TEXT_SCROLL_MODE = "pref_notch_text_scroll_mode" // "infinite", "loop_1x", "loop_2x", "static"
     const val KEY_NOTCH_TEXT_TRUNCATE_ANCHOR = "pref_notch_text_truncate_anchor" // "tail", "head", "core"
 
@@ -91,6 +122,7 @@ object LightspeedPreferences {
     const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screensaver_only"
     const val KEY_REFUELING_BATTERY_STYLE = "pref_refueling_battery_style" // "halo", "reactor_ticks", "dual_wings", "tachometer"
     const val KEY_REFUELING_SLEEP_TIMEOUT = "pref_refueling_sleep_timeout" // "30s", "60s", "3m", "5m", "never"
+    const val KEY_REFUELING_PIXEL_SHIFT = "pref_refueling_pixel_shift"
     const val KEY_REFUELING_AS_LOCKSCREEN = "pref_refueling_as_lockscreen" // Boolean
     const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id" // Legacy single ID
     const val KEY_REFUELING_WIDGET_IDS = "pref_refueling_widget_ids" // JSON array string of widget IDs

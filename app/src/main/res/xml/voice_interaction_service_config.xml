@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:sessionService="com.sbf.lightspeed.system.LightspeedAssistSessionService"
-    android:recognitionService="com.sbf.lightspeed.system.LightspeedRecognitionService"
-    android:supportsAssist="true"
-    android:supportsLocalInteraction="true" />

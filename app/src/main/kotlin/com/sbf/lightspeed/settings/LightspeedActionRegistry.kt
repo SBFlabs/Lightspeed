@@ -68,8 +68,15 @@ object LightspeedActionRegistry {
         "system:media_scrubber",
         "system:media_stop",
 
-        // 5. Ambient Dashboards
-        "system:refueling_bay"
+        // 5. Ambient Dashboards & Tactical Quick Action Tools
+        "system:refueling_bay",
+        "system:tactical_flyout",
+        "system:tactical_audio",
+        "system:lens",
+        "system:qr_scanner",
+        "system:chatgpt",
+        "system:claude",
+        "system:gemini"
     )
 
     fun initializeSync(context: Context) {
@@ -262,6 +269,13 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"
         token == "system:media_stop" -> "Media: Stop Playback"
         token == "system:refueling_bay" -> "Refueling Bay (Cryo Charging Dashboard)"
+        token == "system:tactical_flyout" || token == "action_quick_flyout" || token == "ACTION_TACTICAL_FLYOUT" -> "Tactical Quick Action Flyout"
+        token == "system:tactical_audio" || token == "ACTION_TACTICAL_AUDIO" -> "Tactical Audio: Toggle Capture"
+        token == "system:lens" || token == "ACTION_LENS" -> "Google Lens (Visual Search)"
+        token == "system:qr_scanner" || token == "ACTION_QR_SCANNER" -> "QR Scanner (Optical Scan)"
+        token == "system:chatgpt" || token == "ACTION_CHATGPT" -> "ChatGPT (AI Assistant)"
+        token == "system:claude" || token == "ACTION_CLAUDE" -> "Claude (AI Assistant)"
+        token == "system:gemini" || token == "ACTION_GEMINI" -> "Gemini (Google AI)"
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

@@ -424,9 +424,9 @@ fun SymmetryCouplingCard(
             ThreeWayTacticalSelector(
                 title = "Physical Geometry (Span, Reach, Offset, Glow)",
                 subtitle = when (geomMode) {
-                    "right" -> "Starboard master — Port mirrors right wing geometry"
-                    "left" -> "Port master — Starboard mirrors left wing geometry"
-                    else -> "Independent — Each wing has custom geometry"
+                    "right" -> "Right Deflector master — Left Deflector mirrors right geometry"
+                    "left" -> "Left Deflector master — Right Deflector mirrors left geometry"
+                    else -> "Independent — Each deflector has custom geometry"
                 },
                 selectedMode = geomMode,
                 onSelect = { mode ->
@@ -443,9 +443,9 @@ fun SymmetryCouplingCard(
             ThreeWayTacticalSelector(
                 title = "Astrogation & Gestures (Cockpit & Macros)",
                 subtitle = when (gestMode) {
-                    "right" -> "Starboard master — Port inverts & executes right actions"
-                    "left" -> "Port master — Starboard inverts & executes left actions"
-                    else -> "Independent — Each wing has dedicated gesture maps"
+                    "right" -> "Right Deflector master — Left Deflector inverts & executes right actions"
+                    "left" -> "Left Deflector master — Right Deflector inverts & executes left actions"
+                    else -> "Independent — Each deflector has dedicated gesture maps"
                 },
                 selectedMode = gestMode,
                 onSelect = { mode ->
@@ -520,7 +520,9 @@ fun GestureMappingRow(
     defaultTitle: String,
     options: List<String>,
     labelCache: Map<String, String>,
-    showMediaQuickAccess: Boolean = false
+    showMediaQuickAccess: Boolean = false,
+    badgeText: String? = null,
+    customLeading: (@Composable () -> Unit)? = null
 ) {
     val key = remember(keyResName) { resKey(context, keyResName) }
     var currentRawValue by remember { mutableStateOf(prefs.getString(key, "none") ?: "none") }
@@ -578,13 +580,34 @@ fun GestureMappingRow(
             }
             .padding(12.dp)
     ) {
-        // Line 1 & Line 2: Gesture Tracer Icon + Full-Width Title & Subtitle
+        // Line 1 & Line 2: Gesture Tracer Icon / Monospace Badge + Full-Width Title & Subtitle
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            GestureTrailTracer(direction, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
-            Spacer(modifier = Modifier.width(14.dp))
+            if (customLeading != null) {
+                customLeading()
+                Spacer(modifier = Modifier.width(14.dp))
+            } else if (!badgeText.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = badgeText,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+            } else {
+                GestureTrailTracer(direction, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
+                Spacer(modifier = Modifier.width(14.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = defaultTitle,

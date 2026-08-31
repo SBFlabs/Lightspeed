@@ -64,7 +64,7 @@ class CockpitSettingsActivity : ComponentActivity() {
             val context = this
             val prefs = remember { context.defaultPrefs() }
             
-            var selectedFlankTab by remember { mutableStateOf(0) } // 0 = Left Flank / Port, 1 = Right Flank / Starboard
+            var selectedFlankTab by remember { mutableStateOf(0) } // 0 = Left Deflector, 1 = Right Deflector
 
             var launchBehaviorLeft by remember { 
                 mutableStateOf(prefs.getString("cockpit_launch_behavior_left", prefs.getString("cockpit_launch_behavior", "default")) ?: "default") 
@@ -199,7 +199,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             onClick = { selectedFlankTab = 0 },
                                             label = {
                                                 Text(
-                                                    "◀ Port (Left Astrogation)",
+                                                    "[ ◀ Deflectors ]",
                                                     fontSize = 11.sp,
                                                     fontWeight = if (selectedFlankTab == 0) FontWeight.Bold else FontWeight.Normal
                                                 )
@@ -215,7 +215,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                             onClick = { selectedFlankTab = 1 },
                                             label = {
                                                 Text(
-                                                    "Starboard (Right Astrogation) ▶",
+                                                    "[ Deflectors ▶ ]",
                                                     fontSize = 11.sp,
                                                     fontWeight = if (selectedFlankTab == 1) FontWeight.Bold else FontWeight.Normal
                                                 )
@@ -245,7 +245,7 @@ class CockpitSettingsActivity : ComponentActivity() {
                                                     .padding(12.dp)
                                             ) {
                                                 Text(
-                                                    if (isLeft) "Port (Left) Startup Mode" else "Starboard (Right) Startup Mode",
+                                                    if (isLeft) "Left Deflector Startup Mode" else "Right Deflector Startup Mode",
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Color.White
@@ -481,7 +481,7 @@ class CockpitSettingsActivity : ComponentActivity() {
 
                                         item {
                                             Text(
-                                                text = if (selectedFlankTab == 0) "Port (Left) Profiles Sequence (${activeOrder.size}):" else "Starboard (Right) Profiles Sequence (${activeOrder.size}):",
+                                                text = if (selectedFlankTab == 0) "Left Deflector Profiles Sequence (${activeOrder.size}):" else "Right Deflector Profiles Sequence (${activeOrder.size}):",
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Color.White.copy(alpha = 0.8f),

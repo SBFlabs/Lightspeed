@@ -27,6 +27,7 @@ object LightspeedKeyEngine {
 
     const val LONG_PRESS_TIMEOUT_MS = 400L
     const val SEQUENCE_TIMEOUT_MS = 300L
+    const val POWER_SEQUENCE_TIMEOUT_MS = 450L
     const val ACCESSIBILITY_SHORTCUT_TIMEOUT_MS = 1500L
     const val HUD_NAV_INACTIVITY_TIMEOUT_MS = 5000L
 
@@ -314,10 +315,10 @@ object LightspeedKeyEngine {
 
                 // 1. Check Press-then-Hold / Double-Press Trigger (Second press within sequence window)
                 val diffPower = now - lastPowerReleaseTime
-                if (lastPowerReleaseTime > 0L && diffPower <= SEQUENCE_TIMEOUT_MS) {
+                if (lastPowerReleaseTime > 0L && diffPower <= POWER_SEQUENCE_TIMEOUT_MS) {
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = null
-                    acquirePowerScreenWakeLock(context, 3000L)
+                    acquirePowerScreenWakeLock(context, 3500L)
                     if (pressHoldAction != null) {
                         powerPressHoldJob?.cancel()
                         powerPressHoldJob = engineScope.launch {
@@ -328,7 +329,7 @@ object LightspeedKeyEngine {
                             }
                             isPowerPressHoldFired = true
                             lastPowerReleaseTime = 0L
-                            acquirePowerScreenWakeLock(context, 3000L)
+                            acquirePowerScreenWakeLock(context, 3500L)
                             LightspeedHapticEngine.heavyClick(context)
                             ActionDispatcher.dispatch(pressHoldAction, context)
                         }
@@ -347,7 +348,7 @@ object LightspeedKeyEngine {
                             return@launch
                         }
                         isPowerHoldFired = true
-                        acquirePowerScreenWakeLock(context, 3000L)
+                        acquirePowerScreenWakeLock(context, 3500L)
                         LightspeedHapticEngine.heavyClick(context)
                         ActionDispatcher.dispatch(holdAction, context)
                     }
@@ -355,7 +356,7 @@ object LightspeedKeyEngine {
 
                 val hasMultiTapAction = doubleAction != null || pressHoldAction != null || singleAction != null || holdAction != null
                 if (hasMultiTapAction) {
-                    acquirePowerScreenWakeLock(context, 450L)
+                    acquirePowerScreenWakeLock(context, POWER_SEQUENCE_TIMEOUT_MS + 200L)
                     return true
                 }
                 return false
@@ -380,12 +381,12 @@ object LightspeedKeyEngine {
 
                 // 3. Double Press Trigger Check (Quick second tap release)
                 val diffPower = now - lastPowerReleaseTime
-                if (lastPowerReleaseTime > 0L && diffPower <= SEQUENCE_TIMEOUT_MS) {
+                if (lastPowerReleaseTime > 0L && diffPower <= POWER_SEQUENCE_TIMEOUT_MS) {
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = null
                     lastPowerReleaseTime = 0L
                     if (doubleAction != null) {
-                        acquirePowerScreenWakeLock(context, 3000L)
+                        acquirePowerScreenWakeLock(context, 3500L)
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(doubleAction, context)
                         return true
@@ -399,13 +400,16 @@ object LightspeedKeyEngine {
                 lastPowerReleaseTime = now
                 val shouldDisambiguate = doubleAction != null || pressHoldAction != null || singleAction != null
                 if (shouldDisambiguate) {
-                    acquirePowerScreenWakeLock(context, SEQUENCE_TIMEOUT_MS + 150L)
+                    acquirePowerScreenWakeLock(context, POWER_SEQUENCE_TIMEOUT_MS + 200L)
                     powerSinglePressJob?.cancel()
                     powerSinglePressJob = engineScope.launch {
-                        delay(SEQUENCE_TIMEOUT_MS)
+                        delay(POWER_SEQUENCE_TIMEOUT_MS)
+                        if (isPowerPressed || lastPowerReleaseTime == 0L) {
+                            return@launch
+                        }
                         lastPowerReleaseTime = 0L
                         if (singleAction != null) {
-                            acquirePowerScreenWakeLock(context, 3000L)
+                            acquirePowerScreenWakeLock(context, 3500L)
                             LightspeedHapticEngine.click(context)
                             ActionDispatcher.dispatch(singleAction, context)
                         } else {

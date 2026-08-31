@@ -972,6 +972,8 @@ fun PrefToggleRow(
             prefs.edit().putBoolean(key, it).apply()
         }
     )
+}
+
 object SliderPresetManager {
     fun getPresets(prefs: SharedPreferences, sliderKey: String): List<String> {
         val raw = prefs.getString("pref_slider_presets_$sliderKey", null) ?: return emptyList()

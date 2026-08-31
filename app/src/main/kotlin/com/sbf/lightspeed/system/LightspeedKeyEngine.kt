@@ -143,7 +143,7 @@ object LightspeedKeyEngine {
     private var isPowerHoldFired = false
     private var isPowerPressHoldFired = false
     private var lastPowerReleaseTime = 0L
-    private var wasScreenInteractiveAtDown = true
+    var wasScreenInteractiveAtDown = true
 
     // OEM Accessibility Shortcut State
     private var isAccessibilityBypassed = false

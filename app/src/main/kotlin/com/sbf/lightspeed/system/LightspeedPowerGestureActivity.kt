@@ -1,9 +1,13 @@
 package com.sbf.lightspeed.system
 
+import android.accessibilityservice.AccessibilityService
 import android.app.Activity
+import android.app.KeyguardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.MediaStore
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot
 
 /**

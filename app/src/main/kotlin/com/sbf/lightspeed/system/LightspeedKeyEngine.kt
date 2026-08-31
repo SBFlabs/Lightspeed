@@ -187,6 +187,14 @@ object LightspeedKeyEngine {
         } catch (_: Exception) {}
     }
 
+    private fun releasePowerScreenWakeLock() {
+        try {
+            if (powerWakeLock?.isHeld == true) {
+                powerWakeLock?.release()
+            }
+        } catch (_: Exception) {}
+    }
+
     fun onPowerGestureHandled() {
         powerSinglePressJob?.cancel()
         powerSinglePressJob = null

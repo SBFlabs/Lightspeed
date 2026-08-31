@@ -232,10 +232,10 @@ fun SidebarMatrixConfigurationFields(
                 val result = withContext(Dispatchers.IO) {
                     LightspeedBackupEngine.exportToFile(context, uri)
                 }
-                if (result.isSuccess) {
-                    Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Failed to export backup: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                result.onSuccess { count ->
+                    Toast.makeText(context, "Successfully exported $count settings to backup!", Toast.LENGTH_SHORT).show()
+                }.onFailure { err ->
+                    Toast.makeText(context, "Failed to export backup: ${err.message ?: err.javaClass.simpleName}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

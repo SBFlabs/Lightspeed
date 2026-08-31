@@ -469,7 +469,7 @@ fun SidebarMatrixConfigurationFields(
                     isLeftCenterExpanded ||
                     (if (isLeftFlankUnified) isLeftUnifiedExpanded else isLeftTopExpanded || isLeftBottomExpanded)
                 )
-                val canopyActive = page == 1 && isSensorDeckExpanded
+                val canopyActive = page == 1 && isSensorDeckExpanded && isStatusBarGeoExpanded
                 val rightActive = page == 2 && (
                     isCenterExpanded ||
                     (if (isRightFlankUnified) isRightUnifiedExpanded else isTopExpanded || isBottomExpanded)

@@ -66,6 +66,17 @@ fun SidebarMatrixConfigurationFields(
     jumpTargetSection: String? = null,
     onRefreshNeeded: () -> Unit = {}
 ) {
+    var prefsVersion by remember { mutableIntStateOf(0) }
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            prefsVersion++
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
     // Tab Display Profiles & Blueprint State
     var tabMode0 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_0, "custom_pinned") ?: "custom_pinned") }
     var pinnedSection0 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0, "left_top") ?: "left_top") }
@@ -423,6 +434,9 @@ fun SidebarMatrixConfigurationFields(
                     isRefuelingExpanded = allExpandedState
                     isConfigVaultExpanded = allExpandedState
                     isExperimentalLabsExpanded = allExpandedState
+                    val anyRail = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                    val notchActive = allExpandedState && isNotchCalibExpanded
+                    val railActive = allExpandedState && anyRail
                     prefs.edit()
                         .putBoolean("pref_section_statusbar_expanded", allExpandedState)
                         .putBoolean("pref_section_telemetry_expanded", allExpandedState)
@@ -430,8 +444,11 @@ fun SidebarMatrixConfigurationFields(
                         .putBoolean("pref_section_refueling_expanded", allExpandedState)
                         .putBoolean("pref_section_backup_expanded", allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, allExpandedState)
-                        .putBoolean("pref_statusbar_preview", allExpandedState)
+                        .putBoolean("pref_statusbar_preview", allExpandedState && isStatusBarGeoExpanded)
+                        .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
+                        .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
                         .apply()
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                 }
                 2 -> {
                     isCenterExpanded = allExpandedState
@@ -482,10 +499,15 @@ fun SidebarMatrixConfigurationFields(
                     isCenterExpanded ||
                     (if (isRightFlankUnified) isRightUnifiedExpanded else isTopExpanded || isBottomExpanded)
                 )
+                val anyRail = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                val notchActive = page == 1 && isTelemetryExpanded && isNotchCalibExpanded
+                val railActive = page == 1 && isTelemetryExpanded && anyRail
                 prefs.edit()
                     .putBoolean("pref_sidebar_left_preview", leftActive)
                     .putBoolean("pref_statusbar_preview", canopyActive)
                     .putBoolean("pref_sidebar_preview", rightActive)
+                    .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
+                    .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
                     .apply()
                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
             }
@@ -1006,14 +1028,12 @@ fun SidebarMatrixConfigurationFields(
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     PrefToggleRow(
+                                                        prefs = prefs,
+                                                        prefKey = "pref_statusbar_enabled",
+                                                        defaultVal = true,
                                                         title = "Enable Sensor Area Gestures",
                                                         subtitle = "Top-edge gesture detection",
-                                                        isChecked = prefs.getBoolean("pref_statusbar_enabled", true),
-                                                        onCheckedChange = { checked ->
-                                                            prefs.edit().putBoolean("pref_statusbar_enabled", checked).apply()
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                            onRefreshNeeded()
-                                                        }
+                                                        onChanged = { onRefreshNeeded() }
                                                     )
 
                                                     // 1. Geometry & Sensitivity
@@ -1083,7 +1103,15 @@ fun SidebarMatrixConfigurationFields(
                                                 isExpanded = isTelemetryExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "telemetry_indicators", isTelemetryExpanded) { isTelemetryExpanded = it }
-                                                    prefs.edit().putBoolean("pref_section_telemetry_expanded", isTelemetryExpanded).apply()
+                                                    val anyRail = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                                                    val notchActive = isTelemetryExpanded && isNotchCalibExpanded
+                                                    val railActive = isTelemetryExpanded && anyRail
+                                                    prefs.edit()
+                                                        .putBoolean("pref_section_telemetry_expanded", isTelemetryExpanded)
+                                                        .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
+                                                        .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
+                                                        .apply()
+                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1500,16 +1528,13 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         }
 
-                                                        val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
                                                         PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD,
+                                                            defaultVal = true,
                                                             title = "High-Contrast Ambient Outline",
                                                             subtitle = "Renders a dark semi-transparent outline halo around glyphs to guarantee 100% legibility on pure white backgrounds.",
-                                                            isChecked = isContrastShield,
-                                                            onCheckedChange = {
-                                                                prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, it).apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
+                                                            onChanged = { onRefreshNeeded() }
                                                         )
                                                     }
 
@@ -1527,12 +1552,13 @@ fun SidebarMatrixConfigurationFields(
                                                             onRefreshNeeded()
                                                         }
                                                     ) {
-                                                        val isRailTextEnabled = prefs.getBoolean("pref_horizon_rail_text_enabled", true)
+                                                        var isRailTextEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_horizon_rail_text_enabled", true)) }
                                                         PrefToggleRow(
                                                             title = "Micro-Text Telemetry Ticker",
                                                             subtitle = "Streams active download filenames and song titles in ultra-compact typography along the rail span.",
                                                             isChecked = isRailTextEnabled,
                                                             onCheckedChange = {
+                                                                isRailTextEnabled = it
                                                                 prefs.edit().putBoolean("pref_horizon_rail_text_enabled", it).apply()
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 onRefreshNeeded()
@@ -1587,12 +1613,13 @@ fun SidebarMatrixConfigurationFields(
 
                                                             PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 60, 5, 20)
 
-                                                            val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)
+                                                            var isAvoidCutout by rememberSaveable { mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)) }
                                                             PrefToggleRow(
                                                                 title = "Hardware Cutout & Punch-Hole Avoidance",
                                                                 subtitle = "Splits title and subtitle into dual symmetrical wings around the camera cutout.",
                                                                 isChecked = isAvoidCutout,
                                                                 onCheckedChange = {
+                                                                    isAvoidCutout = it
                                                                     prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, it).apply()
                                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                     onRefreshNeeded()
@@ -1610,11 +1637,16 @@ fun SidebarMatrixConfigurationFields(
                                                     // 2. Orbital Capsule Calibration
                                                     CollapsibleSubSection(
                                                         title = "Orbital Capsule Calibration (Dynamic Cutout HUD)",
-                                                        subtitle = "Punch-hole alignment, layout modes, offsets & test beacon",
+                                                        subtitle = "Punch-hole alignment, layout modes, offsets & dynamic live preview",
                                                         isExpanded = isNotchCalibExpanded,
                                                         onToggle = {
                                                             isNotchCalibExpanded = !isNotchCalibExpanded
-                                                            prefs.edit().putBoolean("pref_sub_notch_calib", isNotchCalibExpanded).apply()
+                                                            prefs.edit()
+                                                                .putBoolean("pref_sub_notch_calib", isNotchCalibExpanded)
+                                                                .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isNotchCalibExpanded)
+                                                                .apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
                                                         }
                                                     ) {
                                                         // OEM Dynamic Notch / Dynamic Bar Advisory Glass Callout
@@ -1677,16 +1709,6 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         }
 
-                                                        PrefToggleRow(
-                                                            title = "Test Beacon Live Alignment",
-                                                            subtitle = "Projects a persistent illuminated liquid-glass capsule around the cutout for live alignment.",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false),
-                                                            onCheckedChange = {
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, it).apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
                                                         val currentCapsuleLayout = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, "unified_right") ?: "unified_right"
                                                         var isCapsuleDropdownOpen by remember { mutableStateOf(false) }
                                                         val capsuleOptions = listOf(
@@ -1755,14 +1777,12 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     ) {
                                                         PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_NOTCH_MARQUEE_ENABLED,
+                                                            defaultVal = true,
                                                             title = "Enable Text Marquee Animation",
                                                             subtitle = "Smoothly scrolls overflowing download filenames and song titles across the HUD capsule.",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_NOTCH_MARQUEE_ENABLED, true),
-                                                            onCheckedChange = {
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_NOTCH_MARQUEE_ENABLED, it).apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
+                                                            onChanged = { onRefreshNeeded() }
                                                         )
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_SPEED, "", "Scroll Velocity (px/sec)", 15, 80, 5, 30)
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_INITIAL_DELAY, "", "Initial Pause Delay (ms)", 500, 3000, 250, 1500)
@@ -1854,13 +1874,12 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     ) {
                                                         PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_VOL_GESTURES_ENABLED,
+                                                            defaultVal = true,
                                                             title = "Enable Volume Key Gestures",
                                                             subtitle = "Low-latency hardware chording, sequences & hold triggers",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_VOL_GESTURES_ENABLED, true),
-                                                            onCheckedChange = { checked ->
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_VOL_GESTURES_ENABLED, checked).apply()
-                                                                onRefreshNeeded()
-                                                            }
+                                                            onChanged = { onRefreshNeeded() }
                                                         )
 
                                                         // 3-Stage Volume Suppression Profile Selector
@@ -1943,12 +1962,13 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         // Key Hold Auto-Repeat
-                                                        val autoRepeatEnabled = prefs.getBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, false)
+                                                        var autoRepeatEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, false)) }
                                                         PrefToggleRow(
                                                             title = "Hardware Key Hold Auto-Repeat",
                                                             subtitle = "Continuous auto-repeat for hold actions while volume buttons remain pressed",
                                                             isChecked = autoRepeatEnabled,
                                                             onCheckedChange = {
+                                                                autoRepeatEnabled = it
                                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, it).apply()
                                                                 onRefreshNeeded()
                                                             }
@@ -2058,13 +2078,12 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_POWER_GESTURES_ENABLED,
+                                                            defaultVal = true,
                                                             title = "Enable Power Button Gestures",
                                                             subtitle = "Low-latency physical power button gesture interception",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_POWER_GESTURES_ENABLED, true),
-                                                            onCheckedChange = { checked ->
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_POWER_GESTURES_ENABLED, checked).apply()
-                                                                onRefreshNeeded()
-                                                            }
+                                                            onChanged = { onRefreshNeeded() }
                                                         )
 
                                                         val powerGestures = listOf(
@@ -2130,16 +2149,19 @@ fun SidebarMatrixConfigurationFields(
                                                             prefs.edit().putBoolean("pref_sub_hulltap_expanded", isSubHullTapExpanded).apply()
                                                         }
                                                     ) {
+                                                        var isBackTapActive by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, false)) }
                                                         PrefToggleRow(
                                                             title = "Enable Back Tap Gestures",
                                                             subtitle = "Detect double and triple taps on the back of your device",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, false),
+                                                            isChecked = isBackTapActive,
                                                             onCheckedChange = { checked ->
+                                                                isBackTapActive = checked
                                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, checked).apply()
                                                                 if (!checked) {
                                                                     currentZImpulse = 0f
                                                                     thresholdCrossedFlash = false
                                                                 }
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 onRefreshNeeded()
                                                             }
                                                         )
@@ -2574,13 +2596,12 @@ fun SidebarMatrixConfigurationFields(
                                                     }
 
                                                     PrefToggleRow(
+                                                        prefs = prefs,
+                                                        prefKey = LightspeedPreferences.KEY_REFUELING_PIXEL_SHIFT,
+                                                        defaultVal = true,
                                                         title = "Enable Pixel Shift Burn-In Shield",
                                                         subtitle = "Subtly shifts text and indicators by 2-4px every 2 minutes to protect OLED panels.",
-                                                        isChecked = prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_PIXEL_SHIFT, true),
-                                                        onCheckedChange = {
-                                                            prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_PIXEL_SHIFT, it).apply()
-                                                            onRefreshNeeded()
-                                                        }
+                                                        onChanged = { onRefreshNeeded() }
                                                     )
 
                                                     Button(
@@ -2781,7 +2802,7 @@ fun SidebarMatrixConfigurationFields(
                                                     }
 
                                                     // 1. Core Watchdog
-                                                    val sentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
+                                                    var sentinelEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)) }
                                                     val isServiceRunning = LightspeedAccessibilityService.instance != null
                                                     val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
 
@@ -2823,6 +2844,7 @@ fun SidebarMatrixConfigurationFields(
                                                             subtitle = "Background sentinel thread polls Lightspeed health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
                                                             isChecked = sentinelEnabled,
                                                             onCheckedChange = { checked ->
+                                                                sentinelEnabled = checked
                                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
                                                                 if (checked) {
                                                                     LightspeedWatchdogEngine.initSentinel(context)
@@ -3065,7 +3087,7 @@ fun SidebarMatrixConfigurationFields(
                                                             prefs.edit().putBoolean("pref_sub_core_cooling_labs", isCoreCoolingExpanded).apply()
                                                         }
                                                     ) {
-                                                        val coreCoolingEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)
+                                                        var coreCoolingEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)) }
                                                         var targetDay by rememberSaveable { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_DAY_OF_WEEK, java.util.Calendar.SUNDAY)) }
                                                         var targetHour by rememberSaveable { mutableIntStateOf(prefs.getInt(LightspeedPreferences.KEY_CORE_COOLING_HOUR, 3)) }
 
@@ -3074,6 +3096,7 @@ fun SidebarMatrixConfigurationFields(
                                                             subtitle = "Dispatches a gentle reminder when system core cooling is recommended.",
                                                             isChecked = coreCoolingEnabled,
                                                             onCheckedChange = { checked ->
+                                                                coreCoolingEnabled = checked
                                                                 prefs.edit().putBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, checked).apply()
                                                                 onRefreshNeeded()
                                                             }
@@ -3105,7 +3128,7 @@ fun SidebarMatrixConfigurationFields(
                                                             Text(
                                                                 text = "STRICT COLD-START POLICY: Zero automatic reboots. When weekly cooling cycle is reached, dispatches a silent status reminder to the HUD and Orbital Capsule.",
                                                                 fontSize = 10.5.sp,
-                                                                color = Color.LightGray.copy(alpha = 0.8f),
+                                                                color = Color.LightGray.copy(alpha = 0.85f),
                                                                 modifier = Modifier.padding(10.dp),
                                                                 lineHeight = 13.sp
                                                             )
@@ -3169,7 +3192,15 @@ fun SidebarMatrixConfigurationFields(
                                                         // 2. Face-Oriented Auto-Rotate (CAMERA_AUTOROTATE)
                                                         if (isAutoRotateActive && LightspeedOrientationEngine.isFaceRotateSupported(context)) {
                                                             Card(
-                                                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .padding(vertical = 2.dp)
+                                                                    .clip(RoundedCornerShape(12.dp))
+                                                                    .clickable {
+                                                                        val ok = LightspeedOrientationEngine.setFaceRotateEnabled(context, !isFaceRotateActive)
+                                                                        if (ok) isFaceRotateActive = !isFaceRotateActive
+                                                                        onRefreshNeeded()
+                                                                    },
                                                                 shape = RoundedCornerShape(12.dp),
                                                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
                                                                 border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.3f))
@@ -3371,24 +3402,21 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK,
+                                                            defaultVal = true,
                                                             title = "Suppress on Lock Screen & OEM Screensavers",
                                                             subtitle = "Automatically hides Orbital Capsule and HUD Strip when device is locked or running OEM ambient dock.",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true),
-                                                            onCheckedChange = {
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, it).apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
+                                                            onChanged = { onRefreshNeeded() }
                                                         )
 
                                                         PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED,
+                                                            defaultVal = true,
                                                             title = "Smart Orientation Context Guardrails",
                                                             subtitle = "Forces strict portrait during in-progress phone/VoIP calls, and suppresses landscape rotation glitches on Default Launcher & Lock Screen (auto-reverts when leaving protected apps).",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, true),
-                                                            onCheckedChange = {
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, it).apply()
-                                                                onRefreshNeeded()
-                                                            }
+                                                            onChanged = { onRefreshNeeded() }
                                                         )
                                                     }
                                                 }

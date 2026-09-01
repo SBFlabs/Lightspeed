@@ -668,7 +668,9 @@ class LightspeedStatusBarOverlay(
                     val wingGap = wingGapDp * d
 
                     val rawCutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
-                    val topCutout = rawCutout?.boundingRectTop ?: rawCutout?.boundingRects?.firstOrNull { it.top == 0 }
+                    val topCutout = (rawCutout?.boundingRectTop ?: rawCutout?.boundingRects?.firstOrNull { it.top == 0 })?.also {
+                        if (it.width() > 0) LightspeedNotchOverlay.cachedCutoutRect = it
+                    }
 
                     val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 24f).coerceIn(14f, 32f).toInt()
                     val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(8, 36).toFloat()

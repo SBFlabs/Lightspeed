@@ -930,6 +930,7 @@ fun PrefToggleRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+            .clickable { onCheckedChange(!isChecked) }
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -958,27 +959,63 @@ fun PrefToggleRow(
 
 @Composable
 fun PrefToggleRow(
+    prefs: SharedPreferences,
+    prefKey: String,
+    defaultVal: Boolean,
+    title: String,
+    subtitle: String = "",
+    onChanged: ((Boolean) -> Unit)? = null
+) {
+    var checked by remember(prefKey) { mutableStateOf(prefs.getBoolean(prefKey, defaultVal)) }
+
+    DisposableEffect(prefs, prefKey) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == prefKey) {
+                checked = prefs.getBoolean(prefKey, defaultVal)
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    PrefToggleRow(
+        title = title,
+        subtitle = subtitle,
+        isChecked = checked,
+        onCheckedChange = { newValue ->
+            checked = newValue
+            prefs.edit().putBoolean(prefKey, newValue).apply()
+            try {
+                com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences()
+            } catch (_: Exception) {}
+            onChanged?.invoke(newValue)
+        }
+    )
+}
+
+@Composable
+fun PrefToggleRow(
     context: Context,
     prefs: SharedPreferences,
     keyResName: String,
     titleResName: String,
     summaryResName: String,
     defaultTitle: String,
-    defaultSummary: String
+    defaultSummary: String,
+    defaultVal: Boolean = false
 ) {
     val key = remember(keyResName) { resKey(context, keyResName) }
     val title = remember(titleResName) { resStr(context, titleResName, defaultTitle) }
     val summary = remember(summaryResName) { resStr(context, summaryResName, defaultSummary) }
-    var checked by remember { mutableStateOf(prefs.getBoolean(key, false)) }
 
     PrefToggleRow(
+        prefs = prefs,
+        prefKey = key,
+        defaultVal = defaultVal,
         title = title,
-        subtitle = summary,
-        isChecked = checked,
-        onCheckedChange = {
-            checked = it
-            prefs.edit().putBoolean(key, it).apply()
-        }
+        subtitle = summary
     )
 }
 

@@ -50,6 +50,8 @@ fun MainSettingsScreen() {
             .putBoolean("pref_statusbar_preview", false)
             .putBoolean("pref_sidebar_preview", false)
             .putBoolean("pref_sidebar_left_preview", false)
+            .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false)
+            .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
             .putBoolean("pref_section_statusbar_expanded", false)
             .putBoolean("pref_section_center_expanded", false)
             .putBoolean("pref_section_top_expanded", false)
@@ -58,6 +60,7 @@ fun MainSettingsScreen() {
             .putBoolean("pref_section_left_top_expanded", false)
             .putBoolean("pref_section_left_bottom_expanded", false)
             .apply()
+        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
         scope.launch {
             delay(300)
             (context as? Activity)?.finishAndRemoveTask()

@@ -656,13 +656,20 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
-    fun updateNotchWindowBounds(isExpanded: Boolean, targetX: Int, targetY: Int, targetWidth: Int, targetHeight: Int) {
+    fun updateNotchWindowBounds(isExpanded: Boolean, targetX: Int, targetY: Int, targetWidth: Int, targetHeight: Int, isVisible: Boolean = true) {
         if (windowManager == null || notchOverlayView == null) return
-        notchWindowParams.width = targetWidth
-        notchWindowParams.height = targetHeight
+        notchWindowParams.width = targetWidth.coerceAtLeast(1)
+        notchWindowParams.height = targetHeight.coerceAtLeast(1)
         notchWindowParams.x = targetX
         notchWindowParams.y = targetY
         notchWindowParams.gravity = Gravity.TOP or Gravity.START
+        if (!isVisible) {
+            notchWindowParams.flags = notchWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            notchOverlayView?.visibility = View.GONE
+        } else {
+            notchWindowParams.flags = notchWindowParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+            notchOverlayView?.visibility = View.VISIBLE
+        }
         try {
             windowManager?.updateViewLayout(notchOverlayView, notchWindowParams)
         } catch (_: Exception) {}

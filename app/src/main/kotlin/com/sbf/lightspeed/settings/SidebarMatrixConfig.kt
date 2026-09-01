@@ -128,13 +128,15 @@ fun SidebarMatrixConfigurationFields(
     var showAmoledWarningDialog by rememberSaveable { mutableStateOf(false) }
     var pendingBackTapScope by rememberSaveable { mutableStateOf("screen_on") }
 
-    var isStatusBarGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
-    var isStatusBarScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
-    var isStatusBarGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", true)) }
-    var isHorizonRailCustomExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_custom", true)) }
-    var isNotchCalibExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", true)) }
-    var isMarqueeSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", true)) }
-    var isOrientationSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_orientation", true)) }
+    var isStatusBarGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", false)) }
+    var isStatusBarScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", false)) }
+    var isStatusBarGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", false)) }
+    var isHorizonRailGeomExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_geom", false)) }
+    var isHorizonRailColorExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_color", false)) }
+    var isHorizonRailTextExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_text", false)) }
+    var isNotchCalibExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", false)) }
+    var isMarqueeSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", false)) }
+    var isOrientationSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_orientation", false)) }
 
     // Live Impulse Calibration Meter State (Hull Tap)
     var currentZImpulse by remember { mutableFloatStateOf(0f) }
@@ -1285,21 +1287,20 @@ fun SidebarMatrixConfigurationFields(
                                                         "most_recent" to "⏱ Most Recent Stream on Top"
                                                     )
 
+                                                    // 1. Sub-Accordion: Horizon Rail Geometry & Stacking
                                                     CollapsibleSubSection(
-                                                        title = "Horizon Rail Customization",
-                                                        subtitle = "Span, multi-rails, cover art engine & micro-text ticker",
-                                                        isExpanded = isHorizonRailCustomExpanded,
+                                                        title = "Horizon Rail Geometry & Stacking",
+                                                        subtitle = "Span, alignment, thickness, glow radiance & multi-rail limits",
+                                                        isExpanded = isHorizonRailGeomExpanded,
                                                         onToggle = {
-                                                            isHorizonRailCustomExpanded = !isHorizonRailCustomExpanded
-                                                            prefs.edit()
-                                                                .putBoolean("pref_sub_horizon_rail_custom", isHorizonRailCustomExpanded)
-                                                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, isHorizonRailCustomExpanded)
-                                                                .apply()
+                                                            isHorizonRailGeomExpanded = !isHorizonRailGeomExpanded
+                                                            prefs.edit().putBoolean("pref_sub_horizon_rail_geom", isHorizonRailGeomExpanded).apply()
+                                                            val anyActive = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                                                            prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
                                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                             onRefreshNeeded()
                                                         }
                                                     ) {
-                                                        // A. Span & Geometry
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_span", "", "Span (Max: ${screenWidthDp}dp)", 50, screenWidthDp, 10, screenWidthDp)
 
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -1345,12 +1346,72 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         }
 
-                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_offset_x", "", "Horizontal Offset (X Axis)", -150, 150, 5, 0)
-                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 8, 1, 3)
-                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 80)
-                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 20)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_offset_x", "", "Horizontal Offset (X Axis)", -100, 100, 5, 0)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 6, 1, 2)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 60)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 15)
+                                                        PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, "", "Max Concurrent Rails (1 to 3)", 1, 3, 1, 2)
 
-                                                        // B. Color Engine Selector
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("MULTI-RAIL PINNING & PRIORITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                            Text("Select which active stream is pinned at the top and displays the typography ticker.", fontSize = 11.sp, color = Color.Gray, lineHeight = 14.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isPriorityDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(priorityOptions.firstOrNull { it.first == currentPriority }?.second ?: "⬇ Pin Downloads on Top", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isPriorityDropdownOpen,
+                                                                    onDismissRequest = { isPriorityDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    priorityOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isPriorityDropdownOpen = false
+                                                                                prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PRIORITY, key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 2. Sub-Accordion: Horizon Rail Color & Styling
+                                                    CollapsibleSubSection(
+                                                        title = "Horizon Rail Colors & Contrast",
+                                                        subtitle = "Cover art dynamic sampling, palette presets & ambient outline",
+                                                        isExpanded = isHorizonRailColorExpanded,
+                                                        onToggle = {
+                                                            isHorizonRailColorExpanded = !isHorizonRailColorExpanded
+                                                            prefs.edit().putBoolean("pref_sub_horizon_rail_color", isHorizonRailColorExpanded).apply()
+                                                            val anyActive = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                                                            prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
+                                                        }
+                                                    ) {
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                                             Text("HORIZON RAIL COLOR MODE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                                             Spacer(modifier = Modifier.height(4.dp))
@@ -1439,55 +1500,33 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         }
 
-                                                        // C. Multiple Rails Limit, Priority & Pinning
-                                                        PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, "", "Max Concurrent Rails (1 to 3)", 1, 3, 1, 2)
-
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                                                            Text("MULTI-RAIL PINNING & PRIORITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            Spacer(modifier = Modifier.height(2.dp))
-                                                            Text("When multiple streams (downloads/music) are active simultaneously, select which stream is pinned at the top and displays the micro-text typography ticker.", fontSize = 11.sp, color = Color.Gray, lineHeight = 14.sp)
-                                                            Spacer(modifier = Modifier.height(4.dp))
-                                                            Box {
-                                                                OutlinedButton(
-                                                                    onClick = { isPriorityDropdownOpen = true },
-                                                                    modifier = Modifier.fillMaxWidth(),
-                                                                    shape = RoundedCornerShape(12.dp)
-                                                                ) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Text(priorityOptions.firstOrNull { it.first == currentPriority }?.second ?: "⬇ Pin Downloads on Top", color = Color.White, fontSize = 12.sp)
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                                    }
-                                                                }
-                                                                DropdownMenu(
-                                                                    expanded = isPriorityDropdownOpen,
-                                                                    onDismissRequest = { isPriorityDropdownOpen = false },
-                                                                    modifier = Modifier
-                                                                        .background(Color(0xF012141A))
-                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                                                    shape = RoundedCornerShape(16.dp),
-                                                                    containerColor = Color(0xF012141A)
-                                                                ) {
-                                                                    priorityOptions.forEach { (key, label) ->
-                                                                        DropdownMenuItem(
-                                                                            modifier = Modifier.heightIn(min = 48.dp),
-                                                                            text = { Text(label) },
-                                                                            onClick = {
-                                                                                isPriorityDropdownOpen = false
-                                                                                prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PRIORITY, key).apply()
-                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                onRefreshNeeded()
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                }
+                                                        val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
+                                                        PrefToggleRow(
+                                                            title = "High-Contrast Ambient Outline",
+                                                            subtitle = "Renders a dark semi-transparent outline halo around glyphs to guarantee 100% legibility on pure white backgrounds.",
+                                                            isChecked = isContrastShield,
+                                                            onCheckedChange = {
+                                                                prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, it).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
                                                             }
-                                                        }
+                                                        )
+                                                    }
 
-                                                        // D. Notification Micro-Text Telemetry Ticker
+                                                    // 3. Sub-Accordion: Horizon Rail Micro-Text Ticker
+                                                    CollapsibleSubSection(
+                                                        title = "Horizon Rail Micro-Text Ticker",
+                                                        subtitle = "Typography font size, position, velocity & punch-hole avoidance",
+                                                        isExpanded = isHorizonRailTextExpanded,
+                                                        onToggle = {
+                                                            isHorizonRailTextExpanded = !isHorizonRailTextExpanded
+                                                            prefs.edit().putBoolean("pref_sub_horizon_rail_text", isHorizonRailTextExpanded).apply()
+                                                            val anyActive = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                                                            prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
+                                                        }
+                                                    ) {
                                                         val isRailTextEnabled = prefs.getBoolean("pref_horizon_rail_text_enabled", true)
                                                         PrefToggleRow(
                                                             title = "Micro-Text Telemetry Ticker",
@@ -1501,7 +1540,7 @@ fun SidebarMatrixConfigurationFields(
                                                         )
 
                                                         if (isRailTextEnabled) {
-                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_size", "", "Micro-Font Size (dp)", 6, 12, 1, 8)
+                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_size", "", "Micro-Font Size (dp)", 6, 11, 1, 8)
 
                                                             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                                                 Text("MICRO-TEXT POSITION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
@@ -1546,7 +1585,7 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                             }
 
-                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 80, 5, 25)
+                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 60, 5, 25)
 
                                                             val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)
                                                             PrefToggleRow(
@@ -1561,22 +1600,10 @@ fun SidebarMatrixConfigurationFields(
                                                             )
 
                                                             if (isAvoidCutout) {
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (dp)", 8, 60, 1, 26)
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Snugness Gap (dp)", 0, 24, 1, 4)
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, "", "Cutout Horizontal Offset X (dp)", -40, 40, 1, 0)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (dp)", 8, 40, 1, 26)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Snugness Gap (dp)", 0, 16, 1, 4)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, "", "Cutout Horizontal Offset X (dp)", -30, 30, 1, 0)
                                                             }
-
-                                                            val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
-                                                            PrefToggleRow(
-                                                                title = "High-Contrast Ambient Outline",
-                                                                subtitle = "Renders a crisp, dark semi-transparent outline halo around the typography to guarantee 100% legibility on pure white backgrounds.",
-                                                                isChecked = isContrastShield,
-                                                                onCheckedChange = {
-                                                                    prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, it).apply()
-                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                    onRefreshNeeded()
-                                                                }
-                                                            )
                                                         }
                                                     }
 

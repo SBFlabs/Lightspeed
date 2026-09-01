@@ -417,13 +417,16 @@ class LightspeedStatusBarOverlay(
         }
         val railRight = railLeft + railSpanPx
 
-        val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
-        val railGlowPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_GLOW, 80).coerceIn(0, 100)
-        val railTrackOpacityPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TRACK_OPACITY, 20).coerceIn(0, 100)
+        val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
+        val railGlowPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_GLOW, 60).coerceIn(0, 100)
+        val railTrackOpacityPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TRACK_OPACITY, 15).coerceIn(0, 100)
         val colorMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_COLOR_MODE, "cover_art") ?: "cover_art"
         val maxRails = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
 
-        val isHorizonRailCustomExpanded = prefs.getBoolean("pref_sub_horizon_rail_custom", false)
+        val isHorizonRailCustomExpanded = prefs.getBoolean("pref_sub_horizon_rail_geom", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_color", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_text", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_custom", false)
         val isRailPreviewPref = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
         val isRailPreviewActive = isHorizonRailCustomExpanded || isRailPreviewPref
 

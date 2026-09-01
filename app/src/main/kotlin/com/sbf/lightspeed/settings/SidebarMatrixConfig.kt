@@ -1561,7 +1561,9 @@ fun SidebarMatrixConfigurationFields(
                                                             )
 
                                                             if (isAvoidCutout) {
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Cutout Wing Clearance Gap (dp)", 0, 24, 1, 4)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (dp)", 8, 60, 1, 26)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Snugness Gap (dp)", 0, 24, 1, 4)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, "", "Cutout Horizontal Offset X (dp)", -40, 40, 1, 0)
                                                             }
 
                                                             val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)

@@ -660,14 +660,22 @@ class LightspeedStatusBarOverlay(
                     val wingGapDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, 4).coerceIn(0, 24).toFloat()
                     val wingGap = wingGapDp * d
 
-                    val cutout = if (isAvoidCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
-                    val topCutout = cutout?.boundingRectTop ?: cutout?.boundingRects?.firstOrNull { it.top == 0 }
-                    val hasCutout = isAvoidCutout && topCutout != null && topCutout.width() > 0
+                    val rawCutout = if (isAvoidCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
+                    val topCutout = rawCutout?.boundingRectTop ?: rawCutout?.boundingRects?.firstOrNull { it.top == 0 }
 
-                    val cutoutLeft = if (hasCutout) topCutout!!.left.toFloat() else 0f
-                    val cutoutRight = if (hasCutout) topCutout!!.right.toFloat() else 0f
-                    val cutoutCenterX = if (hasCutout) topCutout!!.exactCenterX() else screenW / 2f
-                    val isCenteredCutout = hasCutout && (cutoutCenterX in (screenW * 0.30f)..(screenW * 0.70f))
+                    val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 26f).coerceIn(14f, 36f).toInt()
+                    val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(6, 80).toFloat()
+                    val cutoutWidthPx = cutoutWidthDp * d
+
+                    val notchOffsetX = (prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, 0).takeIf { it != 0 }
+                        ?: prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_NOTCH_OFFSET_X, 0)).toFloat() * d
+                    val detectedCenterX = if (topCutout != null && topCutout.width() > 0) topCutout.exactCenterX() else screenW / 2f
+                    val cutoutCenterX = detectedCenterX + notchOffsetX
+
+                    val hasCutout = isAvoidCutout
+                    val cutoutLeft = cutoutCenterX - (cutoutWidthPx / 2f)
+                    val cutoutRight = cutoutCenterX + (cutoutWidthPx / 2f)
+                    val isCenteredCutout = cutoutCenterX in (screenW * 0.30f)..(screenW * 0.70f)
 
                     canvas.save()
                     canvas.clipRect(railLeft, 0f, railRight, h.toFloat())

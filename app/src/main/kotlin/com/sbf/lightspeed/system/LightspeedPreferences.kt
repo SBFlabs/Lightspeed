@@ -137,6 +137,8 @@ object LightspeedPreferences {
     const val KEY_HORIZON_RAIL_MAX_COUNT = "pref_horizon_rail_max_count"
     const val KEY_HORIZON_RAIL_AVOID_CUTOUT = "pref_horizon_rail_avoid_cutout"
     const val KEY_HORIZON_RAIL_CUTOUT_PADDING = "pref_horizon_rail_cutout_padding"
+    const val KEY_HORIZON_RAIL_CUTOUT_WIDTH = "pref_horizon_rail_cutout_width"
+    const val KEY_HORIZON_RAIL_CUTOUT_OFFSET_X = "pref_horizon_rail_cutout_offset_x"
     const val KEY_HORIZON_RAIL_CONTRAST_SHIELD = "pref_horizon_rail_contrast_shield"
     const val KEY_HORIZON_RAIL_PREVIEW = "pref_horizon_rail_preview"
     const val KEY_NOTCH_MARQUEE_ENABLED = "pref_notch_marquee_enabled"

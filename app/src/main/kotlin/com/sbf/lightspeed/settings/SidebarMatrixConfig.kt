@@ -676,8 +676,10 @@ fun SidebarMatrixConfigurationFields(
                                                             isLeftCenterGeoExpanded = !isLeftCenterGeoExpanded
                                                             prefs.edit()
                                                                 .putBoolean("pref_sub_geo_left_center", isLeftCenterGeoExpanded)
-                                                                .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded && isLeftCenterGeoExpanded)
+                                                                .putBoolean("pref_sidebar_left_preview", isLeftCenterGeoExpanded)
                                                                 .apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
                                                         }
                                                     ) {
                                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_left_center_height", "", "Deflector Span (Height)", 50, 1000, 10, 400)
@@ -707,8 +709,9 @@ fun SidebarMatrixConfigurationFields(
                                                         toggleSection(0, "left_unified", isLeftUnifiedExpanded) { isLeftUnifiedExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_left_unified_expanded", isLeftUnifiedExpanded)
-                                                            .putBoolean("pref_sidebar_left_preview", (isLeftCenterExpanded && isLeftCenterGeoExpanded) || (isLeftUnifiedExpanded && isLeftUnifiedGeoExpanded))
+                                                            .putBoolean("pref_sidebar_left_preview", isLeftUnifiedExpanded && isLeftUnifiedGeoExpanded)
                                                             .apply()
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -720,8 +723,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 isLeftUnifiedGeoExpanded = !isLeftUnifiedGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_left_unified", isLeftUnifiedGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_left_preview", isLeftUnifiedExpanded && isLeftUnifiedGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_left_preview", isLeftUnifiedGeoExpanded)
                                                                     .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
                                                             }
                                                         ) {
                                                             Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
@@ -787,8 +792,9 @@ fun SidebarMatrixConfigurationFields(
                                                         toggleSection(0, "left_top", isLeftTopExpanded) { isLeftTopExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_left_top_expanded", isLeftTopExpanded)
-                                                            .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                                            .putBoolean("pref_sidebar_left_preview", isLeftTopExpanded && isLeftTopGeoExpanded)
                                                             .apply()
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -800,8 +806,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 isLeftTopGeoExpanded = !isLeftTopGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_left_top", isLeftTopGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_left_preview", isLeftTopExpanded && isLeftTopGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_left_preview", isLeftTopGeoExpanded)
                                                                     .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_top_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
@@ -859,8 +867,9 @@ fun SidebarMatrixConfigurationFields(
                                                         toggleSection(0, "left_bottom", isLeftBottomExpanded) { isLeftBottomExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_left_bottom_expanded", isLeftBottomExpanded)
-                                                            .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded)
+                                                            .putBoolean("pref_sidebar_left_preview", isLeftBottomExpanded && isLeftBottomGeoExpanded)
                                                             .apply()
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -872,8 +881,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 isLeftBottomGeoExpanded = !isLeftBottomGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_left_bottom", isLeftBottomGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_left_preview", isLeftBottomExpanded && isLeftBottomGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_left_preview", isLeftBottomGeoExpanded)
                                                                     .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_left_bottom_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
@@ -975,7 +986,7 @@ fun SidebarMatrixConfigurationFields(
                                                 title = "Sensor Area",
                                                 icon = {
                                                     Icon(
-                                                        imageVector = Icons.Outlined.Sensors,
+                                                        imageVector = Icons.Outlined.TouchApp,
                                                         contentDescription = null,
                                                         tint = MaterialTheme.colorScheme.primary,
                                                         modifier = Modifier.size(20.dp)
@@ -988,6 +999,7 @@ fun SidebarMatrixConfigurationFields(
                                                         .putBoolean("pref_section_statusbar_expanded", isSensorDeckExpanded)
                                                         .putBoolean("pref_statusbar_preview", isSensorDeckExpanded && isStatusBarGeoExpanded)
                                                         .apply()
+                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1011,8 +1023,10 @@ fun SidebarMatrixConfigurationFields(
                                                             isStatusBarGeoExpanded = !isStatusBarGeoExpanded
                                                             prefs.edit()
                                                                 .putBoolean("pref_sub_geo_statusbar", isStatusBarGeoExpanded)
-                                                                .putBoolean("pref_statusbar_preview", isSensorDeckExpanded && isStatusBarGeoExpanded)
+                                                                .putBoolean("pref_statusbar_preview", isStatusBarGeoExpanded)
                                                                 .apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
                                                         }
                                                     ) {
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Span (≥1000 = Full Width)", 50, 1080, 10, 1080)
@@ -1262,13 +1276,26 @@ fun SidebarMatrixConfigurationFields(
                                                         "embedded" to "Centered Inside Track"
                                                     )
 
+                                                    val currentPriority = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PRIORITY, "downloads_top") ?: "downloads_top"
+                                                    var isPriorityDropdownOpen by remember { mutableStateOf(false) }
+                                                    val priorityOptions = listOf(
+                                                        "downloads_top" to "⬇ Pin Downloads on Top (Shows Text Ticker)",
+                                                        "media_top" to "♫ Pin Media on Top (Shows Text Ticker)",
+                                                        "most_recent" to "⏱ Most Recent Stream on Top"
+                                                    )
+
                                                     CollapsibleSubSection(
                                                         title = "Horizon Rail Customization",
-                                                        subtitle = "Span, color engine (App Icon/M3/Inverted/Custom) & micro-text ticker",
+                                                        subtitle = "Span, dual rails, color engine & micro-text ticker",
                                                         isExpanded = isHorizonRailCustomExpanded,
                                                         onToggle = {
                                                             isHorizonRailCustomExpanded = !isHorizonRailCustomExpanded
-                                                            prefs.edit().putBoolean("pref_sub_horizon_rail_custom", isHorizonRailCustomExpanded).apply()
+                                                            prefs.edit()
+                                                                .putBoolean("pref_sub_horizon_rail_custom", isHorizonRailCustomExpanded)
+                                                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, isHorizonRailCustomExpanded)
+                                                                .apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
                                                         }
                                                     ) {
                                                         // A. Span & Geometry
@@ -1411,7 +1438,53 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         }
 
-                                                        // C. Notification Micro-Text Telemetry Ticker
+                                                        // C. Multiple Rails Priority & Pinning
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("MULTI-RAIL PINNING & PRIORITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                            Text("When both downloads and music playback are active simultaneously, Lightspeed renders stacked dual rails. Select which stream is pinned at the top and displays the micro-text typography ticker.", fontSize = 11.sp, color = Color.Gray, lineHeight = 14.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isPriorityDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(priorityOptions.firstOrNull { it.first == currentPriority }?.second ?: "⬇ Pin Downloads on Top", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isPriorityDropdownOpen,
+                                                                    onDismissRequest = { isPriorityDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    priorityOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isPriorityDropdownOpen = false
+                                                                                prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PRIORITY, key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // D. Notification Micro-Text Telemetry Ticker
                                                         val isRailTextEnabled = prefs.getBoolean("pref_horizon_rail_text_enabled", true)
                                                         PrefToggleRow(
                                                             title = "Micro-Text Telemetry Ticker",
@@ -3365,8 +3438,10 @@ fun SidebarMatrixConfigurationFields(
                                                             isCenterGeoExpanded = !isCenterGeoExpanded
                                                             prefs.edit()
                                                                 .putBoolean("pref_sub_geo_center", isCenterGeoExpanded)
-                                                                .putBoolean("pref_sidebar_preview", isCenterExpanded && isCenterGeoExpanded)
+                                                                .putBoolean("pref_sidebar_preview", isCenterGeoExpanded)
                                                                 .apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
                                                         }
                                                     ) {
                                                         PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Deflector Span (Height)", 50, 1000, 10, 400)
@@ -3396,8 +3471,9 @@ fun SidebarMatrixConfigurationFields(
                                                         toggleSection(2, "unified", isRightUnifiedExpanded) { isRightUnifiedExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_right_unified_expanded", isRightUnifiedExpanded)
-                                                            .putBoolean("pref_sidebar_preview", (isCenterExpanded && isCenterGeoExpanded) || (isRightUnifiedExpanded && isRightUnifiedGeoExpanded))
+                                                            .putBoolean("pref_sidebar_preview", isRightUnifiedExpanded && isRightUnifiedGeoExpanded)
                                                             .apply()
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -3409,8 +3485,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 isRightUnifiedGeoExpanded = !isRightUnifiedGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_unified", isRightUnifiedGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_preview", isRightUnifiedExpanded && isRightUnifiedGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_preview", isRightUnifiedGeoExpanded)
                                                                     .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
                                                             }
                                                         ) {
                                                             Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
@@ -3477,8 +3555,9 @@ fun SidebarMatrixConfigurationFields(
                                                         val newTop = isTopExpanded
                                                         prefs.edit()
                                                             .putBoolean("pref_section_top_expanded", newTop)
-                                                            .putBoolean("pref_sidebar_preview", isCenterExpanded || newTop || isBottomExpanded)
+                                                            .putBoolean("pref_sidebar_preview", newTop && isTopGeoExpanded)
                                                             .apply()
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -3490,8 +3569,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 isTopGeoExpanded = !isTopGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_top", isTopGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_preview", isTopExpanded && isTopGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_preview", isTopGeoExpanded)
                                                                     .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
@@ -3550,8 +3631,9 @@ fun SidebarMatrixConfigurationFields(
                                                         val newBottom = isBottomExpanded
                                                         prefs.edit()
                                                             .putBoolean("pref_section_bottom_expanded", newBottom)
-                                                            .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || newBottom)
+                                                            .putBoolean("pref_sidebar_preview", newBottom && isBottomGeoExpanded)
                                                             .apply()
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
                                                 ) {
                                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -3563,8 +3645,10 @@ fun SidebarMatrixConfigurationFields(
                                                                 isBottomGeoExpanded = !isBottomGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_bottom", isBottomGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_preview", isBottomExpanded && isBottomGeoExpanded)
+                                                                    .putBoolean("pref_sidebar_preview", isBottomGeoExpanded)
                                                                     .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
                                                             }
                                                         ) {
                                                             PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Deflector Span (Height)", 50, 600, 10, 200)

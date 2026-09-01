@@ -207,7 +207,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
         val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
         val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-        val railNeededHeightDp = if (isRailText) (railThicknessDp + 22) else (railThicknessDp + 6)
+        val railNeededHeightDp = if (isRailText) (railThicknessDp * 2 + 26) else (railThicknessDp * 2 + 8)
         val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
         val heightPx = (effectiveHeightDp * density).toInt()
 
@@ -239,8 +239,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
         val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
+        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false) || prefs.getBoolean("pref_sub_horizon_rail_custom", false)
 
-        if (!enabled && !isRailRoutingActive) {
+        if (!enabled && !isRailRoutingActive && !isRailPreview) {
             statusBarOverlayView?.let {
                 windowManager?.removeView(it)
                 statusBarOverlayView = null
@@ -253,7 +254,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
         val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
         val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-        val railNeededHeightDp = if (isRailText) (railThicknessDp + 22) else (railThicknessDp + 6)
+        val railNeededHeightDp = if (isRailText) (railThicknessDp * 2 + 26) else (railThicknessDp * 2 + 8)
         val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, railNeededHeightDp) else railNeededHeightDp
         val heightPx = (effectiveHeightDp * density).toInt()
 

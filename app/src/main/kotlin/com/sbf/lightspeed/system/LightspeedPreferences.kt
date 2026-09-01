@@ -133,6 +133,8 @@ object LightspeedPreferences {
     const val KEY_HORIZON_RAIL_TEXT_SIZE = "pref_horizon_rail_text_size"
     const val KEY_HORIZON_RAIL_TEXT_POSITION = "pref_horizon_rail_text_position" // "below", "above", "embedded"
     const val KEY_HORIZON_RAIL_TEXT_SPEED = "pref_horizon_rail_text_speed"
+    const val KEY_HORIZON_RAIL_PRIORITY = "pref_horizon_rail_priority" // "downloads_top", "media_top", "most_recent"
+    const val KEY_HORIZON_RAIL_PREVIEW = "pref_horizon_rail_preview"
     const val KEY_NOTCH_MARQUEE_ENABLED = "pref_notch_marquee_enabled"
     const val KEY_NOTCH_MARQUEE_SPEED = "pref_notch_marquee_speed"
     const val KEY_NOTCH_MARQUEE_INITIAL_DELAY = "pref_notch_marquee_initial_delay"

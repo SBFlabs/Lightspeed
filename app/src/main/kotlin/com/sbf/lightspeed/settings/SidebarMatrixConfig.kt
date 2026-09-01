@@ -1453,7 +1453,6 @@ fun SidebarMatrixConfigurationFields(
                                                 }
                                             }
                                         }
-                                    }
                                     "tactical_hardware" -> {
                                         item(key = "tactical_hardware") {
                                             CompactAccordionSection(

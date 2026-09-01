@@ -43,9 +43,13 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private lateinit var windowParams: WindowManager.LayoutParams
     private val edgeWidthPx = 45
 
-    // Status Bar Overlay
+    // Status Bar Overlay (Full-Width 100% Pass-Through Visual Canvas for Horizon Rails & Guides)
     private var statusBarOverlayView: LightspeedStatusBarOverlay? = null
     private lateinit var statusBarWindowParams: WindowManager.LayoutParams
+
+    // Sensor Deck Touch Overlay (Isolated Touch Target strictly sized to Sensor Area Geometry)
+    private var sensorTouchOverlayView: LightspeedSensorDeckTouchOverlay? = null
+    private lateinit var sensorTouchWindowParams: WindowManager.LayoutParams
 
     // Dedicated Notch Pill Overlay
     private var notchOverlayView: LightspeedNotchOverlay? = null
@@ -71,6 +75,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_horizon_rail_") || key.startsWith("pref_sub_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             updateStatusBarOverlayFromPrefs(prefs)
+            updateSensorTouchOverlayFromPrefs(prefs)
             statusBarOverlayView?.postInvalidate()
         }
         if (key != null && (key.startsWith("pref_notch_") || key.startsWith("pref_telemetry_"))) {
@@ -201,7 +206,16 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     private fun setupStatusBarOverlay(prefs: SharedPreferences) {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
-        if (!enabled) return
+        val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+        val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+        val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
+        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_geom", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_color", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_text", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_custom", false)
+
+        if (!enabled && !isRailRoutingActive && !isRailPreview) return
 
         val screenWidthPx = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
@@ -213,16 +227,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
         val heightPx = (effectiveHeightDp * density).toInt()
 
-        val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", true)
-        var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+        val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
-
-        if (!isSensorEnabled) {
-            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-        }
+                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
 
         statusBarWindowParams = WindowManager.LayoutParams(
             screenWidthPx,
@@ -240,7 +250,88 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
 
         statusBarOverlayView = LightspeedStatusBarOverlay(this, this)
-        windowManager?.addView(statusBarOverlayView, statusBarWindowParams)
+        try {
+            windowManager?.addView(statusBarOverlayView, statusBarWindowParams)
+        } catch (_: Exception) {}
+
+        setupSensorTouchOverlay(prefs)
+    }
+
+    private fun setupSensorTouchOverlay(prefs: SharedPreferences) {
+        val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
+        if (!enabled) return
+
+        val screenW = resources.displayMetrics.widthPixels.toFloat()
+        val density = resources.displayMetrics.density
+        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
+        val spanPx = if (spanPref >= 1000) screenW else (spanPref * density).coerceIn(50f * density, screenW)
+        val sensorOffsetX = prefs.getInt("pref_statusbar_offset_x", 0) * density
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val sensorHeight = thicknessDp * density
+        val sensorOffsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).coerceAtLeast(0f)
+
+        val sensorLeft = (((screenW - spanPx) / 2f) + sensorOffsetX).coerceIn(0f, screenW - spanPx)
+        val sensorTop = sensorOffsetY
+
+        val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+
+        sensorTouchWindowParams = WindowManager.LayoutParams(
+            spanPx.toInt().coerceAtLeast(1),
+            sensorHeight.toInt().coerceAtLeast(1),
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            flags,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = sensorLeft.toInt()
+            y = sensorTop.toInt()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+
+        sensorTouchOverlayView = LightspeedSensorDeckTouchOverlay(this, this)
+        try {
+            windowManager?.addView(sensorTouchOverlayView, sensorTouchWindowParams)
+        } catch (_: Exception) {}
+    }
+
+    private fun updateSensorTouchOverlayFromPrefs(prefs: SharedPreferences) {
+        val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
+        if (!enabled) {
+            sensorTouchOverlayView?.let {
+                try { windowManager?.removeView(it) } catch (_: Exception) {}
+                sensorTouchOverlayView = null
+            }
+            return
+        }
+
+        val screenW = resources.displayMetrics.widthPixels.toFloat()
+        val density = resources.displayMetrics.density
+        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
+        val spanPx = if (spanPref >= 1000) screenW else (spanPref * density).coerceIn(50f * density, screenW)
+        val sensorOffsetX = prefs.getInt("pref_statusbar_offset_x", 0) * density
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val sensorHeight = thicknessDp * density
+        val sensorOffsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).coerceAtLeast(0f)
+
+        val sensorLeft = (((screenW - spanPx) / 2f) + sensorOffsetX).coerceIn(0f, screenW - spanPx)
+        val sensorTop = sensorOffsetY
+
+        if (sensorTouchOverlayView == null) {
+            setupSensorTouchOverlay(prefs)
+        } else {
+            sensorTouchWindowParams.width = spanPx.toInt().coerceAtLeast(1)
+            sensorTouchWindowParams.height = sensorHeight.toInt().coerceAtLeast(1)
+            sensorTouchWindowParams.x = sensorLeft.toInt()
+            sensorTouchWindowParams.y = sensorTop.toInt()
+            try {
+                windowManager?.updateViewLayout(sensorTouchOverlayView, sensorTouchWindowParams)
+            } catch (_: Exception) {}
+        }
     }
 
     private fun updateStatusBarOverlayFromPrefs(prefs: SharedPreferences) {
@@ -256,7 +347,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         if (!enabled && !isRailRoutingActive && !isRailPreview) {
             statusBarOverlayView?.let {
-                windowManager?.removeView(it)
+                try { windowManager?.removeView(it) } catch (_: Exception) {}
                 statusBarOverlayView = null
             }
             return
@@ -275,17 +366,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (statusBarOverlayView == null) {
             setupStatusBarOverlay(prefs)
         } else {
-            if (!enabled) {
-                statusBarWindowParams.flags = statusBarWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-            } else {
-                statusBarWindowParams.flags = statusBarWindowParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
-            }
+            statusBarWindowParams.flags = statusBarWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             statusBarWindowParams.width = screenWidthPx
             statusBarWindowParams.height = heightPx
             statusBarWindowParams.x = 0
             statusBarWindowParams.y = 0
             statusBarOverlayView?.invalidate()
-            windowManager?.updateViewLayout(statusBarOverlayView, statusBarWindowParams)
+            try {
+                windowManager?.updateViewLayout(statusBarOverlayView, statusBarWindowParams)
+            } catch (_: Exception) {}
         }
     }
 
@@ -304,6 +393,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     fun reloadPreferences() {
         val prefs = defaultPrefs()
         updateStatusBarOverlayFromPrefs(prefs)
+        updateSensorTouchOverlayFromPrefs(prefs)
         notchOverlayView?.postInvalidate()
         updateSidebarOverlayFromPrefs(prefs)
         updateLeftWingOverlayFromPrefs(prefs)
@@ -482,6 +572,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         overlayView?.visibility = v
         leftWingOverlayView?.visibility = v
         statusBarOverlayView?.visibility = v
+        sensorTouchOverlayView?.visibility = v
         notchOverlayView?.visibility = v
     }
 
@@ -494,7 +585,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (windowManager == null) return
         overlayView?.updateMetricsDimensions()
         leftWingOverlayView?.updateMetricsDimensions()
-        updateStatusBarOverlayFromPrefs(defaultPrefs())
+        val prefs = defaultPrefs()
+        updateStatusBarOverlayFromPrefs(prefs)
+        updateSensorTouchOverlayFromPrefs(prefs)
         notchOverlayView?.updateNotchMetrics()
         overlayView?.postInvalidate()
         leftWingOverlayView?.postInvalidate()
@@ -525,6 +618,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
                             notchOverlayView?.visibility = View.GONE
                             statusBarOverlayView?.visibility = View.GONE
+                            sensorTouchOverlayView?.visibility = View.GONE
                         }
                     }
                     Intent.ACTION_SCREEN_OFF -> {
@@ -532,6 +626,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
                             notchOverlayView?.visibility = View.GONE
                             statusBarOverlayView?.visibility = View.GONE
+                            sensorTouchOverlayView?.visibility = View.GONE
                         }
                         checkScreenOffRefuelingTrigger(prefs)
                     }
@@ -539,6 +634,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         if (!isSuppressedByOrientation()) {
                             notchOverlayView?.visibility = View.VISIBLE
                             statusBarOverlayView?.visibility = View.VISIBLE
+                            sensorTouchOverlayView?.visibility = View.VISIBLE
                             resyncOverlayMetrics()
                         }
                         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
@@ -554,6 +650,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         if (!isSuppressedByOrientation()) {
                             notchOverlayView?.visibility = View.VISIBLE
                             statusBarOverlayView?.visibility = View.VISIBLE
+                            sensorTouchOverlayView?.visibility = View.VISIBLE
                             resyncOverlayMetrics()
                         }
                         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
@@ -696,8 +793,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
             leftWingOverlayView = null
         }
         statusBarOverlayView?.let {
-            windowManager?.removeView(it)
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
             statusBarOverlayView = null
+        }
+        sensorTouchOverlayView?.let {
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
+            sensorTouchOverlayView = null
         }
         notchOverlayView?.let {
             try { windowManager?.removeView(it) } catch (_: Exception) {}

@@ -72,11 +72,8 @@ class LightspeedStatusBarOverlay(
     }
 
     private val uiHandler = Handler(Looper.getMainLooper())
-    private var pendingTapRunnable: Runnable? = null
-    private var lastTapTime = 0L
-
     init {
-        isClickable = true
+        isClickable = false
         isFocusable = false
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
 
@@ -95,31 +92,12 @@ class LightspeedStatusBarOverlay(
         }
     }
 
-    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        super.onLayout(changed, left, top, right, bottom)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && width > 0 && height > 0) {
-            systemGestureExclusionRects = listOf(android.graphics.Rect(0, 0, width, height))
-        }
-    }
-
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         com.sbf.lightspeed.system.LightspeedNotificationListener.onTelemetryChanged = null
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = null
-        pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
-        uiHandler.removeCallbacks(holdRunnable)
     }
-
-    private var startRawX = 0f
-    private var startRawY = 0f
-    private var startX = 0f
-    private var startY = 0f
-    private var furthestX = 0f
-    private var isHoldFired = false
-    private var isSecondTapInSequence = false
-    private var currentGesture = "NONE"
-    private var isHorizontalEngaged = false
 
     private fun expandForHud() {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
@@ -151,196 +129,6 @@ class LightspeedStatusBarOverlay(
         lp.y = 0
         lp.gravity = Gravity.TOP or Gravity.START
         try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
-    }
-
-    private val holdRunnable = Runnable {
-        val gestureKey = if (currentGesture != "NONE") currentGesture else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
-        val actionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
-        val action = prefs.getString(actionKey, "none") ?: "none"
-        if (action != "none") {
-            isHoldFired = true
-            triggerHaptic(40, 200)
-            performActionByName(action)
-        }
-    }
-
-    private fun triggerHaptic(durationMs: Long = 25, amplitude: Int = 140) {
-        LightspeedHapticEngine.vibrate(context, durationMs, amplitude)
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", true)
-        if (!isSensorEnabled) return false
-
-        val density = resources.displayMetrics.density
-        val screenW = resources.displayMetrics.widthPixels.toFloat()
-        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
-        val spanPx = if (spanPref >= 1000) screenW else (spanPref * density).coerceIn(50f * density, screenW)
-        val sensorOffsetX = prefs.getInt("pref_statusbar_offset_x", 0) * density
-        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
-        val sensorHeight = thicknessDp * density
-        val sensorOffsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).coerceAtLeast(0f)
-
-        val sensorLeft = ((screenW - spanPx) / 2f) + sensorOffsetX
-        val sensorRight = sensorLeft + spanPx
-        val sensorTop = sensorOffsetY
-        val sensorBottom = sensorTop + sensorHeight
-
-        // Only capture touch if it lands inside the Sensor Area bounding rectangle
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-            if (event.x < sensorLeft || event.x > sensorRight || event.y < sensorTop || event.y > sensorBottom) {
-                return false
-            }
-        }
-
-        val sensPref = prefs.getInt("pref_statusbar_sensitivity", 40)
-        val threshold = (sensPref * 0.5f * density).coerceAtLeast(10f * density)
-
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                val nowDown = SystemClock.uptimeMillis()
-                if (nowDown - lastTapTime < 280L) {
-                    isSecondTapInSequence = true
-                    pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
-                    pendingTapRunnable = null
-                    lastTapTime = 0L
-                } else {
-                    isSecondTapInSequence = false
-                    pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
-                    pendingTapRunnable = null
-                }
-                startRawX = event.rawX
-                startRawY = event.rawY
-                startX = event.x
-                startY = event.y
-                furthestX = event.x
-                isHoldFired = false
-                isHorizontalEngaged = false
-                currentGesture = "NONE"
-
-                uiHandler.postDelayed(holdRunnable, 360L)
-                return true
-            }
-
-            MotionEvent.ACTION_MOVE -> {
-                val rawDx = event.rawX - startRawX
-                val rawDy = event.rawY - startRawY
-                val dist = hypot(rawDx, rawDy)
-
-                // Downward Pull: Cancel pending gestures immediately to pass control seamlessly to Android notification shade
-                if (rawDy > threshold * 0.5f && rawDy > abs(rawDx) * 0.8f) {
-                    uiHandler.removeCallbacks(holdRunnable)
-                    pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
-                    pendingTapRunnable = null
-                    isHorizontalEngaged = false
-                    currentGesture = "NONE"
-                    return false
-                }
-
-                if (dist > threshold * 0.35f && !isHoldFired && !isHorizontalEngaged) {
-                    uiHandler.removeCallbacks(holdRunnable)
-                }
-
-                if (!isHorizontalEngaged && abs(rawDx) > threshold * 0.7f) {
-                    isHorizontalEngaged = true
-                    currentGesture = if (rawDx > 0) "SWIPE_RIGHT" else "SWIPE_LEFT"
-                    furthestX = event.x
-                    if (!isHoldFired) {
-                        uiHandler.removeCallbacks(holdRunnable)
-                        uiHandler.postDelayed(holdRunnable, 360L)
-                    }
-                }
-
-                if (isHorizontalEngaged) {
-                    if (currentGesture == "SWIPE_RIGHT" && event.x > furthestX) furthestX = event.x
-                    if (currentGesture == "SWIPE_LEFT"  && event.x < furthestX) furthestX = event.x
-
-                    val reboundThreshold = 18f * density
-                    if (currentGesture == "SWIPE_RIGHT" && (furthestX - event.x) > reboundThreshold) {
-                        currentGesture = "SWIPE_RIGHT_BACK"
-                    } else if (currentGesture == "SWIPE_LEFT" && (event.x - furthestX) > reboundThreshold) {
-                        currentGesture = "SWIPE_LEFT_BACK"
-                    }
-                }
-                return true
-            }
-
-            MotionEvent.ACTION_UP -> {
-                uiHandler.removeCallbacks(holdRunnable)
-                val dx = event.x - startX
-                val dy = event.y - startY
-                val dist = hypot(dx, dy)
-
-                if (isHoldFired) {
-                    isSecondTapInSequence = false
-                    return true
-                }
-
-                if (currentGesture != "NONE") {
-                    isSecondTapInSequence = false
-                    val actionKey = "pref_macro_action_STATUSBAR_$currentGesture"
-                    val action = prefs.getString(actionKey, "none") ?: "none"
-                    if (action != "none") {
-                        triggerHaptic(30, 160)
-                        performActionByName(action)
-                        return true
-                    }
-                } else if (dist < threshold) {
-                    handleTapSequence()
-                    return true
-                }
-                isSecondTapInSequence = false
-                return true
-            }
-
-            MotionEvent.ACTION_CANCEL -> {
-                uiHandler.removeCallbacks(holdRunnable)
-                pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
-                pendingTapRunnable = null
-                isHoldFired = false
-                isSecondTapInSequence = false
-                currentGesture = "NONE"
-                invalidate()
-                return true
-            }
-        }
-        return super.onTouchEvent(event)
-    }
-
-    private fun handleTapSequence() {
-        if (isSecondTapInSequence) {
-            isSecondTapInSequence = false
-            lastTapTime = 0L
-            val doubleTapAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", "none") ?: "none"
-            if (doubleTapAction != "none") {
-                triggerHaptic(30, 180)
-                performActionByName(doubleTapAction)
-            }
-        } else {
-            val doubleTapAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", "none") ?: "none"
-            val doubleTapHoldAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP_HOLD", "none") ?: "none"
-            val singleTapAction = prefs.getString("pref_macro_action_STATUSBAR_TAP", "system:scroll_to_top") ?: "system:scroll_to_top"
-
-            val hasDoubleTapAction = (doubleTapAction != "none" || doubleTapHoldAction != "none")
-            if (hasDoubleTapAction) {
-                lastTapTime = SystemClock.uptimeMillis()
-                val tapTask = Runnable {
-                    if (singleTapAction != "none") {
-                        triggerHaptic(20, 120)
-                        performActionByName(singleTapAction)
-                    }
-                    pendingTapRunnable = null
-                    lastTapTime = 0L
-                }
-                pendingTapRunnable = tapTask
-                uiHandler.postDelayed(tapTask, 240L)
-            } else {
-                if (singleTapAction != "none") {
-                    triggerHaptic(20, 120)
-                    performActionByName(singleTapAction)
-                }
-            }
-        }
     }
 
     override fun onDraw(canvas: Canvas) {

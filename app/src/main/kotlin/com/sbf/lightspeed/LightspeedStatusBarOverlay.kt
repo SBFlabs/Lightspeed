@@ -613,14 +613,16 @@ class LightspeedStatusBarOverlay(
                 }
 
                 if (tickerText.isNotBlank()) {
-                    val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 8).coerceIn(6, 12).toFloat()
+                    val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 9).coerceIn(7, 16).toFloat()
                     val primaryColor = resolveStreamColor(primaryStream)
                     val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
 
+                    val tacticalTypeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
+
                     val microTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         textSize = textSizeDp * d
-                        typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
-                        letterSpacing = 0.06f
+                        typeface = tacticalTypeface
+                        letterSpacing = 0.05f
                         color = if (colorMode == "inverted") primaryColor else Color.WHITE
                         style = Paint.Style.FILL
                     }
@@ -628,11 +630,11 @@ class LightspeedStatusBarOverlay(
                     val microTextOutlinePaint = if (isContrastShield) {
                         Paint(Paint.ANTI_ALIAS_FLAG).apply {
                             textSize = textSizeDp * d
-                            typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
-                            letterSpacing = 0.06f
-                            color = Color.argb(195, 10, 14, 20)
+                            typeface = tacticalTypeface
+                            letterSpacing = 0.05f
+                            color = Color.argb(220, 10, 14, 20)
                             style = Paint.Style.STROKE
-                            strokeWidth = 2.4f * d
+                            strokeWidth = (textSizeDp * 0.16f * d).coerceIn(1.0f * d, 1.8f * d)
                             strokeJoin = Paint.Join.ROUND
                             strokeCap = Paint.Cap.ROUND
                         }
@@ -648,25 +650,28 @@ class LightspeedStatusBarOverlay(
 
                     val textPos = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
                     val topRailY = (railThicknessDp * d) / 2f
+                    val fontMetrics = microTextPaint.fontMetrics
+                    val textBaselineOffset = -fontMetrics.ascent
+
                     val textY = when (textPos) {
-                        "above" -> (topRailY - (railThicknessDp * d / 2f) - 1f * d).coerceAtLeast(textSizeDp * d)
-                        "embedded" -> topRailY + (textSizeDp * d * 0.35f)
-                        else -> lowestRailY + (railThicknessDp * d / 2f) + (textSizeDp * d) + 1.5f * d
+                        "above" -> (topRailY - (railThicknessDp * d / 2f) - (2f * d) - fontMetrics.descent).coerceAtLeast(textBaselineOffset)
+                        "embedded" -> topRailY - (fontMetrics.ascent + fontMetrics.descent) / 2f
+                        else -> lowestRailY + (railThicknessDp * d / 2f) + (2f * d) + textBaselineOffset
                     }
 
                     val textWidth = microTextPaint.measureText(tickerText)
-                    val speedDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SPEED, 25).coerceIn(10, 80).toFloat()
+                    val speedDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SPEED, 20).coerceIn(10, 60).toFloat()
                     val speedPx = speedDp * d
 
                     val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)
-                    val wingGapDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, 4).coerceIn(0, 24).toFloat()
+                    val wingGapDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, 4).coerceIn(0, 16).toFloat()
                     val wingGap = wingGapDp * d
 
                     val rawCutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
                     val topCutout = rawCutout?.boundingRectTop ?: rawCutout?.boundingRects?.firstOrNull { it.top == 0 }
 
-                    val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 26f).coerceIn(14f, 36f).toInt()
-                    val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(6, 80).toFloat()
+                    val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 24f).coerceIn(14f, 32f).toInt()
+                    val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(8, 36).toFloat()
                     val cutoutWidthPx = cutoutWidthDp * d
 
                     val notchOffsetX = (prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, 0).takeIf { it != 0 }

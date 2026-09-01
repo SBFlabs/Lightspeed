@@ -206,8 +206,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val density = resources.displayMetrics.density
         val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
         val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val maxRails = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
         val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-        val railNeededHeightDp = if (isRailText) (railThicknessDp * 2 + 26) else (railThicknessDp * 2 + 8)
+        val railNeededHeightDp = if (isRailText) (railThicknessDp * maxRails + 26) else (railThicknessDp * maxRails + 8)
         val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
         val heightPx = (effectiveHeightDp * density).toInt()
 
@@ -253,8 +254,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val density = resources.displayMetrics.density
         val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
         val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val maxRails = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
         val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-        val railNeededHeightDp = if (isRailText) (railThicknessDp * 2 + 26) else (railThicknessDp * 2 + 8)
+        val railNeededHeightDp = if (isRailText) (railThicknessDp * maxRails + 26) else (railThicknessDp * maxRails + 8)
         val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, railNeededHeightDp) else railNeededHeightDp
         val heightPx = (effectiveHeightDp * density).toInt()
 

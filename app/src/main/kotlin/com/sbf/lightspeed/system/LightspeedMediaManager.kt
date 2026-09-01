@@ -29,7 +29,8 @@ object LightspeedMediaManager {
         val positionMs: Long,
         val durationMs: Long,
         val isPlaying: Boolean,
-        val packageName: String?
+        val packageName: String?,
+        val coverArtColor: Int? = null
     )
 
     private var cachedEstimatedPositionMs = 0L
@@ -80,6 +81,14 @@ object LightspeedMediaManager {
             val position = playbackState?.position ?: 0L
             val isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
 
+            val artBitmap = try {
+                metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                    ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                    ?: controller.metadata?.description?.iconBitmap
+            } catch (_: Exception) { null }
+
+            val coverArtColor = artBitmap?.let { AppIconColorExtractor.extractBitmapColor(it) }
+
             return MediaTrackInfo(
                 title = title,
                 artist = artist,
@@ -87,7 +96,8 @@ object LightspeedMediaManager {
                 positionMs = position.coerceAtLeast(0L),
                 durationMs = duration.coerceAtLeast(0L),
                 isPlaying = isPlaying,
-                packageName = controller.packageName
+                packageName = controller.packageName,
+                coverArtColor = coverArtColor
             )
         }
 
@@ -98,7 +108,8 @@ object LightspeedMediaManager {
             positionMs = cachedEstimatedPositionMs,
             durationMs = 0L,
             isPlaying = false,
-            packageName = null
+            packageName = null,
+            coverArtColor = null
         )
     }
 

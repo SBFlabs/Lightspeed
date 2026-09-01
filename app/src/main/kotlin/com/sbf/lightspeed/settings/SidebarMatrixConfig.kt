@@ -1251,13 +1251,14 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // 1. Horizon Rail Customization
                                                     val screenWidthDp = remember { (context.resources.displayMetrics.widthPixels / context.resources.displayMetrics.density).toInt() }
-                                                    val currentColorMode = prefs.getString("pref_horizon_rail_color_mode", "app_icon") ?: "app_icon"
+                                                    val currentColorMode = prefs.getString("pref_horizon_rail_color_mode", "cover_art") ?: "cover_art"
                                                     var isColorModeDropdownOpen by remember { mutableStateOf(false) }
                                                     val colorModeOptions = listOf(
+                                                        "cover_art" to "🖼 Follow Media Cover Art (Auto Fallback)",
                                                         "app_icon" to "🎨 Notification App Icon Color",
                                                         "material3" to "🌈 Material 3 Dynamic Accent",
                                                         "inverted" to "☯ Inverted Screen Contrast",
-                                                        "custom" to "🎯 Custom Color of Choice"
+                                                        "custom" to "🎯 Custom Matrix Cyber Chip Palette"
                                                     )
 
                                                     val currentRailAlign = prefs.getString("pref_horizon_rail_align", "center") ?: "center"
@@ -1286,7 +1287,7 @@ fun SidebarMatrixConfigurationFields(
 
                                                     CollapsibleSubSection(
                                                         title = "Horizon Rail Customization",
-                                                        subtitle = "Span, dual rails, color engine & micro-text ticker",
+                                                        subtitle = "Span, multi-rails, cover art engine & micro-text ticker",
                                                         isExpanded = isHorizonRailCustomExpanded,
                                                         onToggle = {
                                                             isHorizonRailCustomExpanded = !isHorizonRailCustomExpanded
@@ -1364,7 +1365,7 @@ fun SidebarMatrixConfigurationFields(
                                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                                         verticalAlignment = Alignment.CenterVertically
                                                                     ) {
-                                                                        Text(colorModeOptions.firstOrNull { it.first == currentColorMode }?.second ?: "🎨 Notification App Icon Color", color = Color.White, fontSize = 12.sp)
+                                                                        Text(colorModeOptions.firstOrNull { it.first == currentColorMode }?.second ?: "🖼 Follow Media Cover Art", color = Color.White, fontSize = 12.sp)
                                                                         Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                                                     }
                                                                 }
@@ -1438,11 +1439,13 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         }
 
-                                                        // C. Multiple Rails Priority & Pinning
+                                                        // C. Multiple Rails Limit, Priority & Pinning
+                                                        PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, "", "Max Concurrent Rails (1 to 3)", 1, 3, 1, 2)
+
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                                             Text("MULTI-RAIL PINNING & PRIORITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
                                                             Spacer(modifier = Modifier.height(2.dp))
-                                                            Text("When both downloads and music playback are active simultaneously, Lightspeed renders stacked dual rails. Select which stream is pinned at the top and displays the micro-text typography ticker.", fontSize = 11.sp, color = Color.Gray, lineHeight = 14.sp)
+                                                            Text("When multiple streams (downloads/music) are active simultaneously, select which stream is pinned at the top and displays the micro-text typography ticker.", fontSize = 11.sp, color = Color.Gray, lineHeight = 14.sp)
                                                             Spacer(modifier = Modifier.height(4.dp))
                                                             Box {
                                                                 OutlinedButton(
@@ -1544,6 +1547,30 @@ fun SidebarMatrixConfigurationFields(
                                                             }
 
                                                             PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 80, 5, 25)
+
+                                                            val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, true)
+                                                            PrefToggleRow(
+                                                                title = "Hardware Cutout & Punch-Hole Avoidance",
+                                                                subtitle = "Uses physical display cutout metrics to prevent telemetry text from colliding with or hiding behind the camera lens.",
+                                                                isChecked = isAvoidCutout,
+                                                                onCheckedChange = {
+                                                                    prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, it).apply()
+                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                    onRefreshNeeded()
+                                                                }
+                                                            )
+
+                                                            val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
+                                                            PrefToggleRow(
+                                                                title = "High-Contrast Ambient Shield",
+                                                                subtitle = "Renders an ambient dark contrast shield and drop-shadow under text to guarantee high legibility over white backgrounds.",
+                                                                isChecked = isContrastShield,
+                                                                onCheckedChange = {
+                                                                    prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, it).apply()
+                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                    onRefreshNeeded()
+                                                                }
+                                                            )
                                                         }
                                                     }
 

@@ -420,14 +420,12 @@ class LightspeedStatusBarOverlay(
         val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
         val railGlowPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_GLOW, 80).coerceIn(0, 100)
         val railTrackOpacityPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TRACK_OPACITY, 20).coerceIn(0, 100)
-        val colorMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_COLOR_MODE, "app_icon") ?: "app_icon"
+        val colorMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_COLOR_MODE, "cover_art") ?: "cover_art"
+        val maxRails = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
 
         val isHorizonRailCustomExpanded = prefs.getBoolean("pref_sub_horizon_rail_custom", false)
         val isRailPreviewPref = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
         val isRailPreviewActive = isHorizonRailCustomExpanded || isRailPreviewPref
-
-        val isDlActive = (dlRouting == "top_line" || dlRouting == "both") && primaryDl != null && (primaryDl.progressFraction >= 0f || primaryDl.isIndeterminate)
-        val isMediaActive = (mediaRouting == "top_line" || mediaRouting == "both") && media != null && media.isPlaying && media.durationMs > 0
 
         data class HorizonStream(
             val type: String, // "dl" or "media"
@@ -435,26 +433,37 @@ class LightspeedStatusBarOverlay(
             val subtitle: String,
             val progressFraction: Float,
             val iconColor: Int?,
-            val isIndeterminate: Boolean = false
+            val coverArtColor: Int? = null,
+            val isIndeterminate: Boolean = false,
+            val lastUpdated: Long = System.currentTimeMillis()
         )
 
         val streams = mutableListOf<HorizonStream>()
+        val allDownloads = com.sbf.lightspeed.system.LightspeedNotificationListener.getActiveDownloadsList()
+        val isDlRouteEnabled = (dlRouting == "top_line" || dlRouting == "both")
+        val isMediaRouteEnabled = (mediaRouting == "top_line" || mediaRouting == "both")
 
-        if (isDlActive && primaryDl != null) {
-            val pctStr = if (primaryDl.progressFraction >= 0f) "${(primaryDl.progressFraction * 100).toInt()}%" else "DOWNLOADING"
-            streams.add(
-                HorizonStream(
-                    type = "dl",
-                    title = primaryDl.title,
-                    subtitle = pctStr,
-                    progressFraction = if (primaryDl.progressFraction >= 0f) primaryDl.progressFraction.coerceIn(0f, 1f) else 1f,
-                    iconColor = primaryDl.iconColor,
-                    isIndeterminate = primaryDl.isIndeterminate
-                )
-            )
+        if (isDlRouteEnabled) {
+            for (dl in allDownloads) {
+                if (dl.progressFraction >= 0f || dl.isIndeterminate) {
+                    val pctStr = if (dl.progressFraction >= 0f) "${(dl.progressFraction * 100).toInt()}%" else "DOWNLOADING"
+                    streams.add(
+                        HorizonStream(
+                            type = "dl",
+                            title = dl.title,
+                            subtitle = pctStr,
+                            progressFraction = if (dl.progressFraction >= 0f) dl.progressFraction.coerceIn(0f, 1f) else 1f,
+                            iconColor = dl.iconColor,
+                            coverArtColor = null,
+                            isIndeterminate = dl.isIndeterminate,
+                            lastUpdated = dl.lastUpdated
+                        )
+                    )
+                }
+            }
         }
 
-        if (isMediaActive && media != null) {
+        if (isMediaRouteEnabled && media != null && media.isPlaying && media.durationMs > 0) {
             val prog = if (media.durationMs > 0) (media.positionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f) else 0.5f
             streams.add(
                 HorizonStream(
@@ -462,16 +471,16 @@ class LightspeedStatusBarOverlay(
                     title = media.title,
                     subtitle = media.artist,
                     progressFraction = prog,
-                    iconColor = media.iconColor
+                    iconColor = media.iconColor,
+                    coverArtColor = media.coverArtColor,
+                    isIndeterminate = false,
+                    lastUpdated = System.currentTimeMillis()
                 )
             )
         }
 
         // If no real downloads or media are active, but Horizon Rail preview is active:
         if (streams.isEmpty() && isRailPreviewActive) {
-            val isDlRouteEnabled = (dlRouting == "top_line" || dlRouting == "both")
-            val isMediaRouteEnabled = (mediaRouting == "top_line" || mediaRouting == "both")
-
             if (isDlRouteEnabled || (!isDlRouteEnabled && !isMediaRouteEnabled)) {
                 streams.add(
                     HorizonStream(
@@ -479,7 +488,8 @@ class LightspeedStatusBarOverlay(
                         title = "NIGHTLY_BUILD_V10.APK",
                         subtitle = "68%",
                         progressFraction = 0.68f,
-                        iconColor = Color.parseColor("#00E5FF")
+                        iconColor = Color.parseColor("#00E5FF"),
+                        coverArtColor = null
                     )
                 )
             }
@@ -490,7 +500,20 @@ class LightspeedStatusBarOverlay(
                         title = "SYNTHWAVE HORIZON",
                         subtitle = "LIGHTSPEED SOUNDS",
                         progressFraction = 0.42f,
-                        iconColor = Color.parseColor("#FF007F")
+                        iconColor = Color.parseColor("#FF007F"),
+                        coverArtColor = Color.parseColor("#FF007F")
+                    )
+                )
+            }
+            if (maxRails >= 3) {
+                streams.add(
+                    HorizonStream(
+                        type = "dl",
+                        title = "SYSTEM_CACHE_BACKUP.ZIP",
+                        subtitle = "91%",
+                        progressFraction = 0.91f,
+                        iconColor = Color.parseColor("#00E676"),
+                        coverArtColor = null
                     )
                 )
             }
@@ -502,16 +525,16 @@ class LightspeedStatusBarOverlay(
             when (railPriority) {
                 "downloads_top" -> streams.sortBy { if (it.type == "dl") 0 else 1 }
                 "media_top" -> streams.sortBy { if (it.type == "media") 0 else 1 }
-                "most_recent" -> { /* maintain insertion order */ }
+                "most_recent" -> streams.sortByDescending { it.lastUpdated }
             }
         }
 
-        if (streams.isNotEmpty()) {
-            val primaryStream = streams[0]
-            val secondaryStream = if (streams.size > 1) streams[1] else null
+        val activeStreams = streams.take(maxRails)
 
+        if (activeStreams.isNotEmpty()) {
             fun resolveStreamColor(stream: HorizonStream): Int {
                 return when (colorMode) {
+                    "cover_art" -> if (stream.type == "media") (stream.coverArtColor ?: stream.iconColor ?: m3Primary) else (stream.iconColor ?: m3Primary)
                     "app_icon" -> stream.iconColor ?: m3Primary
                     "material3" -> m3Primary
                     "inverted" -> {
@@ -526,62 +549,41 @@ class LightspeedStatusBarOverlay(
                 }
             }
 
-            val primaryColor = resolveStreamColor(primaryStream)
-            val lineY1 = (railThicknessDp * d) / 2f
+            var lowestRailY = 0f
+            val gapDp = 2.5f
 
-            // --- RAIL 1 (Top / Pinned Primary Stream) ---
-            if (railTrackOpacityPct > 0) {
-                val trackAlpha = (railTrackOpacityPct * 2.55f).toInt().coerceIn(10, 255)
-                telemetryGlowPaint.strokeWidth = railThicknessDp * d
-                telemetryGlowPaint.color = Color.argb(trackAlpha, Color.red(primaryColor), Color.green(primaryColor), Color.blue(primaryColor))
-                canvas.drawLine(railLeft, lineY1, railRight, lineY1, telemetryGlowPaint)
-            }
-
-            if (railGlowPct > 0) {
-                val glowAlpha = (railGlowPct * 1.5f).toInt().coerceIn(10, 200)
-                telemetryGlowPaint.strokeWidth = (railThicknessDp + 2.5f) * d
-                telemetryGlowPaint.color = Color.argb(glowAlpha, Color.red(primaryColor), Color.green(primaryColor), Color.blue(primaryColor))
-                val progressX1 = railLeft + (railSpanPx * primaryStream.progressFraction)
-                canvas.drawLine(railLeft, lineY1, progressX1, lineY1, telemetryGlowPaint)
-            }
-
-            telemetryGlowPaint.strokeWidth = railThicknessDp * d
-            telemetryGlowPaint.color = primaryColor
-            val progressX1 = railLeft + (railSpanPx * primaryStream.progressFraction)
-            canvas.drawLine(railLeft, lineY1, progressX1, lineY1, telemetryGlowPaint)
-
-            // --- RAIL 2 (Secondary Stream if multiple active) ---
-            var lowestRailY = lineY1
-            if (secondaryStream != null) {
-                val secColor = resolveStreamColor(secondaryStream)
-                val gapDp = 2.5f
-                val lineY2 = (railThicknessDp * d) + (gapDp * d) + ((railThicknessDp * d) / 2f)
-                lowestRailY = lineY2
+            activeStreams.forEachIndexed { index, stream ->
+                val col = resolveStreamColor(stream)
+                val thickness = if (index == 0) railThicknessDp.toFloat() else (railThicknessDp * (1f - index * 0.15f)).coerceAtLeast(1.5f)
+                val prevRailAccum = (0 until index).map { (railThicknessDp * (1f - it * 0.15f)).coerceAtLeast(1.5f) + gapDp }.sum()
+                val lineY = (prevRailAccum * d) + ((thickness * d) / 2f)
+                lowestRailY = lineY
 
                 if (railTrackOpacityPct > 0) {
                     val trackAlpha = (railTrackOpacityPct * 2.55f).toInt().coerceIn(10, 255)
-                    telemetryGlowPaint.strokeWidth = (railThicknessDp * 0.85f) * d
-                    telemetryGlowPaint.color = Color.argb(trackAlpha, Color.red(secColor), Color.green(secColor), Color.blue(secColor))
-                    canvas.drawLine(railLeft, lineY2, railRight, lineY2, telemetryGlowPaint)
+                    telemetryGlowPaint.strokeWidth = thickness * d
+                    telemetryGlowPaint.color = Color.argb(trackAlpha, Color.red(col), Color.green(col), Color.blue(col))
+                    canvas.drawLine(railLeft, lineY, railRight, lineY, telemetryGlowPaint)
                 }
 
                 if (railGlowPct > 0) {
-                    val glowAlpha = (railGlowPct * 1.2f).toInt().coerceIn(10, 180)
-                    telemetryGlowPaint.strokeWidth = (railThicknessDp + 1.5f) * d
-                    telemetryGlowPaint.color = Color.argb(glowAlpha, Color.red(secColor), Color.green(secColor), Color.blue(secColor))
-                    val progressX2 = railLeft + (railSpanPx * secondaryStream.progressFraction)
-                    canvas.drawLine(railLeft, lineY2, progressX2, lineY2, telemetryGlowPaint)
+                    val glowAlpha = ((railGlowPct * 1.5f) / (1f + index * 0.3f)).toInt().coerceIn(10, 200)
+                    telemetryGlowPaint.strokeWidth = (thickness + 2.5f - index * 0.5f) * d
+                    telemetryGlowPaint.color = Color.argb(glowAlpha, Color.red(col), Color.green(col), Color.blue(col))
+                    val progressX = railLeft + (railSpanPx * stream.progressFraction)
+                    canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
                 }
 
-                telemetryGlowPaint.strokeWidth = (railThicknessDp * 0.85f) * d
-                telemetryGlowPaint.color = secColor
-                val progressX2 = railLeft + (railSpanPx * secondaryStream.progressFraction)
-                canvas.drawLine(railLeft, lineY2, progressX2, lineY2, telemetryGlowPaint)
+                telemetryGlowPaint.strokeWidth = thickness * d
+                telemetryGlowPaint.color = col
+                val progressX = railLeft + (railSpanPx * stream.progressFraction)
+                canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
             }
 
             // --- Micro-Text Telemetry Ticker (Attached to Top Pinned Stream) ---
             val isTextEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-            if (isTextEnabled) {
+            if (isTextEnabled && activeStreams.isNotEmpty()) {
+                val primaryStream = activeStreams[0]
                 val tickerText = if (primaryStream.type == "dl") {
                     "⬇ ${primaryStream.title.uppercase()}  •  ${primaryStream.subtitle}"
                 } else {
@@ -590,18 +592,20 @@ class LightspeedStatusBarOverlay(
 
                 if (tickerText.isNotBlank()) {
                     val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 8).coerceIn(6, 12).toFloat()
+                    val primaryColor = resolveStreamColor(primaryStream)
                     val microTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                         textSize = textSizeDp * d
                         typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
                         letterSpacing = 0.06f
                         color = if (colorMode == "inverted") primaryColor else Color.WHITE
-                        setShadowLayer(2f * d, 0f, 0f, Color.BLACK)
+                        setShadowLayer(4f * d, 0f, 1f * d, Color.argb(220, 0, 0, 0))
                     }
 
                     val textPos = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
+                    val topRailY = (railThicknessDp * d) / 2f
                     val textY = when (textPos) {
-                        "above" -> (lineY1 - (railThicknessDp * d / 2f) - 1f * d).coerceAtLeast(textSizeDp * d)
-                        "embedded" -> lineY1 + (textSizeDp * d * 0.35f)
+                        "above" -> (topRailY - (railThicknessDp * d / 2f) - 1f * d).coerceAtLeast(textSizeDp * d)
+                        "embedded" -> topRailY + (textSizeDp * d * 0.35f)
                         else -> lowestRailY + (railThicknessDp * d / 2f) + (textSizeDp * d) + 1.5f * d
                     }
 
@@ -609,11 +613,45 @@ class LightspeedStatusBarOverlay(
                     val speedDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SPEED, 25).coerceIn(10, 80).toFloat()
                     val speedPx = speedDp * d
 
+                    val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, true)
+                    val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
+
                     canvas.save()
-                    canvas.clipRect(railLeft, 0f, railRight, h)
+                    canvas.clipRect(railLeft, 0f, railRight, h.toFloat())
+
+                    // Camera Cutout Punch-Hole Avoidance
+                    if (isAvoidCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        val cutout = rootWindowInsets?.displayCutout
+                        val topCutout = cutout?.boundingRectTop ?: cutout?.boundingRects?.firstOrNull { it.top == 0 }
+                        if (topCutout != null && topCutout.width() > 0) {
+                            val cutoutLeft = topCutout.left - 6f * d
+                            val cutoutRight = topCutout.right + 6f * d
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                canvas.clipOutRect(cutoutLeft, 0f, cutoutRight, h.toFloat())
+                            }
+                        }
+                    }
+
+                    val textBackingPaint = if (isContrastShield) {
+                        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = Color.argb(130, 10, 14, 20)
+                            style = Paint.Style.FILL
+                        }
+                    } else null
 
                     if (textWidth <= railSpanPx) {
                         val startX = railLeft + (railSpanPx - textWidth) / 2f
+                        if (textBackingPaint != null) {
+                            canvas.drawRoundRect(
+                                startX - 5f * d,
+                                textY - textSizeDp * d - 1f * d,
+                                startX + textWidth + 5f * d,
+                                textY + 2.5f * d,
+                                4f * d,
+                                4f * d,
+                                textBackingPaint
+                            )
+                        }
                         canvas.drawText(tickerText, startX, textY, microTextPaint)
                     } else {
                         val totalCycleDistance = textWidth + 60f * d
@@ -622,8 +660,30 @@ class LightspeedStatusBarOverlay(
                         val offset = (elapsedMs.toFloat() / cycleDurationMs.toFloat()) * totalCycleDistance
                         val textX = railLeft + railSpanPx - offset
 
+                        if (textBackingPaint != null) {
+                            canvas.drawRoundRect(
+                                textX - 5f * d,
+                                textY - textSizeDp * d - 1f * d,
+                                textX + textWidth + 5f * d,
+                                textY + 2.5f * d,
+                                4f * d,
+                                4f * d,
+                                textBackingPaint
+                            )
+                        }
                         canvas.drawText(tickerText, textX, textY, microTextPaint)
                         if (textX + textWidth < railRight) {
+                            if (textBackingPaint != null) {
+                                canvas.drawRoundRect(
+                                    textX + totalCycleDistance - 5f * d,
+                                    textY - textSizeDp * d - 1f * d,
+                                    textX + totalCycleDistance + textWidth + 5f * d,
+                                    textY + 2.5f * d,
+                                    4f * d,
+                                    4f * d,
+                                    textBackingPaint
+                                )
+                            }
                             canvas.drawText(tickerText, textX + totalCycleDistance, textY, microTextPaint)
                         }
                         postInvalidateOnAnimation()

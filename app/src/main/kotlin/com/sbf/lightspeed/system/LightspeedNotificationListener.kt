@@ -39,7 +39,8 @@ class LightspeedNotificationListener : NotificationListenerService() {
         val positionMs: Long,
         val durationMs: Long,
         val packageName: String?,
-        val iconColor: Int? = null
+        val iconColor: Int? = null,
+        val coverArtColor: Int? = null
     )
 
     companion object {
@@ -60,6 +61,10 @@ class LightspeedNotificationListener : NotificationListenerService() {
 
         fun getPrimaryDownload(): DownloadTelemetry? {
             return activeDownloads.values.maxByOrNull { it.lastUpdated }
+        }
+
+        fun getActiveDownloadsList(): List<DownloadTelemetry> {
+            return activeDownloads.values.sortedByDescending { it.lastUpdated }
         }
 
         fun updateMediaTelemetry(telemetry: MediaTelemetry?) {
@@ -129,7 +134,8 @@ class LightspeedNotificationListener : NotificationListenerService() {
                 positionMs = info.positionMs,
                 durationMs = info.durationMs,
                 packageName = info.packageName,
-                iconColor = mediaIconColor
+                iconColor = mediaIconColor,
+                coverArtColor = info.coverArtColor
             )
             onTelemetryChanged?.invoke()
         } catch (_: Exception) {}
@@ -144,8 +150,9 @@ class LightspeedNotificationListener : NotificationListenerService() {
 
     private fun scanExistingNotifications() {
         try {
-            val active = activeNotifications ?: return
-            for (sbn in active) {
+            val activeNotifs = activeNotifications ?: return
+            activeDownloads.clear()
+            for (sbn in activeNotifs) {
                 onNotificationPosted(sbn)
             }
         } catch (e: Exception) {
@@ -168,6 +175,34 @@ class LightspeedNotificationListener : NotificationListenerService() {
 object AppIconColorExtractor {
 
     private val colorCache = ConcurrentHashMap<String, Int>()
+
+    fun extractBitmapColor(bitmap: Bitmap): Int {
+        val w = bitmap.width
+        val h = bitmap.height
+        var dominantColor = Color.parseColor("#00E5FF")
+        var maxVibrancy = -1f
+        val hsv = FloatArray(3)
+
+        val stepX = (w / 6).coerceAtLeast(1)
+        val stepY = (h / 6).coerceAtLeast(1)
+
+        for (x in stepX until w - stepX step stepX) {
+            for (y in stepY until h - stepY step stepY) {
+                val pixel = bitmap.getPixel(x, y)
+                if (Color.alpha(pixel) > 180) {
+                    Color.colorToHSV(pixel, hsv)
+                    val saturation = hsv[1]
+                    val value = hsv[2]
+                    val vibrancy = saturation * 0.7f + value * 0.3f
+                    if (vibrancy > maxVibrancy && value > 0.25f) {
+                        maxVibrancy = vibrancy
+                        dominantColor = pixel
+                    }
+                }
+            }
+        }
+        return dominantColor
+    }
 
     fun extractColor(context: Context, packageName: String?, explicitNotifColor: Int = 0): Int {
         if (explicitNotifColor != 0 && explicitNotifColor != Color.TRANSPARENT) {
@@ -199,31 +234,7 @@ object AppIconColorExtractor {
                 }
             }
 
-            val w = bitmap.width
-            val h = bitmap.height
-            var dominantColor = Color.parseColor("#00E5FF")
-            var maxVibrancy = -1f
-            val hsv = FloatArray(3)
-
-            val stepX = (w / 6).coerceAtLeast(1)
-            val stepY = (h / 6).coerceAtLeast(1)
-
-            for (x in stepX until w - stepX step stepX) {
-                for (y in stepY until h - stepY step stepY) {
-                    val pixel = bitmap.getPixel(x, y)
-                    if (Color.alpha(pixel) > 200) {
-                        Color.colorToHSV(pixel, hsv)
-                        val saturation = hsv[1]
-                        val value = hsv[2]
-                        val vibrancy = saturation * 0.7f + value * 0.3f
-                        if (vibrancy > maxVibrancy && value > 0.3f) {
-                            maxVibrancy = vibrancy
-                            dominantColor = pixel
-                        }
-                    }
-                }
-            }
-
+            val dominantColor = extractBitmapColor(bitmap)
             colorCache[packageName] = dominantColor
             dominantColor
         } catch (_: Exception) {

@@ -213,15 +213,22 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
         val heightPx = (effectiveHeightDp * density).toInt()
 
+        val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", true)
+        var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
+
+        if (!isSensorEnabled) {
+            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+
         statusBarWindowParams = WindowManager.LayoutParams(
             screenWidthPx,
             heightPx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+            flags,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -241,7 +248,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
         val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
-        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false) || prefs.getBoolean("pref_sub_horizon_rail_custom", false)
+        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_geom", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_color", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_text", false) ||
+                prefs.getBoolean("pref_sub_horizon_rail_custom", false)
 
         if (!enabled && !isRailRoutingActive && !isRailPreview) {
             statusBarOverlayView?.let {
@@ -254,7 +265,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val screenWidthPx = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
         val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
-        val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
         val maxRails = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
         val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
         val railNeededHeightDp = if (isRailText) (railThicknessDp * maxRails + 26) else (railThicknessDp * maxRails + 8)
@@ -264,6 +275,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (statusBarOverlayView == null) {
             setupStatusBarOverlay(prefs)
         } else {
+            if (!enabled) {
+                statusBarWindowParams.flags = statusBarWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            } else {
+                statusBarWindowParams.flags = statusBarWindowParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+            }
             statusBarWindowParams.width = screenWidthPx
             statusBarWindowParams.height = heightPx
             statusBarWindowParams.x = 0

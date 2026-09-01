@@ -50,6 +50,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -977,23 +983,138 @@ fun PrefToggleRow(
 }
 
 object SliderPresetManager {
-    fun getPresets(prefs: SharedPreferences, sliderKey: String): List<String> {
-        val raw = prefs.getString("pref_slider_presets_$sliderKey", null) ?: return emptyList()
-        return raw.split(";;").map { it.trim() }.filter { it.isNotEmpty() }
+    data class PresetItem(
+        val raw: String,
+        val label: String?,
+        val valueStr: String
+    ) {
+        val displayTitle: String
+            get() = if (!label.isNullOrBlank()) label else valueStr
     }
 
-    fun addPreset(prefs: SharedPreferences, sliderKey: String, valueStr: String) {
-        val current = getPresets(prefs, sliderKey).toMutableList()
-        if (!current.contains(valueStr)) {
-            current.add(0, valueStr)
-            prefs.edit().putString("pref_slider_presets_$sliderKey", current.joinToString(";;")).apply()
+    fun getPresets(prefs: SharedPreferences, sliderKey: String): List<PresetItem> {
+        val raw = prefs.getString("pref_slider_presets_$sliderKey", null) ?: return emptyList()
+        return raw.split(";;").mapNotNull { entry ->
+            val clean = entry.trim()
+            if (clean.isEmpty()) null
+            else {
+                val parts = clean.split("::")
+                if (parts.size >= 2) {
+                    PresetItem(clean, parts[0].trim(), parts[1].trim())
+                } else {
+                    PresetItem(clean, null, clean)
+                }
+            }
         }
     }
 
-    fun removePreset(prefs: SharedPreferences, sliderKey: String, valueStr: String) {
+    fun addPreset(prefs: SharedPreferences, sliderKey: String, label: String?, valueStr: String) {
         val current = getPresets(prefs, sliderKey).toMutableList()
-        current.remove(valueStr)
-        prefs.edit().putString("pref_slider_presets_$sliderKey", current.joinToString(";;")).apply()
+        val formatted = if (label.isNullOrBlank()) valueStr else "${label.trim()}::${valueStr.trim()}"
+        current.removeAll { it.valueStr == valueStr && it.label == label }
+        val newRawList = mutableListOf(formatted)
+        newRawList.addAll(current.map { it.raw })
+        prefs.edit().putString("pref_slider_presets_$sliderKey", newRawList.joinToString(";;")).apply()
+    }
+
+    fun updatePresetLabel(prefs: SharedPreferences, sliderKey: String, oldItem: PresetItem, newLabel: String) {
+        val current = getPresets(prefs, sliderKey).toMutableList()
+        val index = current.indexOfFirst { it.raw == oldItem.raw }
+        val formatted = if (newLabel.isBlank()) oldItem.valueStr else "${newLabel.trim()}::${oldItem.valueStr}"
+        if (index != -1) {
+            current[index] = PresetItem(formatted, if (newLabel.isBlank()) null else newLabel.trim(), oldItem.valueStr)
+        }
+        prefs.edit().putString("pref_slider_presets_$sliderKey", current.map { it.raw }.joinToString(";;")).apply()
+    }
+
+    fun removePreset(prefs: SharedPreferences, sliderKey: String, item: PresetItem) {
+        val current = getPresets(prefs, sliderKey).toMutableList()
+        current.removeAll { it.raw == item.raw }
+        prefs.edit().putString("pref_slider_presets_$sliderKey", current.map { it.raw }.joinToString(";;")).apply()
+    }
+}
+
+@Composable
+fun ProfileNamingDialog(
+    initialName: String,
+    valueStr: String,
+    dialogTitle: String = "Name Slider Profile",
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(initialName) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xFF161B26),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .wrapContentHeight()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Bookmark,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = dialogTitle,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color.White
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Calibrated Value: $valueStr",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Profile Label / Context", fontSize = 12.sp) },
+                    placeholder = { Text("e.g. Rainy days, Gaming, Desk mode...", fontSize = 12.sp, color = Color.Gray) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = Color.LightGray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = Color.LightGray)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { onConfirm(name.trim()) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Save Profile", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1003,6 +1124,7 @@ fun SliderCalibrationFlyoutDialog(
     sliderKey: String,
     currentValueStr: String,
     defaultValueStr: String,
+    onValueTyped: (String) -> Unit,
     onResetToDefault: () -> Unit,
     onSelectProfile: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -1013,6 +1135,36 @@ fun SliderCalibrationFlyoutDialog(
 ) {
     var presets by remember { mutableStateOf(SliderPresetManager.getPresets(prefs, sliderKey)) }
     var isProfilesExpanded by remember { mutableStateOf(true) }
+    var itemToRename by remember { mutableStateOf<SliderPresetManager.PresetItem?>(null) }
+    var isAddingNewProfile by remember { mutableStateOf(false) }
+
+    if (isAddingNewProfile) {
+        ProfileNamingDialog(
+            initialName = "",
+            valueStr = currentValueStr,
+            dialogTitle = "Save New Profile",
+            onConfirm = { customName ->
+                SliderPresetManager.addPreset(prefs, sliderKey, customName, currentValueStr)
+                presets = SliderPresetManager.getPresets(prefs, sliderKey)
+                isAddingNewProfile = false
+            },
+            onDismiss = { isAddingNewProfile = false }
+        )
+    }
+
+    itemToRename?.let { targetItem ->
+        ProfileNamingDialog(
+            initialName = targetItem.label ?: "",
+            valueStr = targetItem.valueStr,
+            dialogTitle = "Rename Profile",
+            onConfirm = { newName ->
+                SliderPresetManager.updatePresetLabel(prefs, sliderKey, targetItem, newName)
+                presets = SliderPresetManager.getPresets(prefs, sliderKey)
+                itemToRename = null
+            },
+            onDismiss = { itemToRename = null }
+        )
+    }
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -1089,20 +1241,53 @@ fun SliderCalibrationFlyoutDialog(
                     color = Color.White.copy(alpha = 0.1f)
                 )
 
-                // 2. Current & Default Value Chips
+                // 2. Current & Default Value Chips (with direct numeric editing)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    var directValueText by remember(currentValueStr) { mutableStateOf(currentValueStr.filter { it.isDigit() || it == '.' || it == '-' }) }
+
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Text("Current Value", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-                            Text(currentValueStr, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Type Value", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Type value",
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            BasicTextField(
+                                value = directValueText,
+                                onValueChange = { newTxt ->
+                                    directValueText = newTxt
+                                    onValueTyped(newTxt)
+                                },
+                                textStyle = TextStyle(
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
 
@@ -1114,7 +1299,8 @@ fun SliderCalibrationFlyoutDialog(
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
                             Text("Factory Default", fontSize = 10.sp, color = Color.Gray)
-                            Text(defaultValueStr, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(defaultValueStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
                         }
                     }
                 }
@@ -1249,8 +1435,7 @@ fun SliderCalibrationFlyoutDialog(
                                     .fillMaxWidth()
                                     .clickable {
                                         LightspeedHapticEngine.click(context)
-                                        SliderPresetManager.addPreset(prefs, sliderKey, currentValueStr)
-                                        presets = SliderPresetManager.getPresets(prefs, sliderKey)
+                                        isAddingNewProfile = true
                                     }
                             ) {
                                 Row(
@@ -1292,7 +1477,7 @@ fun SliderCalibrationFlyoutDialog(
                                 }
                             } else {
                                 Spacer(modifier = Modifier.height(6.dp))
-                                presets.forEach { profileVal ->
+                                presets.forEach { profileItem ->
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
                                         color = Color(0x22FFFFFF),
@@ -1301,7 +1486,7 @@ fun SliderCalibrationFlyoutDialog(
                                             .padding(vertical = 2.dp)
                                             .clickable {
                                                 LightspeedHapticEngine.click(context)
-                                                onSelectProfile(profileVal)
+                                                onSelectProfile(profileItem.valueStr)
                                             }
                                     ) {
                                         Row(
@@ -1322,28 +1507,63 @@ fun SliderCalibrationFlyoutDialog(
                                                     tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(14.dp)
                                                 )
-                                                Text(
-                                                    text = profileVal,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = Color.White
-                                                )
+                                                Column {
+                                                    if (!profileItem.label.isNullOrBlank()) {
+                                                        Text(
+                                                            text = profileItem.label,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color.White
+                                                        )
+                                                        Text(
+                                                            text = profileItem.valueStr,
+                                                            fontSize = 10.5.sp,
+                                                            color = Color.LightGray
+                                                        )
+                                                    } else {
+                                                        Text(
+                                                            text = profileItem.valueStr,
+                                                            fontSize = 12.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Color.White
+                                                        )
+                                                    }
+                                                }
                                             }
 
-                                            IconButton(
-                                                onClick = {
-                                                    LightspeedHapticEngine.tick(context)
-                                                    SliderPresetManager.removePreset(prefs, sliderKey, profileVal)
-                                                    presets = SliderPresetManager.getPresets(prefs, sliderKey)
-                                                },
-                                                modifier = Modifier.size(24.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = "Delete Profile",
-                                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                                                    modifier = Modifier.size(15.dp)
-                                                )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                // Pencil Edit Icon for Renaming
+                                                IconButton(
+                                                    onClick = {
+                                                        LightspeedHapticEngine.tick(context)
+                                                        itemToRename = profileItem
+                                                    },
+                                                    modifier = Modifier.size(26.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Edit,
+                                                        contentDescription = "Rename Profile",
+                                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+
+                                                // Delete Icon at most right edge
+                                                IconButton(
+                                                    onClick = {
+                                                        LightspeedHapticEngine.tick(context)
+                                                        SliderPresetManager.removePreset(prefs, sliderKey, profileItem)
+                                                        presets = SliderPresetManager.getPresets(prefs, sliderKey)
+                                                    },
+                                                    modifier = Modifier.size(26.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Delete Profile",
+                                                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1630,6 +1850,13 @@ fun PrefDottedSliderRow(
             sliderKey = key,
             currentValueStr = value.toString(),
             defaultValueStr = defaultVal.toString(),
+            onValueTyped = { typedStr ->
+                val parsed = typedStr.filter { it.isDigit() || it == '-' }.toIntOrNull()
+                if (parsed != null) {
+                    value = parsed.coerceIn(minVal, maxVal)
+                    prefs.edit().putInt(key, value).apply()
+                }
+            },
             onResetToDefault = {
                 value = defaultVal
                 prefs.edit().putInt(key, defaultVal).apply()
@@ -1756,6 +1983,15 @@ fun PrefFloatDottedSliderRow(
             sliderKey = key,
             currentValueStr = String.format(java.util.Locale.US, "%.1f %s", value, unit),
             defaultValueStr = String.format(java.util.Locale.US, "%.1f %s", defaultVal, unit),
+            onValueTyped = { typedStr ->
+                val clean = typedStr.replace(unit, "").trim()
+                val parsed = clean.toFloatOrNull()
+                if (parsed != null) {
+                    value = parsed.coerceIn(minVal, maxVal)
+                    prefs.edit().putFloat(key, value).apply()
+                    onValueChanged(value)
+                }
+            },
             onResetToDefault = {
                 value = defaultVal
                 prefs.edit().putFloat(key, defaultVal).apply()

@@ -67,16 +67,26 @@ object LightspeedMediaManager {
     fun getActiveTrackInfo(context: Context): MediaTrackInfo {
         val controller = getPrimaryController(context)
         if (controller != null) {
-            val metadata = controller.metadata
-            val playbackState = controller.playbackState
-            val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+            val rawTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
                 ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-                ?: "Active Media Playback"
-            val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                ?: ""
+            val rawArtist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
                 ?: metadata?.getString(MediaMetadata.METADATA_KEY_AUTHOR)
-                ?: "Now Playing"
+                ?: ""
             val album = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM) ?: ""
+
+            fun cleanMeta(str: String): String {
+                val t = str.trim()
+                return if (t.equals("Now Playing", ignoreCase = true) ||
+                    t.equals("Unknown Artist", ignoreCase = true) ||
+                    t.equals("Unknown", ignoreCase = true) ||
+                    t.equals("null", ignoreCase = true) ||
+                    t.equals("Active Media Playback", ignoreCase = true)) "" else t
+            }
+
+            val title = cleanMeta(rawTitle)
+            val artist = cleanMeta(rawArtist)
             val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
             val position = playbackState?.position ?: 0L
             val isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
@@ -102,8 +112,8 @@ object LightspeedMediaManager {
         }
 
         return MediaTrackInfo(
-            title = "Active Media Playback",
-            artist = "Now Playing",
+            title = "",
+            artist = "",
             album = "",
             positionMs = cachedEstimatedPositionMs,
             durationMs = 0L,

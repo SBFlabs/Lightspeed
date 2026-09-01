@@ -1560,10 +1560,14 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                             )
 
+                                                            if (isAvoidCutout) {
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Cutout Wing Clearance Gap (dp)", 0, 24, 1, 4)
+                                                            }
+
                                                             val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
                                                             PrefToggleRow(
-                                                                title = "High-Contrast Ambient Shield",
-                                                                subtitle = "Renders an ambient dark contrast shield and drop-shadow under text to guarantee high legibility over white backgrounds.",
+                                                                title = "High-Contrast Ambient Outline",
+                                                                subtitle = "Renders a crisp, dark semi-transparent outline halo around the typography to guarantee 100% legibility on pure white backgrounds.",
                                                                 isChecked = isContrastShield,
                                                                 onCheckedChange = {
                                                                     prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, it).apply()

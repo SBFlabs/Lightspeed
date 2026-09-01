@@ -720,7 +720,6 @@ class LightspeedStatusBarOverlay(
                                 drawTacticalText(finalLabel, startX, textY)
                             }
                         }
-                    }
                     } else if (hasCutout && !isCenteredCutout && textWidth <= (railSpanPx - (cutoutRight - cutoutLeft))) {
                         // Corner Cutout Avoidance: Shift cleanly away from the corner
                         val isLeftCorner = cutoutRight < screenW * 0.35f

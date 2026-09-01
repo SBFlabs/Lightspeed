@@ -659,7 +659,7 @@ class LightspeedStatusBarOverlay(
                     val wingGapDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, 4).coerceIn(0, 24).toFloat()
                     val wingGap = wingGapDp * d
 
-                    val rawCutout = if (isAvoidCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
+                    val rawCutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
                     val topCutout = rawCutout?.boundingRectTop ?: rawCutout?.boundingRects?.firstOrNull { it.top == 0 }
 
                     val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 26f).coerceIn(14f, 36f).toInt()
@@ -671,7 +671,6 @@ class LightspeedStatusBarOverlay(
                     val detectedCenterX = if (topCutout != null && topCutout.width() > 0) topCutout.exactCenterX() else screenW / 2f
                     val cutoutCenterX = detectedCenterX + notchOffsetX
 
-                    val hasCutout = isAvoidCutout && topCutout != null
                     val cutoutLeft = cutoutCenterX - (cutoutWidthPx / 2f)
                     val cutoutRight = cutoutCenterX + (cutoutWidthPx / 2f)
                     val isCenteredCutout = cutoutCenterX in (screenW * 0.30f)..(screenW * 0.70f)
@@ -681,7 +680,7 @@ class LightspeedStatusBarOverlay(
 
                     // Static vs Scrolling Ticker Layout
                     if (textWidth <= railSpanPx) {
-                        if (isAvoidCutout && hasCutout && isCenteredCutout && leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
+                        if (isAvoidCutout && isCenteredCutout && leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
                             // Dual-Wing Symmetrical Cutout Split
                             val availLeft = (cutoutLeft - railLeft - wingGap).coerceAtLeast(0f)
                             val availRight = (railRight - cutoutRight - wingGap).coerceAtLeast(0f)
@@ -704,6 +703,24 @@ class LightspeedStatusBarOverlay(
 
                             drawTacticalText(finalLeftLabel, leftX, textY)
                             drawTacticalText(finalRightLabel, rightX, textY)
+                        } else if (isAvoidCutout && isCenteredCutout && (leftLabel.isNotBlank() || rightLabel.isNotBlank())) {
+                            // Single label with Cutout Avoidance: Place cleanly to the right or left of the hole punch
+                            val singleLabel = leftLabel.ifBlank { rightLabel }
+                            val availLeft = (cutoutLeft - railLeft - wingGap).coerceAtLeast(0f)
+                            val availRight = (railRight - cutoutRight - wingGap).coerceAtLeast(0f)
+                            val singleW = microTextPaint.measureText(singleLabel)
+
+                            if (singleW <= availRight) {
+                                val rightX = (cutoutRight + wingGap).coerceAtMost(railRight - singleW)
+                                drawTacticalText(singleLabel, rightX, textY)
+                            } else if (singleW <= availLeft) {
+                                val leftX = (cutoutLeft - wingGap - singleW).coerceAtLeast(railLeft)
+                                drawTacticalText(singleLabel, leftX, textY)
+                            } else {
+                                val finalLabel = android.text.TextUtils.ellipsize(singleLabel, android.text.TextPaint(microTextPaint), maxOf(availLeft, availRight), android.text.TextUtils.TruncateAt.END).toString()
+                                val startX = if (availRight >= availLeft) (cutoutRight + wingGap) else (cutoutLeft - wingGap - microTextPaint.measureText(finalLabel))
+                                drawTacticalText(finalLabel, startX, textY)
+                            }
                         } else {
                             // Unified text block: perfectly centered or aligned based on user preference
                             val startX = when (railAlign) {

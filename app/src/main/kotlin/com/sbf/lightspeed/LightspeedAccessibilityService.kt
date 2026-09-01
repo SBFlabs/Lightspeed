@@ -69,8 +69,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
-        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_sub_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
+        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_horizon_rail_") || key.startsWith("pref_sub_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             updateStatusBarOverlayFromPrefs(prefs)
+            statusBarOverlayView?.postInvalidate()
         }
         if (key != null && (key.startsWith("pref_notch_") || key.startsWith("pref_telemetry_"))) {
             notchOverlayView?.postInvalidate()

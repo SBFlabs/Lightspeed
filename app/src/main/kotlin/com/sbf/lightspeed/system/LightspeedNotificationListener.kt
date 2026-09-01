@@ -3,6 +3,10 @@ package com.sbf.lightspeed.system
 import android.app.Notification
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
 import android.media.session.MediaController
 import android.media.session.PlaybackState
 import android.service.notification.NotificationListenerService
@@ -24,6 +28,7 @@ class LightspeedNotificationListener : NotificationListenerService() {
         val progressFraction: Float,
         val isIndeterminate: Boolean,
         val packageName: String,
+        val iconColor: Int? = null,
         val lastUpdated: Long = System.currentTimeMillis()
     )
 
@@ -33,7 +38,8 @@ class LightspeedNotificationListener : NotificationListenerService() {
         val isPlaying: Boolean,
         val positionMs: Long,
         val durationMs: Long,
-        val packageName: String?
+        val packageName: String?,
+        val iconColor: Int? = null
     )
 
     companion object {
@@ -92,6 +98,7 @@ class LightspeedNotificationListener : NotificationListenerService() {
                 ?: extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
                 ?: sbn.packageName
             val fraction = if (max > 0) (progress.toFloat() / max.toFloat()).coerceIn(0f, 1f) else -1f
+            val iconColor = AppIconColorExtractor.extractColor(this, sbn.packageName, notif.color)
 
             val telemetry = DownloadTelemetry(
                 key = sbn.key,
@@ -100,7 +107,8 @@ class LightspeedNotificationListener : NotificationListenerService() {
                 max = max,
                 progressFraction = fraction,
                 isIndeterminate = indeterminate,
-                packageName = sbn.packageName
+                packageName = sbn.packageName,
+                iconColor = iconColor
             )
             activeDownloads[sbn.key] = telemetry
             onTelemetryChanged?.invoke()
@@ -113,13 +121,15 @@ class LightspeedNotificationListener : NotificationListenerService() {
         // Query active media controller for track changes
         try {
             val info = LightspeedMediaManager.getActiveTrackInfo(this)
+            val mediaIconColor = AppIconColorExtractor.extractColor(this, info.packageName, 0)
             activeMediaTelemetry = MediaTelemetry(
                 title = info.title,
                 artist = info.artist,
                 isPlaying = info.isPlaying,
                 positionMs = info.positionMs,
                 durationMs = info.durationMs,
-                packageName = info.packageName
+                packageName = info.packageName,
+                iconColor = mediaIconColor
             )
             onTelemetryChanged?.invoke()
         } catch (_: Exception) {}
@@ -150,4 +160,80 @@ class LightspeedNotificationListener : NotificationListenerService() {
         }
     }
 }
+
+/**
+ * High-performance, memory-cached color extraction engine for notification and app icons.
+ * Samples vibrant dominant colors for the Horizon Rail and dynamic HUD telemetry.
+ */
+object AppIconColorExtractor {
+
+    private val colorCache = ConcurrentHashMap<String, Int>()
+
+    fun extractColor(context: Context, packageName: String?, explicitNotifColor: Int = 0): Int {
+        if (explicitNotifColor != 0 && explicitNotifColor != Color.TRANSPARENT) {
+            val alpha = Color.alpha(explicitNotifColor)
+            if (alpha > 50) {
+                return explicitNotifColor
+            }
+        }
+
+        if (packageName.isNullOrBlank()) {
+            return Color.parseColor("#00E5FF")
+        }
+
+        colorCache[packageName]?.let { return it }
+
+        return try {
+            val pm = context.packageManager
+            val drawable = pm.getApplicationIcon(packageName)
+            val bitmap = when (drawable) {
+                is BitmapDrawable -> drawable.bitmap
+                else -> {
+                    val w = drawable.intrinsicWidth.coerceIn(32, 128)
+                    val h = drawable.intrinsicHeight.coerceIn(32, 128)
+                    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                    val canvas = Canvas(bmp)
+                    drawable.setBounds(0, 0, w, h)
+                    drawable.draw(canvas)
+                    bmp
+                }
+            }
+
+            val w = bitmap.width
+            val h = bitmap.height
+            var dominantColor = Color.parseColor("#00E5FF")
+            var maxVibrancy = -1f
+            val hsv = FloatArray(3)
+
+            val stepX = (w / 6).coerceAtLeast(1)
+            val stepY = (h / 6).coerceAtLeast(1)
+
+            for (x in stepX until w - stepX step stepX) {
+                for (y in stepY until h - stepY step stepY) {
+                    val pixel = bitmap.getPixel(x, y)
+                    if (Color.alpha(pixel) > 200) {
+                        Color.colorToHSV(pixel, hsv)
+                        val saturation = hsv[1]
+                        val value = hsv[2]
+                        val vibrancy = saturation * 0.7f + value * 0.3f
+                        if (vibrancy > maxVibrancy && value > 0.3f) {
+                            maxVibrancy = vibrancy
+                            dominantColor = pixel
+                        }
+                    }
+                }
+            }
+
+            colorCache[packageName] = dominantColor
+            dominantColor
+        } catch (_: Exception) {
+            Color.parseColor("#00E5FF")
+        }
+    }
+
+    fun clearCache() {
+        colorCache.clear()
+    }
+}
+
 

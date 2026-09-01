@@ -204,19 +204,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         val screenWidthPx = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
-        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
-        val spanPx = if (spanPref >= 1000) {
-            screenWidthPx
-        } else {
-            (spanPref * density).toInt().coerceIn((50 * density).toInt(), screenWidthPx)
-        }
-        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
-        val heightPx = (thicknessDp * density).toInt()
-        val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * density).toInt()
-        val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).toInt()
+        val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
+        val railNeededHeightDp = if (isRailText) (railThicknessDp + 22) else (railThicknessDp + 6)
+        val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
+        val heightPx = (effectiveHeightDp * density).toInt()
 
         statusBarWindowParams = WindowManager.LayoutParams(
-            spanPx,
+            screenWidthPx,
             heightPx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -226,9 +222,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
                     WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            x = offsetX
-            y = offsetY
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = 0
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
@@ -240,10 +236,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     private fun updateStatusBarOverlayFromPrefs(prefs: SharedPreferences) {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
-        val screenWidthPx = resources.displayMetrics.widthPixels
-        val density = resources.displayMetrics.density
+        val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+        val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+        val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
 
-        if (!enabled) {
+        if (!enabled && !isRailRoutingActive) {
             statusBarOverlayView?.let {
                 windowManager?.removeView(it)
                 statusBarOverlayView = null
@@ -251,24 +248,22 @@ class LightspeedAccessibilityService : AccessibilityService() {
             return
         }
 
-        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
-        val spanPx = if (spanPref >= 1000) {
-            screenWidthPx
-        } else {
-            (spanPref * density).toInt().coerceIn((50 * density).toInt(), screenWidthPx)
-        }
-        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
-        val heightPx = (thicknessDp * density).toInt()
-        val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * density).toInt()
-        val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).toInt()
+        val screenWidthPx = resources.displayMetrics.widthPixels
+        val density = resources.displayMetrics.density
+        val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
+        val railNeededHeightDp = if (isRailText) (railThicknessDp + 22) else (railThicknessDp + 6)
+        val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, railNeededHeightDp) else railNeededHeightDp
+        val heightPx = (effectiveHeightDp * density).toInt()
 
         if (statusBarOverlayView == null) {
             setupStatusBarOverlay(prefs)
         } else {
-            statusBarWindowParams.width = spanPx
+            statusBarWindowParams.width = screenWidthPx
             statusBarWindowParams.height = heightPx
-            statusBarWindowParams.x = offsetX
-            statusBarWindowParams.y = offsetY
+            statusBarWindowParams.x = 0
+            statusBarWindowParams.y = 0
             statusBarOverlayView?.invalidate()
             windowManager?.updateViewLayout(statusBarOverlayView, statusBarWindowParams)
         }

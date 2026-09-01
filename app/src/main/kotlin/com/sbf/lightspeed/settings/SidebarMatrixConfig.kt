@@ -1236,28 +1236,242 @@ fun SidebarMatrixConfigurationFields(
                                                     }
 
                                                     // 1. Horizon Rail Customization
+                                                    val screenWidthDp = remember { (context.resources.displayMetrics.widthPixels / context.resources.displayMetrics.density).toInt() }
+                                                    val currentColorMode = prefs.getString("pref_horizon_rail_color_mode", "app_icon") ?: "app_icon"
+                                                    var isColorModeDropdownOpen by remember { mutableStateOf(false) }
+                                                    val colorModeOptions = listOf(
+                                                        "app_icon" to "🎨 Notification App Icon Color",
+                                                        "material3" to "🌈 Material 3 Dynamic Accent",
+                                                        "inverted" to "☯ Inverted Screen Contrast",
+                                                        "custom" to "🎯 Custom Color of Choice"
+                                                    )
+
+                                                    val currentRailAlign = prefs.getString("pref_horizon_rail_align", "center") ?: "center"
+                                                    var isRailAlignDropdownOpen by remember { mutableStateOf(false) }
+                                                    val railAlignOptions = listOf(
+                                                        "center" to "Center Aligned",
+                                                        "left" to "Left Aligned",
+                                                        "right" to "Right Aligned"
+                                                    )
+
+                                                    val currentTextPos = prefs.getString("pref_horizon_rail_text_position", "below") ?: "below"
+                                                    var isTextPosDropdownOpen by remember { mutableStateOf(false) }
+                                                    val textPosOptions = listOf(
+                                                        "below" to "Below Rail Line (Recommended)",
+                                                        "above" to "Above Rail Line",
+                                                        "embedded" to "Centered Inside Track"
+                                                    )
+
                                                     CollapsibleSubSection(
                                                         title = "Horizon Rail Customization",
-                                                        subtitle = "Line thickness, glow radiance, track opacity & dynamic accent",
+                                                        subtitle = "Span, color engine (App Icon/M3/Inverted/Custom) & micro-text ticker",
                                                         isExpanded = isHorizonRailCustomExpanded,
                                                         onToggle = {
                                                             isHorizonRailCustomExpanded = !isHorizonRailCustomExpanded
                                                             prefs.edit().putBoolean("pref_sub_horizon_rail_custom", isHorizonRailCustomExpanded).apply()
                                                         }
                                                     ) {
+                                                        // A. Span & Geometry
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_span", "", "Span (Max: ${screenWidthDp}dp)", 50, screenWidthDp, 10, screenWidthDp)
+
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("RAIL ALIGNMENT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isRailAlignDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(railAlignOptions.firstOrNull { it.first == currentRailAlign }?.second ?: "Center Aligned", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isRailAlignDropdownOpen,
+                                                                    onDismissRequest = { isRailAlignDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    railAlignOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isRailAlignDropdownOpen = false
+                                                                                prefs.edit().putString("pref_horizon_rail_align", key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_offset_x", "", "Horizontal Offset (X Axis)", -150, 150, 5, 0)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 8, 1, 3)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 80)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 20)
+
+                                                        // B. Color Engine Selector
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("HORIZON RAIL COLOR MODE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isColorModeDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(colorModeOptions.firstOrNull { it.first == currentColorMode }?.second ?: "🎨 Notification App Icon Color", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isColorModeDropdownOpen,
+                                                                    onDismissRequest = { isColorModeDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    colorModeOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isColorModeDropdownOpen = false
+                                                                                prefs.edit().putString("pref_horizon_rail_color_mode", key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // Custom Color Preset Palette (shown when "custom" is selected)
+                                                        if (currentColorMode == "custom") {
+                                                            val customHex = prefs.getString("pref_horizon_rail_custom_color", "#00E5FF") ?: "#00E5FF"
+                                                            val presetColors = listOf(
+                                                                "#00E5FF" to "Cyan",
+                                                                "#00E676" to "Green",
+                                                                "#FFD600" to "Amber",
+                                                                "#FF6D00" to "Orange",
+                                                                "#FF1744" to "Crimson",
+                                                                "#FF007F" to "Pink",
+                                                                "#D500F9" to "Purple",
+                                                                "#FFFFFF" to "White"
+                                                            )
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                                Text("CUSTOM PALETTE PRESETS", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Color.LightGray)
+                                                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                                    presetColors.forEach { (hex, _) ->
+                                                                        val col = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Cyan }
+                                                                        val isSelected = customHex.equals(hex, ignoreCase = true)
+                                                                        Box(
+                                                                            modifier = Modifier
+                                                                                .size(32.dp)
+                                                                                .clip(CircleShape)
+                                                                                .background(col)
+                                                                                .border(
+                                                                                    width = if (isSelected) 2.5.dp else 1.dp,
+                                                                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.3f),
+                                                                                    shape = CircleShape
+                                                                                )
+                                                                                .clickable {
+                                                                                    prefs.edit().putString("pref_horizon_rail_custom_color", hex).apply()
+                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                    onRefreshNeeded()
+                                                                                },
+                                                                            contentAlignment = Alignment.Center
+                                                                        ) {
+                                                                            if (isSelected) {
+                                                                                Icon(Icons.Default.Check, contentDescription = null, tint = if (hex == "#FFFFFF") Color.Black else Color.White, modifier = Modifier.size(16.dp))
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // C. Notification Micro-Text Telemetry Ticker
+                                                        val isRailTextEnabled = prefs.getBoolean("pref_horizon_rail_text_enabled", true)
                                                         PrefToggleRow(
-                                                            title = "Dynamic Material 3 Accent",
-                                                            subtitle = "Syncs rail color with Android Material 3 system palette instead of static cyan.",
-                                                            isChecked = prefs.getBoolean("pref_horizon_rail_dynamic_color", true),
+                                                            title = "Micro-Text Telemetry Ticker",
+                                                            subtitle = "Streams active download filenames and song titles in ultra-compact typography along the rail span.",
+                                                            isChecked = isRailTextEnabled,
                                                             onCheckedChange = {
-                                                                prefs.edit().putBoolean("pref_horizon_rail_dynamic_color", it).apply()
+                                                                prefs.edit().putBoolean("pref_horizon_rail_text_enabled", it).apply()
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 onRefreshNeeded()
                                                             }
                                                         )
-                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 8, 1, 3)
-                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 80)
-                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 20)
+
+                                                        if (isRailTextEnabled) {
+                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_size", "", "Micro-Font Size (dp)", 6, 12, 1, 8)
+
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                Text("MICRO-TEXT POSITION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                Spacer(modifier = Modifier.height(4.dp))
+                                                                Box {
+                                                                    OutlinedButton(
+                                                                        onClick = { isTextPosDropdownOpen = true },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(12.dp)
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                                            verticalAlignment = Alignment.CenterVertically
+                                                                        ) {
+                                                                            Text(textPosOptions.firstOrNull { it.first == currentTextPos }?.second ?: "Below Rail Line (Recommended)", color = Color.White, fontSize = 12.sp)
+                                                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                        }
+                                                                    }
+                                                                    DropdownMenu(
+                                                                        expanded = isTextPosDropdownOpen,
+                                                                        onDismissRequest = { isTextPosDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
+                                                                    ) {
+                                                                        textPosOptions.forEach { (key, label) ->
+                                                                            DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
+                                                                                text = { Text(label) },
+                                                                                onClick = {
+                                                                                    isTextPosDropdownOpen = false
+                                                                                    prefs.edit().putString("pref_horizon_rail_text_position", key).apply()
+                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 80, 5, 25)
+                                                        }
                                                     }
 
                                                     // 2. Orbital Capsule Calibration

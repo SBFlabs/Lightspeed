@@ -61,7 +61,7 @@ class LightspeedStatusBarOverlay(
     }
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_sub_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_STATUSBAR") || key.startsWith("pref_telemetry_"))) {
+        if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_horizon_rail_") || key.startsWith("pref_sub_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_STATUSBAR") || key.startsWith("pref_telemetry_"))) {
             postInvalidate()
         }
     }
@@ -139,17 +139,17 @@ class LightspeedStatusBarOverlay(
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
         val d = resources.displayMetrics.density
         val screenWidthPx = resources.displayMetrics.widthPixels
-        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
-        val spanPx = if (spanPref >= 1000) screenWidthPx else (spanPref * d).toInt().coerceIn((50 * d).toInt(), screenWidthPx)
-        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
-        val heightPx = (thicknessDp * d).toInt()
-        val offsetX = (prefs.getInt("pref_statusbar_offset_x", 0) * d).toInt()
-        val offsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * d).toInt()
-        lp.width = spanPx
-        lp.height = heightPx
-        lp.x = offsetX
-        lp.y = offsetY
-        lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val isRailText = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
+        val railNeededHeightDp = if (isRailText) (railThicknessDp + 22) else (railThicknessDp + 6)
+        val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
+
+        lp.width = screenWidthPx
+        lp.height = (effectiveHeightDp * d).toInt()
+        lp.x = 0
+        lp.y = 0
+        lp.gravity = Gravity.TOP or Gravity.START
         try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
     }
 
@@ -169,7 +169,30 @@ class LightspeedStatusBarOverlay(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", true)
+        if (!isSensorEnabled) return false
+
         val density = resources.displayMetrics.density
+        val screenW = resources.displayMetrics.widthPixels.toFloat()
+        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
+        val spanPx = if (spanPref >= 1000) screenW else (spanPref * density).coerceIn(50f * density, screenW)
+        val sensorOffsetX = prefs.getInt("pref_statusbar_offset_x", 0) * density
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val sensorHeight = thicknessDp * density
+        val sensorOffsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * density).coerceAtLeast(0f)
+
+        val sensorLeft = ((screenW - spanPx) / 2f) + sensorOffsetX
+        val sensorRight = sensorLeft + spanPx
+        val sensorTop = sensorOffsetY
+        val sensorBottom = sensorTop + sensorHeight
+
+        // Only capture touch if it lands inside the Sensor Area bounding rectangle
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            if (event.x < sensorLeft || event.x > sensorRight || event.y < sensorTop || event.y > sensorBottom) {
+                return false
+            }
+        }
+
         val sensPref = prefs.getInt("pref_statusbar_sensitivity", 40)
         val threshold = (sensPref * 0.5f * density).coerceAtLeast(10f * density)
 
@@ -322,10 +345,11 @@ class LightspeedStatusBarOverlay(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", true)
         val isExpanded = prefs.getBoolean("pref_section_statusbar_expanded", true)
         val isPreview  = prefs.getBoolean("pref_statusbar_preview", false)
-        val isReview = isExpanded && isPreview
-        val transparencyPct = prefs.getInt("pref_statusbar_transparency", 0)
+        val isReview = isSensorEnabled && isExpanded && isPreview
+        val transparencyPct = if (isSensorEnabled) prefs.getInt("pref_statusbar_transparency", 0) else 0
         val d = resources.displayMetrics.density
         val screenW = resources.displayMetrics.widthPixels.toFloat()
         val w = width.toFloat()
@@ -337,47 +361,98 @@ class LightspeedStatusBarOverlay(
             Color.parseColor("#90CAF9")
         }
 
+        // Sensor Area Geometry
+        val spanPref = prefs.getInt("pref_statusbar_span", 1080)
+        val spanPx = if (spanPref >= 1000) screenW else (spanPref * d).coerceIn(50f * d, screenW)
+        val sensorOffsetX = prefs.getInt("pref_statusbar_offset_x", 0) * d
+        val thicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
+        val sensorHeight = thicknessDp * d
+        val sensorOffsetY = (prefs.getInt("pref_statusbar_offset_y", 0) * d).coerceAtLeast(0f)
+
+        val sensorLeft = ((screenW - spanPx) / 2f) + sensorOffsetX
+        val sensorRight = sensorLeft + spanPx
+        val sensorTop = sensorOffsetY
+        val sensorBottom = sensorTop + sensorHeight
+
         if (isReview) {
             debugPaint.style = Paint.Style.FILL
             debugPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(RectF(0f, 0f, w, h), 8f * d, 8f * d, debugPaint)
+            canvas.drawRoundRect(RectF(sensorLeft, sensorTop, sensorRight, sensorBottom), 8f * d, 8f * d, debugPaint)
 
             debugPaint.style = Paint.Style.STROKE
             debugPaint.strokeWidth = 2f * d
             debugPaint.color = Color.WHITE
-            canvas.drawRoundRect(RectF(1f * d, 1f * d, w - 1f * d, h - 1f * d), 8f * d, 8f * d, debugPaint)
+            canvas.drawRoundRect(RectF(sensorLeft + 1f * d, sensorTop + 1f * d, sensorRight - 1f * d, sensorBottom - 1f * d), 8f * d, 8f * d, debugPaint)
 
             // Center Telemetry Label
             hudTextPaint.textSize = 10f * d
             hudTextPaint.color = Color.WHITE
-            canvas.drawText("✦ SENSOR AREA (TOP EDGE)", w / 2f, (h / 2f) + 3.5f * d, hudTextPaint)
+            canvas.drawText("✦ SENSOR AREA (TOP EDGE)", sensorLeft + (spanPx / 2f), sensorTop + (sensorHeight / 2f) + 3.5f * d, hudTextPaint)
         } else if (transparencyPct > 0) {
             val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
             debugPaint.style = Paint.Style.FILL
             debugPaint.color = Color.argb((alpha * 0.4f).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(RectF(0f, 0f, w, 4f * d), 2f * d, 2f * d, debugPaint)
+            canvas.drawRoundRect(RectF(sensorLeft, sensorTop, sensorRight, sensorTop + 4f * d), 2f * d, 2f * d, debugPaint)
 
             debugPaint.color = Color.argb(alpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(RectF(0f, 0f, w, 2.5f * d), 1.5f * d, 1.5f * d, debugPaint)
+            canvas.drawRoundRect(RectF(sensorLeft, sensorTop, sensorRight, sensorTop + 2.5f * d), 1.5f * d, 1.5f * d, debugPaint)
         }
 
-        // 1. Horizon Rail Telemetry Line Renderer
+        // 1. Horizon Rail Telemetry Line & Micro-Text Renderer
         val dlRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
         val primaryDl = com.sbf.lightspeed.system.LightspeedNotificationListener.getPrimaryDownload()
         val media = com.sbf.lightspeed.system.LightspeedNotificationListener.activeMediaTelemetry
 
-        val railThicknessDp = prefs.getInt("pref_horizon_rail_thickness", 3).coerceIn(1, 8)
-        val railGlowPct = prefs.getInt("pref_horizon_rail_glow", 80).coerceIn(0, 100)
-        val railTrackOpacityPct = prefs.getInt("pref_horizon_rail_track_opacity", 20).coerceIn(0, 100)
-        val isDynamicColor = prefs.getBoolean("pref_horizon_rail_dynamic_color", true)
-        val railColor = if (isDynamicColor) m3Primary else Color.parseColor("#00E5FF")
+        val screenWidthDp = (screenW / d).toInt()
+        val railSpanPref = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_SPAN, screenWidthDp).coerceIn(50, screenWidthDp)
+        val railSpanPx = if (railSpanPref >= screenWidthDp - 5) screenW else (railSpanPref * d).coerceIn(50f * d, screenW)
+        val railAlign = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_ALIGN, "center") ?: "center"
+        val railOffsetX = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_X, 0) * d
+
+        val railLeft = when (railAlign) {
+            "left" -> (0f + railOffsetX).coerceIn(0f, screenW - railSpanPx)
+            "right" -> (screenW - railSpanPx + railOffsetX).coerceIn(0f, screenW - railSpanPx)
+            else -> (((screenW - railSpanPx) / 2f) + railOffsetX).coerceIn(0f, screenW - railSpanPx)
+        }
+        val railRight = railLeft + railSpanPx
+
+        val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val railGlowPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_GLOW, 80).coerceIn(0, 100)
+        val railTrackOpacityPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TRACK_OPACITY, 20).coerceIn(0, 100)
+
+        // Color Resolution (4 modes: app_icon, material3, inverted, custom)
+        val colorMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_COLOR_MODE, "app_icon") ?: "app_icon"
+        val railColor = when (colorMode) {
+            "app_icon" -> {
+                val iconCol = when {
+                    (dlRouting == "top_line" || dlRouting == "both") && primaryDl?.iconColor != null -> primaryDl.iconColor
+                    (mediaRouting == "top_line" || mediaRouting == "both") && media?.iconColor != null -> media.iconColor
+                    else -> null
+                }
+                iconCol ?: m3Primary
+            }
+            "material3" -> m3Primary
+            "inverted" -> {
+                val isNight = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                if (isNight) Color.WHITE else Color.BLACK
+            }
+            "custom" -> {
+                val hex = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUSTOM_COLOR, "#00E5FF") ?: "#00E5FF"
+                try { Color.parseColor(hex) } catch (_: Exception) { Color.parseColor("#00E5FF") }
+            }
+            else -> m3Primary
+        }
 
         val lineY = (railThicknessDp * d) / 2f
 
+        val isDlActive = (dlRouting == "top_line" || dlRouting == "both") && primaryDl != null && (primaryDl.progressFraction >= 0f || primaryDl.isIndeterminate)
+        val isMediaActive = (mediaRouting == "top_line" || mediaRouting == "both") && media != null && media.isPlaying && media.durationMs > 0
+
         val activeProgress = when {
-            (dlRouting == "top_line" || dlRouting == "both") && primaryDl != null && primaryDl.progressFraction >= 0f -> primaryDl.progressFraction.coerceIn(0f, 1f)
-            (mediaRouting == "top_line" || mediaRouting == "both") && media != null && media.isPlaying && media.durationMs > 0 -> (media.positionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
+            isDlActive && primaryDl!!.progressFraction >= 0f -> primaryDl.progressFraction.coerceIn(0f, 1f)
+            isDlActive && primaryDl!!.isIndeterminate -> 1f
+            isMediaActive -> (media!!.positionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
             else -> -1f
         }
 
@@ -387,7 +462,7 @@ class LightspeedStatusBarOverlay(
                 val trackAlpha = (railTrackOpacityPct * 2.55f).toInt().coerceIn(10, 255)
                 telemetryGlowPaint.strokeWidth = railThicknessDp * d
                 telemetryGlowPaint.color = Color.argb(trackAlpha, Color.red(railColor), Color.green(railColor), Color.blue(railColor))
-                canvas.drawLine(0f, lineY, w, lineY, telemetryGlowPaint)
+                canvas.drawLine(railLeft, lineY, railRight, lineY, telemetryGlowPaint)
             }
 
             // Glow Radiance stroke
@@ -395,13 +470,76 @@ class LightspeedStatusBarOverlay(
                 val glowAlpha = (railGlowPct * 1.5f).toInt().coerceIn(10, 200)
                 telemetryGlowPaint.strokeWidth = (railThicknessDp + 2.5f) * d
                 telemetryGlowPaint.color = Color.argb(glowAlpha, Color.red(railColor), Color.green(railColor), Color.blue(railColor))
-                canvas.drawLine(0f, lineY, w * activeProgress, lineY, telemetryGlowPaint)
+                val progressX = railLeft + (railSpanPx * activeProgress)
+                canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
             }
 
             // Core crisp progress line
             telemetryGlowPaint.strokeWidth = railThicknessDp * d
             telemetryGlowPaint.color = railColor
-            canvas.drawLine(0f, lineY, w * activeProgress, lineY, telemetryGlowPaint)
+            val progressX = railLeft + (railSpanPx * activeProgress)
+            canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
+
+            // Micro-Text Telemetry Ticker through the rail span
+            val isTextEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
+            if (isTextEnabled) {
+                val tickerText = when {
+                    isDlActive && primaryDl != null -> {
+                        val pctStr = if (primaryDl.progressFraction >= 0f) "${(primaryDl.progressFraction * 100).toInt()}%" else "DOWNLOADING"
+                        "⬇ ${primaryDl.title.uppercase()}  •  $pctStr"
+                    }
+                    isMediaActive && media != null -> {
+                        "♫ ${media.title.uppercase()} — ${media.artist.uppercase()}"
+                    }
+                    else -> null
+                }
+
+                if (!tickerText.isNullOrBlank()) {
+                    val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 8).coerceIn(6, 12).toFloat()
+                    val microTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        textSize = textSizeDp * d
+                        typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                        letterSpacing = 0.06f
+                        color = if (colorMode == "inverted") railColor else Color.WHITE
+                        setShadowLayer(2f * d, 0f, 0f, Color.BLACK)
+                    }
+
+                    val textPos = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
+                    val textY = when (textPos) {
+                        "above" -> (lineY - (railThicknessDp * d / 2f) - 1f * d).coerceAtLeast(textSizeDp * d)
+                        "embedded" -> lineY + (textSizeDp * d * 0.35f)
+                        else -> lineY + (railThicknessDp * d / 2f) + (textSizeDp * d) + 1f * d
+                    }
+
+                    val textWidth = microTextPaint.measureText(tickerText)
+                    val speedDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SPEED, 25).coerceIn(10, 80).toFloat()
+                    val speedPx = speedDp * d
+
+                    canvas.save()
+                    canvas.clipRect(railLeft, 0f, railRight, h)
+
+                    if (textWidth <= railSpanPx) {
+                        // Fits inside rail span: center text
+                        val startX = railLeft + (railSpanPx - textWidth) / 2f
+                        canvas.drawText(tickerText, startX, textY, microTextPaint)
+                    } else {
+                        // Overflow: smooth continuous marquee scroll across the span
+                        val totalCycleDistance = textWidth + 60f * d
+                        val cycleDurationMs = ((totalCycleDistance / speedPx) * 1000f).toLong().coerceAtLeast(1000L)
+                        val elapsedMs = SystemClock.uptimeMillis() % cycleDurationMs
+                        val offset = (elapsedMs.toFloat() / cycleDurationMs.toFloat()) * totalCycleDistance
+                        val textX = railLeft + railSpanPx - offset
+
+                        canvas.drawText(tickerText, textX, textY, microTextPaint)
+                        // Draw looping second instance if gap appears
+                        if (textX + textWidth < railRight) {
+                            canvas.drawText(tickerText, textX + totalCycleDistance, textY, microTextPaint)
+                        }
+                        postInvalidateOnAnimation()
+                    }
+                    canvas.restore()
+                }
+            }
         }
 
         // 2. Hardware Gear Set HUD Navigation Renderer

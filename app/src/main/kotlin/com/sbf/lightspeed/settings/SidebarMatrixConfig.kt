@@ -1548,10 +1548,10 @@ fun SidebarMatrixConfigurationFields(
 
                                                             PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 80, 5, 25)
 
-                                                            val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, true)
+                                                            val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)
                                                             PrefToggleRow(
                                                                 title = "Hardware Cutout & Punch-Hole Avoidance",
-                                                                subtitle = "Uses physical display cutout metrics to prevent telemetry text from colliding with or hiding behind the camera lens.",
+                                                                subtitle = "Splits title and subtitle into dual symmetrical wings around the camera cutout.",
                                                                 isChecked = isAvoidCutout,
                                                                 onCheckedChange = {
                                                                     prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, it).apply()

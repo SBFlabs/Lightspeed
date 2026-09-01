@@ -655,7 +655,7 @@ class LightspeedStatusBarOverlay(
                     val speedDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SPEED, 25).coerceIn(10, 80).toFloat()
                     val speedPx = speedDp * d
 
-                    val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, true)
+                    val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)
                     val wingGapDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, 4).coerceIn(0, 24).toFloat()
                     val wingGap = wingGapDp * d
 
@@ -671,7 +671,7 @@ class LightspeedStatusBarOverlay(
                     val detectedCenterX = if (topCutout != null && topCutout.width() > 0) topCutout.exactCenterX() else screenW / 2f
                     val cutoutCenterX = detectedCenterX + notchOffsetX
 
-                    val hasCutout = isAvoidCutout
+                    val hasCutout = isAvoidCutout && topCutout != null
                     val cutoutLeft = cutoutCenterX - (cutoutWidthPx / 2f)
                     val cutoutRight = cutoutCenterX + (cutoutWidthPx / 2f)
                     val isCenteredCutout = cutoutCenterX in (screenW * 0.30f)..(screenW * 0.70f)
@@ -679,13 +679,13 @@ class LightspeedStatusBarOverlay(
                     canvas.save()
                     canvas.clipRect(railLeft, 0f, railRight, h.toFloat())
 
-                    // Smart Camera Cutout Avoidance: Split/Shift vs Scrolling
-                    if (hasCutout && isCenteredCutout && textWidth <= (railSpanPx - (cutoutRight - cutoutLeft))) {
-                        val availLeft = (cutoutLeft - railLeft - wingGap).coerceAtLeast(0f)
-                        val availRight = (railRight - cutoutRight - wingGap).coerceAtLeast(0f)
+                    // Static vs Scrolling Ticker Layout
+                    if (textWidth <= railSpanPx) {
+                        if (isAvoidCutout && hasCutout && isCenteredCutout && leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
+                            // Dual-Wing Symmetrical Cutout Split
+                            val availLeft = (cutoutLeft - railLeft - wingGap).coerceAtLeast(0f)
+                            val availRight = (railRight - cutoutRight - wingGap).coerceAtLeast(0f)
 
-                        if (leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
-                            // Symmetrical Dual-Wing Cutout Avoidance (Left = Title, Right = Subtitle/Progress)
                             val leftW = microTextPaint.measureText(leftLabel)
                             val rightW = microTextPaint.measureText(rightLabel)
 
@@ -705,37 +705,20 @@ class LightspeedStatusBarOverlay(
                             drawTacticalText(finalLeftLabel, leftX, textY)
                             drawTacticalText(finalRightLabel, rightX, textY)
                         } else {
-                            // Single Label Only: Place on the side with maximum available span
-                            val singleLabel = leftLabel.ifBlank { rightLabel }
-                            val singleW = microTextPaint.measureText(singleLabel)
-                            if (singleW <= availRight) {
-                                val rightX = (cutoutRight + wingGap).coerceAtMost(railRight - singleW)
-                                drawTacticalText(singleLabel, rightX, textY)
-                            } else if (singleW <= availLeft) {
-                                val leftX = (cutoutLeft - wingGap - singleW).coerceAtLeast(railLeft)
-                                drawTacticalText(singleLabel, leftX, textY)
-                            } else {
-                                val finalLabel = android.text.TextUtils.ellipsize(singleLabel, android.text.TextPaint(microTextPaint), maxOf(availLeft, availRight), android.text.TextUtils.TruncateAt.END).toString()
-                                val startX = if (availRight >= availLeft) (cutoutRight + wingGap) else (cutoutLeft - wingGap - microTextPaint.measureText(finalLabel))
-                                drawTacticalText(finalLabel, startX, textY)
+                            // Unified text block: perfectly centered or aligned based on user preference
+                            val startX = when (railAlign) {
+                                "left" -> (railLeft + 6f * d).coerceIn(railLeft, railRight - textWidth)
+                                "right" -> (railRight - textWidth - 6f * d).coerceIn(railLeft, railRight - textWidth)
+                                else -> railLeft + (railSpanPx - textWidth) / 2f
                             }
+                            if (isAvoidCutout && hasCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                canvas.clipOutRect(cutoutLeft - wingGap, 0f, cutoutRight + wingGap, h.toFloat())
+                            }
+                            drawTacticalText(tickerText, startX, textY)
                         }
-                    } else if (hasCutout && !isCenteredCutout && textWidth <= (railSpanPx - (cutoutRight - cutoutLeft))) {
-                        // Corner Cutout Avoidance: Shift cleanly away from the corner
-                        val isLeftCorner = cutoutRight < screenW * 0.35f
-                        val startX = if (isLeftCorner) {
-                            (cutoutRight + wingGap).coerceAtLeast(railLeft)
-                        } else {
-                            (cutoutLeft - wingGap - textWidth).coerceAtMost(railRight - textWidth)
-                        }
-                        drawTacticalText(tickerText, startX, textY)
-                    } else if (textWidth <= railSpanPx) {
-                        // Standard Centered text (no cutout collision)
-                        val startX = railLeft + (railSpanPx - textWidth) / 2f
-                        drawTacticalText(tickerText, startX, textY)
                     } else {
                         // Continuous scrolling Marquee (when text is longer than the rail)
-                        if (hasCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (isAvoidCutout && hasCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             canvas.clipOutRect(cutoutLeft - wingGap, 0f, cutoutRight + wingGap, h.toFloat())
                         }
 

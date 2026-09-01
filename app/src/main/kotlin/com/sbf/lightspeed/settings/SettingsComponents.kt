@@ -1008,13 +1008,16 @@ object SliderPresetManager {
         }
     }
 
-    fun addPreset(prefs: SharedPreferences, sliderKey: String, label: String?, valueStr: String) {
+    fun addPreset(prefs: SharedPreferences, sliderKey: String, label: String?, valueStr: String): Boolean {
         val current = getPresets(prefs, sliderKey).toMutableList()
-        val formatted = if (label.isNullOrBlank()) valueStr else "${label.trim()}::${valueStr.trim()}"
-        current.removeAll { it.valueStr == valueStr && it.label == label }
+        if (current.any { it.valueStr.trim() == valueStr.trim() }) {
+            return false
+        }
+        val formatted = if (label.isNullOrBlank()) valueStr.trim() else "${label.trim()}::${valueStr.trim()}"
         val newRawList = mutableListOf(formatted)
         newRawList.addAll(current.map { it.raw })
         prefs.edit().putString("pref_slider_presets_$sliderKey", newRawList.joinToString(";;")).apply()
+        return true
     }
 
     fun updatePresetLabel(prefs: SharedPreferences, sliderKey: String, oldItem: PresetItem, newLabel: String) {
@@ -1137,6 +1140,9 @@ fun SliderCalibrationFlyoutDialog(
     var isProfilesExpanded by remember { mutableStateOf(true) }
     var itemToRename by remember { mutableStateOf<SliderPresetManager.PresetItem?>(null) }
     var isAddingNewProfile by remember { mutableStateOf(false) }
+    val isCurrentValueAlreadySaved = remember(presets, currentValueStr) {
+        presets.any { it.valueStr.trim() == currentValueStr.trim() }
+    }
 
     if (isAddingNewProfile) {
         ProfileNamingDialog(
@@ -1429,13 +1435,20 @@ fun SliderCalibrationFlyoutDialog(
                             // Add Current Profile Row ("Add +")
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                color = if (isCurrentValueAlreadySaved) Color.White.copy(alpha = 0.06f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isCurrentValueAlreadySaved) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        LightspeedHapticEngine.click(context)
-                                        isAddingNewProfile = true
+                                        if (!isCurrentValueAlreadySaved) {
+                                            LightspeedHapticEngine.click(context)
+                                            isAddingNewProfile = true
+                                        } else {
+                                            LightspeedHapticEngine.tick(context)
+                                        }
                                     }
                             ) {
                                 Row(
@@ -1446,17 +1459,17 @@ fun SliderCalibrationFlyoutDialog(
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Add,
+                                        imageVector = if (isCurrentValueAlreadySaved) Icons.Default.Check else Icons.Default.Add,
                                         contentDescription = "Add",
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = if (isCurrentValueAlreadySaved) Color.LightGray else MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Add + (Save '$currentValueStr' as Profile)",
+                                        text = if (isCurrentValueAlreadySaved) "Current Value '$currentValueStr' Already Saved" else "Add + (Save '$currentValueStr' as Profile)",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = if (isCurrentValueAlreadySaved) Color.LightGray else MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -1507,25 +1520,27 @@ fun SliderCalibrationFlyoutDialog(
                                                     tint = MaterialTheme.colorScheme.primary,
                                                     modifier = Modifier.size(14.dp)
                                                 )
-                                                Column {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    // Value first in bold primary color
+                                                    Text(
+                                                        text = profileItem.valueStr,
+                                                        fontSize = 12.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                    // Followed by Name in distinct tertiary color on the same line
                                                     if (!profileItem.label.isNullOrBlank()) {
                                                         Text(
-                                                            text = profileItem.label,
+                                                            text = "• ${profileItem.label}",
                                                             fontSize = 12.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = Color.White
-                                                        )
-                                                        Text(
-                                                            text = profileItem.valueStr,
-                                                            fontSize = 10.5.sp,
-                                                            color = Color.LightGray
-                                                        )
-                                                    } else {
-                                                        Text(
-                                                            text = profileItem.valueStr,
-                                                            fontSize = 12.sp,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            color = Color.White
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.95f),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
                                                         )
                                                     }
                                                 }

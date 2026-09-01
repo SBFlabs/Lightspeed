@@ -486,7 +486,7 @@ class LightspeedStatusBarOverlay(
                     HorizonStream(
                         type = "dl",
                         title = "NIGHTLY_BUILD_V10.APK",
-                        subtitle = "68%",
+                        subtitle = "68",
                         progressFraction = 0.68f,
                         iconColor = Color.parseColor("#00E5FF"),
                         coverArtColor = null
@@ -510,7 +510,7 @@ class LightspeedStatusBarOverlay(
                     HorizonStream(
                         type = "dl",
                         title = "SYSTEM_CACHE_BACKUP.ZIP",
-                        subtitle = "91%",
+                        subtitle = "91",
                         progressFraction = 0.91f,
                         iconColor = Color.parseColor("#00E676"),
                         coverArtColor = null
@@ -590,16 +590,14 @@ class LightspeedStatusBarOverlay(
                 val leftLabel = if (primaryStream.type == "dl") {
                     if (cleanTitle.isNotBlank()) "⬇ $cleanTitle" else "⬇ DOWNLOADING"
                 } else {
-                    if (cleanTitle.isNotBlank()) "♫ $cleanTitle" else if (cleanSub.isNotBlank()) "♫ $cleanSub" else ""
+                    if (cleanTitle.isNotBlank()) cleanTitle else cleanSub
                 }
 
                 val rightLabel = if (primaryStream.type == "dl") {
-                    cleanSub
+                    cleanSub.replace("%", "").trim()
                 } else {
                     if (cleanSub.isNotBlank() && !cleanSub.equals(cleanTitle, ignoreCase = true) && !cleanSub.equals("NOW PLAYING", ignoreCase = true)) {
                         cleanSub
-                    } else if (primaryStream.progressFraction > 0f) {
-                        "${(primaryStream.progressFraction * 100).toInt()}%"
                     } else {
                         ""
                     }

@@ -711,17 +711,10 @@ class LightspeedStatusBarOverlay(
                                 "right" -> (railRight - textWidth - 6f * d).coerceIn(railLeft, railRight - textWidth)
                                 else -> railLeft + (railSpanPx - textWidth) / 2f
                             }
-                            if (isAvoidCutout && hasCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                canvas.clipOutRect(cutoutLeft - wingGap, 0f, cutoutRight + wingGap, h.toFloat())
-                            }
                             drawTacticalText(tickerText, startX, textY)
                         }
                     } else {
                         // Continuous scrolling Marquee (when text is longer than the rail)
-                        if (isAvoidCutout && hasCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            canvas.clipOutRect(cutoutLeft - wingGap, 0f, cutoutRight + wingGap, h.toFloat())
-                        }
-
                         val totalCycleDistance = textWidth + 60f * d
                         val cycleDurationMs = ((totalCycleDistance / speedPx) * 1000f).toLong().coerceAtLeast(1000L)
                         val elapsedMs = SystemClock.uptimeMillis() % cycleDurationMs

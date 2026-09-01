@@ -636,6 +636,7 @@ class LightspeedStatusBarOverlay(
                     } else null
 
                     fun drawTacticalText(text: String, x: Float, y: Float) {
+                        if (text.isBlank()) return
                         if (microTextOutlinePaint != null) {
                             canvas.drawText(text, x, y, microTextOutlinePaint)
                         }
@@ -680,27 +681,46 @@ class LightspeedStatusBarOverlay(
 
                     // Smart Camera Cutout Avoidance: Split/Shift vs Scrolling
                     if (hasCutout && isCenteredCutout && textWidth <= (railSpanPx - (cutoutRight - cutoutLeft))) {
-                        // Symmetrical Dual-Wing Cutout Avoidance
-                        val leftW = microTextPaint.measureText(leftLabel)
-                        val rightW = microTextPaint.measureText(rightLabel)
                         val availLeft = (cutoutLeft - railLeft - wingGap).coerceAtLeast(0f)
                         val availRight = (railRight - cutoutRight - wingGap).coerceAtLeast(0f)
 
-                        val finalLeftLabel = if (leftW > availLeft) {
-                            android.text.TextUtils.ellipsize(leftLabel, android.text.TextPaint(microTextPaint), availLeft, android.text.TextUtils.TruncateAt.END).toString()
-                        } else leftLabel
-                        val finalLeftW = microTextPaint.measureText(finalLeftLabel)
+                        if (leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
+                            // Symmetrical Dual-Wing Cutout Avoidance (Left = Title, Right = Subtitle/Progress)
+                            val leftW = microTextPaint.measureText(leftLabel)
+                            val rightW = microTextPaint.measureText(rightLabel)
 
-                        val finalRightLabel = if (rightW > availRight) {
-                            android.text.TextUtils.ellipsize(rightLabel, android.text.TextPaint(microTextPaint), availRight, android.text.TextUtils.TruncateAt.END).toString()
-                        } else rightLabel
-                        val finalRightW = microTextPaint.measureText(finalRightLabel)
+                            val finalLeftLabel = if (leftW > availLeft) {
+                                android.text.TextUtils.ellipsize(leftLabel, android.text.TextPaint(microTextPaint), availLeft, android.text.TextUtils.TruncateAt.END).toString()
+                            } else leftLabel
+                            val finalLeftW = microTextPaint.measureText(finalLeftLabel)
 
-                        val leftX = (cutoutLeft - wingGap - finalLeftW).coerceAtLeast(railLeft)
-                        val rightX = (cutoutRight + wingGap).coerceAtMost(railRight - finalRightW)
+                            val finalRightLabel = if (rightW > availRight) {
+                                android.text.TextUtils.ellipsize(rightLabel, android.text.TextPaint(microTextPaint), availRight, android.text.TextUtils.TruncateAt.END).toString()
+                            } else rightLabel
+                            val finalRightW = microTextPaint.measureText(finalRightLabel)
 
-                        drawTacticalText(finalLeftLabel, leftX, textY)
-                        drawTacticalText(finalRightLabel, rightX, textY)
+                            val leftX = (cutoutLeft - wingGap - finalLeftW).coerceAtLeast(railLeft)
+                            val rightX = (cutoutRight + wingGap).coerceAtMost(railRight - finalRightW)
+
+                            drawTacticalText(finalLeftLabel, leftX, textY)
+                            drawTacticalText(finalRightLabel, rightX, textY)
+                        } else {
+                            // Single Label Only: Place on the side with maximum available span
+                            val singleLabel = leftLabel.ifBlank { rightLabel }
+                            val singleW = microTextPaint.measureText(singleLabel)
+                            if (singleW <= availRight) {
+                                val rightX = (cutoutRight + wingGap).coerceAtMost(railRight - singleW)
+                                drawTacticalText(singleLabel, rightX, textY)
+                            } else if (singleW <= availLeft) {
+                                val leftX = (cutoutLeft - wingGap - singleW).coerceAtLeast(railLeft)
+                                drawTacticalText(singleLabel, leftX, textY)
+                            } else {
+                                val finalLabel = android.text.TextUtils.ellipsize(singleLabel, android.text.TextPaint(microTextPaint), maxOf(availLeft, availRight), android.text.TextUtils.TruncateAt.END).toString()
+                                val startX = if (availRight >= availLeft) (cutoutRight + wingGap) else (cutoutLeft - wingGap - microTextPaint.measureText(finalLabel))
+                                drawTacticalText(finalLabel, startX, textY)
+                            }
+                        }
+                    }
                     } else if (hasCutout && !isCenteredCutout && textWidth <= (railSpanPx - (cutoutRight - cutoutLeft))) {
                         // Corner Cutout Avoidance: Shift cleanly away from the corner
                         val isLeftCorner = cutoutRight < screenW * 0.35f

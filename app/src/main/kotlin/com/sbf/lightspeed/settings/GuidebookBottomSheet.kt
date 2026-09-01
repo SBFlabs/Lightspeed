@@ -38,11 +38,11 @@ data class GuidebookEntry(
 val GUIDEBOOK_ENTRIES = listOf(
     GuidebookEntry(
         id = "canopy",
-        vesselTitle = "HUD Strip & Horizon Rail Sensor Deck",
-        androidTitle = "Top Status Bar Overlay & Sensor Scrubbers",
+        vesselTitle = "Sensor Deck (Top Gesture Zone)",
+        androidTitle = "Top-Edge Gesture Matrix & Downward Scrubbers",
         icon = Icons.Default.Speed,
-        vesselLore = "The vessel's forward transparent HUD strip projects real-time atmospheric density and warp reactor telemetry along the horizon rail of the bridge.",
-        androidUtility = "A non-intrusive top-edge overlay supporting pull-down scrubbers for instant brightness, volume, and screen timeout control without opening notification shades.",
+        vesselLore = "The vessel's overhead touch console calibrated for sub-second macro sweeps, multi-axis vector rebound maneuvers, and pull-down scrubbers.",
+        androidUtility = "A non-intrusive top-edge gesture area supporting taps, swipes, hold modifiers, and downward scrubbers for instant brightness, volume, and timeout adjustments without opening system shades.",
         tabIndex = 1,
         sectionKey = "statusbar"
     ),
@@ -58,11 +58,11 @@ val GUIDEBOOK_ENTRIES = listOf(
     ),
     GuidebookEntry(
         id = "notch_beacon",
-        vesselTitle = "Sub-Space Beacon & Orbital Capsule",
-        androidTitle = "Dynamic Camera Cutout HUD & Mini-Player",
+        vesselTitle = "Horizon Rail & Orbital Capsule",
+        androidTitle = "Top Progress Rail & Dynamic Island Cutout HUD",
         icon = Icons.Default.Sensors,
-        vesselLore = "A localized quantum orbital capsule that wraps around the optical sensor pod. Displays incoming subspace audio transmissions and data download streams.",
-        androidUtility = "Dynamic orbital capsule with dual-wing layout, zero optical lens clipping, title marquee engine, and tap-to-expand liquid-glass media card with transport buttons.",
+        vesselLore = "A dual-channel telemetry matrix comprising the horizon rail (top line progress) and orbital capsule (floating dynamic cutout HUD).",
+        androidUtility = "Real-time download and media progress streamed along the top-edge horizon rail and/or the front camera dynamic island capsule with marquee scrolling and mini-player controls.",
         tabIndex = 1,
         sectionKey = "telemetry"
     ),

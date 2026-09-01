@@ -492,7 +492,7 @@ class LightspeedStatusBarOverlay(
             // Center Telemetry Label
             hudTextPaint.textSize = 10f * d
             hudTextPaint.color = Color.WHITE
-            canvas.drawText("✦ OVERHEAD CANOPY HUD", w / 2f, (h / 2f) + 3.5f * d, hudTextPaint)
+            canvas.drawText("✦ SENSOR DECK & HORIZON RAIL", w / 2f, (h / 2f) + 3.5f * d, hudTextPaint)
         } else if (transparencyPct > 0) {
             val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
             debugPaint.style = Paint.Style.FILL

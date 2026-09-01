@@ -292,8 +292,8 @@ fun SidebarMatrixConfigurationFields(
 
     val sectionTitles1 = remember {
         mapOf(
-            "sensor_deck" to "Sensor Deck",
-            "telemetry_indicators" to "Telemetry & Indicators",
+            "sensor_deck" to "Sensor Deck (Top Gesture Zone)",
+            "telemetry_indicators" to "Telemetry HUD (Horizon Rail & Orbital Capsule)",
             "tactical_hardware" to "Tactical Hardware Deck",
             "refueling_bay" to "Refueling Bay",
             "config_vault" to "Configuration Vault",
@@ -992,7 +992,7 @@ fun SidebarMatrixConfigurationFields(
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     PrefToggleRow(
                                                         title = "Enable Sensor Deck Gestures",
-                                                        subtitle = "Top-edge gesture detection & sensor scrub bar",
+                                                        subtitle = "Top-edge gesture touch zone & pull-down sensor scrubbers",
                                                         isChecked = prefs.getBoolean("pref_statusbar_enabled", true),
                                                         onCheckedChange = { checked ->
                                                             prefs.edit().putBoolean("pref_statusbar_enabled", checked).apply()
@@ -1003,8 +1003,8 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // 1. Geometry & Sensitivity
                                                     CollapsibleSubSection(
-                                                        title = "Sensor Geometry",
-                                                        subtitle = "Horizon rail span, thickness, offset & idle glow",
+                                                        title = "Sensor Deck Geometry & Sensitivity",
+                                                        subtitle = "Touch vector zone span, height, offsets & stealth glow",
                                                         isExpanded = isStatusBarGeoExpanded,
                                                         onToggle = {
                                                             isStatusBarGeoExpanded = !isStatusBarGeoExpanded
@@ -1014,15 +1014,15 @@ fun SidebarMatrixConfigurationFields(
                                                                 .apply()
                                                         }
                                                     ) {
-                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Horizon Rail Span (≥1000 = full width)", 50, 1080, 10, 1080)
-                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Horizon Rail Thickness (Height)", 20, 52, 2, 48)
+                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Sensor Deck Span / Width (≥1000 = full width)", 50, 1080, 10, 1080)
+                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Sensor Deck Height / Thickness", 20, 52, 2, 48)
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset (X Axis)", -300, 300, 5, 0)
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset (Y Axis)", -100, 200, 5, 0)
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Sensitivity", 10, 100, 5, 40)
-                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow (Edge Indicator)", 0, 100, 5, 0)
                                                     }
 
-                                                    // 3. Gestures
+                                                    // 2. Gestures
                                                     CollapsibleSubSection(
                                                         title = "Sensor Deck Gestures & Macros",
                                                         subtitle = "Tap, double-tap, left & right swipes with Hold Modifiers",
@@ -1078,6 +1078,32 @@ fun SidebarMatrixConfigurationFields(
                                                         flat?.contains(pkgName) == true || com.sbf.lightspeed.system.LightspeedNotificationListener.instance != null
                                                     }
 
+                                                    // Visual Dual-Channel HUD Guide Badge Card
+                                                    Card(
+                                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                                                    ) {
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                Icon(Icons.Default.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                                                Spacer(modifier = Modifier.width(6.dp))
+                                                                Text("DUAL-CHANNEL TELEMETRY HUD", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, letterSpacing = 0.8.sp)
+                                                            }
+                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                Column(modifier = Modifier.weight(1f)) {
+                                                                    Text("📏 Horizon Rail", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                                                                    Text("Ultra-thin progress line on display top edge", fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.85f))
+                                                                }
+                                                                Column(modifier = Modifier.weight(1f)) {
+                                                                    Text("💊 Orbital Capsule", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                                                                    Text("Dynamic liquid-glass island on camera cutout", fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.85f))
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
                                                     if (!isNotifAccessGranted) {
                                                         Card(
                                                             modifier = Modifier
@@ -1109,8 +1135,8 @@ fun SidebarMatrixConfigurationFields(
                                                     var isDlDropdownOpen by remember { mutableStateOf(false) }
                                                     val routingOptions = listOf(
                                                         "none" to "None (Disabled)",
-                                                        "top_line" to "Horizon Rail",
-                                                        "notch_pill" to "Orbital Capsule",
+                                                        "top_line" to "Horizon Rail (Top-Edge Line)",
+                                                        "notch_pill" to "Orbital Capsule (Camera Cutout)",
                                                         "both" to "Both (Horizon Rail & Orbital Capsule)"
                                                     )
 
@@ -1128,7 +1154,7 @@ fun SidebarMatrixConfigurationFields(
                                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                                     verticalAlignment = Alignment.CenterVertically
                                                                 ) {
-                                                                    Text(routingOptions.firstOrNull { it.first == currentDl }?.second ?: "Orbital Capsule", color = Color.White)
+                                                                    Text(routingOptions.firstOrNull { it.first == currentDl }?.second ?: "Orbital Capsule (Camera Cutout)", color = Color.White)
                                                                     Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                                                 }
                                                             }
@@ -1208,10 +1234,10 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // Orbital Capsule Calibration
+                                                    // 1. Orbital Capsule Calibration
                                                     CollapsibleSubSection(
-                                                        title = "Orbital Capsule Calibration",
-                                                        subtitle = "Live alignment, offsets & expansion",
+                                                        title = "Orbital Capsule Calibration (Dynamic Cutout HUD)",
+                                                        subtitle = "Punch-hole alignment, layout modes, offsets & test beacon",
                                                         isExpanded = isNotchCalibExpanded,
                                                         onToggle = {
                                                             isNotchCalibExpanded = !isNotchCalibExpanded
@@ -1345,10 +1371,10 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Capsule Expansion Width (0 to 80dp)", 0, 80, 2, 0)
                                                     }
 
-                                                    // Title Overflow & Marquee Engine
+                                                    // 2. Title Overflow & Marquee Engine
                                                     CollapsibleSubSection(
-                                                        title = "Title Overflow & Marquee Engine",
-                                                        subtitle = "Marquee speed, pause delays, clipping & truncation",
+                                                        title = "Orbital Capsule Marquee Engine",
+                                                        subtitle = "Text scroll velocity, pause delays & maximum width",
                                                         isExpanded = isMarqueeSubSectionExpanded,
                                                         onToggle = {
                                                             isMarqueeSubSectionExpanded = !isMarqueeSubSectionExpanded
@@ -1370,7 +1396,7 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MAX_CAPSULE_WIDTH, "", "Max HUD Capsule Width (dp)", 120, 320, 10, 200)
                                                     }
 
-                                                    // System Attitude & Orientation Engine
+                                                    // 3. System Attitude & Orientation Engine
                                                     var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
                                                     var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
                                                     var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
@@ -1396,8 +1422,8 @@ fun SidebarMatrixConfigurationFields(
                                                     }
 
                                                     CollapsibleSubSection(
-                                                        title = "Synthetic Gravity Engine",
-                                                        subtitle = "Auto-rotate, face detection, 2x2 mode buckets & context guardrails",
+                                                        title = "Synthetic Gravity Engine (Orientation Rules)",
+                                                        subtitle = "Auto-rotate master switch, face posture & per-app attitude buckets",
                                                         icon = {
                                                             Icon(
                                                                 imageVector = Icons.Outlined.Rotate90DegreesCw,

@@ -688,22 +688,48 @@ class LightspeedStatusBarOverlay(
 
                     // Static vs Scrolling Ticker Layout
                     if (textWidth <= railSpanPx) {
-                        if (isAvoidCutout && isCenteredCutout && leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
-                            // Dual-Wing Symmetrical Cutout Split (Left = Title, Right = Subtitle/Progress)
+                        val (leftPart, rightPart) = if (leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
+                            Pair(leftLabel, rightLabel)
+                        } else {
+                            val src = leftLabel.ifBlank { rightLabel }.ifBlank { tickerText }.trim()
+                            val mid = src.length / 2
+                            var bestBreak = -1
+                            var minDiff = Int.MAX_VALUE
+                            for (i in src.indices) {
+                                if (src[i] == ' ' || src[i] == '-' || src[i] == '_' || src[i] == '•' || src[i] == '—') {
+                                    val diff = kotlin.math.abs(i - mid)
+                                    if (diff < minDiff) {
+                                        minDiff = diff
+                                        bestBreak = i
+                                    }
+                                }
+                            }
+                            if (bestBreak in 1 until src.length - 1) {
+                                Pair(src.substring(0, bestBreak).trim(), src.substring(bestBreak + 1).trim())
+                            } else if (src.length > 2) {
+                                val splitPt = (src.length / 2).coerceIn(1, src.length - 1)
+                                Pair(src.substring(0, splitPt).trim(), src.substring(splitPt).trim())
+                            } else {
+                                Pair(src, "")
+                            }
+                        }
+
+                        if (isAvoidCutout && isCenteredCutout && leftPart.isNotBlank() && rightPart.isNotBlank()) {
+                            // Dual-Wing Symmetrical Cutout Split (Left = Left Wing, Right = Right Wing)
                             val availLeft = (cutoutLeft - railLeft - wingGap).coerceAtLeast(0f)
                             val availRight = (railRight - cutoutRight - wingGap).coerceAtLeast(0f)
 
-                            val leftW = microTextPaint.measureText(leftLabel)
-                            val rightW = microTextPaint.measureText(rightLabel)
+                            val leftW = microTextPaint.measureText(leftPart)
+                            val rightW = microTextPaint.measureText(rightPart)
 
                             val finalLeftLabel = if (leftW > availLeft) {
-                                android.text.TextUtils.ellipsize(leftLabel, android.text.TextPaint(microTextPaint), availLeft, android.text.TextUtils.TruncateAt.END).toString()
-                            } else leftLabel
+                                android.text.TextUtils.ellipsize(leftPart, android.text.TextPaint(microTextPaint), availLeft, android.text.TextUtils.TruncateAt.END).toString()
+                            } else leftPart
                             val finalLeftW = microTextPaint.measureText(finalLeftLabel)
 
                             val finalRightLabel = if (rightW > availRight) {
-                                android.text.TextUtils.ellipsize(rightLabel, android.text.TextPaint(microTextPaint), availRight, android.text.TextUtils.TruncateAt.END).toString()
-                            } else rightLabel
+                                android.text.TextUtils.ellipsize(rightPart, android.text.TextPaint(microTextPaint), availRight, android.text.TextUtils.TruncateAt.END).toString()
+                            } else rightPart
                             val finalRightW = microTextPaint.measureText(finalRightLabel)
 
                             val leftX = (cutoutLeft - wingGap - finalLeftW).coerceAtLeast(railLeft)

@@ -86,8 +86,8 @@ class LightspeedStatusBarOverlay(
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = { state ->
             uiHandler.post {
                 if (state?.isActive == true) {
-                    expandForScrubbing()
-                } else if (!isScrubbing) {
+                    expandForHud()
+                } else {
                     restoreWindowLayout()
                 }
                 postInvalidate()
@@ -115,24 +115,13 @@ class LightspeedStatusBarOverlay(
     private var startRawY = 0f
     private var startX = 0f
     private var startY = 0f
-    private var furthestX = 0f   // tracks peak travel for rebound detection (mirrors lowestXReached / highestXReached on flanks)
-    private var isScrubbing = false
+    private var furthestX = 0f
     private var isHoldFired = false
     private var isSecondTapInSequence = false
     private var currentGesture = "NONE"
-    private var scrubType = "none"
-
-    // 2-Step Scrubbing State
     private var isHorizontalEngaged = false
-    private var isTwoStepDownwardScrub = false
-    private var initialScrubValue = 0
-    private var currentTimeoutStep = 0
-    private var scrubAnchorX = 0f
-    private var scrubAnchorY = 0f
-    private var hudTitle = ""
-    private var hudValue = ""
 
-    private fun expandForScrubbing() {
+    private fun expandForHud() {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
         val d = resources.displayMetrics.density
@@ -165,28 +154,13 @@ class LightspeedStatusBarOverlay(
     }
 
     private val holdRunnable = Runnable {
-        if (!isScrubbing) {
-            val gestureKey = if (currentGesture != "NONE") currentGesture else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
-            val actionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
-            var action = prefs.getString(actionKey, "none") ?: "none"
-            if (action == "none") {
-                action = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "system:screen_timeout") ?: "system:screen_timeout"
-            }
-            if (action != "none") {
-                isHoldFired = true
-                if (action == "system:volume" || action == "system:brightness" || action == "system:screen_timeout" || action == "system:scroll_to_top") {
-                    scrubType = action
-                    isScrubbing = true
-                    scrubAnchorX = startRawX
-                    scrubAnchorY = startRawY
-                    triggerHaptic(35, 180)
-                    initScrubSession()
-                    invalidate()
-                } else {
-                    triggerHaptic(40, 200)
-                    performActionByName(action)
-                }
-            }
+        val gestureKey = if (currentGesture != "NONE") currentGesture else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
+        val actionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
+        val action = prefs.getString(actionKey, "none") ?: "none"
+        if (action != "none") {
+            isHoldFired = true
+            triggerHaptic(40, 200)
+            performActionByName(action)
         }
     }
 
@@ -217,15 +191,9 @@ class LightspeedStatusBarOverlay(
                 startX = event.x
                 startY = event.y
                 furthestX = event.x
-                isScrubbing = false
                 isHoldFired = false
                 isHorizontalEngaged = false
-                isTwoStepDownwardScrub = false
                 currentGesture = "NONE"
-                scrubAnchorX = event.rawX
-                scrubAnchorY = event.rawY
-
-                scrubType = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "system:screen_timeout") ?: "system:screen_timeout"
 
                 uiHandler.postDelayed(holdRunnable, 360L)
                 return true
@@ -236,41 +204,31 @@ class LightspeedStatusBarOverlay(
                 val rawDy = event.rawY - startRawY
                 val dist = hypot(rawDx, rawDy)
 
-                if (dist > threshold * 0.35f && !isHoldFired && !isScrubbing && !isHorizontalEngaged) {
+                // Downward Pull: Cancel pending gestures immediately to pass control seamlessly to Android notification shade
+                if (rawDy > threshold * 0.5f && rawDy > abs(rawDx) * 0.8f) {
+                    uiHandler.removeCallbacks(holdRunnable)
+                    pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
+                    pendingTapRunnable = null
+                    isHorizontalEngaged = false
+                    currentGesture = "NONE"
+                    return false
+                }
+
+                if (dist > threshold * 0.35f && !isHoldFired && !isHorizontalEngaged) {
                     uiHandler.removeCallbacks(holdRunnable)
                 }
 
-                if (isScrubbing) {
-                    handleScrubMove(event.rawX, event.rawY)
-                    invalidate()
-                    return true
-                }
-
-                // Direct Pull-Down Scrub or Horizontal Scrubbing Engagement
-                if (!isScrubbing) {
-                    if (rawDy > threshold * 0.7f && rawDy > abs(rawDx) * 0.7f) {
-                        isScrubbing = true
-                        isTwoStepDownwardScrub = true
-                        scrubAnchorX = event.rawX
-                        scrubAnchorY = event.rawY
-                        triggerHaptic(30, 180)
-                        initScrubSession()
-                        invalidate()
-                        return true
-                    }
-
-                    if (!isHorizontalEngaged && abs(rawDx) > threshold * 0.7f) {
-                        isHorizontalEngaged = true
-                        currentGesture = if (rawDx > 0) "SWIPE_RIGHT" else "SWIPE_LEFT"
-                        furthestX = event.x
-                        if (!isHoldFired) {
-                            uiHandler.removeCallbacks(holdRunnable)
-                            uiHandler.postDelayed(holdRunnable, 360L)
-                        }
+                if (!isHorizontalEngaged && abs(rawDx) > threshold * 0.7f) {
+                    isHorizontalEngaged = true
+                    currentGesture = if (rawDx > 0) "SWIPE_RIGHT" else "SWIPE_LEFT"
+                    furthestX = event.x
+                    if (!isHoldFired) {
+                        uiHandler.removeCallbacks(holdRunnable)
+                        uiHandler.postDelayed(holdRunnable, 360L)
                     }
                 }
 
-                if (isHorizontalEngaged && !isScrubbing) {
+                if (isHorizontalEngaged) {
                     if (currentGesture == "SWIPE_RIGHT" && event.x > furthestX) furthestX = event.x
                     if (currentGesture == "SWIPE_LEFT"  && event.x < furthestX) furthestX = event.x
 
@@ -279,15 +237,6 @@ class LightspeedStatusBarOverlay(
                         currentGesture = "SWIPE_RIGHT_BACK"
                     } else if (currentGesture == "SWIPE_LEFT" && (event.x - furthestX) > reboundThreshold) {
                         currentGesture = "SWIPE_LEFT_BACK"
-                    }
-                    if (rawDy > threshold * 0.7f) {
-                        isScrubbing = true
-                        isTwoStepDownwardScrub = true
-                        scrubAnchorX = event.rawX
-                        scrubAnchorY = event.rawY
-                        triggerHaptic(30, 180)
-                        initScrubSession()
-                        invalidate()
                     }
                 }
                 return true
@@ -298,18 +247,6 @@ class LightspeedStatusBarOverlay(
                 val dx = event.x - startX
                 val dy = event.y - startY
                 val dist = hypot(dx, dy)
-
-                if (isScrubbing) {
-                    isScrubbing = false
-                    isTwoStepDownwardScrub = false
-                    isSecondTapInSequence = false
-                    hudTitle = ""
-                    hudValue = ""
-                    restoreWindowLayout()
-                    triggerHaptic(28, 170)
-                    invalidate()
-                    return true
-                }
 
                 if (isHoldFired) {
                     isSecondTapInSequence = false
@@ -337,12 +274,9 @@ class LightspeedStatusBarOverlay(
                 uiHandler.removeCallbacks(holdRunnable)
                 pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
                 pendingTapRunnable = null
-                isScrubbing = false
-                isTwoStepDownwardScrub = false
                 isHoldFired = false
                 isSecondTapInSequence = false
                 currentGesture = "NONE"
-                restoreWindowLayout()
                 invalidate()
                 return true
             }
@@ -386,81 +320,6 @@ class LightspeedStatusBarOverlay(
         }
     }
 
-    private fun initScrubSession() {
-        expandForScrubbing()
-        when (scrubType) {
-            "system:screen_timeout" -> {
-                initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                currentTimeoutStep = initialScrubValue
-                val label = LightspeedTimeoutEngine.TIMEOUT_STEPS[initialScrubValue].second
-                hudTitle = "SHIP GOES DARK IN"
-                hudValue = label
-            }
-            "system:volume" -> {
-                val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-                val cur = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
-                val max = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
-                initialScrubValue = cur
-                hudTitle = "MEDIA VOLUME"
-                hudValue = "$cur / $max"
-            }
-            "system:brightness" -> {
-                val cur = try {
-                    Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128)
-                } catch (_: Exception) { 128 }
-                initialScrubValue = cur
-                hudTitle = "BRIGHTNESS"
-                hudValue = "${(cur * 100 / 255)}%"
-            }
-            "system:scroll_to_top" -> {
-                hudTitle = "SCROLL TO TOP"
-                hudValue = "SNAPPING"
-                scrollToTop()
-            }
-        }
-    }
-
-    private fun handleScrubMove(rawX: Float, rawY: Float) {
-        val density = resources.displayMetrics.density
-        val stepDistance = 24f * density
-
-        val dx = rawX - scrubAnchorX
-        val dy = rawY - scrubAnchorY
-        val primaryDelta = if (abs(dx) >= abs(dy)) dx else dy
-
-        when (scrubType) {
-            "system:screen_timeout" -> {
-                val stepOffset = (primaryDelta / stepDistance).toInt()
-                val targetIndex = (initialScrubValue + stepOffset).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
-                if (targetIndex != currentTimeoutStep) {
-                    currentTimeoutStep = targetIndex
-                    val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
-                    hudValue = label
-                    hudTitle = "SHIP GOES DARK IN"
-                    triggerHaptic(18, 120)
-                }
-            }
-            "system:volume" -> {
-                val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-                val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                val stepOffset = (primaryDelta / (stepDistance * 1.2f)).toInt()
-                val targetVol = (initialScrubValue + stepOffset).coerceIn(0, max)
-                am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, AudioManager.FLAG_SHOW_UI)
-                hudValue = "$targetVol / $max"
-            }
-            "system:brightness" -> {
-                if (Settings.System.canWrite(context)) {
-                    val stepOffset = ((primaryDelta / (stepDistance * 1.5f)) * 15).toInt()
-                    val target = (initialScrubValue + stepOffset).coerceIn(10, 255)
-                    try {
-                        Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, target)
-                        hudValue = "${(target * 100 / 255)}%"
-                    } catch (_: Exception) {}
-                }
-            }
-        }
-    }
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val isExpanded = prefs.getBoolean("pref_section_statusbar_expanded", true)
@@ -479,7 +338,6 @@ class LightspeedStatusBarOverlay(
         }
 
         if (isReview) {
-            // Live Preview — matching deflector active review styling
             debugPaint.style = Paint.Style.FILL
             debugPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
             canvas.drawRoundRect(RectF(0f, 0f, w, h), 8f * d, 8f * d, debugPaint)
@@ -492,7 +350,7 @@ class LightspeedStatusBarOverlay(
             // Center Telemetry Label
             hudTextPaint.textSize = 10f * d
             hudTextPaint.color = Color.WHITE
-            canvas.drawText("✦ SENSOR DECK & HORIZON RAIL", w / 2f, (h / 2f) + 3.5f * d, hudTextPaint)
+            canvas.drawText("✦ SENSOR AREA (TOP EDGE)", w / 2f, (h / 2f) + 3.5f * d, hudTextPaint)
         } else if (transparencyPct > 0) {
             val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
             debugPaint.style = Paint.Style.FILL
@@ -503,28 +361,47 @@ class LightspeedStatusBarOverlay(
             canvas.drawRoundRect(RectF(0f, 0f, w, 2.5f * d), 1.5f * d, 1.5f * d, debugPaint)
         }
 
-        // 1. Top-Edge Line Telemetry Renderer
+        // 1. Horizon Rail Telemetry Line Renderer
         val dlRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
         val primaryDl = com.sbf.lightspeed.system.LightspeedNotificationListener.getPrimaryDownload()
         val media = com.sbf.lightspeed.system.LightspeedNotificationListener.activeMediaTelemetry
 
-        if ((dlRouting == "top_line" || dlRouting == "both") && primaryDl != null && primaryDl.progressFraction >= 0f) {
-            val prog = primaryDl.progressFraction.coerceIn(0f, 1f)
-            telemetryGlowPaint.strokeWidth = 3.5f * d
-            telemetryGlowPaint.color = Color.argb(100, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
-            telemetryGlowPaint.strokeWidth = 2f * d
-            telemetryGlowPaint.color = m3Primary
-            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
-        } else if ((mediaRouting == "top_line" || mediaRouting == "both") && media != null && media.isPlaying && media.durationMs > 0) {
-            val prog = (media.positionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
-            telemetryGlowPaint.strokeWidth = 3.5f * d
-            telemetryGlowPaint.color = Color.argb(100, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
-            telemetryGlowPaint.strokeWidth = 2f * d
-            telemetryGlowPaint.color = m3Primary
-            canvas.drawLine(0f, 1.5f * d, w * prog, 1.5f * d, telemetryGlowPaint)
+        val railThicknessDp = prefs.getInt("pref_horizon_rail_thickness", 3).coerceIn(1, 8)
+        val railGlowPct = prefs.getInt("pref_horizon_rail_glow", 80).coerceIn(0, 100)
+        val railTrackOpacityPct = prefs.getInt("pref_horizon_rail_track_opacity", 20).coerceIn(0, 100)
+        val isDynamicColor = prefs.getBoolean("pref_horizon_rail_dynamic_color", true)
+        val railColor = if (isDynamicColor) m3Primary else Color.parseColor("#00E5FF")
+
+        val lineY = (railThicknessDp * d) / 2f
+
+        val activeProgress = when {
+            (dlRouting == "top_line" || dlRouting == "both") && primaryDl != null && primaryDl.progressFraction >= 0f -> primaryDl.progressFraction.coerceIn(0f, 1f)
+            (mediaRouting == "top_line" || mediaRouting == "both") && media != null && media.isPlaying && media.durationMs > 0 -> (media.positionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f)
+            else -> -1f
+        }
+
+        if (activeProgress >= 0f) {
+            // Background inactive track rail
+            if (railTrackOpacityPct > 0) {
+                val trackAlpha = (railTrackOpacityPct * 2.55f).toInt().coerceIn(10, 255)
+                telemetryGlowPaint.strokeWidth = railThicknessDp * d
+                telemetryGlowPaint.color = Color.argb(trackAlpha, Color.red(railColor), Color.green(railColor), Color.blue(railColor))
+                canvas.drawLine(0f, lineY, w, lineY, telemetryGlowPaint)
+            }
+
+            // Glow Radiance stroke
+            if (railGlowPct > 0) {
+                val glowAlpha = (railGlowPct * 1.5f).toInt().coerceIn(10, 200)
+                telemetryGlowPaint.strokeWidth = (railThicknessDp + 2.5f) * d
+                telemetryGlowPaint.color = Color.argb(glowAlpha, Color.red(railColor), Color.green(railColor), Color.blue(railColor))
+                canvas.drawLine(0f, lineY, w * activeProgress, lineY, telemetryGlowPaint)
+            }
+
+            // Core crisp progress line
+            telemetryGlowPaint.strokeWidth = railThicknessDp * d
+            telemetryGlowPaint.color = railColor
+            canvas.drawLine(0f, lineY, w * activeProgress, lineY, telemetryGlowPaint)
         }
 
         // 2. Hardware Gear Set HUD Navigation Renderer
@@ -538,29 +415,6 @@ class LightspeedStatusBarOverlay(
                 value = navState.currentLabel,
                 stepIndex = navState.currentIndex,
                 totalSteps = navState.totalCount,
-                centerX = screenW / 2f,
-                centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
-                topY = topY,
-                primaryColor = m3Primary,
-                density = d
-            )
-        }
-
-        // 3. Gesture Scrubbing HUD Renderer
-        if (isScrubbing && hudTitle.isNotEmpty()) {
-            val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR_SCRUBBING", null)
-                ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
-            val totalSteps = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
-            val stepIdx = if (scrubType == "system:screen_timeout") currentTimeoutStep else -1
-            val topY = (prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52) * d) + (8f * d)
-
-            LightspeedHudRenderer.renderHud(
-                canvas = canvas,
-                style = hudStyle,
-                title = hudTitle,
-                value = hudValue,
-                stepIndex = stepIdx,
-                totalSteps = totalSteps,
                 centerX = screenW / 2f,
                 centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
                 topY = topY,

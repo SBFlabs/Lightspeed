@@ -131,6 +131,7 @@ fun SidebarMatrixConfigurationFields(
     var isStatusBarGeoExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_statusbar", true)) }
     var isStatusBarScrubExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_statusbar", true)) }
     var isStatusBarGesturesExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_statusbar", true)) }
+    var isHorizonRailCustomExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_custom", true)) }
     var isNotchCalibExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", true)) }
     var isMarqueeSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", true)) }
     var isOrientationSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_orientation", true)) }
@@ -292,8 +293,8 @@ fun SidebarMatrixConfigurationFields(
 
     val sectionTitles1 = remember {
         mapOf(
-            "sensor_deck" to "Sensor Deck (Top Gesture Zone)",
-            "telemetry_indicators" to "Telemetry HUD (Horizon Rail & Orbital Capsule)",
+            "sensor_deck" to "Sensor Area",
+            "telemetry_indicators" to "Telemetry & Indicators",
             "tactical_hardware" to "Tactical Hardware Deck",
             "refueling_bay" to "Refueling Bay",
             "config_vault" to "Configuration Vault",
@@ -971,7 +972,7 @@ fun SidebarMatrixConfigurationFields(
                                     "sensor_deck" -> {
                                         item(key = "sensor_deck") {
                                             CompactAccordionSection(
-                                                title = "Sensor Deck",
+                                                title = "Sensor Area",
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Sensors,
@@ -991,8 +992,8 @@ fun SidebarMatrixConfigurationFields(
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     PrefToggleRow(
-                                                        title = "Enable Sensor Deck Gestures",
-                                                        subtitle = "Top-edge gesture touch zone & pull-down sensor scrubbers",
+                                                        title = "Enable Sensor Area Gestures",
+                                                        subtitle = "Top-edge gesture detection",
                                                         isChecked = prefs.getBoolean("pref_statusbar_enabled", true),
                                                         onCheckedChange = { checked ->
                                                             prefs.edit().putBoolean("pref_statusbar_enabled", checked).apply()
@@ -1003,8 +1004,8 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // 1. Geometry & Sensitivity
                                                     CollapsibleSubSection(
-                                                        title = "Sensor Deck Geometry & Sensitivity",
-                                                        subtitle = "Touch vector zone span, height, offsets & stealth glow",
+                                                        title = "Geometry & Sensitivity",
+                                                        subtitle = "Span, thickness, offsets & idle glow",
                                                         isExpanded = isStatusBarGeoExpanded,
                                                         onToggle = {
                                                             isStatusBarGeoExpanded = !isStatusBarGeoExpanded
@@ -1014,17 +1015,17 @@ fun SidebarMatrixConfigurationFields(
                                                                 .apply()
                                                         }
                                                     ) {
-                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Sensor Deck Span / Width (≥1000 = full width)", 50, 1080, 10, 1080)
-                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Sensor Deck Height / Thickness", 20, 52, 2, 48)
+                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_span", "", "Span (≥1000 = Full Width)", 50, 1080, 10, 1080)
+                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_thickness", "", "Thickness", 20, 52, 2, 48)
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_x", "", "Horizontal Offset (X Axis)", -300, 300, 5, 0)
                                                         PrefDottedSliderRow(context, prefs, "pref_statusbar_offset_y", "", "Vertical Offset (Y Axis)", -100, 200, 5, 0)
-                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Vector Sensitivity", 10, 100, 5, 40)
-                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow (Edge Indicator)", 0, 100, 5, 0)
+                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_sensitivity", "", "Touch Sensitivity", 10, 100, 5, 40)
+                                                        PrefDottedSliderRow(context, prefs, "pref_statusbar_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
                                                     }
 
                                                     // 2. Gestures
                                                     CollapsibleSubSection(
-                                                        title = "Sensor Deck Gestures & Macros",
+                                                        title = "Gestures & Macros",
                                                         subtitle = "Tap, double-tap, left & right swipes with Hold Modifiers",
                                                         isExpanded = isStatusBarGesturesExpanded,
                                                         onToggle = {
@@ -1234,7 +1235,32 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // 1. Orbital Capsule Calibration
+                                                    // 1. Horizon Rail Customization
+                                                    CollapsibleSubSection(
+                                                        title = "Horizon Rail Customization",
+                                                        subtitle = "Line thickness, glow radiance, track opacity & dynamic accent",
+                                                        isExpanded = isHorizonRailCustomExpanded,
+                                                        onToggle = {
+                                                            isHorizonRailCustomExpanded = !isHorizonRailCustomExpanded
+                                                            prefs.edit().putBoolean("pref_sub_horizon_rail_custom", isHorizonRailCustomExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        PrefToggleRow(
+                                                            title = "Dynamic Material 3 Accent",
+                                                            subtitle = "Syncs rail color with Android Material 3 system palette instead of static cyan.",
+                                                            isChecked = prefs.getBoolean("pref_horizon_rail_dynamic_color", true),
+                                                            onCheckedChange = {
+                                                                prefs.edit().putBoolean("pref_horizon_rail_dynamic_color", it).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 8, 1, 3)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 80)
+                                                        PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 20)
+                                                    }
+
+                                                    // 2. Orbital Capsule Calibration
                                                     CollapsibleSubSection(
                                                         title = "Orbital Capsule Calibration (Dynamic Cutout HUD)",
                                                         subtitle = "Punch-hole alignment, layout modes, offsets & test beacon",
@@ -1395,285 +1421,6 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_INITIAL_DELAY, "", "Initial Pause Delay (ms)", 500, 3000, 250, 1500)
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MAX_CAPSULE_WIDTH, "", "Max HUD Capsule Width (dp)", 120, 320, 10, 200)
                                                     }
-
-                                                    // 3. System Attitude & Orientation Engine
-                                                    var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
-                                                    var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
-                                                    var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
-
-                                                    DisposableEffect(Unit) {
-                                                        val observer = LightspeedOrientationEngine.registerObserver(
-                                                            context,
-                                                            onAutoRotateChanged = { isAutoRotateActive = it },
-                                                            onFaceRotateChanged = { isFaceRotateActive = it }
-                                                        )
-                                                        onDispose {
-                                                            try { context.contentResolver.unregisterContentObserver(observer) } catch (_: Exception) {}
-                                                        }
-                                                    }
-
-                                                    if (selectedAttitudeBucketForAppPicker != null) {
-                                                        AttitudeAppAssignmentSheet(
-                                                            context = context,
-                                                            bucket = selectedAttitudeBucketForAppPicker!!,
-                                                            onDismiss = { selectedAttitudeBucketForAppPicker = null },
-                                                            onUpdated = { onRefreshNeeded() }
-                                                        )
-                                                    }
-
-                                                    CollapsibleSubSection(
-                                                        title = "Synthetic Gravity Engine (Orientation Rules)",
-                                                        subtitle = "Auto-rotate master switch, face posture & per-app attitude buckets",
-                                                        icon = {
-                                                            Icon(
-                                                                imageVector = Icons.Outlined.Rotate90DegreesCw,
-                                                                contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.primary,
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        },
-                                                        isExpanded = isOrientationSubSectionExpanded,
-                                                        onToggle = {
-                                                            isOrientationSubSectionExpanded = !isOrientationSubSectionExpanded
-                                                            prefs.edit().putBoolean("pref_sub_orientation", isOrientationSubSectionExpanded).apply()
-                                                        }
-                                                    ) {
-                                                        // 1. Master Auto-Rotate Switch
-                                                        PrefToggleRow(
-                                                            title = "Master Auto-Rotate",
-                                                            subtitle = "Global Android accelerometer orientation trigger (Settings.System.ACCELEROMETER_ROTATION)",
-                                                            isChecked = isAutoRotateActive,
-                                                            onCheckedChange = {
-                                                                LightspeedOrientationEngine.setAutoRotateEnabled(context, it)
-                                                                isAutoRotateActive = it
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
-
-                                                        // 2. Face-Oriented Auto-Rotate (CAMERA_AUTOROTATE)
-                                                        if (isAutoRotateActive && LightspeedOrientationEngine.isFaceRotateSupported(context)) {
-                                                            Card(
-                                                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                                                shape = RoundedCornerShape(12.dp),
-                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                                                            ) {
-                                                                Row(
-                                                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                                ) {
-                                                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                            Icon(Icons.Default.Face, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                                                            Spacer(modifier = Modifier.width(6.dp))
-                                                                            Text("Face-Oriented Auto-Rotate", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                                                        }
-                                                                        Spacer(modifier = Modifier.height(2.dp))
-                                                                        Text("Uses front camera facial posture to prevent accidental rotations while lying down", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
-                                                                    }
-                                                                    Switch(
-                                                                        checked = isFaceRotateActive,
-                                                                        onCheckedChange = {
-                                                                            val ok = LightspeedOrientationEngine.setFaceRotateEnabled(context, it)
-                                                                            if (ok) isFaceRotateActive = it
-                                                                            onRefreshNeeded()
-                                                                        },
-                                                                        colors = SwitchDefaults.colors(
-                                                                            checkedThumbColor = Color.White,
-                                                                            checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                                                            checkedBorderColor = Color.Transparent,
-                                                                            uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                                                                            uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                                                                            uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
-                                                                        )
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // 3. 2x2 Attitude Mode Bucket Grid
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                            Text("ATTITUDE MODE BUCKETS (PER-APP RULES)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            Text("Tap a bucket to assign apps to automatically enforce that rotation policy upon launch:", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.75f))
-
-                                                            val buckets = listOf(
-                                                                LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT,
-                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT,
-                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE,
-                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_360
-                                                            )
-
-                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                listOf(buckets[0], buckets[1]).forEach { bucket ->
-                                                                    val assignedCount = remember(bucket, prefs.getStringSet(bucket.prefKey, null)) {
-                                                                        LightspeedOrientationEngine.getAssignedPackages(context, bucket).size
-                                                                    }
-                                                                    Card(
-                                                                        modifier = Modifier
-                                                                            .weight(1f)
-                                                                            .clip(RoundedCornerShape(12.dp))
-                                                                            .clickable { selectedAttitudeBucketForAppPicker = bucket }
-                                                                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
-                                                                        shape = RoundedCornerShape(12.dp),
-                                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                                                                    ) {
-                                                                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                                                                Icon(
-                                                                                    imageVector = when (bucket) {
-                                                                                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
-                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
-                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
-                                                                                        else -> Icons.Default.ScreenRotation
-                                                                                    },
-                                                                                    contentDescription = null,
-                                                                                    tint = MaterialTheme.colorScheme.primary,
-                                                                                    modifier = Modifier.size(18.dp)
-                                                                                )
-                                                                                Surface(
-                                                                                    shape = RoundedCornerShape(6.dp),
-                                                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                                                ) {
-                                                                                    Text(
-                                                                                        text = "$assignedCount apps",
-                                                                                        fontSize = 9.5.sp,
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        color = MaterialTheme.colorScheme.primary,
-                                                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                                                                    )
-                                                                                }
-                                                                            }
-                                                                            Spacer(modifier = Modifier.height(6.dp))
-                                                                            Text(bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                                                                            Spacer(modifier = Modifier.height(2.dp))
-                                                                            Text(bucket.subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f), lineHeight = 12.sp)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-
-                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                listOf(buckets[2], buckets[3]).forEach { bucket ->
-                                                                    val assignedCount = remember(bucket, prefs.getStringSet(bucket.prefKey, null)) {
-                                                                        LightspeedOrientationEngine.getAssignedPackages(context, bucket).size
-                                                                    }
-                                                                    Card(
-                                                                        modifier = Modifier
-                                                                            .weight(1f)
-                                                                            .clip(RoundedCornerShape(12.dp))
-                                                                            .clickable { selectedAttitudeBucketForAppPicker = bucket }
-                                                                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
-                                                                        shape = RoundedCornerShape(12.dp),
-                                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                                                                    ) {
-                                                                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                                                                Icon(
-                                                                                    imageVector = when (bucket) {
-                                                                                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
-                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
-                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
-                                                                                        else -> Icons.Default.ScreenRotation
-                                                                                    },
-                                                                                    contentDescription = null,
-                                                                                    tint = MaterialTheme.colorScheme.primary,
-                                                                                    modifier = Modifier.size(18.dp)
-                                                                                )
-                                                                                Surface(
-                                                                                    shape = RoundedCornerShape(6.dp),
-                                                                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                                                ) {
-                                                                                    Text(
-                                                                                        text = "$assignedCount apps",
-                                                                                        fontSize = 9.5.sp,
-                                                                                        fontWeight = FontWeight.Bold,
-                                                                                        color = MaterialTheme.colorScheme.primary,
-                                                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                                                                    )
-                                                                                }
-                                                                            }
-                                                                            Spacer(modifier = Modifier.height(6.dp))
-                                                                            Text(bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                                                                            Spacer(modifier = Modifier.height(2.dp))
-                                                                            Text(bucket.subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f), lineHeight = 12.sp)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // 4. Orientation Policy & Guardrails
-                                                        val currentOrientationPolicy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
-                                                        var isOrientationDropdownOpen by remember { mutableStateOf(false) }
-                                                        val orientationOptions = listOf(
-                                                            "adaptive" to "Adaptive (360° Follows All Rotations)",
-                                                            "portrait_only" to "Portrait Only (Auto-Hide in Landscape)"
-                                                        )
-
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                                                            Text("ORIENTATION OVERLAY POLICY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            Spacer(modifier = Modifier.height(4.dp))
-                                                            Box {
-                                                                OutlinedButton(
-                                                                    onClick = { isOrientationDropdownOpen = true },
-                                                                    modifier = Modifier.fillMaxWidth(),
-                                                                    shape = RoundedCornerShape(12.dp)
-                                                                ) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Text(orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: "Adaptive (360°)", color = Color.White, fontSize = 12.sp)
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                                    }
-                                                                }
-                                                                DropdownMenu(
-                                                                    expanded = isOrientationDropdownOpen,
-                                                                    onDismissRequest = { isOrientationDropdownOpen = false },
-                                                                    modifier = Modifier
-                                                                        .background(Color(0xF012141A))
-                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                                                    shape = RoundedCornerShape(16.dp),
-                                                                    containerColor = Color(0xF012141A)
-                                                                ) {
-                                                                    orientationOptions.forEach { (key, label) ->
-                                                                        DropdownMenuItem(
-                                                                            modifier = Modifier.heightIn(min = 48.dp),
-                                                                            text = { Text(label) },
-                                                                            onClick = {
-                                                                                isOrientationDropdownOpen = false
-                                                                                prefs.edit().putString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, key).apply()
-                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                onRefreshNeeded()
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-
-                                                        PrefToggleRow(
-                                                            title = "Suppress on Lock Screen & OEM Screensavers",
-                                                            subtitle = "Automatically hides Orbital Capsule and HUD Strip when device is locked or running OEM ambient dock.",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true),
-                                                            onCheckedChange = {
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, it).apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
-
-                                                         PrefToggleRow(
-                                                            title = "Smart Orientation Context Guardrails",
-                                                            subtitle = "Forces strict portrait during in-progress phone/VoIP calls, and suppresses landscape rotation glitches on Default Launcher & Lock Screen (auto-reverts when leaving protected apps).",
-                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, true),
-                                                            onCheckedChange = {
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, it).apply()
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
 
                                                         // OEM Advisory Footnote: OEM Dynamic Island Conflicts (Demoted)
                                                         if (isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
@@ -3017,6 +2764,286 @@ fun SidebarMatrixConfigurationFields(
                                                                 lineHeight = 13.sp
                                                             )
                                                         }
+                                                    }
+
+                                                    // 4. Synthetic Gravity Engine (Orientation Rules)
+                                                    var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
+                                                    var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
+                                                    var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
+
+                                                    DisposableEffect(Unit) {
+                                                        val observer = LightspeedOrientationEngine.registerObserver(
+                                                            context,
+                                                            onAutoRotateChanged = { isAutoRotateActive = it },
+                                                            onFaceRotateChanged = { isFaceRotateActive = it }
+                                                        )
+                                                        onDispose {
+                                                            try { context.contentResolver.unregisterContentObserver(observer) } catch (_: Exception) {}
+                                                        }
+                                                    }
+
+                                                    if (selectedAttitudeBucketForAppPicker != null) {
+                                                        AttitudeAppAssignmentSheet(
+                                                            context = context,
+                                                            bucket = selectedAttitudeBucketForAppPicker!!,
+                                                            onDismiss = { selectedAttitudeBucketForAppPicker = null },
+                                                            onUpdated = { onRefreshNeeded() }
+                                                        )
+                                                    }
+
+                                                    CollapsibleSubSection(
+                                                        title = "Synthetic Gravity Engine",
+                                                        subtitle = "Auto-rotate master switch, face posture & per-app attitude buckets",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.Rotate90DegreesCw,
+                                                                contentDescription = null,
+                                                                tint = cautionAmber,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
+                                                        isExpanded = isOrientationSubSectionExpanded,
+                                                        onToggle = {
+                                                            isOrientationSubSectionExpanded = !isOrientationSubSectionExpanded
+                                                            prefs.edit().putBoolean("pref_sub_orientation", isOrientationSubSectionExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        // 1. Master Auto-Rotate Switch
+                                                        PrefToggleRow(
+                                                            title = "Master Auto-Rotate",
+                                                            subtitle = "Global Android accelerometer orientation trigger (Settings.System.ACCELEROMETER_ROTATION)",
+                                                            isChecked = isAutoRotateActive,
+                                                            onCheckedChange = {
+                                                                LightspeedOrientationEngine.setAutoRotateEnabled(context, it)
+                                                                isAutoRotateActive = it
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+
+                                                        // 2. Face-Oriented Auto-Rotate (CAMERA_AUTOROTATE)
+                                                        if (isAutoRotateActive && LightspeedOrientationEngine.isFaceRotateSupported(context)) {
+                                                            Card(
+                                                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.3f))
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                                ) {
+                                                                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                            Icon(Icons.Default.Face, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Text("Face-Oriented Auto-Rotate", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                                        }
+                                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                                        Text("Uses front camera facial posture to prevent accidental rotations while lying down", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
+                                                                    }
+                                                                    Switch(
+                                                                        checked = isFaceRotateActive,
+                                                                        onCheckedChange = {
+                                                                            val ok = LightspeedOrientationEngine.setFaceRotateEnabled(context, it)
+                                                                            if (ok) isFaceRotateActive = it
+                                                                            onRefreshNeeded()
+                                                                        },
+                                                                        colors = SwitchDefaults.colors(
+                                                                            checkedThumbColor = Color.White,
+                                                                            checkedTrackColor = cautionAmber,
+                                                                            checkedBorderColor = Color.Transparent,
+                                                                            uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                                                                            uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                                                                            uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                                                                        )
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // 3. 2x2 Attitude Mode Bucket Grid
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                            Text("ATTITUDE MODE BUCKETS (PER-APP RULES)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cautionAmber, letterSpacing = 1.sp)
+                                                            Text("Tap a bucket to assign apps to automatically enforce that rotation policy upon launch:", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.75f))
+
+                                                            val buckets = listOf(
+                                                                LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT,
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT,
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE,
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_360
+                                                            )
+
+                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                listOf(buckets[0], buckets[1]).forEach { bucket ->
+                                                                    val assignedCount = remember(bucket, prefs.getStringSet(bucket.prefKey, null)) {
+                                                                        LightspeedOrientationEngine.getAssignedPackages(context, bucket).size
+                                                                    }
+                                                                    Card(
+                                                                        modifier = Modifier
+                                                                            .weight(1f)
+                                                                            .clip(RoundedCornerShape(12.dp))
+                                                                            .clickable { selectedAttitudeBucketForAppPicker = bucket }
+                                                                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                                                        shape = RoundedCornerShape(12.dp),
+                                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                                                    ) {
+                                                                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                                                                Icon(
+                                                                                    imageVector = when (bucket) {
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
+                                                                                        else -> Icons.Default.ScreenRotation
+                                                                                    },
+                                                                                    contentDescription = null,
+                                                                                    tint = cautionAmber,
+                                                                                    modifier = Modifier.size(18.dp)
+                                                                                )
+                                                                                Surface(
+                                                                                    shape = RoundedCornerShape(6.dp),
+                                                                                    color = cautionAmber.copy(alpha = 0.15f)
+                                                                                ) {
+                                                                                    Text(
+                                                                                        text = "$assignedCount apps",
+                                                                                        fontSize = 9.5.sp,
+                                                                                        fontWeight = FontWeight.Bold,
+                                                                                        color = cautionAmber,
+                                                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                            Spacer(modifier = Modifier.height(6.dp))
+                                                                            Text(bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                                            Text(bucket.subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f), lineHeight = 12.sp)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                listOf(buckets[2], buckets[3]).forEach { bucket ->
+                                                                    val assignedCount = remember(bucket, prefs.getStringSet(bucket.prefKey, null)) {
+                                                                        LightspeedOrientationEngine.getAssignedPackages(context, bucket).size
+                                                                    }
+                                                                    Card(
+                                                                        modifier = Modifier
+                                                                            .weight(1f)
+                                                                            .clip(RoundedCornerShape(12.dp))
+                                                                            .clickable { selectedAttitudeBucketForAppPicker = bucket }
+                                                                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                                                        shape = RoundedCornerShape(12.dp),
+                                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                                                    ) {
+                                                                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                                                                Icon(
+                                                                                    imageVector = when (bucket) {
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
+                                                                                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
+                                                                                        else -> Icons.Default.ScreenRotation
+                                                                                    },
+                                                                                    contentDescription = null,
+                                                                                    tint = cautionAmber,
+                                                                                    modifier = Modifier.size(18.dp)
+                                                                                )
+                                                                                Surface(
+                                                                                    shape = RoundedCornerShape(6.dp),
+                                                                                    color = cautionAmber.copy(alpha = 0.15f)
+                                                                                ) {
+                                                                                    Text(
+                                                                                        text = "$assignedCount apps",
+                                                                                        fontSize = 9.5.sp,
+                                                                                        fontWeight = FontWeight.Bold,
+                                                                                        color = cautionAmber,
+                                                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                                                    )
+                                                                                }
+                                                                            }
+                                                                            Spacer(modifier = Modifier.height(6.dp))
+                                                                            Text(bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                                                                            Spacer(modifier = Modifier.height(2.dp))
+                                                                            Text(bucket.subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f), lineHeight = 12.sp)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // 4. Orientation Policy & Guardrails
+                                                        val currentOrientationPolicy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
+                                                        var isOrientationDropdownOpen by remember { mutableStateOf(false) }
+                                                        val orientationOptions = listOf(
+                                                            "adaptive" to "Adaptive (360° Follows All Rotations)",
+                                                            "portrait_only" to "Portrait Only (Auto-Hide in Landscape)"
+                                                        )
+
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("ORIENTATION OVERLAY POLICY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cautionAmber, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isOrientationDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: "Adaptive (360°)", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cautionAmber)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isOrientationDropdownOpen,
+                                                                    onDismissRequest = { isOrientationDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    orientationOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isOrientationDropdownOpen = false
+                                                                                prefs.edit().putString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        PrefToggleRow(
+                                                            title = "Suppress on Lock Screen & OEM Screensavers",
+                                                            subtitle = "Automatically hides Orbital Capsule and HUD Strip when device is locked or running OEM ambient dock.",
+                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true),
+                                                            onCheckedChange = {
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, it).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+
+                                                        PrefToggleRow(
+                                                            title = "Smart Orientation Context Guardrails",
+                                                            subtitle = "Forces strict portrait during in-progress phone/VoIP calls, and suppresses landscape rotation glitches on Default Launcher & Lock Screen (auto-reverts when leaving protected apps).",
+                                                            isChecked = prefs.getBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, true),
+                                                            onCheckedChange = {
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, it).apply()
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
                                                     }
                                                 }
                                             }

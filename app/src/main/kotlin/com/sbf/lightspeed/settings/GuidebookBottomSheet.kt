@@ -38,11 +38,11 @@ data class GuidebookEntry(
 val GUIDEBOOK_ENTRIES = listOf(
     GuidebookEntry(
         id = "canopy",
-        vesselTitle = "Sensor Deck (Top Gesture Zone)",
-        androidTitle = "Top-Edge Gesture Matrix & Downward Scrubbers",
+        vesselTitle = "Sensor Area (Top Edge)",
+        androidTitle = "Top-Edge Gesture Matrix",
         icon = Icons.Default.Speed,
-        vesselLore = "The vessel's overhead touch console calibrated for sub-second macro sweeps, multi-axis vector rebound maneuvers, and pull-down scrubbers.",
-        androidUtility = "A non-intrusive top-edge gesture area supporting taps, swipes, hold modifiers, and downward scrubbers for instant brightness, volume, and timeout adjustments without opening system shades.",
+        vesselLore = "The vessel's overhead touch zone calibrated for sub-second macro sweeps, taps, and rebound maneuvers.",
+        androidUtility = "A non-intrusive top-edge gesture area supporting taps, horizontal swipes, and hold modifiers without conflicting with Android's notification shade.",
         tabIndex = 1,
         sectionKey = "statusbar"
     ),

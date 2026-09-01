@@ -584,10 +584,20 @@ class LightspeedStatusBarOverlay(
             val isTextEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
             if (isTextEnabled && activeStreams.isNotEmpty()) {
                 val primaryStream = activeStreams[0]
-                val tickerText = if (primaryStream.type == "dl") {
-                    "⬇ ${primaryStream.title.uppercase()}  •  ${primaryStream.subtitle}"
+                val leftLabel = if (primaryStream.type == "dl") {
+                    "⬇ ${primaryStream.title.uppercase()}"
                 } else {
-                    "♫ ${primaryStream.title.uppercase()} — ${primaryStream.subtitle.uppercase()}"
+                    "♫ ${primaryStream.title.uppercase()}"
+                }
+                val rightLabel = if (primaryStream.type == "dl") {
+                    primaryStream.subtitle.uppercase()
+                } else {
+                    primaryStream.subtitle.uppercase()
+                }
+                val tickerText = if (primaryStream.type == "dl") {
+                    "$leftLabel  •  $rightLabel"
+                } else {
+                    "$leftLabel — $rightLabel"
                 }
 
                 if (tickerText.isNotBlank()) {
@@ -616,22 +626,6 @@ class LightspeedStatusBarOverlay(
                     val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, true)
                     val isContrastShield = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CONTRAST_SHIELD, true)
 
-                    canvas.save()
-                    canvas.clipRect(railLeft, 0f, railRight, h.toFloat())
-
-                    // Camera Cutout Punch-Hole Avoidance
-                    if (isAvoidCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        val cutout = rootWindowInsets?.displayCutout
-                        val topCutout = cutout?.boundingRectTop ?: cutout?.boundingRects?.firstOrNull { it.top == 0 }
-                        if (topCutout != null && topCutout.width() > 0) {
-                            val cutoutLeft = topCutout.left - 6f * d
-                            val cutoutRight = topCutout.right + 6f * d
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                canvas.clipOutRect(cutoutLeft, 0f, cutoutRight, h.toFloat())
-                            }
-                        }
-                    }
-
                     val textBackingPaint = if (isContrastShield) {
                         Paint(Paint.ANTI_ALIAS_FLAG).apply {
                             color = Color.argb(130, 10, 14, 20)
@@ -639,21 +633,70 @@ class LightspeedStatusBarOverlay(
                         }
                     } else null
 
-                    if (textWidth <= railSpanPx) {
+                    val cutout = if (isAvoidCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
+                    val topCutout = cutout?.boundingRectTop ?: cutout?.boundingRects?.firstOrNull { it.top == 0 }
+                    val hasCutout = isAvoidCutout && topCutout != null && topCutout.width() > 0
+
+                    val cutoutLeft = if (hasCutout) topCutout!!.left - 6f * d else 0f
+                    val cutoutRight = if (hasCutout) topCutout!!.right + 6f * d else 0f
+                    val cutoutCenterX = if (hasCutout) topCutout!!.exactCenterX() else screenW / 2f
+                    val isCenteredCutout = hasCutout && (cutoutCenterX in (screenW * 0.30f)..(screenW * 0.70f))
+
+                    canvas.save()
+                    canvas.clipRect(railLeft, 0f, railRight, h.toFloat())
+
+                    // Smart Camera Cutout Avoidance: Split/Shift vs Scrolling
+                    if (hasCutout && isCenteredCutout && textWidth <= (railSpanPx - (cutoutRight - cutoutLeft))) {
+                        // Symmetrical Dual-Wing Cutout Avoidance: Left Label on left wing, Right Label on right wing
+                        val leftW = microTextPaint.measureText(leftLabel)
+                        val rightW = microTextPaint.measureText(rightLabel)
+                        val availLeft = (cutoutLeft - railLeft - 8f * d).coerceAtLeast(0f)
+                        val availRight = (railRight - cutoutRight - 8f * d).coerceAtLeast(0f)
+
+                        val finalLeftLabel = if (leftW > availLeft) {
+                            android.text.TextUtils.ellipsize(leftLabel, android.text.TextPaint(microTextPaint), availLeft, android.text.TextUtils.TruncateAt.END).toString()
+                        } else leftLabel
+                        val finalLeftW = microTextPaint.measureText(finalLeftLabel)
+
+                        val finalRightLabel = if (rightW > availRight) {
+                            android.text.TextUtils.ellipsize(rightLabel, android.text.TextPaint(microTextPaint), availRight, android.text.TextUtils.TruncateAt.END).toString()
+                        } else rightLabel
+                        val finalRightW = microTextPaint.measureText(finalRightLabel)
+
+                        val leftX = (cutoutLeft - 6f * d - finalLeftW).coerceAtLeast(railLeft + 4f * d)
+                        val rightX = (cutoutRight + 6f * d).coerceAtMost(railRight - finalRightW - 4f * d)
+
+                        if (textBackingPaint != null) {
+                            canvas.drawRoundRect(leftX - 4f * d, textY - textSizeDp * d - 1f * d, leftX + finalLeftW + 4f * d, textY + 2.5f * d, 4f * d, 4f * d, textBackingPaint)
+                            canvas.drawRoundRect(rightX - 4f * d, textY - textSizeDp * d - 1f * d, rightX + finalRightW + 4f * d, textY + 2.5f * d, 4f * d, 4f * d, textBackingPaint)
+                        }
+                        canvas.drawText(finalLeftLabel, leftX, textY, microTextPaint)
+                        canvas.drawText(finalRightLabel, rightX, textY, microTextPaint)
+                    } else if (hasCutout && !isCenteredCutout && textWidth <= (railSpanPx - (cutoutRight - cutoutLeft))) {
+                        // Corner Cutout Avoidance: Shift cleanly away from the corner
+                        val isLeftCorner = cutoutRight < screenW * 0.35f
+                        val startX = if (isLeftCorner) {
+                            (cutoutRight + 8f * d).coerceAtLeast(railLeft + 4f * d)
+                        } else {
+                            (cutoutLeft - 8f * d - textWidth).coerceAtMost(railRight - textWidth - 4f * d)
+                        }
+                        if (textBackingPaint != null) {
+                            canvas.drawRoundRect(startX - 5f * d, textY - textSizeDp * d - 1f * d, startX + textWidth + 5f * d, textY + 2.5f * d, 4f * d, 4f * d, textBackingPaint)
+                        }
+                        canvas.drawText(tickerText, startX, textY, microTextPaint)
+                    } else if (textWidth <= railSpanPx) {
+                        // Standard Centered text (no cutout collision)
                         val startX = railLeft + (railSpanPx - textWidth) / 2f
                         if (textBackingPaint != null) {
-                            canvas.drawRoundRect(
-                                startX - 5f * d,
-                                textY - textSizeDp * d - 1f * d,
-                                startX + textWidth + 5f * d,
-                                textY + 2.5f * d,
-                                4f * d,
-                                4f * d,
-                                textBackingPaint
-                            )
+                            canvas.drawRoundRect(startX - 5f * d, textY - textSizeDp * d - 1f * d, startX + textWidth + 5f * d, textY + 2.5f * d, 4f * d, 4f * d, textBackingPaint)
                         }
                         canvas.drawText(tickerText, startX, textY, microTextPaint)
                     } else {
+                        // Continuous scrolling Marquee (when text is longer than the rail)
+                        if (hasCutout && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            canvas.clipOutRect(cutoutLeft, 0f, cutoutRight, h.toFloat())
+                        }
+
                         val totalCycleDistance = textWidth + 60f * d
                         val cycleDurationMs = ((totalCycleDistance / speedPx) * 1000f).toLong().coerceAtLeast(1000L)
                         val elapsedMs = SystemClock.uptimeMillis() % cycleDurationMs
@@ -661,28 +704,12 @@ class LightspeedStatusBarOverlay(
                         val textX = railLeft + railSpanPx - offset
 
                         if (textBackingPaint != null) {
-                            canvas.drawRoundRect(
-                                textX - 5f * d,
-                                textY - textSizeDp * d - 1f * d,
-                                textX + textWidth + 5f * d,
-                                textY + 2.5f * d,
-                                4f * d,
-                                4f * d,
-                                textBackingPaint
-                            )
+                            canvas.drawRoundRect(textX - 5f * d, textY - textSizeDp * d - 1f * d, textX + textWidth + 5f * d, textY + 2.5f * d, 4f * d, 4f * d, textBackingPaint)
                         }
                         canvas.drawText(tickerText, textX, textY, microTextPaint)
                         if (textX + textWidth < railRight) {
                             if (textBackingPaint != null) {
-                                canvas.drawRoundRect(
-                                    textX + totalCycleDistance - 5f * d,
-                                    textY - textSizeDp * d - 1f * d,
-                                    textX + totalCycleDistance + textWidth + 5f * d,
-                                    textY + 2.5f * d,
-                                    4f * d,
-                                    4f * d,
-                                    textBackingPaint
-                                )
+                                canvas.drawRoundRect(textX + totalCycleDistance - 5f * d, textY - textSizeDp * d - 1f * d, textX + totalCycleDistance + textWidth + 5f * d, textY + 2.5f * d, 4f * d, 4f * d, textBackingPaint)
                             }
                             canvas.drawText(tickerText, textX + totalCycleDistance, textY, microTextPaint)
                         }

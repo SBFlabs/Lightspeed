@@ -67,6 +67,9 @@ object LightspeedMediaManager {
     fun getActiveTrackInfo(context: Context): MediaTrackInfo {
         val controller = getPrimaryController(context)
         if (controller != null) {
+            val metadata = controller.metadata
+            val playbackState = controller.playbackState
+
             val rawTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
                 ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
                 ?: ""

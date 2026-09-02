@@ -211,12 +211,7 @@ class LightspeedStatusBarOverlay(
         val colorMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_COLOR_MODE, "cover_art") ?: "cover_art"
         val maxRails = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
 
-        val isHorizonRailCustomExpanded = prefs.getBoolean("pref_sub_horizon_rail_geom", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_color", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_text", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_custom", false)
-        val isRailPreviewPref = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
-        val isRailPreviewActive = isHorizonRailCustomExpanded || isRailPreviewPref
+        val isRailPreviewActive = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
 
         data class HorizonStream(
             val type: String, // "dl" or "media"

@@ -209,11 +209,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
         val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
-        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_geom", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_color", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_text", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_custom", false)
+        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
 
         if (!enabled && !isRailRoutingActive && !isRailPreview) return
 
@@ -339,11 +335,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
         val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
-        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_geom", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_color", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_text", false) ||
-                prefs.getBoolean("pref_sub_horizon_rail_custom", false)
+        val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
 
         if (!enabled && !isRailRoutingActive && !isRailPreview) {
             statusBarOverlayView?.let {

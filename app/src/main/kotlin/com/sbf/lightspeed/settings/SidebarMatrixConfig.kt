@@ -1323,7 +1323,7 @@ fun SidebarMatrixConfigurationFields(
                                                         onToggle = {
                                                             isHorizonRailGeomExpanded = !isHorizonRailGeomExpanded
                                                             prefs.edit().putBoolean("pref_sub_horizon_rail_geom", isHorizonRailGeomExpanded).apply()
-                                                            val anyActive = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                                                            val anyActive = isTelemetryExpanded && (isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded)
                                                             prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
                                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                             onRefreshNeeded()
@@ -1434,7 +1434,7 @@ fun SidebarMatrixConfigurationFields(
                                                         onToggle = {
                                                             isHorizonRailColorExpanded = !isHorizonRailColorExpanded
                                                             prefs.edit().putBoolean("pref_sub_horizon_rail_color", isHorizonRailColorExpanded).apply()
-                                                            val anyActive = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                                                            val anyActive = isTelemetryExpanded && (isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded)
                                                             prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
                                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                             onRefreshNeeded()
@@ -1546,7 +1546,7 @@ fun SidebarMatrixConfigurationFields(
                                                         onToggle = {
                                                             isHorizonRailTextExpanded = !isHorizonRailTextExpanded
                                                             prefs.edit().putBoolean("pref_sub_horizon_rail_text", isHorizonRailTextExpanded).apply()
-                                                            val anyActive = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
+                                                            val anyActive = isTelemetryExpanded && (isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded)
                                                             prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, anyActive).apply()
                                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                             onRefreshNeeded()

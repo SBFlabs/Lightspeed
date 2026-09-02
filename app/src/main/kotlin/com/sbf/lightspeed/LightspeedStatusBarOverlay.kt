@@ -382,9 +382,9 @@ class LightspeedStatusBarOverlay(
                     textSize = textSizeDp * d
                     typeface = tacticalTypeface
                     letterSpacing = 0.05f
-                    color = Color.argb(220, 10, 14, 20)
+                    color = Color.argb(235, 6, 8, 14)
                     style = Paint.Style.STROKE
-                    strokeWidth = (textSizeDp * 0.16f * d).coerceIn(1.0f * d, 1.8f * d)
+                    strokeWidth = (textSizeDp * 0.22f * d).coerceIn(1.5f * d, 3.2f * d)
                     strokeJoin = Paint.Join.ROUND
                     strokeCap = Paint.Cap.ROUND
                 }
@@ -407,42 +407,18 @@ class LightspeedStatusBarOverlay(
                 if (i == 0) railThicknessDp.toFloat() else (railThicknessDp * (1f - i * 0.15f)).coerceAtLeast(1.5f)
             }
             val lineYs = FloatArray(activeStreams.size)
-            var textY = 0f
 
-            if (hasMicroText) {
-                when (textPos) {
-                    "above" -> {
-                        val textBlockH = (textSizeDp + 3f) * d
-                        textY = textBaselineOffset + (1f * d)
-                        lineYs[0] = textBlockH + ((thicknesses[0] * d) / 2f)
-                        for (i in 1 until activeStreams.size) {
-                            lineYs[i] = lineYs[i - 1] + ((thicknesses[i - 1] * d) / 2f) + (gapDp * d) + ((thicknesses[i] * d) / 2f)
-                        }
-                    }
-                    "embedded" -> {
-                        lineYs[0] = (thicknesses[0] * d) / 2f
-                        textY = lineYs[0] - (fontMetrics.ascent + fontMetrics.descent) / 2f
-                        for (i in 1 until activeStreams.size) {
-                            lineYs[i] = lineYs[i - 1] + ((thicknesses[i - 1] * d) / 2f) + (gapDp * d) + ((thicknesses[i] * d) / 2f)
-                        }
-                    }
-                    else -> { // "below" (Default: directly under Rail #0 hero stream)
-                        lineYs[0] = (thicknesses[0] * d) / 2f
-                        textY = (thicknesses[0] * d) + (1.5f * d) + textBaselineOffset
-                        val heroBottom = (thicknesses[0] * d) + (1.5f * d) + (textSizeDp * d) + (2f * d)
-                        if (activeStreams.size > 1) {
-                            lineYs[1] = heroBottom + ((thicknesses[1] * d) / 2f)
-                        }
-                        for (i in 2 until activeStreams.size) {
-                            lineYs[i] = lineYs[i - 1] + ((thicknesses[i - 1] * d) / 2f) + (gapDp * d) + ((thicknesses[i] * d) / 2f)
-                        }
-                    }
-                }
-            } else {
-                lineYs[0] = (thicknesses[0] * d) / 2f
-                for (i in 1 until activeStreams.size) {
-                    lineYs[i] = lineYs[i - 1] + ((thicknesses[i - 1] * d) / 2f) + (gapDp * d) + ((thicknesses[i] * d) / 2f)
-                }
+            // Keep all rails tightly stacked in the top ~8dp
+            lineYs[0] = (thicknesses[0] * d) / 2f
+            for (i in 1 until activeStreams.size) {
+                lineYs[i] = lineYs[i - 1] + ((thicknesses[i - 1] * d) / 2f) + (gapDp * d) + ((thicknesses[i] * d) / 2f)
+            }
+
+            // Position micro-text ticker relative to hero rail #0
+            val textY = when (textPos) {
+                "above" -> (lineYs[0] - (thicknesses[0] * d / 2f) - (1.5f * d) - fontMetrics.descent).coerceAtLeast(textBaselineOffset)
+                "embedded" -> lineYs[0] - (fontMetrics.ascent + fontMetrics.descent) / 2f
+                else -> (thicknesses[0] * d) + (1.5f * d) + textBaselineOffset // Overlaid directly below Rail #0
             }
 
             // 1. Draw Horizon Rail Lines (Tracks, Glow, and Progress)

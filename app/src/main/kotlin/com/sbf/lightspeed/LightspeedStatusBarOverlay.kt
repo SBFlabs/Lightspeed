@@ -469,7 +469,7 @@ class LightspeedStatusBarOverlay(
 
             val hasMicroText = isTextEnabled && isTextAllowedByOrientation && tickerText.isNotBlank()
             val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 9).coerceIn(7, 16).toFloat()
-            val primaryColor = resolveStreamColor(primaryStream)
+            val primaryColor = resolveStreamColor(0, primaryStream)
             val tacticalTypeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
 
             val microTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

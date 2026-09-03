@@ -67,8 +67,8 @@ fun SidebarMatrixConfigurationFields(
     jumpTargetSection: String? = null,
     onRefreshNeeded: () -> Unit = {}
 ) {
-    val importStatusMessage by viewModel.importStatusMessage.androidx.compose.runtime.collectAsState()
-    val isImportSuccess by viewModel.isImportSuccess.androidx.compose.runtime.collectAsState()
+    val importStatusMessage by viewModel.importStatusMessage.collectAsState()
+    val isImportSuccess by viewModel.isImportSuccess.collectAsState()
     var prefsVersion by remember { mutableIntStateOf(0) }
     DisposableEffect(prefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -4914,30 +4914,3 @@ fun SidebarMatrixConfigurationFields(
     }
 }
 
-@Composable
-fun TabAccordionPopover(
-    tabIndex: Int,
-    tabTitle: String,
-    currentMode: String,
-    pinnedSectionId: String?,
-    sectionTitles: Map<String, String>,
-    onSelectMode: (String) -> Unit,
-    onToggleBlueprintMode: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("$tabTitle Blueprint", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    "Select default accordion display behavior for this tab:",
-                    fontSize = 12.sp,
-                    color = Color.LightGray.copy(alpha = 0.9f)
-                )

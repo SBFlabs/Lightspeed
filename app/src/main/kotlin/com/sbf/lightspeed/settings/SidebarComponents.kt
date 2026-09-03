@@ -59,6 +59,33 @@ import kotlinx.coroutines.launch
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 
+@Composable
+fun TabAccordionPopover(
+    tabIndex: Int,
+    tabTitle: String,
+    currentMode: String,
+    pinnedSectionId: String?,
+    sectionTitles: Map<String, String>,
+    onSelectMode: (String) -> Unit,
+    onToggleBlueprintMode: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("$tabTitle Blueprint", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Select default accordion display behavior for this tab:",
+                    fontSize = 12.sp,
+                    color = Color.LightGray.copy(alpha = 0.9f)
+                )
 
                 val modes = listOf(
                     Triple("sticky", "Remember Last State (Sticky)", "Preserve the exact open and collapsed states of each section across app restarts."),

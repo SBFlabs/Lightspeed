@@ -1,0 +1,138 @@
+=== 1. PROJECT ARCHITECTURE & FILE SIZES (Over 300 Lines) ===
+29442 total
+5326 ./app/src/main/kotlin/com/sbf/lightspeed/settings/SidebarMatrixConfig.kt
+3659 ./app/src/main/kotlin/com/sbf/lightspeed/LightspeedCruiseOverlay.kt
+2788 ./app/src/main/kotlin/com/sbf/lightspeed/settings/SettingsComponents.kt
+1732 ./app/src/main/kotlin/com/sbf/lightspeed/GearPickerActivity.kt
+1525 ./app/src/main/kotlin/com/sbf/lightspeed/LightspeedRefuelingActivity.kt
+1056 ./app/src/main/kotlin/com/sbf/lightspeed/LightspeedNotchOverlay.kt
+997 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedKeyEngine.kt
+972 ./app/src/main/kotlin/com/sbf/lightspeed/LightspeedStatusBarOverlay.kt
+869 ./app/src/main/kotlin/com/sbf/lightspeed/CockpitDialogActivity.kt
+834 ./app/src/main/kotlin/com/sbf/lightspeed/CockpitSettingsActivity.kt
+824 ./app/src/main/kotlin/com/sbf/lightspeed/LightspeedAccessibilityService.kt
+732 ./app/src/main/kotlin/com/sbf/lightspeed/LightspeedLeftWingOverlay.kt
+682 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedShortcutManager.kt
+579 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedHudRenderer.kt
+554 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedIconManager.kt
+538 ./app/src/main/kotlin/com/sbf/lightspeed/system/TacticalFlyoutOverlay.kt
+386 ./app/src/main/kotlin/com/sbf/lightspeed/settings/GuidebookBottomSheet.kt
+377 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedBackupEngine.kt
+366 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedBackTapEngine.kt
+347 ./app/src/main/kotlin/com/sbf/lightspeed/system/ElevatedTaskCloser.kt
+344 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedNotificationListener.kt
+323 ./app/src/main/kotlin/com/sbf/lightspeed/system/ActionDispatcher.kt
+316 ./app/src/main/kotlin/com/sbf/lightspeed/system/LightspeedPreferences.kt
+308 ./app/src/main/kotlin/com/sbf/lightspeed/settings/LightspeedActionRegistry.kt
+304 ./app/src/main/kotlin/com/sbf/lightspeed/LightspeedSensorDeckTouchOverlay.kt
+
+=== 2. MANIFEST & PERMISSIONS ===
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+            android:exported="false"
+            android:exported="false"
+            android:exported="false"
+            android:exported="false"
+            android:exported="false"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            android:exported="false"
+            android:permission="android.permission.BIND_DREAM_SERVICE"
+            android:exported="true">
+
+=== 3. DEPENDENCIES & BUILD CONFIG ===
+./app/build.gradle.kts:    implementation("dev.rikka.shizuku:api:13.1.5")
+./app/build.gradle.kts:    implementation("dev.rikka.shizuku:provider:13.1.5")
+./app/build.gradle.kts:    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
+./app/build.gradle.kts:    implementation("androidx.compose.ui:ui")
+./app/build.gradle.kts:    implementation("androidx.compose.material3:material3")
+./app/build.gradle.kts:    implementation("androidx.compose.material:material-icons-extended")
+./app/build.gradle.kts:    implementation("androidx.compose.ui:ui-tooling-preview")
+./app/build.gradle.kts:    implementation("androidx.activity:activity-compose:1.9.3")
+./app/build.gradle.kts:    implementation("androidx.core:core-ktx:1.15.0")
+./app/build.gradle.kts:    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+
+=== 4. HARDCODED SECRETS & NETWORKING STRINGS ===
+app/src/debug/res/drawable/ic_launcher_background.xml:2:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/debug/res/drawable/ic_launcher_foreground.xml:2:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/debug/res/drawable/ic_launcher_monochrome.xml:2:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/debug/res/mipmap-anydpi-v26/ic_launcher.xml:2:<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+app/src/debug/res/mipmap-anydpi-v26/ic_launcher_round.xml:2:<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+app/src/main/kotlin/com/sbf/lightspeed/system/TacticalFlyoutOverlay.kt:70:            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://chatgpt.com")).apply {
+app/src/main/kotlin/com/sbf/lightspeed/system/TacticalFlyoutOverlay.kt:93:            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://claude.ai")).apply {
+app/src/main/kotlin/com/sbf/lightspeed/system/TacticalFlyoutOverlay.kt:128:            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://gemini.google.com")).apply {
+app/src/main/res/xml/dream_info.xml:2:<dream xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/xml/accessibility_service_config.xml:2:<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_launcher_background.xml:2:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_power.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_flashlight.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_pause.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_launcher_foreground.xml:2:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_music_note.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_beacon_sparkle.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_close.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_lock.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_screenshot.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_launcher_monochrome.xml:2:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_arrow_downward.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_skip_next.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_play_arrow.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_widgets.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/drawable/ic_skip_previous.xml:1:<vector xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml:2:<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml:2:<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+app/src/main/AndroidManifest.xml:2:<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+app/src/main/AndroidManifest.xml:3:    xmlns:tools="http://schemas.android.com/tools">
+
+=== 5. TOP-LEVEL STRUCTURE ===
+app/src/main/
+app/src/main/kotlin
+app/src/main/kotlin/com
+app/src/main/kotlin/com/sbf
+app/src/main/assets
+app/src/main/assets/default_backup.json
+app/src/main/res
+app/src/main/res/xml
+app/src/main/res/xml/dream_info.xml
+app/src/main/res/xml/accessibility_service_config.xml
+app/src/main/res/values
+app/src/main/res/values/strings.xml
+app/src/main/res/values/colors.xml
+app/src/main/res/values/styles.xml
+app/src/main/res/values/themes.xml
+app/src/main/res/drawable
+app/src/main/res/drawable/ic_launcher_background.xml
+app/src/main/res/drawable/ic_power.xml
+app/src/main/res/drawable/ic_flashlight.xml
+app/src/main/res/drawable/ic_pause.xml
+app/src/main/res/drawable/ic_launcher_foreground.xml
+app/src/main/res/drawable/ic_music_note.xml
+app/src/main/res/drawable/ic_beacon_sparkle.xml
+app/src/main/res/drawable/ic_close.xml
+app/src/main/res/drawable/ic_lock.xml
+app/src/main/res/drawable/ic_screenshot.xml
+app/src/main/res/drawable/ic_launcher_monochrome.xml
+app/src/main/res/drawable/ic_arrow_downward.xml
+app/src/main/res/drawable/ic_skip_next.xml
+app/src/main/res/drawable/ic_play_arrow.xml
+app/src/main/res/drawable/ic_widgets.xml
+app/src/main/res/drawable/ic_skip_previous.xml
+app/src/main/res/values-v31
+app/src/main/res/values-v31/colors.xml
+app/src/main/res/mipmap-anydpi-v26
+app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+app/src/main/AndroidManifest.xml

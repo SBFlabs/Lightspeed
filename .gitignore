@@ -10,3 +10,5 @@
 .cxx
 *.apk
 *.aab
+# Production signing credentials — never commit
+keystore.properties

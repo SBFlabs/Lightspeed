@@ -1,7 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// ---------------------------------------------------------------
+// Release Signing — reads from keystore.properties (gitignored).
+// Copy keystore.properties.template → keystore.properties and fill in
+// your production keystore values before running assembleRelease.
+// ---------------------------------------------------------------
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
 }
 
 android {
@@ -17,6 +31,17 @@ android {
         manifestPlaceholders["appName"] = "Lightspeed"
     }
 
+    if (hasReleaseKeystore) {
+        signingConfigs {
+            create("release") {
+                storeFile     = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias      = keystoreProperties["keyAlias"] as String
+                keyPassword   = keystoreProperties["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".nightly"
@@ -27,7 +52,12 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
-            signingConfig = signingConfigs.getByName("debug")
+            // Use production keystore when available; falls back to debug key
+            // so nightly/CI builds don't break before a keystore is provisioned.
+            signingConfig = if (hasReleaseKeystore)
+                signingConfigs.getByName("release")
+            else
+                signingConfigs.getByName("debug")
             manifestPlaceholders["appName"] = "Lightspeed"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -42,16 +72,7 @@ android {
     buildFeatures {
         compose = true
     }
-
-    applicationVariants.all {
-        outputs.all {
-            val f = (this as? com.android.build.gradle.internal.api.ApkVariantOutputImpl)?.outputFile
-            println(">>> VARIANT OUTPUT PATH: ${f?.absolutePath}")
-        }
-    }
 }
-
-
 
 dependencies {
     // Elevated system IPC (Shizuku & compatible forks)

@@ -483,6 +483,7 @@ class LightspeedStatusBarOverlay(
 
             val hasMicroText = isTextEnabled && isTextAllowedByOrientation && tickerText.isNotBlank()
             val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 9).coerceIn(7, 16).toFloat()
+            val primaryColor = resolveStreamColor(0, primaryStream)
             val fontSetting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_FONT, "system_default") ?: "system_default"
             val tacticalTypeface: android.graphics.Typeface = when {
                 fontSetting == "system_default" -> android.graphics.Typeface.DEFAULT_BOLD

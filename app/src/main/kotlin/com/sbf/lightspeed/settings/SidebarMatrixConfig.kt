@@ -1960,8 +1960,8 @@ fun SidebarMatrixConfigurationFields(
                                                             )
 
                                                             if (isAvoidCutout) {
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (dp)", 8, 72, 1, 28)
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Snugness Gap (dp)", 0, 16, 1, 4)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (0 to 72dp)", 0, 72, 1, 24)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Snugness Gap (0 to 16dp)", 0, 16, 1, 2)
                                                                 PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, "", "Cutout Horizontal Offset X (dp)", -25, 25, 1, 0)
                                                             }
                                                         }

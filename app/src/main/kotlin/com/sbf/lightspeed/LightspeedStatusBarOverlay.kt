@@ -563,12 +563,9 @@ class LightspeedStatusBarOverlay(
                     }
                 }
                 val topCutout = LightspeedNotchOverlay.cachedCutoutRect
-
-                val physicalCutoutW = if (topCutout != null && topCutout.width() > 0) topCutout.width().toFloat() else (28f * d)
-                val defaultCutoutWidthDp = (physicalCutoutW / d).toInt().coerceIn(16, 72)
-                val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(8, 72).toFloat()
-                val cutoutWidthPx = cutoutWidthDp * d
-                val effectiveCutoutWidthPx = maxOf(cutoutWidthPx, physicalCutoutW)
+                val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 24f).toInt().coerceIn(14, 48)
+                val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(0, 72)
+                val effectiveCutoutWidthPx = cutoutWidthDp.toFloat() * d
 
                 val notchOffsetX = (prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, 0).takeIf { it != 0 }
                     ?: prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_NOTCH_OFFSET_X, 0)).toFloat() * d
@@ -683,7 +680,8 @@ class LightspeedStatusBarOverlay(
                     postInvalidateOnAnimation()
                 }
 
-                val hasCutout = isCenteredCutout || (cutoutRight > railLeft && cutoutLeft < railRight)
+                val isCutoutZeroed = (cutoutWidthDp == 0 && wingGapDp == 0f)
+                val hasCutout = !isCutoutZeroed && (isCenteredCutout || (cutoutRight > railLeft && cutoutLeft < railRight))
 
                 if (isAvoidCutout && hasCutout) {
                     // Dual-Wing Symmetrical Cutout Split

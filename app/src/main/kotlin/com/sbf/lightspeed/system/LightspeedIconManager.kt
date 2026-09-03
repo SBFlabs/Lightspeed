@@ -1,5 +1,11 @@
 package com.sbf.lightspeed.system
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -9,9 +15,6 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.File
@@ -27,6 +30,7 @@ data class IconPackInfo(
 )
 
 object LightspeedIconManager {
+    private var managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private const val TAG = "LightspeedIconManager"
     private const val PREF_ICON_PACK = "pref_active_icon_pack"
 
@@ -129,6 +133,8 @@ object LightspeedIconManager {
     }
 
     fun clearCache() {
+        managerScope.cancel()
+        managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         bitmapCache.clear()
         drawableCache.clear()
         customShortcutBitmaps.clear()
@@ -147,7 +153,7 @@ object LightspeedIconManager {
     }
 
     fun loadIconPackAsync(context: Context, iconPackPkg: String, onComplete: (() -> Unit)? = null) {
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch {
             loadIconPackSync(context, iconPackPkg)
             onComplete?.invoke()
         }
@@ -244,7 +250,7 @@ object LightspeedIconManager {
         // Mark as manually overridden for backup tracking
         markAsManuallyOverridden(context, token)
 
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch {
             try {
                 val dir = File(context.filesDir, "shortcut_icons")
                 if (!dir.exists()) dir.mkdirs()

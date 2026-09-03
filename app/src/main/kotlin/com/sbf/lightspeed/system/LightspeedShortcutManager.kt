@@ -1,5 +1,11 @@
 package com.sbf.lightspeed.system
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
@@ -15,9 +21,6 @@ import android.os.Build
 import android.os.Process
 import android.util.Base64
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -32,12 +35,15 @@ data class ParsedShortcut(
 )
 
 object LightspeedShortcutManager {
+    private var managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private const val TAG = "LightspeedShortcut"
 
     private val bitmapCache = ConcurrentHashMap<String, Bitmap>()
     private val drawableCache = ConcurrentHashMap<String, Drawable>()
 
     fun clearMemoryCache() {
+        managerScope.cancel()
+        managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         bitmapCache.clear()
         drawableCache.clear()
     }
@@ -80,7 +86,7 @@ object LightspeedShortcutManager {
         bitmapCache[token] = bitmap
         drawableCache[token] = BitmapDrawable(context.resources, bitmap)
 
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch {
             try {
                 val dir = File(context.filesDir, "shortcut_icons")
                 if (!dir.exists()) dir.mkdirs()
@@ -115,7 +121,7 @@ object LightspeedShortcutManager {
     }
 
     fun purgeCorruptedIcons(context: Context) {
-        CoroutineScope(Dispatchers.IO).launch {
+        managerScope.launch {
             try {
                 val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
                 val allShortcutHashes = mutableSetOf<String>()

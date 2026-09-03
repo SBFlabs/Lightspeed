@@ -58,8 +58,6 @@ import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-
-@Composable
 fun TabAccordionPopover(
     tabIndex: Int,
     tabTitle: String,

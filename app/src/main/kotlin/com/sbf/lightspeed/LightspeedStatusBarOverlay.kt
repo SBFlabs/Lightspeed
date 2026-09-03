@@ -556,22 +556,28 @@ class LightspeedStatusBarOverlay(
                 val wingGap = wingGapDp * d
 
                 val rawCutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
-                val topCutout = (rawCutout?.boundingRectTop ?: rawCutout?.boundingRects?.firstOrNull { it.top == 0 })?.also {
-                    if (it.width() > 0) LightspeedNotchOverlay.cachedCutoutRect = it
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && rawCutout != null) {
+                    val found = rawCutout.boundingRectTop ?: rawCutout.boundingRects.firstOrNull { it.top == 0 }
+                    if (found != null && found.width() > 0) {
+                        LightspeedNotchOverlay.cachedCutoutRect = found
+                    }
                 }
+                val topCutout = LightspeedNotchOverlay.cachedCutoutRect
 
-                val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 24f).coerceIn(14f, 32f).toInt()
-                val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(8, 36).toFloat()
+                val physicalCutoutW = if (topCutout != null && topCutout.width() > 0) topCutout.width().toFloat() else (28f * d)
+                val defaultCutoutWidthDp = (physicalCutoutW / d).toInt().coerceIn(16, 72)
+                val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(8, 72).toFloat()
                 val cutoutWidthPx = cutoutWidthDp * d
+                val effectiveCutoutWidthPx = maxOf(cutoutWidthPx, physicalCutoutW)
 
                 val notchOffsetX = (prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, 0).takeIf { it != 0 }
                     ?: prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_NOTCH_OFFSET_X, 0)).toFloat() * d
                 val detectedCenterX = if (topCutout != null && topCutout.width() > 0) topCutout.exactCenterX() else screenW / 2f
                 val cutoutCenterX = detectedCenterX + notchOffsetX
 
-                val cutoutLeft = cutoutCenterX - (cutoutWidthPx / 2f)
-                val cutoutRight = cutoutCenterX + (cutoutWidthPx / 2f)
-                val isCenteredCutout = cutoutCenterX in (screenW * 0.25f)..(screenW * 0.75f)
+                val cutoutLeft = cutoutCenterX - (effectiveCutoutWidthPx / 2f)
+                val cutoutRight = cutoutCenterX + (effectiveCutoutWidthPx / 2f)
+                val isCenteredCutout = cutoutCenterX in (screenW * 0.20f)..(screenW * 0.80f)
 
                 fun renderMarqueeText(
                     text: String,
@@ -613,7 +619,7 @@ class LightspeedStatusBarOverlay(
 
                     if (marqueeAnimMode == "bounce") {
                         val overflowPx = textW - availW
-                        val travelDist = overflowPx + (10f * d)
+                        val travelDist = overflowPx + (6f * d)
                         val pauseMs = 1200L
                         val travelDurationMs = ((travelDist / speedPxPerMs).toLong()).coerceIn(800L, 10000L)
                         val totalCycleMs = (pauseMs * 2) + (travelDurationMs * 2)
@@ -634,40 +640,41 @@ class LightspeedStatusBarOverlay(
                             }
                         }
 
+                        val baseStartX = if (alignTo == "right") (clipRight - textW) else clipLeft
                         val startX = if (marqueeDirection == "ltr") {
-                            (clipRight - textW) + offset
+                            baseStartX + offset
                         } else {
-                            clipLeft - offset
+                            baseStartX - offset
                         }
                         drawTacticalText(text, startX, y)
                     } else {
                         // Continuous Wrap Loop
-                        val gapPx = (40f * d).coerceAtLeast(24f)
+                        val gapPx = (30f * d).coerceAtLeast(20f)
                         val cycleDist = textW + gapPx
                         val cycleDurationMs = ((cycleDist / speedPxPerMs).toLong()).coerceIn(1000L, 30000L)
                         val elapsedMs = now % cycleDurationMs
                         val rawOffset = (elapsedMs.toFloat() / cycleDurationMs.toFloat()) * cycleDist
 
                         if (marqueeDirection == "ltr") {
-                            var currentX = clipLeft - textW + rawOffset
-                            while (currentX < clipRight) {
-                                if (currentX + textW > clipLeft) {
-                                    drawTacticalText(text, currentX, y)
+                            var x = clipLeft - textW + rawOffset
+                            while (x < clipRight) {
+                                if (x + textW > clipLeft) {
+                                    drawTacticalText(text, x, y)
                                 }
-                                currentX += cycleDist
+                                x += cycleDist
                             }
                         } else {
-                            var currentX = clipLeft + availW - rawOffset
-                            while (currentX < clipRight) {
-                                if (currentX + textW > clipLeft) {
-                                    drawTacticalText(text, currentX, y)
+                            var x = clipRight - rawOffset
+                            while (x + textW > clipLeft) {
+                                if (x < clipRight) {
+                                    drawTacticalText(text, x, y)
                                 }
-                                currentX += cycleDist
+                                x -= cycleDist
                             }
-                            var prevX = currentX - cycleDist
-                            while (prevX + textW > clipLeft) {
-                                drawTacticalText(text, prevX, y)
-                                prevX -= cycleDist
+                            var forwardX = clipRight - rawOffset + cycleDist
+                            while (forwardX < clipRight) {
+                                drawTacticalText(text, forwardX, y)
+                                forwardX += cycleDist
                             }
                         }
                     }
@@ -676,8 +683,42 @@ class LightspeedStatusBarOverlay(
                     postInvalidateOnAnimation()
                 }
 
-                if (isAvoidCutout && isCenteredCutout && leftLabel.isNotBlank() && rightLabel.isNotBlank() && marqueeScope != "unified") {
-                    // Dual-Wing Symmetrical Cutout Split (Left Wing = Title, Right Wing = Artist/Episode/Sider)
+                val hasCutout = isCenteredCutout || (cutoutRight > railLeft && cutoutLeft < railRight)
+
+                if (isAvoidCutout && hasCutout) {
+                    // Dual-Wing Symmetrical Cutout Split
+                    val (wingLeftText, wingRightText) = if (leftLabel.isNotBlank() && rightLabel.isNotBlank() && marqueeScope != "unified") {
+                        Pair(leftLabel, rightLabel)
+                    } else {
+                        // If only one label is available OR user selected unified stream, split cleanly around the middle across the camera cutout
+                        val fullText = if (leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
+                            "$leftLabel  •  $rightLabel"
+                        } else {
+                            leftLabel.ifBlank { rightLabel }.ifBlank { tickerText }.trim()
+                        }
+
+                        val mid = fullText.length / 2
+                        var bestBreak = -1
+                        var minDiff = Int.MAX_VALUE
+                        for (i in fullText.indices) {
+                            if (fullText[i] == ' ' || fullText[i] == '-' || fullText[i] == '_' || fullText[i] == '•' || fullText[i] == '—' || fullText[i] == ':') {
+                                val diff = kotlin.math.abs(i - mid)
+                                if (diff < minDiff) {
+                                    minDiff = diff
+                                    bestBreak = i
+                                }
+                            }
+                        }
+                        if (bestBreak in 1 until fullText.length - 1) {
+                            Pair(fullText.substring(0, bestBreak).trim(), fullText.substring(bestBreak + 1).trim())
+                        } else if (fullText.length > 2) {
+                            val splitPt = (fullText.length / 2).coerceIn(1, fullText.length - 1)
+                            Pair(fullText.substring(0, splitPt).trim(), fullText.substring(splitPt).trim())
+                        } else {
+                            Pair(fullText, "")
+                        }
+                    }
+
                     val leftClipL = railLeft
                     val leftClipR = (cutoutLeft - wingGap).coerceAtLeast(leftClipL)
                     val rightClipL = (cutoutRight + wingGap).coerceAtMost(railRight)
@@ -686,8 +727,12 @@ class LightspeedStatusBarOverlay(
                     val forceStaticLeft = (marqueeScope == "right_wing_only")
                     val forceStaticRight = (marqueeScope == "left_wing_only")
 
-                    renderMarqueeText(leftLabel, leftClipL, leftClipR, textY, alignTo = "right", forceStatic = forceStaticLeft)
-                    renderMarqueeText(rightLabel, rightClipL, rightClipR, textY, alignTo = "left", forceStatic = forceStaticRight)
+                    if (wingLeftText.isNotBlank()) {
+                        renderMarqueeText(wingLeftText, leftClipL, leftClipR, textY, alignTo = "right", forceStatic = forceStaticLeft)
+                    }
+                    if (wingRightText.isNotBlank()) {
+                        renderMarqueeText(wingRightText, rightClipL, rightClipR, textY, alignTo = "left", forceStatic = forceStaticRight)
+                    }
                 } else {
                     // Unified text block: perfectly centered or aligned with full marquee support
                     renderMarqueeText(tickerText, railLeft, railRight, textY, alignTo = railAlign, forceStatic = false)

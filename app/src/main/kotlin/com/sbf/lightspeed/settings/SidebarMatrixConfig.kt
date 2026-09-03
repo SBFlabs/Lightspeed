@@ -1796,7 +1796,7 @@ fun SidebarMatrixConfigurationFields(
                                                                 "both_wings" to "🔀 Dual-Wing Independent (Marquee Overflowing Side)",
                                                                 "right_wing_only" to "👉 Right Wing Only (Artist / Episode / Sider)",
                                                                 "left_wing_only" to "👈 Left Wing Only (Title)",
-                                                                "unified" to "🔗 Unified Single Stream (Continuous Marquee Across Span)"
+                                                                "unified" to "🔗 Unified Stream (Split Across Wings & Marquee)"
                                                             )
 
                                                             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -1960,7 +1960,7 @@ fun SidebarMatrixConfigurationFields(
                                                             )
 
                                                             if (isAvoidCutout) {
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (dp)", 8, 36, 1, 24)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (dp)", 8, 72, 1, 28)
                                                                 PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Snugness Gap (dp)", 0, 16, 1, 4)
                                                                 PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, "", "Cutout Horizontal Offset X (dp)", -25, 25, 1, 0)
                                                             }

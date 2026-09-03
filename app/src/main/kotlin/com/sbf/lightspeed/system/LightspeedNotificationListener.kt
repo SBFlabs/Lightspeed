@@ -40,7 +40,8 @@ class LightspeedNotificationListener : NotificationListenerService() {
         val durationMs: Long,
         val packageName: String?,
         val iconColor: Int? = null,
-        val coverArtColor: Int? = null
+        val coverArtColor: Int? = null,
+        val album: String = ""
     )
 
     companion object {
@@ -135,7 +136,8 @@ class LightspeedNotificationListener : NotificationListenerService() {
                 durationMs = info.durationMs,
                 packageName = info.packageName,
                 iconColor = mediaIconColor,
-                coverArtColor = info.coverArtColor
+                coverArtColor = info.coverArtColor,
+                album = info.album
             )
             onTelemetryChanged?.invoke()
         } catch (_: Exception) {}

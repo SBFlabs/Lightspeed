@@ -118,10 +118,24 @@ class LightspeedStatusBarOverlay(
         val d = resources.displayMetrics.density
         val screenWidthPx = resources.displayMetrics.widthPixels
         val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
-        val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
+        val maxRails = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
         val isRailText = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-        val railNeededHeightDp = if (isRailText) (railThicknessDp + 22) else (railThicknessDp + 6)
-        val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
+        val railOffsetY = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_Y, 0)
+        val textOffsetY = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_OFFSET_Y, 0)
+        val textPos = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
+
+        val baseRailHeightDp = railOffsetY + (railThicknessDp * maxRails) + 8
+        val textHeightDp = if (isRailText) {
+            if (textPos == "below_statusbar") {
+                sensorThicknessDp + textOffsetY + 24
+            } else {
+                baseRailHeightDp + textOffsetY + 24
+            }
+        } else baseRailHeightDp
+
+        val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", true)
+        val effectiveHeightDp = if (isSensorEnabled) maxOf(sensorThicknessDp, textHeightDp) else textHeightDp
 
         lp.width = screenWidthPx
         lp.height = (effectiveHeightDp * d).toInt()
@@ -142,6 +156,9 @@ class LightspeedStatusBarOverlay(
         val screenW = resources.displayMetrics.widthPixels.toFloat()
         val w = width.toFloat()
         val h = height.toFloat()
+
+        val orientation = resources.configuration.orientation
+        val isLandscape = orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
         val m3Primary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.resources.getColor(android.R.color.system_accent1_300, context.theme)
@@ -187,6 +204,13 @@ class LightspeedStatusBarOverlay(
         }
 
         // 1. Horizon Rail Telemetry Line & Micro-Text Renderer
+        val railOrientMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_ORIENTATION_MODE, "both") ?: "both"
+        val isRailAllowedByOrientation = when (railOrientMode) {
+            "landscape_only" -> isLandscape
+            "portrait_only" -> !isLandscape
+            else -> true
+        }
+
         val dlRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
         val primaryDl = com.sbf.lightspeed.system.LightspeedNotificationListener.getPrimaryDownload()
@@ -197,13 +221,30 @@ class LightspeedStatusBarOverlay(
         val railSpanPx = if (railSpanPref >= screenWidthDp - 5) screenW else (railSpanPref * d).coerceIn(50f * d, screenW)
         val railAlign = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_ALIGN, "center") ?: "center"
         val railOffsetX = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_X, 0) * d
+        val railOffsetY = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_Y, 0).toFloat() * d
 
-        val railLeft = when (railAlign) {
-            "left" -> (0f + railOffsetX).coerceIn(0f, screenW - railSpanPx)
-            "right" -> (screenW - railSpanPx + railOffsetX).coerceIn(0f, screenW - railSpanPx)
-            else -> (((screenW - railSpanPx) / 2f) + railOffsetX).coerceIn(0f, screenW - railSpanPx)
+        // Status Bar Collision Guard & Safe Margin Insets
+        val isStatusBarGuard = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_STATUS_BAR_GUARD, true)
+        val safePaddingLeftDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_SAFE_PADDING_LEFT, 0).toFloat()
+        val safePaddingRightDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_SAFE_PADDING_RIGHT, 0).toFloat()
+
+        val autoLeftClearance = if (isLandscape && isStatusBarGuard) 42f * d else 0f
+        val autoRightClearance = if (isLandscape && isStatusBarGuard) 58f * d else 0f
+
+        val safeInsetLeft = (safePaddingLeftDp * d) + autoLeftClearance
+        val safeInsetRight = (safePaddingRightDp * d) + autoRightClearance
+
+        val availableScreenLeft = safeInsetLeft
+        val availableScreenRight = (screenW - safeInsetRight).coerceAtLeast(availableScreenLeft + 20f * d)
+
+        val baseRailLeft = when (railAlign) {
+            "left" -> (availableScreenLeft + railOffsetX).coerceIn(availableScreenLeft, (availableScreenRight - railSpanPx).coerceAtLeast(availableScreenLeft))
+            "right" -> (availableScreenRight - railSpanPx + railOffsetX).coerceIn(availableScreenLeft, (availableScreenRight - railSpanPx).coerceAtLeast(availableScreenLeft))
+            else -> (((screenW - railSpanPx) / 2f) + railOffsetX).coerceIn(availableScreenLeft, (availableScreenRight - railSpanPx).coerceAtLeast(availableScreenLeft))
         }
-        val railRight = railLeft + railSpanPx
+        val railLeft = baseRailLeft.coerceIn(availableScreenLeft, (availableScreenRight - 20f * d).coerceAtLeast(availableScreenLeft))
+        val railRight = (railLeft + railSpanPx).coerceAtMost(availableScreenRight)
+        val railSpanPxActual = (railRight - railLeft).coerceAtLeast(20f * d)
 
         val railThicknessDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
         val railGlowPct = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_GLOW, 60).coerceIn(0, 100)
@@ -221,7 +262,10 @@ class LightspeedStatusBarOverlay(
             val iconColor: Int?,
             val coverArtColor: Int? = null,
             val isIndeterminate: Boolean = false,
-            val lastUpdated: Long = System.currentTimeMillis()
+            val lastUpdated: Long = System.currentTimeMillis(),
+            val album: String = "",
+            val positionMs: Long = 0L,
+            val durationMs: Long = 0L
         )
 
         val streams = mutableListOf<HorizonStream>()
@@ -249,7 +293,7 @@ class LightspeedStatusBarOverlay(
             }
         }
 
-        if (isMediaRouteEnabled && media != null && media.isPlaying && media.durationMs > 0) {
+        if (isMediaRouteEnabled && media != null && media.isPlaying && (media.durationMs > 0 || media.title.isNotBlank())) {
             val prog = if (media.durationMs > 0) (media.positionMs.toFloat() / media.durationMs.toFloat()).coerceIn(0f, 1f) else 0.5f
             streams.add(
                 HorizonStream(
@@ -260,7 +304,10 @@ class LightspeedStatusBarOverlay(
                     iconColor = media.iconColor,
                     coverArtColor = media.coverArtColor,
                     isIndeterminate = false,
-                    lastUpdated = System.currentTimeMillis()
+                    lastUpdated = System.currentTimeMillis(),
+                    album = media.album,
+                    positionMs = media.positionMs,
+                    durationMs = media.durationMs
                 )
             )
         }
@@ -272,7 +319,7 @@ class LightspeedStatusBarOverlay(
                     HorizonStream(
                         type = "dl",
                         title = "NIGHTLY_BUILD_V10.APK",
-                        subtitle = "68",
+                        subtitle = "68%",
                         progressFraction = 0.68f,
                         iconColor = Color.parseColor("#00E5FF"),
                         coverArtColor = null
@@ -287,7 +334,10 @@ class LightspeedStatusBarOverlay(
                         subtitle = "LIGHTSPEED SOUNDS",
                         progressFraction = 0.42f,
                         iconColor = Color.parseColor("#FF007F"),
-                        coverArtColor = Color.parseColor("#FF007F")
+                        coverArtColor = Color.parseColor("#FF007F"),
+                        album = "RETROWAVE PODCAST EP. 42",
+                        positionMs = 154000L,
+                        durationMs = 360000L
                     )
                 )
             }
@@ -296,7 +346,7 @@ class LightspeedStatusBarOverlay(
                     HorizonStream(
                         type = "dl",
                         title = "SYSTEM_CACHE_BACKUP.ZIP",
-                        subtitle = "91",
+                        subtitle = "91%",
                         progressFraction = 0.91f,
                         iconColor = Color.parseColor("#00E676"),
                         coverArtColor = null
@@ -317,7 +367,7 @@ class LightspeedStatusBarOverlay(
 
         val activeStreams = streams.take(maxRails)
 
-        if (activeStreams.isNotEmpty()) {
+        if (activeStreams.isNotEmpty() && isRailAllowedByOrientation) {
             fun resolveStreamColor(stream: HorizonStream): Int {
                 return when (colorMode) {
                     "cover_art" -> if (stream.type == "media") (stream.coverArtColor ?: stream.iconColor ?: m3Primary) else (stream.iconColor ?: m3Primary)
@@ -335,25 +385,69 @@ class LightspeedStatusBarOverlay(
                 }
             }
 
-            // --- Micro-Text Telemetry Ticker (Attached Directly to Rail #0 Pinned Stream) ---
+            // --- Micro-Text Telemetry Ticker Setup ---
             val isTextEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
+            val textOrientMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ORIENTATION_MODE, "both") ?: "both"
+            val isTextAllowedByOrientation = when (textOrientMode) {
+                "landscape_only" -> isLandscape
+                "portrait_only" -> !isLandscape
+                else -> true
+            }
+
             val primaryStream = activeStreams[0]
             val cleanTitle = primaryStream.title.trim().uppercase()
             val cleanSub = primaryStream.subtitle.trim().uppercase()
+            val cleanAlbum = primaryStream.album.trim().uppercase()
 
-            val leftLabel = if (primaryStream.type == "dl") {
-                if (cleanTitle.isNotBlank()) "⬇ $cleanTitle" else "⬇ DOWNLOADING"
-            } else {
-                if (cleanTitle.isNotBlank()) cleanTitle else cleanSub
+            val metadataMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_METADATA_MODE, "adaptive") ?: "adaptive"
+            val isShowTimestamp = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SHOW_TIMESTAMP, false)
+
+            fun formatDuration(ms: Long): String {
+                if (ms <= 0L) return ""
+                val totalSec = ms / 1000
+                val min = totalSec / 60
+                val sec = totalSec % 60
+                return "%d:%02d".format(min, sec)
             }
 
-            val rightLabel = if (primaryStream.type == "dl") {
-                cleanSub.replace("%", "").trim()
+            val timestampStr = if (primaryStream.type == "media" && (isShowTimestamp || (metadataMode == "adaptive" && isLandscape))) {
+                val pos = formatDuration(primaryStream.positionMs)
+                val dur = formatDuration(primaryStream.durationMs)
+                if (pos.isNotBlank() && dur.isNotBlank()) "$pos / $dur" else pos
+            } else ""
+
+            val isRichMode = when (metadataMode) {
+                "full" -> true
+                "title_only" -> false
+                else -> isLandscape // "adaptive": Full in landscape, Title in portrait
+            }
+
+            val leftLabel: String
+            val rightLabel: String
+
+            if (primaryStream.type == "dl") {
+                leftLabel = if (cleanTitle.isNotBlank()) "⬇ $cleanTitle" else "⬇ DOWNLOADING"
+                rightLabel = if (cleanSub.isNotBlank()) cleanSub.replace("%", "").trim() + "%" else ""
             } else {
-                if (cleanSub.isNotBlank() && !cleanSub.equals(cleanTitle, ignoreCase = true) && !cleanSub.equals("NOW PLAYING", ignoreCase = true)) {
-                    cleanSub
+                leftLabel = cleanTitle.ifBlank { cleanSub }.ifBlank { "NOW PLAYING" }
+                if (isRichMode) {
+                    val siders = mutableListOf<String>()
+                    if (cleanSub.isNotBlank() && !cleanSub.equals(cleanTitle, ignoreCase = true) && !cleanSub.equals("NOW PLAYING", ignoreCase = true)) {
+                        siders.add(cleanSub)
+                    }
+                    if (cleanAlbum.isNotBlank() && !cleanAlbum.equals(cleanTitle, ignoreCase = true) && !cleanAlbum.equals(cleanSub, ignoreCase = true)) {
+                        siders.add(cleanAlbum)
+                    }
+                    if (timestampStr.isNotBlank()) {
+                        siders.add(timestampStr)
+                    }
+                    rightLabel = siders.joinToString("  •  ")
                 } else {
-                    ""
+                    rightLabel = if (cleanSub.isNotBlank() && !cleanSub.equals(cleanTitle, ignoreCase = true) && !cleanSub.equals("NOW PLAYING", ignoreCase = true)) {
+                        cleanSub
+                    } else {
+                        ""
+                    }
                 }
             }
 
@@ -363,7 +457,7 @@ class LightspeedStatusBarOverlay(
                 else -> rightLabel
             }
 
-            val hasMicroText = isTextEnabled && tickerText.isNotBlank()
+            val hasMicroText = isTextEnabled && isTextAllowedByOrientation && tickerText.isNotBlank()
             val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 9).coerceIn(7, 16).toFloat()
             val primaryColor = resolveStreamColor(primaryStream)
             val tacticalTypeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
@@ -399,6 +493,7 @@ class LightspeedStatusBarOverlay(
             }
 
             val textPos = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
+            val textOffsetY = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_OFFSET_Y, 0).toFloat() * d
             val fontMetrics = microTextPaint.fontMetrics
             val textBaselineOffset = -fontMetrics.ascent
             val gapDp = 2.5f
@@ -408,17 +503,17 @@ class LightspeedStatusBarOverlay(
             }
             val lineYs = FloatArray(activeStreams.size)
 
-            // Keep all rails tightly stacked in the top ~8dp
-            lineYs[0] = (thicknesses[0] * d) / 2f
+            lineYs[0] = railOffsetY + ((thicknesses[0] * d) / 2f)
             for (i in 1 until activeStreams.size) {
                 lineYs[i] = lineYs[i - 1] + ((thicknesses[i - 1] * d) / 2f) + (gapDp * d) + ((thicknesses[i] * d) / 2f)
             }
 
-            // Position micro-text ticker relative to hero rail #0
+            // Position micro-text ticker relative to rail or status bar
             val textY = when (textPos) {
-                "above" -> (lineYs[0] - (thicknesses[0] * d / 2f) - (1.5f * d) - fontMetrics.descent).coerceAtLeast(textBaselineOffset)
-                "embedded" -> lineYs[0] - (fontMetrics.ascent + fontMetrics.descent) / 2f
-                else -> (thicknesses[0] * d) + (1.5f * d) + textBaselineOffset // Overlaid directly below Rail #0
+                "above" -> (lineYs[0] - (thicknesses[0] * d / 2f) - (1.5f * d) - fontMetrics.descent) + textOffsetY
+                "embedded" -> (lineYs[0] - (fontMetrics.ascent + fontMetrics.descent) / 2f) + textOffsetY
+                "below_statusbar" -> (sensorHeight + (2f * d) + textBaselineOffset) + textOffsetY
+                else -> (lineYs[0] + (thicknesses[0] * d / 2f) + (1.5f * d) + textBaselineOffset) + textOffsetY
             }
 
             // 1. Draw Horizon Rail Lines (Tracks, Glow, and Progress)
@@ -438,21 +533,23 @@ class LightspeedStatusBarOverlay(
                     val glowAlpha = ((railGlowPct * 1.5f) / (1f + index * 0.3f)).toInt().coerceIn(10, 200)
                     telemetryGlowPaint.strokeWidth = (thickness + 2.5f - index * 0.5f) * d
                     telemetryGlowPaint.color = Color.argb(glowAlpha, Color.red(col), Color.green(col), Color.blue(col))
-                    val progressX = railLeft + (railSpanPx * stream.progressFraction)
+                    val progressX = railLeft + (railSpanPxActual * stream.progressFraction)
                     canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
                 }
 
                 telemetryGlowPaint.strokeWidth = thickness * d
                 telemetryGlowPaint.color = col
-                val progressX = railLeft + (railSpanPx * stream.progressFraction)
+                val progressX = railLeft + (railSpanPxActual * stream.progressFraction)
                 canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
             }
 
             // 2. Draw Hero Micro-Text Ticker (Exclusively for Rail #0)
             if (hasMicroText) {
-                val textWidth = microTextPaint.measureText(tickerText)
-                val speedDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SPEED, 20).coerceIn(10, 60).toFloat()
+                val speedDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SPEED, 20).coerceIn(10, 80).toFloat()
                 val speedPx = speedDp * d
+                val marqueeAnimMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_ANIM_MODE, "continuous_wrap") ?: "continuous_wrap"
+                val marqueeDirection = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_DIRECTION, "rtl") ?: "rtl"
+                val marqueeScope = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_SCOPE, "both_wings") ?: "both_wings"
 
                 val isAvoidCutout = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)
                 val wingGapDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, 4).coerceIn(0, 16).toFloat()
@@ -474,86 +571,127 @@ class LightspeedStatusBarOverlay(
 
                 val cutoutLeft = cutoutCenterX - (cutoutWidthPx / 2f)
                 val cutoutRight = cutoutCenterX + (cutoutWidthPx / 2f)
-                val isCenteredCutout = cutoutCenterX in (screenW * 0.30f)..(screenW * 0.70f)
+                val isCenteredCutout = cutoutCenterX in (screenW * 0.25f)..(screenW * 0.75f)
 
-                canvas.save()
-                canvas.clipRect(railLeft, 0f, railRight, h.toFloat())
+                fun renderMarqueeText(
+                    text: String,
+                    clipLeft: Float,
+                    clipRight: Float,
+                    y: Float,
+                    alignTo: String = "left",
+                    forceStatic: Boolean = false
+                ) {
+                    if (text.isBlank()) return
+                    val availW = (clipRight - clipLeft).coerceAtLeast(0f)
+                    if (availW <= 4f * d) return
 
-                // Static vs Scrolling Ticker Layout
-                if (textWidth <= railSpanPx) {
-                    val (leftPart, rightPart) = if (leftLabel.isNotBlank() && rightLabel.isNotBlank()) {
-                        Pair(leftLabel, rightLabel)
-                    } else {
-                        val src = leftLabel.ifBlank { rightLabel }.ifBlank { tickerText }.trim()
-                        val mid = src.length / 2
-                        var bestBreak = -1
-                        var minDiff = Int.MAX_VALUE
-                        for (i in src.indices) {
-                            if (src[i] == ' ' || src[i] == '-' || src[i] == '_' || src[i] == '•' || src[i] == '—') {
-                                val diff = kotlin.math.abs(i - mid)
-                                if (diff < minDiff) {
-                                    minDiff = diff
-                                    bestBreak = i
-                                }
+                    val textW = microTextPaint.measureText(text)
+
+                    if (textW <= availW || forceStatic) {
+                        val startX = when (alignTo) {
+                            "right" -> clipRight - textW
+                            "center" -> clipLeft + (availW - textW) / 2f
+                            else -> clipLeft
+                        }
+                        val safeText = if (textW > availW) {
+                            android.text.TextUtils.ellipsize(text, android.text.TextPaint(microTextPaint), availW, android.text.TextUtils.TruncateAt.END).toString()
+                        } else text
+
+                        canvas.save()
+                        canvas.clipRect(clipLeft, 0f, clipRight, h.toFloat())
+                        drawTacticalText(safeText, startX.coerceIn(clipLeft, (clipRight - microTextPaint.measureText(safeText)).coerceAtLeast(clipLeft)), y)
+                        canvas.restore()
+                        return
+                    }
+
+                    // Text Overflows -> Dynamic Marquee
+                    val now = SystemClock.uptimeMillis()
+                    val speedPxPerMs = speedPx / 1000f
+
+                    canvas.save()
+                    canvas.clipRect(clipLeft, 0f, clipRight, h.toFloat())
+
+                    if (marqueeAnimMode == "bounce") {
+                        val overflowPx = textW - availW
+                        val travelDist = overflowPx + (10f * d)
+                        val pauseMs = 1200L
+                        val travelDurationMs = ((travelDist / speedPxPerMs).toLong()).coerceIn(800L, 10000L)
+                        val totalCycleMs = (pauseMs * 2) + (travelDurationMs * 2)
+                        val cycleTime = now % totalCycleMs
+
+                        val offset = when {
+                            cycleTime < pauseMs -> 0f
+                            cycleTime < pauseMs + travelDurationMs -> {
+                                val progress = (cycleTime - pauseMs).toFloat() / travelDurationMs.toFloat()
+                                val eased = (1f - kotlin.math.cos(progress * Math.PI.toFloat())) / 2f
+                                eased * travelDist
+                            }
+                            cycleTime < (2 * pauseMs) + travelDurationMs -> travelDist
+                            else -> {
+                                val progress = (cycleTime - (2 * pauseMs + travelDurationMs)).toFloat() / travelDurationMs.toFloat()
+                                val eased = (1f - kotlin.math.cos(progress * Math.PI.toFloat())) / 2f
+                                travelDist * (1f - eased)
                             }
                         }
-                        if (bestBreak in 1 until src.length - 1) {
-                            Pair(src.substring(0, bestBreak).trim(), src.substring(bestBreak + 1).trim())
-                        } else if (src.length > 2) {
-                            val splitPt = (src.length / 2).coerceIn(1, src.length - 1)
-                            Pair(src.substring(0, splitPt).trim(), src.substring(splitPt).trim())
+
+                        val startX = if (marqueeDirection == "ltr") {
+                            (clipRight - textW) + offset
                         } else {
-                            Pair(src, "")
+                            clipLeft - offset
                         }
-                    }
-
-                    if (isAvoidCutout && isCenteredCutout && leftPart.isNotBlank() && rightPart.isNotBlank()) {
-                        // Dual-Wing Symmetrical Cutout Split (Left = Left Wing, Right = Right Wing)
-                        val availLeft = (cutoutLeft - railLeft - wingGap).coerceAtLeast(0f)
-                        val availRight = (railRight - cutoutRight - wingGap).coerceAtLeast(0f)
-
-                        val leftW = microTextPaint.measureText(leftPart)
-                        val rightW = microTextPaint.measureText(rightPart)
-
-                        val finalLeftLabel = if (leftW > availLeft) {
-                            android.text.TextUtils.ellipsize(leftPart, android.text.TextPaint(microTextPaint), availLeft, android.text.TextUtils.TruncateAt.END).toString()
-                        } else leftPart
-                        val finalLeftW = microTextPaint.measureText(finalLeftLabel)
-
-                        val finalRightLabel = if (rightW > availRight) {
-                            android.text.TextUtils.ellipsize(rightPart, android.text.TextPaint(microTextPaint), availRight, android.text.TextUtils.TruncateAt.END).toString()
-                        } else rightPart
-                        val finalRightW = microTextPaint.measureText(finalRightLabel)
-
-                        val leftX = (cutoutLeft - wingGap - finalLeftW).coerceAtLeast(railLeft)
-                        val rightX = (cutoutRight + wingGap).coerceAtMost(railRight - finalRightW)
-
-                        drawTacticalText(finalLeftLabel, leftX, textY)
-                        drawTacticalText(finalRightLabel, rightX, textY)
+                        drawTacticalText(text, startX, y)
                     } else {
-                        // Unified text block: perfectly centered or aligned based on user preference
-                        val startX = when (railAlign) {
-                            "left" -> (railLeft + 6f * d).coerceIn(railLeft, railRight - textWidth)
-                            "right" -> (railRight - textWidth - 6f * d).coerceIn(railLeft, railRight - textWidth)
-                            else -> railLeft + (railSpanPx - textWidth) / 2f
-                        }
-                        drawTacticalText(tickerText, startX, textY)
-                    }
-                } else {
-                    // Continuous scrolling Marquee (when text is longer than the rail)
-                    val totalCycleDistance = textWidth + 60f * d
-                    val cycleDurationMs = ((totalCycleDistance / speedPx) * 1000f).toLong().coerceAtLeast(1000L)
-                    val elapsedMs = SystemClock.uptimeMillis() % cycleDurationMs
-                    val offset = (elapsedMs.toFloat() / cycleDurationMs.toFloat()) * totalCycleDistance
-                    val textX = railLeft + railSpanPx - offset
+                        // Continuous Wrap Loop
+                        val gapPx = (40f * d).coerceAtLeast(24f)
+                        val cycleDist = textW + gapPx
+                        val cycleDurationMs = ((cycleDist / speedPxPerMs).toLong()).coerceIn(1000L, 30000L)
+                        val elapsedMs = now % cycleDurationMs
+                        val rawOffset = (elapsedMs.toFloat() / cycleDurationMs.toFloat()) * cycleDist
 
-                    drawTacticalText(tickerText, textX, textY)
-                    if (textX + textWidth < railRight) {
-                        drawTacticalText(tickerText, textX + totalCycleDistance, textY)
+                        if (marqueeDirection == "ltr") {
+                            var currentX = clipLeft - textW + rawOffset
+                            while (currentX < clipRight) {
+                                if (currentX + textW > clipLeft) {
+                                    drawTacticalText(text, currentX, y)
+                                }
+                                currentX += cycleDist
+                            }
+                        } else {
+                            var currentX = clipLeft + availW - rawOffset
+                            while (currentX < clipRight) {
+                                if (currentX + textW > clipLeft) {
+                                    drawTacticalText(text, currentX, y)
+                                }
+                                currentX += cycleDist
+                            }
+                            var prevX = currentX - cycleDist
+                            while (prevX + textW > clipLeft) {
+                                drawTacticalText(text, prevX, y)
+                                prevX -= cycleDist
+                            }
+                        }
                     }
+
+                    canvas.restore()
                     postInvalidateOnAnimation()
                 }
-                canvas.restore()
+
+                if (isAvoidCutout && isCenteredCutout && leftLabel.isNotBlank() && rightLabel.isNotBlank() && marqueeScope != "unified") {
+                    // Dual-Wing Symmetrical Cutout Split (Left Wing = Title, Right Wing = Artist/Episode/Sider)
+                    val leftClipL = railLeft
+                    val leftClipR = (cutoutLeft - wingGap).coerceAtLeast(leftClipL)
+                    val rightClipL = (cutoutRight + wingGap).coerceAtMost(railRight)
+                    val rightClipR = railRight
+
+                    val forceStaticLeft = (marqueeScope == "right_wing_only")
+                    val forceStaticRight = (marqueeScope == "left_wing_only")
+
+                    renderMarqueeText(leftLabel, leftClipL, leftClipR, textY, alignTo = "right", forceStatic = forceStaticLeft)
+                    renderMarqueeText(rightLabel, rightClipL, rightClipR, textY, alignTo = "left", forceStatic = forceStaticRight)
+                } else {
+                    // Unified text block: perfectly centered or aligned with full marquee support
+                    renderMarqueeText(tickerText, railLeft, railRight, textY, alignTo = railAlign, forceStatic = false)
+                }
             }
         }
 

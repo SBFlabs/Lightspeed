@@ -216,11 +216,23 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val screenWidthPx = resources.displayMetrics.widthPixels
         val density = resources.displayMetrics.density
         val sensorThicknessDp = prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52)
-        val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 3).coerceIn(1, 8)
+        val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
         val maxRails = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
         val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-        val railNeededHeightDp = if (isRailText) (railThicknessDp * maxRails + 26) else (railThicknessDp * maxRails + 8)
-        val effectiveHeightDp = maxOf(sensorThicknessDp, railNeededHeightDp)
+        val railOffsetY = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_Y, 0)
+        val textOffsetY = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_OFFSET_Y, 0)
+        val textPos = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
+
+        val baseRailHeightDp = railOffsetY + (railThicknessDp * maxRails) + 8
+        val textHeightDp = if (isRailText) {
+            if (textPos == "below_statusbar") {
+                sensorThicknessDp + textOffsetY + 24
+            } else {
+                baseRailHeightDp + textOffsetY + 24
+            }
+        } else baseRailHeightDp
+
+        val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, textHeightDp) else textHeightDp
         val heightPx = (effectiveHeightDp * density).toInt()
 
         val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -351,8 +363,20 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
         val maxRails = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
         val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
-        val railNeededHeightDp = if (isRailText) (railThicknessDp * maxRails + 26) else (railThicknessDp * maxRails + 8)
-        val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, railNeededHeightDp) else railNeededHeightDp
+        val railOffsetY = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_Y, 0)
+        val textOffsetY = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_OFFSET_Y, 0)
+        val textPos = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_POSITION, "below") ?: "below"
+
+        val baseRailHeightDp = railOffsetY + (railThicknessDp * maxRails) + 8
+        val textHeightDp = if (isRailText) {
+            if (textPos == "below_statusbar") {
+                sensorThicknessDp + textOffsetY + 24
+            } else {
+                baseRailHeightDp + textOffsetY + 24
+            }
+        } else baseRailHeightDp
+
+        val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, textHeightDp) else textHeightDp
         val heightPx = (effectiveHeightDp * density).toInt()
 
         if (statusBarOverlayView == null) {

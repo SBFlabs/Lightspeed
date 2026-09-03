@@ -1291,6 +1291,14 @@ fun SidebarMatrixConfigurationFields(
                                                         "custom" to "🎯 Custom Matrix Cyber Chip Palette"
                                                     )
 
+                                                    val currentRailOrientMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_ORIENTATION_MODE, "both") ?: "both"
+                                                    var isRailOrientDropdownOpen by remember { mutableStateOf(false) }
+                                                    val railOrientOptions = listOf(
+                                                        "both" to "🔄 Both Orientations (Always Active)",
+                                                        "landscape_only" to "📐 Landscape Only (Horizontal Deck)",
+                                                        "portrait_only" to "📱 Portrait Only"
+                                                    )
+
                                                     val currentRailAlign = prefs.getString("pref_horizon_rail_align", "center") ?: "center"
                                                     var isRailAlignDropdownOpen by remember { mutableStateOf(false) }
                                                     val railAlignOptions = listOf(
@@ -1304,7 +1312,8 @@ fun SidebarMatrixConfigurationFields(
                                                     val textPosOptions = listOf(
                                                         "below" to "Below Rail Line (Recommended)",
                                                         "above" to "Above Rail Line",
-                                                        "embedded" to "Centered Inside Track"
+                                                        "embedded" to "Centered Inside Track",
+                                                        "below_statusbar" to "Below Entire Status Bar Deck"
                                                     )
 
                                                     val currentPriority = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_PRIORITY, "downloads_top") ?: "downloads_top"
@@ -1318,7 +1327,7 @@ fun SidebarMatrixConfigurationFields(
                                                     // 1. Sub-Accordion: Horizon Rail Geometry & Stacking
                                                     CollapsibleSubSection(
                                                         title = "Horizon Rail Geometry & Stacking",
-                                                        subtitle = "Span, alignment, thickness, glow radiance & multi-rail limits",
+                                                        subtitle = "Span, orientation display rules, safe-margins, glow & offsets",
                                                         isExpanded = isHorizonRailGeomExpanded,
                                                         onToggle = {
                                                             isHorizonRailGeomExpanded = !isHorizonRailGeomExpanded
@@ -1329,6 +1338,49 @@ fun SidebarMatrixConfigurationFields(
                                                             onRefreshNeeded()
                                                         }
                                                     ) {
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("RAIL ORIENTATION DISPLAY RULE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isRailOrientDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(railOrientOptions.firstOrNull { it.first == currentRailOrientMode }?.second ?: "🔄 Both Orientations", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isRailOrientDropdownOpen,
+                                                                    onDismissRequest = { isRailOrientDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    railOrientOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isRailOrientDropdownOpen = false
+                                                                                prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_ORIENTATION_MODE, key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_span", "", "Span (Max: ${screenWidthDp}dp)", 50, screenWidthDp, 10, screenWidthDp)
 
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -1375,10 +1427,23 @@ fun SidebarMatrixConfigurationFields(
                                                         }
 
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_offset_x", "", "Horizontal Offset (X Axis)", -100, 100, 5, 0)
+                                                        PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_Y, "", "Vertical Offset Y (0 to 40dp)", 0, 40, 1, 0)
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 6, 1, 2)
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 60)
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 15)
                                                         PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, "", "Max Concurrent Rails (1 to 3)", 1, 3, 1, 2)
+
+                                                        PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_STATUS_BAR_GUARD,
+                                                            defaultVal = true,
+                                                            title = "Landscape Status Bar Safe Guard",
+                                                            subtitle = "Automatically prevents long telemetry text or rails from occluding system status bar items (clock and network/battery icons).",
+                                                            onChanged = { onRefreshNeeded() }
+                                                        )
+
+                                                        PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_SAFE_PADDING_LEFT, "", "Left Safe Margin Inset (dp)", 0, 80, 2, 0)
+                                                        PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_SAFE_PADDING_RIGHT, "", "Right Safe Margin Inset (dp)", 0, 80, 2, 0)
 
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                                                             Text("MULTI-RAIL PINNING & PRIORITY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
@@ -1541,7 +1606,7 @@ fun SidebarMatrixConfigurationFields(
                                                     // 3. Sub-Accordion: Horizon Rail Micro-Text Ticker
                                                     CollapsibleSubSection(
                                                         title = "Horizon Rail Micro-Text Ticker",
-                                                        subtitle = "Typography font size, position, velocity & punch-hole avoidance",
+                                                        subtitle = "Typography, dual-wing marquee, bounce velocity & orientation rules",
                                                         isExpanded = isHorizonRailTextExpanded,
                                                         onToggle = {
                                                             isHorizonRailTextExpanded = !isHorizonRailTextExpanded
@@ -1555,7 +1620,7 @@ fun SidebarMatrixConfigurationFields(
                                                         var isRailTextEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_horizon_rail_text_enabled", true)) }
                                                         PrefToggleRow(
                                                             title = "Micro-Text Telemetry Ticker",
-                                                            subtitle = "Streams active download filenames and song titles in ultra-compact typography along the rail span.",
+                                                            subtitle = "Streams active download filenames, song titles, episode numbers, and live track progress along the rail.",
                                                             isChecked = isRailTextEnabled,
                                                             onCheckedChange = {
                                                                 isRailTextEnabled = it
@@ -1566,6 +1631,117 @@ fun SidebarMatrixConfigurationFields(
                                                         )
 
                                                         if (isRailTextEnabled) {
+                                                            val currentTextOrientMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ORIENTATION_MODE, "both") ?: "both"
+                                                            var isTextOrientDropdownOpen by remember { mutableStateOf(false) }
+                                                            val textOrientOptions = listOf(
+                                                                "both" to "🔄 Both Orientations",
+                                                                "landscape_only" to "📐 Landscape Only",
+                                                                "portrait_only" to "📱 Portrait Only"
+                                                            )
+
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                Text("MICRO-TEXT ORIENTATION FILTER", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                Spacer(modifier = Modifier.height(4.dp))
+                                                                Box {
+                                                                    OutlinedButton(
+                                                                        onClick = { isTextOrientDropdownOpen = true },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(12.dp)
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                                            verticalAlignment = Alignment.CenterVertically
+                                                                        ) {
+                                                                            Text(textOrientOptions.firstOrNull { it.first == currentTextOrientMode }?.second ?: "🔄 Both Orientations", color = Color.White, fontSize = 12.sp)
+                                                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                        }
+                                                                    }
+                                                                    DropdownMenu(
+                                                                        expanded = isTextOrientDropdownOpen,
+                                                                        onDismissRequest = { isTextOrientDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
+                                                                    ) {
+                                                                        textOrientOptions.forEach { (key, label) ->
+                                                                            DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
+                                                                                text = { Text(label) },
+                                                                                onClick = {
+                                                                                    isTextOrientDropdownOpen = false
+                                                                                    prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ORIENTATION_MODE, key).apply()
+                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            val currentMetadataMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_METADATA_MODE, "adaptive") ?: "adaptive"
+                                                            var isMetadataDropdownOpen by remember { mutableStateOf(false) }
+                                                            val metadataOptions = listOf(
+                                                                "adaptive" to "⚡ Adaptive (Title in Portrait, Full Metadata in Landscape)",
+                                                                "full" to "📜 Full Metadata Always (Title + Artist + Episode/Album)",
+                                                                "title_only" to "🏷 Title Only Always"
+                                                            )
+
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                Text("METADATA DENSITY & ORIENTATION MODE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                Spacer(modifier = Modifier.height(4.dp))
+                                                                Box {
+                                                                    OutlinedButton(
+                                                                        onClick = { isMetadataDropdownOpen = true },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(12.dp)
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                                            verticalAlignment = Alignment.CenterVertically
+                                                                        ) {
+                                                                            Text(metadataOptions.firstOrNull { it.first == currentMetadataMode }?.second ?: "⚡ Adaptive", color = Color.White, fontSize = 12.sp)
+                                                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                        }
+                                                                    }
+                                                                    DropdownMenu(
+                                                                        expanded = isMetadataDropdownOpen,
+                                                                        onDismissRequest = { isMetadataDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
+                                                                    ) {
+                                                                        metadataOptions.forEach { (key, label) ->
+                                                                            DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
+                                                                                text = { Text(label) },
+                                                                                onClick = {
+                                                                                    isMetadataDropdownOpen = false
+                                                                                    prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_METADATA_MODE, key).apply()
+                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            PrefToggleRow(
+                                                                prefs = prefs,
+                                                                prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SHOW_TIMESTAMP,
+                                                                defaultVal = false,
+                                                                title = "Include Playback Progress Timestamp",
+                                                                subtitle = "Appends live track position and duration (e.g. 02:45 / 05:10) to the micro-text ticker.",
+                                                                onChanged = { onRefreshNeeded() }
+                                                            )
+
                                                             PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_size", "", "Micro-Font Size (dp)", 7, 16, 1, 9)
 
                                                             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -1611,7 +1787,164 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                             }
 
-                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 60, 5, 20)
+                                                            PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_OFFSET_Y, "", "Vertical Fine Y-Offset (dp)", -20, 40, 1, 0)
+
+                                                            // Marquee Scope & Sider Controls
+                                                            val currentMarqueeScope = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_SCOPE, "both_wings") ?: "both_wings"
+                                                            var isMarqueeScopeDropdownOpen by remember { mutableStateOf(false) }
+                                                            val marqueeScopeOptions = listOf(
+                                                                "both_wings" to "🔀 Dual-Wing Independent (Marquee Overflowing Side)",
+                                                                "right_wing_only" to "👉 Right Wing Only (Artist / Episode / Sider)",
+                                                                "left_wing_only" to "👈 Left Wing Only (Title)",
+                                                                "unified" to "🔗 Unified Single Stream (Continuous Marquee Across Span)"
+                                                            )
+
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                Text("MARQUEE SCOPE & SIDER TARGET", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                Spacer(modifier = Modifier.height(4.dp))
+                                                                Box {
+                                                                    OutlinedButton(
+                                                                        onClick = { isMarqueeScopeDropdownOpen = true },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(12.dp)
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                                            verticalAlignment = Alignment.CenterVertically
+                                                                        ) {
+                                                                            Text(marqueeScopeOptions.firstOrNull { it.first == currentMarqueeScope }?.second ?: "🔀 Dual-Wing Independent", color = Color.White, fontSize = 12.sp)
+                                                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                        }
+                                                                    }
+                                                                    DropdownMenu(
+                                                                        expanded = isMarqueeScopeDropdownOpen,
+                                                                        onDismissRequest = { isMarqueeScopeDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
+                                                                    ) {
+                                                                        marqueeScopeOptions.forEach { (key, label) ->
+                                                                            DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
+                                                                                text = { Text(label) },
+                                                                                onClick = {
+                                                                                    isMarqueeScopeDropdownOpen = false
+                                                                                    prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_SCOPE, key).apply()
+                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            // Marquee Animation Style: Bounce vs Continuous Loop
+                                                            val currentMarqueeAnim = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_ANIM_MODE, "continuous_wrap") ?: "continuous_wrap"
+                                                            var isMarqueeAnimDropdownOpen by remember { mutableStateOf(false) }
+                                                            val marqueeAnimOptions = listOf(
+                                                                "continuous_wrap" to "♾️ Continuous Loop (Seamless Wrap Across Edges)",
+                                                                "bounce" to "🏓 Bounce / Ping-Pong (Back & Forth with Edge Pauses)"
+                                                            )
+
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                Text("MARQUEE ANIMATION STYLE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                Spacer(modifier = Modifier.height(4.dp))
+                                                                Box {
+                                                                    OutlinedButton(
+                                                                        onClick = { isMarqueeAnimDropdownOpen = true },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(12.dp)
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                                            verticalAlignment = Alignment.CenterVertically
+                                                                        ) {
+                                                                            Text(marqueeAnimOptions.firstOrNull { it.first == currentMarqueeAnim }?.second ?: "♾️ Continuous Loop", color = Color.White, fontSize = 12.sp)
+                                                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                        }
+                                                                    }
+                                                                    DropdownMenu(
+                                                                        expanded = isMarqueeAnimDropdownOpen,
+                                                                        onDismissRequest = { isMarqueeAnimDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
+                                                                    ) {
+                                                                        marqueeAnimOptions.forEach { (key, label) ->
+                                                                            DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
+                                                                                text = { Text(label) },
+                                                                                onClick = {
+                                                                                    isMarqueeAnimDropdownOpen = false
+                                                                                    prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_ANIM_MODE, key).apply()
+                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            // Marquee Direction
+                                                            val currentMarqueeDir = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_DIRECTION, "rtl") ?: "rtl"
+                                                            var isMarqueeDirDropdownOpen by remember { mutableStateOf(false) }
+                                                            val marqueeDirOptions = listOf(
+                                                                "rtl" to "⬅️ Right-to-Left (Standard RTL)",
+                                                                "ltr" to "➡️ Left-to-Right (LTR)"
+                                                            )
+
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                Text("MARQUEE SCROLL DIRECTION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                Spacer(modifier = Modifier.height(4.dp))
+                                                                Box {
+                                                                    OutlinedButton(
+                                                                        onClick = { isMarqueeDirDropdownOpen = true },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(12.dp)
+                                                                    ) {
+                                                                        Row(
+                                                                            modifier = Modifier.fillMaxWidth(),
+                                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                                            verticalAlignment = Alignment.CenterVertically
+                                                                        ) {
+                                                                            Text(marqueeDirOptions.firstOrNull { it.first == currentMarqueeDir }?.second ?: "⬅️ Right-to-Left (Standard RTL)", color = Color.White, fontSize = 12.sp)
+                                                                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                        }
+                                                                    }
+                                                                    DropdownMenu(
+                                                                        expanded = isMarqueeDirDropdownOpen,
+                                                                        onDismissRequest = { isMarqueeDirDropdownOpen = false },
+                                                                        modifier = Modifier
+                                                                            .background(Color(0xF012141A))
+                                                                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                        shape = RoundedCornerShape(16.dp),
+                                                                        containerColor = Color(0xF012141A)
+                                                                    ) {
+                                                                        marqueeDirOptions.forEach { (key, label) ->
+                                                                            DropdownMenuItem(
+                                                                                modifier = Modifier.heightIn(min = 48.dp),
+                                                                                text = { Text(label) },
+                                                                                onClick = {
+                                                                                    isMarqueeDirDropdownOpen = false
+                                                                                    prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_DIRECTION, key).apply()
+                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                    onRefreshNeeded()
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_speed", "", "Scroll Velocity (px/sec)", 10, 80, 5, 20)
 
                                                             var isAvoidCutout by rememberSaveable { mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, false)) }
                                                             PrefToggleRow(
@@ -1637,7 +1970,7 @@ fun SidebarMatrixConfigurationFields(
                                                     // 2. Orbital Capsule Calibration
                                                     CollapsibleSubSection(
                                                         title = "Orbital Capsule Calibration (Dynamic Cutout HUD)",
-                                                        subtitle = "Punch-hole alignment, layout modes, offsets & dynamic live preview",
+                                                        subtitle = "Punch-hole alignment, orientation rules, layout modes & offsets",
                                                         isExpanded = isNotchCalibExpanded,
                                                         onToggle = {
                                                             isNotchCalibExpanded = !isNotchCalibExpanded
@@ -1704,6 +2037,57 @@ fun SidebarMatrixConfigurationFields(
                                                                             Spacer(modifier = Modifier.width(6.dp))
                                                                             Text("Open $oemFeatureName Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
                                                                         }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        val currentCapsuleOrientMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, "both") ?: "both"
+                                                        var isCapsuleOrientDropdownOpen by remember { mutableStateOf(false) }
+                                                        val capsuleOrientOptions = listOf(
+                                                            "both" to "🔄 Both Orientations",
+                                                            "portrait_only" to "📱 Portrait Only (Recommended for Cutout HUD)",
+                                                            "landscape_only" to "📐 Landscape Only"
+                                                        )
+
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("CAPSULE ORIENTATION DISPLAY RULE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isCapsuleOrientDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(capsuleOrientOptions.firstOrNull { it.first == currentCapsuleOrientMode }?.second ?: "🔄 Both Orientations", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isCapsuleOrientDropdownOpen,
+                                                                    onDismissRequest = { isCapsuleOrientDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    capsuleOrientOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isCapsuleOrientDropdownOpen = false
+                                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
                                                                     }
                                                                 }
                                                             }

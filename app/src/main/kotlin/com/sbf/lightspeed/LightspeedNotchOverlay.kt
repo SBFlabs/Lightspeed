@@ -208,12 +208,21 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         val primaryDl = LightspeedNotificationListener.getPrimaryDownload()
         val media = LightspeedNotificationListener.activeMediaTelemetry
 
+        val orientation = resources.configuration.orientation
+        val isLandscape = orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val capsuleOrientMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, "both") ?: "both"
+
         val isTestBeacon = prefs.getBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false)
         val showDlPill = (dlRouting == "notch_pill" || dlRouting == "both") && primaryDl != null
         val showMediaPill = (mediaRouting == "notch_pill" || mediaRouting == "both") && media != null && media.isPlaying
         val isPillActive = isTestBeacon || showDlPill || showMediaPill
+        val isAllowedByOrientation = when (capsuleOrientMode) {
+            "portrait_only" -> !isLandscape
+            "landscape_only" -> isLandscape
+            else -> true
+        }
 
-        if (!isPillActive && !isExpanded) {
+        if ((!isPillActive || !isAllowedByOrientation) && !isExpanded) {
             LightspeedAccessibilityService.instance?.updateNotchWindowBounds(false, 0, 0, 1, 1, isVisible = false)
             return
         }
@@ -843,6 +852,16 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         // =========================================================================
         // COLLAPSED CAPSULE NOTCH PILL RENDERING (3 MODES)
         // =========================================================================
+        val orientation = resources.configuration.orientation
+        val isLandscape = orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val capsuleOrientMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, "both") ?: "both"
+        val isAllowedByOrientation = when (capsuleOrientMode) {
+            "portrait_only" -> !isLandscape
+            "landscape_only" -> isLandscape
+            else -> true
+        }
+        if (!isAllowedByOrientation) return
+
         val capsuleLayout = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, "unified_right") ?: "unified_right"
         val scrollMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_TEXT_SCROLL_MODE, "loop_2x") ?: "loop_2x"
         val truncateAnchor = prefs.getString(LightspeedPreferences.KEY_NOTCH_TEXT_TRUNCATE_ANCHOR, "tail") ?: "tail"

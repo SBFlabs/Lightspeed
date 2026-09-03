@@ -61,11 +61,14 @@ import kotlinx.coroutines.launch
 fun SidebarMatrixConfigurationFields(
     context: Context,
     prefs: SharedPreferences,
+    viewModel: SidebarSettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     toggleAllTrigger: Int = 0,
     jumpTargetTab: Int = -1,
     jumpTargetSection: String? = null,
     onRefreshNeeded: () -> Unit = {}
 ) {
+    val importStatusMessage by viewModel.importStatusMessage.androidx.compose.runtime.collectAsState()
+    val isImportSuccess by viewModel.isImportSuccess.androidx.compose.runtime.collectAsState()
     var prefsVersion by remember { mutableIntStateOf(0) }
     DisposableEffect(prefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -235,8 +238,6 @@ fun SidebarMatrixConfigurationFields(
     var showUnifyTemplateDialogForRight by remember { mutableStateOf(false) }
     var showImportOptionsDialog by remember { mutableStateOf(false) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
-    var importStatusMessage by remember { mutableStateOf<String?>(null) }
-    var isImportSuccess by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -259,21 +260,7 @@ fun SidebarMatrixConfigurationFields(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            scope.launch {
-                val result = withContext(Dispatchers.IO) {
-                    LightspeedBackupEngine.importFromFile(context, uri)
-                }
-                result.onSuccess { count ->
-                    isImportSuccess = true
-                    importStatusMessage = "Successfully restored $count settings and shortcut configurations!"
-                    try {
-                        LightspeedAccessibilityService.instance?.reloadPreferences()
-                    } catch (_: Exception) {}
-                }.onFailure { err ->
-                    isImportSuccess = false
-                    importStatusMessage = "Import Failed:\n${err.message ?: err.javaClass.simpleName}"
-                }
-            }
+            viewModel.importFromFile(context, uri)
         }
     }
 
@@ -4322,7 +4309,7 @@ fun SidebarMatrixConfigurationFields(
                 confirmButton = {
                     Button(
                         onClick = {
-                            LightspeedBackupEngine.resetToDefaults(context)
+                            viewModel.resetToDefaults(context)
                             showResetConfirmDialog = false
                             Toast.makeText(context, "Preferences reset to factory defaults", Toast.LENGTH_SHORT).show()
                             onRefreshNeeded()
@@ -4343,7 +4330,7 @@ fun SidebarMatrixConfigurationFields(
 
         if (importStatusMessage != null) {
             AlertDialog(
-                onDismissRequest = { importStatusMessage = null },
+                onDismissRequest = { viewModel.clearImportStatus() },
                 title = {
                     Text(
                         text = if (isImportSuccess) "Backup Restored" else "Import Status",
@@ -4362,7 +4349,7 @@ fun SidebarMatrixConfigurationFields(
                     Button(
                         onClick = {
                             val wasSuccess = isImportSuccess
-                            importStatusMessage = null
+                            viewModel.clearImportStatus()
                             if (wasSuccess) {
                                 (context as? Activity)?.recreate() ?: onRefreshNeeded()
                             }
@@ -4480,20 +4467,7 @@ fun SidebarMatrixConfigurationFields(
                             val text = pastedJsonText.trim()
                             showPasteJsonDialog = false
                             if (text.isBlank()) {
-                                isImportSuccess = false
-                                importStatusMessage = "Pasted text is empty."
-                            } else {
-                                scope.launch(Dispatchers.IO) {
-                                    val res = LightspeedBackupEngine.importFromJson(context, text)
-                                    res.onSuccess { count ->
-                                        isImportSuccess = true
-                                        importStatusMessage = "Successfully restored $count settings and shortcut configurations!"
-                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                    }.onFailure { err ->
-                                        isImportSuccess = false
-                                        importStatusMessage = "Import Failed:\n${err.message}"
-                                    }
-                                }
+                                viewModel.importFromJson(context, text)
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -4967,360 +4941,3 @@ fun TabAccordionPopover(
                     fontSize = 12.sp,
                     color = Color.LightGray.copy(alpha = 0.9f)
                 )
-
-                val modes = listOf(
-                    Triple("sticky", "Remember Last State (Sticky)", "Preserve the exact open and collapsed states of each section across app restarts."),
-                    Triple("custom_pinned", "Anchored Solo", "Designated anchor card stays open; non-pinned cards swap in Solo focus mode."),
-                    Triple("solo", "Focus / Solo Mode", "Expanding any card automatically snaps all other cards shut."),
-                    Triple("all_expanded", "All Expanded", "All accordion cards default open on tab entry."),
-                    Triple("all_collapsed", "All Collapsed", "All accordion cards default closed on tab entry.")
-                )
-
-                modes.forEach { (modeKey, title, desc) ->
-                    val isSelected = currentMode == modeKey
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                onSelectMode(modeKey)
-                            },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = { onSelectMode(modeKey) },
-                                colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                    if (modeKey == "custom_pinned" && pinnedSectionId != null) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                            border = androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-                                        ) {
-                                            Text(
-                                                text = "Anchor: ${sectionTitles[pinnedSectionId] ?: pinnedSectionId}",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(desc, fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.75f), lineHeight = 13.sp)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-                OutlinedButton(
-                    onClick = {
-                        onToggleBlueprintMode()
-                        onDismiss()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f))
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        Icon(Icons.Default.DashboardCustomize, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Edit Section Blueprint & Reorder", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            }
-        },
-        shape = RoundedCornerShape(20.dp),
-        containerColor = Color(0xFF10121C)
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AttitudeAppAssignmentSheet(
-    context: Context,
-    bucket: LightspeedOrientationEngine.AttitudeBucket,
-    onDismiss: () -> Unit,
-    onUpdated: () -> Unit
-) {
-    var searchQuery by remember { mutableStateOf("") }
-    val assignedPackages = remember(bucket) {
-        mutableStateListOf<String>().apply {
-            addAll(LightspeedOrientationEngine.getAssignedPackages(context, bucket))
-        }
-    }
-
-    val installedApps = remember {
-        val pm = context.packageManager
-        val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
-        pm.queryIntentActivities(intent, 0).map {
-            val pkg = it.activityInfo.packageName
-            val label = it.loadLabel(pm).toString()
-            Pair(pkg, label)
-        }.distinctBy { it.first }.sortedBy { it.second.lowercase(Locale.ROOT) }
-    }
-
-    val filteredApps = remember(searchQuery, installedApps) {
-        if (searchQuery.isBlank()) installedApps
-        else installedApps.filter { it.second.contains(searchQuery, ignoreCase = true) || it.first.contains(searchQuery, ignoreCase = true) }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color(0xFF10121C),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = when (bucket) {
-                        LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
-                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
-                        LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
-                        else -> Icons.Default.ScreenRotation
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = "Assign Apps: ${bucket.title}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = bucket.subtitle,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search installed apps...", fontSize = 13.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 380.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(count = filteredApps.size, key = { filteredApps[it].first }) { index ->
-                    val app = filteredApps[index]
-                    val pkg = app.first
-                    val label = app.second
-                    val isAssigned = assignedPackages.contains(pkg)
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable {
-                                if (isAssigned) assignedPackages.remove(pkg)
-                                else assignedPackages.add(pkg)
-                                LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
-                                onUpdated()
-                            },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isAssigned) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = isAssigned,
-                                onCheckedChange = { checked ->
-                                    if (checked) assignedPackages.add(pkg)
-                                    else assignedPackages.remove(pkg)
-                                    LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
-                                    onUpdated()
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                Text(pkg, fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.6f))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun BlueprintWireframeView(
-    tabTitle: String,
-    sectionIds: List<String>,
-    pinnedSectionId: String?,
-    sectionTitles: Map<String, String>,
-    onMoveUp: (Int) -> Unit,
-    onMoveDown: (Int) -> Unit,
-    onPinSection: (String) -> Unit,
-    onExitBlueprint: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.ViewAgenda, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("$tabTitle — Blueprint Reorder Mode", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                    Text("Use ▲ / ▼ to reorder sections. Tap 📌 to designate the anchor open section.", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.85f))
-                }
-            }
-        }
-
-        sectionIds.forEachIndexed { index, secId ->
-            val isPinned = (secId == pinnedSectionId)
-            val title = sectionTitles[secId] ?: secId
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isPinned) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color(0xFF141724).copy(alpha = 0.8f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.2.dp,
-                    if (isPinned) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.12f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.DragHandle,
-                        contentDescription = "Drag Handle",
-                        tint = Color.White.copy(alpha = 0.45f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = title,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp,
-                            color = Color.White
-                        )
-                        if (isPinned) {
-                            Text(
-                                "📌 Default Pinned Section",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    // Pin Anchor Button
-                    IconButton(
-                        onClick = { onPinSection(secId) },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PushPin,
-                            contentDescription = "Pin",
-                            tint = if (isPinned) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.35f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    // Move Up
-                    IconButton(
-                        onClick = { onMoveUp(index) },
-                        enabled = index > 0,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.KeyboardArrowUp,
-                            contentDescription = "Up",
-                            tint = if (index > 0) MaterialTheme.colorScheme.secondary else Color.DarkGray,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    // Move Down
-                    IconButton(
-                        onClick = { onMoveDown(index) },
-                        enabled = index < sectionIds.size - 1,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Down",
-                            tint = if (index < sectionIds.size - 1) MaterialTheme.colorScheme.secondary else Color.DarkGray,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        Button(
-            onClick = onExitBlueprint,
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text("Done (Exit Blueprint)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimary)
-        }
-    }
-}

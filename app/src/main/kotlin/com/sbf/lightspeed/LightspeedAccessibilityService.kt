@@ -30,8 +30,9 @@ import com.sbf.lightspeed.system.defaultPrefs
 class LightspeedAccessibilityService : AccessibilityService() {
 
     companion object {
-        var instance: LightspeedAccessibilityService? = null
-            private set
+        private var instanceRef: java.lang.ref.WeakReference<LightspeedAccessibilityService>? = null
+        val instance: LightspeedAccessibilityService?
+            get() = instanceRef?.get()
     }
 
     private var windowManager: WindowManager? = null
@@ -102,7 +103,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        instance = this
+        instanceRef = java.lang.ref.WeakReference(this)
 
         val info = serviceInfo ?: AccessibilityServiceInfo()
         info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
@@ -533,8 +534,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
     override fun onInterrupt() { teardown() }
     override fun onDestroy() {
         super.onDestroy()
-        if (instance === this) {
-            instance = null
+        if (instanceRef?.get() === this) {
+            instanceRef?.clear()
+            instanceRef = null
         }
         val prefs = defaultPrefs()
         prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)

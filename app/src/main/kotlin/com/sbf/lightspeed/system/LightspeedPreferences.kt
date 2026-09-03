@@ -141,6 +141,8 @@ object LightspeedPreferences {
     const val KEY_HORIZON_RAIL_TEXT_ORIENTATION_MODE = "pref_horizon_rail_text_orientation_mode" // "both", "landscape_only", "portrait_only"
     const val KEY_HORIZON_RAIL_TEXT_METADATA_MODE = "pref_horizon_rail_text_metadata_mode" // "adaptive", "full", "title_only"
     const val KEY_HORIZON_RAIL_TEXT_SHOW_TIMESTAMP = "pref_horizon_rail_text_show_timestamp"
+    const val KEY_HORIZON_RAIL_TEXT_CASING = "pref_horizon_rail_text_casing" // "natural", "all_caps", "title_case"
+    const val KEY_HORIZON_RAIL_TEXT_FONT = "pref_horizon_rail_text_font" // "system_default", "sans-serif-condensed", "monospace", etc.
     const val KEY_HORIZON_RAIL_TEXT_SIZE = "pref_horizon_rail_text_size"
     const val KEY_HORIZON_RAIL_TEXT_POSITION = "pref_horizon_rail_text_position" // "below", "above", "embedded", "below_statusbar"
     const val KEY_HORIZON_RAIL_TEXT_OFFSET_Y = "pref_horizon_rail_text_offset_y"

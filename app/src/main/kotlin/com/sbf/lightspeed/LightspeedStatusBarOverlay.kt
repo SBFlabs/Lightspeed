@@ -405,9 +405,23 @@ class LightspeedStatusBarOverlay(
             }
 
             val primaryStream = activeStreams[0]
-            val cleanTitle = primaryStream.title.trim().uppercase()
-            val cleanSub = primaryStream.subtitle.trim().uppercase()
-            val cleanAlbum = primaryStream.album.trim().uppercase()
+            val textCasing = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_CASING, "natural") ?: "natural"
+
+            fun applyCasing(str: String): String {
+                val trimmed = str.trim()
+                if (trimmed.isEmpty()) return ""
+                return when (textCasing) {
+                    "all_caps" -> trimmed.uppercase()
+                    "title_case" -> trimmed.split(" ").joinToString(" ") { word ->
+                        word.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                    }
+                    else -> trimmed
+                }
+            }
+
+            val cleanTitle = applyCasing(primaryStream.title)
+            val cleanSub = applyCasing(primaryStream.subtitle)
+            val cleanAlbum = applyCasing(primaryStream.album)
 
             val metadataMode = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_METADATA_MODE, "adaptive") ?: "adaptive"
             val isShowTimestamp = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SHOW_TIMESTAMP, false)
@@ -469,8 +483,24 @@ class LightspeedStatusBarOverlay(
 
             val hasMicroText = isTextEnabled && isTextAllowedByOrientation && tickerText.isNotBlank()
             val textSizeDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SIZE, 9).coerceIn(7, 16).toFloat()
-            val primaryColor = resolveStreamColor(0, primaryStream)
-            val tacticalTypeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
+            val fontSetting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_FONT, "system_default") ?: "system_default"
+            val tacticalTypeface: android.graphics.Typeface = when {
+                fontSetting == "system_default" -> android.graphics.Typeface.DEFAULT_BOLD
+                fontSetting.startsWith("/") -> {
+                    try {
+                        android.graphics.Typeface.createFromFile(java.io.File(fontSetting))
+                    } catch (_: Exception) {
+                        android.graphics.Typeface.DEFAULT_BOLD
+                    }
+                }
+                else -> {
+                    try {
+                        android.graphics.Typeface.create(fontSetting, android.graphics.Typeface.BOLD)
+                    } catch (_: Exception) {
+                        android.graphics.Typeface.DEFAULT_BOLD
+                    }
+                }
+            }
 
             val microTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 textSize = textSizeDp * d

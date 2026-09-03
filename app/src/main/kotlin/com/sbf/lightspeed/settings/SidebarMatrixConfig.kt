@@ -1761,6 +1761,106 @@ fun SidebarMatrixConfigurationFields(
                                                                 onChanged = { onRefreshNeeded() }
                                                             )
 
+                                                             // Letter Casing Format Selector
+                                                             val currentCasing = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_CASING, "natural") ?: "natural"
+                                                             var isCasingDropdownOpen by remember { mutableStateOf(false) }
+                                                             val casingOptions = listOf(
+                                                                 "natural" to "✨ Original / Natural Casing (Title & Artist)",
+                                                                 "all_caps" to "🔤 ALL CAPS (Aviation HUD Avionics)",
+                                                                 "title_case" to "🔠 Title Case (Capitalize Every Word)"
+                                                             )
+
+                                                             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                 Text("LETTER CASING FORMAT", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                 Spacer(modifier = Modifier.height(4.dp))
+                                                                 Box {
+                                                                     OutlinedButton(
+                                                                         onClick = { isCasingDropdownOpen = true },
+                                                                         modifier = Modifier.fillMaxWidth(),
+                                                                         shape = RoundedCornerShape(12.dp)
+                                                                     ) {
+                                                                         Row(
+                                                                             modifier = Modifier.fillMaxWidth(),
+                                                                             horizontalArrangement = Arrangement.SpaceBetween,
+                                                                             verticalAlignment = Alignment.CenterVertically
+                                                                         ) {
+                                                                             Text(casingOptions.firstOrNull { it.first == currentCasing }?.second ?: "✨ Original / Natural Casing", color = Color.White, fontSize = 12.sp)
+                                                                             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                         }
+                                                                     }
+                                                                     DropdownMenu(
+                                                                         expanded = isCasingDropdownOpen,
+                                                                         onDismissRequest = { isCasingDropdownOpen = false },
+                                                                         modifier = Modifier
+                                                                             .background(Color(0xF012141A))
+                                                                             .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                         shape = RoundedCornerShape(16.dp),
+                                                                         containerColor = Color(0xF012141A)
+                                                                     ) {
+                                                                         casingOptions.forEach { (key, label) ->
+                                                                             DropdownMenuItem(
+                                                                                 modifier = Modifier.heightIn(min = 48.dp),
+                                                                                 text = { Text(label) },
+                                                                                 onClick = {
+                                                                                     isCasingDropdownOpen = false
+                                                                                     prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_CASING, key).apply()
+                                                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                     onRefreshNeeded()
+                                                                                 }
+                                                                             )
+                                                                         }
+                                                                     }
+                                                                 }
+                                                             }
+
+                                                             // Device Installed Font Family Selector
+                                                             val currentFont = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_FONT, "system_default") ?: "system_default"
+                                                             var isFontDropdownOpen by remember { mutableStateOf(false) }
+                                                             val availableFonts = remember { com.sbf.lightspeed.system.DeviceFontScanner.getInstalledFonts() }
+
+                                                             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                 Text("MICRO-TEXT FONT FAMILY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                 Spacer(modifier = Modifier.height(4.dp))
+                                                                 Box {
+                                                                     OutlinedButton(
+                                                                         onClick = { isFontDropdownOpen = true },
+                                                                         modifier = Modifier.fillMaxWidth(),
+                                                                         shape = RoundedCornerShape(12.dp)
+                                                                     ) {
+                                                                         Row(
+                                                                             modifier = Modifier.fillMaxWidth(),
+                                                                             horizontalArrangement = Arrangement.SpaceBetween,
+                                                                             verticalAlignment = Alignment.CenterVertically
+                                                                         ) {
+                                                                             Text(availableFonts.firstOrNull { it.first == currentFont }?.second ?: "📱 Follow Device (System Default)", color = Color.White, fontSize = 12.sp)
+                                                                             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                                         }
+                                                                     }
+                                                                     DropdownMenu(
+                                                                         expanded = isFontDropdownOpen,
+                                                                         onDismissRequest = { isFontDropdownOpen = false },
+                                                                         modifier = Modifier
+                                                                             .background(Color(0xF012141A))
+                                                                             .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                         shape = RoundedCornerShape(16.dp),
+                                                                         containerColor = Color(0xF012141A)
+                                                                     ) {
+                                                                         availableFonts.forEach { (key, label) ->
+                                                                             DropdownMenuItem(
+                                                                                 modifier = Modifier.heightIn(min = 48.dp),
+                                                                                 text = { Text(label) },
+                                                                                 onClick = {
+                                                                                     isFontDropdownOpen = false
+                                                                                     prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_FONT, key).apply()
+                                                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                     onRefreshNeeded()
+                                                                                 }
+                                                                             )
+                                                                         }
+                                                                     }
+                                                                 }
+                                                             }
+
                                                             PrefDottedSliderRow(context, prefs, "pref_horizon_rail_text_size", "", "Micro-Font Size (dp)", 7, 16, 1, 9)
 
                                                             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {

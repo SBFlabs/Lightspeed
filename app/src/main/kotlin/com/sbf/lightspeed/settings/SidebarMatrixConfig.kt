@@ -1429,9 +1429,28 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_offset_x", "", "Horizontal Offset (X Axis)", -100, 100, 5, 0)
                                                         PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_OFFSET_Y, "", "Vertical Offset Y (0 to 40dp)", 0, 40, 1, 0)
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_thickness", "", "Line Thickness (dp)", 1, 6, 1, 2)
+                                                        PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_STACK_SPACING, "", "Inter-Rail Stack Spacing (0 to 6dp)", 0, 6, 1, 0)
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_glow", "", "Glow Radiance Intensity (%)", 0, 100, 5, 60)
                                                         PrefDottedSliderRow(context, prefs, "pref_horizon_rail_track_opacity", "", "Inactive Track Opacity (%)", 0, 100, 5, 15)
                                                         PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, "", "Max Concurrent Rails (1 to 3)", 1, 3, 1, 2)
+
+                                                        PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_DROP_SHADOW,
+                                                            defaultVal = true,
+                                                            title = "Ambient Drop Shadow & Contrast Trench",
+                                                            subtitle = "Renders a dark ambient occlusion shadow underneath the rails to maintain crisp separation from matching wallpapers and light backgrounds.",
+                                                            onChanged = { onRefreshNeeded() }
+                                                        )
+
+                                                        PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TERMINAL_CAPS,
+                                                            defaultVal = true,
+                                                            title = "Tactical Head Caps & End Markers",
+                                                            subtitle = "Renders high-contrast specular notches at the progress head of each rail for pinpoint completion readout.",
+                                                            onChanged = { onRefreshNeeded() }
+                                                        )
 
                                                         PrefToggleRow(
                                                             prefs = prefs,

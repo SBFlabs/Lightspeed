@@ -130,6 +130,9 @@ object LightspeedPreferences {
     const val KEY_HORIZON_RAIL_SAFE_PADDING_RIGHT = "pref_horizon_rail_safe_padding_right"
     const val KEY_HORIZON_RAIL_STATUS_BAR_GUARD = "pref_horizon_rail_status_bar_guard"
     const val KEY_HORIZON_RAIL_THICKNESS = "pref_horizon_rail_thickness"
+    const val KEY_HORIZON_RAIL_STACK_SPACING = "pref_horizon_rail_stack_spacing" // inter-rail gap: 0 to 6dp (0 = laminated stack)
+    const val KEY_HORIZON_RAIL_DROP_SHADOW = "pref_horizon_rail_drop_shadow" // contrast ambient shadow trench
+    const val KEY_HORIZON_RAIL_TERMINAL_CAPS = "pref_horizon_rail_terminal_caps" // high-contrast progress head markers
     const val KEY_HORIZON_RAIL_GLOW = "pref_horizon_rail_glow"
     const val KEY_HORIZON_RAIL_TRACK_OPACITY = "pref_horizon_rail_track_opacity"
     const val KEY_HORIZON_RAIL_COLOR_MODE = "pref_horizon_rail_color_mode" // "cover_art", "app_icon", "material3", "inverted", "custom"

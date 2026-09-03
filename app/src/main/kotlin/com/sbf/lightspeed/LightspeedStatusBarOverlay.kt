@@ -368,8 +368,8 @@ class LightspeedStatusBarOverlay(
         val activeStreams = streams.take(maxRails)
 
         if (activeStreams.isNotEmpty() && isRailAllowedByOrientation) {
-            fun resolveStreamColor(stream: HorizonStream): Int {
-                return when (colorMode) {
+            fun resolveStreamColor(index: Int, stream: HorizonStream): Int {
+                val baseColor = when (colorMode) {
                     "cover_art" -> if (stream.type == "media") (stream.coverArtColor ?: stream.iconColor ?: m3Primary) else (stream.iconColor ?: m3Primary)
                     "app_icon" -> stream.iconColor ?: m3Primary
                     "material3" -> m3Primary
@@ -383,6 +383,16 @@ class LightspeedStatusBarOverlay(
                     }
                     else -> m3Primary
                 }
+                if (index == 0) return baseColor
+                // Optical depth & luminance stepping for same-color or multi-stream stacking
+                val factor = when (index) {
+                    1 -> 0.82f // 82% luminance for tier 2
+                    else -> 0.68f // 68% luminance for tier 3
+                }
+                val r = (Color.red(baseColor) * factor).toInt().coerceIn(0, 255)
+                val g = (Color.green(baseColor) * factor).toInt().coerceIn(0, 255)
+                val b = (Color.blue(baseColor) * factor).toInt().coerceIn(0, 255)
+                return Color.argb(Color.alpha(baseColor), r, g, b)
             }
 
             // --- Micro-Text Telemetry Ticker Setup ---
@@ -496,7 +506,10 @@ class LightspeedStatusBarOverlay(
             val textOffsetY = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_OFFSET_Y, 0).toFloat() * d
             val fontMetrics = microTextPaint.fontMetrics
             val textBaselineOffset = -fontMetrics.ascent
-            val gapDp = 2.5f
+            val stackSpacingDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_STACK_SPACING, 0).coerceIn(0, 6).toFloat()
+            val isDropShadow = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_DROP_SHADOW, true)
+            val isTerminalCaps = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_TERMINAL_CAPS, true)
+            val gapDp = stackSpacingDp
 
             val thicknesses = FloatArray(activeStreams.size) { i ->
                 if (i == 0) railThicknessDp.toFloat() else (railThicknessDp * (1f - i * 0.15f)).coerceAtLeast(1.5f)
@@ -508,6 +521,10 @@ class LightspeedStatusBarOverlay(
                 lineYs[i] = lineYs[i - 1] + ((thicknesses[i - 1] * d) / 2f) + (gapDp * d) + ((thicknesses[i] * d) / 2f)
             }
 
+            val progressXs = FloatArray(activeStreams.size) { i ->
+                railLeft + (railSpanPxActual * activeStreams[i].progressFraction)
+            }
+
             // Position micro-text ticker relative to rail or status bar
             val textY = when (textPos) {
                 "above" -> (lineYs[0] - (thicknesses[0] * d / 2f) - (1.5f * d) - fontMetrics.descent) + textOffsetY
@@ -516,11 +533,39 @@ class LightspeedStatusBarOverlay(
                 else -> (lineYs[0] + (thicknesses[0] * d / 2f) + (1.5f * d) + textBaselineOffset) + textOffsetY
             }
 
+            // 0. Ambient Drop Shadow & Contrast Trench (separates same-color rails from matching wallpaper)
+            if (isDropShadow) {
+                val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    style = Paint.Style.STROKE
+                    strokeCap = Paint.Cap.ROUND
+                }
+                activeStreams.forEachIndexed { index, stream ->
+                    val thickness = thicknesses[index]
+                    val lineY = lineYs[index]
+                    val progX = progressXs[index]
+
+                    // Soft ambient shadow under inactive track
+                    if (railTrackOpacityPct > 0) {
+                        shadowPaint.strokeWidth = (thickness + 2.2f) * d
+                        shadowPaint.color = Color.argb(75, 0, 0, 0)
+                        canvas.drawLine(railLeft, lineY + (1.0f * d), railRight, lineY + (1.0f * d), shadowPaint)
+                    }
+
+                    // Deep contrast drop-shadow under active progress
+                    if (stream.progressFraction > 0f) {
+                        shadowPaint.strokeWidth = (thickness + 3.0f) * d
+                        shadowPaint.color = Color.argb(135, 4, 6, 10)
+                        canvas.drawLine(railLeft, lineY + (1.3f * d), progX, lineY + (1.3f * d), shadowPaint)
+                    }
+                }
+            }
+
             // 1. Draw Horizon Rail Lines (Tracks, Glow, and Progress)
             activeStreams.forEachIndexed { index, stream ->
-                val col = resolveStreamColor(stream)
+                val col = resolveStreamColor(index, stream)
                 val thickness = thicknesses[index]
                 val lineY = lineYs[index]
+                val progressX = progressXs[index]
 
                 if (railTrackOpacityPct > 0) {
                     val trackAlpha = (railTrackOpacityPct * 2.55f).toInt().coerceIn(10, 255)
@@ -533,14 +578,57 @@ class LightspeedStatusBarOverlay(
                     val glowAlpha = ((railGlowPct * 1.5f) / (1f + index * 0.3f)).toInt().coerceIn(10, 200)
                     telemetryGlowPaint.strokeWidth = (thickness + 2.5f - index * 0.5f) * d
                     telemetryGlowPaint.color = Color.argb(glowAlpha, Color.red(col), Color.green(col), Color.blue(col))
-                    val progressX = railLeft + (railSpanPxActual * stream.progressFraction)
                     canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
                 }
 
                 telemetryGlowPaint.strokeWidth = thickness * d
                 telemetryGlowPaint.color = col
-                val progressX = railLeft + (railSpanPxActual * stream.progressFraction)
                 canvas.drawLine(railLeft, lineY, progressX, lineY, telemetryGlowPaint)
+            }
+
+            // 1b. Inter-Rail Contact Micro-Grooves (Separates zero-gap touching rails of the same color)
+            if (gapDp <= 1f && activeStreams.size > 1) {
+                val seamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    style = Paint.Style.STROKE
+                    strokeCap = Paint.Cap.BUTT
+                    strokeWidth = (0.75f * d).coerceAtLeast(1f)
+                    color = Color.argb(165, 4, 6, 10)
+                }
+                for (i in 0 until activeStreams.size - 1) {
+                    val topBottom = lineYs[i] + (thicknesses[i] * d / 2f)
+                    val bottomTop = lineYs[i + 1] - (thicknesses[i + 1] * d / 2f)
+                    val seamY = (topBottom + bottomTop) / 2f
+                    val maxActiveX = maxOf(progressXs[i], progressXs[i + 1])
+                    if (maxActiveX > railLeft) {
+                        canvas.drawLine(railLeft, seamY, maxActiveX, seamY, seamPaint)
+                    }
+                }
+            }
+
+            // 1c. Tactical Terminal Progress Head Caps (Precision end markers for differing progress amounts)
+            if (isTerminalCaps) {
+                val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    style = Paint.Style.STROKE
+                    strokeCap = Paint.Cap.ROUND
+                }
+                activeStreams.forEachIndexed { index, stream ->
+                    val progressX = progressXs[index]
+                    val thickness = thicknesses[index]
+                    val lineY = lineYs[index]
+
+                    if (stream.progressFraction in 0.01f..0.99f) {
+                        val halfCapH = ((thickness * d) / 2f) + (1.2f * d)
+                        // High-contrast dark collar
+                        capPaint.strokeWidth = (1.8f * d).coerceAtLeast(2f)
+                        capPaint.color = Color.argb(220, 6, 8, 14)
+                        canvas.drawLine(progressX, lineY - halfCapH, progressX, lineY + halfCapH, capPaint)
+
+                        // Specular highlight pip
+                        capPaint.strokeWidth = (1.0f * d).coerceAtLeast(1f)
+                        capPaint.color = Color.argb(240, 255, 255, 255)
+                        canvas.drawLine(progressX - 0.75f * d, lineY - halfCapH * 0.7f, progressX - 0.75f * d, lineY + halfCapH * 0.7f, capPaint)
+                    }
+                }
             }
 
             // 2. Draw Hero Micro-Text Ticker (Exclusively for Rail #0)

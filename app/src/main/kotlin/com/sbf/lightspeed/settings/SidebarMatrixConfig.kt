@@ -1979,17 +1979,45 @@ fun SidebarMatrixConfigurationFields(
                                                             )
 
                                                             if (isAvoidCutout) {
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Width (0 to 72dp)", 0, 72, 1, 24)
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Snugness Gap (0 to 16dp)", 0, 16, 1, 2)
-                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, "", "Cutout Horizontal Offset X (dp)", -25, 25, 1, 0)
+                                                                PrefDottedSliderRow(context, prefs, com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_PADDING, "", "Wing Clearance Breathing Margin (0 to 16dp)", 0, 16, 1, 2)
                                                             }
                                                         }
                                                     }
 
-                                                    // 2. Orbital Capsule Calibration
+                                                    // 4. Shared Hardware Cutout & Punch-Hole Calibration
+                                                    var isCutoutCalibExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_cutout_calib", false)) }
+                                                    CollapsibleSubSection(
+                                                        title = "Hardware Cutout & Punch-Hole Calibration",
+                                                        subtitle = "Physical camera hole diameter & alignment shared across Horizon Rail and Orbital Capsule",
+                                                        isExpanded = isCutoutCalibExpanded,
+                                                        onToggle = {
+                                                            isCutoutCalibExpanded = !isCutoutCalibExpanded
+                                                            prefs.edit()
+                                                                .putBoolean("pref_sub_cutout_calib", isCutoutCalibExpanded)
+                                                                .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isCutoutCalibExpanded)
+                                                                .apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
+                                                        }
+                                                    ) {
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HARDWARE_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Diameter (0 to 60dp)", 0, 60, 1, 20)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HARDWARE_CUTOUT_OFFSET_X, "", "Horizontal Center Offset X (-30 to +30dp)", -30, 30, 1, 0)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HARDWARE_CUTOUT_OFFSET_Y, "", "Vertical Center Offset Y (-30 to +30dp)", -30, 30, 1, 0)
+
+                                                        PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_NOTCH_TEST_BEACON,
+                                                            defaultVal = false,
+                                                            title = "Live Alignment Test Beacon",
+                                                            subtitle = "Renders a live HUD calibration reticle over the camera hole while calibrating.",
+                                                            onChanged = { onRefreshNeeded() }
+                                                        )
+                                                    }
+
+                                                    // 5. Orbital Capsule Calibration
                                                     CollapsibleSubSection(
                                                         title = "Orbital Capsule Calibration (Dynamic Cutout HUD)",
-                                                        subtitle = "Punch-hole alignment, orientation rules, layout modes & offsets",
+                                                        subtitle = "Layout modes, vertical snugness height, expansion width & orientation",
                                                         isExpanded = isNotchCalibExpanded,
                                                         onToggle = {
                                                             isNotchCalibExpanded = !isNotchCalibExpanded
@@ -2163,9 +2191,7 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         }
 
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_PADDING_SNUGNESS, "", "Capsule Snugness Padding (0 to 8dp)", 0, 8, 1, 2)
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_OFFSET_Y, "", "Vertical Offset Y (-30 to +30dp)", -30, 30, 1, 0)
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_OFFSET_X, "", "Horizontal Offset X (-30 to +30dp)", -30, 30, 1, 0)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_PADDING_SNUGNESS, "", "Capsule Vertical Snugness Padding (0 to 8dp)", 0, 8, 1, 2)
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Capsule Expansion Width (0 to 80dp)", 0, 80, 2, 0)
                                                     }
 

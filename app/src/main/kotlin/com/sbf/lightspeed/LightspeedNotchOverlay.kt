@@ -235,14 +235,16 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             }
         } else null
 
-        val cutoutW = (topCutout?.width()?.toFloat() ?: (28f * d)).coerceAtLeast(16f * d)
-        val cutoutH = (topCutout?.height()?.toFloat() ?: (28f * d)).coerceAtLeast(16f * d)
+        val detectedCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 20f).toInt().coerceIn(14, 48)
+        val hardwareCutoutWidthDp = LightspeedPreferences.getEffectiveCutoutWidth(prefs, detectedCutoutWidthDp)
+        val cutoutW = if (hardwareCutoutWidthDp > 0) (hardwareCutoutWidthDp.toFloat() * d) else (topCutout?.width()?.toFloat() ?: (20f * d)).coerceAtLeast(14f * d)
+        val cutoutH = (topCutout?.height()?.toFloat() ?: (24f * d)).coerceIn(14f * d, 40f * d)
         val detectedCenterX = if (topCutout != null && topCutout.width() > 0) topCutout.exactCenterX() else (screenW / 2f)
         val detectedTopY = if (topCutout != null) topCutout.top.toFloat() else 0f
 
-        // Notch Calibration Parameters
-        val offsetX = prefs.getInt(LightspeedPreferences.KEY_NOTCH_OFFSET_X, 0) * d
-        val offsetY = prefs.getInt(LightspeedPreferences.KEY_NOTCH_OFFSET_Y, 0) * d
+        // Shared Notch Calibration Parameters
+        val offsetX = LightspeedPreferences.getEffectiveCutoutOffsetX(prefs).toFloat() * d
+        val offsetY = LightspeedPreferences.getEffectiveCutoutOffsetY(prefs).toFloat() * d
         val expansionW = prefs.getInt(LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, 0) * d
         val snugnessDp = prefs.getInt(LightspeedPreferences.KEY_NOTCH_PADDING_SNUGNESS, 2)
         val snugnessPx = snugnessDp * d

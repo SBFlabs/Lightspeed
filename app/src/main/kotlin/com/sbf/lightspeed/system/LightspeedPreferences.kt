@@ -156,6 +156,34 @@ object LightspeedPreferences {
     const val KEY_HORIZON_RAIL_CUTOUT_OFFSET_X = "pref_horizon_rail_cutout_offset_x"
     const val KEY_HORIZON_RAIL_CONTRAST_SHIELD = "pref_horizon_rail_contrast_shield"
     const val KEY_HORIZON_RAIL_PREVIEW = "pref_horizon_rail_preview"
+
+    // Shared Hardware Cutout & Punch-Hole Calibration Keys
+    const val KEY_HARDWARE_CUTOUT_WIDTH = "pref_hardware_cutout_width" // shared physical hole width (0 to 60dp)
+    const val KEY_HARDWARE_CUTOUT_OFFSET_X = "pref_hardware_cutout_offset_x" // shared horizontal alignment (-30 to +30dp)
+    const val KEY_HARDWARE_CUTOUT_OFFSET_Y = "pref_hardware_cutout_offset_y" // shared vertical alignment (-30 to +30dp)
+
+    fun getEffectiveCutoutWidth(prefs: android.content.SharedPreferences, defaultDp: Int): Int {
+        if (prefs.contains(KEY_HARDWARE_CUTOUT_WIDTH)) {
+            return prefs.getInt(KEY_HARDWARE_CUTOUT_WIDTH, defaultDp)
+        }
+        return prefs.getInt(KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultDp)
+    }
+
+    fun getEffectiveCutoutOffsetX(prefs: android.content.SharedPreferences): Int {
+        if (prefs.contains(KEY_HARDWARE_CUTOUT_OFFSET_X)) {
+            return prefs.getInt(KEY_HARDWARE_CUTOUT_OFFSET_X, 0)
+        }
+        val legacyNotch = prefs.getInt(KEY_NOTCH_OFFSET_X, 0)
+        if (legacyNotch != 0) return legacyNotch
+        return prefs.getInt(KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, 0)
+    }
+
+    fun getEffectiveCutoutOffsetY(prefs: android.content.SharedPreferences): Int {
+        if (prefs.contains(KEY_HARDWARE_CUTOUT_OFFSET_Y)) {
+            return prefs.getInt(KEY_HARDWARE_CUTOUT_OFFSET_Y, 0)
+        }
+        return prefs.getInt(KEY_NOTCH_OFFSET_Y, 0)
+    }
     const val KEY_NOTCH_CAPSULE_ORIENTATION_MODE = "pref_notch_capsule_orientation_mode" // "both", "portrait_only", "landscape_only"
     const val KEY_NOTCH_MARQUEE_ENABLED = "pref_notch_marquee_enabled"
     const val KEY_NOTCH_MARQUEE_SPEED = "pref_notch_marquee_speed"

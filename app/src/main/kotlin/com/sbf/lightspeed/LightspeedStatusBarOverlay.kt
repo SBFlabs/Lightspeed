@@ -651,12 +651,11 @@ class LightspeedStatusBarOverlay(
                     }
                 }
                 val topCutout = LightspeedNotchOverlay.cachedCutoutRect
-                val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 24f).toInt().coerceIn(14, 48)
-                val cutoutWidthDp = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultCutoutWidthDp).coerceIn(0, 72)
+                val defaultCutoutWidthDp = (topCutout?.width()?.toFloat()?.div(d) ?: 20f).toInt().coerceIn(14, 48)
+                val cutoutWidthDp = com.sbf.lightspeed.system.LightspeedPreferences.getEffectiveCutoutWidth(prefs, defaultCutoutWidthDp).coerceIn(0, 72)
                 val effectiveCutoutWidthPx = cutoutWidthDp.toFloat() * d
 
-                val notchOffsetX = (prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_CUTOUT_OFFSET_X, 0).takeIf { it != 0 }
-                    ?: prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_NOTCH_OFFSET_X, 0)).toFloat() * d
+                val notchOffsetX = com.sbf.lightspeed.system.LightspeedPreferences.getEffectiveCutoutOffsetX(prefs).toFloat() * d
                 val detectedCenterX = if (topCutout != null && topCutout.width() > 0) topCutout.exactCenterX() else screenW / 2f
                 val cutoutCenterX = detectedCenterX + notchOffsetX
 

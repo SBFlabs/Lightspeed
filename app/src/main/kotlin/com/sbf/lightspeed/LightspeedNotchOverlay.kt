@@ -160,16 +160,18 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         }
     }
 
+    private val telemetryListener: () -> Unit = {
+        mainHandler.post {
+            updateCapsuleLayout()
+        }
+    }
+
     init {
         isClickable = true
         isFocusable = false
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
 
-        LightspeedNotificationListener.onTelemetryChanged = {
-            mainHandler.post {
-                updateCapsuleLayout()
-            }
-        }
+        LightspeedNotificationListener.registerTelemetryListener(telemetryListener)
 
         mainHandler.post {
             updateCapsuleLayout()
@@ -190,7 +192,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
-        LightspeedNotificationListener.onTelemetryChanged = null
+        LightspeedNotificationListener.unregisterTelemetryListener(telemetryListener)
         mainHandler.removeCallbacksAndMessages(null)
         circularIconCache.clear()
     }

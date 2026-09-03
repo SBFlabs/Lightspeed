@@ -7,12 +7,15 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
+import android.media.MediaMetadata
 import android.media.session.MediaController
+import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArraySet
 
 /**
  * Lightweight NotificationListenerService for querying active MediaSession, MediaController,
@@ -54,7 +57,32 @@ class LightspeedNotificationListener : NotificationListenerService() {
         var activeMediaTelemetry: MediaTelemetry? = null
             private set
 
+        private val telemetryListeners = CopyOnWriteArraySet<() -> Unit>()
+
+        fun registerTelemetryListener(listener: () -> Unit) {
+            telemetryListeners.add(listener)
+        }
+
+        fun unregisterTelemetryListener(listener: () -> Unit) {
+            telemetryListeners.remove(listener)
+        }
+
+        fun notifyTelemetryChanged() {
+            for (listener in telemetryListeners) {
+                try {
+                    listener.invoke()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error invoking telemetry listener", e)
+                }
+            }
+        }
+
+        @Deprecated("Use registerTelemetryListener/unregisterTelemetryListener instead")
         var onTelemetryChanged: (() -> Unit)? = null
+            set(value) {
+                field = value
+                if (value != null) registerTelemetryListener(value)
+            }
 
         fun getComponentName(context: Context): ComponentName {
             return ComponentName(context, LightspeedNotificationListener::class.java)
@@ -70,8 +98,15 @@ class LightspeedNotificationListener : NotificationListenerService() {
 
         fun updateMediaTelemetry(telemetry: MediaTelemetry?) {
             activeMediaTelemetry = telemetry
-            onTelemetryChanged?.invoke()
+            notifyTelemetryChanged()
         }
+    }
+
+    private var mediaSessionManager: MediaSessionManager? = null
+    private val activeControllers = ConcurrentHashMap<MediaController, MediaController.Callback>()
+
+    private val sessionsChangedListener = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
+        updateMediaControllers(controllers)
     }
 
     override fun onListenerConnected() {
@@ -79,6 +114,16 @@ class LightspeedNotificationListener : NotificationListenerService() {
         instance = this
         LightspeedMediaManager.onNotificationListenerConnected()
         scanExistingNotifications()
+
+        try {
+            mediaSessionManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
+            val component = getComponentName(this)
+            mediaSessionManager?.addOnActiveSessionsChangedListener(sessionsChangedListener, component)
+            val controllers = mediaSessionManager?.getActiveSessions(component)
+            updateMediaControllers(controllers)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed registering OnActiveSessionsChangedListener", e)
+        }
     }
 
     override fun onListenerDisconnected() {
@@ -86,8 +131,64 @@ class LightspeedNotificationListener : NotificationListenerService() {
         if (instance === this) {
             instance = null
         }
+        try {
+            mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionsChangedListener)
+            activeControllers.forEach { (controller, callback) ->
+                try { controller.unregisterCallback(callback) } catch (_: Exception) {}
+            }
+            activeControllers.clear()
+        } catch (_: Exception) {}
+
         activeDownloads.clear()
-        onTelemetryChanged?.invoke()
+        notifyTelemetryChanged()
+    }
+
+    private fun updateMediaControllers(controllers: List<MediaController>?) {
+        activeControllers.forEach { (controller, callback) ->
+            try { controller.unregisterCallback(callback) } catch (_: Exception) {}
+        }
+        activeControllers.clear()
+
+        controllers?.forEach { controller ->
+            val callback = object : MediaController.Callback() {
+                override fun onMetadataChanged(metadata: MediaMetadata?) {
+                    refreshMediaTelemetry()
+                }
+
+                override fun onPlaybackStateChanged(state: PlaybackState?) {
+                    refreshMediaTelemetry()
+                }
+
+                override fun onSessionDestroyed() {
+                    refreshMediaTelemetry()
+                }
+            }
+            try {
+                controller.registerCallback(callback)
+                activeControllers[controller] = callback
+            } catch (_: Exception) {}
+        }
+
+        refreshMediaTelemetry()
+    }
+
+    fun refreshMediaTelemetry() {
+        try {
+            val info = LightspeedMediaManager.getActiveTrackInfo(this)
+            val mediaIconColor = AppIconColorExtractor.extractColor(this, info.packageName, 0)
+            activeMediaTelemetry = MediaTelemetry(
+                title = info.title,
+                artist = info.artist,
+                isPlaying = info.isPlaying,
+                positionMs = info.positionMs,
+                durationMs = info.durationMs,
+                packageName = info.packageName,
+                iconColor = mediaIconColor,
+                coverArtColor = info.coverArtColor,
+                album = info.album
+            )
+            notifyTelemetryChanged()
+        } catch (_: Exception) {}
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -117,36 +218,20 @@ class LightspeedNotificationListener : NotificationListenerService() {
                 iconColor = iconColor
             )
             activeDownloads[sbn.key] = telemetry
-            onTelemetryChanged?.invoke()
+            notifyTelemetryChanged()
         } else if (activeDownloads.containsKey(sbn.key)) {
             // If progress completed/removed
             activeDownloads.remove(sbn.key)
-            onTelemetryChanged?.invoke()
+            notifyTelemetryChanged()
         }
 
-        // Query active media controller for track changes
-        try {
-            val info = LightspeedMediaManager.getActiveTrackInfo(this)
-            val mediaIconColor = AppIconColorExtractor.extractColor(this, info.packageName, 0)
-            activeMediaTelemetry = MediaTelemetry(
-                title = info.title,
-                artist = info.artist,
-                isPlaying = info.isPlaying,
-                positionMs = info.positionMs,
-                durationMs = info.durationMs,
-                packageName = info.packageName,
-                iconColor = mediaIconColor,
-                coverArtColor = info.coverArtColor,
-                album = info.album
-            )
-            onTelemetryChanged?.invoke()
-        } catch (_: Exception) {}
+        refreshMediaTelemetry()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         if (sbn == null) return
         if (activeDownloads.remove(sbn.key) != null) {
-            onTelemetryChanged?.invoke()
+            notifyTelemetryChanged()
         }
     }
 
@@ -167,6 +252,13 @@ class LightspeedNotificationListener : NotificationListenerService() {
         if (instance === this) {
             instance = null
         }
+        try {
+            mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionsChangedListener)
+            activeControllers.forEach { (controller, callback) ->
+                try { controller.unregisterCallback(callback) } catch (_: Exception) {}
+            }
+            activeControllers.clear()
+        } catch (_: Exception) {}
     }
 }
 

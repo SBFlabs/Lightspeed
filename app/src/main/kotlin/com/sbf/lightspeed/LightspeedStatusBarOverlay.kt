@@ -72,14 +72,16 @@ class LightspeedStatusBarOverlay(
     }
 
     private val uiHandler = Handler(Looper.getMainLooper())
+    private val telemetryListener: () -> Unit = {
+        postInvalidate()
+    }
+
     init {
         isClickable = false
         isFocusable = false
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
 
-        com.sbf.lightspeed.system.LightspeedNotificationListener.onTelemetryChanged = {
-            postInvalidate()
-        }
+        com.sbf.lightspeed.system.LightspeedNotificationListener.registerTelemetryListener(telemetryListener)
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = { state ->
             uiHandler.post {
                 if (state?.isActive == true) {
@@ -95,7 +97,7 @@ class LightspeedStatusBarOverlay(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
-        com.sbf.lightspeed.system.LightspeedNotificationListener.onTelemetryChanged = null
+        com.sbf.lightspeed.system.LightspeedNotificationListener.unregisterTelemetryListener(telemetryListener)
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = null
     }
 
@@ -213,8 +215,20 @@ class LightspeedStatusBarOverlay(
 
         val dlRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
-        val primaryDl = com.sbf.lightspeed.system.LightspeedNotificationListener.getPrimaryDownload()
         val media = com.sbf.lightspeed.system.LightspeedNotificationListener.activeMediaTelemetry
+            ?: com.sbf.lightspeed.system.LightspeedMediaManager.getActiveTrackInfo(context).takeIf { it.title.isNotBlank() || it.isPlaying }?.let { info ->
+                com.sbf.lightspeed.system.LightspeedNotificationListener.MediaTelemetry(
+                    title = info.title,
+                    artist = info.artist,
+                    isPlaying = info.isPlaying,
+                    positionMs = info.positionMs,
+                    durationMs = info.durationMs,
+                    packageName = info.packageName,
+                    iconColor = com.sbf.lightspeed.system.AppIconColorExtractor.extractColor(context, info.packageName, 0),
+                    coverArtColor = info.coverArtColor,
+                    album = info.album
+                )
+            }
 
         val screenWidthDp = (screenW / d).toInt()
         val railSpanPref = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HORIZON_RAIL_SPAN, screenWidthDp).coerceIn(50, screenWidthDp)
@@ -854,6 +868,10 @@ class LightspeedStatusBarOverlay(
                     renderMarqueeText(tickerText, railLeft, railRight, textY, alignTo = railAlign, forceStatic = false)
                 }
             }
+        }
+
+        if (media?.isPlaying == true) {
+            postInvalidateDelayed(1000)
         }
 
         // 2. Hardware Gear Set HUD Navigation Renderer

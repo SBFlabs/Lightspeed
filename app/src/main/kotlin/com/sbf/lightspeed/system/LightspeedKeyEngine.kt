@@ -9,6 +9,7 @@ import android.view.KeyEvent
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.settings.resolveDynamicTokenLabel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -118,7 +119,7 @@ object LightspeedKeyEngine {
         private set
     var onNavStateListener: ((HudNavState?) -> Unit)? = null
 
-    private val engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Live Key Press States (Volume)
     private var isVolUpPressed = false
@@ -909,6 +910,8 @@ object LightspeedKeyEngine {
      * Resets all internal state machines, release timers, and pending coroutine hold jobs.
      */
     fun reset() {
+        engineScope.cancel()
+        engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         volUpHoldJob?.cancel()
         volUpHoldJob = null
         volDownHoldJob?.cancel()

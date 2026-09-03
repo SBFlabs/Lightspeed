@@ -15,6 +15,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -39,7 +40,7 @@ object LightspeedBackTapEngine : SensorEventListener {
     private const val TRIPLE_TAP_MAX_WINDOW_MS = 700L
     private const val TAP_DISAMBIGUATION_DELAY_MS = 250L
 
-    private val engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var appContext: Context? = null
     private var sensorManager: SensorManager? = null
     private var linearAccelSensor: Sensor? = null
@@ -353,6 +354,8 @@ object LightspeedBackTapEngine : SensorEventListener {
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     fun destroy() {
+        engineScope.cancel()
+        engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         stopMonitoring()
         try {
             appContext?.unregisterReceiver(stateReceiver)

@@ -179,7 +179,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             val gestureKey = if (hostGesture == MacroGesture.NONE) "TAP_HOLD" else holdEquivalent.name
             val zoneName = if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val prefs = context.defaultPrefs()
             val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
             val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
             val isMirroringLeft = gestMode == "left"
@@ -287,7 +287,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var lastTargetedIndex = intArrayOf(-1, -1)
 
     private fun triggerGearCogHaptic() {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val strength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
         when (strength) {
             "subtle" -> triggerHardwareHaptic(10, 50)
@@ -335,13 +335,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         updateMetricsDimensions()
     }
 
     override fun onDetachedFromWindow() {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
         super.onDetachedFromWindow()
     }
@@ -355,7 +355,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         val screenH = displayMetrics.heightPixels.toFloat()
         val density = displayMetrics.density
 
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         
         centerHeightPx = prefs.getInt("pref_sidebar_center_height", 280).toFloat() * density
         centerYOffsetPx = prefs.getInt("pref_sidebar_center_y_offset", 0).toFloat() * density
@@ -434,52 +434,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
-                val agslSource = """
-                    uniform shader inputTexture;
-                    uniform float2 viewSize;
-                    uniform float topBlurHeight;
-                    uniform float bottomBlurHeight;
-
-                    half4 main(float2 fragCoord) {
-                        float blurAlpha = 0.0;
-                        if (fragCoord.y < topBlurHeight) {
-                            blurAlpha = 1.0 - (fragCoord.y / topBlurHeight);
-                        } else if (fragCoord.y > viewSize.y - bottomBlurHeight) {
-                            blurAlpha = (fragCoord.y - (viewSize.y - bottomBlurHeight)) / bottomBlurHeight;
-                        }
-                        blurAlpha = clamp(blurAlpha, 0.0, 1.0);
-                        float fadeProgress = pow(blurAlpha, 1.3);
-                        float radius = blurAlpha * 24.0;
-
-                        half4 color = half4(0.0);
-                        if (radius > 0.4) {
-                            // Multi-tap Poisson sampling for velvet-smooth liquid glass
-                            color += inputTexture.eval(fragCoord) * 0.22;
-                            color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * 0.13;
-                            color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * 0.13;
-                            color += inputTexture.eval(fragCoord + float2(radius * 0.55, 0.0)) * 0.13;
-                            color += inputTexture.eval(fragCoord - float2(radius * 0.55, 0.0)) * 0.13;
-                            color += inputTexture.eval(fragCoord + float2(radius * 0.38, radius * 0.38)) * 0.065;
-                            color += inputTexture.eval(fragCoord - float2(radius * 0.38, radius * 0.38)) * 0.065;
-                            color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * 0.065;
-                            color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * 0.065;
-
-                            // Subtle chromatic edge refraction (frosted prism effect)
-                            float chroma = radius * 0.08;
-                            half4 rSample = inputTexture.eval(fragCoord + float2(chroma, 0.0));
-                            half4 bSample = inputTexture.eval(fragCoord - float2(chroma, 0.0));
-                            color.r = mix(color.r, rSample.r, 0.25);
-                            color.b = mix(color.b, bSample.b, 0.25);
-                        } else {
-                            color = inputTexture.eval(fragCoord);
-                        }
-
-                        // Deep Space Void tint with subtle cosmic purple glow
-                        half4 deepSpaceVoid = half4(0.022, 0.018, 0.035, 1.0);
-                        return mix(color, deepSpaceVoid, fadeProgress * 0.88);
-                    }
-                """.trimIndent()
-                val progressiveShader = RuntimeShader(agslSource).apply {
+                progressiveShader.apply {
                     setFloatUniform("viewSize", screenW, screenH)
                     setFloatUniform("topBlurHeight", 130.0f * density)
                     setFloatUniform("bottomBlurHeight", 160.0f * density)
@@ -529,7 +484,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val gap = 8f * d
 
             val topHangarY = (screenH * 0.07f).coerceAtLeast(54f * d)
-            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val prefs = context.defaultPrefs()
             val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
             if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
             val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
@@ -1233,8 +1188,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     when (currentDetectedGesture) {
                         MacroGesture.SWIPE_LEFT -> {
                             val zoneName = if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-                            val dynamicZone = if (context.getSharedPreferences("default", Context.MODE_PRIVATE).getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
-                            val assignedScrub = context.getSharedPreferences("default", Context.MODE_PRIVATE).getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none")
+                            val dynamicZone = if (context.defaultPrefs().getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
+                            val assignedScrub = context.defaultPrefs().getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none")
 
                             if (assignedScrub != "none" && assignedScrub != null && abs(deltaX) > thresholdX_Scrub) {
                                 currentDetectedGesture = MacroGesture.SCRUBBING
@@ -1403,7 +1358,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private fun executeLinearScrubTrack(zone: TouchZone, pixelDelta: Float) {
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val dynamicZone = if (prefs.getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
         val assignedScrub = activeHoldScrubAction ?: (prefs.getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none") ?: "none")
 
@@ -1459,7 +1414,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private fun executeMacroAction(zone: TouchZone, gesture: MacroGesture) {
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
         val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
         val isMirroringLeft = gestMode == "left"
@@ -1670,7 +1625,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private fun querySystemColumnPreference(isLandscape: Boolean): Int {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         return try { val v = prefs.all[if (isLandscape) "pref_numcolsland" else "pref_numcolspor"]; if (v is Int) v else v?.toString()?.toInt() ?: 4 } catch (e: Exception) { 4 }
     }
 
@@ -1712,7 +1667,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         isStickyPinned = false; isCruising = false; currentLayer = CruiseLayer.HIDDEN
         activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f
         placedAppsList.clear(); cachedApps = emptyList(); cachedCategories = emptyList()
-        val cPrefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val cPrefs = context.defaultPrefs()
         if (cPrefs.getString("cockpit_launch_behavior", "default") != "last") {
             activeGearSetIndex = 0
         }
@@ -2113,7 +2068,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
 
         // Rotational Axis Crank Math: Scale angular velocity by true kinematic arc-length and flight physics profile
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
         val physicsMultiplier = when (physicsProfile) {
             "fluid" -> 1.45f
@@ -2158,7 +2113,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         if (activeGearSetIndex >= totalGearSetsCount) { activeGearSetIndex = 0 }
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
 
         val m3Primary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             context.resources.getColor(android.R.color.system_accent1_600, context.theme)
@@ -2628,7 +2583,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val cx = screenW / 2f
             val cy = h / 2f
 
-            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val prefs = context.defaultPrefs()
             val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
             val dynamicZone = if (isFlankUnified) "UNIFIED" else (if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM")
             val hudStyle = prefs.getString("pref_macro_hud_style_${dynamicZone}_SCRUBBING", null)
@@ -2656,5 +2611,56 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 isLeftFlank = false
             )
         }
+    }
+
+    companion object {
+        private val agslSource = """
+            uniform shader inputTexture;
+            uniform float2 viewSize;
+            uniform float topBlurHeight;
+            uniform float bottomBlurHeight;
+
+            half4 main(float2 fragCoord) {
+                float blurAlpha = 0.0;
+                if (fragCoord.y < topBlurHeight) {
+                    blurAlpha = 1.0 - (fragCoord.y / topBlurHeight);
+                } else if (fragCoord.y > viewSize.y - bottomBlurHeight) {
+                    blurAlpha = (fragCoord.y - (viewSize.y - bottomBlurHeight)) / bottomBlurHeight;
+                }
+                blurAlpha = clamp(blurAlpha, 0.0, 1.0);
+                float fadeProgress = pow(blurAlpha, 1.3);
+                float radius = blurAlpha * 24.0;
+
+                half4 color = half4(0.0);
+                if (radius > 0.4) {
+                    // Multi-tap Poisson sampling for velvet-smooth liquid glass
+                    color += inputTexture.eval(fragCoord) * 0.22;
+                    color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * 0.13;
+                    color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * 0.13;
+                    color += inputTexture.eval(fragCoord + float2(radius * 0.55, 0.0)) * 0.13;
+                    color += inputTexture.eval(fragCoord - float2(radius * 0.55, 0.0)) * 0.13;
+                    color += inputTexture.eval(fragCoord + float2(radius * 0.38, radius * 0.38)) * 0.065;
+                    color += inputTexture.eval(fragCoord - float2(radius * 0.38, radius * 0.38)) * 0.065;
+                    color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * 0.065;
+                    color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * 0.065;
+
+                    // Subtle chromatic edge refraction (frosted prism effect)
+                    float chroma = radius * 0.08;
+                    half4 rSample = inputTexture.eval(fragCoord + float2(chroma, 0.0));
+                    half4 bSample = inputTexture.eval(fragCoord - float2(chroma, 0.0));
+                    color.r = mix(color.r, rSample.r, 0.25);
+                    color.b = mix(color.b, bSample.b, 0.25);
+                } else {
+                    color = inputTexture.eval(fragCoord);
+                }
+
+                // Deep Space Void tint with subtle cosmic purple glow
+                half4 deepSpaceVoid = half4(0.022, 0.018, 0.035, 1.0);
+                return mix(color, deepSpaceVoid, fadeProgress * 0.88);
+            }
+        """.trimIndent()
+
+        
+        val progressiveShader by lazy { android.graphics.RuntimeShader(agslSource) }
     }
 }

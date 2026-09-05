@@ -1164,7 +1164,7 @@ fun SidebarMatrixConfigurationFields(
                                                     }
 
                                                     // Downloads Telemetry Selector
-                                                    val currentDl = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+                                                    val currentDl = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
                                                     var isDlDropdownOpen by remember { mutableStateOf(false) }
                                                     val routingOptions = listOf(
                                                         "none" to "None (Disabled)",
@@ -1206,7 +1206,7 @@ fun SidebarMatrixConfigurationFields(
                                                                         text = { Text(label) },
                                                                         onClick = {
                                                                             isDlDropdownOpen = false
-                                                                            prefs.edit().putString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, key).apply()
+                                                                            prefs.edit().putString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, key).apply()
                                                                             if (key != "none" && !isNotifAccessGranted) {
                                                                                 showNotificationAccessDialog = true
                                                                             }
@@ -1219,7 +1219,7 @@ fun SidebarMatrixConfigurationFields(
                                                     }
 
                                                     // Media Telemetry Selector
-                                                    val currentMedia = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+                                                    val currentMedia = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
                                                     var isMediaDropdownOpen by remember { mutableStateOf(false) }
 
                                                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -1255,7 +1255,7 @@ fun SidebarMatrixConfigurationFields(
                                                                         text = { Text(label) },
                                                                         onClick = {
                                                                             isMediaDropdownOpen = false
-                                                                            prefs.edit().putString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, key).apply()
+                                                                            prefs.edit().putString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, key).apply()
                                                                             if (key != "none" && !isNotifAccessGranted) {
                                                                                 showNotificationAccessDialog = true
                                                                             }

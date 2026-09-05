@@ -1,11 +1,12 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.system.defaultPrefs
 import android.content.Context
 
 object GearSetRepository {
 
     fun persistActiveGearSetIndex(context: Context, setIndex: Int, isLeft: Boolean) {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val editor = prefs.edit().putInt("last_active_set_index", setIndex)
         if (isLeft) {
             editor.putInt("last_active_set_index_left", setIndex)
@@ -16,7 +17,7 @@ object GearSetRepository {
     }
 
     fun getGearSetsOrder(context: Context, isLeft: Boolean): MutableList<String> {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val key = if (isLeft) "gear_sets_order_left" else "gear_sets_order_right"
         val saved = prefs.getString(key, null)
         if (!saved.isNullOrEmpty()) {
@@ -27,13 +28,13 @@ object GearSetRepository {
     }
 
     fun saveGearSetsOrder(context: Context, isLeft: Boolean, list: List<String>) {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val key = if (isLeft) "gear_sets_order_left" else "gear_sets_order_right"
         prefs.edit().putString(key, list.joinToString(",")).apply()
     }
 
     fun getFlankLaunchBehavior(context: Context, isLeft: Boolean): String {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val key = if (isLeft) "cockpit_launch_behavior_left" else "cockpit_launch_behavior_right"
         val saved = prefs.getString(key, null)
         if (!saved.isNullOrEmpty()) {
@@ -43,13 +44,13 @@ object GearSetRepository {
     }
 
     fun setFlankLaunchBehavior(context: Context, isLeft: Boolean, behavior: String) {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val key = if (isLeft) "cockpit_launch_behavior_left" else "cockpit_launch_behavior_right"
         prefs.edit().putString(key, behavior).apply()
     }
 
     fun getAppsForActiveGear(context: Context, isLeft: Boolean, setIndex: Int, ringIndex: Int): List<String> {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val setsList = getGearSetsOrder(context, isLeft)
         val setId = if (setIndex in setsList.indices) setsList[setIndex] else setIndex.toString()
         val csvString = prefs.getString("gear_set_${setId}_ring_${ringIndex}_packages", null)
@@ -64,7 +65,7 @@ object GearSetRepository {
     }
 
     fun getGearSetNameById(context: Context, setId: String): String {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val defaultName = when(setId) {
             "0" -> "POWER USER ANDROID"
             "1" -> "MY APP STORES"

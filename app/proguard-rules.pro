@@ -3,7 +3,8 @@
 # ==============================================================================
 
 # ── Kotlin ─────────────────────────────────────────────────────────────────────
--keep class kotlin.** { *; }
+-keep class kotlin.reflect.** { *; }
+-keep class kotlin.jvm.internal.** { *; }
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
 -keepclassmembers class **$WhenMappings { <fields>; }

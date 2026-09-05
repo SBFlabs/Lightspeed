@@ -1,5 +1,6 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.system.defaultPrefs
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
@@ -269,11 +270,11 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:media_next" -> "Media: Next Track"
         token == "system:media_prev" -> "Media: Previous Track"
         token == "system:media_skip_forward" -> {
-            val skipSec = context.getSharedPreferences("default", Context.MODE_PRIVATE).getInt("pref_media_skip_seconds", 10)
+            val skipSec = context.defaultPrefs().getInt("pref_media_skip_seconds", 10)
             "Media: Skip Forward (${skipSec}s)"
         }
         token == "system:media_skip_backward" -> {
-            val skipSec = context.getSharedPreferences("default", Context.MODE_PRIVATE).getInt("pref_media_skip_seconds", 10)
+            val skipSec = context.defaultPrefs().getInt("pref_media_skip_seconds", 10)
             "Media: Skip Backward (${skipSec}s)"
         }
         token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"

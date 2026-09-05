@@ -119,8 +119,8 @@ object LightspeedPreferences {
     const val KEY_BACK_TAP_TRIPLE = "pref_back_tap_triple"
 
     // Status Bar & Notch Telemetry Keys
-    const val KEY_TELEMETRY_DOWNLOADS_ROUTING = "pref_telemetry_downloads_routing"
-    const val KEY_TELEMETRY_MEDIA_ROUTING = "pref_telemetry_media_routing"
+    const val KEY_RAIL_DOWNLOADS_ROUTING = "pref_rail_downloads_routing"
+    const val KEY_RAIL_MEDIA_ROUTING = "pref_rail_media_routing"
     const val KEY_HORIZON_RAIL_ORIENTATION_MODE = "pref_horizon_rail_orientation_mode" // "both", "landscape_only", "portrait_only"
     const val KEY_HORIZON_RAIL_SPAN = "pref_horizon_rail_span"
     const val KEY_HORIZON_RAIL_ALIGN = "pref_horizon_rail_align"

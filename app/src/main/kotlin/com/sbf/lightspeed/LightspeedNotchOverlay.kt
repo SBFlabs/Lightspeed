@@ -205,8 +205,8 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         val d = resources.displayMetrics.density
         val screenW = resources.displayMetrics.widthPixels.toFloat()
 
-        val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
-        val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+        val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+        val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
         val primaryDl = LightspeedNotificationListener.getPrimaryDownload()
         val media = LightspeedNotificationListener.activeMediaTelemetry
 
@@ -602,8 +602,8 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             Color.parseColor("#90CAF9")
         }
 
-        val dlRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
-        val mediaRouting = prefs.getString(LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+        val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+        val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
         val primaryDl = LightspeedNotificationListener.getPrimaryDownload()
         val media = LightspeedNotificationListener.activeMediaTelemetry
 

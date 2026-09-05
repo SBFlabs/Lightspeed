@@ -1,5 +1,6 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.system.defaultPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -123,7 +124,7 @@ object LightspeedShortcutManager {
     fun purgeCorruptedIcons(context: Context) {
         managerScope.launch {
             try {
-                val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+                val prefs = context.defaultPrefs()
                 val allShortcutHashes = mutableSetOf<String>()
                 prefs.all.forEach { (k, v) ->
                     val str = v?.toString() ?: ""
@@ -281,7 +282,7 @@ object LightspeedShortcutManager {
         if (token.isBlank() || token == "none") return ""
 
         try {
-            val custom = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val custom = context.defaultPrefs()
                 .getString("custom_label_${safeTokenKey(token)}", null)
             if (!custom.isNullOrBlank()) return custom
         } catch (_: Exception) {}

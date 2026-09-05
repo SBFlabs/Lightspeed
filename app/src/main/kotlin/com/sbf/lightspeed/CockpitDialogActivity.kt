@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.defaultPrefs
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -131,7 +132,7 @@ fun RenameGearContent(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("default", Context.MODE_PRIVATE) }
+    val prefs = remember { context.defaultPrefs() }
     var gearNameText by remember { mutableStateOf(currentName) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -206,7 +207,7 @@ fun EditItemContent(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("default", Context.MODE_PRIVATE) }
+    val prefs = remember { context.defaultPrefs() }
     val safeKey = remember(token) { token.hashCode().toString() }
 
     val initialName = remember(token) {
@@ -774,7 +775,7 @@ fun DeepActivityWarningContent(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("default", Context.MODE_PRIVATE) }
+    val prefs = remember { context.defaultPrefs() }
     var doNotShowAgain by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth()) {

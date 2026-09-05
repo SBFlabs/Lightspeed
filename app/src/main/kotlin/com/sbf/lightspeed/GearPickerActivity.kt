@@ -600,7 +600,7 @@ class GearPickerActivity : ComponentActivity() {
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF0E0E14).copy(alpha = 0.95f))
                 ) {
                     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                        val rawName = getSharedPreferences("default", Context.MODE_PRIVATE).getString("gear_set_${setId}_name", "") ?: ""
+                        val rawName = defaultPrefs().getString("gear_set_${setId}_name", "") ?: ""
                         val sName = if (rawName.isEmpty() || rawName in listOf("SET A", "SET B", "SET C", "SET D", "SET")) {
                             when(setId) {
                                 "0" -> "POWER USER ANDROID"
@@ -1539,7 +1539,7 @@ class GearPickerActivity : ComponentActivity() {
 
                                 Button(
                                     onClick = {
-                                        val prefs = getSharedPreferences("default", Context.MODE_PRIVATE)
+                                        val prefs = defaultPrefs()
                                         prefs.edit().putString("gear_set_${setId}_ring_${ringIndex}_packages", selectedTokens.joinToString(",")).apply()
                                         finish()
                                     },

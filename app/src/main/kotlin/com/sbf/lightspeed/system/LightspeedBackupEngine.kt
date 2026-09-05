@@ -1,5 +1,6 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.system.defaultPrefs
 import android.content.Context
 import android.net.Uri
 import android.os.Build
@@ -21,7 +22,7 @@ object LightspeedBackupEngine {
     }
 
     fun exportToJson(context: Context): String {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val allEntries = prefs.all
 
         val root = JSONObject().apply {
@@ -130,7 +131,7 @@ object LightspeedBackupEngine {
                 } ?: return Result.failure(IllegalStateException("Could not open output stream for $uri"))
             }
 
-            val count = context.getSharedPreferences("default", Context.MODE_PRIVATE).all.size
+            val count = context.defaultPrefs().all.size
             Log.i(TAG, "Exported $count entries (${bytes.size} bytes) successfully to $uri")
             Result.success(count)
         } catch (e: Exception) {
@@ -152,7 +153,7 @@ object LightspeedBackupEngine {
             } else {
                 root
             }
-            val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            val prefs = context.defaultPrefs()
             val editor = prefs.edit()
 
             var importedCount = 0
@@ -370,7 +371,7 @@ object LightspeedBackupEngine {
     }
 
     fun resetToDefaults(context: Context) {
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         prefs.edit().clear().apply()
         Log.i(TAG, "All preferences reset to default values")
     }

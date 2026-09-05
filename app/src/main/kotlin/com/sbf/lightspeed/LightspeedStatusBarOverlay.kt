@@ -213,8 +213,8 @@ class LightspeedStatusBarOverlay(
             else -> true
         }
 
-        val dlRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
-        val mediaRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_TELEMETRY_MEDIA_ROUTING, "none") ?: "none"
+        val dlRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+        val mediaRouting = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
         val media = com.sbf.lightspeed.system.LightspeedNotificationListener.activeMediaTelemetry
             ?: com.sbf.lightspeed.system.LightspeedMediaManager.getActiveTrackInfo(context).takeIf { it.title.isNotBlank() || it.isPlaying }?.let { info ->
                 com.sbf.lightspeed.system.LightspeedNotificationListener.MediaTelemetry(

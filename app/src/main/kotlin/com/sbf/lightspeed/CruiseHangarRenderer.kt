@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.defaultPrefs
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -132,7 +133,7 @@ internal class CruiseHangarRenderer(
         textPaint.color = if (isStarboard) Color.WHITE else Color.argb(160, 200, 220, 255)
         canvas.drawText("STARBOARD (RIGHT FLANK) ▶", starboardRect.centerX(), starboardRect.centerY() + 3.5f * d, textPaint)
 
-        val prefs = context.getSharedPreferences("default", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
         val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
         val hapticStrength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"

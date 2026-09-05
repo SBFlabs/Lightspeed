@@ -4846,7 +4846,7 @@ fun SidebarMatrixConfigurationFields(
                             onRefreshNeeded()
                         }
                     ) {
-                        Text("Enable Always-On (I Understand the Risks)", color = MaterialTheme.colorScheme.error)
+                        Text("Enable Always-On (My Device Has No OLED / I Understand)", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant

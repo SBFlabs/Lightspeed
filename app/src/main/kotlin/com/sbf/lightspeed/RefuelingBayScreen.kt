@@ -237,12 +237,12 @@ fun RefuelingBayScreen(
                     onTap = {
                         if (isSleeping) {
                             wakeShield(15_000L)
-                        } else {
-                            onDismiss()
                         }
                     },
                     onDoubleTap = {
-                        onDismiss()
+                        if (!isSleeping) {
+                            onDismiss()
+                        }
                     }
                 )
             }
@@ -252,7 +252,6 @@ fun RefuelingBayScreen(
                     onDragStart = { totalDragY = 0f },
                     onDragEnd = {
                         if (totalDragY < -120f) {
-                            // Swipe-Up gesture: dismiss keyguard and finish
                             try {
                                 val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
                                 km?.requestDismissKeyguard(activity, null)
@@ -266,7 +265,6 @@ fun RefuelingBayScreen(
                     }
                 )
             }
-            .offset { IntOffset(driftOffsetX.roundToInt(), driftOffsetY.roundToInt()) }
             .padding(16.dp)
             .statusBarsPadding()
             .navigationBarsPadding()
@@ -274,6 +272,7 @@ fun RefuelingBayScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .offset { IntOffset(driftOffsetX.roundToInt(), driftOffsetY.roundToInt()) }
                 .alpha(animatedContentAlpha)
         ) {
             if (isLandscape) {

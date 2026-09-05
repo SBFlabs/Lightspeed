@@ -524,10 +524,13 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        val currentPkg = event.packageName?.toString()
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val isLocked = keyguardManager?.isKeyguardLocked == true
+        
+        updateOverlaysVisibility(isLocked, currentPkg)
+        
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-            val isLocked = keyguardManager?.isKeyguardLocked == true
-            val currentPkg = event.packageName?.toString()
             com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this, isLocked, currentPkg)
         }
     }
@@ -594,6 +597,21 @@ class LightspeedAccessibilityService : AccessibilityService() {
         notchOverlayView?.visibility = v
     }
 
+    private fun updateOverlaysVisibility(isLocked: Boolean, currentPkg: String?) {
+        val isRefueling = LightspeedRefuelingActivity.isActive
+        val isInfinixStandby = currentPkg != null && (currentPkg.contains("standby") || currentPkg.contains("aod") || currentPkg == "com.transsion.aod" || currentPkg == "com.infinix.aod" || currentPkg == "com.transsion.aod.app")
+        val isDoze = currentPkg == "com.android.systemui" && !isLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
+        val shouldHide = isLocked || isRefueling || isInfinixStandby || isDoze
+
+        val v = if (shouldHide || isSuppressedByOrientation()) View.GONE else View.VISIBLE
+        
+        statusBarOverlayView?.visibility = v
+        notchOverlayView?.visibility = v
+        sensorTouchOverlayView?.visibility = v
+        overlayView?.visibility = v
+        leftWingOverlayView?.visibility = v
+    }
+
     fun scheduleGeometryResync() {
         handler.postDelayed({ resyncOverlayMetrics() }, 100L)
         handler.postDelayed({ resyncOverlayMetrics() }, 300L)
@@ -634,29 +652,23 @@ class LightspeedAccessibilityService : AccessibilityService() {
                 when (action) {
                     Intent.ACTION_DREAMING_STARTED -> {
                         if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
-                            notchOverlayView?.visibility = View.GONE
-                            statusBarOverlayView?.visibility = View.GONE
-                            sensorTouchOverlayView?.visibility = View.GONE
+                            updateOverlaysVisibility(isLocked = true, currentPkg = null)
                         }
                     }
                     Intent.ACTION_SCREEN_OFF -> {
                         com.sbf.lightspeed.system.LightspeedOrientationManager.onScreenOff(this@LightspeedAccessibilityService)
                         if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
-                            notchOverlayView?.visibility = View.GONE
-                            statusBarOverlayView?.visibility = View.GONE
-                            sensorTouchOverlayView?.visibility = View.GONE
+                            updateOverlaysVisibility(isLocked = true, currentPkg = null)
                         }
                         checkScreenOffRefuelingTrigger(prefs)
                     }
                     Intent.ACTION_SCREEN_ON -> {
-                        if (!isSuppressedByOrientation()) {
-                            notchOverlayView?.visibility = View.VISIBLE
-                            statusBarOverlayView?.visibility = View.VISIBLE
-                            sensorTouchOverlayView?.visibility = View.VISIBLE
-                            resyncOverlayMetrics()
-                        }
                         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                         val isLocked = keyguardManager?.isKeyguardLocked == true
+                        
+                        updateOverlaysVisibility(isLocked, null)
+                        resyncOverlayMetrics()
+                        
                         com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this@LightspeedAccessibilityService, isLocked, null)
 
                         val asLockscreen = prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_AS_LOCKSCREEN, false)
@@ -665,14 +677,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         }
                     }
                     Intent.ACTION_DREAMING_STOPPED, Intent.ACTION_USER_PRESENT -> {
-                        if (!isSuppressedByOrientation()) {
-                            notchOverlayView?.visibility = View.VISIBLE
-                            statusBarOverlayView?.visibility = View.VISIBLE
-                            sensorTouchOverlayView?.visibility = View.VISIBLE
-                            resyncOverlayMetrics()
-                        }
                         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                         val isLocked = keyguardManager?.isKeyguardLocked == true
+                        
+                        updateOverlaysVisibility(isLocked, null)
+                        resyncOverlayMetrics()
+                        
                         com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this@LightspeedAccessibilityService, isLocked, null)
                     }
                     Intent.ACTION_POWER_CONNECTED -> {

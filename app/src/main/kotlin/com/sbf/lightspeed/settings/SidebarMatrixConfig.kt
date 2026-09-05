@@ -2314,21 +2314,42 @@ fun SidebarMatrixConfigurationFields(
                                                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
                                                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
                                                             ) {
-                                                                Row(
+                                                                Column(
                                                                     modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                                                 ) {
-                                                                    Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
-                                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                                    Column(modifier = Modifier.weight(1f)) {
-                                                                        Text("OEM Advisory Footnote: OEM Dynamic Island Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
-                                                                        Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f))
-                                                                    }
-                                                                    TextButton(
-                                                                        onClick = { OemNotchDetector.openSearch(context) },
-                                                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        verticalAlignment = Alignment.CenterVertically
                                                                     ) {
-                                                                        Text("SETTINGS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                                        Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                                        Column(modifier = Modifier.weight(1f)) {
+                                                                            Text("OEM Advisory Footnote: OEM Dynamic Island Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+                                                                            Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f), lineHeight = 13.sp)
+                                                                        }
+                                                                        IconButton(
+                                                                            onClick = {
+                                                                                isOemNoticeDemoted = false
+                                                                                prefs.edit().putBoolean("pref_oem_notch_notice_demoted", false).apply()
+                                                                            },
+                                                                            modifier = Modifier.size(24.dp)
+                                                                        ) {
+                                                                            Icon(Icons.Outlined.VerticalAlignTop, contentDescription = "Move Upward", tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), modifier = Modifier.size(16.dp))
+                                                                        }
+                                                                    }
+                                                                    Button(
+                                                                        onClick = { OemNotchDetector.openSearch(context) },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+                                                                        contentPadding = PaddingValues(vertical = 6.dp)
+                                                                    ) {
+                                                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                                            Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Text("Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                                                        }
                                                                     }
                                                                 }
                                                             }
@@ -3147,17 +3168,31 @@ fun SidebarMatrixConfigurationFields(
                                                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
                                                             border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
                                                         ) {
-                                                            Row(
+                                                            Column(
                                                                 modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                                verticalAlignment = Alignment.CenterVertically
+                                                                verticalArrangement = Arrangement.spacedBy(8.dp)
                                                             ) {
-                                                                Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
-                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                Column(modifier = Modifier.weight(1f)) {
-                                                                    Text("OEM Advisory Footnote: OEM Ambient Display / Dock Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
-                                                                    Text("OEM standby display style may overlap with Refueling Bay. Tap to manage settings.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f))
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                                    Column(modifier = Modifier.weight(1f)) {
+                                                                        Text("OEM Advisory Footnote: OEM Ambient Display / Dock Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+                                                                        Text("OEM standby display style may overlap with Refueling Bay. Tap to manage settings.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f), lineHeight = 13.sp)
+                                                                    }
+                                                                    IconButton(
+                                                                        onClick = {
+                                                                            isWarningDemoted = false
+                                                                            prefs.edit().putBoolean("pref_infinix_standby_warning_demoted", false).apply()
+                                                                        },
+                                                                        modifier = Modifier.size(24.dp)
+                                                                    ) {
+                                                                        Icon(Icons.Outlined.VerticalAlignTop, contentDescription = "Move Upward", tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), modifier = Modifier.size(16.dp))
+                                                                    }
                                                                 }
-                                                                TextButton(
+                                                                Button(
                                                                     onClick = {
                                                                         try {
                                                                             val intent = Intent("com.transsion.specialfunction.ACTION_STANDBY").apply {
@@ -3172,9 +3207,16 @@ fun SidebarMatrixConfigurationFields(
                                                                             } catch (_: Exception) {}
                                                                         }
                                                                     },
-                                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(8.dp),
+                                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+                                                                    contentPadding = PaddingValues(vertical = 6.dp)
                                                                 ) {
-                                                                    Text("SETTINGS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text("Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
+                                                                    }
                                                                 }
                                                             }
                                                         }

@@ -5,20 +5,27 @@ import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.UnfoldLess
 import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -40,6 +47,8 @@ fun MainSettingsScreen() {
     }
 
     var showGuidebook by remember { mutableStateOf(false) }
+    var showCentralCommandDeck by rememberSaveable { mutableStateOf(false) }
+    var isFlightArmed by remember { mutableStateOf(LightspeedPreferences.isMasterFlightArmed(context)) }
     var targetJumpTab by remember { mutableIntStateOf(-1) }
     var targetJumpSection by remember { mutableStateOf<String?>(null) }
     var isAllExpanded by remember { mutableStateOf(false) }
@@ -119,6 +128,33 @@ fun MainSettingsScreen() {
                     FloatingOverlayContainer(
                         title = "Central Command",
                         onDismiss = { dismissAction() },
+                        onTitleClick = { showCentralCommandDeck = true },
+                        onTitleLongClick = { showCentralCommandDeck = true },
+                        titleBadge = {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        if (isFlightArmed) Color(0xFF00E676).copy(alpha = 0.18f)
+                                        else Color(0xFFFF9800).copy(alpha = 0.18f)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isFlightArmed) Color(0xFF00E676).copy(alpha = 0.45f)
+                                        else Color(0xFFFF9800).copy(alpha = 0.45f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (isFlightArmed) "⚡ ARMED" else "⏸ STANDBY",
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isFlightArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                        },
                         headerControl = {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -163,7 +199,23 @@ fun MainSettingsScreen() {
                             toggleAllTrigger = toggleAllTrigger,
                             jumpTargetTab = targetJumpTab,
                             jumpTargetSection = targetJumpSection,
-                            onRefreshNeeded = { /* Local state reacts immediately without recreating hierarchy */ }
+                            onRefreshNeeded = {
+                                isFlightArmed = LightspeedPreferences.isMasterFlightArmed(context)
+                            }
+                        )
+                    }
+
+                    if (showCentralCommandDeck) {
+                        CentralCommandDeckDialog(
+                            context = context,
+                            prefs = prefs,
+                            onDismiss = {
+                                showCentralCommandDeck = false
+                                isFlightArmed = LightspeedPreferences.isMasterFlightArmed(context)
+                            },
+                            onRefreshNeeded = {
+                                isFlightArmed = LightspeedPreferences.isMasterFlightArmed(context)
+                            }
                         )
                     }
 

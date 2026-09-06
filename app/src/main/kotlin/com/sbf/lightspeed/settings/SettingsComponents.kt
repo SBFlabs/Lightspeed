@@ -14,6 +14,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -66,6 +72,9 @@ fun FloatingOverlayContainer(
     title: String,
     onDismiss: () -> Unit,
     headerControl: @Composable (RowScope.() -> Unit) = {},
+    onTitleClick: (() -> Unit)? = null,
+    onTitleLongClick: (() -> Unit)? = null,
+    titleBadge: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -188,12 +197,33 @@ fun FloatingOverlayContainer(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .combinedClickable(
+                                enabled = onTitleClick != null || onTitleLongClick != null,
+                                onClick = {
+                                    onTitleClick?.invoke() ?: onTitleLongClick?.invoke()
+                                },
+                                onLongClick = {
+                                    LightspeedHapticEngine.heavyClick(context)
+                                    onTitleLongClick?.invoke()
+                                }
+                            )
+                            .padding(vertical = 2.dp, horizontal = 4.dp)
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        if (titleBadge != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            titleBadge()
+                        }
+                    }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -872,6 +902,250 @@ fun FlightControlDeckCard(
                                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                     color = Color.White.copy(alpha = 0.9f)
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CentralCommandDeckDialog(
+    context: Context,
+    prefs: SharedPreferences,
+    onDismiss: () -> Unit,
+    onRefreshNeeded: () -> Unit = {}
+) {
+    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
+    val scope = rememberCoroutineScope()
+    val tabTitles = listOf("◀ L-FLANK", "⚡ FLIGHT CORE", "R-FLANK ▶")
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.88f)
+                .clip(RoundedCornerShape(28.dp))
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.96f),
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
+                        ),
+                        radius = 1200f
+                    )
+                )
+                .border(
+                    1.2.dp,
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.35f),
+                            Color.White.copy(alpha = 0.12f),
+                            Color.White.copy(alpha = 0.04f)
+                        )
+                    ),
+                    RoundedCornerShape(28.dp)
+                ),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            shape = RoundedCornerShape(28.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                // Header Row: Title + Close Icon
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.DashboardCustomize,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                "CENTRAL COMMAND DECK",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                letterSpacing = 0.5.sp
+                            )
+                            Text(
+                                "Tactical ship status & universal controls",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp),
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 3-Page Sub-tab Bar matching ship layout
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White.copy(alpha = 0.06f))
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    tabTitles.forEachIndexed { index, title ->
+                        val isSelected = pagerState.currentPage == index
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                .clickable {
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                }
+                                .padding(vertical = 7.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = title,
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Swipeable Pages
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) { pageIndex ->
+                    when (pageIndex) {
+                        // Page 0: Left Deflector
+                        0 -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                var isLeftEnabled by remember { mutableStateOf(LightspeedPreferences.isLeftDeflectorEnabled(context)) }
+                                var leftStartupMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed") ?: "always_armed") }
+
+                                DeflectorMasterCard(
+                                    flankName = "Left Deflector",
+                                    isEnabled = isLeftEnabled,
+                                    onToggle = { enabled ->
+                                        isLeftEnabled = enabled
+                                        LightspeedPreferences.setLeftDeflectorEnabled(context, enabled)
+                                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
+                                        onRefreshNeeded()
+                                    },
+                                    startupMode = leftStartupMode,
+                                    onStartupModeChange = { mode ->
+                                        leftStartupMode = mode
+                                        prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
+                                    }
+                                )
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("Left Flank Architecture", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                                        Text("Hosts the secondary kinetic deflector array with Astrogation Core, Upper Vector, and Lower Vector sweep zones. Swipe horizontally or use the tabs above to navigate.", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), lineHeight = 16.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Page 1: Master Flight Core
+                        1 -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                FlightControlDeckCard(
+                                    context = context,
+                                    prefs = prefs,
+                                    onStateChanged = onRefreshNeeded
+                                )
+                            }
+                        }
+
+                        // Page 2: Right Deflector
+                        2 -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                var isRightEnabled by remember { mutableStateOf(LightspeedPreferences.isRightDeflectorEnabled(context)) }
+                                var rightStartupMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed") ?: "always_armed") }
+
+                                DeflectorMasterCard(
+                                    flankName = "Right Deflector",
+                                    isEnabled = isRightEnabled,
+                                    onToggle = { enabled ->
+                                        isRightEnabled = enabled
+                                        LightspeedPreferences.setRightDeflectorEnabled(context, enabled)
+                                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
+                                        onRefreshNeeded()
+                                    },
+                                    startupMode = rightStartupMode,
+                                    onStartupModeChange = { mode ->
+                                        rightStartupMode = mode
+                                        prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
+                                    }
+                                )
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("Right Flank Architecture", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                                        Text("Hosts the primary kinetic deflector array and cruise cockpit hangar launcher. Swipe horizontally or use the tabs above to navigate.", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), lineHeight = 16.sp)
+                                    }
+                                }
                             }
                         }
                     }

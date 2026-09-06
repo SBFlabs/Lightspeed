@@ -1011,16 +1011,6 @@ fun SidebarMatrixConfigurationFields(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 20.dp)
                         ) {
-                            item(key = "flight_control_deck") {
-                                FlightControlDeckCard(
-                                    context = context,
-                                    prefs = prefs,
-                                    onStateChanged = {
-                                        onRefreshNeeded()
-                                    }
-                                )
-                            }
-
                             currentOrder1.forEach { sectionId ->
                                 when (sectionId) {
                                     "sensor_deck" -> {

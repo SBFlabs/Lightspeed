@@ -452,7 +452,7 @@ fun DeflectorMasterCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
+                        imageVector = if (isEnabled) Icons.Default.Shield else Icons.Default.Security,
                         contentDescription = null,
                         tint = if (isEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.5f),
                         modifier = Modifier.size(20.dp)
@@ -593,7 +593,7 @@ fun FlightControlDeckCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isArmed) Icons.Default.FlightTakeoff else Icons.Default.FlightLand,
+                        imageVector = if (isArmed) Icons.Default.Bolt else Icons.Default.PowerSettingsNew,
                         contentDescription = null,
                         tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
                         modifier = Modifier.size(24.dp)

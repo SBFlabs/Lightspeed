@@ -205,7 +205,7 @@ fun FloatingOverlayContainer(
                             .combinedClickable(
                                 enabled = onTitleClick != null || onTitleLongClick != null,
                                 onClick = {
-                                    onTitleClick?.invoke() ?: onTitleLongClick?.invoke()
+                                    onTitleClick?.invoke()
                                 },
                                 onLongClick = {
                                     LightspeedHapticEngine.heavyClick(context)

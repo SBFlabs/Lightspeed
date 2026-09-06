@@ -48,7 +48,6 @@ fun MainSettingsScreen() {
 
     var showGuidebook by remember { mutableStateOf(false) }
     var showCentralCommandDeck by rememberSaveable { mutableStateOf(false) }
-    var isFlightArmed by remember { mutableStateOf(LightspeedPreferences.isMasterFlightArmed(context)) }
     var targetJumpTab by remember { mutableIntStateOf(-1) }
     var targetJumpSection by remember { mutableStateOf<String?>(null) }
     var isAllExpanded by remember { mutableStateOf(false) }
@@ -128,33 +127,7 @@ fun MainSettingsScreen() {
                     FloatingOverlayContainer(
                         title = "Central Command",
                         onDismiss = { dismissAction() },
-                        onTitleClick = { showCentralCommandDeck = true },
                         onTitleLongClick = { showCentralCommandDeck = true },
-                        titleBadge = {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(
-                                        if (isFlightArmed) Color(0xFF00E676).copy(alpha = 0.18f)
-                                        else Color(0xFFFF9800).copy(alpha = 0.18f)
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isFlightArmed) Color(0xFF00E676).copy(alpha = 0.45f)
-                                        else Color(0xFFFF9800).copy(alpha = 0.45f),
-                                        shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (isFlightArmed) "⚡ ARMED" else "⏸ STANDBY",
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = if (isFlightArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
-                        },
                         headerControl = {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -199,9 +172,7 @@ fun MainSettingsScreen() {
                             toggleAllTrigger = toggleAllTrigger,
                             jumpTargetTab = targetJumpTab,
                             jumpTargetSection = targetJumpSection,
-                            onRefreshNeeded = {
-                                isFlightArmed = LightspeedPreferences.isMasterFlightArmed(context)
-                            }
+                            onRefreshNeeded = { /* Local state reacts immediately */ }
                         )
                     }
 
@@ -209,13 +180,8 @@ fun MainSettingsScreen() {
                         CentralCommandDeckDialog(
                             context = context,
                             prefs = prefs,
-                            onDismiss = {
-                                showCentralCommandDeck = false
-                                isFlightArmed = LightspeedPreferences.isMasterFlightArmed(context)
-                            },
-                            onRefreshNeeded = {
-                                isFlightArmed = LightspeedPreferences.isMasterFlightArmed(context)
-                            }
+                            onDismiss = { showCentralCommandDeck = false },
+                            onRefreshNeeded = { /* Local state reacts immediately */ }
                         )
                     }
 

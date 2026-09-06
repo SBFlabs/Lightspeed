@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -958,6 +959,7 @@ fun WatchdogQuickTelemetryCard(
     val enabledSet = remember { LightspeedWatchdogEngine.getEnabledAccessibilityServices(context) }
     val protectedSet = remember { LightspeedPreferences.getPerimeterProtectedServices(context) }
     val cautionAmber = Color(0xFFFFB300)
+    var showPerimeterDialog by rememberSaveable { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),

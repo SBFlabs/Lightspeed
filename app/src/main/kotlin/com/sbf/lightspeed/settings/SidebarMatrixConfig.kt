@@ -347,7 +347,6 @@ fun SidebarMatrixConfigurationFields(
                     1 -> {
                         isSensorDeckExpanded = false
                         isTelemetryExpanded = false
-                        isWatchdogsExpanded = false
                         isTacticalHardwareExpanded = false
                         isRefuelingExpanded = false
                         isConfigVaultExpanded = false

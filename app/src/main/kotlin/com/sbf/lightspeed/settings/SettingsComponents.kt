@@ -83,14 +83,47 @@ import com.sbf.lightspeed.system.LightspeedHapticEngine
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.geometry.Offset
+
+object GlassNoiseTexture {
+    private var cachedBrush: ShaderBrush? = null
+
+    fun getBrush(): ShaderBrush {
+        cachedBrush?.let { return it }
+        val size = 96
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val pixels = IntArray(size * size)
+        val random = java.util.Random(42L)
+        for (i in pixels.indices) {
+            val v = (random.nextFloat() * 255).toInt()
+            val a = (random.nextFloat() * 160).toInt()
+            pixels[i] = android.graphics.Color.argb(a, v, v, v)
+        }
+        bitmap.setPixels(pixels, 0, size, 0, 0, size, size)
+        val shader = android.graphics.BitmapShader(bitmap, android.graphics.Shader.TileMode.REPEAT, android.graphics.Shader.TileMode.REPEAT)
+        val brush = ShaderBrush(shader)
+        cachedBrush = brush
+        return brush
+    }
+}
+
 data class DeckGlassVisuals(
+    val styleKey: String,
     val backgroundBrush: Brush,
     val borderBrush: Brush,
     val borderWidth: androidx.compose.ui.unit.Dp,
     val showTopGlare: Boolean,
     val topGlareAlpha: Float,
     val innerChamferAlpha: Float,
-    val shapeCornerRadius: androidx.compose.ui.unit.Dp = 32.dp
+    val showNoiseGrain: Boolean = false,
+    val noiseAlpha: Float = 0f,
+    val windowDimAmount: Float = 0.35f,
+    val scrimAlpha: Float = 0.15f,
+    val blurBehindRadius: Int = 70,
+    val shapeCornerRadius: androidx.compose.ui.unit.Dp = 28.dp
 )
 
 object DeckGlassTheme {
@@ -99,68 +132,95 @@ object DeckGlassTheme {
         val colorScheme = MaterialTheme.colorScheme
         return when (style) {
             "frost" -> DeckGlassVisuals(
+                styleKey = "frost",
                 backgroundBrush = Brush.radialGradient(
                     colors = listOf(
-                        colorScheme.surfaceVariant.copy(alpha = 0.70f),
-                        colorScheme.surface.copy(alpha = 0.78f)
+                        Color(0xFFFFFFFF).copy(alpha = 0.16f),
+                        Color(0xFF8FA8C4).copy(alpha = 0.26f),
+                        Color(0xFF16202E).copy(alpha = 0.58f)
+                    ),
+                    center = Offset(0.5f, 0.15f),
+                    radius = 1100f
+                ),
+                borderBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.75f),
+                        Color.White.copy(alpha = 0.30f),
+                        Color.White.copy(alpha = 0.12f)
+                    )
+                ),
+                borderWidth = 1.4.dp,
+                showTopGlare = false,
+                topGlareAlpha = 0f,
+                innerChamferAlpha = 0.20f,
+                showNoiseGrain = true,
+                noiseAlpha = 0.08f,
+                windowDimAmount = 0.16f,
+                scrimAlpha = 0.06f,
+                blurBehindRadius = 90,
+                shapeCornerRadius = 28.dp
+            )
+            "obsidian" -> DeckGlassVisuals(
+                styleKey = "obsidian",
+                backgroundBrush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF090D14).copy(alpha = 0.94f),
+                        Color(0xFF040608).copy(alpha = 0.98f)
                     ),
                     radius = 1200f
                 ),
                 borderBrush = Brush.verticalGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.38f),
-                        Color.White.copy(alpha = 0.16f),
-                        Color.White.copy(alpha = 0.08f)
+                        colorScheme.primary.copy(alpha = 0.85f),
+                        colorScheme.primary.copy(alpha = 0.35f),
+                        Color.White.copy(alpha = 0.12f),
+                        Color.Transparent
                     )
                 ),
                 borderWidth = 1.2.dp,
                 showTopGlare = false,
                 topGlareAlpha = 0f,
-                innerChamferAlpha = 0.12f
-            )
-            "obsidian" -> DeckGlassVisuals(
-                backgroundBrush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF131720).copy(alpha = 0.88f),
-                        Color(0xFF090B0E).copy(alpha = 0.94f)
-                    ),
-                    radius = 1200f
-                ),
-                borderBrush = Brush.verticalGradient(
-                    colors = listOf(
-                        colorScheme.primary.copy(alpha = 0.50f),
-                        Color.White.copy(alpha = 0.10f),
-                        Color.White.copy(alpha = 0.04f)
-                    )
-                ),
-                borderWidth = 1.dp,
-                showTopGlare = false,
-                topGlareAlpha = 0f,
-                innerChamferAlpha = 0f
+                innerChamferAlpha = 0f,
+                showNoiseGrain = false,
+                noiseAlpha = 0f,
+                windowDimAmount = 0.55f,
+                scrimAlpha = 0.22f,
+                blurBehindRadius = 55,
+                shapeCornerRadius = 28.dp
             )
             else -> DeckGlassVisuals( // "liquid" (Default)
+                styleKey = "liquid",
                 backgroundBrush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF1E2638).copy(alpha = 0.55f),
-                        Color(0xFF0D121B).copy(alpha = 0.65f)
+                        Color(0xFF334A6E).copy(alpha = 0.38f),
+                        Color(0xFF17253B).copy(alpha = 0.50f),
+                        Color(0xFF0A111E).copy(alpha = 0.64f)
                     ),
-                    radius = 1200f
+                    center = Offset(0.35f, 0.15f),
+                    radius = 1100f
                 ),
                 borderBrush = Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.60f),
-                        Color.White.copy(alpha = 0.22f),
-                        colorScheme.primary.copy(alpha = 0.35f),
-                        Color.White.copy(alpha = 0.05f),
-                        Color.White.copy(alpha = 0.28f)
+                        Color.White.copy(alpha = 0.90f),       // Specular apex highlight
+                        Color(0xFF64FFDA).copy(alpha = 0.55f), // Prismatic Cyan caustic
+                        Color.White.copy(alpha = 0.30f),       // Core glass
+                        Color(0xFFE040FB).copy(alpha = 0.40f), // Prismatic Magenta fringe
+                        Color.Black.copy(alpha = 0.50f),       // Refractive shadow rim
+                        Color.White.copy(alpha = 0.70f)        // Secondary specular catch
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                 ),
-                borderWidth = 1.2.dp,
+                borderWidth = 1.5.dp,
                 showTopGlare = true,
-                topGlareAlpha = 0.18f,
-                innerChamferAlpha = 0.22f
+                topGlareAlpha = 0.30f,
+                innerChamferAlpha = 0.35f,
+                showNoiseGrain = false,
+                noiseAlpha = 0f,
+                windowDimAmount = 0.20f,
+                scrimAlpha = 0.08f,
+                blurBehindRadius = 75,
+                shapeCornerRadius = 28.dp
             )
         }
     }
@@ -238,6 +298,14 @@ fun FloatingOverlayContainer(
                             RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
                         )
                 )
+            }
+            if (glassVisuals.showNoiseGrain) {
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    drawRect(
+                        brush = GlassNoiseTexture.getBrush(),
+                        alpha = glassVisuals.noiseAlpha
+                    )
+                }
             }
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
             // Scoped Drag Handle + Header Region (drag detection strictly scoped to header/handle)
@@ -1506,15 +1574,19 @@ fun CentralCommandDeckDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        val glassVisuals = rememberDeckGlassVisuals(context)
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                dialogWindow?.attributes?.blurBehindRadius = 60
+                val lp = dialogWindow?.attributes
+                if (lp != null) {
+                    lp.blurBehindRadius = glassVisuals.blurBehindRadius
+                    dialogWindow.attributes = lp
+                }
             }
+            dialogWindow?.setDimAmount(glassVisuals.windowDimAmount)
         }
-
-        val glassVisuals = rememberDeckGlassVisuals(context)
 
         Box(
             modifier = Modifier
@@ -1566,6 +1638,14 @@ fun CentralCommandDeckDialog(
                                     RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
                                 )
                         )
+                    }
+                    if (glassVisuals.showNoiseGrain) {
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                            drawRect(
+                                brush = GlassNoiseTexture.getBrush(),
+                                alpha = glassVisuals.noiseAlpha
+                            )
+                        }
                     }
                     Column(
                         modifier = Modifier

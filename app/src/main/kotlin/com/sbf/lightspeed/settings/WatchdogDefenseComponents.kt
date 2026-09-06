@@ -14,6 +14,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -132,15 +133,19 @@ fun PerimeterServicesDeckDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        val glassVisuals = rememberDeckGlassVisuals(context)
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                dialogWindow?.attributes?.blurBehindRadius = 60
+                val lp = dialogWindow?.attributes
+                if (lp != null) {
+                    lp.blurBehindRadius = glassVisuals.blurBehindRadius
+                    dialogWindow.attributes = lp
+                }
             }
+            dialogWindow?.setDimAmount(glassVisuals.windowDimAmount)
         }
-
-        val glassVisuals = rememberDeckGlassVisuals(context)
 
         Box(
             modifier = Modifier
@@ -192,6 +197,14 @@ fun PerimeterServicesDeckDialog(
                                     RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
                                 )
                         )
+                    }
+                    if (glassVisuals.showNoiseGrain) {
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                            drawRect(
+                                brush = GlassNoiseTexture.getBrush(),
+                                alpha = glassVisuals.noiseAlpha
+                            )
+                        }
                     }
                     Column(
                         modifier = Modifier

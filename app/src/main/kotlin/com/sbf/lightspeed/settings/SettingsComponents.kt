@@ -67,6 +67,7 @@ import com.sbf.lightspeed.system.LightspeedHapticEngine
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FloatingOverlayContainer(
     title: String,

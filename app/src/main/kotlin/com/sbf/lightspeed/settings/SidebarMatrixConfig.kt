@@ -3412,12 +3412,23 @@ fun SidebarMatrixConfigurationFields(
 
                                                     // 1. Core Watchdog
                                                     var sentinelEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)) }
+                                                    var crashSentinelEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, true)) }
+                                                    var showFullCrashStack by rememberSaveable { mutableStateOf(false) }
+
                                                     val isServiceRunning = LightspeedAccessibilityService.instance != null
                                                     val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
+                                                    val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
+                                                    val isBatteryIgnored = remember(isInnerWatchdogExpanded) {
+                                                        LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context)
+                                                    }
+
+                                                    val lastCrashTimestamp = prefs.getLong("key_last_crash_timestamp", 0L)
+                                                    val lastCrashMessage = prefs.getString("key_last_crash_message", null)
+                                                    val lastCrashStack = prefs.getString("key_last_crash_stack", null)
 
                                                     CollapsibleSubSection(
                                                         title = "Core Watchdog",
-                                                        subtitle = "Monitors and revives Lightspeed's accessibility service via Shizuku.",
+                                                        subtitle = "Monitors, protects, and autonomously revives Lightspeed via Shizuku.",
                                                         icon = {
                                                             Icon(
                                                                 imageVector = Icons.Outlined.Shield,
@@ -3447,9 +3458,101 @@ fun SidebarMatrixConfigurationFields(
                                                             prefs.edit().putBoolean("pref_sub_inner_watchdog_labs", isInnerWatchdogExpanded).apply()
                                                         }
                                                     ) {
-                                                        // Row 1: Master Enable Toggle
+                                                        // System Defense & Bridge Status Row
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(
+                                                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                                            ),
+                                                            border = androidx.compose.foundation.BorderStroke(
+                                                                1.dp,
+                                                                Color.White.copy(alpha = 0.08f)
+                                                            )
+                                                        ) {
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Text("SYSTEM IMMUNITY STATUS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                                                    Text(
+                                                                        text = if (isServiceRunning && isShizukuActive) "PROTECTED" else "ATTENTION NEEDED",
+                                                                        fontSize = 9.5.sp,
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        color = if (isServiceRunning && isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                    )
+                                                                }
+
+                                                                Spacer(modifier = Modifier.height(8.dp))
+
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                ) {
+                                                                    // Service Badge
+                                                                    Surface(
+                                                                        modifier = Modifier.weight(1f),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        color = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF3D00).copy(alpha = 0.15f),
+                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF3D00).copy(alpha = 0.35f))
+                                                                    ) {
+                                                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                                                            Text("CORE SERVICE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                                                                            Text(
+                                                                                if (isServiceRunning) "ONLINE" else "OFFLINE",
+                                                                                fontSize = 11.sp,
+                                                                                fontWeight = FontWeight.Bold,
+                                                                                color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00)
+                                                                            )
+                                                                        }
+                                                                    }
+
+                                                                    // Shizuku Bridge Badge
+                                                                    Surface(
+                                                                        modifier = Modifier.weight(1f),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        color = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
+                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
+                                                                    ) {
+                                                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                                                            Text("SHIZUKU LINK", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                                                                            Text(
+                                                                                if (isShizukuActive) "ACTIVE" else "STANDBY",
+                                                                                fontSize = 11.sp,
+                                                                                fontWeight = FontWeight.Bold,
+                                                                                color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                            )
+                                                                        }
+                                                                    }
+
+                                                                    // Battery Badge
+                                                                    Surface(
+                                                                        modifier = Modifier.weight(1f).clickable {
+                                                                            LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
+                                                                        },
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        color = if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
+                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
+                                                                    ) {
+                                                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                                                            Text("BATTERY MODE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                                                                            Text(
+                                                                                if (isBatteryIgnored) "UNRESTRICTED" else "OPTIMIZED",
+                                                                                fontSize = 10.sp,
+                                                                                fontWeight = FontWeight.Bold,
+                                                                                color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // Row 1: Proactive OEM Sentinel Toggle
                                                         PrefToggleRow(
-                                                            title = "Enable Core Watchdog Sentinel",
+                                                            title = "Proactive OEM Sentinel",
                                                             subtitle = "Background sentinel thread polls Lightspeed health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
                                                             isChecked = sentinelEnabled,
                                                             onCheckedChange = { checked ->
@@ -3464,69 +3567,175 @@ fun SidebarMatrixConfigurationFields(
                                                             }
                                                         )
 
-                                                        // Health Status Badge
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = CardDefaults.cardColors(
-                                                                containerColor = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF3D00).copy(alpha = 0.15f)
-                                                            ),
-                                                            border = androidx.compose.foundation.BorderStroke(
-                                                                1.dp,
-                                                                if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.4f) else Color(0xFFFF3D00).copy(alpha = 0.5f)
-                                                            )
+                                                        // Row 2: Autonomous Crash Resuscitation Toggle
+                                                        PrefToggleRow(
+                                                            title = "Autonomous Crash Resuscitation",
+                                                            subtitle = "Catches fatal JVM and shader exceptions, records flight telemetry, and arms an OS alarm to resuscitate the service via Shizuku within 1s.",
+                                                            isChecked = crashSentinelEnabled,
+                                                            onCheckedChange = { checked ->
+                                                                crashSentinelEnabled = checked
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, checked).apply()
+                                                                onRefreshNeeded()
+                                                            }
+                                                        )
+
+                                                        // Action Utilities Row
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                         ) {
-                                                            Row(
-                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                            OutlinedButton(
+                                                                onClick = {
+                                                                    val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
+                                                                    if (ok) {
+                                                                        android.widget.Toast.makeText(context, "Core Watchdog pulse sent via Shizuku", android.widget.Toast.LENGTH_SHORT).show()
+                                                                    } else {
+                                                                        android.widget.Toast.makeText(context, "Shizuku or Root required for service revival", android.widget.Toast.LENGTH_SHORT).show()
+                                                                    }
+                                                                },
+                                                                modifier = Modifier.weight(1f),
+                                                                shape = RoundedCornerShape(10.dp),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f))
                                                             ) {
                                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                    Icon(
-                                                                        imageVector = if (isServiceRunning) Icons.Default.CheckCircle else Icons.Default.Warning,
-                                                                        contentDescription = null,
-                                                                        tint = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
-                                                                        modifier = Modifier.size(18.dp)
-                                                                    )
-                                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                                    Column {
-                                                                        Text(
-                                                                            text = if (isServiceRunning) "LIGHTSPEED SERVICE: ONLINE" else "LIGHTSPEED SERVICE: OFFLINE",
-                                                                            fontWeight = FontWeight.Bold,
-                                                                            fontSize = 11.5.sp,
-                                                                            color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00)
-                                                                        )
-                                                                        Text(
-                                                                            text = if (isSentinelActive) "Core Sentinel: Active (20s cycle)" else "Core Sentinel: Standby",
-                                                                            fontSize = 10.5.sp,
-                                                                            color = Color.LightGray.copy(alpha = 0.75f)
-                                                                        )
+                                                                    Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(15.dp))
+                                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                                    Text("Trigger Pulse", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = cautionAmber)
+                                                                }
+                                                            }
+
+                                                            if (!isBatteryIgnored) {
+                                                                OutlinedButton(
+                                                                    onClick = {
+                                                                        LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
+                                                                    },
+                                                                    modifier = Modifier.weight(1f),
+                                                                    shape = RoundedCornerShape(10.dp),
+                                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.6f))
+                                                                ) {
+                                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                        Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFFF9800), modifier = Modifier.size(15.dp))
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text("Fix Battery", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color(0xFFFF9800))
                                                                     }
                                                                 }
                                                             }
                                                         }
 
-                                                        OutlinedButton(
-                                                            onClick = {
-                                                                val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
-                                                                if (ok) {
-                                                                    android.widget.Toast.makeText(context, "Space Watchdog pulse sent via Shizuku", android.widget.Toast.LENGTH_SHORT).show()
+                                                        // Flight Recorder / Anomaly Telemetry Card
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(
+                                                                containerColor = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
+                                                                    Color(0xFFFF9800).copy(alpha = 0.1f)
                                                                 } else {
-                                                                    android.widget.Toast.makeText(context, "Shizuku or Root required for service revival", android.widget.Toast.LENGTH_SHORT).show()
+                                                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                                                                 }
-                                                            },
-                                                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                                                            shape = RoundedCornerShape(10.dp),
-                                                            border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f))
+                                                            ),
+                                                            border = androidx.compose.foundation.BorderStroke(
+                                                                1.dp,
+                                                                if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
+                                                                    Color(0xFFFF9800).copy(alpha = 0.35f)
+                                                                } else {
+                                                                    Color.White.copy(alpha = 0.08f)
+                                                                }
+                                                            )
                                                         ) {
-                                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
-                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                Text("Trigger Core Sentinel Pulse", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = cautionAmber)
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                        Icon(
+                                                                            imageVector = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) Icons.Default.Warning else Icons.Default.CheckCircle,
+                                                                            contentDescription = null,
+                                                                            tint = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) Color(0xFFFF9800) else Color(0xFF00E676),
+                                                                            modifier = Modifier.size(16.dp)
+                                                                        )
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text(
+                                                                            "FLIGHT RECORDER TELEMETRY",
+                                                                            fontSize = 10.sp,
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            color = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) Color(0xFFFF9800) else Color(0xFF00E676)
+                                                                        )
+                                                                    }
+
+                                                                    if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
+                                                                        Text(
+                                                                            text = "Clear Log",
+                                                                            fontSize = 10.sp,
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            color = Color.LightGray,
+                                                                            modifier = Modifier.clickable {
+                                                                                LightspeedWatchdogEngine.clearCrashTelemetry(context)
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+
+                                                                Spacer(modifier = Modifier.height(6.dp))
+
+                                                                if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
+                                                                    val formattedDate = remember(lastCrashTimestamp) {
+                                                                        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(java.util.Date(lastCrashTimestamp))
+                                                                    }
+                                                                    Text(
+                                                                        text = "Last Anomaly: $lastCrashMessage",
+                                                                        fontSize = 11.5.sp,
+                                                                        fontWeight = FontWeight.SemiBold,
+                                                                        color = Color.White
+                                                                    )
+                                                                    Text(
+                                                                        text = "Recorded at $formattedDate",
+                                                                        fontSize = 10.sp,
+                                                                        color = Color.Gray
+                                                                    )
+
+                                                                    if (!lastCrashStack.isNullOrBlank()) {
+                                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                                        Text(
+                                                                            text = if (showFullCrashStack) "Hide Stacktrace ▲" else "View Stacktrace ▼",
+                                                                            fontSize = 10.5.sp,
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            color = MaterialTheme.colorScheme.primary,
+                                                                            modifier = Modifier.clickable {
+                                                                                showFullCrashStack = !showFullCrashStack
+                                                                            }
+                                                                        )
+
+                                                                        if (showFullCrashStack) {
+                                                                            Surface(
+                                                                                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                                                                shape = RoundedCornerShape(6.dp),
+                                                                                color = Color.Black.copy(alpha = 0.5f),
+                                                                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
+                                                                            ) {
+                                                                                Text(
+                                                                                    text = lastCrashStack.take(1500),
+                                                                                    fontSize = 9.sp,
+                                                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                                                    color = Color.LightGray,
+                                                                                    modifier = Modifier.padding(6.dp)
+                                                                                )
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    Text(
+                                                                        text = "Nominal. Zero crash events or unhandled exceptions recorded.",
+                                                                        fontSize = 11.sp,
+                                                                        color = Color.LightGray.copy(alpha = 0.7f)
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                     }
-
+                                                    
                                                     // 2. Perimeter Watchdog
                                                     val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
                                                     val pm = context.packageManager
@@ -3550,7 +3759,6 @@ fun SidebarMatrixConfigurationFields(
                                                     val thirdPartyServices = remember(installedA11y) {
                                                         installedA11y.filter { it.resolveInfo?.serviceInfo?.packageName != context.packageName }
                                                     }
-                                                    val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
 
                                                     CollapsibleSubSection(
                                                         title = "Perimeter Watchdog",

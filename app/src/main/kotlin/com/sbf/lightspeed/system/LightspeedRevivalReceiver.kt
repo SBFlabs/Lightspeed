@@ -39,6 +39,12 @@ class LightspeedRevivalReceiver : BroadcastReceiver() {
             return
         }
 
+        val isCrashSentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, true)
+        if (!isCrashSentinelEnabled) {
+            Log.i(TAG, "Crash Sentinel revival is disabled in Core Watchdog. Revival aborted.")
+            return
+        }
+
         // 2. Check if service is already active
         if (LightspeedAccessibilityService.instance != null) {
             Log.i(TAG, "Service is already online.")

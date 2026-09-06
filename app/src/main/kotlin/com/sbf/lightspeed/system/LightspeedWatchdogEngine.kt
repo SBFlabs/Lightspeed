@@ -2,6 +2,10 @@ package com.sbf.lightspeed.system
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
@@ -220,5 +224,51 @@ object LightspeedWatchdogEngine {
     fun stopSentinel() {
         sentinelJob?.cancel()
         sentinelJob = null
+    }
+
+    /**
+     * Checks whether the app is whitelisted from battery optimizations.
+     */
+    fun isBatteryOptimizationIgnored(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            pm?.isIgnoringBatteryOptimizations(context.packageName) == true
+        } else {
+            true
+        }
+    }
+
+    /**
+     * Dispatches system request or settings intent to exclude app from aggressive battery optimizations.
+     */
+    fun requestIgnoreBatteryOptimization(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                try {
+                    val fallback = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(fallback)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    /**
+     * Clears persisted crash blackbox telemetry.
+     */
+    fun clearCrashTelemetry(context: Context) {
+        context.defaultPrefs().edit()
+            .remove("key_last_crash_timestamp")
+            .remove("key_last_crash_message")
+            .remove("key_last_crash_stack")
+            .remove("key_has_unreported_crash")
+            .apply()
     }
 }

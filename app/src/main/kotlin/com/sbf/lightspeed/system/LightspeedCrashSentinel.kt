@@ -53,7 +53,14 @@ object LightspeedCrashSentinel {
             return
         }
 
-        // 3. Schedule Revival via AlarmManager (1 second later)
+        // 3. Check if Crash Sentinel revival is enabled by user in Core Watchdog
+        val isCrashSentinelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, true)
+        if (!isCrashSentinelEnabled) {
+            Log.i(TAG, "Crash Sentinel revival is disabled in Core Watchdog. Skipping revival.")
+            return
+        }
+
+        // 4. Schedule Revival via AlarmManager (1 second later)
         try {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
             val intent = Intent(context, LightspeedRevivalReceiver::class.java).apply {

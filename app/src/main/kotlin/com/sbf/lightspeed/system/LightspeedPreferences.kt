@@ -213,6 +213,7 @@ object LightspeedPreferences {
     const val KEY_ATTITUDE_BUCKET_SENSOR_LANDSCAPE = "pref_attitude_bucket_sensor_landscape"
     const val KEY_ATTITUDE_BUCKET_SENSOR_360 = "pref_attitude_bucket_sensor_360"
     const val KEY_ACCESSIBILITY_SENTINEL_ENABLED = "pref_accessibility_sentinel_enabled"
+    const val KEY_CRASH_SENTINEL_ENABLED = "pref_crash_sentinel_enabled"
 
     // Refueling Bay Keys
     const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screen_timeout", "screensaver_only"

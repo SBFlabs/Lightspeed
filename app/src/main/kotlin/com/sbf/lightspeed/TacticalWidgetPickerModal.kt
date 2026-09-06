@@ -224,7 +224,7 @@ fun TacticalWidgetPickerModal(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .padding(start = 14.dp, end = 28.dp, top = 8.dp, bottom = 8.dp)
         ) {
             // 1. Cockpit Header Bar
             Row(

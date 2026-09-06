@@ -563,7 +563,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (policy == "portrait_only" && isLandscape) {
             setOverlaysVisible(false)
         } else {
-            setOverlaysVisible(true)
+            updateOverlaysVisibility()
             resyncOverlayMetrics()
         }
 
@@ -597,19 +597,35 @@ class LightspeedAccessibilityService : AccessibilityService() {
         notchOverlayView?.visibility = v
     }
 
-    private fun updateOverlaysVisibility(isLocked: Boolean, currentPkg: String?) {
+    fun updateOverlaysVisibility(isLocked: Boolean? = null, currentPkg: String? = null) {
+        val prefs = defaultPrefs()
+        val hideOnLockAndDock = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true)
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val effectiveLocked = isLocked ?: (keyguardManager?.isKeyguardLocked == true)
         val isRefueling = LightspeedRefuelingActivity.isActive
         val isInfinixStandby = currentPkg != null && (currentPkg.contains("standby") || currentPkg.contains("aod") || currentPkg == "com.transsion.aod" || currentPkg == "com.infinix.aod" || currentPkg == "com.transsion.aod.app")
-        val isDoze = currentPkg == "com.android.systemui" && !isLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
-        val shouldHide = isLocked || isRefueling || isInfinixStandby || isDoze
+        val isDoze = currentPkg == "com.android.systemui" && !effectiveLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
 
-        val v = if (shouldHide || isSuppressedByOrientation()) View.GONE else View.VISIBLE
-        
-        statusBarOverlayView?.visibility = v
-        notchOverlayView?.visibility = v
-        sensorTouchOverlayView?.visibility = v
-        overlayView?.visibility = v
-        leftWingOverlayView?.visibility = v
+        // Top HUD Overlays (Status Bar Rail, Notch Orbital Capsule, and Sensor Deck Touch Target)
+        // Suppressed when device is locked/docked (if configured), during Refueling Bay, or during OEM AOD/Doze.
+        val shouldHideTopHud = (hideOnLockAndDock && effectiveLocked) || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()
+        val topHudVisibility = if (shouldHideTopHud) View.GONE else View.VISIBLE
+
+        statusBarOverlayView?.visibility = topHudVisibility
+        notchOverlayView?.visibility = topHudVisibility
+        sensorTouchOverlayView?.visibility = topHudVisibility
+
+        // Kinetic Deflectors (Left & Right Flank Wings / Edge Gesture Controls)
+        // Deflectors must ALWAYS remain interactive across Lock Screen, Refueling Bay,
+        // Widgets / Avionics Pickers, and Home Screen. They are only suppressed by orientation policy.
+        val deflectorVisibility = if (isSuppressedByOrientation()) View.GONE else View.VISIBLE
+        overlayView?.visibility = deflectorVisibility
+        leftWingOverlayView?.visibility = deflectorVisibility
+
+        if (deflectorVisibility == View.VISIBLE) {
+            overlayView?.postInvalidate()
+            leftWingOverlayView?.postInvalidate()
+        }
     }
 
     fun scheduleGeometryResync() {

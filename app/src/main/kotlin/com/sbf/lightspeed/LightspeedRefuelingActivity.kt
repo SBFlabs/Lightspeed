@@ -292,16 +292,28 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         super.onStart()
         isActive = true
         appWidgetHost?.startListening()
+        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isActive = true
+        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
     }
 
     override fun onStop() {
         super.onStop()
+        isActive = false
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.show(WindowInsetsCompat.Type.systemBars())
         val lp = window.attributes
         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         window.attributes = lp
         appWidgetHost?.stopListening()
+        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+        if (!isChangingConfigurations) {
+            finish()
+        }
     }
 
     override fun onDestroy() {
@@ -312,5 +324,6 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         window.attributes = lp
         isActive = false
+        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
     }
 }

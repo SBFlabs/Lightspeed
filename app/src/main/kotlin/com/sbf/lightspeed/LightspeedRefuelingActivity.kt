@@ -279,7 +279,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                     android.widget.Toast.makeText(
                         this,
                         "Module configuration unavailable; deploying default slot",
-                        android.widget.Toast.SHORT
+                        android.widget.Toast.LENGTH_SHORT
                     ).show()
                     saveNewWidgetId(widgetId)
                 }

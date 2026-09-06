@@ -22,6 +22,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -190,9 +193,13 @@ fun RefuelingBayScreen(
             val idleDuration = System.currentTimeMillis() - lastInteractionTimestamp
             if (sleepTimeoutMs < Long.MAX_VALUE && idleDuration >= sleepTimeoutMs && !isSleeping) {
                 isSleeping = true
-                val lp = activity.window.attributes
+                val window = activity.window
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                val lp = window.attributes
                 lp.screenBrightness = 0.01f
-                activity.window.attributes = lp
+                window.attributes = lp
             }
 
             // Drift every 60 iterations (60 seconds)
@@ -208,12 +215,42 @@ fun RefuelingBayScreen(
         }
     }
 
+    // Sync System Bars with Sleep State
+    LaunchedEffect(isSleeping) {
+        val window = activity.window
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (isSleeping) {
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
+        } else {
+            insetsController.show(WindowInsetsCompat.Type.systemBars())
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            )
+        }
+    }
+
     // Function to wake up from sleep shield
     fun wakeShield(durationMs: Long = 15_000L) {
         isSleeping = false
-        val lp = activity.window.attributes
+        val window = activity.window
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.show(WindowInsetsCompat.Type.systemBars())
+        val lp = window.attributes
         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        activity.window.attributes = lp
+        window.attributes = lp
         if (sleepTimeoutMs < Long.MAX_VALUE) {
             lastInteractionTimestamp = System.currentTimeMillis() - (sleepTimeoutMs - durationMs).coerceAtLeast(0L)
         } else {
@@ -240,9 +277,12 @@ fun RefuelingBayScreen(
                         }
                     },
                     onDoubleTap = {
-                        val lp = activity.window.attributes
+                        val window = activity.window
+                        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                        insetsController.show(WindowInsetsCompat.Type.systemBars())
+                        val lp = window.attributes
                         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-                        activity.window.attributes = lp
+                        window.attributes = lp
                         onDismiss()
                     }
                 )

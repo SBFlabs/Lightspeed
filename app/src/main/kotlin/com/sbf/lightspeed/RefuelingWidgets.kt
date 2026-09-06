@@ -4,7 +4,10 @@ import android.app.Activity
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.widget.FrameLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -201,19 +204,7 @@ fun MultiWidgetContainer(
             shape = RoundedCornerShape(20.dp)
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(pagerState.pageCount) {
-                        detectVerticalDragGestures { change, dragAmount ->
-                            change.consume()
-                            if (abs(dragAmount) > 25f) {
-                                val target = if (dragAmount < 0) pagerState.currentPage + 1 else pagerState.currentPage - 1
-                                if (target in 0 until pagerState.pageCount) {
-                                    coroutineScope.launch { pagerState.animateScrollToPage(target) }
-                                }
-                            }
-                        }
-                    }
+                modifier = Modifier.fillMaxSize()
             ) {
                 HorizontalPager(
                     state = pagerState,
@@ -424,6 +415,55 @@ fun MultiWidgetContainer(
     }
 }
 
+/**
+ * Custom FrameLayout host container for AppWidgetHostView.
+ * Intercepts touch direction to ensure scrollable collection widgets (e.g., Calendar events list,
+ * agenda, email list) can freely scroll vertically without ancestor Compose gestures stealing the touch,
+ * while allowing horizontal swipes to pass through to HorizontalPager.
+ */
+class ScrollableAppWidgetContainer(context: Context) : FrameLayout(context) {
+    private var startX = 0f
+    private var startY = 0f
+    private var isVerticalScroll = false
+    private var isHorizontalScroll = false
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                startX = ev.x
+                startY = ev.y
+                isVerticalScroll = false
+                isHorizontalScroll = false
+                parent?.requestDisallowInterceptTouchEvent(true)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = abs(ev.x - startX)
+                val dy = abs(ev.y - startY)
+                if (!isVerticalScroll && !isHorizontalScroll) {
+                    if (dy > dx && dy > touchSlop) {
+                        isVerticalScroll = true
+                        parent?.requestDisallowInterceptTouchEvent(true)
+                    } else if (dx > dy && dx > touchSlop) {
+                        isHorizontalScroll = true
+                        parent?.requestDisallowInterceptTouchEvent(false)
+                    }
+                } else if (isVerticalScroll) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                } else if (isHorizontalScroll) {
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isVerticalScroll = false
+                isHorizontalScroll = false
+                parent?.requestDisallowInterceptTouchEvent(false)
+            }
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+}
+
 @Composable
 fun AppWidgetContainerView(
     activity: Activity,
@@ -445,20 +485,17 @@ fun AppWidgetContainerView(
             modifier = modifier,
             factory = { ctx ->
                 try {
+                    val container = ScrollableAppWidgetContainer(ctx)
                     val hostView = appWidgetHost.createView(ctx, widgetId, appWidgetInfo)
                     hostView.setAppWidget(widgetId, appWidgetInfo)
-                    hostView.setOnTouchListener { _, ev ->
-                        if (ev.action == android.view.MotionEvent.ACTION_DOWN) {
-                            try {
-                                val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                                if (km?.isKeyguardLocked == true) {
-                                    km.requestDismissKeyguard(activity, null)
-                                }
-                            } catch (_: Exception) {}
-                        }
-                        false
-                    }
-                    hostView
+                    container.addView(
+                        hostView,
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT
+                        )
+                    )
+                    container
                 } catch (e: Exception) {
                     android.widget.TextView(ctx).apply {
                         text = "Widget Error"

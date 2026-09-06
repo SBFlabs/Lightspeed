@@ -12,6 +12,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 
@@ -90,12 +93,25 @@ class LightspeedRefuelingActivity : ComponentActivity() {
             setTurnScreenOn(true)
         }
 
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         window.addFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                     WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
 
         appWidgetHost = AppWidgetHost(applicationContext, APPWIDGET_HOST_ID)
         appWidgetManager = AppWidgetManager.getInstance(applicationContext)
@@ -121,6 +137,8 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                     onToggleLayoutMode = { toggleLayoutMode() },
                     onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
                     onDismiss = {
+                        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                        insetsController.show(WindowInsetsCompat.Type.systemBars())
                         val lp = window.attributes
                         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
                         window.attributes = lp

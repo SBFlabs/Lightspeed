@@ -509,21 +509,25 @@ fun DeflectorMasterCard(
                             color = Color.White
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(
-                                    if (isEnabled) Color(0xFF00E676).copy(alpha = 0.18f)
-                                    else Color.White.copy(alpha = 0.1f)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isEnabled) Color(0xFF00E676).copy(alpha = 0.18f)
+                            else Color.White.copy(alpha = 0.1f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isEnabled) Color(0xFF00E676).copy(alpha = 0.45f)
+                                else Color.White.copy(alpha = 0.2f)
+                            )
                         ) {
                             Text(
-                                if (isEnabled) "ACTIVE" else "OFF",
+                                text = if (isEnabled) "ACTIVE" else "OFF",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
                                 color = if (isEnabled) Color(0xFF00E676) else Color.White.copy(alpha = 0.6f),
-                                letterSpacing = 0.5.sp
+                                letterSpacing = 0.5.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                     }
@@ -663,38 +667,42 @@ fun FlightControlDeckCard(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "MASTER FLIGHT DECK",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 14.5.sp,
-                            color = Color.White,
-                            letterSpacing = 0.5.sp
+                    Text(
+                        "MASTER FLIGHT DECK",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f)
+                        else Color(0xFFFF9800).copy(alpha = 0.18f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (isArmed) Color(0xFF00E676).copy(alpha = 0.45f)
+                            else Color(0xFFFF9800).copy(alpha = 0.45f)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(
-                                    if (isArmed) Color(0xFF00E676).copy(alpha = 0.2f)
-                                    else Color(0xFFFF9800).copy(alpha = 0.2f)
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                if (isArmed) "ARMED" else "STANDBY",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Black,
-                                color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                                letterSpacing = 0.5.sp
-                            )
-                        }
+                    ) {
+                        Text(
+                            text = if (isArmed) "ARMED" else "STANDBY",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         if (isArmed) "All gesture deflectors, cockpit hangars, and telemetry active"
                         else "Flight Standby: All touch overlays and gestures completely detached",
                         fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        lineHeight = 15.sp
                     )
                 }
                 Switch(

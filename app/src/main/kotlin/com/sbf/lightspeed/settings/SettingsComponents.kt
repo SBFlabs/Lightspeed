@@ -4,9 +4,14 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.Build
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1296,91 +1301,179 @@ fun CentralCommandDeckDialog(
     onDismiss: () -> Unit,
     onRefreshNeeded: () -> Unit = {}
 ) {
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val thresholdPx = with(density) { 90.dp.toPx() }
+    val dragOffsetY = remember { Animatable(0f) }
+    var hasCrossedThreshold by remember { mutableStateOf(false) }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Card(
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                dialogWindow?.attributes?.blurBehindRadius = 60
+            }
+        }
+
+        Box(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.85f)
-                .clip(RoundedCornerShape(28.dp))
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.96f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.98f)
-                        ),
-                        radius = 1200f
-                    )
-                )
-                .border(
-                    1.2.dp,
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = 0.35f),
-                            Color.White.copy(alpha = 0.12f),
-                            Color.White.copy(alpha = 0.04f)
-                        )
-                    ),
-                    RoundedCornerShape(28.dp)
-                ),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-            shape = RoundedCornerShape(28.dp)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
+            Card(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .fillMaxWidth(0.96f)
+                    .fillMaxHeight(0.86f)
+                    .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+                            ),
+                            radius = 1200f
+                        )
+                    )
+                    .border(
+                        1.2.dp,
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.35f),
+                                Color.White.copy(alpha = 0.10f),
+                                Color.White.copy(alpha = 0.03f)
+                            )
+                        ),
+                        RoundedCornerShape(32.dp)
+                    ),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                shape = RoundedCornerShape(32.dp)
             ) {
-                // Header Row: Title + Close Icon
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Header Drag Region (drag gesture scoped to drag handle & header row)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures(
+                                    onDragStart = { hasCrossedThreshold = false },
+                                    onDragEnd = {
+                                        if (dragOffsetY.value >= thresholdPx) {
+                                            onDismiss()
+                                        } else {
+                                            coroutineScope.launch {
+                                                dragOffsetY.animateTo(
+                                                    0f,
+                                                    animationSpec = spring(
+                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                        stiffness = Spring.StiffnessMediumLow
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            dragOffsetY.animateTo(0f)
+                                        }
+                                    },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val current = dragOffsetY.value + dragAmount
+                                        val newOffset = if (current <= 0f) 0f
+                                        else if (current <= thresholdPx) current
+                                        else thresholdPx + (current - thresholdPx) * 0.35f
+
+                                        if (!hasCrossedThreshold && newOffset >= thresholdPx) {
+                                            hasCrossedThreshold = true
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            LightspeedHapticEngine.tick(context)
+                                        } else if (hasCrossedThreshold && newOffset < thresholdPx) {
+                                            hasCrossedThreshold = false
+                                        }
+
+                                        coroutineScope.launch {
+                                            dragOffsetY.snapTo(newOffset)
+                                        }
+                                    }
+                                )
+                            }
+                    ) {
+                        // Sleek Drag Handle Pill
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                .fillMaxWidth()
+                                .padding(top = 2.dp, bottom = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Default.Bolt,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 38.dp, height = 4.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.35f))
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                "FLIGHT CONTROL DECK",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                letterSpacing = 0.5.sp
-                            )
-                            Text(
-                                "Master avionics & universal shortcuts",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                            )
+
+                        // Header Row: Title + Close Icon
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Bolt,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        "FLIGHT CONTROL DECK",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Text(
+                                        "Master avionics & universal shortcuts",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.size(32.dp),
+                                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.08f))
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
 
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(32.dp),
-                        colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.08f))
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                 // Scrollable Flight Core Controls & Shortcut Mapping
                 Column(
@@ -1506,6 +1599,7 @@ fun CentralCommandDeckDialog(
             }
         }
     }
+}
 }
 
 @Composable

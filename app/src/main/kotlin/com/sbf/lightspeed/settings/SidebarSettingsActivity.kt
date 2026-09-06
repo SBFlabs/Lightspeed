@@ -1,6 +1,9 @@
 package com.sbf.lightspeed.settings
 
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +22,13 @@ class SidebarSettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         isActive = true
         enableEdgeToEdge()
+
+        window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            window.attributes.blurBehindRadius = 60
+        }
+        window.setDimAmount(0.45f)
 
         setContent {
             LightspeedTheme {

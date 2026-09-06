@@ -3500,61 +3500,76 @@ fun SidebarMatrixConfigurationFields(
                                                                 Spacer(modifier = Modifier.height(8.dp))
 
                                                                 Row(
-                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                                                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                                 ) {
                                                                     // Service Badge
                                                                     Surface(
-                                                                        modifier = Modifier.weight(1f),
+                                                                        modifier = Modifier.weight(1f).fillMaxHeight(),
                                                                         shape = RoundedCornerShape(8.dp),
                                                                         color = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF3D00).copy(alpha = 0.15f),
                                                                         border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF3D00).copy(alpha = 0.35f))
                                                                     ) {
-                                                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                                                            Text("CORE SERVICE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                                                                        Column(
+                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                                            verticalArrangement = Arrangement.Center
+                                                                        ) {
+                                                                            Text("SERVICE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                                                                             Text(
-                                                                                if (isServiceRunning) "ONLINE" else "OFFLINE",
+                                                                                text = if (isServiceRunning) "ONLINE" else "OFFLINE",
                                                                                 fontSize = 11.sp,
                                                                                 fontWeight = FontWeight.Bold,
-                                                                                color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00)
+                                                                                color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
+                                                                                maxLines = 1,
+                                                                                softWrap = false
                                                                             )
                                                                         }
                                                                     }
 
                                                                     // Shizuku Bridge Badge
                                                                     Surface(
-                                                                        modifier = Modifier.weight(1f),
+                                                                        modifier = Modifier.weight(1f).fillMaxHeight(),
                                                                         shape = RoundedCornerShape(8.dp),
                                                                         color = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
                                                                         border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
                                                                     ) {
-                                                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                                                            Text("SHIZUKU LINK", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                                                                        Column(
+                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                                            verticalArrangement = Arrangement.Center
+                                                                        ) {
+                                                                            Text("SHIZUKU", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                                                                             Text(
-                                                                                if (isShizukuActive) "ACTIVE" else "STANDBY",
+                                                                                text = if (isShizukuActive) "ACTIVE" else "STANDBY",
                                                                                 fontSize = 11.sp,
                                                                                 fontWeight = FontWeight.Bold,
-                                                                                color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                                color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
+                                                                                maxLines = 1,
+                                                                                softWrap = false
                                                                             )
                                                                         }
                                                                     }
 
                                                                     // Battery Badge
                                                                     Surface(
-                                                                        modifier = Modifier.weight(1f).clickable {
+                                                                        modifier = Modifier.weight(1f).fillMaxHeight().clickable {
                                                                             LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
                                                                         },
                                                                         shape = RoundedCornerShape(8.dp),
                                                                         color = if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
                                                                         border = androidx.compose.foundation.BorderStroke(1.dp, if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
                                                                     ) {
-                                                                        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                                                                            Text("BATTERY MODE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                                                                        Column(
+                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                                            verticalArrangement = Arrangement.Center
+                                                                        ) {
+                                                                            Text("BATTERY", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                                                                             Text(
-                                                                                if (isBatteryIgnored) "UNRESTRICTED" else "OPTIMIZED",
-                                                                                fontSize = 10.sp,
+                                                                                text = if (isBatteryIgnored) "EXEMPT" else "LIMITED",
+                                                                                fontSize = 11.sp,
                                                                                 fontWeight = FontWeight.Bold,
-                                                                                color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                                color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
+                                                                                maxLines = 1,
+                                                                                softWrap = false
                                                                             )
                                                                         }
                                                                     }
@@ -3605,14 +3620,15 @@ fun SidebarMatrixConfigurationFields(
                                                                         android.widget.Toast.makeText(context, "Shizuku or Root required for service revival", android.widget.Toast.LENGTH_SHORT).show()
                                                                     }
                                                                 },
-                                                                modifier = Modifier.weight(1f),
+                                                                modifier = Modifier.weight(1f).height(36.dp),
                                                                 shape = RoundedCornerShape(10.dp),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f))
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f)),
+                                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                                             ) {
-                                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                                                     Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(15.dp))
                                                                     Spacer(modifier = Modifier.width(6.dp))
-                                                                    Text("Trigger Pulse", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = cautionAmber)
+                                                                    Text("Trigger Pulse", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = cautionAmber, maxLines = 1, softWrap = false)
                                                                 }
                                                             }
 
@@ -3620,14 +3636,15 @@ fun SidebarMatrixConfigurationFields(
                                                                 onClick = {
                                                                     LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
                                                                 },
-                                                                modifier = Modifier.weight(1f),
+                                                                modifier = Modifier.weight(1f).height(36.dp),
                                                                 shape = RoundedCornerShape(10.dp),
                                                                 border = androidx.compose.foundation.BorderStroke(
                                                                     1.dp,
                                                                     if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.45f) else Color(0xFFFF9800).copy(alpha = 0.6f)
-                                                                )
+                                                                ),
+                                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                                             ) {
-                                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                                                     Icon(
                                                                         imageVector = if (isBatteryIgnored) Icons.Default.CheckCircle else Icons.Default.BatteryChargingFull,
                                                                         contentDescription = null,
@@ -3638,8 +3655,10 @@ fun SidebarMatrixConfigurationFields(
                                                                     Text(
                                                                         text = if (isBatteryIgnored) "Battery: OK" else "Fix Battery",
                                                                         fontWeight = FontWeight.Bold,
-                                                                        fontSize = 11.5.sp,
-                                                                        color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                        fontSize = 11.sp,
+                                                                        color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
+                                                                        maxLines = 1,
+                                                                        softWrap = false
                                                                     )
                                                                 }
                                                             }

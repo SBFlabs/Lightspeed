@@ -80,13 +80,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import com.sbf.lightspeed.system.LightspeedHapticEngine
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.geometry.Offset
 
 object GlassNoiseTexture {
     private var cachedBrush: ShaderBrush? = null

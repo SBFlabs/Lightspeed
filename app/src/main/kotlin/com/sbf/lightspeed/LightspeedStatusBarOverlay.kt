@@ -97,10 +97,28 @@ class LightspeedStatusBarOverlay(
     ) {
         uiHandler.post {
             transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
+            transientDismissRunnable = null
             currentTransientHudState = TransientHudState(title, value, stepIndex, totalSteps, style)
             expandForHud()
             postInvalidate()
 
+            if (durationMs > 0L) {
+                val runnable = Runnable {
+                    currentTransientHudState = null
+                    if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
+                        restoreWindowLayout()
+                    }
+                    postInvalidate()
+                }
+                transientDismissRunnable = runnable
+                uiHandler.postDelayed(runnable, durationMs)
+            }
+        }
+    }
+
+    fun dismissTransientHud(delayMs: Long = 1200L) {
+        uiHandler.post {
+            transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
             val runnable = Runnable {
                 currentTransientHudState = null
                 if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
@@ -109,7 +127,11 @@ class LightspeedStatusBarOverlay(
                 postInvalidate()
             }
             transientDismissRunnable = runnable
-            uiHandler.postDelayed(runnable, durationMs)
+            if (delayMs > 0L) {
+                uiHandler.postDelayed(runnable, delayMs)
+            } else {
+                runnable.run()
+            }
         }
     }
 
@@ -1047,6 +1069,12 @@ class LightspeedStatusBarOverlay(
         ): Boolean {
             val inst = activeInstance ?: return false
             inst.displayTransientHud(title, value, stepIndex, totalSteps, durationMs, style)
+            return true
+        }
+
+        fun dismissActionHud(delayMs: Long = 1200L): Boolean {
+            val inst = activeInstance ?: return false
+            inst.dismissTransientHud(delayMs)
             return true
         }
     }

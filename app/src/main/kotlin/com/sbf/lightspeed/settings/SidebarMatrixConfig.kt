@@ -1071,6 +1071,13 @@ fun SidebarMatrixConfigurationFields(
                                                             GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_STATUSBAR_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
                                                             GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
                                                         }
+                                                        GestureMappingRow(
+                                                            context, prefs, ArrowDirection.SCRUB, false,
+                                                            "pref_macro_action_STATUSBAR_SCRUBBING",
+                                                            "Sensor Deck Long Sweep (Scrubbing)",
+                                                            listOf("none", "system:screen_timeout", "system:volume", "system:brightness"),
+                                                            tokenLabelCache
+                                                        )
                                                     }
                                                 }
                                             }

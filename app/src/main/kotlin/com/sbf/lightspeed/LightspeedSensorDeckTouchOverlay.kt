@@ -2,17 +2,20 @@ package com.sbf.lightspeed
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlin.math.abs
 import kotlin.math.hypot
@@ -46,14 +49,198 @@ class LightspeedSensorDeckTouchOverlay(
     private var lastTapTime = 0L
     private var pendingTapRunnable: Runnable? = null
 
+    // Scrubbing State (Hold-to-Scrub & Long-Sweep Scrub)
+    private var isScrubbing = false
+    private var activeScrubType = "none"
+    private var lastScrubRawX = 0f
+    private var lastScrubRawY = 0f
+    private var latestRawX = 0f
+    private var latestRawY = 0f
+    private var scrubAccumulator = 0f
+    private var scrubCurrentValue = 0
+    private var scrubHudTitle = ""
+    private var scrubHudValue = ""
+
+    private fun isScrubAction(action: String): Boolean {
+        return action in listOf(
+            "system:screen_timeout", "ACTION_SCREEN_TIMEOUT", "screen_timeout",
+            "system:volume", "ACTION_VOLUME", "volume", "scrub:volume",
+            "system:brightness", "ACTION_BRIGHTNESS", "brightness", "scrub:brightness"
+        )
+    }
+
+    private fun normalizeScrubAction(action: String): String {
+        return when (action) {
+            "system:screen_timeout", "ACTION_SCREEN_TIMEOUT", "screen_timeout" -> "system:screen_timeout"
+            "system:volume", "ACTION_VOLUME", "volume", "scrub:volume" -> "system:volume"
+            "system:brightness", "ACTION_BRIGHTNESS", "brightness", "scrub:brightness" -> "system:brightness"
+            else -> action
+        }
+    }
+
+    private fun initScrubStateAndHud(scrubType: String) {
+        val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR", null)
+            ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+
+        when (scrubType) {
+            "system:screen_timeout" -> {
+                scrubCurrentValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
+                scrubHudTitle = "SHIP GOES DARK IN"
+                scrubHudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[scrubCurrentValue].second
+                LightspeedStatusBarOverlay.showActionHud(
+                    title = scrubHudTitle,
+                    value = scrubHudValue,
+                    stepIndex = scrubCurrentValue,
+                    totalSteps = LightspeedTimeoutEngine.TIMEOUT_STEPS.size,
+                    durationMs = 0L,
+                    style = hudStyle
+                )
+            }
+            "system:volume" -> {
+                val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                scrubCurrentValue = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+                val maxVol = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
+                scrubHudTitle = "MEDIA VOLUME"
+                scrubHudValue = "$scrubCurrentValue / $maxVol"
+                LightspeedStatusBarOverlay.showActionHud(
+                    title = scrubHudTitle,
+                    value = scrubHudValue,
+                    stepIndex = scrubCurrentValue,
+                    totalSteps = maxVol,
+                    durationMs = 0L,
+                    style = hudStyle
+                )
+            }
+            "system:brightness" -> {
+                scrubCurrentValue = try {
+                    Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                } catch (_: Exception) { 128 }
+                scrubHudTitle = "BRIGHTNESS"
+                scrubHudValue = "${(scrubCurrentValue * 100 / 255)}%"
+                LightspeedStatusBarOverlay.showActionHud(
+                    title = scrubHudTitle,
+                    value = scrubHudValue,
+                    stepIndex = (scrubCurrentValue * 10 / 255),
+                    totalSteps = 10,
+                    durationMs = 0L,
+                    style = hudStyle
+                )
+            }
+        }
+    }
+
+    private fun handleScrubMotion(rawDx: Float, rawDy: Float) {
+        // Allow scrubbing both sideways (rawDx) and up/down (rawDy) based on dominant movement
+        val delta = if (abs(rawDx) >= abs(rawDy)) rawDx else rawDy
+        scrubAccumulator += delta
+
+        val density = resources.displayMetrics.density
+        val stepThreshold = 26f * density
+
+        if (abs(scrubAccumulator) >= stepThreshold) {
+            val steps = (scrubAccumulator / stepThreshold).toInt()
+            scrubAccumulator %= stepThreshold
+
+            val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR", null)
+                ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+
+            when (activeScrubType) {
+                "system:screen_timeout" -> {
+                    val curIdx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
+                    val targetIndex = (curIdx + steps).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
+                    if (targetIndex != curIdx) {
+                        val (_, label) = LightspeedTimeoutEngine.setStepIndex(context, targetIndex)
+                        scrubCurrentValue = targetIndex
+                        scrubHudValue = label
+                        triggerHaptic(20, 140)
+                    }
+                    LightspeedStatusBarOverlay.showActionHud(
+                        title = "SHIP GOES DARK IN",
+                        value = LightspeedTimeoutEngine.TIMEOUT_STEPS[scrubCurrentValue].second,
+                        stepIndex = scrubCurrentValue,
+                        totalSteps = LightspeedTimeoutEngine.TIMEOUT_STEPS.size,
+                        durationMs = 0L,
+                        style = hudStyle
+                    )
+                }
+                "system:volume" -> {
+                    val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                    if (am != null) {
+                        val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        val curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        val targetVol = (curVol + steps).coerceIn(0, maxVol)
+                        if (targetVol != curVol) {
+                            am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                            triggerHaptic(18, 110)
+                        }
+                        scrubCurrentValue = targetVol
+                        scrubHudValue = "$targetVol / $maxVol"
+                        LightspeedStatusBarOverlay.showActionHud(
+                            title = "MEDIA VOLUME",
+                            value = scrubHudValue,
+                            stepIndex = targetVol,
+                            totalSteps = maxVol,
+                            durationMs = 0L,
+                            style = hudStyle
+                        )
+                    }
+                }
+                "system:brightness" -> {
+                    if (Settings.System.canWrite(context)) {
+                        val curBrightness = try {
+                            Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                        } catch (_: Exception) { 128 }
+                        val targetBrightness = (curBrightness + (steps * 12)).coerceIn(10, 255)
+                        if (abs(targetBrightness - curBrightness) >= 3) {
+                            try {
+                                Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
+                                triggerHaptic(14, 90)
+                            } catch (_: Exception) {}
+                        }
+                        scrubCurrentValue = targetBrightness
+                        scrubHudValue = "${(targetBrightness * 100 / 255)}%"
+                        LightspeedStatusBarOverlay.showActionHud(
+                            title = "BRIGHTNESS",
+                            value = scrubHudValue,
+                            stepIndex = (targetBrightness * 10 / 255),
+                            totalSteps = 10,
+                            durationMs = 0L,
+                            style = hudStyle
+                        )
+                    } else {
+                        LightspeedTimeoutEngine.requestWriteSettingsPermission(context)
+                    }
+                }
+            }
+        }
+    }
+
     private val holdRunnable = Runnable {
         val gestureKey = if (currentGesture != "NONE") currentGesture else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
-        val actionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
-        val action = prefs.getString(actionKey, "none") ?: "none"
+        val holdActionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
+        val configuredHold = prefs.getString(holdActionKey, "none") ?: "none"
+        val action = if (configuredHold != "none") {
+            configuredHold
+        } else {
+            val baseAction = prefs.getString("pref_macro_action_STATUSBAR_$gestureKey", "none") ?: "none"
+            if (isScrubAction(baseAction)) baseAction else "none"
+        }
+
         if (action != "none") {
-            isHoldFired = true
-            triggerHaptic(40, 200)
-            performActionByName(action)
+            if (isScrubAction(action)) {
+                isHoldFired = true
+                isScrubbing = true
+                activeScrubType = normalizeScrubAction(action)
+                lastScrubRawX = latestRawX
+                lastScrubRawY = latestRawY
+                scrubAccumulator = 0f
+                triggerHaptic(35, 180)
+                initScrubStateAndHud(activeScrubType)
+            } else {
+                isHoldFired = true
+                triggerHaptic(40, 200)
+                performActionByName(action)
+            }
         }
     }
 
@@ -66,6 +253,10 @@ class LightspeedSensorDeckTouchOverlay(
         super.onDetachedFromWindow()
         pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
         uiHandler.removeCallbacks(holdRunnable)
+        if (isScrubbing) {
+            isScrubbing = false
+            LightspeedStatusBarOverlay.dismissActionHud(0L)
+        }
     }
 
     private fun triggerHaptic(durationMs: Long = 25, amplitude: Int = 140) {
@@ -82,6 +273,8 @@ class LightspeedSensorDeckTouchOverlay(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                latestRawX = event.rawX
+                latestRawY = event.rawY
                 val nowDown = SystemClock.uptimeMillis()
                 if (nowDown - lastTapTime < DOUBLE_TAP_TIMEOUT_MS) {
                     isSecondTapInSequence = true
@@ -99,6 +292,11 @@ class LightspeedSensorDeckTouchOverlay(
                 startY = event.y
                 furthestX = event.x
                 isHoldFired = false
+                isScrubbing = false
+                activeScrubType = "none"
+                scrubAccumulator = 0f
+                lastScrubRawX = event.rawX
+                lastScrubRawY = event.rawY
                 isHorizontalEngaged = false
                 currentGesture = "NONE"
 
@@ -107,6 +305,18 @@ class LightspeedSensorDeckTouchOverlay(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                latestRawX = event.rawX
+                latestRawY = event.rawY
+
+                if (isScrubbing) {
+                    val rawDx = event.rawX - lastScrubRawX
+                    val rawDy = event.rawY - lastScrubRawY
+                    handleScrubMotion(rawDx, rawDy)
+                    lastScrubRawX = event.rawX
+                    lastScrubRawY = event.rawY
+                    return true
+                }
+
                 val rawDx = event.rawX - startRawX
                 val rawDy = event.rawY - startRawY
                 val dist = hypot(rawDx, rawDy)
@@ -139,6 +349,27 @@ class LightspeedSensorDeckTouchOverlay(
                 }
 
                 if (isHorizontalEngaged) {
+                    // Check Long Sweep Scrubbing (continuous swipe past threshold)
+                    val assignedScrub = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "none")
+                    val swipeAction = prefs.getString("pref_macro_action_STATUSBAR_$currentGesture", "none")
+                    val effectiveScrub = when {
+                        assignedScrub != null && assignedScrub != "none" && isScrubAction(assignedScrub) -> assignedScrub
+                        isScrubAction(swipeAction ?: "") -> swipeAction
+                        else -> null
+                    }
+                    if (effectiveScrub != null && abs(rawDx) > threshold * 1.8f && !isScrubbing) {
+                        isScrubbing = true
+                        isHoldFired = true
+                        uiHandler.removeCallbacks(holdRunnable)
+                        activeScrubType = normalizeScrubAction(effectiveScrub)
+                        lastScrubRawX = event.rawX
+                        lastScrubRawY = event.rawY
+                        scrubAccumulator = 0f
+                        triggerHaptic(35, 180)
+                        initScrubStateAndHud(activeScrubType)
+                        return true
+                    }
+
                     if (currentGesture == "SWIPE_RIGHT" && event.x > furthestX) furthestX = event.x
                     if (currentGesture == "SWIPE_LEFT"  && event.x < furthestX) furthestX = event.x
 
@@ -154,6 +385,17 @@ class LightspeedSensorDeckTouchOverlay(
 
             MotionEvent.ACTION_UP -> {
                 uiHandler.removeCallbacks(holdRunnable)
+                if (isScrubbing) {
+                    isScrubbing = false
+                    activeScrubType = "none"
+                    isHoldFired = false
+                    isSecondTapInSequence = false
+                    lastTapTime = 0L
+                    currentGesture = "NONE"
+                    LightspeedStatusBarOverlay.dismissActionHud(1200L)
+                    return true
+                }
+
                 val dx = event.x - startX
                 val dy = event.y - startY
                 val dist = hypot(dx, dy)
@@ -186,6 +428,11 @@ class LightspeedSensorDeckTouchOverlay(
                 uiHandler.removeCallbacks(holdRunnable)
                 pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
                 pendingTapRunnable = null
+                if (isScrubbing) {
+                    isScrubbing = false
+                    activeScrubType = "none"
+                    LightspeedStatusBarOverlay.dismissActionHud(600L)
+                }
                 isHoldFired = false
                 isSecondTapInSequence = false
                 currentGesture = "NONE"

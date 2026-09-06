@@ -1225,8 +1225,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                 triggerHardwareHaptic(65, 255) // Chunky high-inertia hardware pop (50ms)
                                 isScrubEntranceHapticFired = true
                             }
-                            val pixelYDelta = rawY - lastTouchRawY
-                            executeLinearScrubTrack(currentActiveZone, pixelYDelta)
+                            val pixelDelta = if (currentActiveZone == TouchZone.TOP_EDGE) {
+                                val dx = rawX - lastTouchRawX
+                                val dy = rawY - lastTouchRawY
+                                val dominant = if (abs(dx) >= abs(dy)) dx else dy
+                                -dominant
+                            } else {
+                                rawY - lastTouchRawY
+                            }
+                            executeLinearScrubTrack(currentActiveZone, pixelDelta)
                         }
                         else -> {}
                     }

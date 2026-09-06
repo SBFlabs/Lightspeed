@@ -3,6 +3,7 @@ package com.sbf.lightspeed
 import android.app.Activity
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
 import android.content.Context
 import android.content.res.Configuration
 import android.app.AlarmManager

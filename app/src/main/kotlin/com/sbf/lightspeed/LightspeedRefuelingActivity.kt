@@ -33,6 +33,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
 
     companion object {
         const val APPWIDGET_HOST_ID = 2048
+        const val REQUEST_CONFIG_WIDGET = 4096
 
         @Volatile
         var isActive: Boolean = false
@@ -50,6 +51,23 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         finishAndRemoveTask()
         super.finish()
         overridePendingTransition(0, 0)
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CONFIG_WIDGET) {
+            isWaitingForResult = false
+            val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pendingWidgetId) ?: pendingWidgetId
+            if (resultCode == Activity.RESULT_OK && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                saveNewWidgetId(widgetId)
+            } else {
+                if (widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    appWidgetHost?.deleteAppWidgetId(widgetId)
+                }
+                pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            }
+        }
     }
 
     private var appWidgetHost: AppWidgetHost? = null
@@ -238,11 +256,34 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         pendingProvider = null
         if (provider.configure != null) {
             isWaitingForResult = true
-            val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                component = provider.configure
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            try {
+                // Use AppWidgetHost's privileged startAppWidgetConfigureActivityForResult
+                // to start unexported widget configuration activities without SecurityException
+                appWidgetHost?.startAppWidgetConfigureActivityForResult(
+                    this,
+                    widgetId,
+                    0,
+                    REQUEST_CONFIG_WIDGET,
+                    null
+                )
+            } catch (e: Exception) {
+                try {
+                    val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                        component = provider.configure
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                    }
+                    widgetConfigLauncher.launch(configIntent)
+                } catch (ex: Exception) {
+                    android.util.Log.e("RefuelingActivity", "Cannot launch configuration activity for ${provider.provider}", ex)
+                    isWaitingForResult = false
+                    android.widget.Toast.makeText(
+                        this,
+                        "Module configuration unavailable; deploying default slot",
+                        android.widget.Toast.SHORT
+                    ).show()
+                    saveNewWidgetId(widgetId)
+                }
             }
-            widgetConfigLauncher.launch(configIntent)
         } else {
             isWaitingForResult = false
             saveNewWidgetId(widgetId)
@@ -275,11 +316,27 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         val appWidgetInfo = manager.getAppWidgetInfo(widgetId)
         if (appWidgetInfo?.configure != null) {
             isWaitingForResult = true
-            val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                component = appWidgetInfo.configure
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            try {
+                appWidgetHost?.startAppWidgetConfigureActivityForResult(
+                    this,
+                    widgetId,
+                    0,
+                    REQUEST_CONFIG_WIDGET,
+                    null
+                )
+            } catch (e: Exception) {
+                try {
+                    val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                        component = appWidgetInfo.configure
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                    }
+                    widgetConfigLauncher.launch(configIntent)
+                } catch (ex: Exception) {
+                    android.util.Log.e("RefuelingActivity", "Cannot launch configuration activity", ex)
+                    isWaitingForResult = false
+                    saveNewWidgetId(widgetId)
+                }
             }
-            widgetConfigLauncher.launch(configIntent)
         } else {
             isWaitingForResult = false
             saveNewWidgetId(widgetId)

@@ -113,6 +113,22 @@ class LightspeedAccessibilityService : AccessibilityService() {
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
+
+        val initPrefs = defaultPrefs()
+        initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()
+        if (initPrefs.getBoolean("key_has_unreported_crash", false)) {
+            initPrefs.edit().putBoolean("key_has_unreported_crash", false).apply()
+            val crashMsg = initPrefs.getString("key_last_crash_message", "Core anomaly") ?: "Core anomaly"
+            handler.postDelayed({
+                com.sbf.lightspeed.system.LightspeedHapticEngine.tick(this@LightspeedAccessibilityService)
+                android.widget.Toast.makeText(
+                    this@LightspeedAccessibilityService,
+                    "// SENTINEL RECOVERY // Online after: $crashMsg",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }, 1200L)
+        }
+
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         displayManager = getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
         displayManager?.registerDisplayListener(displayListener, handler)

@@ -215,6 +215,7 @@ object LightspeedPreferences {
     const val KEY_ACCESSIBILITY_SENTINEL_ENABLED = "pref_accessibility_sentinel_enabled"
     const val KEY_CRASH_SENTINEL_ENABLED = "pref_crash_sentinel_enabled"
     const val KEY_PERIMETER_PROTECTED_SERVICES = "pref_perimeter_protected_services"
+    const val KEY_PINNED_ACCESSIBILITY_SERVICES = "pref_pinned_accessibility_services"
     const val KEY_SECTION_WATCHDOGS_EXPANDED = "pref_section_watchdogs_expanded"
 
     // Refueling Bay Keys
@@ -382,6 +383,26 @@ object LightspeedPreferences {
         }
         setPerimeterProtectedServices(context, current)
         return isNowProtected
+    }
+
+    fun getPinnedAccessibilityServices(context: Context): Set<String> =
+        context.defaultPrefs().getStringSet(KEY_PINNED_ACCESSIBILITY_SERVICES, emptySet()) ?: emptySet()
+
+    fun setPinnedAccessibilityServices(context: Context, services: Set<String>) {
+        context.defaultPrefs().edit().putStringSet(KEY_PINNED_ACCESSIBILITY_SERVICES, services).apply()
+    }
+
+    fun togglePinnedAccessibilityService(context: Context, componentId: String): Boolean {
+        val current = getPinnedAccessibilityServices(context).toMutableSet()
+        val isNowPinned = if (current.contains(componentId)) {
+            current.remove(componentId)
+            false
+        } else {
+            current.add(componentId)
+            true
+        }
+        setPinnedAccessibilityServices(context, current)
+        return isNowPinned
     }
 }
 

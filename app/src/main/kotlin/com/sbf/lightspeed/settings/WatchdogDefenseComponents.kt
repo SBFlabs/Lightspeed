@@ -7,6 +7,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.provider.Settings
 import android.widget.Toast
+import android.accessibilityservice.AccessibilityServiceInfo
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.*
@@ -84,6 +86,10 @@ fun PerimeterServicesDeckDialog(
 
     var protectedServicesSet by remember {
         mutableStateOf(LightspeedPreferences.getPerimeterProtectedServices(context))
+    }
+
+    var pinnedServicesSet by remember {
+        mutableStateOf(LightspeedPreferences.getPinnedAccessibilityServices(context))
     }
 
     val thirdPartyServices = remember(installedA11y) {
@@ -244,7 +250,7 @@ fun PerimeterServicesDeckDialog(
                         Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Surface(
                                     modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -252,7 +258,7 @@ fun PerimeterServicesDeckDialog(
                                     color = Color.White.copy(alpha = 0.05f),
                                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
                                 ) {
-                                    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
+                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
                                         Text("INSTALLED", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                         Text("${thirdPartyServices.size}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
                                     }
@@ -264,7 +270,7 @@ fun PerimeterServicesDeckDialog(
                                     color = successGreen.copy(alpha = 0.12f),
                                     border = BorderStroke(1.dp, successGreen.copy(alpha = 0.35f))
                                 ) {
-                                    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
+                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
                                         Text("ACTIVE", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                         Text("$activeCount", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
                                     }
@@ -276,9 +282,21 @@ fun PerimeterServicesDeckDialog(
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                                 ) {
-                                    Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
+                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
                                         Text("SHIELDED", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                         Text("${protectedServicesSet.size}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                                    }
+                                }
+
+                                Surface(
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFFFD54F).copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, Color(0xFFFFD54F).copy(alpha = 0.35f))
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
+                                        Text("PINNED", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                        Text("${pinnedServicesSet.size}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F), maxLines = 1)
                                     }
                                 }
                             }
@@ -339,8 +357,8 @@ fun PerimeterServicesDeckDialog(
                     )
 
                     // Services List
-                    val filteredServices = remember(thirdPartyServices, searchQuery) {
-                        if (searchQuery.isBlank()) thirdPartyServices
+                    val filteredServices = remember(thirdPartyServices, searchQuery, pinnedServicesSet) {
+                        val baseList = if (searchQuery.isBlank()) thirdPartyServices
                         else {
                             val query = searchQuery.trim().lowercase()
                             thirdPartyServices.filter { sInfo ->
@@ -351,6 +369,18 @@ fun PerimeterServicesDeckDialog(
                                 sPkg.contains(query) || sLabel.contains(query)
                             }
                         }
+                        baseList.sortedWith(
+                            compareByDescending<AccessibilityServiceInfo> { sInfo ->
+                                val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
+                                val sCls = sInfo.resolveInfo?.serviceInfo?.name ?: sInfo.id.substringAfter("/")
+                                val compId = ComponentName(sPkg, sCls).flattenToString()
+                                pinnedServicesSet.contains(compId)
+                            }.thenBy { sInfo ->
+                                try {
+                                    sInfo.resolveInfo?.loadLabel(pm)?.toString()?.lowercase() ?: ""
+                                } catch (_: Exception) { "" }
+                            }
+                        )
                     }
 
                     if (filteredServices.isEmpty()) {
@@ -398,14 +428,21 @@ fun PerimeterServicesDeckDialog(
                                     mutableStateOf(LightspeedWatchdogEngine.isPackageBatteryWhitelisted(context, sPkg))
                                 }
 
+                                val isPinned = pinnedServicesSet.contains(componentId)
+
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(14.dp),
                                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-                                    border = BorderStroke(1.dp, if (isServiceEnabled) successGreen.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f))
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isPinned) Color(0xFFFFD54F).copy(alpha = 0.45f)
+                                        else if (isServiceEnabled) successGreen.copy(alpha = 0.25f)
+                                        else Color.White.copy(alpha = 0.08f)
+                                    )
                                 ) {
                                     Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        // Top row: Icon + Label/Package + Instant Toggle Switch
+                                        // Top row: Icon + Label/Package + Pin Button + Instant Toggle Switch
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             verticalAlignment = Alignment.CenterVertically
@@ -430,15 +467,25 @@ fun PerimeterServicesDeckDialog(
 
                                             Spacer(modifier = Modifier.width(10.dp))
 
-                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                                Text(
-                                                    text = sLabel,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 13.sp,
-                                                    color = Color.White,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
+                                            Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    if (isPinned) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.PushPin,
+                                                            contentDescription = "Pinned",
+                                                            tint = Color(0xFFFFD54F),
+                                                            modifier = Modifier.size(12.dp).padding(end = 3.dp)
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = sLabel,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 13.sp,
+                                                        color = Color.White,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
                                                 Text(
                                                     text = sPkg,
                                                     fontSize = 10.sp,
@@ -447,6 +494,30 @@ fun PerimeterServicesDeckDialog(
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                             }
+
+                                            // 1-Tap Pin To Top Button
+                                            IconButton(
+                                                onClick = {
+                                                    val nowPinned = LightspeedPreferences.togglePinnedAccessibilityService(context, componentId)
+                                                    pinnedServicesSet = LightspeedPreferences.getPinnedAccessibilityServices(context)
+                                                    LightspeedHapticEngine.tick(context)
+                                                    Toast.makeText(
+                                                        context,
+                                                        if (nowPinned) "Pinned $sLabel to top" else "Unpinned $sLabel",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                                                    contentDescription = if (isPinned) "Unpin from top" else "Pin to top",
+                                                    tint = if (isPinned) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.35f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(2.dp))
 
                                             // Sub-100ms Instant Privileged Switch
                                             Switch(

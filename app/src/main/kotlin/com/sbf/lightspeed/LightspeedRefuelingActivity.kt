@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -55,6 +56,12 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     private val widgetIdsState = mutableStateListOf<Int>()
     private var widgetLayoutModeState = mutableStateOf("smart_stack")
     private var isEditModeState = mutableStateOf(false)
+    private val interactionTimestampState = mutableLongStateOf(System.currentTimeMillis())
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        interactionTimestampState.longValue = System.currentTimeMillis()
+    }
 
     private val widgetPickLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -143,7 +150,8 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
                         window.attributes = lp
                         finish()
-                    }
+                    },
+                    externalInteractionTimestamp = interactionTimestampState.longValue
                 )
             }
         }

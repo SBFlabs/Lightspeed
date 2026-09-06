@@ -45,6 +45,41 @@ import java.util.*
 import kotlin.math.*
 import kotlinx.coroutines.delay
 
+private fun Modifier.refuelingBayUnlockSwipe(
+    context: Context,
+    activity: Activity,
+    onDismiss: () -> Unit,
+    onInteraction: () -> Unit = {}
+): Modifier = this.pointerInput(Unit) {
+    var totalDragY = 0f
+    detectVerticalDragGestures(
+        onDragStart = {
+            totalDragY = 0f
+            onInteraction()
+        },
+        onDragEnd = {
+            if (totalDragY < -120f) {
+                try {
+                    val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                    km?.requestDismissKeyguard(activity, null)
+                } catch (_: Exception) {}
+                val window = activity.window
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                val lp = window.attributes
+                lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                window.attributes = lp
+                onDismiss()
+            }
+        },
+        onDragCancel = { totalDragY = 0f },
+        onVerticalDrag = { _, dragAmount ->
+            totalDragY += dragAmount
+            onInteraction()
+        }
+    )
+}
+
 @Composable
 fun RefuelingBayScreen(
     activity: Activity,
@@ -58,7 +93,8 @@ fun RefuelingBayScreen(
     onReorderWidget: (Int, Int) -> Unit,
     onToggleLayoutMode: () -> Unit,
     onToggleEditMode: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    externalInteractionTimestamp: Long = 0L
 ) {
     val context = LocalContext.current
     val prefs = remember { context.defaultPrefs() }
@@ -78,24 +114,27 @@ fun RefuelingBayScreen(
 
     // Style & Sleep Settings
     val batteryStyle = prefs.getString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, "halo") ?: "halo"
-    val sleepTimeoutSetting = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s"
-    val sleepTimeoutMs = remember(sleepTimeoutSetting) {
-        when (sleepTimeoutSetting) {
-            "5s" -> 5_000L
-            "15s" -> 15_000L
-            "30s" -> 30_000L
-            "60s" -> 60_000L
-            "120s", "2m" -> 120_000L
-            "180s", "3m" -> 180_000L
-            "300s", "5m" -> 300_000L
-            "never" -> Long.MAX_VALUE
-            else -> 60_000L
-        }
+    val sleepTimeoutSetting = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "30s") ?: "30s"
+    val sleepTimeoutMs = when (sleepTimeoutSetting) {
+        "5s" -> 5_000L
+        "15s" -> 15_000L
+        "30s" -> 30_000L
+        "1m" -> 60_000L
+        "2m" -> 120_000L
+        "5m" -> 300_000L
+        "never" -> Long.MAX_VALUE
+        else -> 30_000L
     }
 
     // OLED Burn-In Sleep Shield States
     var isSleeping by remember { mutableStateOf(false) }
     var lastInteractionTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(externalInteractionTimestamp) {
+        if (externalInteractionTimestamp > 0L) {
+            lastInteractionTimestamp = externalInteractionTimestamp
+        }
+    }
 
     // Cryo Clock States
     var currentTimeStr by remember { mutableStateOf("") }
@@ -295,25 +334,6 @@ fun RefuelingBayScreen(
                             }
                         )
                     }
-                    .pointerInput(Unit) {
-                        var totalDragY = 0f
-                        detectVerticalDragGestures(
-                            onDragStart = { totalDragY = 0f },
-                            onDragEnd = {
-                                if (totalDragY < -120f) {
-                                    try {
-                                        val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                                        km?.requestDismissKeyguard(activity, null)
-                                    } catch (_: Exception) {}
-                                    onDismiss()
-                                }
-                            },
-                            onDragCancel = { totalDragY = 0f },
-                            onVerticalDrag = { _, dragAmount ->
-                                totalDragY += dragAmount
-                            }
-                        )
-                    }
                     .padding(16.dp)
                     .statusBarsPadding()
                     .navigationBarsPadding()
@@ -331,11 +351,14 @@ fun RefuelingBayScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Column: Cryo Clock & Battery Arc Telemetry
+                    // Left Column: Cryo Clock & Battery Arc Telemetry (Swipe-Up to Unlock Zone)
                     Column(
                         modifier = Modifier
                             .weight(0.44f)
-                            .fillMaxHeight(),
+                            .fillMaxHeight()
+                            .refuelingBayUnlockSwipe(context, activity, onDismiss) {
+                                lastInteractionTimestamp = System.currentTimeMillis()
+                            },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -439,61 +462,75 @@ fun RefuelingBayScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Header: Minimalist Cryo Clock
+                    // Top Interactive Region: Cryo Clock & Battery Arc (Swipe-Up to Unlock Zone)
                     Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .refuelingBayUnlockSwipe(context, activity, onDismiss) {
+                                lastInteractionTimestamp = System.currentTimeMillis()
+                            },
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 8.dp)
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            text = currentTimeStr,
-                            fontSize = 44.sp,
-                            fontWeight = FontWeight.Light,
-                            fontFamily = FontFamily.Monospace,
-                            letterSpacing = 2.sp,
-                            color = Color.White.copy(alpha = 0.95f)
-                        )
-                        Text(
-                            text = currentDateStr.uppercase(Locale.US),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 1.4.sp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-                        )
-                        if (nextAlarmStr != null) {
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                androidx.compose.material3.Icon(
-                                    imageVector = Icons.Default.Alarm,
-                                    contentDescription = null,
-                                    tint = Color.LightGray.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = nextAlarmStr!!,
-                                    fontSize = 11.sp,
-                                    color = Color.LightGray.copy(alpha = 0.7f)
-                                )
+                        // Header: Minimalist Cryo Clock
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(top = 4.dp)
+                        ) {
+                            Text(
+                                text = currentTimeStr,
+                                fontSize = 44.sp,
+                                fontWeight = FontWeight.Light,
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 2.sp,
+                                color = Color.White.copy(alpha = 0.95f)
+                            )
+                            Text(
+                                text = currentDateStr.uppercase(Locale.US),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 1.4.sp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                            )
+                            if (nextAlarmStr != null) {
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    androidx.compose.material3.Icon(
+                                        imageVector = Icons.Default.Alarm,
+                                        contentDescription = null,
+                                        tint = Color.LightGray.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = nextAlarmStr!!,
+                                        fontSize = 11.sp,
+                                        color = Color.LightGray.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Center Battery Telemetry Arc (Selectable Style)
+                        BatteryTelemetryCircle(
+                            batteryPct = batteryPct,
+                            wattage = wattage,
+                            batteryTempC = batteryTempC,
+                            chargeTypeLabel = chargeTypeLabel,
+                            timeRemainingMinutes = timeRemainingMinutes,
+                            isCharging = isCharging,
+                            isFull = isFull,
+                            batteryStyle = batteryStyle,
+                            dynamicArcColor = dynamicArcColor,
+                            thermalBadgeColor = thermalBadgeColor,
+                            sizeDp = 184.dp
+                        )
                     }
 
-                    // Center Battery Telemetry Arc (Selectable Style)
-                    BatteryTelemetryCircle(
-                        batteryPct = batteryPct,
-                        wattage = wattage,
-                        batteryTempC = batteryTempC,
-                        chargeTypeLabel = chargeTypeLabel,
-                        timeRemainingMinutes = timeRemainingMinutes,
-                        isCharging = isCharging,
-                        isFull = isFull,
-                        batteryStyle = batteryStyle,
-                        dynamicArcColor = dynamicArcColor,
-                        thermalBadgeColor = thermalBadgeColor,
-                        sizeDp = 184.dp
-                    )
-
-                    // Multi-Widget Section & Toolbar
+                    // Middle Section: Multi-Widget Section & Toolbar (Pure widget touch area - no drag stealing)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth(0.96f)
@@ -530,14 +567,24 @@ fun RefuelingBayScreen(
                         }
                     }
 
-                    // Bottom Exit Note & Gestures
-                    Text(
-                        text = "✦ Double Tap to Exit · Swipe Up to Unlock ✦",
-                        fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.45f),
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
+                    // Bottom Interactive Region: Exit Note & Generous Bottom Swipe-Up Unlock Zone
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 52.dp)
+                            .refuelingBayUnlockSwipe(context, activity, onDismiss) {
+                                lastInteractionTimestamp = System.currentTimeMillis()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "✦ Double Tap to Exit · Swipe Up to Unlock ✦",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.45f),
+                            letterSpacing = 1.sp,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -552,6 +599,7 @@ fun RefuelingBayScreen(
                     .fillMaxSize()
                     .background(Color.Black)
                     .zIndex(9999f)
+                    .refuelingBayUnlockSwipe(context, activity, onDismiss)
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onPress = {

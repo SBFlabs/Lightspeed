@@ -2420,7 +2420,6 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "watchdog_defense") {
                                             CompactAccordionSection(
                                                 title = "Watchdogs & Defense",
-                                                subtitle = "Autonomous crash resuscitation, Shizuku shell sentinels, and universal accessibility manager.",
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Shield,

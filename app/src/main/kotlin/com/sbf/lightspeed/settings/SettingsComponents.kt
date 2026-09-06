@@ -678,42 +678,22 @@ fun FlightControlDeckCard(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Bolt,
-                                contentDescription = null,
-                                tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "OPTION A // COCKPIT SELECTOR",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                letterSpacing = 0.6.sp
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isArmed) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF9800).copy(alpha = 0.5f)
-                            )
-                        ) {
-                            Text(
-                                text = if (isArmed) "● ARMED" else "○ STANDBY",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                                letterSpacing = 0.5.sp,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "OPTION A // COCKPIT SELECTOR",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 0.6.sp
+                        )
                     }
 
                     // Dual Segmented Pill Switcher
@@ -858,35 +838,13 @@ fun FlightControlDeckCard(
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    "OPTION B // DE-COUPLED",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White,
-                                    letterSpacing = 0.6.sp
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        if (isArmed) Color(0xFF00E676).copy(alpha = 0.45f) else Color(0xFFFF9800).copy(alpha = 0.45f)
-                                    )
-                                ) {
-                                    Text(
-                                        text = if (isArmed) "ARMED" else "STANDBY",
-                                        fontSize = 8.5.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                                        letterSpacing = 0.5.sp,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
-                                    )
-                                }
-                            }
+                            Text(
+                                "OPTION B // DE-COUPLED",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                letterSpacing = 0.6.sp
+                            )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Switch(
@@ -944,7 +902,7 @@ fun FlightControlDeckCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -980,24 +938,6 @@ fun FlightControlDeckCard(
                             fontSize = 11.sp,
                             color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
                             fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.2f) else Color(0xFFFF9800).copy(alpha = 0.2f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isArmed) Color(0xFF00E676).copy(alpha = 0.6f) else Color(0xFFFF9800).copy(alpha = 0.6f)
-                        )
-                    ) {
-                        Text(
-                            text = if (isArmed) "DISARM ✕" else "ARM ⚡",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = 0.6.sp,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
                 }

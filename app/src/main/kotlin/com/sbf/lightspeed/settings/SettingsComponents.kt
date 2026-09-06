@@ -507,48 +507,69 @@ fun DeflectorMasterCard(
                 )
             }
 
-            // Startup state preference row
+            // Startup state preference block (Full width description with selectable chips underneath)
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        "Startup Default State",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                    Text(
-                        if (startupMode == "standby_by_default") "Starts in Standby (Muted) on service boot"
-                        else "Automatically armed when service boots",
-                        fontSize = 10.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
+                Text(
+                    "Startup Default State",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Text(
+                    if (startupMode == "standby_by_default")
+                        "Starts in Standby (Muted) on service boot. Stays dormant until manually armed."
+                    else
+                        "Automatically armed and responsive when service boots.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    lineHeight = 15.sp
+                )
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     val isAlwaysArmed = startupMode != "standby_by_default"
                     FilterChip(
                         selected = isAlwaysArmed,
                         onClick = { onStartupModeChange("always_armed") },
-                        label = { Text("Armed", fontSize = 11.sp) },
+                        label = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("⚡ Armed on Boot", fontSize = 11.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                             selectedLabelColor = MaterialTheme.colorScheme.primary
-                        )
+                        ),
+                        modifier = Modifier.weight(1f)
                     )
                     FilterChip(
                         selected = !isAlwaysArmed,
                         onClick = { onStartupModeChange("standby_by_default") },
-                        label = { Text("Off by Default", fontSize = 11.sp) },
+                        label = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("⏸ Off by Default", fontSize = 11.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                             selectedLabelColor = MaterialTheme.colorScheme.primary
-                        )
+                        ),
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }

@@ -232,7 +232,7 @@ fun RefuelingBayScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(isSleeping) {
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = {
                         if (isSleeping) {
@@ -240,9 +240,10 @@ fun RefuelingBayScreen(
                         }
                     },
                     onDoubleTap = {
-                        if (!isSleeping) {
-                            onDismiss()
-                        }
+                        val lp = activity.window.attributes
+                        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                        activity.window.attributes = lp
+                        onDismiss()
                     }
                 )
             }
@@ -487,7 +488,7 @@ fun RefuelingBayScreen(
 
                     // Bottom Exit Note & Gestures
                     Text(
-                        text = "✦ Tap to Exit · Swipe Up for Keyguard ✦",
+                        text = "✦ Double Tap to Exit · Swipe Up to Unlock ✦",
                         fontSize = 11.sp,
                         color = Color.White.copy(alpha = 0.45f),
                         letterSpacing = 1.sp,

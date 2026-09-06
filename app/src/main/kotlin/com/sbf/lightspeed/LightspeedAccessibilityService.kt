@@ -711,8 +711,6 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     private fun checkPowerConnectedRefuelingTrigger(prefs: SharedPreferences) {
-        if (LightspeedRefuelingActivity.isChargingSessionDismissed) return
-
         val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
         if (trigger == "disabled" || trigger == "screensaver_only") return
 
@@ -740,8 +738,6 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     private fun checkScreenOffRefuelingTrigger(prefs: SharedPreferences) {
-        if (LightspeedRefuelingActivity.isChargingSessionDismissed) return
-
         val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
         if (trigger == "disabled" || trigger == "screensaver_only") return
 

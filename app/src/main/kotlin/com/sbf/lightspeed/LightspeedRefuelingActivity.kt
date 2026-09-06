@@ -121,7 +121,9 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                     onToggleLayoutMode = { toggleLayoutMode() },
                     onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
                     onDismiss = {
-                        isChargingSessionDismissed = true
+                        val lp = window.attributes
+                        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                        window.attributes = lp
                         finish()
                     }
                 )

@@ -643,86 +643,364 @@ fun FlightControlDeckCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Row 1: Master Flight Switch Banner
-            Row(
+            val setFlightArmed: (Boolean) -> Unit = { armed ->
+                isArmed = armed
+                LightspeedPreferences.setMasterFlightArmed(context, armed)
+                LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
+                onStateChanged()
+            }
+
+            // --- PROTOTYPE LAB: 3 LIVE DESIGN CONCEPTS FOR MASTER FLIGHT CONTROL ---
+            Text(
+                "MASTER FLIGHT CONTROL // 3 DESIGN OPTIONS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 1.sp
+            )
+
+            // OPTION A: Tactical Cockpit Segmented Toggle
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isArmed) Color(0xFF00E676).copy(alpha = 0.4f) else Color(0xFFFF9800).copy(alpha = 0.4f)
+                )
             ) {
-                Box(
+                Column(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f)
-                            else Color(0xFFFF9800).copy(alpha = 0.18f)
-                        ),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isArmed) Icons.Default.Bolt else Icons.Default.PowerSettingsNew,
-                        contentDescription = null,
-                        tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                        modifier = Modifier.size(24.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "OPTION A // COCKPIT SELECTOR",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                letterSpacing = 0.6.sp
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isArmed) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF9800).copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Text(
+                                text = if (isArmed) "● ARMED" else "○ STANDBY",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                                letterSpacing = 0.5.sp,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    // Dual Segmented Pill Switcher
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // ARMED Segment
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(
+                                    if (isArmed) Color(0xFF00E676).copy(alpha = 0.22f)
+                                    else Color.Transparent
+                                )
+                                .then(
+                                    if (isArmed) Modifier.border(1.dp, Color(0xFF00E676).copy(alpha = 0.55f), RoundedCornerShape(9.dp))
+                                    else Modifier
+                                )
+                                .clickable {
+                                    if (!isArmed) {
+                                        LightspeedHapticEngine.heavyClick(context)
+                                        setFlightArmed(true)
+                                    }
+                                }
+                                .padding(vertical = 9.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Bolt,
+                                    contentDescription = null,
+                                    tint = if (isArmed) Color(0xFF00E676) else Color.White.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "ARMED",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isArmed) FontWeight.Black else FontWeight.Bold,
+                                    color = if (isArmed) Color.White else Color.White.copy(alpha = 0.45f),
+                                    letterSpacing = 0.8.sp
+                                )
+                            }
+                        }
+
+                        // STANDBY Segment
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(
+                                    if (!isArmed) Color(0xFFFF9800).copy(alpha = 0.22f)
+                                    else Color.Transparent
+                                )
+                                .then(
+                                    if (!isArmed) Modifier.border(1.dp, Color(0xFFFF9800).copy(alpha = 0.55f), RoundedCornerShape(9.dp))
+                                    else Modifier
+                                )
+                                .clickable {
+                                    if (isArmed) {
+                                        LightspeedHapticEngine.tick(context)
+                                        setFlightArmed(false)
+                                    }
+                                }
+                                .padding(vertical = 9.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.PowerSettingsNew,
+                                    contentDescription = null,
+                                    tint = if (!isArmed) Color(0xFFFF9800) else Color.White.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "STANDBY",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (!isArmed) FontWeight.Black else FontWeight.Bold,
+                                    color = if (!isArmed) Color.White else Color.White.copy(alpha = 0.45f),
+                                    letterSpacing = 0.8.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        if (isArmed) "Telemetry active // Flank deflectors & hangars online"
+                        else "Sensors detached // Touch overlays completely bypassed",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "MASTER FLIGHT DECK",
-                        fontWeight = FontWeight.Black,
-                        fontSize = 14.sp,
-                        color = Color.White,
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
+            }
+
+            // OPTION B: De-Coupled Header Row + Telemetry Callout
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isArmed) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f)
+                                        else Color(0xFFFF9800).copy(alpha = 0.18f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isArmed) Icons.Default.Bolt else Icons.Default.PowerSettingsNew,
+                                    contentDescription = null,
+                                    tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    "OPTION B // DE-COUPLED",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    letterSpacing = 0.6.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        if (isArmed) Color(0xFF00E676).copy(alpha = 0.45f) else Color(0xFFFF9800).copy(alpha = 0.45f)
+                                    )
+                                ) {
+                                    Text(
+                                        text = if (isArmed) "ARMED" else "STANDBY",
+                                        fontSize = 8.5.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                                        letterSpacing = 0.5.sp,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Switch(
+                            checked = isArmed,
+                            onCheckedChange = { setFlightArmed(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF00E676),
+                                checkedBorderColor = Color.Transparent,
+                                uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                                uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                                uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                            )
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.04f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isArmed) "All gesture deflectors, cockpit hangars, and telemetry active"
+                            else "Flight Standby: All touch overlays and gestures completely detached",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                            lineHeight = 14.5.sp
+                        )
+                    }
+                }
+            }
+
+            // OPTION C: Interactive 1-Tap Cockpit Hero Pad
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable {
+                        LightspeedHapticEngine.heavyClick(context)
+                        setFlightArmed(!isArmed)
+                    },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isArmed) Color(0xFF00E676).copy(alpha = 0.12f)
+                    else Color(0xFFFF9800).copy(alpha = 0.10f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.2.dp,
+                    if (isArmed) Color(0xFF00E676).copy(alpha = 0.5f)
+                    else Color(0xFFFF9800).copy(alpha = 0.45f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isArmed) Color(0xFF00E676).copy(alpha = 0.22f)
+                                else Color(0xFFFF9800).copy(alpha = 0.22f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isArmed) Icons.Default.Bolt else Icons.Default.PowerSettingsNew,
+                            contentDescription = null,
+                            tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "OPTION C // 1-TAP HERO PAD",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            letterSpacing = 0.6.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            if (isArmed) "Armed ⚡ All sensors & hangars live"
+                            else "Standby ⏸ Overlays detached",
+                            fontSize = 11.sp,
+                            color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.18f)
-                        else Color(0xFFFF9800).copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isArmed) Color(0xFF00E676).copy(alpha = 0.2f) else Color(0xFFFF9800).copy(alpha = 0.2f),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            if (isArmed) Color(0xFF00E676).copy(alpha = 0.45f)
-                            else Color(0xFFFF9800).copy(alpha = 0.45f)
+                            if (isArmed) Color(0xFF00E676).copy(alpha = 0.6f) else Color(0xFFFF9800).copy(alpha = 0.6f)
                         )
                     ) {
                         Text(
-                            text = if (isArmed) "ARMED" else "STANDBY",
-                            fontSize = 9.sp,
+                            text = if (isArmed) "DISARM ✕" else "ARM ⚡",
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
-                            letterSpacing = 0.5.sp,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            color = Color.White,
+                            letterSpacing = 0.6.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        if (isArmed) "All gesture deflectors, cockpit hangars, and telemetry active"
-                        else "Flight Standby: All touch overlays and gestures completely detached",
-                        fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        lineHeight = 15.sp
-                    )
                 }
-                Switch(
-                    checked = isArmed,
-                    onCheckedChange = { armed ->
-                        isArmed = armed
-                        LightspeedPreferences.setMasterFlightArmed(context, armed)
-                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
-                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
-                        onStateChanged()
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF00E676),
-                        checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
-                    )
-                )
             }
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)

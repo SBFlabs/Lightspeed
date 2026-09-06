@@ -140,6 +140,11 @@ fun PerimeterServicesDeckDialog(
             }
         }
 
+        val glassStyle = remember(LightspeedPreferences.getDeckGlassStyle(context)) {
+            LightspeedPreferences.getDeckGlassStyle(context)
+        }
+        val glassVisuals = DeckGlassTheme.resolve(glassStyle)
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -151,35 +156,51 @@ fun PerimeterServicesDeckDialog(
                     .fillMaxWidth(0.96f)
                     .fillMaxHeight(0.86f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
-                            ),
-                            radius = 1200f
-                        )
-                    )
-                    .border(
-                        1.2.dp,
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.White.copy(alpha = 0.10f),
-                                Color.White.copy(alpha = 0.03f)
-                            )
-                        ),
-                        RoundedCornerShape(32.dp)
-                    ),
+                    .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
+                    .background(glassVisuals.backgroundBrush)
+                    .border(glassVisuals.borderWidth, glassVisuals.borderBrush, RoundedCornerShape(glassVisuals.shapeCornerRadius)),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                shape = RoundedCornerShape(32.dp)
+                shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (glassVisuals.showTopGlare) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.35f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                    if (glassVisuals.innerChamferAlpha > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .padding(1.dp)
+                                .border(
+                                    0.8.dp,
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = glassVisuals.innerChamferAlpha),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
+                                )
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
                     // Header Drag Region (drag gesture scoped to drag handle & header row)
                     Column(
                         modifier = Modifier
@@ -767,5 +788,6 @@ fun PerimeterServicesDeckDialog(
             }
         }
     }
+}
 }
 }

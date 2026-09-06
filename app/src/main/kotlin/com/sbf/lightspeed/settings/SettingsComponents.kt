@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -82,6 +83,89 @@ import com.sbf.lightspeed.system.LightspeedHapticEngine
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+data class DeckGlassVisuals(
+    val backgroundBrush: Brush,
+    val borderBrush: Brush,
+    val borderWidth: androidx.compose.ui.unit.Dp,
+    val showTopGlare: Boolean,
+    val topGlareAlpha: Float,
+    val innerChamferAlpha: Float,
+    val shapeCornerRadius: androidx.compose.ui.unit.Dp = 32.dp
+)
+
+object DeckGlassTheme {
+    @Composable
+    fun resolve(style: String): DeckGlassVisuals {
+        val colorScheme = MaterialTheme.colorScheme
+        return when (style) {
+            "frost" -> DeckGlassVisuals(
+                backgroundBrush = Brush.radialGradient(
+                    colors = listOf(
+                        colorScheme.surfaceVariant.copy(alpha = 0.70f),
+                        colorScheme.surface.copy(alpha = 0.78f)
+                    ),
+                    radius = 1200f
+                ),
+                borderBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.38f),
+                        Color.White.copy(alpha = 0.16f),
+                        Color.White.copy(alpha = 0.08f)
+                    )
+                ),
+                borderWidth = 1.2.dp,
+                showTopGlare = false,
+                topGlareAlpha = 0f,
+                innerChamferAlpha = 0.12f
+            )
+            "obsidian" -> DeckGlassVisuals(
+                backgroundBrush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF131720).copy(alpha = 0.88f),
+                        Color(0xFF090B0E).copy(alpha = 0.94f)
+                    ),
+                    radius = 1200f
+                ),
+                borderBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        colorScheme.primary.copy(alpha = 0.50f),
+                        Color.White.copy(alpha = 0.10f),
+                        Color.White.copy(alpha = 0.04f)
+                    )
+                ),
+                borderWidth = 1.dp,
+                showTopGlare = false,
+                topGlareAlpha = 0f,
+                innerChamferAlpha = 0f
+            )
+            else -> DeckGlassVisuals( // "liquid" (Default)
+                backgroundBrush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF1E2638).copy(alpha = 0.55f),
+                        Color(0xFF0D121B).copy(alpha = 0.65f)
+                    ),
+                    radius = 1200f
+                ),
+                borderBrush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.60f),
+                        Color.White.copy(alpha = 0.22f),
+                        colorScheme.primary.copy(alpha = 0.35f),
+                        Color.White.copy(alpha = 0.05f),
+                        Color.White.copy(alpha = 0.28f)
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                ),
+                borderWidth = 1.2.dp,
+                showTopGlare = true,
+                topGlareAlpha = 0.18f,
+                innerChamferAlpha = 0.22f
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FloatingOverlayContainer(
@@ -102,33 +186,56 @@ fun FloatingOverlayContainer(
     val dragOffsetY = remember { Animatable(0f) }
     var hasCrossedThreshold by remember { mutableStateOf(false) }
 
-    val glassBorder = Brush.verticalGradient(
-        colors = listOf(
-            Color.White.copy(alpha = 0.28f),
-            Color.White.copy(alpha = 0.08f),
-            Color.White.copy(alpha = 0.03f)
-        )
-    )
+    val glassStyle = remember(LightspeedPreferences.getDeckGlassStyle(context)) {
+        LightspeedPreferences.getDeckGlassStyle(context)
+    }
+    val glassVisuals = DeckGlassTheme.resolve(glassStyle)
 
     Card(
         modifier = Modifier
             .fillMaxSize()
             .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-            .clip(RoundedCornerShape(32.dp))
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
-                    ),
-                    radius = 1200f
-                )
-            )
-            .border(1.2.dp, glassBorder, RoundedCornerShape(32.dp)),
+            .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
+            .background(glassVisuals.backgroundBrush)
+            .border(glassVisuals.borderWidth, glassVisuals.borderBrush, RoundedCornerShape(glassVisuals.shapeCornerRadius)),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(32.dp)
+        shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (glassVisuals.showTopGlare) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = glassVisuals.topGlareAlpha),
+                                    Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.35f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+            }
+            if (glassVisuals.innerChamferAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(1.dp)
+                        .border(
+                            0.8.dp,
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = glassVisuals.innerChamferAlpha),
+                                    Color.Transparent
+                                )
+                            ),
+                            RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
+                        )
+                )
+            }
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
             // Scoped Drag Handle + Header Region (drag detection strictly scoped to header/handle)
             Column(
                 modifier = Modifier
@@ -264,6 +371,7 @@ fun FloatingOverlayContainer(
             }
         }
     }
+}
 }
 
 @Composable
@@ -773,6 +881,81 @@ fun FlightControlDeckCard(
                         uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
                     )
                 )
+            }
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+            // Live Glass Material Prototype Selector
+            var currentGlassStyle by remember {
+                mutableStateOf(LightspeedPreferences.getDeckGlassStyle(context))
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "COCKPIT GLASS MATERIAL",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        when (currentGlassStyle) {
+                            "frost" -> "Deep Frosted Matte"
+                            "obsidian" -> "Tactical Stealth"
+                            else -> "Refractive Liquid Glass"
+                        },
+                        fontSize = 10.sp,
+                        color = Color.LightGray.copy(alpha = 0.75f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "liquid" to "Liquid Glass",
+                        "frost" to "Deep Frost",
+                        "obsidian" to "Obsidian"
+                    ).forEach { (styleKey, title) ->
+                        val isSelected = currentGlassStyle == styleKey
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    LightspeedPreferences.setDeckGlassStyle(context, styleKey)
+                                    currentGlassStyle = styleKey
+                                    LightspeedHapticEngine.tick(context)
+                                    onStateChanged()
+                                },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.12f)
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
@@ -1321,6 +1504,11 @@ fun CentralCommandDeckDialog(
             }
         }
 
+        val glassStyle = remember(LightspeedPreferences.getDeckGlassStyle(context)) {
+            LightspeedPreferences.getDeckGlassStyle(context)
+        }
+        val glassVisuals = DeckGlassTheme.resolve(glassStyle)
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1332,35 +1520,51 @@ fun CentralCommandDeckDialog(
                     .fillMaxWidth(0.96f)
                     .fillMaxHeight(0.86f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
-                            ),
-                            radius = 1200f
-                        )
-                    )
-                    .border(
-                        1.2.dp,
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.White.copy(alpha = 0.10f),
-                                Color.White.copy(alpha = 0.03f)
-                            )
-                        ),
-                        RoundedCornerShape(32.dp)
-                    ),
+                    .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
+                    .background(glassVisuals.backgroundBrush)
+                    .border(glassVisuals.borderWidth, glassVisuals.borderBrush, RoundedCornerShape(glassVisuals.shapeCornerRadius)),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                shape = RoundedCornerShape(32.dp)
+                shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (glassVisuals.showTopGlare) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.35f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                    if (glassVisuals.innerChamferAlpha > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .padding(1.dp)
+                                .border(
+                                    0.8.dp,
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = glassVisuals.innerChamferAlpha),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
+                                )
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
                     // Header Drag Region (drag gesture scoped to drag handle & header row)
                     Column(
                         modifier = Modifier
@@ -1599,6 +1803,7 @@ fun CentralCommandDeckDialog(
             }
         }
     }
+}
 }
 }
 

@@ -216,6 +216,7 @@ object LightspeedPreferences {
     const val KEY_CRASH_SENTINEL_ENABLED = "pref_crash_sentinel_enabled"
     const val KEY_PERIMETER_PROTECTED_SERVICES = "pref_perimeter_protected_services"
     const val KEY_PINNED_ACCESSIBILITY_SERVICES = "pref_pinned_accessibility_services"
+    const val KEY_DECK_GLASS_STYLE = "pref_deck_glass_style" // "liquid", "frost", "obsidian"
     const val KEY_SECTION_WATCHDOGS_EXPANDED = "pref_section_watchdogs_expanded"
 
     // Refueling Bay Keys
@@ -403,6 +404,13 @@ object LightspeedPreferences {
         }
         setPinnedAccessibilityServices(context, current)
         return isNowPinned
+    }
+
+    fun getDeckGlassStyle(context: Context): String =
+        context.defaultPrefs().getString(KEY_DECK_GLASS_STYLE, "liquid") ?: "liquid"
+
+    fun setDeckGlassStyle(context: Context, style: String) {
+        context.defaultPrefs().edit().putString(KEY_DECK_GLASS_STYLE, style).apply()
     }
 }
 

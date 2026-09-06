@@ -24,7 +24,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.system.LightspeedFlightNotificationManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlinx.coroutines.delay
@@ -127,7 +129,49 @@ fun MainSettingsScreen() {
                     FloatingOverlayContainer(
                         title = "Central Command",
                         onDismiss = { dismissAction() },
-                        onTitleLongClick = { showCentralCommandDeck = true },
+                        onTitleClick = {
+                            showCentralCommandDeck = true
+                        },
+                        onTitleLongClick = {
+                            val action = LightspeedPreferences.getCentralCommandLongPressAction(context)
+                            when (action) {
+                                "toggle_master_flight" -> {
+                                    val current = LightspeedPreferences.isMasterFlightArmed(context)
+                                    val next = !current
+                                    LightspeedPreferences.setMasterFlightArmed(context, next)
+                                    LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                    LightspeedFlightNotificationManager.update(context)
+                                    Toast.makeText(context, if (next) "Flight Mode: ARMED" else "Flight Mode: STANDBY", Toast.LENGTH_SHORT).show()
+                                }
+                                "toggle_all_deflectors" -> {
+                                    val leftOn = LightspeedPreferences.isLeftDeflectorEnabled(context)
+                                    val rightOn = LightspeedPreferences.isRightDeflectorEnabled(context)
+                                    val next = !(leftOn || rightOn)
+                                    LightspeedPreferences.setLeftDeflectorEnabled(context, next)
+                                    LightspeedPreferences.setRightDeflectorEnabled(context, next)
+                                    LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                    LightspeedFlightNotificationManager.update(context)
+                                    Toast.makeText(context, if (next) "All Deflectors: ACTIVE" else "All Deflectors: MUTED", Toast.LENGTH_SHORT).show()
+                                }
+                                "toggle_left_deflector" -> {
+                                    val next = !LightspeedPreferences.isLeftDeflectorEnabled(context)
+                                    LightspeedPreferences.setLeftDeflectorEnabled(context, next)
+                                    LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                    LightspeedFlightNotificationManager.update(context)
+                                    Toast.makeText(context, if (next) "Left Flank: ACTIVE" else "Left Flank: MUTED", Toast.LENGTH_SHORT).show()
+                                }
+                                "toggle_right_deflector" -> {
+                                    val next = !LightspeedPreferences.isRightDeflectorEnabled(context)
+                                    LightspeedPreferences.setRightDeflectorEnabled(context, next)
+                                    LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                    LightspeedFlightNotificationManager.update(context)
+                                    Toast.makeText(context, if (next) "Right Flank: ACTIVE" else "Right Flank: MUTED", Toast.LENGTH_SHORT).show()
+                                }
+                                else -> {
+                                    showCentralCommandDeck = true
+                                }
+                            }
+                        },
                         headerControl = {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),

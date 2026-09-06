@@ -220,6 +220,15 @@ fun FloatingOverlayContainer(
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
+                        if (onTitleClick != null || onTitleLongClick != null) {
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Icon(
+                                imageVector = Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.45f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         if (titleBadge != null) {
                             Spacer(modifier = Modifier.width(8.dp))
                             titleBadge()
@@ -912,7 +921,6 @@ fun FlightControlDeckCard(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CentralCommandDeckDialog(
     context: Context,
@@ -920,10 +928,6 @@ fun CentralCommandDeckDialog(
     onDismiss: () -> Unit,
     onRefreshNeeded: () -> Unit = {}
 ) {
-    val pagerState = rememberPagerState(initialPage = 1, pageCount = { 3 })
-    val scope = rememberCoroutineScope()
-    val tabTitles = listOf("◀ L-FLANK", "⚡ FLIGHT CORE", "R-FLANK ▶")
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -931,7 +935,7 @@ fun CentralCommandDeckDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.88f)
+                .fillMaxHeight(0.85f)
                 .clip(RoundedCornerShape(28.dp))
                 .background(
                     Brush.radialGradient(
@@ -976,23 +980,23 @@ fun CentralCommandDeckDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Default.DashboardCustomize,
+                                Icons.Default.Bolt,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                "CENTRAL COMMAND DECK",
+                                "FLIGHT CONTROL DECK",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
                                 letterSpacing = 0.5.sp
                             )
                             Text(
-                                "Tactical ship status & universal controls",
+                                "Master avionics & universal shortcuts",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                             )
@@ -1008,143 +1012,116 @@ fun CentralCommandDeckDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // 3-Page Sub-tab Bar matching ship layout
-                Row(
+                // Scrollable Flight Core Controls & Shortcut Mapping
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.06f))
-                        .padding(3.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    tabTitles.forEachIndexed { index, title ->
-                        val isSelected = pagerState.currentPage == index
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(11.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .clickable {
-                                    scope.launch { pagerState.animateScrollToPage(index) }
-                                }
-                                .padding(vertical = 7.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = title,
-                                fontSize = 10.5.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f)
-                            )
-                        }
+                    // Card 1: Master Flight Controls
+                    FlightControlDeckCard(
+                        context = context,
+                        prefs = prefs,
+                        onStateChanged = onRefreshNeeded
+                    )
+
+                    // Card 2: Central Command Header Long-Press Quick Action Selector
+                    var selectedAction by remember {
+                        mutableStateOf(LightspeedPreferences.getCentralCommandLongPressAction(context))
                     }
-                }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Swipeable Pages
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.weight(1f).fillMaxWidth()
-                ) { pageIndex ->
-                    when (pageIndex) {
-                        // Page 0: Left Deflector
-                        0 -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                var isLeftEnabled by remember { mutableStateOf(LightspeedPreferences.isLeftDeflectorEnabled(context)) }
-                                var leftStartupMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed") ?: "always_armed") }
-
-                                DeflectorMasterCard(
-                                    flankName = "Left Deflector",
-                                    isEnabled = isLeftEnabled,
-                                    onToggle = { enabled ->
-                                        isLeftEnabled = enabled
-                                        LightspeedPreferences.setLeftDeflectorEnabled(context, enabled)
-                                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
-                                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
-                                        onRefreshNeeded()
-                                    },
-                                    startupMode = leftStartupMode,
-                                    onStartupModeChange = { mode ->
-                                        leftStartupMode = mode
-                                        prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
-                                    }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.TouchApp,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
                                 )
-
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
-                                ) {
-                                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text("Left Flank Architecture", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
-                                        Text("Hosts the secondary kinetic deflector array with Astrogation Core, Upper Vector, and Lower Vector sweep zones. Swipe horizontally or use the tabs above to navigate.", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), lineHeight = 16.sp)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Page 1: Master Flight Core
-                        1 -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                FlightControlDeckCard(
-                                    context = context,
-                                    prefs = prefs,
-                                    onStateChanged = onRefreshNeeded
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "TITLE LONG-PRESS QUICK ACTION",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 0.8.sp
                                 )
                             }
-                        }
+                            Text(
+                                "Holding down 'Central Command ▾' executes this instant shortcut with heavy tactile haptics:",
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                                lineHeight = 16.sp
+                            )
 
-                        // Page 2: Right Deflector
-                        2 -> {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                var isRightEnabled by remember { mutableStateOf(LightspeedPreferences.isRightDeflectorEnabled(context)) }
-                                var rightStartupMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed") ?: "always_armed") }
+                            val actionOptions = listOf(
+                                "toggle_master_flight" to "⚡ Toggle Whole Ship (Flight Mode)",
+                                "toggle_all_deflectors" to "🛡️ Toggle All Deflectors",
+                                "toggle_left_deflector" to "◀ Toggle Left Deflector",
+                                "toggle_right_deflector" to "▶ Toggle Right Deflector"
+                            )
 
-                                DeflectorMasterCard(
-                                    flankName = "Right Deflector",
-                                    isEnabled = isRightEnabled,
-                                    onToggle = { enabled ->
-                                        isRightEnabled = enabled
-                                        LightspeedPreferences.setRightDeflectorEnabled(context, enabled)
-                                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
-                                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
-                                        onRefreshNeeded()
-                                    },
-                                    startupMode = rightStartupMode,
-                                    onStartupModeChange = { mode ->
-                                        rightStartupMode = mode
-                                        prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
-                                    }
-                                )
-
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.04f)),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
-                                ) {
-                                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Text("Right Flank Architecture", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
-                                        Text("Hosts the primary kinetic deflector array and cruise cockpit hangar launcher. Swipe horizontally or use the tabs above to navigate.", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), lineHeight = 16.sp)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                actionOptions.forEach { (actionKey, label) ->
+                                    val isSelected = selectedAction == actionKey
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .clickable {
+                                                selectedAction = actionKey
+                                                LightspeedPreferences.setCentralCommandLongPressAction(context, actionKey)
+                                                LightspeedHapticEngine.tick(context)
+                                            },
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                                            else Color.White.copy(alpha = 0.04f)
+                                        ),
+                                        border = androidx.compose.foundation.BorderStroke(
+                                            1.dp,
+                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                            else Color.White.copy(alpha = 0.06f)
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            RadioButton(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    selectedAction = actionKey
+                                                    LightspeedPreferences.setCentralCommandLongPressAction(context, actionKey)
+                                                    LightspeedHapticEngine.tick(context)
+                                                },
+                                                colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = label,
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = Color.White
+                                            )
+                                        }
                                     }
                                 }
                             }

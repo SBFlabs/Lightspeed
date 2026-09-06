@@ -15,6 +15,7 @@ object LightspeedPreferences {
     const val KEY_DEFLECTOR_LEFT_ENABLED = "pref_deflector_left_enabled"
     const val KEY_DEFLECTOR_RIGHT_ENABLED = "pref_deflector_right_enabled"
     const val KEY_DEFLECTOR_DEFAULT_STATE = "pref_deflector_default_state" // "always_armed", "standby_by_default"
+    const val KEY_CENTRAL_COMMAND_LONG_PRESS_ACTION = "pref_central_command_long_press_action" // "toggle_master_flight", "toggle_all_deflectors", "toggle_left_deflector", "toggle_right_deflector"
 
     // Status Bar Keys
     const val KEY_STATUSBAR_ENABLED = "pref_statusbar_enabled"
@@ -341,6 +342,13 @@ object LightspeedPreferences {
 
     fun setFlightNotificationEnabled(context: Context, enabled: Boolean) {
         context.defaultPrefs().edit().putBoolean(KEY_FLIGHT_NOTIFICATION_ENABLED, enabled).apply()
+    }
+
+    fun getCentralCommandLongPressAction(context: Context): String =
+        context.defaultPrefs().getString(KEY_CENTRAL_COMMAND_LONG_PRESS_ACTION, "toggle_master_flight") ?: "toggle_master_flight"
+
+    fun setCentralCommandLongPressAction(context: Context, action: String) {
+        context.defaultPrefs().edit().putString(KEY_CENTRAL_COMMAND_LONG_PRESS_ACTION, action).apply()
     }
 }
 

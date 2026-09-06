@@ -560,26 +560,45 @@ fun SidebarMatrixConfigurationFields(
                         .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
                         .combinedClickable(
                             onClick = {
-                                scope.launch { pagerState.animateScrollToPage(index) }
+                                if (isSelected) {
+                                    LightspeedHapticEngine.heavyClick(context)
+                                    popoverTabTarget = index
+                                } else {
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                }
                             },
                             onLongClick = {
                                 LightspeedHapticEngine.heavyClick(context)
                                 popoverTabTarget = index
                             }
                         )
-                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                        .padding(vertical = 7.dp, horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = tabTitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = tabTitle,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 14.dp, height = 2.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f))
+                            )
+                        }
+                    }
                 }
             }
         }

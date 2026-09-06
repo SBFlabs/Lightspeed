@@ -314,6 +314,12 @@ fun MultiWidgetContainer(
         val pagerState = rememberPagerState(pageCount = { widgetIds.size })
         val coroutineScope = rememberCoroutineScope()
 
+        LaunchedEffect(widgetIds.size) {
+            if (widgetIds.isNotEmpty()) {
+                pagerState.animateScrollToPage(widgetIds.size - 1)
+            }
+        }
+
         Card(
             modifier = Modifier
                 .fillMaxSize()

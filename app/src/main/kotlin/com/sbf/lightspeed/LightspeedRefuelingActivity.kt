@@ -1,9 +1,11 @@
 package com.sbf.lightspeed
 
 import android.app.Activity
+import android.app.KeyguardManager
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -64,9 +66,11 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         interactionTimestampState.longValue = System.currentTimeMillis()
     }
 
+    private var isWaitingForResult: Boolean = false
     private var pendingProvider: AppWidgetProviderInfo? = null
 
     private val widgetBindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        isWaitingForResult = false
         val widgetId = pendingWidgetId
         val provider = pendingProvider
         if (result.resultCode == Activity.RESULT_OK && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID && provider != null) {
@@ -81,6 +85,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     }
 
     private val widgetPickLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        isWaitingForResult = false
         if (result.resultCode == Activity.RESULT_OK) {
             val widgetId = result.data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
                 ?: AppWidgetManager.INVALID_APPWIDGET_ID
@@ -96,6 +101,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     }
 
     private val widgetConfigLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        isWaitingForResult = false
         val widgetId = result.data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pendingWidgetId) ?: pendingWidgetId
         if (result.resultCode == Activity.RESULT_OK && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             saveNewWidgetId(widgetId)
@@ -183,9 +189,43 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         pendingProvider = provider
 
         val allowed = manager.bindAppWidgetIdIfAllowed(widgetId, provider.provider)
+        val needsConfig = provider.configure != null
+        val requiresExternalUI = !allowed || needsConfig
+
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val isLocked = km?.isKeyguardLocked == true
+
+        if (requiresExternalUI && isLocked) {
+            // Dismiss keyguard first so the configuration / permission activity can render cleanly
+            km?.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                override fun onDismissSucceeded() {
+                    proceedWithBindingOrConfig(widgetId, provider, allowed)
+                }
+
+                override fun onDismissCancelled() {
+                    host.deleteAppWidgetId(widgetId)
+                    pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+                    pendingProvider = null
+                    isWaitingForResult = false
+                }
+
+                override fun onDismissError() {
+                    host.deleteAppWidgetId(widgetId)
+                    pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+                    pendingProvider = null
+                    isWaitingForResult = false
+                }
+            })
+        } else {
+            proceedWithBindingOrConfig(widgetId, provider, allowed)
+        }
+    }
+
+    private fun proceedWithBindingOrConfig(widgetId: Int, provider: AppWidgetProviderInfo, allowed: Boolean) {
         if (allowed) {
             checkConfigureOrSaveWidget(widgetId, provider)
         } else {
+            isWaitingForResult = true
             val bindIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
@@ -197,12 +237,14 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     private fun checkConfigureOrSaveWidget(widgetId: Int, provider: AppWidgetProviderInfo) {
         pendingProvider = null
         if (provider.configure != null) {
+            isWaitingForResult = true
             val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
                 component = provider.configure
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
             }
             widgetConfigLauncher.launch(configIntent)
         } else {
+            isWaitingForResult = false
             saveNewWidgetId(widgetId)
         }
     }
@@ -221,6 +263,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         val newWidgetId = host.allocateAppWidgetId()
         pendingWidgetId = newWidgetId
 
+        isWaitingForResult = true
         val pickIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, newWidgetId)
         }
@@ -231,17 +274,20 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         val manager = appWidgetManager ?: return
         val appWidgetInfo = manager.getAppWidgetInfo(widgetId)
         if (appWidgetInfo?.configure != null) {
+            isWaitingForResult = true
             val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
                 component = appWidgetInfo.configure
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
             }
             widgetConfigLauncher.launch(configIntent)
         } else {
+            isWaitingForResult = false
             saveNewWidgetId(widgetId)
         }
     }
 
     private fun saveNewWidgetId(widgetId: Int) {
+        isWaitingForResult = false
         pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
         if (!widgetIdsState.contains(widgetId)) {
             widgetIdsState.add(widgetId)
@@ -298,6 +344,8 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isActive = true
+        isWaitingForResult = false
+        appWidgetHost?.startListening()
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
     }
 
@@ -311,7 +359,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         window.attributes = lp
         appWidgetHost?.stopListening()
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
-        if (!isChangingConfigurations) {
+        if (!isChangingConfigurations && !isWaitingForResult) {
             finish()
         }
     }

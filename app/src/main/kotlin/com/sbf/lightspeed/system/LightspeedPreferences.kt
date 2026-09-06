@@ -214,6 +214,8 @@ object LightspeedPreferences {
     const val KEY_ATTITUDE_BUCKET_SENSOR_360 = "pref_attitude_bucket_sensor_360"
     const val KEY_ACCESSIBILITY_SENTINEL_ENABLED = "pref_accessibility_sentinel_enabled"
     const val KEY_CRASH_SENTINEL_ENABLED = "pref_crash_sentinel_enabled"
+    const val KEY_PERIMETER_PROTECTED_SERVICES = "pref_perimeter_protected_services"
+    const val KEY_SECTION_WATCHDOGS_EXPANDED = "pref_section_watchdogs_expanded"
 
     // Refueling Bay Keys
     const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screen_timeout", "screensaver_only"
@@ -350,6 +352,36 @@ object LightspeedPreferences {
 
     fun setCentralCommandLongPressAction(context: Context, action: String) {
         context.defaultPrefs().edit().putString(KEY_CENTRAL_COMMAND_LONG_PRESS_ACTION, action).apply()
+    }
+
+    fun getPerimeterProtectedServices(context: Context): Set<String> =
+        context.defaultPrefs().getStringSet(KEY_PERIMETER_PROTECTED_SERVICES, emptySet()) ?: emptySet()
+
+    fun setPerimeterProtectedServices(context: Context, services: Set<String>) {
+        context.defaultPrefs().edit().putStringSet(KEY_PERIMETER_PROTECTED_SERVICES, services).apply()
+    }
+
+    fun togglePerimeterProtectedService(context: Context, componentId: String, protect: Boolean) {
+        val current = getPerimeterProtectedServices(context).toMutableSet()
+        if (protect) {
+            current.add(componentId)
+        } else {
+            current.remove(componentId)
+        }
+        setPerimeterProtectedServices(context, current)
+    }
+
+    fun togglePerimeterProtectedService(context: Context, componentId: String): Boolean {
+        val current = getPerimeterProtectedServices(context).toMutableSet()
+        val isNowProtected = if (current.contains(componentId)) {
+            current.remove(componentId)
+            false
+        } else {
+            current.add(componentId)
+            true
+        }
+        setPerimeterProtectedServices(context, current)
+        return isNowProtected
     }
 }
 

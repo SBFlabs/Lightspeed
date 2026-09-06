@@ -36,11 +36,19 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.GearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedWatchdogEngine
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -920,6 +928,244 @@ fun FlightControlDeckCard(
 }
 
 @Composable
+fun WatchdogQuickTelemetryCard(
+    context: Context,
+    prefs: SharedPreferences,
+    onStateChanged: () -> Unit = {}
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val isServiceRunning = LightspeedAccessibilityService.instance != null
+    val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var isBatteryIgnored by remember {
+        mutableStateOf(LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context))
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isBatteryIgnored = LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val enabledSet = remember { LightspeedWatchdogEngine.getEnabledAccessibilityServices(context) }
+    val protectedSet = remember { LightspeedPreferences.getPerimeterProtectedServices(context) }
+    val cautionAmber = Color(0xFFFFB300)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "SYSTEM IMMUNITY & WATCHDOGS",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 0.8.sp
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (isServiceRunning && isShizukuActive) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning && isShizukuActive) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF9800).copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = if (isServiceRunning && isShizukuActive) "PROTECTED" else "ATTENTION NEEDED",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isServiceRunning && isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            // Status Pills Row
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Pill 1: Core Service
+                Surface(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF3D00).copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF3D00).copy(alpha = 0.35f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("CORE", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(
+                            text = if (isServiceRunning) "ONLINE" else "OFFLINE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+
+                // Pill 2: Shizuku Bridge
+                Surface(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("SHIZUKU", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(
+                            text = if (isShizukuActive) "ACTIVE" else "STANDBY",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+
+                // Pill 3: Battery Exemption
+                Surface(
+                    modifier = Modifier.weight(1f).fillMaxHeight().clickable {
+                        if (isBatteryIgnored) {
+                            Toast.makeText(context, "Battery optimization already disabled", Toast.LENGTH_SHORT).show()
+                        } else {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val ok = LightspeedWatchdogEngine.whitelistBattery(context, context.packageName)
+                                withContext(Dispatchers.Main) {
+                                    if (ok) {
+                                        isBatteryIgnored = true
+                                        com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
+                                        Toast.makeText(context, "Battery whitelist granted via Shizuku", Toast.LENGTH_SHORT).show()
+                                        onStateChanged()
+                                    } else {
+                                        LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("BATTERY", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(
+                            text = if (isBatteryIgnored) "EXEMPT" else "LIMITED",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+
+                // Pill 4: Perimeter
+                Surface(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.White.copy(alpha = 0.05f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("PERIMETER", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text(
+                            text = "${enabledSet.size} ACTIVE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
+            }
+
+            // Tactical Pulse Actions Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
+                        Toast.makeText(context, if (ok) "Core Watchdog pulse sent" else "Shizuku required", Toast.LENGTH_SHORT).show()
+                        onStateChanged()
+                    },
+                    modifier = Modifier.weight(1f).height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f)),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Pulse Core", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = cautionAmber, maxLines = 1, softWrap = false)
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val count = LightspeedWatchdogEngine.pulsePerimeterServices(context)
+                        Toast.makeText(context, "Perimeter pulse: $count sentinels verified", Toast.LENGTH_SHORT).show()
+                        onStateChanged()
+                    },
+                    modifier = Modifier.weight(1f).height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Pulse Perimeter", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun CentralCommandDeckDialog(
     context: Context,
     prefs: SharedPreferences,
@@ -1027,7 +1273,14 @@ fun CentralCommandDeckDialog(
                         onStateChanged = onRefreshNeeded
                     )
 
-                    // Card 2: Central Command Header Long-Press Quick Action Selector
+                    // Card 2: System Watchdogs & Perimeter Telemetry
+                    WatchdogQuickTelemetryCard(
+                        context = context,
+                        prefs = prefs,
+                        onStateChanged = onRefreshNeeded
+                    )
+
+                    // Card 3: Central Command Header Long-Press Quick Action Selector
                     var selectedAction by remember {
                         mutableStateOf(LightspeedPreferences.getCentralCommandLongPressAction(context))
                     }

@@ -35,6 +35,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.style.TextOverflow
+import android.content.ComponentName
 import android.content.Intent
 import com.sbf.lightspeed.GearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
@@ -88,7 +92,7 @@ fun SidebarMatrixConfigurationFields(
 
     var tabMode1 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_1, "custom_pinned") ?: "custom_pinned") }
     var pinnedSection1 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, "sensor_deck") ?: "sensor_deck") }
-    var sectionOrder1Str by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") }
+    var sectionOrder1Str by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,watchdog_defense,tactical_hardware,refueling_bay,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,watchdog_defense,tactical_hardware,refueling_bay,config_vault,experimental_labs") }
 
     var tabMode2 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
     var pinnedSection2 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "top") ?: "top") }
@@ -122,6 +126,7 @@ fun SidebarMatrixConfigurationFields(
     // HUD Strip Accordion States
     var isSensorDeckExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean("pref_section_statusbar_expanded", true)) }
     var isTelemetryExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean("pref_section_telemetry_expanded", false)) }
+    var isWatchdogsExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "watchdog_defense" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_WATCHDOGS_EXPANDED, true)) }
     var isTacticalHardwareExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean("pref_section_tactical_hardware_expanded", false)) }
     var isRefuelingExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "refueling_bay" else prefs.getBoolean("pref_section_refueling_expanded", false)) }
     var isConfigVaultExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean("pref_section_backup_expanded", false)) }
@@ -296,6 +301,7 @@ fun SidebarMatrixConfigurationFields(
         mapOf(
             "sensor_deck" to "Sensor Area",
             "telemetry_indicators" to "Telemetry & Indicators",
+            "watchdog_defense" to "Watchdogs & Defense",
             "tactical_hardware" to "Tactical Hardware Deck",
             "refueling_bay" to "Refueling Bay",
             "config_vault" to "Configuration Vault",
@@ -343,6 +349,7 @@ fun SidebarMatrixConfigurationFields(
                     1 -> {
                         isSensorDeckExpanded = false
                         isTelemetryExpanded = false
+                        isWatchdogsExpanded = false
                         isTacticalHardwareExpanded = false
                         isRefuelingExpanded = false
                         isConfigVaultExpanded = false
@@ -375,6 +382,7 @@ fun SidebarMatrixConfigurationFields(
                         1 -> {
                             if (pinned != "sensor_deck") isSensorDeckExpanded = false
                             if (pinned != "telemetry_indicators") isTelemetryExpanded = false
+                            if (pinned != "watchdog_defense") isWatchdogsExpanded = false
                             if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
                             if (pinned != "refueling_bay") isRefuelingExpanded = false
                             if (pinned != "config_vault") isConfigVaultExpanded = false
@@ -418,6 +426,7 @@ fun SidebarMatrixConfigurationFields(
                 1 -> {
                     isSensorDeckExpanded = allExpandedState
                     isTelemetryExpanded = allExpandedState
+                    isWatchdogsExpanded = allExpandedState
                     isTacticalHardwareExpanded = allExpandedState
                     isRefuelingExpanded = allExpandedState
                     isConfigVaultExpanded = allExpandedState
@@ -428,6 +437,7 @@ fun SidebarMatrixConfigurationFields(
                     prefs.edit()
                         .putBoolean("pref_section_statusbar_expanded", allExpandedState)
                         .putBoolean("pref_section_telemetry_expanded", allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_WATCHDOGS_EXPANDED, allExpandedState)
                         .putBoolean("pref_section_tactical_hardware_expanded", allExpandedState)
                         .putBoolean("pref_section_refueling_expanded", allExpandedState)
                         .putBoolean("pref_section_backup_expanded", allExpandedState)
@@ -462,10 +472,11 @@ fun SidebarMatrixConfigurationFields(
         when (jumpTargetSection) {
             "statusbar", "sensor_deck" -> isSensorDeckExpanded = true
             "telemetry", "telemetry_indicators" -> isTelemetryExpanded = true
+            "watchdog", "watchdog_defense", "defense", "perimeter" -> isWatchdogsExpanded = true
             "volumekeys", "tactical_hardware", "power", "backtap" -> isTacticalHardwareExpanded = true
             "refueling", "refueling_bay" -> isRefuelingExpanded = true
             "backup", "config_vault", "shizuku_jettison" -> isConfigVaultExpanded = true
-            "experimental_labs", "labs", "experimental", "watchdog", "core_cooling" -> isExperimentalLabsExpanded = true
+            "experimental_labs", "labs", "experimental", "core_cooling" -> isExperimentalLabsExpanded = true
             "wings" -> {
                 if (jumpTargetTab == 0) isLeftCenterExpanded = true
                 else isCenterExpanded = true
@@ -984,7 +995,7 @@ fun SidebarMatrixConfigurationFields(
 
                 // PAGE 1: HUD STRIP
                 1 -> {
-                    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "tactical_hardware", "refueling_bay", "config_vault", "experimental_labs")
+                    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "watchdog_defense", "tactical_hardware", "refueling_bay", "config_vault", "experimental_labs")
                     val currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
                         list + (defaultOrder1 - list.toSet())
                     }
@@ -2405,6 +2416,33 @@ fun SidebarMatrixConfigurationFields(
                                                 }
                                             }
                                         }
+                                    "watchdog_defense" -> {
+                                        item(key = "watchdog_defense") {
+                                            CompactAccordionSection(
+                                                title = "Watchdogs & Defense",
+                                                subtitle = "Autonomous crash resuscitation, Shizuku shell sentinels, and universal accessibility manager.",
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Shield,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
+                                                isExpanded = isWatchdogsExpanded,
+                                                onToggle = {
+                                                    toggleSection(1, "watchdog_defense", isWatchdogsExpanded) { isWatchdogsExpanded = it }
+                                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_WATCHDOGS_EXPANDED, isWatchdogsExpanded).apply()
+                                                }
+                                            ) {
+                                                WatchdogDefenseDeck(
+                                                    context = context,
+                                                    prefs = prefs,
+                                                    onRefreshNeeded = onRefreshNeeded
+                                                )
+                                            }
+                                        }
+                                    }
                                     "tactical_hardware" -> {
                                         item(key = "tactical_hardware") {
                                             CompactAccordionSection(
@@ -3410,524 +3448,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // 1. Core Watchdog
-                                                    var sentinelEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)) }
-                                                    var crashSentinelEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, true)) }
-                                                    var showFullCrashStack by rememberSaveable { mutableStateOf(false) }
-
-                                                    val isServiceRunning = LightspeedAccessibilityService.instance != null
-                                                    val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
-                                                    val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
-                                                    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-                                                    var isBatteryIgnored by remember {
-                                                        mutableStateOf(LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context))
-                                                    }
-                                                    DisposableEffect(lifecycleOwner) {
-                                                        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-                                                            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                                                                isBatteryIgnored = LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context)
-                                                            }
-                                                        }
-                                                        lifecycleOwner.lifecycle.addObserver(observer)
-                                                        onDispose {
-                                                            lifecycleOwner.lifecycle.removeObserver(observer)
-                                                        }
-                                                    }
-
-                                                    val lastCrashTimestamp = prefs.getLong("key_last_crash_timestamp", 0L)
-                                                    val lastCrashMessage = prefs.getString("key_last_crash_message", null)
-                                                    val lastCrashStack = prefs.getString("key_last_crash_stack", null)
-
-                                                    CollapsibleSubSection(
-                                                        title = "Core Watchdog",
-                                                        subtitle = "Monitors, protects, and autonomously revives Lightspeed via Shizuku.",
-                                                        icon = {
-                                                            Icon(
-                                                                imageVector = Icons.Outlined.Shield,
-                                                                contentDescription = null,
-                                                                tint = cautionAmber,
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        },
-                                                        trailingBadge = {
-                                                            Surface(
-                                                                shape = RoundedCornerShape(6.dp),
-                                                                color = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF3D00).copy(alpha = 0.18f),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF3D00).copy(alpha = 0.5f))
-                                                            ) {
-                                                                Text(
-                                                                    text = if (isServiceRunning) "ONLINE" else "OFFLINE",
-                                                                    fontSize = 9.sp,
-                                                                    fontWeight = FontWeight.Bold,
-                                                                    color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
-                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                )
-                                                            }
-                                                        },
-                                                        isExpanded = isInnerWatchdogExpanded,
-                                                        onToggle = {
-                                                            isInnerWatchdogExpanded = !isInnerWatchdogExpanded
-                                                            prefs.edit().putBoolean("pref_sub_inner_watchdog_labs", isInnerWatchdogExpanded).apply()
-                                                        }
-                                                    ) {
-                                                        // System Defense & Bridge Status Row
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = CardDefaults.cardColors(
-                                                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                                                            ),
-                                                            border = androidx.compose.foundation.BorderStroke(
-                                                                1.dp,
-                                                                Color.White.copy(alpha = 0.08f)
-                                                            )
-                                                        ) {
-                                                            Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                                                                Row(
-                                                                    modifier = Modifier.fillMaxWidth(),
-                                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                                    verticalAlignment = Alignment.CenterVertically
-                                                                ) {
-                                                                    Text("SYSTEM IMMUNITY STATUS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                                                                    Text(
-                                                                        text = if (isServiceRunning && isShizukuActive) "PROTECTED" else "ATTENTION NEEDED",
-                                                                        fontSize = 9.5.sp,
-                                                                        fontWeight = FontWeight.Bold,
-                                                                        color = if (isServiceRunning && isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800)
-                                                                    )
-                                                                }
-
-                                                                Spacer(modifier = Modifier.height(8.dp))
-
-                                                                Row(
-                                                                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                ) {
-                                                                    // Service Badge
-                                                                    Surface(
-                                                                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                                                                        shape = RoundedCornerShape(8.dp),
-                                                                        color = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF3D00).copy(alpha = 0.15f),
-                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF3D00).copy(alpha = 0.35f))
-                                                                    ) {
-                                                                        Column(
-                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                                                            verticalArrangement = Arrangement.Center
-                                                                        ) {
-                                                                            Text("SERVICE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
-                                                                            Text(
-                                                                                text = if (isServiceRunning) "ONLINE" else "OFFLINE",
-                                                                                fontSize = 11.sp,
-                                                                                fontWeight = FontWeight.Bold,
-                                                                                color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
-                                                                                maxLines = 1,
-                                                                                softWrap = false
-                                                                            )
-                                                                        }
-                                                                    }
-
-                                                                    // Shizuku Bridge Badge
-                                                                    Surface(
-                                                                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                                                                        shape = RoundedCornerShape(8.dp),
-                                                                        color = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
-                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
-                                                                    ) {
-                                                                        Column(
-                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                                                            verticalArrangement = Arrangement.Center
-                                                                        ) {
-                                                                            Text("SHIZUKU", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
-                                                                            Text(
-                                                                                text = if (isShizukuActive) "ACTIVE" else "STANDBY",
-                                                                                fontSize = 11.sp,
-                                                                                fontWeight = FontWeight.Bold,
-                                                                                color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
-                                                                                maxLines = 1,
-                                                                                softWrap = false
-                                                                            )
-                                                                        }
-                                                                    }
-
-                                                                    // Battery Badge
-                                                                    Surface(
-                                                                        modifier = Modifier.weight(1f).fillMaxHeight().clickable {
-                                                                            LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
-                                                                        },
-                                                                        shape = RoundedCornerShape(8.dp),
-                                                                        color = if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
-                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
-                                                                    ) {
-                                                                        Column(
-                                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                                                            verticalArrangement = Arrangement.Center
-                                                                        ) {
-                                                                            Text("BATTERY", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
-                                                                            Text(
-                                                                                text = if (isBatteryIgnored) "EXEMPT" else "LIMITED",
-                                                                                fontSize = 11.sp,
-                                                                                fontWeight = FontWeight.Bold,
-                                                                                color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
-                                                                                maxLines = 1,
-                                                                                softWrap = false
-                                                                            )
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // Row 1: Proactive OEM Sentinel Toggle
-                                                        PrefToggleRow(
-                                                            title = "Proactive OEM Sentinel",
-                                                            subtitle = "Background sentinel thread polls Lightspeed health every 20s and automatically revives via Shizuku shell if killed by OEM battery management.",
-                                                            isChecked = sentinelEnabled,
-                                                            onCheckedChange = { checked ->
-                                                                sentinelEnabled = checked
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
-                                                                if (checked) {
-                                                                    LightspeedWatchdogEngine.initSentinel(context)
-                                                                } else {
-                                                                    LightspeedWatchdogEngine.stopSentinel()
-                                                                }
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
-
-                                                        // Row 2: Autonomous Crash Resuscitation Toggle
-                                                        PrefToggleRow(
-                                                            title = "Autonomous Crash Resuscitation",
-                                                            subtitle = "Catches fatal JVM and shader exceptions, records flight telemetry, and arms an OS alarm to resuscitate the service via Shizuku within 1s.",
-                                                            isChecked = crashSentinelEnabled,
-                                                            onCheckedChange = { checked ->
-                                                                crashSentinelEnabled = checked
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, checked).apply()
-                                                                onRefreshNeeded()
-                                                            }
-                                                        )
-
-                                                        // Action Utilities Row
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                        ) {
-                                                            OutlinedButton(
-                                                                onClick = {
-                                                                    val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
-                                                                    if (ok) {
-                                                                        android.widget.Toast.makeText(context, "Core Watchdog pulse sent via Shizuku", android.widget.Toast.LENGTH_SHORT).show()
-                                                                    } else {
-                                                                        android.widget.Toast.makeText(context, "Shizuku or Root required for service revival", android.widget.Toast.LENGTH_SHORT).show()
-                                                                    }
-                                                                },
-                                                                modifier = Modifier.weight(1f).height(36.dp),
-                                                                shape = RoundedCornerShape(10.dp),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f)),
-                                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                                            ) {
-                                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                                                    Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(15.dp))
-                                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                                    Text("Trigger Pulse", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = cautionAmber, maxLines = 1, softWrap = false)
-                                                                }
-                                                            }
-
-                                                            OutlinedButton(
-                                                                onClick = {
-                                                                    LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
-                                                                },
-                                                                modifier = Modifier.weight(1f).height(36.dp),
-                                                                shape = RoundedCornerShape(10.dp),
-                                                                border = androidx.compose.foundation.BorderStroke(
-                                                                    1.dp,
-                                                                    if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.45f) else Color(0xFFFF9800).copy(alpha = 0.6f)
-                                                                ),
-                                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                                            ) {
-                                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                                                    Icon(
-                                                                        imageVector = if (isBatteryIgnored) Icons.Default.CheckCircle else Icons.Default.BatteryChargingFull,
-                                                                        contentDescription = null,
-                                                                        tint = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
-                                                                        modifier = Modifier.size(15.dp)
-                                                                    )
-                                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                                    Text(
-                                                                        text = if (isBatteryIgnored) "Battery: OK" else "Fix Battery",
-                                                                        fontWeight = FontWeight.Bold,
-                                                                        fontSize = 11.sp,
-                                                                        color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
-                                                                        maxLines = 1,
-                                                                        softWrap = false
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // Flight Recorder / Anomaly Telemetry Card
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = CardDefaults.cardColors(
-                                                                containerColor = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
-                                                                    Color(0xFFFF9800).copy(alpha = 0.1f)
-                                                                } else {
-                                                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                                                                }
-                                                            ),
-                                                            border = androidx.compose.foundation.BorderStroke(
-                                                                1.dp,
-                                                                if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
-                                                                    Color(0xFFFF9800).copy(alpha = 0.35f)
-                                                                } else {
-                                                                    Color.White.copy(alpha = 0.08f)
-                                                                }
-                                                            )
-                                                        ) {
-                                                            Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
-                                                                Row(
-                                                                    modifier = Modifier.fillMaxWidth(),
-                                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                                    verticalAlignment = Alignment.CenterVertically
-                                                                ) {
-                                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                        Icon(
-                                                                            imageVector = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) Icons.Default.Warning else Icons.Default.CheckCircle,
-                                                                            contentDescription = null,
-                                                                            tint = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) Color(0xFFFF9800) else Color(0xFF00E676),
-                                                                            modifier = Modifier.size(16.dp)
-                                                                        )
-                                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                                        Text(
-                                                                            "FLIGHT RECORDER TELEMETRY",
-                                                                            fontSize = 10.sp,
-                                                                            fontWeight = FontWeight.Bold,
-                                                                            color = if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) Color(0xFFFF9800) else Color(0xFF00E676)
-                                                                        )
-                                                                    }
-
-                                                                    if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
-                                                                        Text(
-                                                                            text = "Clear Log",
-                                                                            fontSize = 10.sp,
-                                                                            fontWeight = FontWeight.Bold,
-                                                                            color = Color.LightGray,
-                                                                            modifier = Modifier.clickable {
-                                                                                LightspeedWatchdogEngine.clearCrashTelemetry(context)
-                                                                                onRefreshNeeded()
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                }
-
-                                                                Spacer(modifier = Modifier.height(6.dp))
-
-                                                                if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
-                                                                    val formattedDate = remember(lastCrashTimestamp) {
-                                                                        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(java.util.Date(lastCrashTimestamp))
-                                                                    }
-                                                                    Text(
-                                                                        text = "Last Anomaly: $lastCrashMessage",
-                                                                        fontSize = 11.5.sp,
-                                                                        fontWeight = FontWeight.SemiBold,
-                                                                        color = Color.White
-                                                                    )
-                                                                    Text(
-                                                                        text = "Recorded at $formattedDate",
-                                                                        fontSize = 10.sp,
-                                                                        color = Color.Gray
-                                                                    )
-
-                                                                    if (!lastCrashStack.isNullOrBlank()) {
-                                                                        Spacer(modifier = Modifier.height(4.dp))
-                                                                        Text(
-                                                                            text = if (showFullCrashStack) "Hide Stacktrace ▲" else "View Stacktrace ▼",
-                                                                            fontSize = 10.5.sp,
-                                                                            fontWeight = FontWeight.Bold,
-                                                                            color = MaterialTheme.colorScheme.primary,
-                                                                            modifier = Modifier.clickable {
-                                                                                showFullCrashStack = !showFullCrashStack
-                                                                            }
-                                                                        )
-
-                                                                        if (showFullCrashStack) {
-                                                                            Surface(
-                                                                                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                                                                                shape = RoundedCornerShape(6.dp),
-                                                                                color = Color.Black.copy(alpha = 0.5f),
-                                                                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f))
-                                                                            ) {
-                                                                                Text(
-                                                                                    text = lastCrashStack.take(1500),
-                                                                                    fontSize = 9.sp,
-                                                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                                                                    color = Color.LightGray,
-                                                                                    modifier = Modifier.padding(6.dp)
-                                                                                )
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                } else {
-                                                                    Text(
-                                                                        text = "Nominal. Zero crash events or unhandled exceptions recorded.",
-                                                                        fontSize = 11.sp,
-                                                                        color = Color.LightGray.copy(alpha = 0.7f)
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                    
-                                                    // 2. Perimeter Watchdog
-                                                    val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
-                                                    val pm = context.packageManager
-                                                    val installedA11y = remember(isOuterWatchdogExpanded) {
-                                                        try {
-                                                            a11yManager?.getInstalledAccessibilityServiceList() ?: emptyList()
-                                                        } catch (_: Exception) {
-                                                            emptyList()
-                                                        }
-                                                    }
-                                                    val enabledA11y = remember(isOuterWatchdogExpanded) {
-                                                        try {
-                                                            a11yManager?.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK) ?: emptyList()
-                                                        } catch (_: Exception) {
-                                                            emptyList()
-                                                        }
-                                                    }
-                                                    val enabledPkgSet = remember(enabledA11y) {
-                                                        enabledA11y.mapNotNull { it.resolveInfo?.serviceInfo?.packageName }.toSet()
-                                                    }
-                                                    val thirdPartyServices = remember(installedA11y) {
-                                                        installedA11y.filter { it.resolveInfo?.serviceInfo?.packageName != context.packageName }
-                                                    }
-
-                                                    CollapsibleSubSection(
-                                                        title = "Perimeter Watchdog",
-                                                        subtitle = "Monitors and reports status on third-party accessibility sentinels.",
-                                                        icon = {
-                                                            Icon(
-                                                                imageVector = Icons.Outlined.Security,
-                                                                contentDescription = null,
-                                                                tint = cautionAmber,
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        },
-                                                        trailingBadge = {
-                                                            Surface(
-                                                                shape = RoundedCornerShape(6.dp),
-                                                                color = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF9800).copy(alpha = 0.5f))
-                                                            ) {
-                                                                Text(
-                                                                    text = if (isShizukuActive) "ACTIVE" else "STANDBY",
-                                                                    fontSize = 9.sp,
-                                                                    fontWeight = FontWeight.Bold,
-                                                                    color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
-                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                )
-                                                            }
-                                                        },
-                                                        isExpanded = isOuterWatchdogExpanded,
-                                                        onToggle = {
-                                                            isOuterWatchdogExpanded = !isOuterWatchdogExpanded
-                                                            prefs.edit().putBoolean("pref_sub_outer_watchdog_labs", isOuterWatchdogExpanded).apply()
-                                                        }
-                                                    ) {
-                                                        // Row 1: Shizuku Status Banner
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = CardDefaults.cardColors(
-                                                                containerColor = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.12f)
-                                                            ),
-                                                            border = androidx.compose.foundation.BorderStroke(
-                                                                1.dp,
-                                                                if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.4f) else Color(0xFFFF9800).copy(alpha = 0.4f)
-                                                            )
-                                                        ) {
-                                                            Row(
-                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                Icon(
-                                                                    imageVector = if (isShizukuActive) Icons.Default.CheckCircle else Icons.Default.Info,
-                                                                    contentDescription = null,
-                                                                    tint = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Spacer(modifier = Modifier.width(8.dp))
-                                                                Column {
-                                                                    Text(
-                                                                        text = if (isShizukuActive) "SHIZUKU PRIVILEGED BRIDGE: ACTIVE" else "SHIZUKU PRIVILEGED BRIDGE: STANDBY",
-                                                                        fontWeight = FontWeight.Bold,
-                                                                        fontSize = 11.sp,
-                                                                        color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800)
-                                                                    )
-                                                                    Text(
-                                                                        text = if (isShizukuActive) "Ready to monitor & report external accessibility sentinels" else "Requires Shizuku authorization for outer sentinel management",
-                                                                        fontSize = 10.sp,
-                                                                        color = Color.LightGray.copy(alpha = 0.75f)
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-
-                                                        if (thirdPartyServices.isEmpty()) {
-                                                            Text(
-                                                                text = "No third-party accessibility services detected.",
-                                                                fontSize = 11.5.sp,
-                                                                color = Color.LightGray.copy(alpha = 0.6f),
-                                                                modifier = Modifier.padding(vertical = 8.dp)
-                                                            )
-                                                        } else {
-                                                            Column(
-                                                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                                                modifier = Modifier.padding(top = 4.dp)
-                                                            ) {
-                                                                thirdPartyServices.forEach { sInfo ->
-                                                                    val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: "unknown"
-                                                                    val sLabel = try {
-                                                                        sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
-                                                                    } catch (_: Exception) { sPkg }
-                                                                    val isServiceEnabled = enabledPkgSet.contains(sPkg)
-
-                                                                    Surface(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        shape = RoundedCornerShape(10.dp),
-                                                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                                                                    ) {
-                                                                        Row(
-                                                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                                                                            verticalAlignment = Alignment.CenterVertically,
-                                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                                        ) {
-                                                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                                                                Text(sLabel, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Color.White, maxLines = 1)
-                                                                                Text(sPkg, fontSize = 10.sp, color = Color.Gray, maxLines = 1)
-                                                                            }
-                                                                            Surface(
-                                                                                shape = RoundedCornerShape(6.dp),
-                                                                                color = if (isServiceEnabled) Color(0xFF00E676).copy(alpha = 0.18f) else Color.Gray.copy(alpha = 0.2f),
-                                                                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceEnabled) Color(0xFF00E676).copy(alpha = 0.5f) else Color.Gray.copy(alpha = 0.3f))
-                                                                            ) {
-                                                                                Text(
-                                                                                    text = if (isServiceEnabled) "ENABLED" else "DISABLED",
-                                                                                    fontSize = 9.sp,
-                                                                                    fontWeight = FontWeight.Bold,
-                                                                                    color = if (isServiceEnabled) Color(0xFF00E676) else Color.LightGray,
-                                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                                )
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // 3. Core Cooling Schedule
+                                                    // 1. Core Cooling Schedule
                                                     var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
                                                     CollapsibleSubSection(
                                                         title = "Core Cooling Schedule",
@@ -3994,7 +3515,7 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // 4. Synthetic Gravity Engine (Orientation Rules)
+                                                    // 2. Synthetic Gravity Engine (Orientation Rules)
                                                     var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
                                                     var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
                                                     var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }

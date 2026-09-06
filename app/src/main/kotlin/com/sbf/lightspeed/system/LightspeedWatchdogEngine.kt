@@ -116,6 +116,172 @@ object LightspeedWatchdogEngine {
     }
 
     /**
+     * Gets all currently enabled accessibility services as parsed ComponentNames.
+     */
+    fun getEnabledAccessibilityServices(context: Context): Set<ComponentName> {
+        val raw = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return emptySet()
+
+        val set = mutableSetOf<ComponentName>()
+        val colonSplitter = TextUtils.SimpleStringSplitter(':')
+        colonSplitter.setString(raw)
+        while (colonSplitter.hasNext()) {
+            val str = colonSplitter.next().trim()
+            if (str.isNotEmpty()) {
+                val cn = ComponentName.unflattenFromString(str)
+                if (cn != null) set.add(cn)
+            }
+        }
+        return set
+    }
+
+    /**
+     * Checks whether a specific component (e.g. "pkg/cls") is currently enabled.
+     */
+    fun isComponentEnabled(context: Context, componentId: String): Boolean {
+        val target = ComponentName.unflattenFromString(componentId) ?: return false
+        val enabledSet = getEnabledAccessibilityServices(context)
+        return enabledSet.contains(target)
+    }
+
+    /**
+     * Instant 1-tap toggling of ANY accessibility service via Shizuku shell or Root.
+     * Bypasses Android Settings menus and Android 13+ restricted settings dialogs.
+     */
+    fun toggleAccessibilityService(context: Context, componentId: String, enable: Boolean): Boolean {
+        val targetCn = ComponentName.unflattenFromString(componentId) ?: return false
+
+        if (!ElevatedTaskCloser.isShizukuActive && !ElevatedTaskCloser.isRootActive) {
+            // Graceful fallback to system accessibility settings
+            try {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {}
+            return false
+        }
+
+        val currentRaw = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: ""
+
+        val currentEntries = currentRaw.split(":").map { it.trim() }.filter { it.isNotEmpty() }
+        val remainingEntries = mutableListOf<String>()
+
+        for (entry in currentEntries) {
+            val cn = ComponentName.unflattenFromString(entry)
+            if (cn != null && cn == targetCn) {
+                // Skip matched target
+                continue
+            }
+            remainingEntries.add(entry)
+        }
+
+        if (enable) {
+            remainingEntries.add(targetCn.flattenToString())
+        }
+
+        val newServices = remainingEntries.joinToString(":")
+        val accessibilityEnabled = if (remainingEntries.isNotEmpty()) 1 else 0
+        val targetPkg = targetCn.packageName
+
+        // If enabling, also bypass Android 13+ Restricted Settings via appops
+        val restrictedCmd = if (enable) "appops set $targetPkg ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null; " else ""
+        val cmd = "${restrictedCmd}settings put secure enabled_accessibility_services \"$newServices\" && settings put secure accessibility_enabled $accessibilityEnabled"
+
+        val success = if (ElevatedTaskCloser.isShizukuActive) {
+            val p = ElevatedTaskCloser.execShizuku(cmd)
+            p?.waitFor() == 0
+        } else {
+            val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+            p.waitFor() == 0
+        }
+
+        Log.i(TAG, "toggleAccessibilityService: $componentId -> enable=$enable, success=$success")
+        return success
+    }
+
+    /**
+     * 1-Tap battery whitelist via Shizuku/Root shell:
+     * Immediately excludes the package from Doze & OEM aggressive task killers.
+     */
+    fun whitelistBattery(context: Context, packageName: String): Boolean {
+        if (packageName.isBlank()) return false
+        if (!ElevatedTaskCloser.isShizukuActive && !ElevatedTaskCloser.isRootActive) {
+            requestIgnoreBatteryOptimization(context)
+            return false
+        }
+
+        val cmd = "cmd deviceidle whitelist +$packageName"
+        val success = if (ElevatedTaskCloser.isShizukuActive) {
+            val p = ElevatedTaskCloser.execShizuku(cmd)
+            p?.waitFor() == 0
+        } else {
+            val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+            p.waitFor() == 0
+        }
+        Log.i(TAG, "whitelistBattery: $packageName -> success=$success")
+        return success
+    }
+
+    /**
+     * Checks if a package is whitelisted from battery optimization.
+     */
+    fun isPackageBatteryWhitelisted(context: Context, packageName: String): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            return pm?.isIgnoringBatteryOptimizations(packageName) == true
+        }
+        return true
+    }
+
+    /**
+     * Pulses and ensures all protected third-party accessibility sentinels are running.
+     * Re-injects any missing services and triggers Android AccessibilityManagerService re-binding.
+     */
+    fun pulsePerimeterServices(context: Context): Int {
+        if (!ElevatedTaskCloser.isShizukuActive && !ElevatedTaskCloser.isRootActive) {
+            return 0
+        }
+
+        val protectedStrings = LightspeedPreferences.getPerimeterProtectedServices(context)
+        val protectedCns = protectedStrings.mapNotNull { ComponentName.unflattenFromString(it) }
+
+        val currentRaw = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: ""
+        val entries = currentRaw.split(":").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+
+        var revivedCount = 0
+        for (pCn in protectedCns) {
+            val alreadyIn = entries.any { ComponentName.unflattenFromString(it) == pCn }
+            if (!alreadyIn) {
+                entries.add(pCn.flattenToString())
+                revivedCount++
+            }
+        }
+
+        val newServices = entries.joinToString(":")
+        val accessibilityEnabled = if (entries.isNotEmpty()) 1 else 0
+
+        val cmd = "settings put secure enabled_accessibility_services \"$newServices\" && settings put secure accessibility_enabled $accessibilityEnabled"
+
+        if (ElevatedTaskCloser.isShizukuActive) {
+            ElevatedTaskCloser.execShizuku(cmd)?.waitFor()
+        } else if (ElevatedTaskCloser.isRootActive) {
+            Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)).waitFor()
+        }
+
+        Log.i(TAG, "pulsePerimeterServices: revived $revivedCount missing services. Total active: ${entries.size}")
+        return entries.size
+    }
+
+    /**
      * Starts background watchdog sentinel polling.
      */
     fun initSentinel(context: Context) {
@@ -135,9 +301,24 @@ object LightspeedWatchdogEngine {
                     val sentinelActive = context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
                     if (!sentinelActive) break
 
+                    // 1. Core Watchdog: Lightspeed's own service
                     if (LightspeedAccessibilityService.instance == null) {
                         Log.w(TAG, "Sentinel alert: AccessibilityService instance is null! Attempting revival...")
                         reviveAccessibilityService(context)
+                    }
+
+                    // 2. Perimeter Watchdog: External protected accessibility services
+                    val protectedStrings = LightspeedPreferences.getPerimeterProtectedServices(context)
+                    if (protectedStrings.isNotEmpty()) {
+                        val enabledSet = getEnabledAccessibilityServices(context)
+                        val hasMissing = protectedStrings.any {
+                            val cn = ComponentName.unflattenFromString(it)
+                            cn != null && !enabledSet.contains(cn)
+                        }
+                        if (hasMissing) {
+                            Log.w(TAG, "Perimeter Sentinel alert: Protected services missing! Reviving...")
+                            pulsePerimeterServices(context)
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Sentinel poll cycle error", e)

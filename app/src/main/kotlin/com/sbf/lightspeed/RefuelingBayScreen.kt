@@ -541,6 +541,7 @@ fun RefuelingBayScreen(
                 }
             }
         }
+    }
 
         // 2. Full-Screen Sleep Shield Layer (TOPMOST)
         // When sleeping, this completely covers the entire screen, blocks ALL touches from reaching widgets,

@@ -3418,8 +3418,20 @@ fun SidebarMatrixConfigurationFields(
                                                     val isServiceRunning = LightspeedAccessibilityService.instance != null
                                                     val isSentinelActive = LightspeedWatchdogEngine.isSentinelRunning()
                                                     val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
-                                                    val isBatteryIgnored = remember(isInnerWatchdogExpanded) {
-                                                        LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context)
+                                                    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+                                                    var isBatteryIgnored by remember {
+                                                        mutableStateOf(LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context))
+                                                    }
+                                                    DisposableEffect(lifecycleOwner) {
+                                                        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                                                            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                                                                isBatteryIgnored = LightspeedWatchdogEngine.isBatteryOptimizationIgnored(context)
+                                                            }
+                                                        }
+                                                        lifecycleOwner.lifecycle.addObserver(observer)
+                                                        onDispose {
+                                                            lifecycleOwner.lifecycle.removeObserver(observer)
+                                                        }
                                                     }
 
                                                     val lastCrashTimestamp = prefs.getLong("key_last_crash_timestamp", 0L)
@@ -3604,20 +3616,31 @@ fun SidebarMatrixConfigurationFields(
                                                                 }
                                                             }
 
-                                                            if (!isBatteryIgnored) {
-                                                                OutlinedButton(
-                                                                    onClick = {
-                                                                        LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
-                                                                    },
-                                                                    modifier = Modifier.weight(1f),
-                                                                    shape = RoundedCornerShape(10.dp),
-                                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.6f))
-                                                                ) {
-                                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                        Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFFFF9800), modifier = Modifier.size(15.dp))
-                                                                        Spacer(modifier = Modifier.width(6.dp))
-                                                                        Text("Fix Battery", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color(0xFFFF9800))
-                                                                    }
+                                                            OutlinedButton(
+                                                                onClick = {
+                                                                    LightspeedWatchdogEngine.requestIgnoreBatteryOptimization(context)
+                                                                },
+                                                                modifier = Modifier.weight(1f),
+                                                                shape = RoundedCornerShape(10.dp),
+                                                                border = androidx.compose.foundation.BorderStroke(
+                                                                    1.dp,
+                                                                    if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.45f) else Color(0xFFFF9800).copy(alpha = 0.6f)
+                                                                )
+                                                            ) {
+                                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                    Icon(
+                                                                        imageVector = if (isBatteryIgnored) Icons.Default.CheckCircle else Icons.Default.BatteryChargingFull,
+                                                                        contentDescription = null,
+                                                                        tint = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
+                                                                        modifier = Modifier.size(15.dp)
+                                                                    )
+                                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                                    Text(
+                                                                        text = if (isBatteryIgnored) "Battery: OK" else "Fix Battery",
+                                                                        fontWeight = FontWeight.Bold,
+                                                                        fontSize = 11.5.sp,
+                                                                        color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800)
+                                                                    )
                                                                 }
                                                             }
                                                         }

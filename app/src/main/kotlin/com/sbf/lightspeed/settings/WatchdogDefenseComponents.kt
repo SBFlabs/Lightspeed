@@ -140,21 +140,18 @@ fun PerimeterServicesDeckDialog(
             }
         }
 
-        val glassStyle = remember(LightspeedPreferences.getDeckGlassStyle(context)) {
-            LightspeedPreferences.getDeckGlassStyle(context)
-        }
-        val glassVisuals = DeckGlassTheme.resolve(glassStyle)
+        val glassVisuals = rememberDeckGlassVisuals(context)
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+                .padding(horizontal = 8.dp, vertical = 18.dp),
             contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(0.96f)
-                    .fillMaxHeight(0.86f)
+                    .fillMaxWidth(0.98f)
+                    .fillMaxHeight(0.88f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
                     .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
                     .background(glassVisuals.backgroundBrush)
@@ -199,7 +196,7 @@ fun PerimeterServicesDeckDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
                     // Header Drag Region (drag gesture scoped to drag handle & header row)
                     Column(
@@ -346,17 +343,20 @@ fun PerimeterServicesDeckDialog(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Column {
                                 Text(
                                     text = if (isShizukuActive) "SHIZUKU PRIVILEGED BRIDGE: ACTIVE" else "SHIZUKU PRIVILEGED BRIDGE: STANDBY",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    color = if (isShizukuActive) successGreen else cautionAmber
+                                    fontSize = 10.5.sp,
+                                    color = if (isShizukuActive) successGreen else cautionAmber,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = if (isShizukuActive) "Sub-100ms instant toggles armed without opening system settings" else "Shizuku standby. Toggles will launch system settings page",
-                                    fontSize = 10.sp,
-                                    color = Color.LightGray.copy(alpha = 0.75f)
+                                    text = if (isShizukuActive) "Sub-100ms instant toggles armed without settings page" else "Standby. Toggles will launch system settings page",
+                                    fontSize = 9.5.sp,
+                                    color = Color.LightGray.copy(alpha = 0.75f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -380,9 +380,13 @@ fun PerimeterServicesDeckDialog(
                                     color = Color.White.copy(alpha = 0.05f),
                                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
                                 ) {
-                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
-                                        Text("INSTALLED", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("${thirdPartyServices.size}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("TOTAL", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                        Text("${thirdPartyServices.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
                                     }
                                 }
 
@@ -392,9 +396,13 @@ fun PerimeterServicesDeckDialog(
                                     color = successGreen.copy(alpha = 0.12f),
                                     border = BorderStroke(1.dp, successGreen.copy(alpha = 0.35f))
                                 ) {
-                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
-                                        Text("ACTIVE", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("$activeCount", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("ACTIVE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                        Text("$activeCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
                                     }
                                 }
 
@@ -404,9 +412,13 @@ fun PerimeterServicesDeckDialog(
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
                                 ) {
-                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
-                                        Text("SHIELDED", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("${protectedServicesSet.size}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("SHIELDED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                        Text("${protectedServicesSet.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1)
                                     }
                                 }
 
@@ -416,9 +428,13 @@ fun PerimeterServicesDeckDialog(
                                     color = Color(0xFFFFD54F).copy(alpha = 0.12f),
                                     border = BorderStroke(1.dp, Color(0xFFFFD54F).copy(alpha = 0.35f))
                                 ) {
-                                    Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp), verticalArrangement = Arrangement.Center) {
-                                        Text("PINNED", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("${pinnedServicesSet.size}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F), maxLines = 1)
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("PINNED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                        Text("${pinnedServicesSet.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F), maxLines = 1)
                                     }
                                 }
                             }
@@ -443,7 +459,7 @@ fun PerimeterServicesDeckDialog(
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                     Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Pulse Sentinels (Autonomous Health Check)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                                    Text("Pulse Sentinels (Health Check)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -573,21 +589,21 @@ fun PerimeterServicesDeckDialog(
                                                 Image(
                                                     bitmap = iconBitmap,
                                                     contentDescription = null,
-                                                    modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp))
+                                                    modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp))
                                                 )
                                             } else {
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(34.dp)
+                                                        .size(32.dp)
                                                         .clip(RoundedCornerShape(8.dp))
                                                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(Icons.Default.Widgets, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                                    Icon(Icons.Default.Widgets, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                                 }
                                             }
 
-                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Spacer(modifier = Modifier.width(8.dp))
 
                                             Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -602,7 +618,7 @@ fun PerimeterServicesDeckDialog(
                                                     Text(
                                                         text = sLabel,
                                                         fontWeight = FontWeight.Bold,
-                                                        fontSize = 13.sp,
+                                                        fontSize = 12.5.sp,
                                                         color = Color.White,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
@@ -610,7 +626,7 @@ fun PerimeterServicesDeckDialog(
                                                 }
                                                 Text(
                                                     text = sPkg,
-                                                    fontSize = 10.sp,
+                                                    fontSize = 9.5.sp,
                                                     color = Color.Gray,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
@@ -629,13 +645,13 @@ fun PerimeterServicesDeckDialog(
                                                         Toast.LENGTH_SHORT
                                                     ).show()
                                                 },
-                                                modifier = Modifier.size(36.dp)
+                                                modifier = Modifier.size(32.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
                                                     contentDescription = if (isPinned) "Unpin from top" else "Pin to top",
                                                     tint = if (isPinned) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.35f),
-                                                    modifier = Modifier.size(18.dp)
+                                                    modifier = Modifier.size(16.dp)
                                                 )
                                             }
 
@@ -680,7 +696,7 @@ fun PerimeterServicesDeckDialog(
                                         // Bottom Tactical Defense Actions Row
                                         Row(
                                             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             // 1. Auto-Revive Shield Guard Toggle
@@ -705,7 +721,7 @@ fun PerimeterServicesDeckDialog(
                                                 border = BorderStroke(1.dp, if (isProtected) successGreen.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.12f))
                                             ) {
                                                 Row(
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     horizontalArrangement = Arrangement.Center
                                                 ) {
@@ -713,16 +729,16 @@ fun PerimeterServicesDeckDialog(
                                                         imageVector = if (isProtected) Icons.Default.Shield else Icons.Outlined.Shield,
                                                         contentDescription = null,
                                                         tint = if (isProtected) successGreen else Color.LightGray,
-                                                        modifier = Modifier.size(13.dp)
+                                                        modifier = Modifier.size(12.dp)
                                                     )
-                                                    Spacer(modifier = Modifier.width(5.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
                                                     Text(
-                                                        text = if (isProtected) "SHIELD: ARMED" else "SHIELD: OFF",
-                                                        fontSize = 9.5.sp,
+                                                        text = if (isProtected) "AUTO-REVIVE" else "UNSHIELDED",
+                                                        fontSize = 9.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         color = if (isProtected) successGreen else Color.LightGray,
                                                         maxLines = 1,
-                                                        softWrap = false
+                                                        overflow = TextOverflow.Ellipsis
                                                     )
                                                 }
                                             }
@@ -757,7 +773,7 @@ fun PerimeterServicesDeckDialog(
                                                 border = BorderStroke(1.dp, if (isBatteryWhitelisted) successGreen.copy(alpha = 0.45f) else cautionAmber.copy(alpha = 0.45f))
                                             ) {
                                                 Row(
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     horizontalArrangement = Arrangement.Center
                                                 ) {
@@ -765,16 +781,16 @@ fun PerimeterServicesDeckDialog(
                                                         imageVector = if (isBatteryWhitelisted) Icons.Default.CheckCircle else Icons.Default.BatteryChargingFull,
                                                         contentDescription = null,
                                                         tint = if (isBatteryWhitelisted) successGreen else cautionAmber,
-                                                        modifier = Modifier.size(13.dp)
+                                                        modifier = Modifier.size(12.dp)
                                                     )
-                                                    Spacer(modifier = Modifier.width(5.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
                                                     Text(
-                                                        text = if (isBatteryWhitelisted) "BATTERY EXEMPT" else "FIX BATTERY",
-                                                        fontSize = 9.5.sp,
+                                                        text = if (isBatteryWhitelisted) "BATTERY OK" else "WHITELIST",
+                                                        fontSize = 9.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         color = if (isBatteryWhitelisted) successGreen else cautionAmber,
                                                         maxLines = 1,
-                                                        softWrap = false
+                                                        overflow = TextOverflow.Ellipsis
                                                     )
                                                 }
                                             }

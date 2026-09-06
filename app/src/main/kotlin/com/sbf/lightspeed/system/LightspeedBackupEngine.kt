@@ -291,6 +291,7 @@ object LightspeedBackupEngine {
             }
 
             try {
+                LightspeedPreferences.refreshDeckGlassStyle(context)
                 LightspeedAccessibilityService.instance?.reloadPreferences()
             } catch (_: Exception) {}
             Log.i(TAG, "Imported and committed $importedCount settings entries successfully")

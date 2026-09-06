@@ -406,11 +406,25 @@ object LightspeedPreferences {
         return isNowPinned
     }
 
-    fun getDeckGlassStyle(context: Context): String =
-        context.defaultPrefs().getString(KEY_DECK_GLASS_STYLE, "liquid") ?: "liquid"
+    private val _deckGlassStyleFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val deckGlassStyleFlow: kotlinx.coroutines.flow.StateFlow<String?> = _deckGlassStyleFlow
+
+    fun getDeckGlassStyle(context: Context): String {
+        val cached = _deckGlassStyleFlow.value
+        if (cached != null) return cached
+        val style = context.defaultPrefs().getString(KEY_DECK_GLASS_STYLE, "liquid") ?: "liquid"
+        _deckGlassStyleFlow.value = style
+        return style
+    }
 
     fun setDeckGlassStyle(context: Context, style: String) {
         context.defaultPrefs().edit().putString(KEY_DECK_GLASS_STYLE, style).apply()
+        _deckGlassStyleFlow.value = style
+    }
+
+    fun refreshDeckGlassStyle(context: Context) {
+        val style = context.defaultPrefs().getString(KEY_DECK_GLASS_STYLE, "liquid") ?: "liquid"
+        _deckGlassStyleFlow.value = style
     }
 }
 

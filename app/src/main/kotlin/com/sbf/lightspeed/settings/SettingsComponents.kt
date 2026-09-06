@@ -166,6 +166,13 @@ object DeckGlassTheme {
     }
 }
 
+@Composable
+fun rememberDeckGlassVisuals(context: Context): DeckGlassVisuals {
+    val styleFlow by LightspeedPreferences.deckGlassStyleFlow.collectAsState()
+    val activeStyle = styleFlow ?: remember { LightspeedPreferences.getDeckGlassStyle(context) }
+    return DeckGlassTheme.resolve(activeStyle)
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FloatingOverlayContainer(
@@ -186,10 +193,7 @@ fun FloatingOverlayContainer(
     val dragOffsetY = remember { Animatable(0f) }
     var hasCrossedThreshold by remember { mutableStateOf(false) }
 
-    val glassStyle = remember(LightspeedPreferences.getDeckGlassStyle(context)) {
-        LightspeedPreferences.getDeckGlassStyle(context)
-    }
-    val glassVisuals = DeckGlassTheme.resolve(glassStyle)
+    val glassVisuals = rememberDeckGlassVisuals(context)
 
     Card(
         modifier = Modifier
@@ -886,9 +890,8 @@ fun FlightControlDeckCard(
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             // Live Glass Material Prototype Selector
-            var currentGlassStyle by remember {
-                mutableStateOf(LightspeedPreferences.getDeckGlassStyle(context))
-            }
+            val styleFlow by LightspeedPreferences.deckGlassStyleFlow.collectAsState()
+            val currentGlassStyle = styleFlow ?: remember { LightspeedPreferences.getDeckGlassStyle(context) }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -929,7 +932,6 @@ fun FlightControlDeckCard(
                                 .weight(1f)
                                 .clickable {
                                     LightspeedPreferences.setDeckGlassStyle(context, styleKey)
-                                    currentGlassStyle = styleKey
                                     LightspeedHapticEngine.tick(context)
                                     onStateChanged()
                                 },
@@ -941,16 +943,17 @@ fun FlightControlDeckCard(
                             )
                         ) {
                             Box(
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                modifier = Modifier.padding(vertical = 7.dp, horizontal = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = title,
-                                    fontSize = 10.5.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.75f),
                                     maxLines = 1,
-                                    softWrap = false
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -1376,12 +1379,12 @@ fun WatchdogQuickTelemetryCard(
                     modifier = Modifier.weight(1f).height(36.dp),
                     shape = RoundedCornerShape(10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.6f)),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Pulse Core", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = cautionAmber, maxLines = 1, softWrap = false)
+                        Text("Pulse Core", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = cautionAmber, maxLines = 1, softWrap = false)
                     }
                 }
 
@@ -1399,12 +1402,12 @@ fun WatchdogQuickTelemetryCard(
                     modifier = Modifier.weight(1f).height(36.dp),
                     shape = RoundedCornerShape(10.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                         Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Pulse Perimeter", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+                        Text("Pulse Perimeter", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
                     }
                 }
             }
@@ -1416,12 +1419,19 @@ fun WatchdogQuickTelemetryCard(
                 shape = RoundedCornerShape(10.dp),
                 border = androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                 colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Manage Accessibility Services (${enabledSet.size} Active) ↗", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "Manage Accessibility Services (${enabledSet.size} Active) ↗",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
@@ -1504,21 +1514,18 @@ fun CentralCommandDeckDialog(
             }
         }
 
-        val glassStyle = remember(LightspeedPreferences.getDeckGlassStyle(context)) {
-            LightspeedPreferences.getDeckGlassStyle(context)
-        }
-        val glassVisuals = DeckGlassTheme.resolve(glassStyle)
+        val glassVisuals = rememberDeckGlassVisuals(context)
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+                .padding(horizontal = 8.dp, vertical = 18.dp),
             contentAlignment = Alignment.Center
         ) {
             Card(
                 modifier = Modifier
-                    .fillMaxWidth(0.96f)
-                    .fillMaxHeight(0.86f)
+                    .fillMaxWidth(0.98f)
+                    .fillMaxHeight(0.88f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
                     .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
                     .background(glassVisuals.backgroundBrush)
@@ -1563,7 +1570,7 @@ fun CentralCommandDeckDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
                     ) {
                     // Header Drag Region (drag gesture scoped to drag handle & header row)
                     Column(

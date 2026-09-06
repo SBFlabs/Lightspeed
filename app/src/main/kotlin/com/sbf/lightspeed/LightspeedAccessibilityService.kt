@@ -88,6 +88,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (key != null && (key.startsWith("pref_sidebar_left_") || key.startsWith("pref_section_left_") || key.startsWith("pref_macro_action_LEFT_"))) {
             updateLeftWingOverlayFromPrefs(prefs)
         }
+        if (key == LightspeedPreferences.KEY_MASTER_FLIGHT_ARMED ||
+            key == LightspeedPreferences.KEY_DEFLECTOR_LEFT_ENABLED ||
+            key == LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED) {
+            updateOverlaysVisibility()
+            com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
+        }
+        if (key == LightspeedPreferences.KEY_FLIGHT_NOTIFICATION_ENABLED) {
+            com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
+        }
         if (key != null && key.startsWith("pref_back_tap_")) {
             com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
         }
@@ -192,6 +201,17 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         // 5. Register System State & Dock Receivers
         registerSystemStateReceiver()
+
+        // 6. Check Deflector Startup Default State & Flight Notification
+        val deflectorStartup = prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed")
+        if (deflectorStartup == "standby_by_default") {
+            prefs.edit()
+                .putBoolean(LightspeedPreferences.KEY_DEFLECTOR_LEFT_ENABLED, false)
+                .putBoolean(LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED, false)
+                .apply()
+        }
+        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
+        updateOverlaysVisibility()
     }
 
     private fun setupNotchOverlay() {
@@ -433,6 +453,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
         com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
+        updateOverlaysVisibility()
+        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
     }
 
     fun updateWindowLayout(expand: Boolean) {
@@ -535,6 +557,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
         if (event == null) return false
+        if (!LightspeedPreferences.isMasterFlightArmed(this)) return false
         return LightspeedKeyEngine.onKeyEvent(this, event)
     }
 
@@ -615,6 +638,18 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     fun updateOverlaysVisibility(isLocked: Boolean? = null, currentPkg: String? = null) {
         val prefs = defaultPrefs()
+
+        // 0. Master Flight Deck Standby Guard: If disarmed, dismantle all overlays instantly
+        if (!LightspeedPreferences.isMasterFlightArmed(this)) {
+            statusBarOverlayView?.visibility = View.GONE
+            notchOverlayView?.visibility = View.GONE
+            sensorTouchOverlayView?.visibility = View.GONE
+            overlayView?.visibility = View.GONE
+            leftWingOverlayView?.visibility = View.GONE
+            mediaScrubberOverlayView?.visibility = View.GONE
+            return
+        }
+
         val hideOnLockAndDock = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true)
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val effectiveLocked = isLocked ?: (keyguardManager?.isKeyguardLocked == true)
@@ -632,14 +667,21 @@ class LightspeedAccessibilityService : AccessibilityService() {
         sensorTouchOverlayView?.visibility = topHudVisibility
 
         // Kinetic Deflectors (Left & Right Flank Wings / Edge Gesture Controls)
-        // Deflectors must ALWAYS remain interactive across Lock Screen, Refueling Bay,
-        // Widgets / Avionics Pickers, and Home Screen. They are only suppressed by orientation policy.
-        val deflectorVisibility = if (isSuppressedByOrientation()) View.GONE else View.VISIBLE
-        overlayView?.visibility = deflectorVisibility
-        leftWingOverlayView?.visibility = deflectorVisibility
+        // Deflectors respect their dedicated master toggles and orientation suppression policy.
+        val isLeftDeflectorEnabled = LightspeedPreferences.isLeftDeflectorEnabled(this)
+        val isRightDeflectorEnabled = LightspeedPreferences.isRightDeflectorEnabled(this)
+        val isOrientationSuppressed = isSuppressedByOrientation()
 
-        if (deflectorVisibility == View.VISIBLE) {
+        val leftVisibility = if (isLeftDeflectorEnabled && !isOrientationSuppressed) View.VISIBLE else View.GONE
+        val rightVisibility = if (isRightDeflectorEnabled && !isOrientationSuppressed) View.VISIBLE else View.GONE
+
+        overlayView?.visibility = rightVisibility
+        leftWingOverlayView?.visibility = leftVisibility
+
+        if (rightVisibility == View.VISIBLE) {
             overlayView?.postInvalidate()
+        }
+        if (leftVisibility == View.VISIBLE) {
             leftWingOverlayView?.postInvalidate()
         }
     }

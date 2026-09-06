@@ -639,6 +639,27 @@ fun SidebarMatrixConfigurationFields(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 20.dp)
                         ) {
+                            item(key = "left_deflector_master") {
+                                var isLeftEnabled by remember { mutableStateOf(LightspeedPreferences.isLeftDeflectorEnabled(context)) }
+                                var leftStartupMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed") ?: "always_armed") }
+
+                                DeflectorMasterCard(
+                                    flankName = "Left Deflector",
+                                    isEnabled = isLeftEnabled,
+                                    onToggle = { enabled ->
+                                        isLeftEnabled = enabled
+                                        LightspeedPreferences.setLeftDeflectorEnabled(context, enabled)
+                                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
+                                    },
+                                    startupMode = leftStartupMode,
+                                    onStartupModeChange = { mode ->
+                                        leftStartupMode = mode
+                                        prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
+                                    }
+                                )
+                            }
+
                             item {
                                 UnifyFlankActionsCard(
                                     isUnified = isLeftFlankUnified,
@@ -990,6 +1011,16 @@ fun SidebarMatrixConfigurationFields(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 20.dp)
                         ) {
+                            item(key = "flight_control_deck") {
+                                FlightControlDeckCard(
+                                    context = context,
+                                    prefs = prefs,
+                                    onStateChanged = {
+                                        onRefreshNeeded()
+                                    }
+                                )
+                            }
+
                             currentOrder1.forEach { sectionId ->
                                 when (sectionId) {
                                     "sensor_deck" -> {
@@ -4046,6 +4077,27 @@ fun SidebarMatrixConfigurationFields(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 20.dp)
                         ) {
+                            item(key = "right_deflector_master") {
+                                var isRightEnabled by remember { mutableStateOf(LightspeedPreferences.isRightDeflectorEnabled(context)) }
+                                var rightStartupMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed") ?: "always_armed") }
+
+                                DeflectorMasterCard(
+                                    flankName = "Right Deflector",
+                                    isEnabled = isRightEnabled,
+                                    onToggle = { enabled ->
+                                        isRightEnabled = enabled
+                                        LightspeedPreferences.setRightDeflectorEnabled(context, enabled)
+                                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
+                                    },
+                                    startupMode = rightStartupMode,
+                                    onStartupModeChange = { mode ->
+                                        rightStartupMode = mode
+                                        prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
+                                    }
+                                )
+                            }
+
                             item {
                                 UnifyFlankActionsCard(
                                     isUnified = isRightFlankUnified,

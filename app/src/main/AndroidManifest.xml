@@ -191,6 +191,41 @@
             </intent-filter>
         </receiver>
 
+        <!-- Dedicated Flank Deflectors QS Tile -->
+        <service
+            android:name=".settings.DeflectorTileService"
+            android:icon="@mipmap/ic_launcher"
+            android:label="${appName} Deflectors"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Automation Receiver for MacroDroid, Tasker, ADB, and internal quick actions -->
+        <receiver
+            android:name=".system.LightspeedAutomationReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_FLIGHT_MODE" />
+                <action android:name="com.sbf.lightspeed.action.SET_FLIGHT_MODE" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_DEFLECTORS" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_LEFT_DEFLECTOR" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_RIGHT_DEFLECTOR" />
+                <action android:name="com.sbf.lightspeed.action.SET_DEFLECTOR" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 1-Tap Shortcut Trampoline Activity for Home Screen and Launcher shortcuts -->
+        <activity
+            android:name=".LightspeedToggleActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
     </application>
 
 </manifest>

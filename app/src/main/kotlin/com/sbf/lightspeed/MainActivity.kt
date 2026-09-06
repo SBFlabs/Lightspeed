@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
 
         checkAndRequest()
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
+        LightspeedToggleActivity.updateDynamicShortcuts(this)
 
         setContent {
             LightspeedTheme {

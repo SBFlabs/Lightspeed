@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
@@ -48,105 +49,228 @@ fun WidgetEngineToolbar(
     isEditMode: Boolean,
     onToggleLayoutMode: () -> Unit,
     onToggleEditMode: () -> Unit,
-    onAddWidget: () -> Unit,
-    onDismiss: () -> Unit
+    onAddWidget: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left Badge
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        // Left Cockpit Telemetry Chip
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFF070A10).copy(alpha = 0.85f))
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Widgets,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                text = if (widgetLayoutMode == "smart_stack") "SMART STACK ($widgetCount)" else "ADAPTIVE GRID ($widgetCount)",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+                Text(
+                    text = if (widgetLayoutMode == "smart_stack") "STACK // ${widgetCount.toString().padStart(2, '0')}" else "GRID // ${widgetCount.toString().padStart(2, '0')}",
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
-        // Right Action Controls
+        // Right Cockpit Action Modules (NO [X] EXIT BUTTON)
         Row(
             modifier = Modifier.wrapContentSize(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Mode Switcher (Stack vs Grid)
-            IconButton(
-                onClick = onToggleLayoutMode,
+            Row(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF0E131C).copy(alpha = 0.85f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                    .clickable { onToggleLayoutMode() }
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
                     imageVector = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
                     contentDescription = "Switch Layout",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = if (widgetLayoutMode == "smart_stack") "GRID" else "STACK",
+                    fontSize = 9.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.85f)
                 )
             }
 
-            // Edit Mode Toggle
-            IconButton(
-                onClick = onToggleEditMode,
+            // Edit / Configure Mode Toggle
+            Row(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(if (isEditMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.08f))
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        if (isEditMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                        else Color(0xFF0E131C).copy(alpha = 0.85f)
+                    )
+                    .border(
+                        1.dp,
+                        if (isEditMode) MaterialTheme.colorScheme.primary
+                        else Color.White.copy(alpha = 0.15f),
+                        RoundedCornerShape(6.dp)
+                    )
+                    .clickable { onToggleEditMode() }
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
-                    imageVector = if (isEditMode) Icons.Default.Check else Icons.Default.Edit,
+                    imageVector = if (isEditMode) Icons.Default.Done else Icons.Default.Tune,
                     contentDescription = "Edit Widgets",
-                    tint = if (isEditMode) MaterialTheme.colorScheme.primary else Color.White,
-                    modifier = Modifier.size(18.dp)
+                    tint = if (isEditMode) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = if (isEditMode) "LOCK" else "CONFIG",
+                    fontSize = 9.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isEditMode) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f)
                 )
             }
 
-            // Add Widget [+]
-            IconButton(
-                onClick = onAddWidget,
+            // Add Widget Module [+ MODULE]
+            Row(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                    .clickable { onAddWidget() }
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Add Widget",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = "MODULE",
+                    fontSize = 9.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
+        }
+    }
+}
 
-            // Exit [✕]
-            IconButton(
-                onClick = onDismiss,
+/**
+ * Integrated Tactical HUD badge for reordering and ejecting widget modules in Edit Mode.
+ */
+@Composable
+private fun TacticalWidgetEditControls(
+    canMoveBack: Boolean,
+    canMoveForward: Boolean,
+    onMoveBack: () -> Unit,
+    onMoveForward: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0xFF070B12).copy(alpha = 0.94f))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (canMoveBack) {
+            Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onMoveBack() },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Exit",
-                    tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(18.dp)
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Shift Prev",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(13.dp)
                 )
             }
+        }
+        if (canMoveForward) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onMoveForward() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Shift Next",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(13.dp)
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .height(14.dp)
+                .width(1.dp)
+                .background(Color.White.copy(alpha = 0.2f))
+        )
+
+        // Eject / Remove Button
+        Row(
+            modifier = Modifier
+                .height(24.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color(0xFFFF3B30).copy(alpha = 0.2f))
+                .border(0.8.dp, Color(0xFFFF3B30).copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                .clickable { onRemove() }
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Eject",
+                tint = Color(0xFFFF453A),
+                modifier = Modifier.size(11.dp)
+            )
+            Text(
+                text = "EJECT",
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFFF453A)
+            )
         }
     }
 }
@@ -232,46 +356,18 @@ fun MultiWidgetContainer(
                                     .padding(8.dp)
                             )
 
-                            // Edit Overlay Controls
+                            // Edit Overlay Controls (Tactical HUD Avionics Badge)
                             if (isEditMode) {
-                                Row(
+                                TacticalWidgetEditControls(
+                                    canMoveBack = pageIndex > 0,
+                                    canMoveForward = pageIndex < widgetIds.size - 1,
+                                    onMoveBack = { onReorderWidget(pageIndex, pageIndex - 1) },
+                                    onMoveForward = { onReorderWidget(pageIndex, pageIndex + 1) },
+                                    onRemove = { onRemoveWidget(widgetId) },
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
-                                        .padding(8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    if (pageIndex > 0) {
-                                        IconButton(
-                                            onClick = { onReorderWidget(pageIndex, pageIndex - 1) },
-                                            modifier = Modifier
-                                                .size(26.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.Black.copy(alpha = 0.7f))
-                                        ) {
-                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move Left", tint = Color.White, modifier = Modifier.size(13.dp))
-                                        }
-                                    }
-                                    if (pageIndex < widgetIds.size - 1) {
-                                        IconButton(
-                                            onClick = { onReorderWidget(pageIndex, pageIndex + 1) },
-                                            modifier = Modifier
-                                                .size(26.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.Black.copy(alpha = 0.7f))
-                                        ) {
-                                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Move Right", tint = Color.White, modifier = Modifier.size(13.dp))
-                                        }
-                                    }
-                                    IconButton(
-                                        onClick = { onRemoveWidget(widgetId) },
-                                        modifier = Modifier
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.Red.copy(alpha = 0.7f))
-                                    ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Delete Widget", tint = Color.White, modifier = Modifier.size(13.dp))
-                                    }
-                                }
+                                        .padding(8.dp)
+                                )
                             }
                         }
                     }
@@ -340,74 +436,63 @@ fun MultiWidgetContainer(
                         }
 
                         if (isEditMode) {
-                            Row(
+                            TacticalWidgetEditControls(
+                                canMoveBack = index > 0,
+                                canMoveForward = index < widgetIds.size - 1,
+                                onMoveBack = { onReorderWidget(index, index - 1) },
+                                onMoveForward = { onReorderWidget(index, index + 1) },
+                                onRemove = { onRemoveWidget(widgetId) },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(6.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                if (index > 0) {
-                                    IconButton(
-                                        onClick = { onReorderWidget(index, index - 1) },
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.Black.copy(alpha = 0.7f))
-                                    ) {
-                                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move Up", tint = Color.White, modifier = Modifier.size(12.dp))
-                                    }
-                                }
-                                if (index < widgetIds.size - 1) {
-                                    IconButton(
-                                        onClick = { onReorderWidget(index, index + 1) },
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.Black.copy(alpha = 0.7f))
-                                    ) {
-                                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Move Down", tint = Color.White, modifier = Modifier.size(12.dp))
-                                    }
-                                }
-                                IconButton(
-                                    onClick = { onRemoveWidget(widgetId) },
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Red.copy(alpha = 0.7f))
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Delete Widget", tint = Color.White, modifier = Modifier.size(12.dp))
-                                }
-                            }
+                                    .padding(6.dp)
+                            )
                         }
                     }
                 }
             }
 
-            // Optional Append Item: Add Widget Card in Grid
+            // Optional Append Item: Add Widget Card in Grid (Tactical Module Mount)
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp)
-                        .clip(RoundedCornerShape(18.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { onPickWidget() }
-                        .background(Color.White.copy(alpha = 0.02f))
+                        .background(Color(0xFF080C14).copy(alpha = 0.6f))
                         .border(
                             1.dp,
-                            Color.White.copy(alpha = 0.08f),
-                            RoundedCornerShape(18.dp)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                            RoundedCornerShape(12.dp)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    shape = RoundedCornerShape(18.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(Icons.Default.AddCircleOutline, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Mount Widget Slot", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        Icon(
+                            Icons.Default.AddCircleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "[ MOUNT MODULE ]",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Tap to open tactical catalog",
+                            fontSize = 9.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.LightGray.copy(alpha = 0.6f)
+                        )
                     }
                 }
             }
@@ -604,21 +689,25 @@ fun EmptyWidgetSlot(onPickWidget: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Widgets,
+            imageVector = Icons.Default.AddCircleOutline,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-            modifier = Modifier.size(28.dp)
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(32.dp)
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Embed Android Widget",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
+            text = "[ MOUNT AVIONICS MODULE ]",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = 1.2.sp,
             color = Color.White
         )
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
-            text = "Tap to mount Weather, Music, Clock or Notes",
+            text = "Tap to browse tactical widget catalog",
             fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
             color = Color.LightGray.copy(alpha = 0.65f)
         )
     }

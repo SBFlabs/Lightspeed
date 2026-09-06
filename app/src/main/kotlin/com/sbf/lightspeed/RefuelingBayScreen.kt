@@ -94,12 +94,16 @@ fun RefuelingBayScreen(
     onToggleLayoutMode: () -> Unit,
     onToggleEditMode: () -> Unit,
     onDismiss: () -> Unit,
-    externalInteractionTimestamp: Long = 0L
+    externalInteractionTimestamp: Long = 0L,
+    onDeployWidgetProvider: ((AppWidgetProviderInfo) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val prefs = remember { context.defaultPrefs() }
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    // Tactical Widget Catalog Picker Modal State
+    var showTacticalWidgetPicker by remember { mutableStateOf(false) }
 
     // Live Telemetry States
     var batteryPct by remember { mutableIntStateOf(0) }
@@ -428,8 +432,7 @@ fun RefuelingBayScreen(
                             isEditMode = isEditMode,
                             onToggleLayoutMode = onToggleLayoutMode,
                             onToggleEditMode = onToggleEditMode,
-                            onAddWidget = onPickWidget,
-                            onDismiss = onDismiss
+                            onAddWidget = { showTacticalWidgetPicker = true }
                         )
 
                         // Multi-Widget Surface
@@ -446,7 +449,7 @@ fun RefuelingBayScreen(
                                 isLandscape = true,
                                 appWidgetHost = appWidgetHost,
                                 appWidgetManager = appWidgetManager,
-                                onPickWidget = onPickWidget,
+                                onPickWidget = { showTacticalWidgetPicker = true },
                                 onRemoveWidget = onRemoveWidget,
                                 onReorderWidget = onReorderWidget
                             )
@@ -543,8 +546,7 @@ fun RefuelingBayScreen(
                             isEditMode = isEditMode,
                             onToggleLayoutMode = onToggleLayoutMode,
                             onToggleEditMode = onToggleEditMode,
-                            onAddWidget = onPickWidget,
-                            onDismiss = onDismiss
+                            onAddWidget = { showTacticalWidgetPicker = true }
                         )
 
                         Box(
@@ -560,7 +562,7 @@ fun RefuelingBayScreen(
                                 isLandscape = false,
                                 appWidgetHost = appWidgetHost,
                                 appWidgetManager = appWidgetManager,
-                                onPickWidget = onPickWidget,
+                                onPickWidget = { showTacticalWidgetPicker = true },
                                 onRemoveWidget = onRemoveWidget,
                                 onReorderWidget = onReorderWidget
                             )
@@ -619,6 +621,17 @@ fun RefuelingBayScreen(
                             }
                         )
                     }
+            )
+        }
+
+        // 3. Tactical In-App Widget Picker Modal (Spaceship Cockpit Catalog)
+        if (showTacticalWidgetPicker) {
+            TacticalWidgetPickerModal(
+                onDismiss = { showTacticalWidgetPicker = false },
+                onSelectProvider = { provider ->
+                    showTacticalWidgetPicker = false
+                    onDeployWidgetProvider?.invoke(provider)
+                }
             )
         }
     }

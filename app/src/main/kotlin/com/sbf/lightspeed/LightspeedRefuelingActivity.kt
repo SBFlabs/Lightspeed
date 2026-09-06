@@ -63,6 +63,22 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         interactionTimestampState.longValue = System.currentTimeMillis()
     }
 
+    private var pendingProvider: AppWidgetProviderInfo? = null
+
+    private val widgetBindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val widgetId = pendingWidgetId
+        val provider = pendingProvider
+        if (result.resultCode == Activity.RESULT_OK && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID && provider != null) {
+            checkConfigureOrSaveWidget(widgetId, provider)
+        } else {
+            if (widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                appWidgetHost?.deleteAppWidgetId(widgetId)
+            }
+            pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+            pendingProvider = null
+        }
+    }
+
     private val widgetPickLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val widgetId = result.data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
@@ -151,9 +167,42 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                         window.attributes = lp
                         finish()
                     },
-                    externalInteractionTimestamp = interactionTimestampState.longValue
+                    externalInteractionTimestamp = interactionTimestampState.longValue,
+                    onDeployWidgetProvider = { provider -> bindProvider(provider) }
                 )
             }
+        }
+    }
+
+    private fun bindProvider(provider: AppWidgetProviderInfo) {
+        val host = appWidgetHost ?: return
+        val manager = appWidgetManager ?: return
+        val widgetId = host.allocateAppWidgetId()
+        pendingWidgetId = widgetId
+        pendingProvider = provider
+
+        val allowed = manager.bindAppWidgetIdIfAllowed(widgetId, provider.provider)
+        if (allowed) {
+            checkConfigureOrSaveWidget(widgetId, provider)
+        } else {
+            val bindIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
+            }
+            widgetBindLauncher.launch(bindIntent)
+        }
+    }
+
+    private fun checkConfigureOrSaveWidget(widgetId: Int, provider: AppWidgetProviderInfo) {
+        pendingProvider = null
+        if (provider.configure != null) {
+            val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                component = provider.configure
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            }
+            widgetConfigLauncher.launch(configIntent)
+        } else {
+            saveNewWidgetId(widgetId)
         }
     }
 

@@ -744,6 +744,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val rotation = getScreenRotation()
         val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
 
+        if (trigger == "screen_timeout" || trigger == "screen_off_always") {
+            launchRefuelingActivity()
+            return
+        }
+
         if (isDeviceCharging()) {
             when (trigger) {
                 "charging_screen_off", "always_charging" -> {

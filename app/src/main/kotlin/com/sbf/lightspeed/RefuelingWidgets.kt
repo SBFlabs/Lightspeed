@@ -435,7 +435,6 @@ class ScrollableAppWidgetContainer(context: Context) : FrameLayout(context) {
                 startY = ev.y
                 isVerticalScroll = false
                 isHorizontalScroll = false
-                parent?.requestDisallowInterceptTouchEvent(true)
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = abs(ev.x - startX)

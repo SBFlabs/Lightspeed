@@ -207,9 +207,9 @@ object LightspeedPreferences {
     const val KEY_ACCESSIBILITY_SENTINEL_ENABLED = "pref_accessibility_sentinel_enabled"
 
     // Refueling Bay Keys
-    const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screensaver_only"
+    const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screen_timeout", "screensaver_only"
     const val KEY_REFUELING_BATTERY_STYLE = "pref_refueling_battery_style" // "halo", "reactor_ticks", "dual_wings", "tachometer"
-    const val KEY_REFUELING_SLEEP_TIMEOUT = "pref_refueling_sleep_timeout" // "30s", "60s", "3m", "5m", "never"
+    const val KEY_REFUELING_SLEEP_TIMEOUT = "pref_refueling_sleep_timeout" // "5s", "15s", "30s", "60s", "120s", "300s", "never"
     const val KEY_REFUELING_PIXEL_SHIFT = "pref_refueling_pixel_shift"
     const val KEY_REFUELING_AS_LOCKSCREEN = "pref_refueling_as_lockscreen" // Boolean
     const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id" // Legacy single ID

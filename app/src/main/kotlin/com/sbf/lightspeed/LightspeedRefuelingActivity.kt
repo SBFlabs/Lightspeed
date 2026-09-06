@@ -238,11 +238,21 @@ class LightspeedRefuelingActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.show(WindowInsetsCompat.Type.systemBars())
+        val lp = window.attributes
+        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        window.attributes = lp
         appWidgetHost?.stopListening()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.show(WindowInsetsCompat.Type.systemBars())
+        val lp = window.attributes
+        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        window.attributes = lp
         isActive = false
     }
 }

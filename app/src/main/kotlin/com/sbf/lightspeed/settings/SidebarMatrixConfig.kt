@@ -3031,6 +3031,7 @@ fun SidebarMatrixConfigurationFields(
                                                         "disabled" to "Disabled (Manual Launch Only)",
                                                         "charging_screen_off" to "Screen-Off While Charging / Plugged While Locked",
                                                         "charging_dock_landscape" to "Charging in Landscape Dock Orientation",
+                                                        "screen_timeout" to "Screen-Off / Standby (Even When Not Charging)",
                                                         "screensaver_only" to "Android Screensaver (DreamService Only)"
                                                     )
 
@@ -3087,6 +3088,8 @@ fun SidebarMatrixConfigurationFields(
                                                     val currentTimeout = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s"
                                                     var isTimeoutDropdownOpen by remember { mutableStateOf(false) }
                                                     val timeoutOptions = listOf(
+                                                        "5s" to "5 Seconds (Rapid Sleep Test)",
+                                                        "15s" to "15 Seconds",
                                                         "30s" to "30 Seconds",
                                                         "60s" to "60 Seconds (Recommended)",
                                                         "120s" to "2 Minutes",

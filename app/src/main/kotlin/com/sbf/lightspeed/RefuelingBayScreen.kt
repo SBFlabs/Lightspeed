@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -80,10 +81,13 @@ fun RefuelingBayScreen(
     val sleepTimeoutSetting = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s"
     val sleepTimeoutMs = remember(sleepTimeoutSetting) {
         when (sleepTimeoutSetting) {
+            "5s" -> 5_000L
+            "15s" -> 15_000L
             "30s" -> 30_000L
             "60s" -> 60_000L
-            "3m" -> 180_000L
-            "5m" -> 300_000L
+            "120s", "2m" -> 120_000L
+            "180s", "3m" -> 180_000L
+            "300s", "5m" -> 300_000L
             "never" -> Long.MAX_VALUE
             else -> 60_000L
         }
@@ -264,58 +268,58 @@ fun RefuelingBayScreen(
         label = "sleep_fade"
     )
 
-    // True Black OLED Background with gestures
+    // True Black OLED Root Box
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        if (isSleeping) {
-                            wakeShield(15_000L)
-                        }
-                    },
-                    onDoubleTap = {
-                        val window = activity.window
-                        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                        insetsController.show(WindowInsetsCompat.Type.systemBars())
-                        val lp = window.attributes
-                        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-                        window.attributes = lp
-                        onDismiss()
-                    }
-                )
-            }
-            .pointerInput(Unit) {
-                var totalDragY = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { totalDragY = 0f },
-                    onDragEnd = {
-                        if (totalDragY < -120f) {
-                            try {
-                                val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                                km?.requestDismissKeyguard(activity, null)
-                            } catch (_: Exception) {}
-                            onDismiss()
-                        }
-                    },
-                    onDragCancel = { totalDragY = 0f },
-                    onVerticalDrag = { _, dragAmount ->
-                        totalDragY += dragAmount
-                    }
-                )
-            }
-            .padding(16.dp)
-            .statusBarsPadding()
-            .navigationBarsPadding()
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset { IntOffset(driftOffsetX.roundToInt(), driftOffsetY.roundToInt()) }
-                .alpha(animatedContentAlpha)
-        ) {
+        // 1. Dashboard Content Layer (active only when awake or animating)
+        if (!isSleeping || animatedContentAlpha > 0.01f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                lastInteractionTimestamp = System.currentTimeMillis()
+                            },
+                            onDoubleTap = {
+                                val window = activity.window
+                                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                                val lp = window.attributes
+                                lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                                window.attributes = lp
+                                onDismiss()
+                            }
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        var totalDragY = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { totalDragY = 0f },
+                            onDragEnd = {
+                                if (totalDragY < -120f) {
+                                    try {
+                                        val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                                        km?.requestDismissKeyguard(activity, null)
+                                    } catch (_: Exception) {}
+                                    onDismiss()
+                                }
+                            },
+                            onDragCancel = { totalDragY = 0f },
+                            onVerticalDrag = { _, dragAmount ->
+                                totalDragY += dragAmount
+                            }
+                        )
+                    }
+                    .padding(16.dp)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .offset { IntOffset(driftOffsetX.roundToInt(), driftOffsetY.roundToInt()) }
+                    .alpha(animatedContentAlpha)
+            ) {
             if (isLandscape) {
                 // =========================================================================
                 // LANDSCAPE: HORIZONTAL SPLIT (Left = Cryo Telemetry, Right = Multi-Widget Container)
@@ -536,6 +540,37 @@ fun RefuelingBayScreen(
                     )
                 }
             }
+        }
+
+        // 2. Full-Screen Sleep Shield Layer (TOPMOST)
+        // When sleeping, this completely covers the entire screen, blocks ALL touches from reaching widgets,
+        // and instantly wakes the shield on ANY single tap or touch down anywhere on the screen!
+        if (isSleeping) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .zIndex(9999f)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                wakeShield(15_000L)
+                            },
+                            onTap = {
+                                wakeShield(15_000L)
+                            },
+                            onDoubleTap = {
+                                val window = activity.window
+                                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                                val lp = window.attributes
+                                lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                                window.attributes = lp
+                                onDismiss()
+                            }
+                        )
+                    }
+            )
         }
     }
 }

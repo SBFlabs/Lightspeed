@@ -92,7 +92,7 @@ fun SidebarMatrixConfigurationFields(
 
     var tabMode1 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_1, "custom_pinned") ?: "custom_pinned") }
     var pinnedSection1 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, "sensor_deck") ?: "sensor_deck") }
-    var sectionOrder1Str by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,watchdog_defense,tactical_hardware,refueling_bay,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,watchdog_defense,tactical_hardware,refueling_bay,config_vault,experimental_labs") }
+    var sectionOrder1Str by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,refueling_bay,config_vault,experimental_labs") }
 
     var tabMode2 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
     var pinnedSection2 by rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "top") ?: "top") }
@@ -126,7 +126,6 @@ fun SidebarMatrixConfigurationFields(
     // HUD Strip Accordion States
     var isSensorDeckExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean("pref_section_statusbar_expanded", true)) }
     var isTelemetryExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean("pref_section_telemetry_expanded", false)) }
-    var isWatchdogsExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "watchdog_defense" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_WATCHDOGS_EXPANDED, true)) }
     var isTacticalHardwareExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean("pref_section_tactical_hardware_expanded", false)) }
     var isRefuelingExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "refueling_bay" else prefs.getBoolean("pref_section_refueling_expanded", false)) }
     var isConfigVaultExpanded by rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean("pref_section_backup_expanded", false)) }
@@ -301,7 +300,6 @@ fun SidebarMatrixConfigurationFields(
         mapOf(
             "sensor_deck" to "Sensor Area",
             "telemetry_indicators" to "Telemetry & Indicators",
-            "watchdog_defense" to "Watchdogs & Defense",
             "tactical_hardware" to "Tactical Hardware Deck",
             "refueling_bay" to "Refueling Bay",
             "config_vault" to "Configuration Vault",
@@ -382,7 +380,6 @@ fun SidebarMatrixConfigurationFields(
                         1 -> {
                             if (pinned != "sensor_deck") isSensorDeckExpanded = false
                             if (pinned != "telemetry_indicators") isTelemetryExpanded = false
-                            if (pinned != "watchdog_defense") isWatchdogsExpanded = false
                             if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
                             if (pinned != "refueling_bay") isRefuelingExpanded = false
                             if (pinned != "config_vault") isConfigVaultExpanded = false
@@ -426,7 +423,6 @@ fun SidebarMatrixConfigurationFields(
                 1 -> {
                     isSensorDeckExpanded = allExpandedState
                     isTelemetryExpanded = allExpandedState
-                    isWatchdogsExpanded = allExpandedState
                     isTacticalHardwareExpanded = allExpandedState
                     isRefuelingExpanded = allExpandedState
                     isConfigVaultExpanded = allExpandedState
@@ -437,7 +433,6 @@ fun SidebarMatrixConfigurationFields(
                     prefs.edit()
                         .putBoolean("pref_section_statusbar_expanded", allExpandedState)
                         .putBoolean("pref_section_telemetry_expanded", allExpandedState)
-                        .putBoolean(LightspeedPreferences.KEY_SECTION_WATCHDOGS_EXPANDED, allExpandedState)
                         .putBoolean("pref_section_tactical_hardware_expanded", allExpandedState)
                         .putBoolean("pref_section_refueling_expanded", allExpandedState)
                         .putBoolean("pref_section_backup_expanded", allExpandedState)
@@ -472,7 +467,6 @@ fun SidebarMatrixConfigurationFields(
         when (jumpTargetSection) {
             "statusbar", "sensor_deck" -> isSensorDeckExpanded = true
             "telemetry", "telemetry_indicators" -> isTelemetryExpanded = true
-            "watchdog", "watchdog_defense", "defense", "perimeter" -> isWatchdogsExpanded = true
             "volumekeys", "tactical_hardware", "power", "backtap" -> isTacticalHardwareExpanded = true
             "refueling", "refueling_bay" -> isRefuelingExpanded = true
             "backup", "config_vault", "shizuku_jettison" -> isConfigVaultExpanded = true
@@ -995,7 +989,7 @@ fun SidebarMatrixConfigurationFields(
 
                 // PAGE 1: HUD STRIP
                 1 -> {
-                    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "watchdog_defense", "tactical_hardware", "refueling_bay", "config_vault", "experimental_labs")
+                    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "tactical_hardware", "refueling_bay", "config_vault", "experimental_labs")
                     val currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
                         list + (defaultOrder1 - list.toSet())
                     }
@@ -2416,32 +2410,6 @@ fun SidebarMatrixConfigurationFields(
                                                 }
                                             }
                                         }
-                                    "watchdog_defense" -> {
-                                        item(key = "watchdog_defense") {
-                                            CompactAccordionSection(
-                                                title = "Watchdogs & Defense",
-                                                icon = {
-                                                    Icon(
-                                                        imageVector = Icons.Outlined.Shield,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                },
-                                                isExpanded = isWatchdogsExpanded,
-                                                onToggle = {
-                                                    toggleSection(1, "watchdog_defense", isWatchdogsExpanded) { isWatchdogsExpanded = it }
-                                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_WATCHDOGS_EXPANDED, isWatchdogsExpanded).apply()
-                                                }
-                                            ) {
-                                                WatchdogDefenseDeck(
-                                                    context = context,
-                                                    prefs = prefs,
-                                                    onRefreshNeeded = onRefreshNeeded
-                                                )
-                                            }
-                                        }
-                                    }
                                     "tactical_hardware" -> {
                                         item(key = "tactical_hardware") {
                                             CompactAccordionSection(

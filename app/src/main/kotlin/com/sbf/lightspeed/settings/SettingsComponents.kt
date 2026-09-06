@@ -38,6 +38,7 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Security
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Animatable
@@ -1096,29 +1097,75 @@ fun WatchdogQuickTelemetryCard(
                     }
                 }
 
-                // Pill 4: Perimeter
+                // Pill 4: Perimeter / Accessibility Services (The 4th one, on the right)
                 Surface(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { showPerimeterDialog = true },
                     shape = RoundedCornerShape(8.dp),
-                    color = Color.White.copy(alpha = 0.05f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("PERIMETER", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text("SERVICES", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
                             text = "${enabledSet.size} ACTIVE",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        Text(
+                            text = "MANAGE ↗",
+                            fontSize = 7.5.sp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             softWrap = false
                         )
                     }
                 }
             }
+
+            // Self-Reviving Watchdog & Sentinel Controls
+            var sentinelEnabled by rememberSaveable {
+                mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false))
+            }
+            var crashSentinelEnabled by rememberSaveable {
+                mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, true))
+            }
+
+            PrefToggleRow(
+                title = "Proactive OEM Sentinel",
+                subtitle = "Background sentinel thread polls Lightspeed & shielded sentinels every 20s, reviving via Shizuku if killed by battery management.",
+                isChecked = sentinelEnabled,
+                onCheckedChange = { checked ->
+                    sentinelEnabled = checked
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, checked).apply()
+                    if (checked) {
+                        LightspeedWatchdogEngine.initSentinel(context)
+                    } else {
+                        LightspeedWatchdogEngine.stopSentinel()
+                    }
+                    onStateChanged()
+                }
+            )
+
+            PrefToggleRow(
+                title = "Autonomous Crash Resuscitation",
+                subtitle = "Catches fatal JVM or shader exceptions and arms an OS alarm to resuscitate the service via Shizuku within 1s.",
+                isChecked = crashSentinelEnabled,
+                onCheckedChange = { checked ->
+                    crashSentinelEnabled = checked
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CRASH_SENTINEL_ENABLED, checked).apply()
+                    onStateChanged()
+                }
+            )
 
             // Tactical Pulse Actions Row
             Row(
@@ -1127,9 +1174,14 @@ fun WatchdogQuickTelemetryCard(
             ) {
                 OutlinedButton(
                     onClick = {
-                        val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
-                        Toast.makeText(context, if (ok) "Core Watchdog pulse sent" else "Shizuku required", Toast.LENGTH_SHORT).show()
-                        onStateChanged()
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
+                            withContext(Dispatchers.Main) {
+                                com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
+                                Toast.makeText(context, if (ok) "Core Watchdog pulse sent" else "Shizuku required", Toast.LENGTH_SHORT).show()
+                                onStateChanged()
+                            }
+                        }
                     },
                     modifier = Modifier.weight(1f).height(36.dp),
                     shape = RoundedCornerShape(10.dp),
@@ -1145,9 +1197,14 @@ fun WatchdogQuickTelemetryCard(
 
                 OutlinedButton(
                     onClick = {
-                        val count = LightspeedWatchdogEngine.pulsePerimeterServices(context)
-                        Toast.makeText(context, "Perimeter pulse: $count sentinels verified", Toast.LENGTH_SHORT).show()
-                        onStateChanged()
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val count = LightspeedWatchdogEngine.pulsePerimeterServices(context)
+                            withContext(Dispatchers.Main) {
+                                com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
+                                Toast.makeText(context, "Perimeter pulse: $count sentinels verified", Toast.LENGTH_SHORT).show()
+                                onStateChanged()
+                            }
+                        }
                     },
                     modifier = Modifier.weight(1f).height(36.dp),
                     shape = RoundedCornerShape(10.dp),
@@ -1161,7 +1218,72 @@ fun WatchdogQuickTelemetryCard(
                     }
                 }
             }
+
+            // Direct Launcher for Accessibility Services & Sentinels Manager
+            OutlinedButton(
+                onClick = { showPerimeterDialog = true },
+                modifier = Modifier.fillMaxWidth().height(38.dp),
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    Icon(Icons.Outlined.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Manage Accessibility Services (${enabledSet.size} Active) ↗", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+                }
+            }
+
+            // Flight Recorder Telemetry Anomaly Notice (if recorded)
+            val lastCrashTimestamp = prefs.getLong("key_last_crash_timestamp", 0L)
+            val lastCrashMessage = prefs.getString("key_last_crash_message", null)
+            if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = cautionAmber.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(modifier = Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Anomaly: ${lastCrashMessage.take(40)}...",
+                                fontSize = 10.5.sp,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            text = "Clear Log",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = cautionAmber,
+                            modifier = Modifier.clickable {
+                                LightspeedWatchdogEngine.clearCrashTelemetry(context)
+                                onStateChanged()
+                            }
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    if (showPerimeterDialog) {
+        PerimeterServicesDeckDialog(
+            context = context,
+            prefs = prefs,
+            onDismiss = { showPerimeterDialog = false },
+            onRefreshNeeded = onStateChanged
+        )
     }
 }
 

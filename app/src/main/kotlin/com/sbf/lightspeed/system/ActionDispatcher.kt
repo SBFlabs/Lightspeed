@@ -102,7 +102,7 @@ object ActionDispatcher {
             token == "system:quick_settings" || token == "ACTION_QUICK_SETTINGS" || token == "quick_settings" -> {
                 expandQuickSettings(context, service)
             }
-            token == "system:screen_timeout" -> {
+            token == "system:screen_timeout" || token == "ACTION_SCREEN_TIMEOUT" || token == "screen_timeout" -> {
                 LightspeedTimeoutEngine.cycleNext(context)
             }
             token == "system:media_play_pause" || token == "ACTION_MEDIA_PLAY_PAUSE" || token == "media_play_pause" -> {

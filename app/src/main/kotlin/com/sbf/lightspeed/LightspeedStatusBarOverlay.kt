@@ -76,7 +76,45 @@ class LightspeedStatusBarOverlay(
         postInvalidate()
     }
 
+    data class TransientHudState(
+        val title: String,
+        val value: String,
+        val stepIndex: Int,
+        val totalSteps: Int,
+        val style: String
+    )
+
+    private var currentTransientHudState: TransientHudState? = null
+    private var transientDismissRunnable: Runnable? = null
+
+    fun displayTransientHud(
+        title: String,
+        value: String,
+        stepIndex: Int = -1,
+        totalSteps: Int = 0,
+        durationMs: Long = 1800L,
+        style: String = "canopy_droppod"
+    ) {
+        uiHandler.post {
+            transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
+            currentTransientHudState = TransientHudState(title, value, stepIndex, totalSteps, style)
+            expandForHud()
+            postInvalidate()
+
+            val runnable = Runnable {
+                currentTransientHudState = null
+                if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
+                    restoreWindowLayout()
+                }
+                postInvalidate()
+            }
+            transientDismissRunnable = runnable
+            uiHandler.postDelayed(runnable, durationMs)
+        }
+    }
+
     init {
+        activeInstance = this
         isClickable = false
         isFocusable = false
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
@@ -87,7 +125,9 @@ class LightspeedStatusBarOverlay(
                 if (state?.isActive == true) {
                     expandForHud()
                 } else {
-                    restoreWindowLayout()
+                    if (currentTransientHudState == null) {
+                        restoreWindowLayout()
+                    }
                 }
                 postInvalidate()
             }
@@ -96,6 +136,11 @@ class LightspeedStatusBarOverlay(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        if (activeInstance === this) {
+            activeInstance = null
+        }
+        transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
+        currentTransientHudState = null
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         com.sbf.lightspeed.system.LightspeedNotificationListener.unregisterTelemetryListener(telemetryListener)
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = null
@@ -874,7 +919,7 @@ class LightspeedStatusBarOverlay(
             postInvalidateDelayed(1000)
         }
 
-        // 2. Hardware Gear Set HUD Navigation Renderer
+        // 2. Hardware Gear Set HUD Navigation Renderer & Transient Action HUD Renderer
         val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
         if (navState != null && navState.isActive) {
             val topY = (prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52) * d) + (8f * d)
@@ -891,6 +936,24 @@ class LightspeedStatusBarOverlay(
                 primaryColor = m3Primary,
                 density = d
             )
+        } else {
+            val transientHud = currentTransientHudState
+            if (transientHud != null) {
+                val topY = (prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52) * d) + (8f * d)
+                LightspeedHudRenderer.renderHud(
+                    canvas = canvas,
+                    style = transientHud.style,
+                    title = transientHud.title,
+                    value = transientHud.value,
+                    stepIndex = transientHud.stepIndex,
+                    totalSteps = transientHud.totalSteps,
+                    centerX = screenW / 2f,
+                    centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
+                    topY = topY,
+                    primaryColor = m3Primary,
+                    density = d
+                )
+            }
         }
     }
 
@@ -967,6 +1030,24 @@ class LightspeedStatusBarOverlay(
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
             collectScrollableNodes(child, list)
+        }
+    }
+
+    companion object {
+        @Volatile
+        var activeInstance: LightspeedStatusBarOverlay? = null
+
+        fun showActionHud(
+            title: String,
+            value: String,
+            stepIndex: Int = -1,
+            totalSteps: Int = 0,
+            durationMs: Long = 1800L,
+            style: String = "canopy_droppod"
+        ): Boolean {
+            val inst = activeInstance ?: return false
+            inst.displayTransientHud(title, value, stepIndex, totalSteps, durationMs, style)
+            return true
         }
     }
 }

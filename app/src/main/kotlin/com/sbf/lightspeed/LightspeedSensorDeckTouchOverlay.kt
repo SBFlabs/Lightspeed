@@ -9,6 +9,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
@@ -82,7 +83,7 @@ class LightspeedSensorDeckTouchOverlay(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 val nowDown = SystemClock.uptimeMillis()
-                if (nowDown - lastTapTime < 280L) {
+                if (nowDown - lastTapTime < DOUBLE_TAP_TIMEOUT_MS) {
                     isSecondTapInSequence = true
                     pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
                     pendingTapRunnable = null
@@ -121,7 +122,9 @@ class LightspeedSensorDeckTouchOverlay(
                     return false
                 }
 
-                if (dist > threshold * 0.35f && !isHoldFired && !isHorizontalEngaged) {
+                val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+                val cancelDist = maxOf(threshold * 0.8f, touchSlop * 1.5f)
+                if (dist > cancelDist && !isHoldFired && !isHorizontalEngaged) {
                     uiHandler.removeCallbacks(holdRunnable)
                 }
 
@@ -156,7 +159,9 @@ class LightspeedSensorDeckTouchOverlay(
                 val dist = hypot(dx, dy)
 
                 if (isHoldFired) {
+                    isHoldFired = false
                     isSecondTapInSequence = false
+                    lastTapTime = 0L
                     return true
                 }
 
@@ -216,7 +221,7 @@ class LightspeedSensorDeckTouchOverlay(
                     lastTapTime = 0L
                 }
                 pendingTapRunnable = tapTask
-                uiHandler.postDelayed(tapTask, 240L)
+                uiHandler.postDelayed(tapTask, DOUBLE_TAP_TIMEOUT_MS)
             } else {
                 if (singleTapAction != "none") {
                     triggerHaptic(20, 120)
@@ -300,5 +305,9 @@ class LightspeedSensorDeckTouchOverlay(
             val child = node.getChild(i) ?: continue
             collectScrollableNodes(child, list)
         }
+    }
+
+    companion object {
+        private const val DOUBLE_TAP_TIMEOUT_MS = 340L
     }
 }

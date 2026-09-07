@@ -1202,6 +1202,15 @@ fun CentralCommandMatrixFields(
                                                         }
                                                     }
 
+                                                    PrefToggleRow(
+                                                        prefs = prefs,
+                                                        prefKey = LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK,
+                                                        defaultVal = true,
+                                                        title = "Suppress on Lock Screen & OEM Screensavers",
+                                                        subtitle = "Automatically hides Orbital Capsule and HUD Strip when device is locked or running OEM ambient dock.",
+                                                        onChanged = { onRefreshNeeded() }
+                                                    )
+
                                                     if (!isNotifAccessGranted) {
                                                         Card(
                                                             modifier = Modifier
@@ -3902,16 +3911,6 @@ fun CentralCommandMatrixFields(
                                                                     }
                                                                 }
                                                             }
-                                                        }
-
-                                                        PrefToggleRow(
-                                                            prefs = prefs,
-                                                            prefKey = LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK,
-                                                            defaultVal = true,
-                                                            title = "Suppress on Lock Screen & OEM Screensavers",
-                                                            subtitle = "Automatically hides Orbital Capsule and HUD Strip when device is locked or running OEM ambient dock.",
-                                                            onChanged = { onRefreshNeeded() }
-                                                        )
                                                     }
                                                 }
                                             }

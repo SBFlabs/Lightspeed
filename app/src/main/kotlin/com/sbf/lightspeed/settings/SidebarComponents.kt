@@ -741,8 +741,7 @@ fun AttitudeAppAssignmentSheet(
                                             }
                                         }
                                     }
-                                }
-                            },
+                                },
                             verticalArrangement = Arrangement.SpaceEvenly,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {

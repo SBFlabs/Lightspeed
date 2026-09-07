@@ -121,6 +121,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var currentDetectedGesture = MacroGesture.NONE
 
     private var trackingStateLocked = false
+    private var isCurrentlyTouched = false
     private var initialLeftSweepDistance = 0f
     private var lowestXReached = 0f
     private var highestYReached = 0f
@@ -1080,7 +1081,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     }
                     activeItem = null; invalidate(); return true
                 }
-                MotionEvent.ACTION_CANCEL -> { activeItem = null; invalidate(); return true }
+                MotionEvent.ACTION_CANCEL -> { isCurrentlyTouched = false; activeItem = null; invalidate(); return true }
             }
             return true
         }
@@ -1093,6 +1094,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 gestureStartX = rawX; gestureStartY = rawY
 
                 trackingStateLocked = false
+                isCurrentlyTouched = true; invalidate()
                 initialLeftSweepDistance = 0f
                 lowestXReached = rawX
                 highestYReached = rawY
@@ -2159,7 +2161,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val topTransparency = prefs.getInt("pref_sidebar_top_transparency", 0)
             val bottomTransparency = if (prefs.getBoolean("pref_sidebar_link_edges", false)) topTransparency else prefs.getInt("pref_sidebar_bottom_transparency", 0)
 
-            fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean) {
+            fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean, targetZone: TouchZone) {
                 val isReview = isExpanded && isSidebarPreview
                 val effectivePct = if (isReview) 100 else transparencyPct
                 if (effectivePct <= 0 && !isReview) return
@@ -2177,17 +2179,22 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     highlightPaint.color = Color.WHITE
                     canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
                 } else {
-                    // Resting Mode: Tactical Glowing Laser Blade
-                    val bladeW = minOf(bounds.width(), 6f * d)
+                    // Resting Mode & Touch Glow
+                    val isTouched = isCurrentlyTouched && currentActiveZone == targetZone
+                    val isCenter = targetZone == TouchZone.CENTER_CRUISE
+                    val baseW = minOf(bounds.width(), 6f * d)
+                    val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else baseW
+                    val finalAlpha = if (isTouched) 255 else alpha
+
                     val bladeRect = RectF(bounds.right - bladeW, bounds.top + 2f * d, bounds.right, bounds.bottom - 2f * d)
 
                     highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
+                    highlightPaint.color = Color.argb(finalAlpha, Color.red(color), Color.green(color), Color.blue(color))
                     canvas.drawRoundRect(bladeRect, 3f * d, 3f * d, highlightPaint)
 
                     highlightPaint.style = Paint.Style.STROKE
                     highlightPaint.strokeWidth = 1.2f * d
-                    highlightPaint.color = Color.argb((alpha * 0.9f).toInt(), 255, 255, 255)
+                    highlightPaint.color = Color.argb((finalAlpha * 0.9f).toInt(), 255, 255, 255)
                     canvas.drawLine(bladeRect.left, bladeRect.top + 4f * d, bladeRect.left, bladeRect.bottom - 4f * d, highlightPaint)
                 }
             }
@@ -2196,9 +2203,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val coreColor = m3Primary
             val lowerColor = Color.rgb(255, 171, 0)
 
-            drawWingBlade(topTouchBounds, upperColor, topTransparency, isTopExpanded)
-            drawWingBlade(centerTouchBounds, coreColor, centerTransparency, isCenterExpanded)
-            drawWingBlade(bottomTouchBounds, lowerColor, bottomTransparency, isBottomExpanded)
+            drawWingBlade(topTouchBounds, upperColor, topTransparency, isTopExpanded, TouchZone.TOP_EDGE)
+            drawWingBlade(centerTouchBounds, coreColor, centerTransparency, isCenterExpanded, TouchZone.CENTER_CRUISE)
+            drawWingBlade(bottomTouchBounds, lowerColor, bottomTransparency, isBottomExpanded, TouchZone.BOTTOM_EDGE)
             return
         }
 

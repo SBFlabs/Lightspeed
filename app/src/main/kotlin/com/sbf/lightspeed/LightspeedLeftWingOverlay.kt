@@ -144,6 +144,7 @@ class LightspeedLeftWingOverlay(
         }
     }
 
+    private var isCurrentlyTouched = false
     private var startRawX = 0f
     private var startRawY = 0f
     private var startX = 0f
@@ -233,6 +234,8 @@ class LightspeedLeftWingOverlay(
                 highestYReached = rawY
                 lowestYReached = rawY
                 initialDominantAxis = "NONE"
+                isCurrentlyTouched = true
+                invalidate()
                 isScrubbing = false
                 isHoldFired = false
                 currentGesture = "NONE"
@@ -345,6 +348,8 @@ class LightspeedLeftWingOverlay(
             }
 
             MotionEvent.ACTION_UP -> {
+                isCurrentlyTouched = false
+                invalidate()
                 uiHandler.removeCallbacks(holdRunnable)
                 if (activeZoneKey == "LEFT_CENTER") {
                     (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = event)
@@ -384,6 +389,8 @@ class LightspeedLeftWingOverlay(
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                isCurrentlyTouched = false
+                invalidate()
                 uiHandler.removeCallbacks(holdRunnable)
                 if (activeZoneKey == "LEFT_CENTER") {
                     (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = event)
@@ -541,7 +548,7 @@ class LightspeedLeftWingOverlay(
         val topTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_top_transparency", 0) else prefs.getInt("pref_sidebar_left_top_transparency", 0)
         val bottomTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_bottom_transparency", 0) else prefs.getInt("pref_sidebar_left_bottom_transparency", 0)
 
-        fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean) {
+        fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean, zoneKey: String) {
             val isReview = isExpanded && isPreview
             val effectivePct = if (isReview) 100 else transparencyPct
             if (effectivePct <= 0 && !isReview) return
@@ -559,17 +566,22 @@ class LightspeedLeftWingOverlay(
                 highlightPaint.color = Color.WHITE
                 canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
             } else {
-                // Resting Mode: Tactical Glowing Laser Blade on the Left Edge
-                val bladeW = minOf(bounds.width(), 6f * d)
+                // Resting Mode & Touch Glow
+                val isTouched = isCurrentlyTouched && activeZoneKey == zoneKey
+                val isCenter = zoneKey.contains("CENTER")
+                val baseW = minOf(bounds.width(), 6f * d)
+                val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else baseW
+                val finalAlpha = if (isTouched) 255 else alpha
+
                 val bladeRect = RectF(0f, bounds.top + 2f * d, bladeW, bounds.bottom - 2f * d)
 
                 highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color))
+                highlightPaint.color = Color.argb(finalAlpha, Color.red(color), Color.green(color), Color.blue(color))
                 canvas.drawRoundRect(bladeRect, 3f * d, 3f * d, highlightPaint)
 
                 highlightPaint.style = Paint.Style.STROKE
                 highlightPaint.strokeWidth = 1.2f * d
-                highlightPaint.color = Color.argb((alpha * 0.9f).toInt(), 255, 255, 255)
+                highlightPaint.color = Color.argb((finalAlpha * 0.9f).toInt(), 255, 255, 255)
                 canvas.drawLine(bladeRect.right, bladeRect.top + 4f * d, bladeRect.right, bladeRect.bottom - 4f * d, highlightPaint)
             }
         }
@@ -584,9 +596,9 @@ class LightspeedLeftWingOverlay(
         val coreColor = m3Primary
         val lowerColor = Color.rgb(255, 171, 0)
 
-        drawWingBlade(topTouchBounds, upperColor, topTransparency, isTopExpanded)
-        drawWingBlade(centerTouchBounds, coreColor, centerTransparency, isCenterExpanded)
-        drawWingBlade(bottomTouchBounds, lowerColor, bottomTransparency, isBottomExpanded)
+        drawWingBlade(topTouchBounds, upperColor, topTransparency, isTopExpanded, "LEFT_TOP")
+        drawWingBlade(centerTouchBounds, coreColor, centerTransparency, isCenterExpanded, "LEFT_CENTER")
+        drawWingBlade(bottomTouchBounds, lowerColor, bottomTransparency, isBottomExpanded, "LEFT_BOTTOM")
 
         if (isScrubbing && hudTitle.isNotEmpty()) {
             val screenW = resources.displayMetrics.widthPixels.toFloat()

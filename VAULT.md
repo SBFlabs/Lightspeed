@@ -3,6 +3,44 @@ LIGHTSPEED MASTER AVIONICS VAULT: COMPLETE ACCUMULATED BACKLOG & DREAMS ARCHIVE
 ================================================================================
 
 --------------------------------------------------------------------------------
+PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
+--------------------------------------------------------------------------------
+
+[THE VISIONARY'S CREED & LIFE PROJECT]
+* Visionary / PM: Medical student pair-programming with autonomous AI agents (Claude Sonnet 4.6 -> Gemini Pro -> Antigravity).
+* The Core Childhood Dream:
+  - From early dumbphones to modern smartphones, the device was always envisioned not as a passive glass slab running a dozen disjointed utilities, but as an adaptive sci-fi spaceship cockpit / Transformer robot.
+  - Lightspeed is the manifestation of that lifetime vision: a unified, tactile, zero-telemetry meta-shell.
+  - The spaceship metaphor is not superficial decoration; it is the driving joy of development and the soul of the interface.
+
+[NON-NEGOTIABLE CORE INVARIANTS]
+1. 100% Offline & Private: Zero telemetry, zero analytics, zero external network calls.
+2. Production Readiness: Clean architecture designed for Google Play, F-Droid, and GitHub. All proprietary trademarks scrubbed (e.g. Dynamic Island -> Orbital Capsule).
+3. Monolithic Meta-Shell: Single unified APK with internal modular domain separation, avoiding external multi-APK fragmentation.
+4. Total Backup Invariance: Every setting, custom icon (Base64 embedded), physics profile, and layout must export and import losslessly via LightspeedBackupEngine.
+5. Nightly-Only Target: All day-to-day work, testing, and deployment targets com.sbf.lightspeed.nightly on branch nightly-refactor. Stable release remains locked and immutable.
+
+[THE MASTER AVIONICS TAXONOMY (SPATIAL & SEMANTIC MAP)]
+* Horizon Rail: Top edge status bar progress line, battery telemetry curve, and horizontal scrubbers.
+* Sensor Deck / Area: Top bezel tactile gesture capture zone for instant action triggers.
+* Orbital Capsule: Camera punch-hole dynamic HUD (cutout calibration, marquee telemetry, media flare).
+* Deflectors (Port & Starboard): Left and right kinetic screen-edge gesture wings with progressive frosted glass diffusion, specular rims, and directional macro gestures.
+* Cockpit Hangar & Gears: Orbital app launcher wheels with rotating gimbal rings and flight-lock reticles.
+* Category Cruise: Full-screen launcher cruising deck for categorizing application fleets.
+* Refueling Bay: Cryo charging and widget dashboard (Mode 1: 3D Cube Smart Stack, Mode 2: Freeform FlowRow Grid).
+* Deep Space: Custom high-performance Canvas graphics engine (cosmic starfield, gimbal rings, lightspeed warp surges).
+* Central Command: Master configuration deck with dynamic accordion matrices (formerly SidebarMatrixConfig).
+
+[THE LANGUAGE ENGINE: 3-WAY COMMUNICATION PROTOCOL & GLOBAL I18N]
+* Conceived in Central Command Guidebook as an interactive 3-way toggle:
+  1. Vessel Lore: Full spaceship immersion (Deflectors, Cockpit Hangar, HUD Strip, Orbital Capsule).
+  2. Co-Pilot: Bilingual hybrid protocol showing spaceship terms alongside plain Android utility.
+  3. Clear Comms: Plain, direct Android utility (Gesture Sidebars, App Launcher, Status Bar, Punch-hole HUD).
+* Extensible Internationalization:
+  - Backed by LightspeedLanguageEngine and LightspeedVocabulary.
+  - Serves as the single global resolution foundation for future real-world languages (Arabic, Chinese, RTL).
+
+--------------------------------------------------------------------------------
 PART 1: THE BACK BURNER (ESTABLISHED DEFERRED ARCHITECTURE)
 --------------------------------------------------------------------------------
 

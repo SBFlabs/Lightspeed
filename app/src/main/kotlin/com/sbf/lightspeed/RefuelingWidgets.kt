@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
@@ -386,7 +387,25 @@ fun MultiWidgetContainer(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(8.dp),
-                                isStackMode = true
+                                isStackMode = true,
+                                onSwipeDelta = { deltaX ->
+                                    try {
+                                        pagerState.dispatchRawDelta(-deltaX)
+                                    } catch (_: Exception) {}
+                                },
+                                onSwipeEnd = { totalDx, xVel ->
+                                    val pageCount = widgetIds.size
+                                    val currentPage = pagerState.currentPage
+                                    val threshold = 70f
+                                    val targetPage = when {
+                                        xVel < -800f || totalDx < -threshold -> (currentPage + 1).coerceAtMost(pageCount - 1)
+                                        xVel > 800f || totalDx > threshold -> (currentPage - 1).coerceAtLeast(0)
+                                        else -> currentPage
+                                    }
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(targetPage)
+                                    }
+                                }
                             )
 
                             // Edit Overlay Controls (Tactical HUD Avionics Badge)
@@ -688,13 +707,16 @@ fun MultiWidgetContainer(
  */
 class ScrollableAppWidgetContainer(
     context: Context,
-    var isStackMode: Boolean = true
+    var isStackMode: Boolean = true,
+    var onSwipeDelta: ((Float) -> Unit)? = null,
+    var onSwipeEnd: ((Float, Float) -> Unit)? = null
 ) : FrameLayout(context) {
     private var startX = 0f
     private var startY = 0f
+    private var lastX = 0f
+    private var isDraggingStack = false
     private var isVerticalScroll = false
-    private var isHorizontalScroll = false
-    private var currentScrollConsumed = false
+    private var velocityTracker: VelocityTracker? = null
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
     private fun hasHorizontalScrollableChild(v: View): Boolean {
@@ -720,37 +742,105 @@ class ScrollableAppWidgetContainer(
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (!isStackMode || onSwipeDelta == null) {
+            return handleGridModeDispatch(ev)
+        }
+
+        if (velocityTracker == null) {
+            velocityTracker = VelocityTracker.obtain()
+        }
+        velocityTracker?.addMovement(ev)
+
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 startX = ev.x
                 startY = ev.y
+                lastX = ev.x
+                isDraggingStack = false
                 isVerticalScroll = false
-                isHorizontalScroll = false
-                currentScrollConsumed = false
-                parent?.requestDisallowInterceptTouchEvent(true)
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = abs(ev.x - startX)
                 val dy = abs(ev.y - startY)
 
-                if (!isVerticalScroll && !isHorizontalScroll) {
+                if (!isDraggingStack && !isVerticalScroll) {
+                    if (dx > dy && dx > touchSlop) {
+                        // Horizontal Drag Detected across widget
+                        if (!hasHorizontalScrollableChild(this)) {
+                            isDraggingStack = true
+                            parent?.requestDisallowInterceptTouchEvent(true)
+
+                            // Cancel touch in child views (like ListView) to release pressed states
+                            val cancelEvent = MotionEvent.obtain(ev).apply { action = MotionEvent.ACTION_CANCEL }
+                            super.dispatchTouchEvent(cancelEvent)
+                            cancelEvent.recycle()
+                        }
+                    } else if (dy > dx && dy > touchSlop) {
+                        isVerticalScroll = true
+                        if (hasVerticalScrollableChild(this)) {
+                            parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+                    }
+                }
+
+                if (isDraggingStack) {
+                    val deltaX = ev.x - lastX
+                    lastX = ev.x
+                    onSwipeDelta?.invoke(deltaX)
+                    return true
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                if (isDraggingStack) {
+                    velocityTracker?.computeCurrentVelocity(1000)
+                    val xVel = velocityTracker?.xVelocity ?: 0f
+                    val totalDx = ev.x - startX
+                    onSwipeEnd?.invoke(totalDx, xVel)
+                    isDraggingStack = false
+                    velocityTracker?.recycle()
+                    velocityTracker = null
+                    return true
+                }
+                velocityTracker?.recycle()
+                velocityTracker = null
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                if (isDraggingStack) {
+                    onSwipeEnd?.invoke(0f, 0f)
+                    isDraggingStack = false
+                }
+                velocityTracker?.recycle()
+                velocityTracker = null
+            }
+        }
+
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun handleGridModeDispatch(ev: MotionEvent): Boolean {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                startX = ev.x
+                startY = ev.y
+                isVerticalScroll = false
+                parent?.requestDisallowInterceptTouchEvent(true)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = abs(ev.x - startX)
+                val dy = abs(ev.y - startY)
+                if (!isVerticalScroll) {
                     if (dy > dx && dy > touchSlop) {
                         isVerticalScroll = true
-                        currentScrollConsumed = hasVerticalScrollableChild(this)
-                        parent?.requestDisallowInterceptTouchEvent(currentScrollConsumed)
+                        val canScrollY = hasVerticalScrollableChild(this)
+                        parent?.requestDisallowInterceptTouchEvent(canScrollY)
                     } else if (dx > dy && dx > touchSlop) {
-                        isHorizontalScroll = true
-                        currentScrollConsumed = hasHorizontalScrollableChild(this)
-                        parent?.requestDisallowInterceptTouchEvent(currentScrollConsumed)
+                        val canScrollX = hasHorizontalScrollableChild(this)
+                        parent?.requestDisallowInterceptTouchEvent(canScrollX)
                     }
-                } else {
-                    parent?.requestDisallowInterceptTouchEvent(currentScrollConsumed)
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 isVerticalScroll = false
-                isHorizontalScroll = false
-                currentScrollConsumed = false
                 parent?.requestDisallowInterceptTouchEvent(false)
             }
         }
@@ -766,7 +856,9 @@ fun AppWidgetContainerView(
     appWidgetManager: AppWidgetManager,
     modifier: Modifier = Modifier,
     isEditMode: Boolean = false,
-    isStackMode: Boolean = true
+    isStackMode: Boolean = true,
+    onSwipeDelta: ((Float) -> Unit)? = null,
+    onSwipeEnd: ((Float, Float) -> Unit)? = null
 ) {
     key(widgetId) {
         val appWidgetInfo = remember(widgetId) {
@@ -783,7 +875,12 @@ fun AppWidgetContainerView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         try {
-                            val container = ScrollableAppWidgetContainer(ctx, isStackMode = isStackMode)
+                            val container = ScrollableAppWidgetContainer(
+                                ctx,
+                                isStackMode = isStackMode,
+                                onSwipeDelta = onSwipeDelta,
+                                onSwipeEnd = onSwipeEnd
+                            )
                             val hostView = appWidgetHost.createView(ctx, widgetId, appWidgetInfo)
                             hostView.setAppWidget(widgetId, appWidgetInfo)
                             container.addView(
@@ -804,6 +901,8 @@ fun AppWidgetContainerView(
                     update = { view ->
                         if (view is ScrollableAppWidgetContainer) {
                             view.isStackMode = isStackMode
+                            view.onSwipeDelta = onSwipeDelta
+                            view.onSwipeEnd = onSwipeEnd
                         }
                     }
                 )

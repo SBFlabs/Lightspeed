@@ -56,7 +56,7 @@ object LightspeedOrientationEngine {
     private var lastPermissionPromptTime = 0L
 
     fun isRecentInternalWrite(): Boolean {
-        return android.os.SystemClock.uptimeMillis() - lastInternalWriteTime < 600L
+        return android.os.SystemClock.uptimeMillis() - lastInternalWriteTime < 1000L
     }
 
     fun recordInternalWrite() {

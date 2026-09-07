@@ -177,6 +177,15 @@ fun TabAccordionPopover(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+data class AttitudeTargetItem(
+    val id: String,
+    val label: String,
+    val subtitle: String,
+    val isPinned: Boolean,
+    val badge: String? = null
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttitudeAppAssignmentSheet(
     context: Context,
@@ -191,19 +200,161 @@ fun AttitudeAppAssignmentSheet(
         }
     }
 
-    val installedApps = remember {
+    val allTargets = remember {
         val pm = context.packageManager
-        val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
-        pm.queryIntentActivities(intent, 0).map {
-            val pkg = it.activityInfo.packageName
-            val label = it.loadLabel(pm).toString()
-            Pair(pkg, label)
-        }.distinctBy { it.first }.sortedBy { it.second.lowercase(Locale.ROOT) }
+        val pinned = mutableListOf<AttitudeTargetItem>()
+        val regular = mutableListOf<AttitudeTargetItem>()
+        val seenPackages = mutableSetOf<String>()
+
+        // 1. Virtual Core: Lock Screen
+        pinned.add(
+            AttitudeTargetItem(
+                id = "keyguard:lockscreen",
+                label = "Lock Screen (Keyguard)",
+                subtitle = "System Lock Screen & Ambient Display",
+                isPinned = true,
+                badge = "SYSTEM"
+            )
+        )
+        seenPackages.add("keyguard:lockscreen")
+
+        // 2. All Launcher Apps (CATEGORY_HOME)
+        val homeIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+        val homeResolves = pm.queryIntentActivities(homeIntent, 0)
+        homeResolves.forEach { ri ->
+            val pkg = ri.activityInfo.packageName
+            if (pkg !in seenPackages && pkg != "android") {
+                seenPackages.add(pkg)
+                val label = ri.loadLabel(pm).toString().ifBlank { pkg }
+                pinned.add(
+                    AttitudeTargetItem(
+                        id = pkg,
+                        label = label,
+                        subtitle = "Home Launcher ($pkg)",
+                        isPinned = true,
+                        badge = "LAUNCHER"
+                    )
+                )
+            }
+        }
+
+        // 3. Phone / Dialer
+        val dialerIntent = Intent(Intent.ACTION_DIAL)
+        val dialerResolves = pm.queryIntentActivities(dialerIntent, 0)
+        dialerResolves.forEach { ri ->
+            val pkg = ri.activityInfo.packageName
+            if (pkg !in seenPackages && pkg != "android") {
+                seenPackages.add(pkg)
+                val label = ri.loadLabel(pm).toString().ifBlank { pkg }
+                pinned.add(
+                    AttitudeTargetItem(
+                        id = pkg,
+                        label = label,
+                        subtitle = "Phone & Dialer ($pkg)",
+                        isPinned = true,
+                        badge = "PHONE"
+                    )
+                )
+            }
+        }
+
+        // 4. SMS / Messaging
+        val smsIntent = Intent(Intent.ACTION_SENDTO).apply { data = android.net.Uri.parse("smsto:") }
+        val smsResolves = pm.queryIntentActivities(smsIntent, 0)
+        smsResolves.forEach { ri ->
+            val pkg = ri.activityInfo.packageName
+            if (pkg !in seenPackages && pkg != "android") {
+                seenPackages.add(pkg)
+                val label = ri.loadLabel(pm).toString().ifBlank { pkg }
+                pinned.add(
+                    AttitudeTargetItem(
+                        id = pkg,
+                        label = label,
+                        subtitle = "Text & SMS ($pkg)",
+                        isPinned = true,
+                        badge = "SMS"
+                    )
+                )
+            }
+        }
+
+        // 5. Popular Messengers & Derivatives (WhatsApp, Telegram, Messenger)
+        val popularMessengers = listOf(
+            Triple(listOf("com.whatsapp", "com.whatsapp.w4b", "com.gbwhatsapp", "com.yowhatsapp"), "WhatsApp", "WHATSAPP"),
+            Triple(listOf("org.telegram.messenger", "org.thunderdog.challegram", "org.telegram.plus", "org.telegram.messenger.web"), "Telegram", "TELEGRAM"),
+            Triple(listOf("com.facebook.orca", "com.facebook.mlite"), "Messenger", "MESSENGER")
+        )
+        popularMessengers.forEach { (pkgList, fallbackName, badgeName) ->
+            pkgList.forEach { candidatePkg ->
+                try {
+                    val appInfo = pm.getApplicationInfo(candidatePkg, 0)
+                    if (candidatePkg !in seenPackages) {
+                        seenPackages.add(candidatePkg)
+                        val label = pm.getApplicationLabel(appInfo).toString().ifBlank { fallbackName }
+                        pinned.add(
+                            AttitudeTargetItem(
+                                id = candidatePkg,
+                                label = label,
+                                subtitle = "$fallbackName ($candidatePkg)",
+                                isPinned = true,
+                                badge = badgeName
+                            )
+                        )
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+
+        // 6. Settings App
+        val settingsPkg = "com.android.settings"
+        try {
+            val appInfo = pm.getApplicationInfo(settingsPkg, 0)
+            if (settingsPkg !in seenPackages) {
+                seenPackages.add(settingsPkg)
+                val label = pm.getApplicationLabel(appInfo).toString().ifBlank { "Settings" }
+                pinned.add(
+                    AttitudeTargetItem(
+                        id = settingsPkg,
+                        label = label,
+                        subtitle = "System Settings ($settingsPkg)",
+                        isPinned = true,
+                        badge = "SETTINGS"
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+
+        // 7. All other installed launcher apps (standard user apps)
+        val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+        val launcherResolves = pm.queryIntentActivities(launcherIntent, 0)
+        launcherResolves.forEach { ri ->
+            val pkg = ri.activityInfo.packageName
+            if (pkg !in seenPackages) {
+                seenPackages.add(pkg)
+                val label = ri.loadLabel(pm).toString().ifBlank { pkg }
+                regular.add(
+                    AttitudeTargetItem(
+                        id = pkg,
+                        label = label,
+                        subtitle = pkg,
+                        isPinned = false,
+                        badge = null
+                    )
+                )
+            }
+        }
+
+        regular.sortBy { it.label.lowercase(Locale.ROOT) }
+        pinned + regular
     }
 
-    val filteredApps = remember(searchQuery, installedApps) {
-        if (searchQuery.isBlank()) installedApps
-        else installedApps.filter { it.second.contains(searchQuery, ignoreCase = true) || it.first.contains(searchQuery, ignoreCase = true) }
+    val filteredApps = remember(searchQuery, allTargets) {
+        if (searchQuery.isBlank()) allTargets
+        else allTargets.filter {
+            it.label.contains(searchQuery, ignoreCase = true) ||
+            it.id.contains(searchQuery, ignoreCase = true) ||
+            (it.badge?.contains(searchQuery, ignoreCase = true) == true)
+        }
     }
 
     ModalBottomSheet(
@@ -249,7 +400,7 @@ fun AttitudeAppAssignmentSheet(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search installed apps...", fontSize = 13.sp) },
+                placeholder = { Text("Search apps, messengers, launchers...", fontSize = 13.sp) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -262,18 +413,38 @@ fun AttitudeAppAssignmentSheet(
                     .heightIn(max = 380.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(count = filteredApps.size, key = { filteredApps[it].first }) { index ->
-                    val app = filteredApps[index]
-                    val pkg = app.first
-                    val label = app.second
-                    val isAssigned = assignedPackages.contains(pkg)
+                items(count = filteredApps.size, key = { filteredApps[it].id }) { index ->
+                    val target = filteredApps[index]
+                    val isAssigned = assignedPackages.contains(target.id)
+
+                    // Optional section header when not searching
+                    if (searchQuery.isBlank()) {
+                        if (index == 0) {
+                            Text(
+                                "PINNED & CORE TARGETS",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
+                            )
+                        } else if (index > 0 && !target.isPinned && filteredApps[index - 1].isPinned) {
+                            Text(
+                                "ALL INSTALLED APPS",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+                            )
+                        }
+                    }
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .clickable {
-                                if (isAssigned) assignedPackages.remove(pkg)
-                                else assignedPackages.add(pkg)
+                                if (isAssigned) assignedPackages.remove(target.id)
+                                else assignedPackages.add(target.id)
                                 LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
                                 onUpdated()
                             },
@@ -291,16 +462,34 @@ fun AttitudeAppAssignmentSheet(
                             Checkbox(
                                 checked = isAssigned,
                                 onCheckedChange = { checked ->
-                                    if (checked) assignedPackages.add(pkg)
-                                    else assignedPackages.remove(pkg)
+                                    if (checked) assignedPackages.add(target.id)
+                                    else assignedPackages.remove(target.id)
                                     LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
                                     onUpdated()
                                 }
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                Text(pkg, fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.6f))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(target.label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                    if (target.badge != null) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                            border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                                        ) {
+                                            Text(
+                                                text = target.badge,
+                                                fontSize = 8.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Text(target.subtitle, fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.6f))
                             }
                         }
                     }

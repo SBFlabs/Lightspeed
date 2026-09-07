@@ -149,7 +149,6 @@ object LightspeedOrientationManager {
     fun onExternalAutoRotateChanged(context: Context, isEnabled: Boolean) {
         Log.i(TAG, "External Auto-Rotate change synced: $isEnabled")
         LightspeedOrientationEngine.setMasterAutoRotateBaseline(context, isEnabled)
-        evaluateGravityCascade(context)
     }
 
     fun onForegroundPackageChanged(context: Context, newPackage: String?, isLocked: Boolean) {
@@ -157,37 +156,21 @@ object LightspeedOrientationManager {
         val isSelf = targetPkg != null && (targetPkg == context.packageName || targetPkg.contains("com.sbf.lightspeed"))
         val isSystemUI = targetPkg == "com.android.systemui" || targetPkg == "android"
 
-        // Keyguard lockscreen must evaluate guardrails even if package is com.android.systemui
-        if (isLocked) {
-            evaluateGravityCascade(context, isLocked = true, foregroundPackage = targetPkg)
-            return
-        }
-
-        if (isSelf) {
-            // Transient override is preserved during overlays & internal settings
-            return
-        }
-
-        if (isSystemUI) {
-            // Transient override is preserved during notifications & quick settings
-            return
-        }
+        if (isSelf) return
+        if (isSystemUI) return
 
         if (!targetPkg.isNullOrBlank() && targetPkg != lastForegroundPackage) {
             lastForegroundPackage = targetPkg
-            // Yields/Clears transient override on app/task switch
             manualGestureOverride = null
         }
         evaluateGravityCascade(context, isLocked = isLocked, foregroundPackage = targetPkg)
     }
 
     fun onScreenOff(context: Context) {
-        // Yields/Clears on screen turn-off / device lock
         manualGestureOverride = null
     }
 
     fun onCallStateChanged(context: Context) {
-        // Yields/Clears on phone call state changes
         manualGestureOverride = null
         evaluateGravityCascade(context)
     }
@@ -199,7 +182,7 @@ object LightspeedOrientationManager {
     fun evaluateGravityCascade(context: Context, isLocked: Boolean? = null, foregroundPackage: String? = null) {
         val targetPackage = foregroundPackage ?: lastForegroundPackage
 
-        // Priority 1: Runtime Manual Gesture Override (Instant user veto; overrides all guards and app rules)
+        // Priority 1: Runtime Manual Gesture Override (Instant user veto)
         manualGestureOverride?.let { override ->
             when (override) {
                 GravityOverrideMode.FORCE_PORTRAIT -> LightspeedOrientationEngine.forcePortrait(context)
@@ -209,29 +192,34 @@ object LightspeedOrientationManager {
             return
         }
 
-        val prefs = context.defaultPrefs()
-        val guardEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, true)
-
-        // Priority 2: Protected Context Guardrails (Keyguard, Launcher, and Phone/VoIP calls lock to portrait)
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        val isCallActive = audioManager?.mode == AudioManager.MODE_IN_CALL || audioManager?.mode == AudioManager.MODE_IN_COMMUNICATION
-
         val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val locked = isLocked ?: (keyguardManager?.isKeyguardLocked == true)
-        val isLauncher = LightspeedOrientationEngine.isDefaultLauncherPackage(context, targetPackage)
 
-        if (guardEnabled && (locked || isLauncher || isCallActive)) {
-            LightspeedOrientationEngine.forcePortrait(context)
-            return
+        val strictPortraitApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT)
+        val sensorPortraitApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT)
+        val sensorLandscapeApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE)
+
+        // Priority 2: Keyguard Lock Screen (Explicit assignment if user configured keyguard:lockscreen)
+        if (locked) {
+            val lockscreenToken = "keyguard:lockscreen"
+            when {
+                strictPortraitApps.contains(lockscreenToken) -> {
+                    LightspeedOrientationEngine.forcePortrait(context)
+                    return
+                }
+                sensorPortraitApps.contains(lockscreenToken) -> {
+                    LightspeedOrientationEngine.setSensorPortrait(context)
+                    return
+                }
+                sensorLandscapeApps.contains(lockscreenToken) -> {
+                    LightspeedOrientationEngine.forceLandscape(context)
+                    return
+                }
+            }
         }
 
-        // Priority 3: Per-App Launch Baseline (Enforced on foreground switch)
+        // Priority 3: Per-App Launch Rules (Enforced on foreground switch)
         if (!targetPackage.isNullOrBlank()) {
-            val strictPortraitApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT)
-            val sensorPortraitApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT)
-            val sensorLandscapeApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE)
-            val sensor360Apps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_360)
-
             when {
                 strictPortraitApps.contains(targetPackage) -> {
                     LightspeedOrientationEngine.forcePortrait(context)
@@ -245,14 +233,10 @@ object LightspeedOrientationManager {
                     LightspeedOrientationEngine.forceLandscape(context)
                     return
                 }
-                sensor360Apps.contains(targetPackage) -> {
-                    LightspeedOrientationEngine.forceSensor360(context)
-                    return
-                }
             }
         }
 
-        // Priority 4: Master Auto-Rotate baseline (Persistent User Baseline)
+        // Priority 4: User's Master Auto-Rotate (Fallback for unassigned apps)
         val masterAutoRotate = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
         if (masterAutoRotate) {
             LightspeedOrientationEngine.forceSensor360(context)

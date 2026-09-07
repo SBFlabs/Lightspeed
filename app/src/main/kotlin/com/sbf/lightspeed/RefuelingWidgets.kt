@@ -316,8 +316,14 @@ fun MultiWidgetContainer(
 
         LaunchedEffect(widgetIds.size) {
             if (widgetIds.isNotEmpty()) {
-                pagerState.animateScrollToPage(widgetIds.size - 1)
+                val lastIndex = android.preference.PreferenceManager.getDefaultSharedPreferences(activity).getInt("refueling_stack_memory", widgetIds.size - 1)
+                val target = lastIndex.coerceIn(0, widgetIds.size - 1)
+                pagerState.scrollToPage(target)
             }
+        }
+
+        LaunchedEffect(pagerState.currentPage) {
+            android.preference.PreferenceManager.getDefaultSharedPreferences(activity).edit().putInt("refueling_stack_memory", pagerState.currentPage).apply()
         }
 
         Card(

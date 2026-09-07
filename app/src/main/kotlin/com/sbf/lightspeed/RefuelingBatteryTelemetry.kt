@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +49,18 @@ fun BatteryTelemetryCircle(
     )
     val isPulseActive = isCharging && wattage >= 20.0f
 
+
+    val history = remember { mutableStateListOf<Pair<Float, Float>>() }
+    LaunchedEffect(isCharging) {
+        while(isCharging) {
+            history.add(Pair(wattage, batteryTempC))
+            if (history.size > 50) {
+                history.removeAt(0)
+            }
+            delay(3000)
+        }
+    }
+    
     androidx.compose.foundation.layout.Box(
         modifier = Modifier
             .size(sizeDp)
@@ -57,6 +71,34 @@ fun BatteryTelemetryCircle(
             val strokeWidthPx = 8.dp.toPx()
             val radius = (size.minDimension - strokeWidthPx) / 2f
             val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+
+            // --- DRAW BACKGROUND GRAPH ---
+            if (history.size > 1) {
+                val graphPath = Path()
+                val innerRadius = radius * 0.7f
+                val graphWidth = innerRadius * 1.5f
+                val graphHeight = innerRadius * 1.0f
+                val startX = center.x - graphWidth / 2f
+                val bottomY = center.y + graphHeight / 2f
+
+                val maxWattage = history.maxOfOrNull { it.first }?.coerceAtLeast(15f) ?: 15f
+                val stepX = graphWidth / (50 - 1).coerceAtLeast(1)
+
+                graphPath.moveTo(startX, bottomY - (history[0].first / maxWattage) * graphHeight)
+                for (i in 1 until history.size) {
+                    val x = startX + i * stepX
+                    val y = bottomY - (history[i].first / maxWattage) * graphHeight
+                    graphPath.lineTo(x, y)
+                }
+                
+                drawPath(
+                    path = graphPath,
+                    color = dynamicArcColor.copy(alpha = 0.2f),
+                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+            // -----------------------------
+
 
             when (batteryStyle) {
                 "reactor_ticks" -> {

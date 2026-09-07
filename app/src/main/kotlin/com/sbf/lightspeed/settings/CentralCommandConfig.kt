@@ -3712,7 +3712,8 @@ fun CentralCommandMatrixFields(
                                                             val buckets = listOf(
                                                                 LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT,
                                                                 LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT,
-                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE,
+                                                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_360
                                                             )
 
                                                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -3799,6 +3800,52 @@ fun CentralCommandMatrixFields(
                                                                     ) {
                                                                         Text(
                                                                             text = "$assignedLandscapeCount apps",
+                                                                            fontSize = 9.5.sp,
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            color = cautionAmber,
+                                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            val sensor360Bucket = buckets[3]
+                                                            val assigned360Count = remember(sensor360Bucket, prefs.getStringSet(sensor360Bucket.prefKey, null)) {
+                                                                LightspeedOrientationEngine.getAssignedPackages(context, sensor360Bucket).size
+                                                            }
+                                                            Card(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .clip(RoundedCornerShape(12.dp))
+                                                                    .clickable { selectedAttitudeBucketForAppPicker = sensor360Bucket }
+                                                                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                                ) {
+                                                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.ScreenRotation,
+                                                                            contentDescription = null,
+                                                                            tint = cautionAmber,
+                                                                            modifier = Modifier.size(20.dp)
+                                                                        )
+                                                                        Spacer(modifier = Modifier.width(10.dp))
+                                                                        Column {
+                                                                            Text(sensor360Bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = Color.White)
+                                                                            Text(sensor360Bucket.subtitle, fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.75f))
+                                                                        }
+                                                                    }
+                                                                    Surface(
+                                                                        shape = RoundedCornerShape(6.dp),
+                                                                        color = cautionAmber.copy(alpha = 0.15f)
+                                                                    ) {
+                                                                        Text(
+                                                                            text = "$assigned360Count apps",
                                                                             fontSize = 9.5.sp,
                                                                             fontWeight = FontWeight.Bold,
                                                                             color = cautionAmber,

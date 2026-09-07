@@ -608,7 +608,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
         updateOverlaysVisibility(isLocked, currentPkg)
         
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this, isLocked, currentPkg)
+            val isFullScreen = event.isFullScreen
+            val className = event.className?.toString()
+            val isLikelyActivity = isFullScreen || (className != null && (className.endsWith("Activity") || className.endsWith("Launcher")))
+            if (isLikelyActivity) {
+                com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this, isLocked, currentPkg)
+            }
         }
     }
     override fun onInterrupt() { teardown() }

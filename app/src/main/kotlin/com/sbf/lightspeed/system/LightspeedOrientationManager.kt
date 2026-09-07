@@ -328,6 +328,7 @@ object LightspeedOrientationManager {
         val strictPortraitApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT)
         val sensorPortraitApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT)
         val sensorLandscapeApps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE)
+        val sensor360Apps = LightspeedOrientationEngine.getAssignedPackages(context, LightspeedOrientationEngine.AttitudeBucket.SENSOR_360)
 
         // Priority 2: Keyguard Lock Screen (Explicit assignment if user configured keyguard:lockscreen)
         if (locked) {
@@ -346,6 +347,11 @@ object LightspeedOrientationManager {
                 sensorLandscapeApps.contains(lockscreenToken) -> {
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     LightspeedOrientationEngine.forceLandscape(context)
+                    return
+                }
+                sensor360Apps.contains(lockscreenToken) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
+                    LightspeedOrientationEngine.forceSensor360(context)
                     return
                 }
             }
@@ -372,6 +378,11 @@ object LightspeedOrientationManager {
                 sensorLandscapeApps.contains(resolvedPackage) -> {
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     LightspeedOrientationEngine.forceLandscape(context)
+                    return
+                }
+                sensor360Apps.contains(resolvedPackage) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
+                    LightspeedOrientationEngine.forceSensor360(context)
                     return
                 }
             }

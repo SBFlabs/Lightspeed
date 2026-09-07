@@ -22,6 +22,7 @@ import android.view.Surface
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.content.pm.ActivityInfo
 import android.database.ContentObserver
 import android.net.Uri
 import android.provider.Settings
@@ -66,6 +67,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     // Floating Media Scrubber Overlay
     private var mediaScrubberOverlayView: LightspeedMediaScrubberOverlay? = null
+
+    // Hardware Orientation Anchor (1x1 Transparent Window enforcing dynamic ScreenOrientation)
+    private var orientationAnchorView: View? = null
+    private var orientationAnchorParams: WindowManager.LayoutParams? = null
 
     private var systemStateReceiver: BroadcastReceiver? = null
     private var rotationContentObserver: ContentObserver? = null
@@ -127,6 +132,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
+        com.sbf.lightspeed.system.LightspeedOrientationManager.killConflictingTools(this)
 
         val initPrefs = defaultPrefs()
         initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()
@@ -219,6 +225,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         setupStatusBarOverlay(prefs)
         setupNotchOverlay()
+        setupOrientationAnchor()
 
         // 4. Initialize Back Tap Engine
         com.sbf.lightspeed.system.LightspeedBackTapEngine.init(this)
@@ -917,6 +924,49 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
+    private fun setupOrientationAnchor() {
+        if (orientationAnchorView != null) return
+        orientationAnchorParams = WindowManager.LayoutParams(
+            1, 1,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            screenOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+        try {
+            orientationAnchorView = View(this)
+            windowManager?.addView(orientationAnchorView, orientationAnchorParams)
+            Log.i("LightspeedAccessibility", "Initialized hardware orientation anchor window")
+        } catch (e: Exception) {
+            Log.w("LightspeedAccessibility", "Failed adding orientation anchor", e)
+        }
+    }
+
+    fun updateForcedOrientation(orientation: Int) {
+        handler.post {
+            val anchor = orientationAnchorView
+            val params = orientationAnchorParams
+            if (anchor == null || params == null) {
+                setupOrientationAnchor()
+            }
+            orientationAnchorParams?.let { p ->
+                if (p.screenOrientation != orientation) {
+                    p.screenOrientation = orientation
+                    try {
+                        windowManager?.updateViewLayout(orientationAnchorView, p)
+                        Log.i("LightspeedAccessibility", "Updated hardware orientation anchor: $orientation")
+                    } catch (e: Exception) {
+                        Log.w("LightspeedAccessibility", "Failed updating hardware orientation anchor", e)
+                    }
+                }
+            }
+        }
+    }
+
     private fun teardown() {
         LightspeedKeyEngine.reset()
         com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
@@ -932,6 +982,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
         mediaScrubberOverlayView?.let {
             try { windowManager?.removeView(it) } catch (_: Exception) {}
             mediaScrubberOverlayView = null
+        }
+        orientationAnchorView?.let {
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
+            orientationAnchorView = null
         }
         overlayView?.let {
             windowManager?.removeView(it)

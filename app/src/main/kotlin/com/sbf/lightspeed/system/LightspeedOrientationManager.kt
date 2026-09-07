@@ -7,6 +7,8 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import android.view.Surface
+import android.content.pm.ActivityInfo
+import com.sbf.lightspeed.LightspeedAccessibilityService
 
 /**
  * Synthetic Gravity Engine Manager.
@@ -57,6 +59,7 @@ object LightspeedOrientationManager {
     fun resetGravity(context: Context) {
         Log.i(TAG, "Restoring Default Gravity baseline")
         manualGestureOverride = null
+        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
         val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY RESTORED",
             value = "DEFAULT BASELINE",
@@ -79,8 +82,9 @@ object LightspeedOrientationManager {
         Log.i(TAG, "Toggling native auto-rotate baseline: $currentBaseline -> $newBaseline")
         LightspeedOrientationEngine.setMasterAutoRotateBaseline(context, newBaseline)
 
-        // Clear transient manual override
+        // Clear transient manual override and release hardware anchor
         manualGestureOverride = null
+        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
 
         // Apply immediately to system (Pure Native Android Auto-Rotate)
         if (newBaseline) {
@@ -125,6 +129,7 @@ object LightspeedOrientationManager {
         }
         Log.i(TAG, "Engaging transient 360° Gyro override")
         manualGestureOverride = GravityOverrideMode.FORCE_360
+        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
         LightspeedOrientationEngine.forceSensor360(context)
         com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY OVERRIDE",
@@ -144,6 +149,7 @@ object LightspeedOrientationManager {
         }
         Log.i(TAG, "Engaging transient Landscape override")
         manualGestureOverride = GravityOverrideMode.FORCE_LANDSCAPE
+        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
         LightspeedOrientationEngine.forceLandscape(context)
         com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY OVERRIDE",
@@ -163,6 +169,7 @@ object LightspeedOrientationManager {
         }
         Log.i(TAG, "Engaging transient Portrait override")
         manualGestureOverride = GravityOverrideMode.FORCE_PORTRAIT
+        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         LightspeedOrientationEngine.forcePortrait(context)
         com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY OVERRIDE",
@@ -222,6 +229,19 @@ object LightspeedOrientationManager {
         onForegroundPackageChanged(context, currentPackage, isLocked)
     }
 
+    fun killConflictingTools(context: Context) {
+        if (ElevatedTaskCloser.isShizukuActive) {
+            try {
+                ElevatedTaskCloser.execShizuku("am force-stop com.arlosoft.macrodroid")
+            } catch (_: Exception) {}
+        }
+        if (ElevatedTaskCloser.isRootActive) {
+            try {
+                Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop com.arlosoft.macrodroid")).waitFor()
+            } catch (_: Exception) {}
+        }
+    }
+
     fun evaluateGravityCascade(context: Context, isLocked: Boolean? = null, foregroundPackage: String? = null) {
         val targetPackage = foregroundPackage ?: lastForegroundPackage
 
@@ -229,9 +249,18 @@ object LightspeedOrientationManager {
         if (isActionOverrideAllowed(context)) {
             manualGestureOverride?.let { override ->
                 when (override) {
-                    GravityOverrideMode.FORCE_PORTRAIT -> LightspeedOrientationEngine.forcePortrait(context)
-                    GravityOverrideMode.FORCE_LANDSCAPE -> LightspeedOrientationEngine.forceLandscape(context)
-                    GravityOverrideMode.FORCE_360 -> LightspeedOrientationEngine.forceSensor360(context)
+                    GravityOverrideMode.FORCE_PORTRAIT -> {
+                        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
+                        LightspeedOrientationEngine.forcePortrait(context)
+                    }
+                    GravityOverrideMode.FORCE_LANDSCAPE -> {
+                        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+                        LightspeedOrientationEngine.forceLandscape(context)
+                    }
+                    GravityOverrideMode.FORCE_360 -> {
+                        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
+                        LightspeedOrientationEngine.forceSensor360(context)
+                    }
                 }
                 return
             }
@@ -249,14 +278,17 @@ object LightspeedOrientationManager {
             val lockscreenToken = "keyguard:lockscreen"
             when {
                 strictPortraitApps.contains(lockscreenToken) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                     LightspeedOrientationEngine.forcePortrait(context)
                     return
                 }
                 sensorPortraitApps.contains(lockscreenToken) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT)
                     LightspeedOrientationEngine.setSensorPortrait(context)
                     return
                 }
                 sensorLandscapeApps.contains(lockscreenToken) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     LightspeedOrientationEngine.forceLandscape(context)
                     return
                 }
@@ -267,25 +299,30 @@ object LightspeedOrientationManager {
         if (!targetPackage.isNullOrBlank()) {
             when {
                 strictPortraitApps.contains(targetPackage) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                     LightspeedOrientationEngine.forcePortrait(context)
                     return
                 }
                 sensorPortraitApps.contains(targetPackage) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT)
                     LightspeedOrientationEngine.setSensorPortrait(context)
                     return
                 }
                 sensorLandscapeApps.contains(targetPackage) -> {
+                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     LightspeedOrientationEngine.forceLandscape(context)
                     return
                 }
             }
         }
 
-        // Priority 4: User's Master Auto-Rotate (Fallback for unassigned apps)
+        // Priority 4: User's Master Auto-Rotate (Fallback for unassigned apps / native)
+        LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
         val masterAutoRotate = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
         if (masterAutoRotate) {
             LightspeedOrientationEngine.setAutoRotateEnabled(context, true)
         } else {
+            LightspeedOrientationEngine.setAutoRotateEnabled(context, false)
             LightspeedOrientationEngine.forcePortrait(context)
         }
     }

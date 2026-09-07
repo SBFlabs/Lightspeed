@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import androidx.compose.ui.text.style.TextAlign
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent

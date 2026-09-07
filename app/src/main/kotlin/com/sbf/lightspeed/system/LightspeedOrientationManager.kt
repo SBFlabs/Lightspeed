@@ -161,17 +161,29 @@ object LightspeedOrientationManager {
 
         if (!targetPkg.isNullOrBlank() && targetPkg != lastForegroundPackage) {
             lastForegroundPackage = targetPkg
-            manualGestureOverride = null
+            val prefs = context.defaultPrefs()
+            val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"
+            if (expiration == "until_app_switch") {
+                manualGestureOverride = null
+            }
         }
         evaluateGravityCascade(context, isLocked = isLocked, foregroundPackage = targetPkg)
     }
 
     fun onScreenOff(context: Context) {
-        manualGestureOverride = null
+        val prefs = context.defaultPrefs()
+        val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"
+        if (expiration != "persistent") {
+            manualGestureOverride = null
+        }
     }
 
     fun onCallStateChanged(context: Context) {
-        manualGestureOverride = null
+        val prefs = context.defaultPrefs()
+        val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"
+        if (expiration == "until_app_switch") {
+            manualGestureOverride = null
+        }
         evaluateGravityCascade(context)
     }
 

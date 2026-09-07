@@ -3851,6 +3851,58 @@ fun CentralCommandMatrixFields(
                                                             }
                                                         }
 
+                                                        // 4. Action Override Lifetime (Manual Gesture vs App Bucket)
+                                                        val currentOverrideExpiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"
+                                                        var isOverrideExpirationDropdownOpen by remember { mutableStateOf(false) }
+                                                        val overrideExpirationOptions = listOf(
+                                                            "until_app_switch" to "Until App Switch (Temporary)",
+                                                            "until_screen_off" to "Until Screen Off / Lock",
+                                                            "persistent" to "Persistent (Won't Reset / Manual Only)"
+                                                        )
+
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("MANUAL ACTION OVERRIDE DURATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cautionAmber, letterSpacing = 1.sp)
+                                                            Text("When you trigger an on-the-fly orientation action via gestures or deflector, choose how long it stays active before returning to bucket/system defaults:", fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.75f), lineHeight = 13.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isOverrideExpirationDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(overrideExpirationOptions.firstOrNull { it.first == currentOverrideExpiration }?.second ?: "Until App Switch", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cautionAmber)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isOverrideExpirationDropdownOpen,
+                                                                    onDismissRequest = { isOverrideExpirationDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    overrideExpirationOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isOverrideExpirationDropdownOpen = false
+                                                                                prefs.edit().putString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, key).apply()
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
                                                         PrefToggleRow(
                                                             prefs = prefs,
                                                             prefKey = LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK,

@@ -289,7 +289,7 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
         if (isLeftFlankUnified) {
-            mapOf("left_unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper "Left Deflector — Flank Vector Zones (Upper & Lower)" Lower)")
+            mapOf("left_unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)")
         } else {
             mapOf(
                 "left_center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Astrogation Core Zone",
@@ -312,7 +312,7 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode) {
         if (isRightFlankUnified) {
-            mapOf("unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper "Right Deflector — Flank Vector Zones (Upper & Lower)" Lower)")
+            mapOf("unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)")
         } else {
             mapOf(
                 "center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Astrogation Core Zone",
@@ -762,7 +762,7 @@ fun CentralCommandMatrixFields(
                                         if (isLeftFlankUnified) {
                                             item(key = "left_unified") {
                                                 CompactAccordionSection(
-                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper "Left Deflector — Flank Vector Zones (Upper & Lower)" Lower)",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.SwapVert,
@@ -3974,7 +3974,7 @@ fun CentralCommandMatrixFields(
                                         if (isRightFlankUnified) {
                                             item(key = "unified") {
                                                 CompactAccordionSection(
-                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper "Right Deflector — Flank Vector Zones (Upper & Lower)" Lower)",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.SwapVert,

@@ -92,7 +92,7 @@
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
-            android:name=".settings.SidebarSettingsActivity"
+            android:name=".settings.CentralCommandActivity"
             android:exported="false"
             android:taskAffinity=""
             android:excludeFromRecents="true"

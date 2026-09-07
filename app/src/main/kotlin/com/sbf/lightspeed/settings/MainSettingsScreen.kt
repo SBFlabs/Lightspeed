@@ -212,7 +212,7 @@ fun MainSettingsScreen() {
                             }
                         }
                     ) {
-                        SidebarMatrixConfigurationFields(
+                        CentralCommandMatrixFields(
                             context = context,
                             prefs = prefs,
                             toggleAllTrigger = toggleAllTrigger,

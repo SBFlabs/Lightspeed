@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.sbf.lightspeed.R
-import com.sbf.lightspeed.settings.SidebarSettingsActivity
+import com.sbf.lightspeed.settings.CentralCommandActivity
 
 /**
  * Manages the tactical ongoing notification in the Android notification drawer.
@@ -80,7 +80,7 @@ object LightspeedFlightNotificationManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val settingsIntent = Intent(context, SidebarSettingsActivity::class.java).apply {
+        val settingsIntent = Intent(context, CentralCommandActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         val pSettings = PendingIntent.getActivity(

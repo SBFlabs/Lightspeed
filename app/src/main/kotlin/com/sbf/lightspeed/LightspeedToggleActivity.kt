@@ -8,7 +8,7 @@ import android.widget.Toast
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
-import com.sbf.lightspeed.settings.SidebarSettingsActivity
+import com.sbf.lightspeed.settings.CentralCommandActivity
 import com.sbf.lightspeed.system.LightspeedAutomationReceiver
 
 /**
@@ -103,7 +103,7 @@ class LightspeedToggleActivity : Activity() {
                     putExtra(EXTRA_TARGET, TARGET_DEFLECTORS)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 }
-                val configIntent = Intent(context, SidebarSettingsActivity::class.java).apply {
+                val configIntent = Intent(context, CentralCommandActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 }

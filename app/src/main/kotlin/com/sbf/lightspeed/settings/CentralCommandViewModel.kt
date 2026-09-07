@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class SidebarSettingsViewModel : ViewModel() {
+class CentralCommandViewModel : ViewModel() {
 
     private val _importStatusMessage = MutableStateFlow<String?>(null)
     val importStatusMessage: StateFlow<String?> = _importStatusMessage

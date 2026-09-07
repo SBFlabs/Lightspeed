@@ -12,7 +12,7 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
-class SidebarSettingsActivity : ComponentActivity() {
+class CentralCommandActivity : ComponentActivity() {
     companion object {
         @Volatile
         var isActive: Boolean = false

@@ -63,10 +63,10 @@ import kotlinx.coroutines.launch
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun SidebarMatrixConfigurationFields(
+fun CentralCommandMatrixFields(
     context: Context,
     prefs: SharedPreferences,
-    viewModel: SidebarSettingsViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    viewModel: CentralCommandViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     toggleAllTrigger: Int = 0,
     jumpTargetTab: Int = -1,
     jumpTargetSection: String? = null,
@@ -74,6 +74,7 @@ fun SidebarMatrixConfigurationFields(
 ) {
     val importStatusMessage by viewModel.importStatusMessage.collectAsState()
     val isImportSuccess by viewModel.isImportSuccess.collectAsState()
+    val currentLanguageMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
     var prefsVersion by remember { mutableIntStateOf(0) }
     DisposableEffect(prefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -286,37 +287,37 @@ fun SidebarMatrixConfigurationFields(
         LightspeedActionRegistry.ensureIndexed(context)
     }
 
-    val sectionTitles0 = remember(isLeftFlankUnified) {
+    val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
         if (isLeftFlankUnified) {
-            mapOf("left_unified" to "Left Deflector — Flank Vector Zones (Upper & Lower)")
+            mapOf("left_unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper "Left Deflector — Flank Vector Zones (Upper & Lower)" Lower)")
         } else {
             mapOf(
-                "left_center" to "Left Deflector — Astrogation Core Zone",
-                "left_top" to "Left Deflector — Upper Vector Zone",
-                "left_bottom" to "Left Deflector — Lower Vector Zone"
+                "left_center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Astrogation Core Zone",
+                "left_top" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Upper Vector Zone",
+                "left_bottom" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Lower Vector Zone"
             )
         }
     }
 
-    val sectionTitles1 = remember {
+    val sectionTitles1 = remember(currentLanguageMode) {
         mapOf(
-            "sensor_deck" to "Sensor Area",
-            "telemetry_indicators" to "Telemetry & Indicators",
-            "tactical_hardware" to "Tactical Hardware Deck",
-            "refueling_bay" to "Refueling Bay",
-            "config_vault" to "Configuration Vault",
-            "experimental_labs" to "Experimental Labs"
+            "sensor_deck" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SENSOR_AREA),
+            "telemetry_indicators" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS),
+            "tactical_hardware" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TACTICAL_HARDWARE),
+            "refueling_bay" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.REFUELING_BAY),
+            "config_vault" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SHIP_DATA_VAULT),
+            "experimental_labs" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.EXPERIMENTAL_LABS)
         )
     }
 
-    val sectionTitles2 = remember(isRightFlankUnified) {
+    val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode) {
         if (isRightFlankUnified) {
-            mapOf("unified" to "Right Deflector — Flank Vector Zones (Upper & Lower)")
+            mapOf("unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper "Right Deflector — Flank Vector Zones (Upper & Lower)" Lower)")
         } else {
             mapOf(
-                "center" to "Right Deflector — Astrogation Core Zone",
-                "top" to "Right Deflector — Upper Vector Zone",
-                "bottom" to "Right Deflector — Lower Vector Zone"
+                "center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Astrogation Core Zone",
+                "top" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Upper Vector Zone",
+                "bottom" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Lower Vector Zone"
             )
         }
     }
@@ -564,7 +565,7 @@ fun SidebarMatrixConfigurationFields(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val tabTitles = listOf("◀ Deflectors", "HUD STRIP", "Deflectors ▶")
+            val deflStr = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.DEFLECTORS).replace("Left & Right ", ""); val hudStr = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HUD_STRIP).uppercase(); val tabTitles = listOf("◀ $deflStr", hudStr, "$deflStr ▶")
             tabTitles.forEachIndexed { index, tabTitle ->
                 val isSelected = pagerState.currentPage == index
                 Box(
@@ -715,7 +716,7 @@ fun SidebarMatrixConfigurationFields(
                                     "left_center" -> {
                                         item(key = "left_center") {
                                             CompactAccordionSection(
-                                                title = "Left Deflector — Astrogation Core Zone",
+                                                title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Astrogation Core Zone",
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Navigation,
@@ -761,7 +762,7 @@ fun SidebarMatrixConfigurationFields(
                                         if (isLeftFlankUnified) {
                                             item(key = "left_unified") {
                                                 CompactAccordionSection(
-                                                    title = "Left Deflector — Flank Vector Zones (Upper & Lower)",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper "Left Deflector — Flank Vector Zones (Upper & Lower)" Lower)",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.SwapVert,
@@ -844,7 +845,7 @@ fun SidebarMatrixConfigurationFields(
                                         if (!isLeftFlankUnified) {
                                             item(key = "left_top") {
                                                 CompactAccordionSection(
-                                                    title = "Left Deflector — Upper Vector Zone",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Upper Vector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowUp,
@@ -919,7 +920,7 @@ fun SidebarMatrixConfigurationFields(
                                         if (!isLeftFlankUnified) {
                                             item(key = "left_bottom") {
                                                 CompactAccordionSection(
-                                                    title = "Left Deflector — Lower Vector Zone",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Lower Vector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowDown,
@@ -1049,7 +1050,7 @@ fun SidebarMatrixConfigurationFields(
                                     "sensor_deck" -> {
                                         item(key = "sensor_deck") {
                                             CompactAccordionSection(
-                                                title = "Sensor Area",
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SENSOR_AREA),
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.TouchApp,
@@ -1140,7 +1141,7 @@ fun SidebarMatrixConfigurationFields(
                                     "telemetry_indicators" -> {
                                         item(key = "telemetry_indicators") {
                                             CompactAccordionSection(
-                                                title = "Telemetry & Indicators",
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS),
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Speed,
@@ -2420,7 +2421,7 @@ fun SidebarMatrixConfigurationFields(
                                     "tactical_hardware" -> {
                                         item(key = "tactical_hardware") {
                                             CompactAccordionSection(
-                                                title = "Tactical Hardware Deck",
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TACTICAL_HARDWARE),
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Tune,
@@ -2926,7 +2927,7 @@ fun SidebarMatrixConfigurationFields(
                                     "refueling_bay" -> {
                                         item(key = "refueling_bay") {
                                             CompactAccordionSection(
-                                                title = "Refueling Bay",
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.REFUELING_BAY),
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.BatteryChargingFull,
@@ -3240,7 +3241,7 @@ fun SidebarMatrixConfigurationFields(
                                     "config_vault" -> {
                                         item(key = "config_vault") {
                                             CompactAccordionSection(
-                                                title = "Configuration Vault",
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SHIP_DATA_VAULT),
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Lock,
@@ -3341,7 +3342,7 @@ fun SidebarMatrixConfigurationFields(
                                         item(key = "experimental_labs") {
                                             val cautionAmber = Color(0xFFFFB300)
                                             HazardAccordionSection(
-                                                title = "Experimental Labs",
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.EXPERIMENTAL_LABS),
                                                 subtitle = "Features in this deck are unstable and/or not well tested yet. Use at your own discretion.",
                                                 isExpanded = isExperimentalLabsExpanded,
                                                 onToggle = {
@@ -3927,7 +3928,7 @@ fun SidebarMatrixConfigurationFields(
                                     "center" -> {
                                         item(key = "center") {
                                             CompactAccordionSection(
-                                                title = "Right Deflector — Astrogation Core Zone",
+                                                title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Astrogation Core Zone",
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Navigation,
@@ -3973,7 +3974,7 @@ fun SidebarMatrixConfigurationFields(
                                         if (isRightFlankUnified) {
                                             item(key = "unified") {
                                                 CompactAccordionSection(
-                                                    title = "Right Deflector — Flank Vector Zones (Upper & Lower)",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper "Right Deflector — Flank Vector Zones (Upper & Lower)" Lower)",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.SwapVert,
@@ -4056,7 +4057,7 @@ fun SidebarMatrixConfigurationFields(
                                         if (!isRightFlankUnified) {
                                             item(key = "top") {
                                                 CompactAccordionSection(
-                                                    title = "Right Deflector — Upper Vector Zone",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Upper Vector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowUp,
@@ -4132,7 +4133,7 @@ fun SidebarMatrixConfigurationFields(
                                         if (!isRightFlankUnified) {
                                             item(key = "bottom") {
                                                 CompactAccordionSection(
-                                                    title = "Right Deflector — Lower Vector Zone",
+                                                    title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Lower Vector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowDown,

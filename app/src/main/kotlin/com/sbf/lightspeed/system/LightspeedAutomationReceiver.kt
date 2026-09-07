@@ -22,6 +22,9 @@ class LightspeedAutomationReceiver : BroadcastReceiver() {
         const val ACTION_TOGGLE_LEFT_DEFLECTOR = "com.sbf.lightspeed.action.TOGGLE_LEFT_DEFLECTOR"
         const val ACTION_TOGGLE_RIGHT_DEFLECTOR = "com.sbf.lightspeed.action.TOGGLE_RIGHT_DEFLECTOR"
         const val ACTION_SET_DEFLECTOR = "com.sbf.lightspeed.action.SET_DEFLECTOR"
+        const val ACTION_GRAVITY_OVERRIDE_360 = "com.sbf.lightspeed.action.GRAVITY_OVERRIDE_360"
+        const val ACTION_TOGGLE_AUTO_ROTATE = "com.sbf.lightspeed.action.TOGGLE_AUTO_ROTATE"
+        const val ACTION_RESET_GRAVITY = "com.sbf.lightspeed.action.RESET_GRAVITY"
 
         const val EXTRA_ARMED = "armed"
         const val EXTRA_FLANK = "flank" // "left", "right", "both"
@@ -33,6 +36,18 @@ class LightspeedAutomationReceiver : BroadcastReceiver() {
         var feedbackMessage: String? = null
 
         when (action) {
+            ACTION_GRAVITY_OVERRIDE_360 -> {
+                LightspeedOrientationManager.overrideTransient360(context)
+                return
+            }
+            ACTION_TOGGLE_AUTO_ROTATE -> {
+                LightspeedOrientationManager.toggleNativeAutoRotate(context)
+                return
+            }
+            ACTION_RESET_GRAVITY -> {
+                LightspeedOrientationManager.resetGravity(context)
+                return
+            }
             ACTION_TOGGLE_FLIGHT_MODE -> {
                 val current = LightspeedPreferences.isMasterFlightArmed(context)
                 val newArmed = !current

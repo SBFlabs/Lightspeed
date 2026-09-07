@@ -215,6 +215,9 @@
                 <action android:name="com.sbf.lightspeed.action.TOGGLE_LEFT_DEFLECTOR" />
                 <action android:name="com.sbf.lightspeed.action.TOGGLE_RIGHT_DEFLECTOR" />
                 <action android:name="com.sbf.lightspeed.action.SET_DEFLECTOR" />
+                <action android:name="com.sbf.lightspeed.action.GRAVITY_OVERRIDE_360" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_AUTO_ROTATE" />
+                <action android:name="com.sbf.lightspeed.action.RESET_GRAVITY" />
             </intent-filter>
         </receiver>
 

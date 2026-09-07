@@ -59,10 +59,10 @@ val GUIDEBOOK_ENTRIES = listOf(
     GuidebookEntry(
         id = "notch_beacon",
         vesselTitle = "Horizon Rail & Orbital Capsule",
-        androidTitle = "Top Progress Rail & Dynamic Island Cutout HUD",
+        androidTitle = "Top Progress Rail & Camera Cutout Cutout HUD",
         icon = Icons.Default.Sensors,
         vesselLore = "A dual-channel telemetry matrix comprising the horizon rail (top line progress) and orbital capsule (floating dynamic cutout HUD).",
-        androidUtility = "Real-time download and media progress streamed along the top-edge horizon rail and/or the front camera dynamic island capsule with marquee scrolling and mini-player controls.",
+        androidUtility = "Real-time download and media progress streamed along the top-edge horizon rail and/or the front camera punch-hole capsule with marquee scrolling and mini-player controls.",
         tabIndex = 1,
         sectionKey = "telemetry"
     ),

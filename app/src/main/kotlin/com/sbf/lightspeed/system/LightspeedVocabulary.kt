@@ -115,7 +115,7 @@ object LightspeedVocabulary {
         Key.SENSOR_AREA             to "Top-Edge Gesture Area",
 
         Key.HORIZON_RAIL            to "Progress Rail",
-        Key.ORBITAL_CAPSULE         to "Dynamic Island HUD",
+        Key.ORBITAL_CAPSULE         to "Camera Cutout HUD",
 
         Key.SUB_LIGHT_THRUSTERS     to "Volume Button Actions",
         Key.HULL_RESONATOR          to "Back-Tap Gestures",

@@ -152,7 +152,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var isOpenedFromLeftFlank = false
 
     private fun persistActiveGearSetIndex() {
-        com.sbf.lightspeed.system.GearSetRepository.persistActiveGearSetIndex(context, activeGearSetIndex, isOpenedFromLeftFlank)
+        com.sbf.lightspeed.system.CockpitGearRepository.persistActiveGearSetIndex(context, activeGearSetIndex, isOpenedFromLeftFlank)
     }
 
     private var activeHoldScrubAction: String? = null
@@ -331,7 +331,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private val highlightPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
 
     /** Extracted renderer for the COCKPIT_HANGAR layer and all shared draw helpers. */
-    private val hangarRenderer by lazy { CruiseHangarRenderer(textPaint, elementPaint, highlightPaint) }
+    private val hangarRenderer by lazy { CockpitHangarRenderer(textPaint, elementPaint, highlightPaint) }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -833,7 +833,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         // 1. Center Command Core Tap -> Open Gear Picker for Active Ring
                         if (distFromCore <= radHub) {
                             isHangarEjectArmed = false
-                            val intent = android.content.Intent(context, GearPickerActivity::class.java).apply {
+                            val intent = android.content.Intent(context, CockpitGearPickerActivity::class.java).apply {
                                 putExtra("SET_ID", currentSetId)
                                 putExtra("RING_INDEX", activeHangarRing)
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
@@ -1684,19 +1684,19 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     fun getGearSetsOrder(isLeft: Boolean): MutableList<String> {
-        return com.sbf.lightspeed.system.GearSetRepository.getGearSetsOrder(context, isLeft)
+        return com.sbf.lightspeed.system.CockpitGearRepository.getGearSetsOrder(context, isLeft)
     }
 
     fun saveGearSetsOrder(isLeft: Boolean, list: List<String>) {
-        com.sbf.lightspeed.system.GearSetRepository.saveGearSetsOrder(context, isLeft, list)
+        com.sbf.lightspeed.system.CockpitGearRepository.saveGearSetsOrder(context, isLeft, list)
     }
 
     fun getFlankLaunchBehavior(isLeft: Boolean): String {
-        return com.sbf.lightspeed.system.GearSetRepository.getFlankLaunchBehavior(context, isLeft)
+        return com.sbf.lightspeed.system.CockpitGearRepository.getFlankLaunchBehavior(context, isLeft)
     }
 
     fun setFlankLaunchBehavior(isLeft: Boolean, behavior: String) {
-        com.sbf.lightspeed.system.GearSetRepository.setFlankLaunchBehavior(context, isLeft, behavior)
+        com.sbf.lightspeed.system.CockpitGearRepository.setFlankLaunchBehavior(context, isLeft, behavior)
     }
 
     fun startCruiseFromFlank(isLeft: Boolean, startRawX: Float, startRawY: Float) {
@@ -1952,15 +1952,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private fun getAppsForActiveGear(setIndex: Int, ringIndex: Int): List<String> {
-        return com.sbf.lightspeed.system.GearSetRepository.getAppsForActiveGear(context, isOpenedFromLeftFlank, setIndex, ringIndex)
+        return com.sbf.lightspeed.system.CockpitGearRepository.getAppsForActiveGear(context, isOpenedFromLeftFlank, setIndex, ringIndex)
     }
 
     private fun getGearSetNameById(setId: String): String {
-        return com.sbf.lightspeed.system.GearSetRepository.getGearSetNameById(context, setId)
+        return com.sbf.lightspeed.system.CockpitGearRepository.getGearSetNameById(context, setId)
     }
 
     private fun getGearSetNameByIndex(index: Int): String {
-        return com.sbf.lightspeed.system.GearSetRepository.getGearSetNameByIndex(context, isOpenedFromLeftFlank, index)
+        return com.sbf.lightspeed.system.CockpitGearRepository.getGearSetNameByIndex(context, isOpenedFromLeftFlank, index)
     }
 
 

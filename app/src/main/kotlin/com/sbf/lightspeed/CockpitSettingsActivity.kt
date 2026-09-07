@@ -686,7 +686,7 @@ class CockpitSettingsActivity : ComponentActivity() {
 
                                     Button(
                                         onClick = {
-                                            val intent = Intent(context, GearPickerActivity::class.java).apply {
+                                            val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                                                 putExtra("SET_ID", targetId)
                                                 putExtra("RING_INDEX", activeRingTab)
                                                 putStringArrayListExtra("CURRENT_SELECTION", ArrayList(currentRingList))

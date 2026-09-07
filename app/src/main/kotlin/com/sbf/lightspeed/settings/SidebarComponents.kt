@@ -35,7 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.Intent
-import com.sbf.lightspeed.GearPickerActivity
+import com.sbf.lightspeed.CockpitGearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState

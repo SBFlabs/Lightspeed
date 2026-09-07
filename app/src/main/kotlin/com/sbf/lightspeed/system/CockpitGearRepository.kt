@@ -3,7 +3,7 @@ package com.sbf.lightspeed.system
 import com.sbf.lightspeed.system.defaultPrefs
 import android.content.Context
 
-object GearSetRepository {
+object CockpitGearRepository {
 
     fun persistActiveGearSetIndex(context: Context, setIndex: Int, isLeft: Boolean) {
         val prefs = context.defaultPrefs()

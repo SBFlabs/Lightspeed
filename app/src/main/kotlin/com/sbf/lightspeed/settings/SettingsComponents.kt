@@ -42,7 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sbf.lightspeed.GearPickerActivity
+import com.sbf.lightspeed.CockpitGearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
@@ -2299,7 +2299,7 @@ fun GestureMappingRow(
                 if (direction == ArrowDirection.SCRUB) {
                     showScrubMenu = true
                 } else {
-                    val intent = Intent(context, GearPickerActivity::class.java).apply {
+                    val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                         putExtra("SINGLE_SELECT_PREF_KEY", key)
                         putExtra("SINGLE_SELECT_TITLE", "$defaultTitle Action")
                     }
@@ -4154,7 +4154,7 @@ fun PowerGestureMappingRow(
                 if (isLocked) {
                     onSinglePressUnlockStep()
                 } else {
-                    val intent = Intent(context, GearPickerActivity::class.java).apply {
+                    val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                         putExtra("SINGLE_SELECT_PREF_KEY", prefKey)
                         putExtra("SINGLE_SELECT_TITLE", "$title Action")
                     }

@@ -14,7 +14,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * CruiseHangarRenderer
+ * CockpitHangarRenderer
  *
  * Extracted renderer for the COCKPIT_HANGAR layer of LightspeedCruiseOverlay.
  *
@@ -27,7 +27,7 @@ import kotlin.math.sin
  * All drawing methods are internal to this class. LightspeedCruiseOverlay calls
  * only drawHangar(canvas, ...) and the two warp methods.
  */
-internal class CruiseHangarRenderer(
+internal class CockpitHangarRenderer(
     private val textPaint: Paint,
     private val elementPaint: Paint,
     private val highlightPaint: Paint

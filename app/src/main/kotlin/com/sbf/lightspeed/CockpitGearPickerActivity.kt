@@ -45,7 +45,7 @@ import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import kotlinx.coroutines.launch
 
-class GearPickerActivity : ComponentActivity() {
+class CockpitGearPickerActivity : ComponentActivity() {
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
@@ -116,7 +116,7 @@ class GearPickerActivity : ComponentActivity() {
 
         setContent {
             LightspeedTheme(forceDark = true) {
-                val context: Context = this@GearPickerActivity
+                val context: Context = this@CockpitGearPickerActivity
                 var searchQuery by remember { mutableStateOf("") }
                 val selectedTokens = remember { mutableStateListOf<String>().apply { addAll(initialItems) } }
                 var expandedSubsections by remember { mutableStateOf(setOf<String>()) }
@@ -146,7 +146,7 @@ class GearPickerActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(Unit) {
-                    LightspeedActionRegistry.ensureIndexed(this@GearPickerActivity)
+                    LightspeedActionRegistry.ensureIndexed(this@CockpitGearPickerActivity)
                 }
 
                 val allTokens = LightspeedActionRegistry.allTokens
@@ -237,7 +237,7 @@ class GearPickerActivity : ComponentActivity() {
 
                                 val pkg = shortcutIntent.`package` ?: shortcutIntent.component?.packageName ?: ""
                                 generatedToken = LightspeedShortcutManager.createCustomShortcutToken(
-                                    context = this@GearPickerActivity,
+                                    context = this@CockpitGearPickerActivity,
                                     pkg = pkg,
                                     label = shortcutName,
                                     intent = shortcutIntent,
@@ -421,9 +421,9 @@ class GearPickerActivity : ComponentActivity() {
                                 ) {
                                     items(selectedTokens.size, key = { idx -> "selected_${idx}_${selectedTokens[idx]}" }) { idx ->
                                         val token = selectedTokens[idx]
-                                        val label = LightspeedShortcutManager.resolveLabel(this@GearPickerActivity, token)
+                                        val label = LightspeedShortcutManager.resolveLabel(this@CockpitGearPickerActivity, token)
                                         val iconBmp = remember(token) {
-                                            LightspeedShortcutManager.resolveIconBitmap(this@GearPickerActivity, token)
+                                            LightspeedShortcutManager.resolveIconBitmap(this@CockpitGearPickerActivity, token)
                                         }
                                         val isFirst = (idx == 0)
                                         val isLast = (idx == selectedTokens.size - 1)
@@ -540,8 +540,8 @@ class GearPickerActivity : ComponentActivity() {
                                                         if (item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward") {
                                                             val sec = item.optionKey.toIntOrNull() ?: 10
                                                             prefs.edit().putInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
-                                                            LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@GearPickerActivity, "system:media_skip_forward")
-                                                            LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@GearPickerActivity, "system:media_skip_backward")
+                                                            LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_forward")
+                                                            LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_backward")
                                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                             hudStyleVersion++
                                                         } else {

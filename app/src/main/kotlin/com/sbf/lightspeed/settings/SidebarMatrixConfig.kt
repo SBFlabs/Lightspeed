@@ -40,7 +40,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import android.content.ComponentName
 import android.content.Intent
-import com.sbf.lightspeed.GearPickerActivity
+import com.sbf.lightspeed.CockpitGearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -2198,7 +2198,7 @@ fun SidebarMatrixConfigurationFields(
                                                                         Spacer(modifier = Modifier.width(8.dp))
                                                                         Column(modifier = Modifier.weight(1f)) {
                                                                             Text(
-                                                                                text = "OEM Dynamic Island Conflicts",
+                                                                                text = "OEM Camera Cutout Conflicts",
                                                                                 fontSize = 12.sp,
                                                                                 fontWeight = FontWeight.Bold,
                                                                                 color = Color.White
@@ -2365,7 +2365,7 @@ fun SidebarMatrixConfigurationFields(
                                                         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MAX_CAPSULE_WIDTH, "", "Max HUD Capsule Width (dp)", 120, 320, 10, 200)
                                                     }
 
-                                                    // OEM Advisory Footnote: OEM Dynamic Island Conflicts (Demoted)
+                                                    // OEM Advisory Footnote: OEM Camera Cutout Conflicts (Demoted)
                                                     if (isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
                                                         Card(
                                                             modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -2384,7 +2384,7 @@ fun SidebarMatrixConfigurationFields(
                                                                     Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                                                                     Spacer(modifier = Modifier.width(8.dp))
                                                                     Column(modifier = Modifier.weight(1f)) {
-                                                                        Text("OEM Advisory Footnote: OEM Dynamic Island Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
+                                                                        Text("OEM Advisory Footnote: OEM Camera Cutout Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
                                                                         Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f), lineHeight = 13.sp)
                                                                     }
                                                                     IconButton(

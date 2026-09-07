@@ -432,8 +432,9 @@ fun MultiWidgetContainer(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 widgetIds.forEachIndexed { index, widgetId ->
+                    val orientationPrefix = if (isLandscape) "land" else "port"
                     val wHeight = prefs.getInt("widget_height_$widgetId", 180)
-                    val wWidthPct = prefs.getInt("widget_width_pct_$widgetId", if (isLandscape) 50 else 100)
+                    val wWidthPct = prefs.getInt("widget_width_pct_${orientationPrefix}_$widgetId", if (isLandscape) 50 else 100)
                     
                     var currentWidthPct by remember { mutableIntStateOf(wWidthPct) }
                     var currentHeight by remember { mutableIntStateOf(wHeight) }
@@ -496,7 +497,7 @@ fun MultiWidgetContainer(
                                         // X Axis (Width Pct)
                                         IconButton(onClick = { 
                                             val newW = (currentWidthPct - 10).coerceAtLeast(20)
-                                            prefs.edit().putInt("widget_width_pct_$widgetId", newW).apply()
+                                            prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
                                             currentWidthPct = newW
                                         }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
                                         
@@ -504,7 +505,7 @@ fun MultiWidgetContainer(
                                         
                                         IconButton(onClick = { 
                                             val newW = (currentWidthPct + 10).coerceAtMost(100)
-                                            prefs.edit().putInt("widget_width_pct_$widgetId", newW).apply()
+                                            prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
                                             currentWidthPct = newW
                                         }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
                                     }
@@ -593,18 +594,17 @@ class ScrollableAppWidgetContainer(context: Context) : FrameLayout(context) {
             MotionEvent.ACTION_MOVE -> {
                 val dx = abs(ev.x - startX)
                 val dy = abs(ev.y - startY)
+                val earlySlop = touchSlop / 3f
                 if (!isVerticalScroll && !isHorizontalScroll) {
-                    if (dy > dx && dy > touchSlop) {
+                    if (dy > dx && dy > earlySlop) {
                         isVerticalScroll = true
                         parent?.requestDisallowInterceptTouchEvent(true)
-                    } else if (dx > dy && dx > touchSlop) {
+                    } else if (dx > dy && dx > earlySlop) {
                         isHorizontalScroll = true
-                        parent?.requestDisallowInterceptTouchEvent(false)
+                        parent?.requestDisallowInterceptTouchEvent(true)
                     }
-                } else if (isVerticalScroll) {
+                } else {
                     parent?.requestDisallowInterceptTouchEvent(true)
-                } else if (isHorizontalScroll) {
-                    parent?.requestDisallowInterceptTouchEvent(false)
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {

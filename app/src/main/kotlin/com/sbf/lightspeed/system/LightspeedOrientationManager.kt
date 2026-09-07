@@ -82,15 +82,16 @@ object LightspeedOrientationManager {
         // Clear transient manual override
         manualGestureOverride = null
 
-        // Apply immediately to system
+        // Apply immediately to system (Pure Native Android Auto-Rotate)
         if (newBaseline) {
-            LightspeedOrientationEngine.forceSensor360(context)
+            LightspeedOrientationEngine.setAutoRotateEnabled(context, true)
         } else {
+            LightspeedOrientationEngine.setAutoRotateEnabled(context, false)
             LightspeedOrientationEngine.forcePortrait(context)
         }
 
         // Avionics HUD feedback
-        val label = if (newBaseline) "360° GYRO (ENABLED)" else "0° PORTRAIT (LOCKED)"
+        val label = if (newBaseline) "AUTO-ROTATE ON" else "AUTO-ROTATE OFF (LOCKED)"
         val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "AUTO-ROTATE",
             value = label,
@@ -187,7 +188,7 @@ object LightspeedOrientationManager {
         val isSystemUI = targetPkg == "com.android.systemui" || targetPkg == "android"
 
         if (isSelf) return
-        if (isSystemUI) return
+        if (isSystemUI && !isLocked) return
 
         if (!targetPkg.isNullOrBlank() && targetPkg != lastForegroundPackage) {
             lastForegroundPackage = targetPkg
@@ -283,7 +284,7 @@ object LightspeedOrientationManager {
         // Priority 4: User's Master Auto-Rotate (Fallback for unassigned apps)
         val masterAutoRotate = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
         if (masterAutoRotate) {
-            LightspeedOrientationEngine.forceSensor360(context)
+            LightspeedOrientationEngine.setAutoRotateEnabled(context, true)
         } else {
             LightspeedOrientationEngine.forcePortrait(context)
         }

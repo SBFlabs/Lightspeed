@@ -788,7 +788,18 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         updateOverlaysVisibility(isLocked, null)
                         resyncOverlayMetrics()
                         
-                        com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this@LightspeedAccessibilityService, isLocked, null)
+                        val activePkg = rootInActiveWindow?.packageName?.toString() 
+                            ?: com.sbf.lightspeed.system.LightspeedOrientationEngine.getDefaultLauncherPackage(this@LightspeedAccessibilityService)
+                        com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this@LightspeedAccessibilityService, isLocked, activePkg)
+
+                        // Re-evaluate shortly after unlock to ensure keyguard dismiss animation settled and top window is captured
+                        handler.postDelayed({
+                            val currentKm = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                            val lockedNow = currentKm?.isKeyguardLocked == true
+                            val postPkg = rootInActiveWindow?.packageName?.toString() 
+                                ?: com.sbf.lightspeed.system.LightspeedOrientationEngine.getDefaultLauncherPackage(this@LightspeedAccessibilityService)
+                            com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this@LightspeedAccessibilityService, lockedNow, postPkg)
+                        }, 250L)
                     }
                     Intent.ACTION_POWER_CONNECTED -> {
                         checkPowerConnectedRefuelingTrigger(prefs)

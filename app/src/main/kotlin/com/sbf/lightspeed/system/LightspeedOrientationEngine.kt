@@ -264,6 +264,18 @@ object LightspeedOrientationEngine {
         }
     }
 
+    fun getDefaultLauncherPackage(context: Context): String? {
+        return try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                addCategory(android.content.Intent.CATEGORY_HOME)
+            }
+            val resolveInfo = context.packageManager.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            resolveInfo?.activityInfo?.packageName
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun registerObserver(
         context: Context,
         onAutoRotateChanged: (Boolean) -> Unit,

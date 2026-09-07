@@ -77,7 +77,6 @@ object LightspeedActionRegistry {
         // 5. Ambient Dashboards & Tactical Quick Action Tools
         "system:refueling_bay",
         "system:tactical_flyout",
-        "system:tactical_audio",
         "system:lens",
         "system:qr_scanner",
         "system:camera_photo",
@@ -281,7 +280,6 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:media_stop" -> "Media: Stop Playback"
         token == "system:refueling_bay" -> "Refueling Bay (Cryo Charging Dashboard)"
         token == "system:tactical_flyout" || token == "action_quick_flyout" || token == "ACTION_TACTICAL_FLYOUT" -> "Tactical Quick Action Flyout"
-        token == "system:tactical_audio" || token == "ACTION_TACTICAL_AUDIO" -> "Tactical Audio: Toggle Capture"
         token == "system:lens" || token == "ACTION_LENS" -> "Google Lens (Visual Search)"
         token == "system:qr_scanner" || token == "ACTION_QR_SCANNER" -> "QR Scanner (Optical Scan)"
         token == "system:camera_photo" || token == "ACTION_CAMERA_PHOTO" || token == "camera_photo" -> "Camera (Photo Mode)"

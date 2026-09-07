@@ -135,9 +135,7 @@ object ActionDispatcher {
             token == "system:tactical_flyout" || token == "ACTION_TACTICAL_FLYOUT" || token == "action_quick_flyout" || token == "system:quick_flyout" -> {
                 TacticalFlyoutLauncher.launch(context)
             }
-            token == "system:tactical_audio" || token == "ACTION_TACTICAL_AUDIO" || token == "tactical_audio" -> {
-                TacticalAudioEngine.toggle(context)
-            }
+
             token == "system:lens" || token == "ACTION_LENS" || token == "google_lens" -> {
                 TacticalFlyoutLauncher.launchLens(context)
             }

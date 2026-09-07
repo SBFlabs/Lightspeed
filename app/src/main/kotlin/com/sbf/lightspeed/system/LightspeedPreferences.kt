@@ -82,7 +82,6 @@ object LightspeedPreferences {
 
     // Action Tokens
     const val ACTION_TACTICAL_FLYOUT = "system:tactical_flyout"
-    const val ACTION_TACTICAL_AUDIO = "system:tactical_audio"
     const val ACTION_LENS = "system:lens"
     const val ACTION_QR_SCANNER = "system:qr_scanner"
     const val ACTION_CHATGPT = "system:chatgpt"

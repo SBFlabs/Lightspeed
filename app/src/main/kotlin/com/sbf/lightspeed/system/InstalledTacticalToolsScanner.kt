@@ -148,14 +148,6 @@ object InstalledTacticalToolsScanner {
             )
         )
 
-        // Tactical Audio Recorder (Built-in)
-        tools.add(
-            TacticalToolItem(
-                token = "system:tactical_audio",
-                label = "Tactical Audio Recorder",
-                category = "Cockpit Tools"
-            )
-        )
 
         // Tactical Flyout HUD Dashboard (Built-in)
         tools.add(

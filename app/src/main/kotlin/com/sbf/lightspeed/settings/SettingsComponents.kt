@@ -4377,7 +4377,6 @@ fun PowerGestureMappingRow(
                                     leadingIcon = {
                                         val icon = when (tool.token) {
                                             "system:torch", "system:flashlight" -> Icons.Default.FlashlightOn
-                                            "system:tactical_audio" -> Icons.Default.Mic
                                             "system:tactical_flyout" -> Icons.Default.Dashboard
                                             LightspeedPreferences.ACTION_CHATGPT -> Icons.Default.AutoAwesome
                                             LightspeedPreferences.ACTION_CLAUDE -> Icons.Default.Psychology

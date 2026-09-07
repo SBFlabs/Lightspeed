@@ -220,7 +220,8 @@ fun TacticalFlyoutContent(
     onDismiss: () -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
-    var isRecordingActive by remember { mutableStateOf(TacticalAudioEngine.isRecordingActive()) }
+
+
 
     BackHandler {
         onDismiss()
@@ -403,52 +404,7 @@ fun TacticalFlyoutContent(
                         }
                     }
 
-                    // Section 3: Tactical Audio
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "TACTICAL AUDIO & VOICE RECORDER",
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.6f),
-                            letterSpacing = 1.sp
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            TacticalFlyoutTile(
-                                modifier = Modifier.weight(1.2f),
-                                title = if (isRecordingActive) "STOP RECORDING" else "TACTICAL RECORDER",
-                                subtitle = if (isRecordingActive) "Live Recording Active" else "Instant Audio Capture",
-                                icon = if (isRecordingActive) Icons.Default.StopCircle else Icons.Default.Mic,
-                                accentColor = if (isRecordingActive) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
-                                isPulse = isRecordingActive,
-                                onClick = {
-                                    TacticalAudioEngine.toggle(context)
-                                    isRecordingActive = TacticalAudioEngine.isRecordingActive()
-                                    if (!isRecordingActive) {
-                                        onDismiss()
-                                    }
-                                }
-                            )
-
-                            TacticalFlyoutTile(
-                                modifier = Modifier.weight(0.8f),
-                                title = "VOICE APP",
-                                subtitle = "Launch App",
-                                icon = Icons.Default.GraphicEq,
-                                accentColor = MaterialTheme.colorScheme.secondary,
-                                onClick = {
-                                    onDismiss()
-                                    TacticalAudioEngine.launchSystemVoiceRecorder(context)
-                                }
-                            )
-                        }
-                    }
-
-                    // Section 4: Core Cooling System Reboot
+                    // Section 3: Core Thermal / System Reboot
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "CORE THERMAL / SYSTEM REBOOT",

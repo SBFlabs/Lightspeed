@@ -142,7 +142,6 @@ fun buildFlatItemsList(
                     "Tactical Quick Action & AI Tools",
                     listOf(
                         "system:tactical_flyout",
-                        "system:tactical_audio",
                         "system:lens",
                         "system:qr_scanner",
                         "system:chatgpt",

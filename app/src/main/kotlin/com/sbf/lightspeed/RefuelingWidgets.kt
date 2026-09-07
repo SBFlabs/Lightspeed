@@ -409,157 +409,155 @@ fun MultiWidgetContainer(
         }
     } else {
         // =========================================================================
-        // MODE 2: CUSTOM DIMENSIONAL GRID (X/Y Axis Authority)
+        // MODE 2: CUSTOM DIMENSIONAL FLOW DASHBOARD (True Freeform X/Y Authority)
         // =========================================================================
-        val gridColumns = if (isLandscape) 4 else 2
         val prefs = android.preference.PreferenceManager.getDefaultSharedPreferences(activity)
-
-        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(gridColumns),
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+        
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            itemsIndexed(
-                items = widgetIds,
-                key = { _, id -> id },
-                span = { _, widgetId ->
-                    val defaultSpan = if (isLandscape) 2 else 2
-                    androidx.compose.foundation.lazy.grid.GridItemSpan(prefs.getInt("widget_span_$widgetId", defaultSpan).coerceIn(1, gridColumns))
-                }
-            ) { index, widgetId ->
-                val wHeight = prefs.getInt("widget_height_$widgetId", 180)
-                var currentSpan by remember { mutableIntStateOf(prefs.getInt("widget_span_$widgetId", if (isLandscape) 2 else 2).coerceIn(1, gridColumns)) }
-                var currentHeight by remember { mutableIntStateOf(wHeight) }
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(currentHeight.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
-                        .border(
-                            1.dp,
-                            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.03f))),
-                            RoundedCornerShape(18.dp)
-                        ),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (appWidgetHost != null && appWidgetManager != null) {
-                            AppWidgetContainerView(
-                                activity = activity,
-                                widgetId = widgetId,
-                                appWidgetHost = appWidgetHost,
-                                appWidgetManager = appWidgetManager,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(6.dp)
-                            )
-                        }
-
-                        if (isEditMode) {
-                            // X/Y Axis Authority Controls
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = 6.dp)
-                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    // Y Axis (Height)
-                                    IconButton(onClick = { 
-                                        val newH = (currentHeight - 20).coerceAtLeast(80)
-                                        prefs.edit().putInt("widget_height_$widgetId", newH).apply()
-                                        currentHeight = newH
-                                    }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White) }
-                                    
-                                    Text("Y", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    
-                                    IconButton(onClick = { 
-                                        val newH = (currentHeight + 20).coerceAtMost(600)
-                                        prefs.edit().putInt("widget_height_$widgetId", newH).apply()
-                                        currentHeight = newH
-                                    }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White) }
-                                    
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    
-                                    // X Axis (Span)
-                                    IconButton(onClick = { 
-                                        val newS = (currentSpan - 1).coerceAtLeast(1)
-                                        prefs.edit().putInt("widget_span_$widgetId", newS).apply()
-                                        currentSpan = newS
-                                    }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
-                                    
-                                    Text("X", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    
-                                    IconButton(onClick = { 
-                                        val newS = (currentSpan + 1).coerceAtMost(gridColumns)
-                                        prefs.edit().putInt("widget_span_$widgetId", newS).apply()
-                                        currentSpan = newS
-                                    }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
-                                }
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                widgetIds.forEachIndexed { index, widgetId ->
+                    val wHeight = prefs.getInt("widget_height_$widgetId", 180)
+                    val wWidthPct = prefs.getInt("widget_width_pct_$widgetId", if (isLandscape) 50 else 100)
+                    
+                    var currentWidthPct by remember { mutableIntStateOf(wWidthPct) }
+                    var currentHeight by remember { mutableIntStateOf(wHeight) }
+                    
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth(currentWidthPct / 100f)
+                            .height(currentHeight.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color.White.copy(alpha = 0.04f))
+                            .border(
+                                1.dp,
+                                Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.03f))),
+                                RoundedCornerShape(18.dp)
+                            ),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            if (appWidgetHost != null && appWidgetManager != null) {
+                                AppWidgetContainerView(
+                                    activity = activity,
+                                    widgetId = widgetId,
+                                    appWidgetHost = appWidgetHost,
+                                    appWidgetManager = appWidgetManager,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(6.dp)
+                                )
                             }
 
-                            TacticalWidgetEditControls(
-                                canMoveBack = index > 0,
-                                canMoveForward = index < widgetIds.size - 1,
-                                onMoveBack = { onReorderWidget(index, index - 1) },
-                                onMoveForward = { onReorderWidget(index, index + 1) },
-                                onRemove = { onRemoveWidget(widgetId) },
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(6.dp)
-                            )
+                            if (isEditMode) {
+                                // X/Y Axis Authority Controls
+                                Column(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 6.dp)
+                                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        // Y Axis (Height)
+                                        IconButton(onClick = { 
+                                            val newH = (currentHeight - 20).coerceAtLeast(80)
+                                            prefs.edit().putInt("widget_height_$widgetId", newH).apply()
+                                            currentHeight = newH
+                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White) }
+                                        
+                                        Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        
+                                        IconButton(onClick = { 
+                                            val newH = (currentHeight + 20).coerceAtMost(600)
+                                            prefs.edit().putInt("widget_height_$widgetId", newH).apply()
+                                            currentHeight = newH
+                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White) }
+                                        
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        
+                                        // X Axis (Width Pct)
+                                        IconButton(onClick = { 
+                                            val newW = (currentWidthPct - 10).coerceAtLeast(20)
+                                            prefs.edit().putInt("widget_width_pct_$widgetId", newW).apply()
+                                            currentWidthPct = newW
+                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
+                                        
+                                        Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        
+                                        IconButton(onClick = { 
+                                            val newW = (currentWidthPct + 10).coerceAtMost(100)
+                                            prefs.edit().putInt("widget_width_pct_$widgetId", newW).apply()
+                                            currentWidthPct = newW
+                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
+                                    }
+                                }
+
+                                TacticalWidgetEditControls(
+                                    canMoveBack = index > 0,
+                                    canMoveForward = index < widgetIds.size - 1,
+                                    onMoveBack = { onReorderWidget(index, index - 1) },
+                                    onMoveForward = { onReorderWidget(index, index + 1) },
+                                    onRemove = { onRemoveWidget(widgetId) },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // Optional Append Item: Add Widget Card in Grid (Tactical Module Mount)
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onPickWidget() }
-                        .background(Color(0xFF080C14).copy(alpha = 0.6f))
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                            RoundedCornerShape(12.dp)
-                        ),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                // Add Widget Card in Dashboard (Tactical Module Mount) - Fits naturally in flow row
+                if (isEditMode || widgetIds.isEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onPickWidget() }
+                            .background(Color(0xFF080C14).copy(alpha = 0.6f))
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                RoundedCornerShape(12.dp)
+                            ),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(
-                            Icons.Default.AddCircleOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "[ MOUNT MODULE ]",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Tap to open tactical catalog",
-                            fontSize = 9.5.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.LightGray.copy(alpha = 0.6f)
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.AddCircleOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "[ MOUNT MODULE ]",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

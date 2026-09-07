@@ -194,7 +194,7 @@ object LightspeedOrientationEngine {
 
     fun setSensorPortrait(context: Context) {
         Log.i(TAG, "Applying sensor portrait orientation (blocking landscape)")
-        writeSystemSetting(context, Settings.System.ACCELEROMETER_ROTATION, 0)
+        writeSystemSetting(context, Settings.System.ACCELEROMETER_ROTATION, 1)
         writeSystemSetting(context, Settings.System.USER_ROTATION, Surface.ROTATION_0)
     }
 

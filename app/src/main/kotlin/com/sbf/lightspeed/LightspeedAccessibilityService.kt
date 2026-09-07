@@ -926,21 +926,33 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     private fun setupOrientationAnchor() {
         if (orientationAnchorView != null) return
+        val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+        @Suppress("DEPRECATION")
         orientationAnchorParams = WindowManager.LayoutParams(
             1, 1,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            windowType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                     WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
+            alpha = 0.8f
             screenOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
         try {
-            orientationAnchorView = View(this)
-            windowManager?.addView(orientationAnchorView, orientationAnchorParams)
-            Log.i("LightspeedAccessibility", "Initialized hardware orientation anchor window")
+            val view = View(this).apply {
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            }
+            orientationAnchorView = view
+            windowManager?.addView(view, orientationAnchorParams)
+            Log.i("LightspeedAccessibility", "Initialized hardware orientation anchor window (TYPE_APPLICATION_OVERLAY)")
         } catch (e: Exception) {
             Log.w("LightspeedAccessibility", "Failed adding orientation anchor", e)
         }

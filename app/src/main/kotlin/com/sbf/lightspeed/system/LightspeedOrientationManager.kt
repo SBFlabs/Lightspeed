@@ -127,15 +127,32 @@ object LightspeedOrientationManager {
             )
             return
         }
+        if (manualGestureOverride == GravityOverrideMode.FORCE_360) {
+            Log.i(TAG, "Disengaging transient 360° Gyro override")
+            manualGestureOverride = null
+            evaluateGravityCascade(context)
+            val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "GRAVITY OVERRIDE",
+                value = "360° GYRO DISENGAGED",
+                durationMs = 1500L
+            )
+            if (!shown) {
+                android.widget.Toast.makeText(context, "360° Gyro Disengaged", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
         Log.i(TAG, "Engaging transient 360° Gyro override")
         manualGestureOverride = GravityOverrideMode.FORCE_360
         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
         LightspeedOrientationEngine.forceSensor360(context)
-        com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+        val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY OVERRIDE",
             value = "FORCED 360° GYRO",
             durationMs = 1800L
         )
+        if (!shown) {
+            android.widget.Toast.makeText(context, "360° Gyro Forced", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun overrideTransientLandscape(context: Context) {
@@ -147,15 +164,32 @@ object LightspeedOrientationManager {
             )
             return
         }
+        if (manualGestureOverride == GravityOverrideMode.FORCE_LANDSCAPE) {
+            Log.i(TAG, "Disengaging transient Landscape override")
+            manualGestureOverride = null
+            evaluateGravityCascade(context)
+            val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "GRAVITY OVERRIDE",
+                value = "LANDSCAPE DISENGAGED",
+                durationMs = 1500L
+            )
+            if (!shown) {
+                android.widget.Toast.makeText(context, "Landscape Disengaged", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
         Log.i(TAG, "Engaging transient Landscape override")
         manualGestureOverride = GravityOverrideMode.FORCE_LANDSCAPE
         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
         LightspeedOrientationEngine.forceLandscape(context)
-        com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+        val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY OVERRIDE",
             value = "FORCED LANDSCAPE (90°)",
             durationMs = 1800L
         )
+        if (!shown) {
+            android.widget.Toast.makeText(context, "Landscape Forced", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun overrideTransientPortrait(context: Context) {
@@ -167,15 +201,32 @@ object LightspeedOrientationManager {
             )
             return
         }
+        if (manualGestureOverride == GravityOverrideMode.FORCE_PORTRAIT) {
+            Log.i(TAG, "Disengaging transient Portrait override")
+            manualGestureOverride = null
+            evaluateGravityCascade(context)
+            val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "GRAVITY OVERRIDE",
+                value = "PORTRAIT DISENGAGED",
+                durationMs = 1500L
+            )
+            if (!shown) {
+                android.widget.Toast.makeText(context, "Portrait Disengaged", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
         Log.i(TAG, "Engaging transient Portrait override")
         manualGestureOverride = GravityOverrideMode.FORCE_PORTRAIT
         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
         LightspeedOrientationEngine.forcePortrait(context)
-        com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+        val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY OVERRIDE",
             value = "FORCED PORTRAIT (0°)",
             durationMs = 1800L
         )
+        if (!shown) {
+            android.widget.Toast.makeText(context, "Portrait Forced", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 
     // Aliases for backward compatibility
@@ -190,12 +241,17 @@ object LightspeedOrientationManager {
     }
 
     fun onForegroundPackageChanged(context: Context, newPackage: String?, isLocked: Boolean) {
-        val targetPkg = newPackage ?: lastForegroundPackage
+        var targetPkg = newPackage
+        if (targetPkg == null || (targetPkg == "com.android.systemui" && !isLocked)) {
+            targetPkg = if (!lastForegroundPackage.isNullOrBlank() && lastForegroundPackage != "com.android.systemui" && lastForegroundPackage != "android") {
+                lastForegroundPackage
+            } else {
+                LightspeedOrientationEngine.getDefaultLauncherPackage(context)
+            }
+        }
         val isSelf = targetPkg != null && (targetPkg == context.packageName || targetPkg.contains("com.sbf.lightspeed"))
-        val isSystemUI = targetPkg == "com.android.systemui" || targetPkg == "android"
 
         if (isSelf) return
-        if (isSystemUI && !isLocked) return
 
         if (!targetPkg.isNullOrBlank() && targetPkg != lastForegroundPackage) {
             lastForegroundPackage = targetPkg
@@ -296,19 +352,24 @@ object LightspeedOrientationManager {
         }
 
         // Priority 3: Per-App Launch Rules (Enforced on foreground switch)
-        if (!targetPackage.isNullOrBlank()) {
+        val resolvedPackage = if (!locked && (targetPackage.isNullOrBlank() || targetPackage == "com.android.systemui" || targetPackage == "android")) {
+            LightspeedOrientationEngine.getDefaultLauncherPackage(context)
+        } else {
+            targetPackage
+        }
+        if (!resolvedPackage.isNullOrBlank()) {
             when {
-                strictPortraitApps.contains(targetPackage) -> {
+                strictPortraitApps.contains(resolvedPackage) -> {
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                     LightspeedOrientationEngine.forcePortrait(context)
                     return
                 }
-                sensorPortraitApps.contains(targetPackage) -> {
+                sensorPortraitApps.contains(resolvedPackage) -> {
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT)
                     LightspeedOrientationEngine.setSensorPortrait(context)
                     return
                 }
-                sensorLandscapeApps.contains(targetPackage) -> {
+                sensorLandscapeApps.contains(resolvedPackage) -> {
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     LightspeedOrientationEngine.forceLandscape(context)
                     return

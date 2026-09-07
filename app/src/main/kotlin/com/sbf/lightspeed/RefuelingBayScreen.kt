@@ -92,6 +92,7 @@ fun RefuelingBayScreen(
     onPickWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onReorderWidget: (Int, Int) -> Unit,
+    onReconfigureWidget: ((Int) -> Unit)? = null,
     onToggleLayoutMode: () -> Unit,
     onToggleEditMode: () -> Unit,
     onDismiss: () -> Unit,
@@ -461,6 +462,7 @@ fun RefuelingBayScreen(
                                 onPickWidget = { showTacticalWidgetPicker = true },
                                 onRemoveWidget = onRemoveWidget,
                                 onReorderWidget = onReorderWidget,
+                                onReconfigureWidget = onReconfigureWidget,
                                 reorderVersion = reorderVersion
                             )
                         }
@@ -576,6 +578,7 @@ fun RefuelingBayScreen(
                                 onPickWidget = { showTacticalWidgetPicker = true },
                                 onRemoveWidget = onRemoveWidget,
                                 onReorderWidget = onReorderWidget,
+                                onReconfigureWidget = onReconfigureWidget,
                                 reorderVersion = reorderVersion
                             )
                         }

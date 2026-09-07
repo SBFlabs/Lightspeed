@@ -35,6 +35,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     companion object {
         const val APPWIDGET_HOST_ID = 2048
         const val REQUEST_CONFIG_WIDGET = 4096
+        const val REQUEST_RECONFIG_WIDGET = 4097
 
         @Volatile
         var isActive: Boolean = false
@@ -68,6 +69,9 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                 }
                 pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
             }
+        } else if (requestCode == REQUEST_RECONFIG_WIDGET) {
+            isWaitingForResult = false
+            reorderTriggerState.intValue++
         }
     }
 
@@ -133,6 +137,11 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         }
     }
 
+    private val widgetReconfigLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
+        isWaitingForResult = false
+        reorderTriggerState.intValue++
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         isActive = true
@@ -185,6 +194,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                     onPickWidget = { pickAppWidget() },
                     onRemoveWidget = { widgetId -> removeWidgetId(widgetId) },
                     onReorderWidget = { fromIdx, toIdx -> reorderWidget(fromIdx, toIdx) },
+                    onReconfigureWidget = { widgetId -> reconfigureWidget(widgetId) },
                     onToggleLayoutMode = { toggleLayoutMode() },
                     onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
                     onDismiss = {
@@ -355,6 +365,37 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         } else {
             isWaitingForResult = false
             saveNewWidgetId(widgetId)
+        }
+    }
+
+    private fun reconfigureWidget(widgetId: Int) {
+        val manager = appWidgetManager ?: return
+        val appWidgetInfo = manager.getAppWidgetInfo(widgetId) ?: return
+        if (appWidgetInfo.configure != null) {
+            isWaitingForResult = true
+            try {
+                appWidgetHost?.startAppWidgetConfigureActivityForResult(
+                    this,
+                    widgetId,
+                    0,
+                    REQUEST_RECONFIG_WIDGET,
+                    null
+                )
+            } catch (e: Exception) {
+                try {
+                    val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                        component = appWidgetInfo.configure
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                    }
+                    widgetReconfigLauncher.launch(configIntent)
+                } catch (ex: Exception) {
+                    android.util.Log.e("RefuelingActivity", "Cannot launch reconfigure activity", ex)
+                    isWaitingForResult = false
+                    android.widget.Toast.makeText(this, "Could not open widget configuration", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            android.widget.Toast.makeText(this, "This widget has no configuration screen", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

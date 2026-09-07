@@ -209,6 +209,7 @@ private fun TacticalWidgetEditControls(
     onMoveBack: () -> Unit,
     onMoveForward: () -> Unit,
     onRemove: () -> Unit,
+    onConfigure: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isCompact: Boolean = false
 ) {
@@ -251,6 +252,25 @@ private fun TacticalWidgetEditControls(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Shift Next",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+        }
+
+        if (onConfigure != null) {
+            Box(
+                modifier = Modifier
+                    .size(btnSize)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.40f), RoundedCornerShape(4.dp))
+                    .clickable { onConfigure() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = "Configure Widget",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(iconSize)
                 )
@@ -307,6 +327,7 @@ fun MultiWidgetContainer(
     onPickWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onReorderWidget: (Int, Int) -> Unit,
+    onReconfigureWidget: ((Int) -> Unit)? = null,
     reorderVersion: Int = 0
 ) {
     if (widgetIds.isEmpty()) {
@@ -410,12 +431,18 @@ fun MultiWidgetContainer(
 
                             // Edit Overlay Controls (Tactical HUD Avionics Badge)
                             if (isEditMode) {
+                                val hasConfig = remember(widgetId) {
+                                    appWidgetManager?.getAppWidgetInfo(widgetId)?.configure != null
+                                }
                                 TacticalWidgetEditControls(
                                     canMoveBack = pageIndex > 0,
                                     canMoveForward = pageIndex < widgetIds.size - 1,
                                     onMoveBack = { onReorderWidget(pageIndex, pageIndex - 1) },
                                     onMoveForward = { onReorderWidget(pageIndex, pageIndex + 1) },
                                     onRemove = { onRemoveWidget(widgetId) },
+                                    onConfigure = if (hasConfig) {
+                                        { onReconfigureWidget?.invoke(widgetId) }
+                                    } else null,
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
                                         .padding(8.dp)
@@ -634,12 +661,18 @@ fun MultiWidgetContainer(
                                         }
                                     }
 
+                                    val hasConfig = remember(widgetId) {
+                                        appWidgetManager?.getAppWidgetInfo(widgetId)?.configure != null
+                                    }
                                     TacticalWidgetEditControls(
                                         canMoveBack = index > 0,
                                         canMoveForward = index < widgetIds.size - 1,
                                         onMoveBack = { onReorderWidget(index, index - 1) },
                                         onMoveForward = { onReorderWidget(index, index + 1) },
                                         onRemove = { onRemoveWidget(widgetId) },
+                                        onConfigure = if (hasConfig) {
+                                            { onReconfigureWidget?.invoke(widgetId) }
+                                        } else null,
                                         isCompact = isCompact,
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)

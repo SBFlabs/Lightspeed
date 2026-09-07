@@ -18,13 +18,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.PushPin
@@ -368,492 +368,334 @@ fun PerimeterServicesDeckDialog(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
+                // Search Bar Filter State
+                var searchQuery by rememberSaveable { mutableStateOf("") }
+                val listState = rememberLazyListState()
+
+                // Services List
+                val filteredServices = remember(thirdPartyServices, searchQuery, pinnedServicesSet) {
+                    val baseList = if (searchQuery.isBlank()) thirdPartyServices
+                    else {
+                        val query = searchQuery.trim().lowercase()
+                        thirdPartyServices.filter { sInfo ->
+                            val sPkg = (sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")).lowercase()
+                            val sLabel = try {
+                                sInfo.resolveInfo?.loadLabel(pm)?.toString()?.lowercase() ?: ""
+                            } catch (_: Exception) { "" }
+                            sPkg.contains(query) || sLabel.contains(query)
+                        }
+                    }
+                    baseList.sortedWith(
+                        compareByDescending<AccessibilityServiceInfo> { sInfo ->
+                            val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
+                            val sCls = sInfo.resolveInfo?.serviceInfo?.name ?: sInfo.id.substringAfter("/")
+                            val compId = ComponentName(sPkg, sCls).flattenToString()
+                            pinnedServicesSet.contains(compId)
+                        }.thenBy { sInfo ->
+                            try {
+                                sInfo.resolveInfo?.loadLabel(pm)?.toString()?.lowercase() ?: ""
+                            } catch (_: Exception) { "" }
+                        }
+                    )
+                }
+
                 // Scrollable Content
-                Column(
+                LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 20.dp)
                 ) {
-                    // Shizuku Bridge Status Banner
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isShizukuActive) successGreen.copy(alpha = 0.12f) else cautionAmber.copy(alpha = 0.12f)
-                        ),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isShizukuActive) successGreen.copy(alpha = 0.4f) else cautionAmber.copy(alpha = 0.4f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (isShizukuActive) Icons.Default.CheckCircle else Icons.Default.Info,
-                                contentDescription = null,
-                                tint = if (isShizukuActive) successGreen else cautionAmber,
-                                modifier = Modifier.size(18.dp)
+                    // 1. Shizuku Bridge Status Banner
+                    item(key = "shizuku_banner") {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isShizukuActive) successGreen.copy(alpha = 0.12f) else cautionAmber.copy(alpha = 0.12f)
+                            ),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isShizukuActive) successGreen.copy(alpha = 0.4f) else cautionAmber.copy(alpha = 0.4f)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (isShizukuActive) "SHIZUKU PRIVILEGED BRIDGE: ACTIVE" else "SHIZUKU PRIVILEGED BRIDGE: STANDBY",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.5.sp,
-                                    color = if (isShizukuActive) successGreen else cautionAmber,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isShizukuActive) Icons.Default.CheckCircle else Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = if (isShizukuActive) successGreen else cautionAmber,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Text(
-                                    text = if (isShizukuActive) "Sub-100ms instant toggles armed without settings page" else "Standby. Toggles will launch system settings page",
-                                    fontSize = 9.5.sp,
-                                    color = Color.LightGray.copy(alpha = 0.75f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = if (isShizukuActive) "SHIZUKU PRIVILEGED BRIDGE: ACTIVE" else "SHIZUKU PRIVILEGED BRIDGE: STANDBY",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.5.sp,
+                                        color = if (isShizukuActive) successGreen else cautionAmber,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (isShizukuActive) "Sub-100ms instant toggles armed without settings page" else "Standby. Toggles will launch system settings page",
+                                        fontSize = 9.5.sp,
+                                        color = Color.LightGray.copy(alpha = 0.75f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // Summary Telemetry & Master Sentinel Pulse
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Surface(
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color.White.copy(alpha = 0.05f),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    // 2. Summary Telemetry & Master Sentinel Pulse
+                    item(key = "summary_telemetry") {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                                        verticalArrangement = Arrangement.Center,
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    Surface(
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.White.copy(alpha = 0.05f),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
                                     ) {
-                                        Text("TOTAL", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("${thirdPartyServices.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text("TOTAL", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                            Text("${thirdPartyServices.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                                        }
+                                    }
+
+                                    Surface(
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = successGreen.copy(alpha = 0.12f),
+                                        border = BorderStroke(1.dp, successGreen.copy(alpha = 0.35f))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text("ACTIVE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                            Text("$activeCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
+                                        }
+                                    }
+
+                                    Surface(
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text("SHIELDED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                            Text("${protectedServicesSet.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1)
+                                        }
+                                    }
+
+                                    Surface(
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFFD54F).copy(alpha = 0.12f),
+                                        border = BorderStroke(1.dp, Color(0xFFFFD54F).copy(alpha = 0.35f))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text("PINNED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                            Text("${pinnedServicesSet.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F), maxLines = 1)
+                                        }
                                     }
                                 }
 
-                                Surface(
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = successGreen.copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, successGreen.copy(alpha = 0.35f))
+                                OutlinedButton(
+                                    onClick = {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            val count = LightspeedWatchdogEngine.pulsePerimeterServices(context)
+                                            withContext(Dispatchers.Main) {
+                                                LightspeedHapticEngine.heavyClick(context)
+                                                Toast.makeText(context, "Perimeter pulse: $count sentinels verified & revivified", Toast.LENGTH_SHORT).show()
+                                                refreshTrigger++
+                                                onRefreshNeeded()
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                                        verticalArrangement = Arrangement.Center,
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text("ACTIVE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("$activeCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
-                                    }
-                                }
-
-                                Surface(
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                                        verticalArrangement = Arrangement.Center,
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text("SHIELDED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("${protectedServicesSet.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1)
-                                    }
-                                }
-
-                                Surface(
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFFFD54F).copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, Color(0xFFFFD54F).copy(alpha = 0.35f))
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
-                                        verticalArrangement = Arrangement.Center,
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text("PINNED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                        Text("${pinnedServicesSet.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F), maxLines = 1)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                        Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Pulse Sentinels (Health Check)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
+                        }
+                    }
 
-                            OutlinedButton(
-                                onClick = {
+                    // 3. Search Bar Filter
+                    item(key = "search_bar") {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Filter accessibility services...", fontSize = 12.sp, color = Color.Gray) },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = Color.White),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                            )
+                        )
+                    }
+
+                    // 4. Services List
+                    if (filteredServices.isEmpty()) {
+                        item(key = "empty_state") {
+                            Text(
+                                text = if (searchQuery.isBlank()) "No external accessibility services installed." else "No matching services found.",
+                                fontSize = 11.5.sp,
+                                color = Color.LightGray.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    } else {
+                        items(
+                            items = filteredServices,
+                            key = { sInfo ->
+                                val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
+                                val sCls = sInfo.resolveInfo?.serviceInfo?.name ?: sInfo.id.substringAfter("/")
+                                ComponentName(sPkg, sCls).flattenToString()
+                            }
+                        ) { sInfo ->
+                            val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
+                            val sCls = sInfo.resolveInfo?.serviceInfo?.name ?: sInfo.id.substringAfter("/")
+                            val component = ComponentName(sPkg, sCls)
+                            val componentId = component.flattenToString()
+
+                            PerimeterServiceCard(
+                                context = context,
+                                pm = pm,
+                                sInfo = sInfo,
+                                componentId = componentId,
+                                isPinned = pinnedServicesSet.contains(componentId),
+                                isServiceEnabled = enabledComponents.contains(component),
+                                isProtected = protectedServicesSet.contains(componentId),
+                                isBatteryWhitelisted = LightspeedWatchdogEngine.isPackageBatteryWhitelisted(context, sPkg),
+                                successGreen = successGreen,
+                                cautionAmber = cautionAmber,
+                                onTogglePin = {
+                                    val nowPinned = LightspeedPreferences.togglePinnedAccessibilityService(context, componentId)
+                                    pinnedServicesSet = LightspeedPreferences.getPinnedAccessibilityServices(context)
+                                    LightspeedHapticEngine.tick(context)
+                                    val sLabel = try {
+                                        sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
+                                    } catch (_: Exception) { sPkg }
+                                    Toast.makeText(
+                                        context,
+                                        if (nowPinned) "Pinned $sLabel to top" else "Unpinned $sLabel",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                onToggleService = { checked ->
+                                    val sLabel = try {
+                                        sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
+                                    } catch (_: Exception) { sPkg }
                                     coroutineScope.launch(Dispatchers.IO) {
-                                        val count = LightspeedWatchdogEngine.pulsePerimeterServices(context)
+                                        val ok = LightspeedWatchdogEngine.toggleAccessibilityService(context, componentId, checked)
                                         withContext(Dispatchers.Main) {
-                                            LightspeedHapticEngine.heavyClick(context)
-                                            Toast.makeText(context, "Perimeter pulse: $count sentinels verified & revivified", Toast.LENGTH_SHORT).show()
-                                            refreshTrigger++
+                                            if (ok) {
+                                                LightspeedHapticEngine.tick(context)
+                                                val act = if (checked) "enabled" else "disabled"
+                                                Toast.makeText(context, "$sLabel $act", Toast.LENGTH_SHORT).show()
+                                                refreshTrigger++
+                                            } else {
+                                                try {
+                                                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (_: Exception) {}
+                                            }
                                             onRefreshNeeded()
                                         }
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth().height(36.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                    Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Pulse Sentinels (Health Check)", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                        }
-                    }
-
-                    // Search Bar Filter
-                    var searchQuery by rememberSaveable { mutableStateOf("") }
-
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Filter accessibility services...", fontSize = 12.sp, color = Color.Gray) },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(14.dp))
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
-                        textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = Color.White),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                        )
-                    )
-
-                    // Services List
-                    val filteredServices = remember(thirdPartyServices, searchQuery, pinnedServicesSet) {
-                        val baseList = if (searchQuery.isBlank()) thirdPartyServices
-                        else {
-                            val query = searchQuery.trim().lowercase()
-                            thirdPartyServices.filter { sInfo ->
-                                val sPkg = (sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")).lowercase()
-                                val sLabel = try {
-                                    sInfo.resolveInfo?.loadLabel(pm)?.toString()?.lowercase() ?: ""
-                                } catch (_: Exception) { "" }
-                                sPkg.contains(query) || sLabel.contains(query)
-                            }
-                        }
-                        baseList.sortedWith(
-                            compareByDescending<AccessibilityServiceInfo> { sInfo ->
-                                val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
-                                val sCls = sInfo.resolveInfo?.serviceInfo?.name ?: sInfo.id.substringAfter("/")
-                                val compId = ComponentName(sPkg, sCls).flattenToString()
-                                pinnedServicesSet.contains(compId)
-                            }.thenBy { sInfo ->
-                                try {
-                                    sInfo.resolveInfo?.loadLabel(pm)?.toString()?.lowercase() ?: ""
-                                } catch (_: Exception) { "" }
-                            }
-                        )
-                    }
-
-                    if (filteredServices.isEmpty()) {
-                        Text(
-                            text = if (searchQuery.isBlank()) "No external accessibility services installed." else "No matching services found.",
-                            fontSize = 11.5.sp,
-                            color = Color.LightGray.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    } else {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 4.dp)
-                        ) {
-                            filteredServices.forEach { sInfo ->
-                                val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
-                                val sCls = sInfo.resolveInfo?.serviceInfo?.name ?: sInfo.id.substringAfter("/")
-                                val component = ComponentName(sPkg, sCls)
-                                val componentId = component.flattenToString()
-
-                                val sLabel = remember(componentId) {
-                                    try {
+                                onToggleProtected = {
+                                    val nowProtected = LightspeedPreferences.togglePerimeterProtectedService(context, componentId)
+                                    protectedServicesSet = LightspeedPreferences.getPerimeterProtectedServices(context)
+                                    LightspeedHapticEngine.tick(context)
+                                    val sLabel = try {
                                         sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
                                     } catch (_: Exception) { sPkg }
-                                }
-
-                                val iconBitmap = remember(sPkg) {
-                                    try {
-                                        val d = sInfo.resolveInfo?.loadIcon(pm) ?: pm.getApplicationIcon(sPkg)
-                                        d.toBitmap(width = 64, height = 64).asImageBitmap()
-                                    } catch (_: Throwable) {
-                                        null
-                                    }
-                                }
-
-                                var isServiceEnabled by remember(componentId, enabledComponents) {
-                                    mutableStateOf(enabledComponents.contains(component))
-                                }
-
-                                var isProtected by remember(componentId, protectedServicesSet) {
-                                    mutableStateOf(protectedServicesSet.contains(componentId))
-                                }
-
-                                var isBatteryWhitelisted by remember(sPkg, refreshTrigger) {
-                                    mutableStateOf(LightspeedWatchdogEngine.isPackageBatteryWhitelisted(context, sPkg))
-                                }
-
-                                val isPinned = pinnedServicesSet.contains(componentId)
-
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (isPinned) Color(0xFFFFD54F).copy(alpha = 0.45f)
-                                        else if (isServiceEnabled) successGreen.copy(alpha = 0.25f)
-                                        else Color.White.copy(alpha = 0.08f)
-                                    )
-                                ) {
-                                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        // Top row: Icon + Label/Package + Pin Button + Instant Toggle Switch
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            if (iconBitmap != null) {
-                                                Image(
-                                                    bitmap = iconBitmap,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp))
-                                                )
-                                            } else {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(32.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(Icons.Default.Widgets, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                                }
-                                            }
-
-                                            Spacer(modifier = Modifier.width(8.dp))
-
-                                            Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    if (isPinned) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.PushPin,
-                                                            contentDescription = "Pinned",
-                                                            tint = Color(0xFFFFD54F),
-                                                            modifier = Modifier.size(12.dp).padding(end = 3.dp)
-                                                        )
-                                                    }
-                                                    Text(
-                                                        text = sLabel,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 12.5.sp,
-                                                        color = Color.White,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                }
-                                                Text(
-                                                    text = sPkg,
-                                                    fontSize = 9.5.sp,
-                                                    color = Color.Gray,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-
-                                            // 1-Tap Pin To Top Button
-                                            IconButton(
-                                                onClick = {
-                                                    val nowPinned = LightspeedPreferences.togglePinnedAccessibilityService(context, componentId)
-                                                    pinnedServicesSet = LightspeedPreferences.getPinnedAccessibilityServices(context)
+                                    Toast.makeText(
+                                        context,
+                                        if (nowProtected) "Shield armed: Sentinel will auto-revive $sLabel" else "Shield disarmed",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    onRefreshNeeded()
+                                },
+                                onWhitelistBattery = {
+                                    val sLabel = try {
+                                        sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
+                                    } catch (_: Exception) { sPkg }
+                                    if (LightspeedWatchdogEngine.isPackageBatteryWhitelisted(context, sPkg)) {
+                                        Toast.makeText(context, "$sLabel battery is already unrestricted", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            val ok = LightspeedWatchdogEngine.whitelistBattery(context, sPkg)
+                                            withContext(Dispatchers.Main) {
+                                                if (ok) {
                                                     LightspeedHapticEngine.tick(context)
-                                                    Toast.makeText(
-                                                        context,
-                                                        if (nowPinned) "Pinned $sLabel to top" else "Unpinned $sLabel",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                },
-                                                modifier = Modifier.size(32.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                                                    contentDescription = if (isPinned) "Unpin from top" else "Pin to top",
-                                                    tint = if (isPinned) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.35f),
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
-
-                                            Spacer(modifier = Modifier.width(2.dp))
-
-                                            // Sub-100ms Instant Privileged Switch
-                                            Switch(
-                                                checked = isServiceEnabled,
-                                                onCheckedChange = { checked ->
-                                                    coroutineScope.launch(Dispatchers.IO) {
-                                                        val ok = LightspeedWatchdogEngine.toggleAccessibilityService(context, componentId, checked)
-                                                        withContext(Dispatchers.Main) {
-                                                            if (ok) {
-                                                                isServiceEnabled = checked
-                                                                LightspeedHapticEngine.tick(context)
-                                                                val act = if (checked) "enabled" else "disabled"
-                                                                Toast.makeText(context, "$sLabel $act", Toast.LENGTH_SHORT).show()
-                                                                refreshTrigger++
-                                                            } else {
-                                                                try {
-                                                                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                                                    }
-                                                                    context.startActivity(intent)
-                                                                } catch (_: Exception) {}
-                                                            }
-                                                            onRefreshNeeded()
-                                                        }
-                                                    }
-                                                },
-                                                colors = SwitchDefaults.colors(
-                                                    checkedThumbColor = Color.White,
-                                                    checkedTrackColor = successGreen,
-                                                    uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
-                                                    uncheckedTrackColor = Color.White.copy(alpha = 0.12f)
-                                                )
-                                            )
-                                        }
-
-                                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f), thickness = 0.8.dp)
-
-                                        // Bottom Tactical Defense Actions Row
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            // 1. Auto-Revive Shield Guard Toggle
-                                            Surface(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight()
-                                                    .clickable {
-                                                        val nowProtected = LightspeedPreferences.togglePerimeterProtectedService(context, componentId)
-                                                        protectedServicesSet = LightspeedPreferences.getPerimeterProtectedServices(context)
-                                                        isProtected = nowProtected
-                                                        LightspeedHapticEngine.tick(context)
-                                                        Toast.makeText(
-                                                            context,
-                                                            if (nowProtected) "Shield armed: Sentinel will auto-revive $sLabel" else "Shield disarmed",
-                                                            Toast.LENGTH_SHORT
-                                                        ).show()
-                                                        onRefreshNeeded()
-                                                    },
-                                                shape = RoundedCornerShape(8.dp),
-                                                color = if (isProtected) successGreen.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.05f),
-                                                border = BorderStroke(1.dp, if (isProtected) successGreen.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.12f))
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = if (isProtected) Icons.Default.Shield else Icons.Outlined.Shield,
-                                                        contentDescription = null,
-                                                        tint = if (isProtected) successGreen else Color.LightGray,
-                                                        modifier = Modifier.size(12.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(4.dp))
-                                                    Text(
-                                                        text = if (isProtected) "AUTO-REVIVE" else "UNSHIELDED",
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isProtected) successGreen else Color.LightGray,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Toast.makeText(context, "Battery whitelist granted for $sLabel", Toast.LENGTH_SHORT).show()
+                                                    refreshTrigger++
+                                                } else {
+                                                    Toast.makeText(context, "Shizuku required for 1-tap battery whitelist", Toast.LENGTH_SHORT).show()
                                                 }
-                                            }
-
-                                            // 2. Battery Whitelist Pill / 1-Tap Whitelist Button
-                                            Surface(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight()
-                                                    .clickable {
-                                                        if (isBatteryWhitelisted) {
-                                                            Toast.makeText(context, "$sLabel battery is already unrestricted", Toast.LENGTH_SHORT).show()
-                                                        } else {
-                                                            coroutineScope.launch(Dispatchers.IO) {
-                                                                val ok = LightspeedWatchdogEngine.whitelistBattery(context, sPkg)
-                                                                withContext(Dispatchers.Main) {
-                                                                    if (ok) {
-                                                                        isBatteryWhitelisted = true
-                                                                        LightspeedHapticEngine.tick(context)
-                                                                        Toast.makeText(context, "Battery whitelist granted for $sLabel", Toast.LENGTH_SHORT).show()
-                                                                        refreshTrigger++
-                                                                    } else {
-                                                                        Toast.makeText(context, "Shizuku required for 1-tap battery whitelist", Toast.LENGTH_SHORT).show()
-                                                                    }
-                                                                    onRefreshNeeded()
-                                                                }
-                                                            }
-                                                        }
-                                                    },
-                                                shape = RoundedCornerShape(8.dp),
-                                                color = if (isBatteryWhitelisted) successGreen.copy(alpha = 0.14f) else cautionAmber.copy(alpha = 0.14f),
-                                                border = BorderStroke(1.dp, if (isBatteryWhitelisted) successGreen.copy(alpha = 0.45f) else cautionAmber.copy(alpha = 0.45f))
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = if (isBatteryWhitelisted) Icons.Default.CheckCircle else Icons.Default.BatteryChargingFull,
-                                                        contentDescription = null,
-                                                        tint = if (isBatteryWhitelisted) successGreen else cautionAmber,
-                                                        modifier = Modifier.size(12.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(4.dp))
-                                                    Text(
-                                                        text = if (isBatteryWhitelisted) "BATTERY OK" else "WHITELIST",
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isBatteryWhitelisted) successGreen else cautionAmber,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                }
+                                                onRefreshNeeded()
                                             }
                                         }
                                     }
                                 }
-                            }
+                            )
                         }
                     }
                 }
@@ -861,4 +703,215 @@ fun PerimeterServicesDeckDialog(
         }
     }
 }
+}
+}
+
+@Composable
+fun PerimeterServiceCard(
+    context: Context,
+    pm: PackageManager,
+    sInfo: AccessibilityServiceInfo,
+    componentId: String,
+    isPinned: Boolean,
+    isServiceEnabled: Boolean,
+    isProtected: Boolean,
+    isBatteryWhitelisted: Boolean,
+    successGreen: Color,
+    cautionAmber: Color,
+    onTogglePin: () -> Unit,
+    onToggleService: (Boolean) -> Unit,
+    onToggleProtected: () -> Unit,
+    onWhitelistBattery: () -> Unit
+) {
+    val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
+
+    val sLabel = remember(componentId) {
+        try {
+            sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
+        } catch (_: Exception) { sPkg }
+    }
+
+    val iconBitmap = remember(sPkg) {
+        try {
+            val d = sInfo.resolveInfo?.loadIcon(pm) ?: pm.getApplicationIcon(sPkg)
+            d.toBitmap(width = 64, height = 64).asImageBitmap()
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
+        border = BorderStroke(
+            1.dp,
+            if (isPinned) Color(0xFFFFD54F).copy(alpha = 0.45f)
+            else if (isServiceEnabled) successGreen.copy(alpha = 0.25f)
+            else Color.White.copy(alpha = 0.08f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Top row: Icon + Label/Package + Pin Button + Instant Toggle Switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (iconBitmap != null) {
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp))
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Widgets, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isPinned) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = "Pinned",
+                                tint = Color(0xFFFFD54F),
+                                modifier = Modifier.size(12.dp).padding(end = 3.dp)
+                            )
+                        }
+                        Text(
+                            text = sLabel,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Text(
+                        text = sPkg,
+                        fontSize = 9.5.sp,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // 1-Tap Pin To Top Button
+                IconButton(
+                    onClick = onTogglePin,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = if (isPinned) "Unpin from top" else "Pin to top",
+                        tint = if (isPinned) Color(0xFFFFD54F) else Color.White.copy(alpha = 0.35f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(2.dp))
+
+                // Sub-100ms Instant Privileged Switch
+                Switch(
+                    checked = isServiceEnabled,
+                    onCheckedChange = onToggleService,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = successGreen,
+                        uncheckedThumbColor = Color.White.copy(alpha = 0.7f),
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f)
+                    )
+                )
+            }
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.06f), thickness = 0.8.dp)
+
+            // Bottom Tactical Defense Actions Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 1. Auto-Revive Shield Guard Toggle
+                Surface(
+                    onClick = onToggleProtected,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isProtected) successGreen.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.05f),
+                    border = BorderStroke(1.dp, if (isProtected) successGreen.copy(alpha = 0.45f) else Color.White.copy(alpha = 0.12f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isProtected) Icons.Default.Shield else Icons.Outlined.Shield,
+                            contentDescription = null,
+                            tint = if (isProtected) successGreen else Color.LightGray,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isProtected) "AUTO-REVIVE" else "UNSHIELDED",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isProtected) successGreen else Color.LightGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                // 2. Battery Whitelist Pill / 1-Tap Whitelist Button
+                Surface(
+                    onClick = onWhitelistBattery,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isBatteryWhitelisted) successGreen.copy(alpha = 0.14f) else cautionAmber.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, if (isBatteryWhitelisted) successGreen.copy(alpha = 0.45f) else cautionAmber.copy(alpha = 0.45f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isBatteryWhitelisted) Icons.Default.CheckCircle else Icons.Default.BatteryChargingFull,
+                            contentDescription = null,
+                            tint = if (isBatteryWhitelisted) successGreen else cautionAmber,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isBatteryWhitelisted) "BATTERY OK" else "WHITELIST",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isBatteryWhitelisted) successGreen else cautionAmber,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

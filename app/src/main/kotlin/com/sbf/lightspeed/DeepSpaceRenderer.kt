@@ -14,7 +14,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * CockpitHangarRenderer
+ * DeepSpaceRenderer
  *
  * Extracted renderer for the COCKPIT_HANGAR layer of LightspeedCruiseOverlay.
  *
@@ -25,9 +25,9 @@ import kotlin.math.sin
  * drawHyperdriveWarpSurge to this class.
  *
  * All drawing methods are internal to this class. LightspeedCruiseOverlay calls
- * only drawHangar(canvas, ...) and the two warp methods.
+ * only drawDeepSpace(canvas, ...) and the two warp methods.
  */
-internal class CockpitHangarRenderer(
+internal class DeepSpaceRenderer(
     private val textPaint: Paint,
     private val elementPaint: Paint,
     private val highlightPaint: Paint
@@ -51,7 +51,7 @@ internal class CockpitHangarRenderer(
      * All parameters are primitive/value types or read-only data already held by
      * the overlay; no mutable overlay state is written from inside this method.
      */
-    fun drawHangar(
+    fun drawDeepSpace(
         canvas: Canvas,
         context: Context,
         screenW: Float,

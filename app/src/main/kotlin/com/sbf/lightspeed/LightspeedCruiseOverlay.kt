@@ -331,7 +331,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private val highlightPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
 
     /** Extracted renderer for the COCKPIT_HANGAR layer and all shared draw helpers. */
-    private val hangarRenderer by lazy { CockpitHangarRenderer(textPaint, elementPaint, highlightPaint) }
+    private val deepSpaceRenderer by lazy { DeepSpaceRenderer(textPaint, elementPaint, highlightPaint) }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -1975,7 +1975,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         rotationDeg: Float,
         isActive: Boolean,
         m3Primary: Int
-    ) = hangarRenderer.drawSpaceshipGimbalRing(canvas, cx, cy, trackRadius, trackWidth, teethCount, toothDepth, rotationDeg, isActive, m3Primary)
+    ) = deepSpaceRenderer.drawSpaceshipGimbalRing(canvas, cx, cy, trackRadius, trackWidth, teethCount, toothDepth, rotationDeg, isActive, m3Primary)
 
     private fun drawFlightLockReticle(
         canvas: Canvas,
@@ -1987,7 +1987,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         appName: String,
         density: Float,
         reticleStyle: String = "tactical"
-    ) = hangarRenderer.drawFlightLockReticle(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle)
+    ) = deepSpaceRenderer.drawFlightLockReticle(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle)
 
     private fun drawHolographicReactorCore(
         canvas: Canvas,
@@ -1997,10 +1997,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         isActive: Boolean,
         m3Primary: Int,
         density: Float
-    ) = hangarRenderer.drawHolographicReactorCore(canvas, cx, cy, coreRadius, isActive, m3Primary, density)
+    ) = deepSpaceRenderer.drawHolographicReactorCore(canvas, cx, cy, coreRadius, isActive, m3Primary, density)
 
     private fun drawCosmicStarfield(canvas: Canvas, w: Float, h: Float, density: Float, alphaFactor: Float) =
-        hangarRenderer.drawCosmicStarfield(canvas, w, h, density, alphaFactor)
+        deepSpaceRenderer.drawCosmicStarfield(canvas, w, h, density, alphaFactor)
 
     private fun drawGalacticNebula(
         canvas: Canvas,
@@ -2009,25 +2009,25 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         radius: Float,
         m3Primary: Int,
         alphaFactor: Float
-    ) = hangarRenderer.drawGalacticNebula(canvas, cx, cy, radius, m3Primary, alphaFactor)
+    ) = deepSpaceRenderer.drawGalacticNebula(canvas, cx, cy, radius, m3Primary, alphaFactor)
 
     private fun triggerHyperdriveWarpLaunch(focalX: Float, focalY: Float, onLaunch: () -> Unit) {
-        hangarRenderer.isWarpLaunching = true
-        hangarRenderer.warpStartTime = System.currentTimeMillis()
-        hangarRenderer.warpFocalPointX = focalX
-        hangarRenderer.warpFocalPointY = focalY
+        deepSpaceRenderer.isWarpLaunching = true
+        deepSpaceRenderer.warpStartTime = System.currentTimeMillis()
+        deepSpaceRenderer.warpFocalPointX = focalX
+        deepSpaceRenderer.warpFocalPointY = focalY
         triggerHardwareHaptic(50, 255)
         invalidate()
 
         uiHandler.postDelayed({
-            hangarRenderer.isWarpLaunching = false
+            deepSpaceRenderer.isWarpLaunching = false
             dismissOverlay()
             onLaunch()
         }, 130L)
     }
 
     private fun drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) =
-        hangarRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density)
+        deepSpaceRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density)
 
 
     private fun processGyroscopeTouchPhysics(rawX: Float, rawY: Float) {
@@ -2136,7 +2136,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         super.onDraw(canvas)
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
-            hangarRenderer.drawHangar(
+            deepSpaceRenderer.drawDeepSpace(
                 canvas, context, width.toFloat(), height.toFloat(), resources.displayMetrics.density,
                 m3Primary, m3Secondary, isOpenedFromLeftFlank, activeGearSetIndex, activeHangarRing,
                 isHangarEjectArmed, gearRingRotations, hangarBayScrollOffset, setsList,

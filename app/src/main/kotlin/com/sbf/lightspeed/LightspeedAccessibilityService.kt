@@ -443,6 +443,13 @@ class LightspeedAccessibilityService : AccessibilityService() {
         leftWingOverlayView?.postInvalidate()
     }
 
+    fun triggerDeflectorsGlow(durationMs: Long = 1800L) {
+        handler.post {
+            overlayView?.triggerGlow(durationMs)
+            leftWingOverlayView?.triggerGlow(durationMs)
+        }
+    }
+
     fun reloadPreferences() {
         val prefs = defaultPrefs()
         updateStatusBarOverlayFromPrefs(prefs)

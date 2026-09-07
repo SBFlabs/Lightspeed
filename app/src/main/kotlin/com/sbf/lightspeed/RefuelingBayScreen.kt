@@ -143,6 +143,11 @@ fun RefuelingBayScreen(
     var isSleeping by remember { mutableStateOf(false) }
     var lastInteractionTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
+    // Smart Stack Memory State
+    var isStackMemoryEnabled by remember {
+        mutableStateOf(LightspeedPreferences.isRefuelingStackMemoryEnabled(context))
+    }
+
     LaunchedEffect(externalInteractionTimestamp) {
         if (externalInteractionTimestamp > 0L) {
             lastInteractionTimestamp = externalInteractionTimestamp
@@ -442,7 +447,13 @@ fun RefuelingBayScreen(
                             onToggleLayoutMode = onToggleLayoutMode,
                             onToggleEditMode = onToggleEditMode,
                             onAddWidget = { showTacticalWidgetPicker = true },
-                            isLandscape = true
+                            isLandscape = true,
+                            isStackMemoryEnabled = isStackMemoryEnabled,
+                            onToggleStackMemory = {
+                                val newVal = !isStackMemoryEnabled
+                                isStackMemoryEnabled = newVal
+                                LightspeedPreferences.setRefuelingStackMemoryEnabled(context, newVal)
+                            }
                         )
 
                         // Multi-Widget Surface
@@ -559,7 +570,13 @@ fun RefuelingBayScreen(
                             onToggleLayoutMode = onToggleLayoutMode,
                             onToggleEditMode = onToggleEditMode,
                             onAddWidget = { showTacticalWidgetPicker = true },
-                            isLandscape = false
+                            isLandscape = false,
+                            isStackMemoryEnabled = isStackMemoryEnabled,
+                            onToggleStackMemory = {
+                                val newVal = !isStackMemoryEnabled
+                                isStackMemoryEnabled = newVal
+                                LightspeedPreferences.setRefuelingStackMemoryEnabled(context, newVal)
+                            }
                         )
 
                         Box(

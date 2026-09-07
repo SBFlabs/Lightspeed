@@ -199,7 +199,7 @@ object LightspeedBackupEngine {
                                     }
                                 } else {
                                     val intVal = value.toIntOrNull()
-                                    if (intVal != null && (key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID)) {
+                                    if (intVal != null && (key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE)) {
                                         editor.putInt(key, intVal)
                                     } else {
                                         editor.putString(key, value)

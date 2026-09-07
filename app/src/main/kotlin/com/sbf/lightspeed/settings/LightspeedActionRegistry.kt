@@ -85,7 +85,8 @@ object LightspeedActionRegistry {
         "system:claude",
         "system:gemini",
         "system:folax",
-        "system:core_cooling"
+        "system:core_cooling",
+        "system:glow_deflectors"
     )
 
     fun initializeSync(context: Context) {
@@ -289,6 +290,7 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:gemini" || token == "ACTION_GEMINI" -> "Gemini (Google AI)"
         token == "system:folax" || token == "ACTION_FOLAX" -> "Folax (Transsion AI)"
         token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> "Core Cooling (Reboot System)"
+        token == "system:glow_deflectors" || token == "ACTION_GLOW_DEFLECTORS" || token == "glow_deflectors" -> "Glow Deflector Wings (Tactical Shields)"
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

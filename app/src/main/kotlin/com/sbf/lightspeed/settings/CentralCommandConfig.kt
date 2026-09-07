@@ -3148,6 +3148,15 @@ fun CentralCommandMatrixFields(
 
                                                     PrefToggleRow(
                                                         prefs = prefs,
+                                                        prefKey = LightspeedPreferences.KEY_REFUELING_STACK_REMEMBER_PAGE,
+                                                        defaultVal = false,
+                                                        title = "Remember Smart Stack Active Page",
+                                                        subtitle = "Resume the last active widget in Smart Stack instead of resetting to the first widget on launch.",
+                                                        onChanged = { onRefreshNeeded() }
+                                                    )
+
+                                                    PrefToggleRow(
+                                                        prefs = prefs,
                                                         prefKey = LightspeedPreferences.KEY_REFUELING_PIXEL_SHIFT,
                                                         defaultVal = true,
                                                         title = "Enable Pixel Shift Burn-In Shield",

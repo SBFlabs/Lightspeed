@@ -48,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.defaultPrefs
 
 @Composable
 fun WidgetEngineToolbar(
@@ -57,7 +59,9 @@ fun WidgetEngineToolbar(
     onToggleLayoutMode: () -> Unit,
     onToggleEditMode: () -> Unit,
     onAddWidget: () -> Unit,
-    isLandscape: Boolean = false
+    isLandscape: Boolean = false,
+    isStackMemoryEnabled: Boolean = false,
+    onToggleStackMemory: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -132,6 +136,43 @@ fun WidgetEngineToolbar(
                     fontWeight = FontWeight.Bold,
                     color = Color.White.copy(alpha = 0.85f)
                 )
+            }
+
+            // Smart Stack Page Memory Toggle [MEM: ON / OFF]
+            if (widgetLayoutMode == "smart_stack") {
+                Row(
+                    modifier = Modifier
+                        .height(30.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                            else Color(0xFF0E131C).copy(alpha = 0.85f)
+                        )
+                        .border(
+                            1.dp,
+                            if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary
+                            else Color.White.copy(alpha = 0.15f),
+                            RoundedCornerShape(6.dp)
+                        )
+                        .clickable { onToggleStackMemory() }
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Memory,
+                        contentDescription = "Toggle Stack Memory",
+                        tint = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.65f),
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = if (isStackMemoryEnabled) "MEM: ON" else "MEM: OFF",
+                        fontSize = 9.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.65f)
+                    )
+                }
             }
 
             // Edit / Configure Mode Toggle
@@ -355,17 +396,25 @@ fun MultiWidgetContainer(
         // =========================================================================
         val pagerState = rememberPagerState(pageCount = { widgetIds.size })
         val coroutineScope = rememberCoroutineScope()
+        val prefs = remember { activity.defaultPrefs() }
+        val rememberPage = prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_STACK_REMEMBER_PAGE, false)
 
-        LaunchedEffect(widgetIds.size) {
+        LaunchedEffect(widgetIds.size, rememberPage) {
             if (widgetIds.isNotEmpty()) {
-                val lastIndex = android.preference.PreferenceManager.getDefaultSharedPreferences(activity).getInt("refueling_stack_memory", widgetIds.size - 1)
-                val target = lastIndex.coerceIn(0, widgetIds.size - 1)
+                val target = if (rememberPage) {
+                    val lastIndex = prefs.getInt(LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE, 0)
+                    lastIndex.coerceIn(0, widgetIds.size - 1)
+                } else {
+                    0
+                }
                 pagerState.scrollToPage(target)
             }
         }
 
         LaunchedEffect(pagerState.currentPage) {
-            android.preference.PreferenceManager.getDefaultSharedPreferences(activity).edit().putInt("refueling_stack_memory", pagerState.currentPage).apply()
+            if (rememberPage) {
+                prefs.edit().putInt(LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE, pagerState.currentPage).apply()
+            }
         }
 
         Card(

@@ -1,8 +1,10 @@
 package com.sbf.lightspeed
 
 import android.accessibilityservice.AccessibilityService
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.SharedPreferences
+import android.view.animation.DecelerateInterpolator
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -68,6 +70,24 @@ class LightspeedLeftWingOverlay(
     private var pendingTapRunnable: Runnable? = null
     private var lastTapTime = 0L
 
+    private var glowFraction: Float = 0f
+    private var glowAnimator: ValueAnimator? = null
+
+    fun triggerGlow(durationMs: Long = 1800L) {
+        post {
+            glowAnimator?.cancel()
+            glowAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
+                duration = durationMs
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { anim ->
+                    glowFraction = anim.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        }
+    }
+
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_") || key.startsWith("pref_symmetry_"))) {
             post {
@@ -85,6 +105,7 @@ class LightspeedLeftWingOverlay(
     }
 
     override fun onDetachedFromWindow() {
+        glowAnimator?.cancel()
         super.onDetachedFromWindow()
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
@@ -476,6 +497,9 @@ class LightspeedLeftWingOverlay(
                 if (action != "none") {
                     triggerHaptic(20, 120)
                     performActionByName(action)
+                } else {
+                    triggerHaptic(25, 120)
+                    (service as? LightspeedAccessibilityService)?.triggerDeflectorsGlow() ?: triggerGlow()
                 }
             }
             uiHandler.postDelayed(pendingTapRunnable!!, 320)
@@ -551,7 +575,7 @@ class LightspeedLeftWingOverlay(
         fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean, zoneKey: String) {
             val isReview = isExpanded && isPreview
             val effectivePct = if (isReview) 100 else transparencyPct
-            if (effectivePct <= 0 && !isReview) return
+            if (effectivePct <= 0 && !isReview && glowFraction <= 0f) return
 
             val alpha = (effectivePct * 2.55f).toInt().coerceIn(40, 255)
 
@@ -566,12 +590,15 @@ class LightspeedLeftWingOverlay(
                 highlightPaint.color = Color.WHITE
                 canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
             } else {
-                // Resting Mode & Touch Glow
+                // Resting Mode & Touch Glow & Deflector Glow
                 val isTouched = isCurrentlyTouched && activeZoneKey == zoneKey
                 val isCenter = zoneKey.contains("CENTER")
                 val baseW = minOf(bounds.width(), 6f * d)
-                val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else baseW
-                val finalAlpha = if (isTouched) 255 else alpha
+                val maxGlowW = if (isCenter) minOf(bounds.width(), 20f * d) else minOf(bounds.width(), 12f * d)
+                val glowW = baseW + (maxGlowW - baseW) * glowFraction
+                val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else (if (glowFraction > 0f) glowW else baseW)
+                val glowAlpha = (255 * glowFraction).toInt()
+                val finalAlpha = if (isTouched) 255 else if (glowFraction > 0f) maxOf(alpha, glowAlpha) else alpha
 
                 val bladeRect = RectF(0f, bounds.top + 2f * d, bladeW, bounds.bottom - 2f * d)
 
@@ -580,7 +607,7 @@ class LightspeedLeftWingOverlay(
                 canvas.drawRoundRect(bladeRect, 3f * d, 3f * d, highlightPaint)
 
                 highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = 1.2f * d
+                highlightPaint.strokeWidth = if (glowFraction > 0f) 1.8f * d else 1.2f * d
                 highlightPaint.color = Color.argb((finalAlpha * 0.9f).toInt(), 255, 255, 255)
                 canvas.drawLine(bladeRect.right, bladeRect.top + 4f * d, bladeRect.right, bladeRect.bottom - 4f * d, highlightPaint)
             }

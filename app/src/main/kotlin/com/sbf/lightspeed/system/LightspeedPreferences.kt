@@ -232,6 +232,8 @@ object LightspeedPreferences {
     const val KEY_REFUELING_GRID_PORTRAIT_PROFILE = "pref_refueling_grid_portrait_profile" // JSON array string for Portrait
     const val KEY_REFUELING_GRID_LANDSCAPE_PROFILE = "pref_refueling_grid_landscape_profile" // JSON array string for Landscape
     const val KEY_REFUELING_WIDGET_LAYOUT = "pref_refueling_widget_layout" // "smart_stack", "adaptive_grid"
+    const val KEY_REFUELING_STACK_REMEMBER_PAGE = "pref_refueling_stack_remember_page" // Boolean, defaults to false
+    const val KEY_REFUELING_STACK_LAST_PAGE = "refueling_stack_memory" // Int page index
 
     // Notch Orbital Capsule Keys
     const val KEY_CAPSULE_WIDGET_ID = "pref_capsule_widget_id"
@@ -325,6 +327,13 @@ object LightspeedPreferences {
         } else {
             saveRefuelingGridWidgetIds(context, ids)
         }
+    }
+
+    fun isRefuelingStackMemoryEnabled(context: Context): Boolean =
+        context.defaultPrefs().getBoolean(KEY_REFUELING_STACK_REMEMBER_PAGE, false)
+
+    fun setRefuelingStackMemoryEnabled(context: Context, enabled: Boolean) {
+        context.defaultPrefs().edit().putBoolean(KEY_REFUELING_STACK_REMEMBER_PAGE, enabled).apply()
     }
 
     fun isMasterFlightArmed(context: Context): Boolean =

@@ -132,6 +132,9 @@ object ActionDispatcher {
                 }
                 try { context.startActivity(intent) } catch (_: Exception) {}
             }
+            token == "system:glow_deflectors" || token == "ACTION_GLOW_DEFLECTORS" || token == "glow_deflectors" -> {
+                com.sbf.lightspeed.LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+            }
             token == "system:tactical_flyout" || token == "ACTION_TACTICAL_FLYOUT" || token == "action_quick_flyout" || token == "system:quick_flyout" -> {
                 TacticalFlyoutLauncher.launch(context)
             }

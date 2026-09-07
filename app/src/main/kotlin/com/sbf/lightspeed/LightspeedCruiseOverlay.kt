@@ -120,6 +120,24 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var macroTrackingActive = false
     private var currentDetectedGesture = MacroGesture.NONE
 
+    private var glowFraction: Float = 0f
+    private var glowAnimator: ValueAnimator? = null
+
+    fun triggerGlow(durationMs: Long = 1800L) {
+        post {
+            glowAnimator?.cancel()
+            glowAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
+                duration = durationMs
+                interpolator = DecelerateInterpolator()
+                addUpdateListener { anim ->
+                    glowFraction = anim.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        }
+    }
+
     private var trackingStateLocked = false
     private var isCurrentlyTouched = false
     private var initialLeftSweepDistance = 0f
@@ -342,6 +360,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
+        glowAnimator?.cancel()
         val prefs = context.defaultPrefs()
         prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
         super.onDetachedFromWindow()
@@ -1328,7 +1347,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     } else if (currentLayer == CruiseLayer.CATEGORY && activeCatIndex in cachedCategories.indices && cachedCategories[activeCatIndex].id == "launcher_settings_virtual_id") {
                         launchLauncherSettings()
                     } else if (currentLayer == CruiseLayer.NEUTRAL) {
+                        val duration = System.currentTimeMillis() - touchDownTime
+                        val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
                         dismissOverlay()
+                        if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
+                            triggerHardwareHaptic(25, 120)
+                            service?.triggerDeflectorsGlow() ?: triggerGlow()
+                        }
                     } else {
                         val launchTarget = activeItem
                         if (launchTarget != null) {
@@ -1347,6 +1372,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     macroTrackingActive = false
                     if (currentDetectedGesture != MacroGesture.NONE && currentDetectedGesture != MacroGesture.SCRUBBING) {
                         executeMacroAction(currentActiveZone, currentDetectedGesture)
+                    } else if (currentDetectedGesture == MacroGesture.NONE) {
+                        val duration = System.currentTimeMillis() - touchDownTime
+                        val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
+                        if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
+                            triggerHardwareHaptic(25, 120)
+                            service?.triggerDeflectorsGlow() ?: triggerGlow()
+                        }
                     }
                 }
                 activeHoldScrubAction = null
@@ -1890,7 +1922,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     } else if (currentLayer == CruiseLayer.CATEGORY && activeCatIndex in cachedCategories.indices && cachedCategories[activeCatIndex].id == "launcher_settings_virtual_id") {
                         launchLauncherSettings()
                     } else if (currentLayer == CruiseLayer.NEUTRAL) {
+                        val duration = System.currentTimeMillis() - touchDownTime
+                        val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
                         dismissOverlay()
+                        if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
+                            triggerHardwareHaptic(25, 120)
+                            service?.triggerDeflectorsGlow() ?: triggerGlow()
+                        }
                     } else {
                         val launchTarget = activeItem
                         if (launchTarget != null) {
@@ -2164,7 +2202,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean, targetZone: TouchZone) {
                 val isReview = isExpanded && isSidebarPreview
                 val effectivePct = if (isReview) 100 else transparencyPct
-                if (effectivePct <= 0 && !isReview) return
+                if (effectivePct <= 0 && !isReview && glowFraction <= 0f) return
 
                 val alpha = (effectivePct * 2.55f).toInt().coerceIn(40, 255)
 
@@ -2179,12 +2217,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     highlightPaint.color = Color.WHITE
                     canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
                 } else {
-                    // Resting Mode & Touch Glow
+                    // Resting Mode & Touch Glow & Deflector Glow
                     val isTouched = isCurrentlyTouched && currentActiveZone == targetZone
                     val isCenter = targetZone == TouchZone.CENTER_CRUISE
                     val baseW = minOf(bounds.width(), 6f * d)
-                    val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else baseW
-                    val finalAlpha = if (isTouched) 255 else alpha
+                    val maxGlowW = if (isCenter) minOf(bounds.width(), 20f * d) else minOf(bounds.width(), 12f * d)
+                    val glowW = baseW + (maxGlowW - baseW) * glowFraction
+                    val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else (if (glowFraction > 0f) glowW else baseW)
+                    val glowAlpha = (255 * glowFraction).toInt()
+                    val finalAlpha = if (isTouched) 255 else if (glowFraction > 0f) maxOf(alpha, glowAlpha) else alpha
 
                     val bladeRect = RectF(bounds.right - bladeW, bounds.top + 2f * d, bounds.right, bounds.bottom - 2f * d)
 
@@ -2193,7 +2234,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     canvas.drawRoundRect(bladeRect, 3f * d, 3f * d, highlightPaint)
 
                     highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = 1.2f * d
+                    highlightPaint.strokeWidth = if (glowFraction > 0f) 1.8f * d else 1.2f * d
                     highlightPaint.color = Color.argb((finalAlpha * 0.9f).toInt(), 255, 255, 255)
                     canvas.drawLine(bladeRect.left, bladeRect.top + 4f * d, bladeRect.left, bladeRect.bottom - 4f * d, highlightPaint)
                 }

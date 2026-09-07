@@ -523,7 +523,7 @@ fun MultiWidgetContainer(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(currentHeight.dp)
+                        .height(180.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { onPickWidget() }
                         .background(Color(0xFF080C14).copy(alpha = 0.6f))

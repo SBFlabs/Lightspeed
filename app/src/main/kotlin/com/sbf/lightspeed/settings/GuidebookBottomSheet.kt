@@ -118,11 +118,6 @@ val GUIDEBOOK_ENTRIES = listOf(
     )
 )
 
-enum class GuidebookViewMode {
-    BILINGUAL,
-    VESSEL_LORE_ONLY,
-    TACTICAL_ANDROID_ONLY
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,7 +126,8 @@ fun GuidebookBottomSheet(
     onNavigateToSection: (tabIndex: Int, sectionKey: String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var viewMode by remember { mutableStateOf(GuidebookViewMode.BILINGUAL) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val viewMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
 
     val filteredEntries = remember(searchQuery) {
         if (searchQuery.isBlank()) {
@@ -229,9 +225,9 @@ fun GuidebookBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 listOf(
-                    GuidebookViewMode.BILINGUAL to "Bilingual",
-                    GuidebookViewMode.VESSEL_LORE_ONLY to "Vessel Lore",
-                    GuidebookViewMode.TACTICAL_ANDROID_ONLY to "Tactical Android"
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT to "Co-Pilot",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE to "Vessel Lore",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS to "Clear Comms"
                 ).forEach { (mode, label) ->
                     val isSelected = viewMode == mode
                     Box(
@@ -239,7 +235,7 @@ fun GuidebookBottomSheet(
                             .weight(1f)
                             .clip(RoundedCornerShape(9.dp))
                             .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                            .clickable { viewMode = mode }
+                            .clickable { com.sbf.lightspeed.system.LightspeedLanguageEngine.setMode(context, mode) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -320,9 +316,9 @@ fun GuidebookBottomSheet(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = when (viewMode) {
-                                            GuidebookViewMode.VESSEL_LORE_ONLY -> entry.vesselTitle
-                                            GuidebookViewMode.TACTICAL_ANDROID_ONLY -> entry.androidTitle
-                                            GuidebookViewMode.BILINGUAL -> "${entry.vesselTitle}  ⇄  ${entry.androidTitle}"
+                                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE -> entry.vesselTitle
+                                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS -> entry.androidTitle
+                                            com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT -> "${entry.vesselTitle}  ⇄  ${entry.androidTitle}"
                                         },
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
@@ -360,7 +356,7 @@ fun GuidebookBottomSheet(
                             }
 
                             // Body Content based on View Mode
-                            if (viewMode == GuidebookViewMode.BILINGUAL || viewMode == GuidebookViewMode.VESSEL_LORE_ONLY) {
+                            if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT || viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE) {
                                 Text(
                                     text = "Vessel Protocol: ${entry.vesselLore}",
                                     fontSize = 12.sp,
@@ -369,7 +365,7 @@ fun GuidebookBottomSheet(
                                 )
                             }
 
-                            if (viewMode == GuidebookViewMode.BILINGUAL || viewMode == GuidebookViewMode.TACTICAL_ANDROID_ONLY) {
+                            if (viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT || viewMode == com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS) {
                                 Text(
                                     text = "Android Utility: ${entry.androidUtility}",
                                     fontSize = 12.sp,

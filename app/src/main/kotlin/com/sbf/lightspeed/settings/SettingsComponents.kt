@@ -1975,6 +1975,9 @@ fun CentralCommandDeckDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Card 0: Communication Protocol (Language Engine)
+                    LanguageEngineCard(context = context)
+
                     // Card 1: Master Flight Controls
                     FlightControlDeckCard(
                         context = context,
@@ -4467,6 +4470,108 @@ fun PowerGestureMappingRow(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun LanguageEngineCard(
+    context: android.content.Context
+) {
+    val currentMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
+    val colorScheme = MaterialTheme.colorScheme
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.4f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    androidx.compose.material.icons.Icons.Default.Language,
+                    contentDescription = null,
+                    tint = colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "COMMUNICATION PROTOCOL",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorScheme.primary,
+                    letterSpacing = 0.8.sp
+                )
+            }
+
+            Text(
+                "Select the operational terminology used throughout the vessel:",
+                fontSize = 11.5.sp,
+                color = colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                lineHeight = 16.sp
+            )
+
+            val modes = listOf(
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE to "Vessel Lore",
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT to "Co-Pilot",
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS to "Clear Comms"
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.06f))
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                modes.forEach { (mode, label) ->
+                    val isSelected = currentMode == mode
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(if (isSelected) colorScheme.primary else Color.Transparent)
+                            .clickable {
+                                com.sbf.lightspeed.system.LightspeedLanguageEngine.setMode(context, mode)
+                                com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
+                            }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 10.5.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            val modeDesc = when (currentMode) {
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE ->
+                    "Full spaceship immersion. Uses terms like 'Deflectors' and 'HUD Strip'."
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT ->
+                    "Bilingual bridge. Displays Vessel Lore with plain Android subtitles for easy onboarding."
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS ->
+                    "Plain Android terminology. Uses terms like 'Gesture Sidebars' and 'Status Bar'."
+            }
+
+            Text(
+                text = modeDesc,
+                fontSize = 11.sp,
+                color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                lineHeight = 14.sp
+            )
         }
     }
 }

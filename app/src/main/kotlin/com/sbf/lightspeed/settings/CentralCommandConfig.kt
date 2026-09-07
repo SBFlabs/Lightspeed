@@ -694,6 +694,10 @@ fun CentralCommandMatrixFields(
                                 )
                             }
 
+                            item(key = "left_deflector_glow") {
+                                DeflectorGlowCard(context = context, prefs = prefs)
+                            }
+
                             item {
                                 UnifyFlankActionsCard(
                                     isUnified = isLeftFlankUnified,
@@ -3913,6 +3917,10 @@ fun CentralCommandMatrixFields(
                                         prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
                                     }
                                 )
+                            }
+
+                            item(key = "right_deflector_glow") {
+                                DeflectorGlowCard(context = context, prefs = prefs)
                             }
 
                             item {

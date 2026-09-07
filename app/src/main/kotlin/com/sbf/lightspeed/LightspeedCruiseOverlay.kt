@@ -123,11 +123,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var glowFraction: Float = 0f
     private var glowAnimator: ValueAnimator? = null
 
-    fun triggerGlow(durationMs: Long = 1800L) {
+    fun triggerGlow(durationMs: Long = -1L) {
         post {
+            val effectiveDuration = if (durationMs > 0L) durationMs else com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorGlowDurationMs(context)
             glowAnimator?.cancel()
             glowAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
-                duration = durationMs
+                duration = effectiveDuration
                 interpolator = DecelerateInterpolator()
                 addUpdateListener { anim ->
                     glowFraction = anim.animatedValue as Float
@@ -268,7 +269,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_"))) {
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_deflector_"))) {
             post {
                 updateMetricsDimensions()
                 invalidate()
@@ -1262,6 +1263,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     if (currentDetectedGesture != MacroGesture.SCRUBBING && !currentDetectedGesture.name.endsWith("_HOLD")) {
                         val moveDelta = hypot(rawX - lastTouchRawX, rawY - lastTouchRawY)
                         if (currentDetectedGesture != previousGesture || moveDelta > (3f * density)) {
+                            if (currentDetectedGesture != previousGesture && previousGesture == MacroGesture.NONE) {
+                                if (com.sbf.lightspeed.system.LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) {
+                                    triggerGlow(500L)
+                                }
+                            }
                             resetHoldTimer()
                         }
                     }
@@ -2199,54 +2205,29 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val topTransparency = prefs.getInt("pref_sidebar_top_transparency", 0)
             val bottomTransparency = if (prefs.getBoolean("pref_sidebar_link_edges", false)) topTransparency else prefs.getInt("pref_sidebar_bottom_transparency", 0)
 
-            fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean, targetZone: TouchZone) {
-                val isReview = isExpanded && isSidebarPreview
-                val effectivePct = if (isReview) 100 else transparencyPct
-                if (effectivePct <= 0 && !isReview && glowFraction <= 0f) return
+            val glowStyle = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
 
-                val alpha = (effectivePct * 2.55f).toInt().coerceIn(40, 255)
-
-                if (isReview) {
-                    // Active Review Mode: Full Zone Highlight + Crisp White Outline
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(120, Color.red(color), Color.green(color), Color.blue(color))
-                    canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
-
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = 2f * d
-                    highlightPaint.color = Color.WHITE
-                    canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
-                } else {
-                    // Resting Mode & Touch Glow & Deflector Glow
-                    val isTouched = isCurrentlyTouched && currentActiveZone == targetZone
-                    val isCenter = targetZone == TouchZone.CENTER_CRUISE
-                    val baseW = minOf(bounds.width(), 6f * d)
-                    val maxGlowW = if (isCenter) minOf(bounds.width(), 20f * d) else minOf(bounds.width(), 12f * d)
-                    val glowW = baseW + (maxGlowW - baseW) * glowFraction
-                    val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else (if (glowFraction > 0f) glowW else baseW)
-                    val glowAlpha = (255 * glowFraction).toInt()
-                    val finalAlpha = if (isTouched) 255 else if (glowFraction > 0f) maxOf(alpha, glowAlpha) else alpha
-
-                    val bladeRect = RectF(bounds.right - bladeW, bounds.top + 2f * d, bounds.right, bounds.bottom - 2f * d)
-
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(finalAlpha, Color.red(color), Color.green(color), Color.blue(color))
-                    canvas.drawRoundRect(bladeRect, 3f * d, 3f * d, highlightPaint)
-
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = if (glowFraction > 0f) 1.8f * d else 1.2f * d
-                    highlightPaint.color = Color.argb((finalAlpha * 0.9f).toInt(), 255, 255, 255)
-                    canvas.drawLine(bladeRect.left, bladeRect.top + 4f * d, bladeRect.left, bladeRect.bottom - 4f * d, highlightPaint)
-                }
-            }
-
-            val upperColor = Color.rgb(68, 138, 255)
-            val coreColor = m3Primary
-            val lowerColor = Color.rgb(255, 171, 0)
-
-            drawWingBlade(topTouchBounds, upperColor, topTransparency, isTopExpanded, TouchZone.TOP_EDGE)
-            drawWingBlade(centerTouchBounds, coreColor, centerTransparency, isCenterExpanded, TouchZone.CENTER_CRUISE)
-            drawWingBlade(bottomTouchBounds, lowerColor, bottomTransparency, isBottomExpanded, TouchZone.BOTTOM_EDGE)
+            com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
+                canvas = canvas,
+                isLeft = false,
+                density = d,
+                w = w,
+                h = h,
+                topTouchBounds = topTouchBounds,
+                centerTouchBounds = centerTouchBounds,
+                bottomTouchBounds = bottomTouchBounds,
+                isCurrentlyTouched = isCurrentlyTouched,
+                activeZoneIsCenter = currentActiveZone == TouchZone.CENTER_CRUISE,
+                activeZoneIsTop = currentActiveZone == TouchZone.TOP_EDGE,
+                activeZoneIsBottom = currentActiveZone == TouchZone.BOTTOM_EDGE,
+                glowFraction = glowFraction,
+                centerTransparency = centerTransparency,
+                topTransparency = topTransparency,
+                bottomTransparency = bottomTransparency,
+                isReview = isSidebarPreview && (isTopExpanded || isCenterExpanded || isBottomExpanded),
+                m3Primary = m3Primary,
+                glowStyle = glowStyle
+            )
             return
         }
 

@@ -73,11 +73,12 @@ class LightspeedLeftWingOverlay(
     private var glowFraction: Float = 0f
     private var glowAnimator: ValueAnimator? = null
 
-    fun triggerGlow(durationMs: Long = 1800L) {
+    fun triggerGlow(durationMs: Long = -1L) {
         post {
+            val effectiveDuration = if (durationMs > 0L) durationMs else com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorGlowDurationMs(context)
             glowAnimator?.cancel()
             glowAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
-                duration = durationMs
+                duration = effectiveDuration
                 interpolator = DecelerateInterpolator()
                 addUpdateListener { anim ->
                     glowFraction = anim.animatedValue as Float
@@ -89,7 +90,7 @@ class LightspeedLeftWingOverlay(
     }
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_") || key.startsWith("pref_symmetry_"))) {
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_") || key.startsWith("pref_symmetry_") || key.startsWith("pref_deflector_"))) {
             post {
                 updateMetricsDimensions()
                 invalidate()
@@ -358,6 +359,9 @@ class LightspeedLeftWingOverlay(
                     val prev = currentGesture
                     currentGesture = determineGesture(dx, dy, rawX, rawY)
                     if (currentGesture != "NONE" && currentGesture != prev) {
+                        if (prev == "NONE" && com.sbf.lightspeed.system.LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) {
+                            triggerGlow(500L)
+                        }
                         triggerHaptic(18, 100)
                         if (!isHoldFired) {
                             uiHandler.removeCallbacks(holdRunnable)
@@ -572,46 +576,7 @@ class LightspeedLeftWingOverlay(
         val topTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_top_transparency", 0) else prefs.getInt("pref_sidebar_left_top_transparency", 0)
         val bottomTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_bottom_transparency", 0) else prefs.getInt("pref_sidebar_left_bottom_transparency", 0)
 
-        fun drawWingBlade(bounds: RectF, color: Int, transparencyPct: Int, isExpanded: Boolean, zoneKey: String) {
-            val isReview = isExpanded && isPreview
-            val effectivePct = if (isReview) 100 else transparencyPct
-            if (effectivePct <= 0 && !isReview && glowFraction <= 0f) return
-
-            val alpha = (effectivePct * 2.55f).toInt().coerceIn(40, 255)
-
-            if (isReview) {
-                // Active Review Mode: Full Zone Highlight + Crisp White Outline
-                highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(120, Color.red(color), Color.green(color), Color.blue(color))
-                canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
-
-                highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = 2f * d
-                highlightPaint.color = Color.WHITE
-                canvas.drawRoundRect(bounds, 6f * d, 6f * d, highlightPaint)
-            } else {
-                // Resting Mode & Touch Glow & Deflector Glow
-                val isTouched = isCurrentlyTouched && activeZoneKey == zoneKey
-                val isCenter = zoneKey.contains("CENTER")
-                val baseW = minOf(bounds.width(), 6f * d)
-                val maxGlowW = if (isCenter) minOf(bounds.width(), 20f * d) else minOf(bounds.width(), 12f * d)
-                val glowW = baseW + (maxGlowW - baseW) * glowFraction
-                val bladeW = if (isTouched) (if (isCenter) 14f * d else 10f * d) else (if (glowFraction > 0f) glowW else baseW)
-                val glowAlpha = (255 * glowFraction).toInt()
-                val finalAlpha = if (isTouched) 255 else if (glowFraction > 0f) maxOf(alpha, glowAlpha) else alpha
-
-                val bladeRect = RectF(0f, bounds.top + 2f * d, bladeW, bounds.bottom - 2f * d)
-
-                highlightPaint.style = Paint.Style.FILL
-                highlightPaint.color = Color.argb(finalAlpha, Color.red(color), Color.green(color), Color.blue(color))
-                canvas.drawRoundRect(bladeRect, 3f * d, 3f * d, highlightPaint)
-
-                highlightPaint.style = Paint.Style.STROKE
-                highlightPaint.strokeWidth = if (glowFraction > 0f) 1.8f * d else 1.2f * d
-                highlightPaint.color = Color.argb((finalAlpha * 0.9f).toInt(), 255, 255, 255)
-                canvas.drawLine(bladeRect.right, bladeRect.top + 4f * d, bladeRect.right, bladeRect.bottom - 4f * d, highlightPaint)
-            }
-        }
+        val glowStyle = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
 
         val m3Primary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.resources.getColor(android.R.color.system_accent1_600, context.theme)
@@ -619,13 +584,27 @@ class LightspeedLeftWingOverlay(
             Color.parseColor("#6750A4")
         }
 
-        val upperColor = Color.rgb(68, 138, 255)
-        val coreColor = m3Primary
-        val lowerColor = Color.rgb(255, 171, 0)
-
-        drawWingBlade(topTouchBounds, upperColor, topTransparency, isTopExpanded, "LEFT_TOP")
-        drawWingBlade(centerTouchBounds, coreColor, centerTransparency, isCenterExpanded, "LEFT_CENTER")
-        drawWingBlade(bottomTouchBounds, lowerColor, bottomTransparency, isBottomExpanded, "LEFT_BOTTOM")
+        com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
+            canvas = canvas,
+            isLeft = true,
+            density = d,
+            w = width.toFloat(),
+            h = height.toFloat(),
+            topTouchBounds = topTouchBounds,
+            centerTouchBounds = centerTouchBounds,
+            bottomTouchBounds = bottomTouchBounds,
+            isCurrentlyTouched = isCurrentlyTouched,
+            activeZoneIsCenter = activeZoneKey == "LEFT_CENTER",
+            activeZoneIsTop = activeZoneKey == "LEFT_TOP",
+            activeZoneIsBottom = activeZoneKey == "LEFT_BOTTOM",
+            glowFraction = glowFraction,
+            centerTransparency = centerTransparency,
+            topTransparency = topTransparency,
+            bottomTransparency = bottomTransparency,
+            isReview = isPreview && (isTopExpanded || isCenterExpanded || isBottomExpanded),
+            m3Primary = m3Primary,
+            glowStyle = glowStyle
+        )
 
         if (isScrubbing && hudTitle.isNotEmpty()) {
             val screenW = resources.displayMetrics.widthPixels.toFloat()

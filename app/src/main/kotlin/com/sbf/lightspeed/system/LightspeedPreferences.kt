@@ -15,6 +15,9 @@ object LightspeedPreferences {
     const val KEY_DEFLECTOR_LEFT_ENABLED = "pref_deflector_left_enabled"
     const val KEY_DEFLECTOR_RIGHT_ENABLED = "pref_deflector_right_enabled"
     const val KEY_DEFLECTOR_DEFAULT_STATE = "pref_deflector_default_state" // "always_armed", "standby_by_default"
+    const val KEY_DEFLECTOR_GLOW_STYLE = "pref_deflector_glow_style" // "progressive_frost", "material_shade", "crimson_reactor", "cyber_plasma"
+    const val KEY_DEFLECTOR_GLOW_ON_GESTURE_STEP = "pref_deflector_glow_on_gesture_step" // Boolean, default true
+    const val KEY_DEFLECTOR_GLOW_DURATION = "pref_deflector_glow_duration" // "800ms", "1500ms", "2200ms"
     const val KEY_CENTRAL_COMMAND_LONG_PRESS_ACTION = "pref_central_command_long_press_action" // "toggle_master_flight", "toggle_all_deflectors", "toggle_left_deflector", "toggle_right_deflector"
 
     // Status Bar Keys
@@ -355,6 +358,29 @@ object LightspeedPreferences {
 
     fun setRightDeflectorEnabled(context: Context, enabled: Boolean) {
         context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_RIGHT_ENABLED, enabled).apply()
+    }
+
+    fun getDeflectorGlowStyle(context: Context): String =
+        context.defaultPrefs().getString(KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
+
+    fun setDeflectorGlowStyle(context: Context, style: String) {
+        context.defaultPrefs().edit().putString(KEY_DEFLECTOR_GLOW_STYLE, style).apply()
+    }
+
+    fun isDeflectorGlowOnGestureStep(context: Context): Boolean =
+        context.defaultPrefs().getBoolean(KEY_DEFLECTOR_GLOW_ON_GESTURE_STEP, true)
+
+    fun setDeflectorGlowOnGestureStep(context: Context, enabled: Boolean) {
+        context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_GLOW_ON_GESTURE_STEP, enabled).apply()
+    }
+
+    fun getDeflectorGlowDurationMs(context: Context): Long {
+        val pref = context.defaultPrefs().getString(KEY_DEFLECTOR_GLOW_DURATION, "1500ms") ?: "1500ms"
+        return when (pref) {
+            "800ms" -> 800L
+            "2200ms" -> 2200L
+            else -> 1500L
+        }
     }
 
     fun isFlightNotificationEnabled(context: Context): Boolean =

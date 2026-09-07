@@ -118,11 +118,67 @@ data class DeckGlassVisuals(
     val innerChamferAlpha: Float,
     val showNoiseGrain: Boolean = false,
     val noiseAlpha: Float = 0f,
-    val windowDimAmount: Float = 0.35f,
-    val scrimAlpha: Float = 0.15f,
-    val blurBehindRadius: Int = 70,
+    val showRefractiveRim: Boolean = false,
+    val showBottomCaustic: Boolean = false,
     val shapeCornerRadius: androidx.compose.ui.unit.Dp = 28.dp
 )
+
+data class DeckBackdropVisuals(
+    val styleKey: String,
+    val title: String,
+    val subtitle: String,
+    val dimAmount: Float,
+    val scrimAlpha: Float,
+    val blurBehindRadius: Int
+)
+
+object DeckBackdropTheme {
+    val STYLES = listOf(
+        DeckBackdropVisuals(
+            styleKey = "cosmic",
+            title = "Cosmic",
+            subtitle = "Tactical spaceship contrast: 50% dim & 60px blur",
+            dimAmount = 0.50f,
+            scrimAlpha = 0.35f,
+            blurBehindRadius = 60
+        ),
+        DeckBackdropVisuals(
+            styleKey = "void",
+            title = "Void",
+            subtitle = "Deep stealth OLED blackout: 72% dim & 50px blur",
+            dimAmount = 0.72f,
+            scrimAlpha = 0.55f,
+            blurBehindRadius = 50
+        ),
+        DeckBackdropVisuals(
+            styleKey = "frost_veil",
+            title = "Frosted",
+            subtitle = "Luminous ambient diffusion: 32% dim & 90px frosted blur",
+            dimAmount = 0.32f,
+            scrimAlpha = 0.22f,
+            blurBehindRadius = 90
+        ),
+        DeckBackdropVisuals(
+            styleKey = "clear",
+            title = "Clarity",
+            subtitle = "High context visibility: 20% dim & 40px blur",
+            dimAmount = 0.20f,
+            scrimAlpha = 0.12f,
+            blurBehindRadius = 40
+        )
+    )
+
+    fun resolve(styleKey: String): DeckBackdropVisuals {
+        return STYLES.find { it.styleKey == styleKey } ?: STYLES[0]
+    }
+}
+
+@Composable
+fun rememberDeckBackdropVisuals(context: Context): DeckBackdropVisuals {
+    val styleFlow by LightspeedPreferences.deckBackdropStyleFlow.collectAsState()
+    val activeStyle = styleFlow ?: remember { LightspeedPreferences.getDeckBackdropStyle(context) }
+    return DeckBackdropTheme.resolve(activeStyle)
+}
 
 object DeckGlassTheme {
     @Composable
@@ -153,9 +209,8 @@ object DeckGlassTheme {
                 innerChamferAlpha = 0.20f,
                 showNoiseGrain = true,
                 noiseAlpha = 0.08f,
-                windowDimAmount = 0.16f,
-                scrimAlpha = 0.06f,
-                blurBehindRadius = 90,
+                showRefractiveRim = false,
+                showBottomCaustic = false,
                 shapeCornerRadius = 28.dp
             )
             "obsidian" -> DeckGlassVisuals(
@@ -181,43 +236,41 @@ object DeckGlassTheme {
                 innerChamferAlpha = 0f,
                 showNoiseGrain = false,
                 noiseAlpha = 0f,
-                windowDimAmount = 0.55f,
-                scrimAlpha = 0.22f,
-                blurBehindRadius = 55,
+                showRefractiveRim = false,
+                showBottomCaustic = false,
                 shapeCornerRadius = 28.dp
             )
             else -> DeckGlassVisuals( // "liquid" (Default)
                 styleKey = "liquid",
                 backgroundBrush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF334A6E).copy(alpha = 0.38f),
-                        Color(0xFF17253B).copy(alpha = 0.50f),
-                        Color(0xFF0A111E).copy(alpha = 0.64f)
+                        Color(0xFF4A74A0).copy(alpha = 0.36f), // Luminous sapphire caustic apex
+                        Color(0xFF1E3452).copy(alpha = 0.48f), // Fluid body
+                        Color(0xFF0B1626).copy(alpha = 0.66f)  // Deep refractive base
                     ),
-                    center = Offset(0.35f, 0.15f),
-                    radius = 1100f
+                    center = Offset(0.35f, 0.12f),
+                    radius = 1200f
                 ),
                 borderBrush = Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.90f),       // Specular apex highlight
-                        Color(0xFF64FFDA).copy(alpha = 0.55f), // Prismatic Cyan caustic
-                        Color.White.copy(alpha = 0.30f),       // Core glass
-                        Color(0xFFE040FB).copy(alpha = 0.40f), // Prismatic Magenta fringe
-                        Color.Black.copy(alpha = 0.50f),       // Refractive shadow rim
-                        Color.White.copy(alpha = 0.70f)        // Secondary specular catch
+                        Color.White.copy(alpha = 0.95f),       // Specular apex highlight
+                        Color(0xFF00E5FF).copy(alpha = 0.75f), // Intense cyan caustic
+                        Color.White.copy(alpha = 0.40f),       // Crystal core
+                        Color(0xFFE040FB).copy(alpha = 0.65f), // Vivid magenta dispersion
+                        Color(0xFF0D1B2A).copy(alpha = 0.70f), // Refractive shadow rim
+                        Color.White.copy(alpha = 0.85f)        // Secondary specular catch
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
                 ),
-                borderWidth = 1.5.dp,
+                borderWidth = 1.6.dp,
                 showTopGlare = true,
-                topGlareAlpha = 0.30f,
-                innerChamferAlpha = 0.35f,
+                topGlareAlpha = 0.38f,
+                innerChamferAlpha = 0.40f,
                 showNoiseGrain = false,
                 noiseAlpha = 0f,
-                windowDimAmount = 0.20f,
-                scrimAlpha = 0.08f,
-                blurBehindRadius = 75,
+                showRefractiveRim = true,
+                showBottomCaustic = true,
                 shapeCornerRadius = 28.dp
             )
         }
@@ -268,15 +321,56 @@ fun FloatingOverlayContainer(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
+                        .height(160.dp)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = glassVisuals.topGlareAlpha),
+                                    Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.45f),
+                                    Color(0xFF80D8FF).copy(alpha = glassVisuals.topGlareAlpha * 0.15f),
+                                    Color.Transparent
+                                ),
+                                center = Offset(x = 350f, y = 0f),
+                                radius = 650f
+                            )
+                        )
+                )
+            }
+            if (glassVisuals.showBottomCaustic) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                        .align(Alignment.BottomCenter)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.White.copy(alpha = glassVisuals.topGlareAlpha),
-                                    Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.35f),
-                                    Color.Transparent
+                                    Color.Transparent,
+                                    Color(0xFF00E5FF).copy(alpha = 0.08f),
+                                    Color.White.copy(alpha = 0.14f)
                                 )
                             )
+                        )
+                )
+            }
+            if (glassVisuals.showRefractiveRim) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(2.5.dp)
+                        .border(
+                            1.dp,
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF00E5FF).copy(alpha = 0.50f),
+                                    Color.White.copy(alpha = 0.65f),
+                                    Color(0xFFE040FB).copy(alpha = 0.45f),
+                                    Color.Transparent
+                                ),
+                                start = Offset(0f, 0f),
+                                end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                            ),
+                            RoundedCornerShape(glassVisuals.shapeCornerRadius - 2.5.dp)
                         )
                 )
             }
@@ -1029,6 +1123,73 @@ fun FlightControlDeckCard(
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
+            // Cockpit Backdrop / Area Behind Window Selector
+            val backdropFlow by LightspeedPreferences.deckBackdropStyleFlow.collectAsState()
+            val currentBackdropStyle = backdropFlow ?: remember { LightspeedPreferences.getDeckBackdropStyle(context) }
+            val currentBackdropVisuals = remember(currentBackdropStyle) { DeckBackdropTheme.resolve(currentBackdropStyle) }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "BACKDROP / AREA BEHIND WINDOW",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        currentBackdropVisuals.subtitle,
+                        fontSize = 9.5.sp,
+                        color = Color.LightGray.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    DeckBackdropTheme.STYLES.forEach { backdrop ->
+                        val isSelected = currentBackdropStyle == backdrop.styleKey
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    LightspeedPreferences.setDeckBackdropStyle(context, backdrop.styleKey)
+                                    LightspeedHapticEngine.tick(context)
+                                    onStateChanged()
+                                },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.12f)
+                            )
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(vertical = 7.dp, horizontal = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = backdrop.title,
+                                    fontSize = 9.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.75f),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Row 3: Home Screen 1-Tap Shortcut Buttons
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -1573,17 +1734,18 @@ fun CentralCommandDeckDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         val glassVisuals = rememberDeckGlassVisuals(context)
+        val backdropVisuals = rememberDeckBackdropVisuals(context)
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                 val lp = dialogWindow?.attributes
                 if (lp != null) {
-                    lp.blurBehindRadius = glassVisuals.blurBehindRadius
+                    lp.blurBehindRadius = backdropVisuals.blurBehindRadius
                     dialogWindow.attributes = lp
                 }
             }
-            dialogWindow?.setDimAmount(glassVisuals.windowDimAmount)
+            dialogWindow?.setDimAmount(backdropVisuals.dimAmount)
         }
 
         Box(
@@ -1608,15 +1770,56 @@ fun CentralCommandDeckDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(140.dp)
+                                .height(160.dp)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.45f),
+                                            Color(0xFF80D8FF).copy(alpha = glassVisuals.topGlareAlpha * 0.15f),
+                                            Color.Transparent
+                                        ),
+                                        center = Offset(x = 350f, y = 0f),
+                                        radius = 650f
+                                    )
+                                )
+                        )
+                    }
+                    if (glassVisuals.showBottomCaustic) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(70.dp)
+                                .align(Alignment.BottomCenter)
                                 .background(
                                     Brush.verticalGradient(
                                         colors = listOf(
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.35f),
-                                            Color.Transparent
+                                            Color.Transparent,
+                                            Color(0xFF00E5FF).copy(alpha = 0.08f),
+                                            Color.White.copy(alpha = 0.14f)
                                         )
                                     )
+                                )
+                        )
+                    }
+                    if (glassVisuals.showRefractiveRim) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .padding(2.5.dp)
+                                .border(
+                                    1.dp,
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF00E5FF).copy(alpha = 0.50f),
+                                            Color.White.copy(alpha = 0.65f),
+                                            Color(0xFFE040FB).copy(alpha = 0.45f),
+                                            Color.Transparent
+                                        ),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                                    ),
+                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 2.5.dp)
                                 )
                         )
                     }

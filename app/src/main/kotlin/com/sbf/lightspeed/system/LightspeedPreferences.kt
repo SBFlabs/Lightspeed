@@ -217,6 +217,7 @@ object LightspeedPreferences {
     const val KEY_PERIMETER_PROTECTED_SERVICES = "pref_perimeter_protected_services"
     const val KEY_PINNED_ACCESSIBILITY_SERVICES = "pref_pinned_accessibility_services"
     const val KEY_DECK_GLASS_STYLE = "pref_deck_glass_style" // "liquid", "frost", "obsidian"
+    const val KEY_DECK_BACKDROP_STYLE = "pref_deck_backdrop_style" // "cosmic", "void", "frost_veil", "clear"
     const val KEY_SECTION_WATCHDOGS_EXPANDED = "pref_section_watchdogs_expanded"
 
     // Refueling Bay Keys
@@ -425,6 +426,27 @@ object LightspeedPreferences {
     fun refreshDeckGlassStyle(context: Context) {
         val style = context.defaultPrefs().getString(KEY_DECK_GLASS_STYLE, "liquid") ?: "liquid"
         _deckGlassStyleFlow.value = style
+    }
+
+    private val _deckBackdropStyleFlow = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val deckBackdropStyleFlow: kotlinx.coroutines.flow.StateFlow<String?> = _deckBackdropStyleFlow
+
+    fun getDeckBackdropStyle(context: Context): String {
+        val cached = _deckBackdropStyleFlow.value
+        if (cached != null) return cached
+        val style = context.defaultPrefs().getString(KEY_DECK_BACKDROP_STYLE, "cosmic") ?: "cosmic"
+        _deckBackdropStyleFlow.value = style
+        return style
+    }
+
+    fun setDeckBackdropStyle(context: Context, style: String) {
+        context.defaultPrefs().edit().putString(KEY_DECK_BACKDROP_STYLE, style).apply()
+        _deckBackdropStyleFlow.value = style
+    }
+
+    fun refreshDeckBackdropStyle(context: Context) {
+        val style = context.defaultPrefs().getString(KEY_DECK_BACKDROP_STYLE, "cosmic") ?: "cosmic"
+        _deckBackdropStyleFlow.value = style
     }
 }
 

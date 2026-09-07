@@ -27,15 +27,15 @@ class SidebarSettingsActivity : ComponentActivity() {
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
 
         setContent {
-            val visuals = rememberDeckGlassVisuals(this)
+            val backdrop = rememberDeckBackdropVisuals(this)
             SideEffect {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                     val lp = window.attributes
-                    lp.blurBehindRadius = visuals.blurBehindRadius
+                    lp.blurBehindRadius = backdrop.blurBehindRadius
                     window.attributes = lp
                 }
-                window.setDimAmount(visuals.windowDimAmount)
+                window.setDimAmount(backdrop.dimAmount)
             }
 
             LightspeedTheme {

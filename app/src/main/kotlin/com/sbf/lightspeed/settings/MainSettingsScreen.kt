@@ -86,10 +86,10 @@ fun MainSettingsScreen() {
         dismissAction()
     }
 
-    val glassVisuals = rememberDeckGlassVisuals(context)
+    val backdropVisuals = rememberDeckBackdropVisuals(context)
 
     val animatedScrimAlpha by animateFloatAsState(
-        targetValue = if (isVisible) glassVisuals.scrimAlpha else 0f,
+        targetValue = if (isVisible) backdropVisuals.scrimAlpha else 0f,
         animationSpec = tween(durationMillis = 300),
         label = "scrim_alpha"
     )

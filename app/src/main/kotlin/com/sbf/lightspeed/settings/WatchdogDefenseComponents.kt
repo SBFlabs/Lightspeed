@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -134,17 +135,18 @@ fun PerimeterServicesDeckDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         val glassVisuals = rememberDeckGlassVisuals(context)
+        val backdropVisuals = rememberDeckBackdropVisuals(context)
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                 val lp = dialogWindow?.attributes
                 if (lp != null) {
-                    lp.blurBehindRadius = glassVisuals.blurBehindRadius
+                    lp.blurBehindRadius = backdropVisuals.blurBehindRadius
                     dialogWindow.attributes = lp
                 }
             }
-            dialogWindow?.setDimAmount(glassVisuals.windowDimAmount)
+            dialogWindow?.setDimAmount(backdropVisuals.dimAmount)
         }
 
         Box(
@@ -169,15 +171,56 @@ fun PerimeterServicesDeckDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(140.dp)
+                                .height(160.dp)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
+                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.45f),
+                                            Color(0xFF80D8FF).copy(alpha = glassVisuals.topGlareAlpha * 0.15f),
+                                            Color.Transparent
+                                        ),
+                                        center = Offset(x = 350f, y = 0f),
+                                        radius = 650f
+                                    )
+                                )
+                        )
+                    }
+                    if (glassVisuals.showBottomCaustic) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(70.dp)
+                                .align(Alignment.BottomCenter)
                                 .background(
                                     Brush.verticalGradient(
                                         colors = listOf(
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.35f),
-                                            Color.Transparent
+                                            Color.Transparent,
+                                            Color(0xFF00E5FF).copy(alpha = 0.08f),
+                                            Color.White.copy(alpha = 0.14f)
                                         )
                                     )
+                                )
+                        )
+                    }
+                    if (glassVisuals.showRefractiveRim) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .padding(2.5.dp)
+                                .border(
+                                    1.dp,
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF00E5FF).copy(alpha = 0.50f),
+                                            Color.White.copy(alpha = 0.65f),
+                                            Color(0xFFE040FB).copy(alpha = 0.45f),
+                                            Color.Transparent
+                                        ),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+                                    ),
+                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 2.5.dp)
                                 )
                         )
                     }

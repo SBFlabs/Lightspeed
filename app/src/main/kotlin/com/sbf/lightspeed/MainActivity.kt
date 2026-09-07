@@ -10,7 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.SideEffect
 import com.sbf.lightspeed.settings.MainSettingsScreen
-import com.sbf.lightspeed.settings.rememberDeckGlassVisuals
+import com.sbf.lightspeed.settings.rememberDeckBackdropVisuals
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
@@ -40,15 +40,15 @@ class MainActivity : ComponentActivity() {
         LightspeedToggleActivity.updateDynamicShortcuts(this)
 
         setContent {
-            val visuals = rememberDeckGlassVisuals(this)
+            val backdrop = rememberDeckBackdropVisuals(this)
             SideEffect {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                     val lp = window.attributes
-                    lp.blurBehindRadius = visuals.blurBehindRadius
+                    lp.blurBehindRadius = backdrop.blurBehindRadius
                     window.attributes = lp
                 }
-                window.setDimAmount(visuals.windowDimAmount)
+                window.setDimAmount(backdrop.dimAmount)
             }
 
             LightspeedTheme {

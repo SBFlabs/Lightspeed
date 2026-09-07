@@ -8,7 +8,9 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.SideEffect
 import com.sbf.lightspeed.settings.MainSettingsScreen
+import com.sbf.lightspeed.settings.rememberDeckGlassVisuals
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
@@ -27,11 +29,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-            window.attributes.blurBehindRadius = 60
-        }
-        window.setDimAmount(0.45f)
 
         try {
             Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
@@ -43,6 +40,17 @@ class MainActivity : ComponentActivity() {
         LightspeedToggleActivity.updateDynamicShortcuts(this)
 
         setContent {
+            val visuals = rememberDeckGlassVisuals(this)
+            SideEffect {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                    val lp = window.attributes
+                    lp.blurBehindRadius = visuals.blurBehindRadius
+                    window.attributes = lp
+                }
+                window.setDimAmount(visuals.windowDimAmount)
+            }
+
             LightspeedTheme {
                 MainSettingsScreen()
             }

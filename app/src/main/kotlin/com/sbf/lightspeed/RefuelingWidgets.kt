@@ -441,28 +441,40 @@ fun MultiWidgetContainer(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            @OptIn(ExperimentalLayoutApi::class)
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                widgetIds.forEachIndexed { index, widgetId ->
-                    key(reorderVersion, widgetId) {
-                        val orientationPrefix = if (isLandscape) "land" else "port"
-                        val defaultHeight = if (isLandscape) 160 else 180
-                        val defaultWidth = if (isLandscape) 50 else 100
-                        val wHeight = prefs.getInt("widget_height_${orientationPrefix}_$widgetId", defaultHeight)
-                        val wWidthPct = prefs.getInt("widget_width_pct_${orientationPrefix}_$widgetId", defaultWidth)
-                        
-                        var currentWidthPct by remember(widgetId, isLandscape) { mutableIntStateOf(wWidthPct) }
-                        var currentHeight by remember(widgetId, isLandscape) { mutableIntStateOf(wHeight) }
-                        val isCompact = currentWidthPct < 50
-                        
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth(currentWidthPct / 100f)
-                                .height(currentHeight.dp)
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val availableWidth = maxWidth
+                val spacing = 8.dp
+
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
+                    verticalArrangement = Arrangement.spacedBy(spacing)
+                ) {
+                    widgetIds.forEachIndexed { index, widgetId ->
+                        key(reorderVersion, widgetId) {
+                            val orientationPrefix = if (isLandscape) "land" else "port"
+                            val defaultHeight = if (isLandscape) 160 else 180
+                            val defaultWidth = if (isLandscape) 50 else 100
+                            val wHeight = prefs.getInt("widget_height_${orientationPrefix}_$widgetId", defaultHeight)
+                            val wWidthPct = prefs.getInt("widget_width_pct_${orientationPrefix}_$widgetId", defaultWidth)
+                            
+                            var currentWidthPct by remember(widgetId, isLandscape) { mutableIntStateOf(wWidthPct) }
+                            var currentHeight by remember(widgetId, isLandscape) { mutableIntStateOf(wHeight) }
+                            val isCompact = currentWidthPct < 50
+                            
+                            val calculatedWidth = if (currentWidthPct >= 100) {
+                                availableWidth
+                            } else {
+                                val maxCols = (100 / currentWidthPct).coerceAtLeast(1)
+                                val totalGaps = spacing * (maxCols - 1)
+                                (((availableWidth - totalGaps) * (currentWidthPct / 100f)) - 1.dp).coerceAtLeast(60.dp)
+                            }
+
+                            Card(
+                                modifier = Modifier
+                                    .width(calculatedWidth)
+                                    .height(currentHeight.dp)
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(Color.White.copy(alpha = 0.04f))
                                 .border(
@@ -660,6 +672,7 @@ fun MultiWidgetContainer(
             }
         }
     }
+}
 }
 
 /**

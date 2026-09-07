@@ -7,7 +7,7 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 --------------------------------------------------------------------------------
 
 [THE VISIONARY'S CREED & LIFE PROJECT]
-* Visionary / PM: Medical student pair-programming with autonomous AI agents (Claude Sonnet 4.6 -> Gemini Pro -> Antigravity).
+* Visionary Founder: Medical student pair-programming with autonomous AI agents (Claude Sonnet 4.6 -> Gemini Pro -> Antigravity).
 * The Core Childhood Dream:
   - From early dumbphones to modern smartphones, the device was always envisioned not as a passive glass slab running a dozen disjointed utilities, but as an adaptive sci-fi spaceship cockpit / Transformer robot.
   - Lightspeed is the manifestation of that lifetime vision: a unified, tactile, zero-telemetry meta-shell.
@@ -182,7 +182,7 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 ** HUD for vol & brightness (brightness To always take control from Video playing brightness hoarding... also swiping Down on brightness triggers extra dimming acc serv and up To exit? OR use Edge Seek?
 
 [SUPERAPP STRATEGY & MODULARITY]
-❕ Is this considered a superapp? Are super apps suitable for a hobby project utilizing ai agent and a medical student as a manager?
+❕ Is this considered a superapp? Are super apps suitable for a hobby project utilizing ai agent and a medical student as founder?
 - Verdict: OS-level Meta-Shell / Cockpit. Single monolithic APK with strict internal domain separation (:engine:gestures, :engine:overlay, :launcher:cruise). Avoid external multi-APK plugin fragmentation.
 
 [LINEAGE & DNA REGISTER (FEATURES INSPIRED BY / PORTED FROM)]

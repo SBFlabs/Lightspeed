@@ -6,7 +6,7 @@
 - App Type: Ultra-fast offline gesture launcher & cruise overlay workspace for Android.
 - Privacy & Network: 100% Offline. Zero telemetry, zero analytics, zero external network dependencies.
 - Language & Framework: Pure Kotlin, Jetpack Compose with Material 3 / Dynamic Colors, AGSL shaders, custom high-performance Canvas rendering.
-- Operating Mode: Autonomous Lead Developer (User acts as Visionary PM / Product Owner).
+- Operating Mode: Autonomous Lead Developer (User acts as Visionary Founder).
 
 ---
 

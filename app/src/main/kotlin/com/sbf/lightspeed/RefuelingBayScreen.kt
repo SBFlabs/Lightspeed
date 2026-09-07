@@ -103,6 +103,12 @@ fun RefuelingBayScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    LaunchedEffect(isLandscape, widgetLayoutMode) {
+        if (widgetLayoutMode == "adaptive_grid") {
+            (activity as? LightspeedRefuelingActivity)?.loadWidgetsForCurrentMode("adaptive_grid", isLandscape)
+        }
+    }
+
     // Tactical Widget Catalog Picker Modal State
     var showTacticalWidgetPicker by remember { mutableStateOf(false) }
 
@@ -433,7 +439,8 @@ fun RefuelingBayScreen(
                             isEditMode = isEditMode,
                             onToggleLayoutMode = onToggleLayoutMode,
                             onToggleEditMode = onToggleEditMode,
-                            onAddWidget = { showTacticalWidgetPicker = true }
+                            onAddWidget = { showTacticalWidgetPicker = true },
+                            isLandscape = true
                         )
 
                         // Multi-Widget Surface
@@ -547,7 +554,8 @@ fun RefuelingBayScreen(
                             isEditMode = isEditMode,
                             onToggleLayoutMode = onToggleLayoutMode,
                             onToggleEditMode = onToggleEditMode,
-                            onAddWidget = { showTacticalWidgetPicker = true }
+                            onAddWidget = { showTacticalWidgetPicker = true },
+                            isLandscape = false
                         )
 
                         Box(

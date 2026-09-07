@@ -53,7 +53,8 @@ fun WidgetEngineToolbar(
     isEditMode: Boolean,
     onToggleLayoutMode: () -> Unit,
     onToggleEditMode: () -> Unit,
-    onAddWidget: () -> Unit
+    onAddWidget: () -> Unit,
+    isLandscape: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -80,8 +81,14 @@ fun WidgetEngineToolbar(
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
                 )
+                val modeLabel = if (widgetLayoutMode == "smart_stack") {
+                    "STACK // ${widgetCount.toString().padStart(2, '0')}"
+                } else {
+                    val orientTag = if (isLandscape) "LAND" else "PORT"
+                    "GRID [$orientTag] // ${widgetCount.toString().padStart(2, '0')}"
+                }
                 Text(
-                    text = if (widgetLayoutMode == "smart_stack") "STACK // ${widgetCount.toString().padStart(2, '0')}" else "GRID // ${widgetCount.toString().padStart(2, '0')}",
+                    text = modeLabel,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -432,99 +439,105 @@ fun MultiWidgetContainer(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 widgetIds.forEachIndexed { index, widgetId ->
-                    val orientationPrefix = if (isLandscape) "land" else "port"
-                    val wHeight = prefs.getInt("widget_height_$widgetId", 180)
-                    val wWidthPct = prefs.getInt("widget_width_pct_${orientationPrefix}_$widgetId", if (isLandscape) 50 else 100)
-                    
-                    var currentWidthPct by remember { mutableIntStateOf(wWidthPct) }
-                    var currentHeight by remember { mutableIntStateOf(wHeight) }
-                    
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth(currentWidthPct / 100f)
-                            .height(currentHeight.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color.White.copy(alpha = 0.04f))
-                            .border(
-                                1.dp,
-                                Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.03f))),
-                                RoundedCornerShape(18.dp)
-                            ),
-                        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                        shape = RoundedCornerShape(18.dp)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            if (appWidgetHost != null && appWidgetManager != null) {
-                                AppWidgetContainerView(
-                                    activity = activity,
-                                    widgetId = widgetId,
-                                    appWidgetHost = appWidgetHost,
-                                    appWidgetManager = appWidgetManager,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(6.dp)
-                                )
-                            }
-
-                            if (isEditMode) {
-                                // X/Y Axis Authority Controls
-                                Column(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .padding(bottom = 6.dp)
-                                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        // Y Axis (Height)
-                                        IconButton(onClick = { 
-                                            val newH = (currentHeight - 20).coerceAtLeast(80)
-                                            prefs.edit().putInt("widget_height_$widgetId", newH).apply()
-                                            currentHeight = newH
-                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White) }
-                                        
-                                        Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                        
-                                        IconButton(onClick = { 
-                                            val newH = (currentHeight + 20).coerceAtMost(600)
-                                            prefs.edit().putInt("widget_height_$widgetId", newH).apply()
-                                            currentHeight = newH
-                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White) }
-                                        
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        
-                                        // X Axis (Width Pct)
-                                        IconButton(onClick = { 
-                                            val newW = (currentWidthPct - 10).coerceAtLeast(20)
-                                            prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
-                                            currentWidthPct = newW
-                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
-                                        
-                                        Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                        
-                                        IconButton(onClick = { 
-                                            val newW = (currentWidthPct + 10).coerceAtMost(100)
-                                            prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
-                                            currentWidthPct = newW
-                                        }, modifier = Modifier.size(24.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
-                                    }
+                    key(widgetId) {
+                        val orientationPrefix = if (isLandscape) "land" else "port"
+                        val defaultHeight = if (isLandscape) 160 else 180
+                        val defaultWidth = if (isLandscape) 50 else 100
+                        val wHeight = prefs.getInt("widget_height_${orientationPrefix}_$widgetId", defaultHeight)
+                        val wWidthPct = prefs.getInt("widget_width_pct_${orientationPrefix}_$widgetId", defaultWidth)
+                        
+                        var currentWidthPct by remember(widgetId, isLandscape) { mutableIntStateOf(wWidthPct) }
+                        var currentHeight by remember(widgetId, isLandscape) { mutableIntStateOf(wHeight) }
+                        
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth(currentWidthPct / 100f)
+                                .height(currentHeight.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color.White.copy(alpha = 0.04f))
+                                .border(
+                                    1.dp,
+                                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.03f))),
+                                    RoundedCornerShape(18.dp)
+                                ),
+                            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                if (appWidgetHost != null && appWidgetManager != null) {
+                                    AppWidgetContainerView(
+                                        activity = activity,
+                                        widgetId = widgetId,
+                                        appWidgetHost = appWidgetHost,
+                                        appWidgetManager = appWidgetManager,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(6.dp),
+                                        isEditMode = isEditMode
+                                    )
                                 }
 
-                                TacticalWidgetEditControls(
-                                    canMoveBack = index > 0,
-                                    canMoveForward = index < widgetIds.size - 1,
-                                    onMoveBack = { onReorderWidget(index, index - 1) },
-                                    onMoveForward = { onReorderWidget(index, index + 1) },
-                                    onRemove = { onRemoveWidget(widgetId) },
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(6.dp)
-                                )
+                                if (isEditMode) {
+                                    // X/Y Axis Authority Controls
+                                    Column(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .padding(bottom = 6.dp)
+                                            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            // Y Axis (Height)
+                                            IconButton(onClick = { 
+                                                val newH = (currentHeight - 20).coerceAtLeast(80)
+                                                prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
+                                                currentHeight = newH
+                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White) }
+                                            
+                                            Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            
+                                            IconButton(onClick = { 
+                                                val newH = (currentHeight + 20).coerceAtMost(600)
+                                                prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
+                                                currentHeight = newH
+                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White) }
+                                            
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            
+                                            // X Axis (Width Pct)
+                                            IconButton(onClick = { 
+                                                val newW = (currentWidthPct - 10).coerceAtLeast(20)
+                                                prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
+                                                currentWidthPct = newW
+                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
+                                            
+                                            Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            
+                                            IconButton(onClick = { 
+                                                val newW = (currentWidthPct + 10).coerceAtMost(100)
+                                                prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
+                                                currentWidthPct = newW
+                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
+                                        }
+                                    }
+
+                                    TacticalWidgetEditControls(
+                                        canMoveBack = index > 0,
+                                        canMoveForward = index < widgetIds.size - 1,
+                                        onMoveBack = { onReorderWidget(index, index - 1) },
+                                        onMoveForward = { onReorderWidget(index, index + 1) },
+                                        onRemove = { onRemoveWidget(widgetId) },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 }
+            }
 
                 // Add Widget Card in Dashboard (Tactical Module Mount) - Fits naturally in flow row
                 if (isEditMode || widgetIds.isEmpty()) {
@@ -579,37 +592,42 @@ fun MultiWidgetContainer(
 class ScrollableAppWidgetContainer(context: Context) : FrameLayout(context) {
     private var startX = 0f
     private var startY = 0f
-    private var isVerticalScroll = false
-    private var isHorizontalScroll = false
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+
+    private fun hasScrollableChild(v: View): Boolean {
+        if (v is android.widget.AbsListView || v is android.widget.ScrollView || v is android.widget.HorizontalScrollView) {
+            return true
+        }
+        if (v.canScrollVertically(1) || v.canScrollVertically(-1) || v.canScrollHorizontally(1) || v.canScrollHorizontally(-1)) {
+            return true
+        }
+        if (v is ViewGroup) {
+            for (i in 0 until v.childCount) {
+                if (hasScrollableChild(v.getChildAt(i))) return true
+            }
+        }
+        return false
+    }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 startX = ev.x
                 startY = ev.y
-                isVerticalScroll = false
-                isHorizontalScroll = false
+                if (hasScrollableChild(this)) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                }
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = abs(ev.x - startX)
                 val dy = abs(ev.y - startY)
-                val earlySlop = touchSlop / 3f
-                if (!isVerticalScroll && !isHorizontalScroll) {
-                    if (dy > dx && dy > earlySlop) {
-                        isVerticalScroll = true
-                        parent?.requestDisallowInterceptTouchEvent(true)
-                    } else if (dx > dy && dx > earlySlop) {
-                        isHorizontalScroll = true
-                        parent?.requestDisallowInterceptTouchEvent(true)
-                    }
-                } else {
+                if (hasScrollableChild(this)) {
                     parent?.requestDisallowInterceptTouchEvent(true)
+                } else if (dy > touchSlop || dx > touchSlop) {
+                    parent?.requestDisallowInterceptTouchEvent(false)
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isVerticalScroll = false
-                isHorizontalScroll = false
                 parent?.requestDisallowInterceptTouchEvent(false)
             }
         }
@@ -623,41 +641,57 @@ fun AppWidgetContainerView(
     widgetId: Int,
     appWidgetHost: AppWidgetHost,
     appWidgetManager: AppWidgetManager,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEditMode: Boolean = false
 ) {
-    val appWidgetInfo = remember(widgetId) {
-        try {
-            appWidgetManager.getAppWidgetInfo(widgetId)
-        } catch (_: Exception) {
-            null
+    key(widgetId) {
+        val appWidgetInfo = remember(widgetId) {
+            try {
+                appWidgetManager.getAppWidgetInfo(widgetId)
+            } catch (_: Exception) {
+                null
+            }
         }
-    }
 
-    if (appWidgetInfo != null) {
-        AndroidView(
-            modifier = modifier,
-            factory = { ctx ->
-                try {
-                    val container = ScrollableAppWidgetContainer(ctx)
-                    val hostView = appWidgetHost.createView(ctx, widgetId, appWidgetInfo)
-                    hostView.setAppWidget(widgetId, appWidgetInfo)
-                    container.addView(
-                        hostView,
-                        FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT
-                        )
-                    )
-                    container
-                } catch (e: Exception) {
-                    android.widget.TextView(ctx).apply {
-                        text = "Widget Error"
-                        setTextColor(android.graphics.Color.WHITE)
+        if (appWidgetInfo != null) {
+            Box(modifier = modifier) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { ctx ->
+                        try {
+                            val container = ScrollableAppWidgetContainer(ctx)
+                            val hostView = appWidgetHost.createView(ctx, widgetId, appWidgetInfo)
+                            hostView.setAppWidget(widgetId, appWidgetInfo)
+                            container.addView(
+                                hostView,
+                                FrameLayout.LayoutParams(
+                                    FrameLayout.LayoutParams.MATCH_PARENT,
+                                    FrameLayout.LayoutParams.MATCH_PARENT
+                                )
+                            )
+                            container
+                        } catch (e: Exception) {
+                            android.widget.TextView(ctx).apply {
+                                text = "Widget Error"
+                                setTextColor(android.graphics.Color.WHITE)
+                            }
+                        }
                     }
+                )
+
+                if (isEditMode) {
+                    // Transparent shield in edit mode so tapping near edit buttons doesn't trigger widget actions
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null
+                            ) { /* Consume widget touch in edit mode */ }
+                    )
                 }
             }
-        )
-    } else {
+        } else {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             Text(
                 text = "Widget Unavailable (ID: $widgetId)",

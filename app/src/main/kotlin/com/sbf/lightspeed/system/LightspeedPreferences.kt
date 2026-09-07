@@ -228,7 +228,9 @@ object LightspeedPreferences {
     const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id" // Legacy single ID
     const val KEY_REFUELING_WIDGET_IDS = "pref_refueling_widget_ids" // JSON array string of widget IDs
     const val KEY_REFUELING_STACK_PROFILE = "pref_refueling_stack_profile" // JSON array string of Stack widget IDs
-    const val KEY_REFUELING_GRID_PROFILE = "pref_refueling_grid_profile" // JSON array string of Grid widget IDs
+    const val KEY_REFUELING_GRID_PROFILE = "pref_refueling_grid_profile" // JSON array string of Grid widget IDs (fallback)
+    const val KEY_REFUELING_GRID_PORTRAIT_PROFILE = "pref_refueling_grid_portrait_profile" // JSON array string for Portrait
+    const val KEY_REFUELING_GRID_LANDSCAPE_PROFILE = "pref_refueling_grid_landscape_profile" // JSON array string for Landscape
     const val KEY_REFUELING_WIDGET_LAYOUT = "pref_refueling_widget_layout" // "smart_stack", "adaptive_grid"
 
     // Notch Orbital Capsule Keys
@@ -279,9 +281,11 @@ object LightspeedPreferences {
             .apply()
     }
 
-    fun getRefuelingGridWidgetIds(context: Context): List<Int> {
+    fun getRefuelingGridWidgetIds(context: Context, isLandscape: Boolean = false): List<Int> {
         val prefs = context.defaultPrefs()
-        val jsonStr = prefs.getString(KEY_REFUELING_GRID_PROFILE, null)
+        val key = if (isLandscape) KEY_REFUELING_GRID_LANDSCAPE_PROFILE else KEY_REFUELING_GRID_PORTRAIT_PROFILE
+        val jsonStr = prefs.getString(key, null)
+            ?: prefs.getString(KEY_REFUELING_GRID_PROFILE, null)
             ?: prefs.getString(KEY_REFUELING_WIDGET_IDS, null)
         if (!jsonStr.isNullOrBlank()) {
             try {
@@ -293,18 +297,20 @@ object LightspeedPreferences {
                         list.add(id)
                     }
                 }
-                return list
+                if (list.isNotEmpty()) return list
             } catch (_: Exception) {}
         }
         val legacyId = prefs.getInt(KEY_REFUELING_WIDGET_ID, -1)
         return if (legacyId != -1) listOf(legacyId) else emptyList()
     }
 
-    fun saveRefuelingGridWidgetIds(context: Context, ids: List<Int>) {
+    fun saveRefuelingGridWidgetIds(context: Context, ids: List<Int>, isLandscape: Boolean = false) {
         val prefs = context.defaultPrefs()
         val jsonArray = org.json.JSONArray()
         ids.forEach { jsonArray.put(it) }
+        val key = if (isLandscape) KEY_REFUELING_GRID_LANDSCAPE_PROFILE else KEY_REFUELING_GRID_PORTRAIT_PROFILE
         prefs.edit()
+            .putString(key, jsonArray.toString())
             .putString(KEY_REFUELING_GRID_PROFILE, jsonArray.toString())
             .putString(KEY_REFUELING_WIDGET_IDS, jsonArray.toString())
             .putInt(KEY_REFUELING_WIDGET_ID, ids.firstOrNull() ?: -1)

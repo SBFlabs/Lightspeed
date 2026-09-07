@@ -290,12 +290,23 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         }
     }
 
-    private fun loadWidgetsForCurrentMode(mode: String) {
+    private fun isCurrentLandscape(): Boolean =
+        resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    fun loadWidgetsForCurrentMode(mode: String, isLandscape: Boolean = isCurrentLandscape()) {
         widgetIdsState.clear()
         if (mode == "smart_stack") {
             widgetIdsState.addAll(LightspeedPreferences.getRefuelingStackWidgetIds(this))
         } else {
-            widgetIdsState.addAll(LightspeedPreferences.getRefuelingGridWidgetIds(this))
+            widgetIdsState.addAll(LightspeedPreferences.getRefuelingGridWidgetIds(this, isLandscape))
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (widgetLayoutModeState.value == "adaptive_grid") {
+            val isLand = newConfig.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            loadWidgetsForCurrentMode("adaptive_grid", isLand)
         }
     }
 
@@ -348,7 +359,20 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         pendingWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
         if (!widgetIdsState.contains(widgetId)) {
             widgetIdsState.add(widgetId)
-            saveCurrentModeWidgets()
+            if (widgetLayoutModeState.value == "adaptive_grid") {
+                val port = LightspeedPreferences.getRefuelingGridWidgetIds(this, false).toMutableList()
+                if (!port.contains(widgetId)) {
+                    port.add(widgetId)
+                    LightspeedPreferences.saveRefuelingGridWidgetIds(this, port, false)
+                }
+                val land = LightspeedPreferences.getRefuelingGridWidgetIds(this, true).toMutableList()
+                if (!land.contains(widgetId)) {
+                    land.add(widgetId)
+                    LightspeedPreferences.saveRefuelingGridWidgetIds(this, land, true)
+                }
+            } else {
+                saveCurrentModeWidgets()
+            }
         }
     }
 
@@ -356,7 +380,17 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         if (widgetIdsState.contains(widgetId)) {
             appWidgetHost?.deleteAppWidgetId(widgetId)
             widgetIdsState.remove(widgetId)
-            saveCurrentModeWidgets()
+            if (widgetLayoutModeState.value == "adaptive_grid") {
+                val port = LightspeedPreferences.getRefuelingGridWidgetIds(this, false).toMutableList()
+                port.remove(widgetId)
+                LightspeedPreferences.saveRefuelingGridWidgetIds(this, port, false)
+
+                val land = LightspeedPreferences.getRefuelingGridWidgetIds(this, true).toMutableList()
+                land.remove(widgetId)
+                LightspeedPreferences.saveRefuelingGridWidgetIds(this, land, true)
+            } else {
+                saveCurrentModeWidgets()
+            }
         }
     }
 
@@ -369,10 +403,11 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     }
 
     private fun saveCurrentModeWidgets() {
+        val isLand = isCurrentLandscape()
         if (widgetLayoutModeState.value == "smart_stack") {
             LightspeedPreferences.saveRefuelingStackWidgetIds(this, widgetIdsState.toList())
         } else {
-            LightspeedPreferences.saveRefuelingGridWidgetIds(this, widgetIdsState.toList())
+            LightspeedPreferences.saveRefuelingGridWidgetIds(this, widgetIdsState.toList(), isLand)
         }
     }
 

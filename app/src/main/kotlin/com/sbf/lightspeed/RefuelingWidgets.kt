@@ -5,7 +5,9 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewConfiguration
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.compose.foundation.background
@@ -537,7 +539,6 @@ fun MultiWidgetContainer(
                         }
                     }
                 }
-            }
 
                 // Add Widget Card in Dashboard (Tactical Module Mount) - Fits naturally in flow row
                 if (isEditMode || widgetIds.isEmpty()) {
@@ -692,12 +693,13 @@ fun AppWidgetContainerView(
                 }
             }
         } else {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text(
-                text = "Widget Unavailable (ID: $widgetId)",
-                color = Color.LightGray.copy(alpha = 0.6f),
-                fontSize = 11.5.sp
-            )
+            Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                Text(
+                    text = "Widget Unavailable (ID: $widgetId)",
+                    color = Color.LightGray.copy(alpha = 0.6f),
+                    fontSize = 11.5.sp
+                )
+            }
         }
     }
 }

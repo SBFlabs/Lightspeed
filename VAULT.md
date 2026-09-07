@@ -6,12 +6,15 @@ LIGHTSPEED MASTER AVIONICS VAULT: COMPLETE ACCUMULATED BACKLOG & DREAMS ARCHIVE
 PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 --------------------------------------------------------------------------------
 
-[THE VISIONARY'S CREED & LIFE PROJECT]
-* Visionary Founder: Medical student pair-programming with autonomous AI agents (Claude Sonnet 4.6 -> Gemini Pro -> Antigravity).
+[THE FOUNDER'S CREED & LIFE PROJECT]
+* Visionary Founder: Medical student and visionary builder pair-programming with autonomous AI agents (Claude Sonnet 4.6 -> Gemini Pro -> Antigravity).
+* The Founder's Dual Vocation & Real-Life Synergy:
+  - Balancing rigorous medical training with cutting-edge mobile systems architecture.
+  - Channeling clinical diagnostic precision, physiological systemic thinking, and zero-tolerance for failure into software: strict domain boundaries, 100% offline privacy, zero memory leaks, and instant sub-millisecond reflexes.
 * The Core Childhood Dream:
-  - From early dumbphones to modern smartphones, the device was always envisioned not as a passive glass slab running a dozen disjointed utilities, but as an adaptive sci-fi spaceship cockpit / Transformer robot.
-  - Lightspeed is the manifestation of that lifetime vision: a unified, tactile, zero-telemetry meta-shell.
-  - The spaceship metaphor is not superficial decoration; it is the driving joy of development and the soul of the interface.
+  - From early dumbphones to modern glass slabs, the phone was never envisioned as a passive consumer device running fragmented, ad-ridden utility apps.
+  - The dream was an adaptive sci-fi spaceship cockpit / Transformer robot that lives in your hand—tactile, responsive, and completely sovereign.
+  - Lightspeed is the lifelong realization of that dream. The spaceship metaphor is not decorative skinning—it is the soul of the vessel, the driving joy of development, and the foundational architecture of the user experience.
 
 [NON-NEGOTIABLE CORE INVARIANTS]
 1. 100% Offline & Private: Zero telemetry, zero analytics, zero external network calls.
@@ -195,7 +198,7 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
 --------------------------------------------------------------------------------
 
-[RECENTLY COMMISSIONED & DEPLOYED]
+[STATUS: IMPLEMENTED & DEPLOYED]
 ✓ Tactical Widget Reconfiguration Engine:
   - Added dedicated [Tune] / CONFIG action in edit mode to launch native AppWidgetProvider configure activities without dropping overlay state.
 ✓ Smart Stack Horizontal Swipe Bridge:
@@ -212,7 +215,12 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Added toggle to pulse deflector glow upon step-1 gesture recognition ("pref_deflector_glow_on_gesture_step").
   - Added glow duration selector ("800ms", "1500ms", "2200ms") and live "TEST FX" trigger in Central Command.
 
-[ACTIVE RUNTIME BACKLOG & NEXT PRIORITIES]
+[STATUS: WORK IN PROGRESS & PAUSED REDESIGN QUEUE]
+* Grid Mode Vertical Scroll Delegation Over Non-Overflowing Widgets (e.g., Tall Anki Deck):
+  - Current status: Reverted touch takeover to eliminate synthetic spring jitter/shivering.
+  - Active Objective: Cleanly detect when child ListView/ScrollView does not overflow and hand off vertical scroll deltas to the dashboard ScrollState without fighting native gesture detectors or introducing synthetic spring inertia.
+
+[STATUS: NOT YET IMPLEMENTED (ACTIVE BACKLOG & NEXT PRIORITIES)]
 1. "Deep Space" Aesthetic Unification:
    - Unify the background graphics engine between Cockpit Hangar and Category Cruise into a singular "Deep Space" environment (cosmic starfield, gimbal rings, warp surge transitions).
 2. Refueling Bay Toolbar Telemetry Chip Action:
@@ -222,8 +230,8 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
 4. Comprehensive Language Engine System Settings Migration:
    - Propagate dynamic string resolution (`LightspeedLanguageEngine.resolve()`) beyond Guidebook into all Central Command configuration cards, accordions, and action pickers.
 
-[PAUSED / REDESIGN QUEUE]
-* Grid Mode Vertical Scroll Delegation Over Non-Overflowing Widgets (e.g., Tall Anki Deck):
-  - Current status: Reverted touch takeover to eliminate synthetic spring jitter/shivering.
-  - Objective: Cleanly detect when child ListView/ScrollView does not overflow and hand off vertical scroll deltas to the dashboard ScrollState without fighting native gesture detectors or introducing synthetic spring inertia.
+[STATUS: EXPLICITLY DEFERRED (THE BACK BURNER)]
+1. Orbital Capsule Polish: Micro-telemetry and layout snugness for punch-hole camera cutouts.
+2. Power Button Hardware Remapping: Ignition Override in experimental labs with 7-tap safety interlock.
+3. Emergency Shizuku JITSON: Daemon keep-alive pulses.
 ================================================================================

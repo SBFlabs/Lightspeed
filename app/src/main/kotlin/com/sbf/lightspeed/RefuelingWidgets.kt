@@ -208,21 +208,25 @@ private fun TacticalWidgetEditControls(
     onMoveBack: () -> Unit,
     onMoveForward: () -> Unit,
     onRemove: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isCompact: Boolean = false
 ) {
+    val btnSize = if (isCompact) 20.dp else 26.dp
+    val iconSize = if (isCompact) 11.dp else 14.dp
+
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF070B12).copy(alpha = 0.94f))
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+            .background(Color(0xFF070B12).copy(alpha = 0.96f))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.50f), RoundedCornerShape(6.dp))
+            .padding(horizontal = if (isCompact) 3.dp else 5.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(if (isCompact) 2.dp else 4.dp)
     ) {
         if (canMoveBack) {
             Box(
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(btnSize)
                     .clip(RoundedCornerShape(4.dp))
                     .clickable { onMoveBack() },
                 contentAlignment = Alignment.Center
@@ -231,14 +235,14 @@ private fun TacticalWidgetEditControls(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Shift Prev",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(iconSize)
                 )
             }
         }
         if (canMoveForward) {
             Box(
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(btnSize)
                     .clip(RoundedCornerShape(4.dp))
                     .clickable { onMoveForward() },
                 contentAlignment = Alignment.Center
@@ -247,27 +251,27 @@ private fun TacticalWidgetEditControls(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "Shift Next",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(iconSize)
                 )
             }
         }
 
         Box(
             modifier = Modifier
-                .height(14.dp)
+                .height(if (isCompact) 12.dp else 14.dp)
                 .width(1.dp)
-                .background(Color.White.copy(alpha = 0.2f))
+                .background(Color.White.copy(alpha = 0.25f))
         )
 
         // Eject / Remove Button
         Row(
             modifier = Modifier
-                .height(24.dp)
+                .height(btnSize)
                 .clip(RoundedCornerShape(4.dp))
-                .background(Color(0xFFFF3B30).copy(alpha = 0.2f))
+                .background(Color(0xFFFF3B30).copy(alpha = 0.22f))
                 .border(0.8.dp, Color(0xFFFF3B30).copy(alpha = 0.6f), RoundedCornerShape(4.dp))
                 .clickable { onRemove() }
-                .padding(horizontal = 6.dp),
+                .padding(horizontal = if (isCompact) 5.dp else 7.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
@@ -275,15 +279,17 @@ private fun TacticalWidgetEditControls(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Eject",
                 tint = Color(0xFFFF453A),
-                modifier = Modifier.size(11.dp)
+                modifier = Modifier.size(iconSize)
             )
-            Text(
-                text = "EJECT",
-                fontSize = 9.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFFF453A)
-            )
+            if (!isCompact) {
+                Text(
+                    text = "EJECT",
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFF453A)
+                )
+            }
         }
     }
 }
@@ -299,7 +305,8 @@ fun MultiWidgetContainer(
     appWidgetManager: AppWidgetManager?,
     onPickWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
-    onReorderWidget: (Int, Int) -> Unit
+    onReorderWidget: (Int, Int) -> Unit,
+    reorderVersion: Int = 0
 ) {
     if (widgetIds.isEmpty()) {
         Card(
@@ -441,7 +448,7 @@ fun MultiWidgetContainer(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 widgetIds.forEachIndexed { index, widgetId ->
-                    key(widgetId) {
+                    key(reorderVersion, widgetId) {
                         val orientationPrefix = if (isLandscape) "land" else "port"
                         val defaultHeight = if (isLandscape) 160 else 180
                         val defaultWidth = if (isLandscape) 50 else 100
@@ -450,6 +457,7 @@ fun MultiWidgetContainer(
                         
                         var currentWidthPct by remember(widgetId, isLandscape) { mutableIntStateOf(wWidthPct) }
                         var currentHeight by remember(widgetId, isLandscape) { mutableIntStateOf(wHeight) }
+                        val isCompact = currentWidthPct < 50
                         
                         Card(
                             modifier = Modifier
@@ -481,46 +489,115 @@ fun MultiWidgetContainer(
 
                                 if (isEditMode) {
                                     // X/Y Axis Authority Controls
-                                    Column(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .padding(bottom = 6.dp)
-                                            .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
-                                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            // Y Axis (Height)
-                                            IconButton(onClick = { 
-                                                val newH = (currentHeight - 20).coerceAtLeast(80)
-                                                prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
-                                                currentHeight = newH
-                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White) }
-                                            
-                                            Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            
-                                            IconButton(onClick = { 
-                                                val newH = (currentHeight + 20).coerceAtMost(600)
-                                                prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
-                                                currentHeight = newH
-                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White) }
-                                            
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            
-                                            // X Axis (Width Pct)
-                                            IconButton(onClick = { 
-                                                val newW = (currentWidthPct - 10).coerceAtLeast(20)
-                                                prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
-                                                currentWidthPct = newW
-                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
-                                            
-                                            Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                            
-                                            IconButton(onClick = { 
-                                                val newW = (currentWidthPct + 10).coerceAtMost(100)
-                                                prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
-                                                currentWidthPct = newW
-                                            }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
+                                    if (isCompact) {
+                                        // 2-Row Responsive Stack for narrow widgets (< 50% width)
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .padding(bottom = 3.dp)
+                                                .background(Color.Black.copy(alpha = 0.90f), RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                                        ) {
+                                            // Y Height Row
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                IconButton(
+                                                    onClick = { 
+                                                        val newH = (currentHeight - 20).coerceAtLeast(80)
+                                                        prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
+                                                        currentHeight = newH
+                                                    },
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                }
+                                                Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
+                                                IconButton(
+                                                    onClick = { 
+                                                        val newH = (currentHeight + 20).coerceAtMost(600)
+                                                        prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
+                                                        currentHeight = newH
+                                                    },
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                }
+                                            }
+                                            // X Width Row
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                IconButton(
+                                                    onClick = { 
+                                                        val newW = (currentWidthPct - 10).coerceAtLeast(20)
+                                                        prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
+                                                        currentWidthPct = newW
+                                                    },
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {
+                                                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                }
+                                                Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
+                                                IconButton(
+                                                    onClick = { 
+                                                        val newW = (currentWidthPct + 10).coerceAtMost(100)
+                                                        prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
+                                                        currentWidthPct = newW
+                                                    },
+                                                    modifier = Modifier.size(18.dp)
+                                                ) {
+                                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // Standard Wide Row (>= 50% width)
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .padding(bottom = 6.dp)
+                                                .background(Color.Black.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                // Y Axis (Height)
+                                                IconButton(onClick = { 
+                                                    val newH = (currentHeight - 20).coerceAtLeast(80)
+                                                    prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
+                                                    currentHeight = newH
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White) }
+                                                
+                                                Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                
+                                                IconButton(onClick = { 
+                                                    val newH = (currentHeight + 20).coerceAtMost(600)
+                                                    prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
+                                                    currentHeight = newH
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White) }
+                                                
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                
+                                                // X Axis (Width Pct)
+                                                IconButton(onClick = { 
+                                                    val newW = (currentWidthPct - 10).coerceAtLeast(20)
+                                                    prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
+                                                    currentWidthPct = newW
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
+                                                
+                                                Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                
+                                                IconButton(onClick = { 
+                                                    val newW = (currentWidthPct + 10).coerceAtMost(100)
+                                                    prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
+                                                    currentWidthPct = newW
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
+                                            }
                                         }
                                     }
 
@@ -530,9 +607,10 @@ fun MultiWidgetContainer(
                                         onMoveBack = { onReorderWidget(index, index - 1) },
                                         onMoveForward = { onReorderWidget(index, index + 1) },
                                         onRemove = { onRemoveWidget(widgetId) },
+                                        isCompact = isCompact,
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(6.dp)
+                                            .padding(if (isCompact) 3.dp else 6.dp)
                                     )
                                 }
                             }

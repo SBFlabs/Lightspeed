@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -75,6 +76,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     private var pendingWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
 
     private val widgetIdsState = mutableStateListOf<Int>()
+    private var reorderTriggerState = mutableIntStateOf(0)
     private var widgetLayoutModeState = mutableStateOf("smart_stack")
     private var isEditModeState = mutableStateOf(false)
     private val interactionTimestampState = mutableLongStateOf(System.currentTimeMillis())
@@ -174,7 +176,8 @@ class LightspeedRefuelingActivity : ComponentActivity() {
             com.sbf.lightspeed.ui.theme.LightspeedTheme(forceDark = true) {
                 RefuelingBayScreen(
                     activity = this,
-                    widgetIds = widgetIdsState,
+                    widgetIds = widgetIdsState.toList(),
+                    reorderVersion = reorderTriggerState.intValue,
                     widgetLayoutMode = widgetLayoutModeState.value,
                     isEditMode = isEditModeState.value,
                     appWidgetHost = appWidgetHost,
@@ -300,6 +303,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         } else {
             widgetIdsState.addAll(LightspeedPreferences.getRefuelingGridWidgetIds(this, isLandscape))
         }
+        reorderTriggerState.intValue++
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
@@ -398,6 +402,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         if (fromIndex in widgetIdsState.indices && toIndex in widgetIdsState.indices && fromIndex != toIndex) {
             val item = widgetIdsState.removeAt(fromIndex)
             widgetIdsState.add(toIndex, item)
+            reorderTriggerState.intValue++
             saveCurrentModeWidgets()
         }
     }

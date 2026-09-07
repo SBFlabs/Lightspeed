@@ -96,7 +96,8 @@ fun RefuelingBayScreen(
     onToggleEditMode: () -> Unit,
     onDismiss: () -> Unit,
     externalInteractionTimestamp: Long = 0L,
-    onDeployWidgetProvider: ((AppWidgetProviderInfo) -> Unit)? = null
+    onDeployWidgetProvider: ((AppWidgetProviderInfo) -> Unit)? = null,
+    reorderVersion: Int = 0
 ) {
     val context = LocalContext.current
     val prefs = remember { context.defaultPrefs() }
@@ -459,7 +460,8 @@ fun RefuelingBayScreen(
                                 appWidgetManager = appWidgetManager,
                                 onPickWidget = { showTacticalWidgetPicker = true },
                                 onRemoveWidget = onRemoveWidget,
-                                onReorderWidget = onReorderWidget
+                                onReorderWidget = onReorderWidget,
+                                reorderVersion = reorderVersion
                             )
                         }
                     }
@@ -573,7 +575,8 @@ fun RefuelingBayScreen(
                                 appWidgetManager = appWidgetManager,
                                 onPickWidget = { showTacticalWidgetPicker = true },
                                 onRemoveWidget = onRemoveWidget,
-                                onReorderWidget = onReorderWidget
+                                onReorderWidget = onReorderWidget,
+                                reorderVersion = reorderVersion
                             )
                         }
                     }

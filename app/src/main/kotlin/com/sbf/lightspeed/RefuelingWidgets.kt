@@ -720,7 +720,7 @@ class ScrollableAppWidgetContainer(
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
     private fun hasHorizontalScrollableChild(v: View): Boolean {
-        if (v is android.widget.HorizontalScrollView) return true
+        // Only consider scrollable if the view actually has horizontal overflow
         if (v.canScrollHorizontally(1) || v.canScrollHorizontally(-1)) return true
         if (v is ViewGroup) {
             for (i in 0 until v.childCount) {
@@ -731,7 +731,8 @@ class ScrollableAppWidgetContainer(
     }
 
     private fun hasVerticalScrollableChild(v: View): Boolean {
-        if (v is android.widget.AbsListView || v is android.widget.ScrollView || v is android.widget.StackView) return true
+        // Dynamically checks if view actually has scrollable content.
+        // If Anki or Calendar has only 1-2 items that all fit on screen, this returns false!
         if (v.canScrollVertically(1) || v.canScrollVertically(-1)) return true
         if (v is ViewGroup) {
             for (i in 0 until v.childCount) {

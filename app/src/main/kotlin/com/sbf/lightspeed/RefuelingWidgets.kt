@@ -385,7 +385,8 @@ fun MultiWidgetContainer(
                                 appWidgetManager = appWidgetManager,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(8.dp)
+                                    .padding(8.dp),
+                                isStackMode = true
                             )
 
                             // Edit Overlay Controls (Tactical HUD Avionics Badge)
@@ -495,7 +496,8 @@ fun MultiWidgetContainer(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(6.dp),
-                                        isEditMode = isEditMode
+                                        isEditMode = isEditMode,
+                                        isStackMode = false
                                     )
                                 }
 
@@ -677,25 +679,41 @@ fun MultiWidgetContainer(
 
 /**
  * Custom FrameLayout host container for AppWidgetHostView.
- * Intercepts touch direction to ensure scrollable collection widgets (e.g., Calendar events list,
- * agenda, email list) can freely scroll vertically without ancestor Compose gestures stealing the touch,
- * while allowing horizontal swipes to pass through to HorizontalPager.
+ * Intercepts touch direction with smart X/Y axis discrimination:
+ * - In Stack mode (HorizontalPager): allows horizontal swipes to pass through to the stack
+ *   pager if the widget does not support X-axis scrolling, while reserving Y-axis gestures
+ *   for vertical widget collection scrolling (e.g., Calendar events, email lists, tasks).
+ * - In Grid mode: allows vertical scrolls to pass through to the dashboard column if the widget
+ *   does not support Y-axis scrolling.
  */
-class ScrollableAppWidgetContainer(context: Context) : FrameLayout(context) {
+class ScrollableAppWidgetContainer(
+    context: Context,
+    var isStackMode: Boolean = true
+) : FrameLayout(context) {
     private var startX = 0f
     private var startY = 0f
+    private var isVerticalScroll = false
+    private var isHorizontalScroll = false
+    private var currentScrollConsumed = false
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
-    private fun hasScrollableChild(v: View): Boolean {
-        if (v is android.widget.AbsListView || v is android.widget.ScrollView || v is android.widget.HorizontalScrollView) {
-            return true
-        }
-        if (v.canScrollVertically(1) || v.canScrollVertically(-1) || v.canScrollHorizontally(1) || v.canScrollHorizontally(-1)) {
-            return true
-        }
+    private fun hasHorizontalScrollableChild(v: View): Boolean {
+        if (v is android.widget.HorizontalScrollView) return true
+        if (v.canScrollHorizontally(1) || v.canScrollHorizontally(-1)) return true
         if (v is ViewGroup) {
             for (i in 0 until v.childCount) {
-                if (hasScrollableChild(v.getChildAt(i))) return true
+                if (hasHorizontalScrollableChild(v.getChildAt(i))) return true
+            }
+        }
+        return false
+    }
+
+    private fun hasVerticalScrollableChild(v: View): Boolean {
+        if (v is android.widget.AbsListView || v is android.widget.ScrollView || v is android.widget.StackView) return true
+        if (v.canScrollVertically(1) || v.canScrollVertically(-1)) return true
+        if (v is ViewGroup) {
+            for (i in 0 until v.childCount) {
+                if (hasVerticalScrollableChild(v.getChildAt(i))) return true
             }
         }
         return false
@@ -706,20 +724,33 @@ class ScrollableAppWidgetContainer(context: Context) : FrameLayout(context) {
             MotionEvent.ACTION_DOWN -> {
                 startX = ev.x
                 startY = ev.y
-                if (hasScrollableChild(this)) {
-                    parent?.requestDisallowInterceptTouchEvent(true)
-                }
+                isVerticalScroll = false
+                isHorizontalScroll = false
+                currentScrollConsumed = false
+                parent?.requestDisallowInterceptTouchEvent(true)
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = abs(ev.x - startX)
                 val dy = abs(ev.y - startY)
-                if (hasScrollableChild(this)) {
-                    parent?.requestDisallowInterceptTouchEvent(true)
-                } else if (dy > touchSlop || dx > touchSlop) {
-                    parent?.requestDisallowInterceptTouchEvent(false)
+
+                if (!isVerticalScroll && !isHorizontalScroll) {
+                    if (dy > dx && dy > touchSlop) {
+                        isVerticalScroll = true
+                        currentScrollConsumed = hasVerticalScrollableChild(this)
+                        parent?.requestDisallowInterceptTouchEvent(currentScrollConsumed)
+                    } else if (dx > dy && dx > touchSlop) {
+                        isHorizontalScroll = true
+                        currentScrollConsumed = hasHorizontalScrollableChild(this)
+                        parent?.requestDisallowInterceptTouchEvent(currentScrollConsumed)
+                    }
+                } else {
+                    parent?.requestDisallowInterceptTouchEvent(currentScrollConsumed)
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isVerticalScroll = false
+                isHorizontalScroll = false
+                currentScrollConsumed = false
                 parent?.requestDisallowInterceptTouchEvent(false)
             }
         }
@@ -734,7 +765,8 @@ fun AppWidgetContainerView(
     appWidgetHost: AppWidgetHost,
     appWidgetManager: AppWidgetManager,
     modifier: Modifier = Modifier,
-    isEditMode: Boolean = false
+    isEditMode: Boolean = false,
+    isStackMode: Boolean = true
 ) {
     key(widgetId) {
         val appWidgetInfo = remember(widgetId) {
@@ -751,7 +783,7 @@ fun AppWidgetContainerView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
                         try {
-                            val container = ScrollableAppWidgetContainer(ctx)
+                            val container = ScrollableAppWidgetContainer(ctx, isStackMode = isStackMode)
                             val hostView = appWidgetHost.createView(ctx, widgetId, appWidgetInfo)
                             hostView.setAppWidget(widgetId, appWidgetInfo)
                             container.addView(
@@ -767,6 +799,11 @@ fun AppWidgetContainerView(
                                 text = "Widget Error"
                                 setTextColor(android.graphics.Color.WHITE)
                             }
+                        }
+                    },
+                    update = { view ->
+                        if (view is ScrollableAppWidgetContainer) {
+                            view.isStackMode = isStackMode
                         }
                     }
                 )

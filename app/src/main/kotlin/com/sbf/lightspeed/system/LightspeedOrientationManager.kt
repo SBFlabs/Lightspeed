@@ -107,7 +107,21 @@ object LightspeedOrientationManager {
         toggleNativeAutoRotate(context)
     }
 
+    fun isActionOverrideAllowed(context: Context): Boolean {
+        val prefs = context.defaultPrefs()
+        val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"
+        return expiration != "disabled"
+    }
+
     fun overrideTransient360(context: Context) {
+        if (!isActionOverrideAllowed(context)) {
+            com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "GRAVITY OVERRIDE",
+                value = "ACTIONS DISABLED (BUCKETS ONLY)",
+                durationMs = 1500L
+            )
+            return
+        }
         Log.i(TAG, "Engaging transient 360° Gyro override")
         manualGestureOverride = GravityOverrideMode.FORCE_360
         LightspeedOrientationEngine.forceSensor360(context)
@@ -119,6 +133,14 @@ object LightspeedOrientationManager {
     }
 
     fun overrideTransientLandscape(context: Context) {
+        if (!isActionOverrideAllowed(context)) {
+            com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "GRAVITY OVERRIDE",
+                value = "ACTIONS DISABLED (BUCKETS ONLY)",
+                durationMs = 1500L
+            )
+            return
+        }
         Log.i(TAG, "Engaging transient Landscape override")
         manualGestureOverride = GravityOverrideMode.FORCE_LANDSCAPE
         LightspeedOrientationEngine.forceLandscape(context)
@@ -130,6 +152,14 @@ object LightspeedOrientationManager {
     }
 
     fun overrideTransientPortrait(context: Context) {
+        if (!isActionOverrideAllowed(context)) {
+            com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "GRAVITY OVERRIDE",
+                value = "ACTIONS DISABLED (BUCKETS ONLY)",
+                durationMs = 1500L
+            )
+            return
+        }
         Log.i(TAG, "Engaging transient Portrait override")
         manualGestureOverride = GravityOverrideMode.FORCE_PORTRAIT
         LightspeedOrientationEngine.forcePortrait(context)
@@ -194,14 +224,16 @@ object LightspeedOrientationManager {
     fun evaluateGravityCascade(context: Context, isLocked: Boolean? = null, foregroundPackage: String? = null) {
         val targetPackage = foregroundPackage ?: lastForegroundPackage
 
-        // Priority 1: Runtime Manual Gesture Override (Instant user veto)
-        manualGestureOverride?.let { override ->
-            when (override) {
-                GravityOverrideMode.FORCE_PORTRAIT -> LightspeedOrientationEngine.forcePortrait(context)
-                GravityOverrideMode.FORCE_LANDSCAPE -> LightspeedOrientationEngine.forceLandscape(context)
-                GravityOverrideMode.FORCE_360 -> LightspeedOrientationEngine.forceSensor360(context)
+        // Priority 1: Runtime Manual Gesture Override (Instant user veto if enabled)
+        if (isActionOverrideAllowed(context)) {
+            manualGestureOverride?.let { override ->
+                when (override) {
+                    GravityOverrideMode.FORCE_PORTRAIT -> LightspeedOrientationEngine.forcePortrait(context)
+                    GravityOverrideMode.FORCE_LANDSCAPE -> LightspeedOrientationEngine.forceLandscape(context)
+                    GravityOverrideMode.FORCE_360 -> LightspeedOrientationEngine.forceSensor360(context)
+                }
+                return
             }
-            return
         }
 
         val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager

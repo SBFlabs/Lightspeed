@@ -206,7 +206,7 @@ object LightspeedPreferences {
 
     // Orientation & Display Suppression Keys
     const val KEY_ORIENTATION_OVERLAY_POLICY = "pref_orientation_overlay_policy" // "adaptive", "portrait_only"
-    const val KEY_ORIENTATION_OVERRIDE_EXPIRATION = "pref_orientation_override_expiration" // "until_app_switch", "until_screen_off", "persistent"
+    const val KEY_ORIENTATION_OVERRIDE_EXPIRATION = "pref_orientation_override_expiration" // "until_app_switch", "until_screen_off", "persistent", "disabled"
     const val KEY_HIDE_ON_LOCKSCREEN_AND_DOCK = "pref_hide_on_lockscreen_and_dock"
     const val KEY_ORIENTATION_CONTEXT_GUARD_ENABLED = "pref_orientation_context_guard_enabled"
     const val KEY_SAVED_ACCEL_ROTATION = "pref_saved_accel_rotation"

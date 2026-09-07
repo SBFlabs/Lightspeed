@@ -3857,7 +3857,8 @@ fun CentralCommandMatrixFields(
                                                         val overrideExpirationOptions = listOf(
                                                             "until_app_switch" to "Until App Switch (Temporary)",
                                                             "until_screen_off" to "Until Screen Off / Lock",
-                                                            "persistent" to "Persistent (Won't Reset / Manual Only)"
+                                                            "persistent" to "Persistent (Won't Reset / Manual Only)",
+                                                            "disabled" to "Disabled (Action Won't Work / Buckets Only)"
                                                         )
 
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {

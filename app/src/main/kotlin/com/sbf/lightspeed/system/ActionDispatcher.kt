@@ -69,8 +69,8 @@ object ActionDispatcher {
             token == LightspeedOrientationManager.ACTION_GRAVITY_RESET || token == "system:gravity_reset" || token == "ACTION_GRAVITY_RESET" -> {
                 LightspeedOrientationManager.resetGravity(context)
             }
-            token == LightspeedOrientationManager.ACTION_GRAVITY_TOGGLE_MASTER || token == "system:gravity_toggle_master" || token == LightspeedOrientationManager.ACTION_TOGGLE_ROTATION || token == "system:orientation_toggle" || token == "orientation_toggle" -> {
-                LightspeedOrientationManager.toggleMasterAutoRotate(context)
+            token == LightspeedOrientationManager.ACTION_AUTO_ROTATE_TOGGLE || token == "system:auto_rotate_toggle" || token == "system:toggle_auto_rotate" || token == "auto_rotate_toggle" || token == LightspeedOrientationManager.ACTION_GRAVITY_TOGGLE_MASTER || token == "system:gravity_toggle_master" || token == LightspeedOrientationManager.ACTION_TOGGLE_ROTATION || token == "system:orientation_toggle" || token == "orientation_toggle" -> {
+                LightspeedOrientationManager.toggleNativeAutoRotate(context)
             }
             token == LightspeedOrientationManager.ACTION_GRAVITY_OVERRIDE_360 || token == "system:gravity_override_360" || token == LightspeedOrientationManager.ACTION_FORCE_SENSOR_360 || token == "system:orientation_sensor_360" || token == "orientation_sensor_360" -> {
                 LightspeedOrientationManager.overrideTransient360(context)

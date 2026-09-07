@@ -49,6 +49,7 @@ import com.sbf.lightspeed.system.LightspeedBackupEngine
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
+import com.sbf.lightspeed.system.LightspeedOrientationManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
 import com.sbf.lightspeed.system.ElevatedTaskCloser
@@ -3556,14 +3557,14 @@ fun CentralCommandMatrixFields(
                                                     }
 
                                                     // 2. Synthetic Gravity Engine (Orientation Rules)
-                                                    var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
+                                                    var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)) }
                                                     var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
                                                     var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
 
                                                     DisposableEffect(Unit) {
                                                         val observer = LightspeedOrientationEngine.registerObserver(
                                                             context,
-                                                            onAutoRotateChanged = { isAutoRotateActive = it },
+                                                            onAutoRotateChanged = { isAutoRotateActive = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context) },
                                                             onFaceRotateChanged = { isFaceRotateActive = it }
                                                         )
                                                         onDispose {
@@ -3598,14 +3599,61 @@ fun CentralCommandMatrixFields(
                                                             prefs.edit().putBoolean("pref_sub_orientation", isOrientationSubSectionExpanded).apply()
                                                         }
                                                     ) {
+                                                        // 0. Permission Warning Interlock
+                                                        val hasPermission = remember(context) {
+                                                            LightspeedOrientationEngine.hasPermission(context)
+                                                        }
+                                                        if (!hasPermission) {
+                                                            Card(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .padding(vertical = 4.dp)
+                                                                    .clip(RoundedCornerShape(12.dp))
+                                                                    .clickable {
+                                                                        LightspeedOrientationEngine.requestWriteSettingsPermission(context)
+                                                                    },
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Icon(
+                                                                        Icons.Default.Warning,
+                                                                        contentDescription = null,
+                                                                        tint = MaterialTheme.colorScheme.error,
+                                                                        modifier = Modifier.size(20.dp)
+                                                                    )
+                                                                    Spacer(modifier = Modifier.width(10.dp))
+                                                                    Column(modifier = Modifier.weight(1f)) {
+                                                                        Text(
+                                                                            "Modify System Settings Permission Required",
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            fontSize = 12.sp,
+                                                                            color = Color.White
+                                                                        )
+                                                                        Spacer(modifier = Modifier.height(2.dp))
+                                                                        Text(
+                                                                            "Tap to allow Lightspeed to modify system settings so it can control device rotation and synthetic gravity.",
+                                                                            fontSize = 10.5.sp,
+                                                                            color = Color.LightGray.copy(alpha = 0.85f),
+                                                                            lineHeight = 13.sp
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
                                                         // 1. Master Auto-Rotate Switch
                                                         PrefToggleRow(
                                                             title = "Master Auto-Rotate",
                                                             subtitle = "Global Android accelerometer orientation trigger (Settings.System.ACCELEROMETER_ROTATION)",
                                                             isChecked = isAutoRotateActive,
                                                             onCheckedChange = {
-                                                                LightspeedOrientationEngine.setAutoRotateEnabled(context, it)
-                                                                isAutoRotateActive = it
+                                                                LightspeedOrientationManager.toggleNativeAutoRotate(context)
+                                                                isAutoRotateActive = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
                                                                 onRefreshNeeded()
                                                             }
                                                         )

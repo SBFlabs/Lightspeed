@@ -22,6 +22,10 @@ import android.view.Surface
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.database.ContentObserver
+import android.net.Uri
+import android.provider.Settings
+import android.util.Log
 import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -64,6 +68,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private var mediaScrubberOverlayView: LightspeedMediaScrubberOverlay? = null
 
     private var systemStateReceiver: BroadcastReceiver? = null
+    private var rotationContentObserver: ContentObserver? = null
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {}
@@ -141,6 +146,25 @@ class LightspeedAccessibilityService : AccessibilityService() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         displayManager = getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
         displayManager?.registerDisplayListener(displayListener, handler)
+
+        rotationContentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) {
+                super.onChange(selfChange, uri)
+                if (!com.sbf.lightspeed.system.LightspeedOrientationEngine.isRecentInternalWrite()) {
+                    val isEnabled = com.sbf.lightspeed.system.LightspeedOrientationEngine.isAutoRotateEnabled(this@LightspeedAccessibilityService)
+                    com.sbf.lightspeed.system.LightspeedOrientationManager.onExternalAutoRotateChanged(this@LightspeedAccessibilityService, isEnabled)
+                }
+            }
+        }
+        try {
+            contentResolver.registerContentObserver(
+                Settings.System.getUriFor(Settings.System.ACCELEROMETER_ROTATION),
+                false,
+                rotationContentObserver!!
+            )
+        } catch (e: Exception) {
+            Log.w("AccessibilityService", "Failed registering rotationContentObserver", e)
+        }
 
         // 1. Initialize Right Sidebar Overlay Window
         windowParams = WindowManager.LayoutParams(
@@ -886,6 +910,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
         LightspeedKeyEngine.reset()
         com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
         displayManager?.unregisterDisplayListener(displayListener)
+        rotationContentObserver?.let {
+            try { contentResolver.unregisterContentObserver(it) } catch (_: Exception) {}
+            rotationContentObserver = null
+        }
         systemStateReceiver?.let {
             try { unregisterReceiver(it) } catch (_: Exception) {}
             systemStateReceiver = null

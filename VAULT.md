@@ -168,7 +168,7 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 * Scroll action fallback fixes (tap chaos)
 * Freeform windows OEM vs stock android
 * Progressive blur turning whitish
-** Rotating back to portrait after closing Brawl Stars messes things up? pressing Home fixes it
+✓ [RESOLVED] Rotating back to portrait after closing Brawl Stars messes things up (Fixed via baseline separation and ROTATION_0 reset)
 
 [OPTIMIZE & REFACTOR]
 * Update dependencies?
@@ -214,6 +214,12 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Implemented 4 aesthetic finishes: Heavy Progressive Frost (glass diffusion), Material Surface Shade (dynamic M3 tone), Crimson Reactor (thermal warning core), and Cyber Plasma (full-spectrum kinetic gradient).
   - Added toggle to pulse deflector glow upon step-1 gesture recognition ("pref_deflector_glow_on_gesture_step").
   - Added glow duration selector ("800ms", "1500ms", "2200ms") and live "TEST FX" trigger in Central Command.
+✓ Synthetic Gravity Engine & Native Auto-Rotation Resolution:
+  - Decoupled persistent Master Auto-Rotate baseline from transient hardware system setting writes (`Settings.System.ACCELEROMETER_ROTATION`), eliminating circular setting corruption.
+  - Fixed landscape app exit glitch (Brawl Stars 90° lock): ensured unconstrained rotation resets `USER_ROTATION` to `Surface.ROTATION_0` and restores baseline auto-rotate without requiring Home button press.
+  - Added dedicated system action `system:auto_rotate_toggle` ("Toggle Native Auto-Rotate") with instant avionics canopy HUD telemetry ("360° GYRO (ENABLED)" / "0° PORTRAIT (LOCKED)").
+  - Synchronized external Quick Settings auto-rotate toggles via internal write tracking and ContentObserver in `LightspeedAccessibilityService`.
+  - Added Central Command `WRITE_SETTINGS` permission diagnostics card with direct intent launcher.
 
 [STATUS: WORK IN PROGRESS & PAUSED REDESIGN QUEUE]
 * Grid Mode Vertical Scroll Delegation Over Non-Overflowing Widgets (e.g., Tall Anki Deck):

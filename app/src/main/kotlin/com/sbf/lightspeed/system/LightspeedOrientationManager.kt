@@ -24,6 +24,7 @@ import android.view.Surface
 object LightspeedOrientationManager {
     private const val TAG = "SyntheticGravityEngine"
 
+    const val ACTION_AUTO_ROTATE_TOGGLE = "system:auto_rotate_toggle"
     const val ACTION_GRAVITY_RESET = "system:gravity_reset"
     const val ACTION_GRAVITY_TOGGLE_MASTER = "system:gravity_toggle_master"
     const val ACTION_GRAVITY_OVERRIDE_360 = "system:gravity_override_360"
@@ -56,56 +57,128 @@ object LightspeedOrientationManager {
     fun resetGravity(context: Context) {
         Log.i(TAG, "Restoring Default Gravity baseline")
         manualGestureOverride = null
+        val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+            title = "GRAVITY RESTORED",
+            value = "DEFAULT BASELINE",
+            durationMs = 1800L
+        )
+        if (!shown) {
+            android.widget.Toast.makeText(context, "Gravity Restored", android.widget.Toast.LENGTH_SHORT).show()
+        }
         evaluateGravityCascade(context)
     }
 
-    fun toggleMasterAutoRotate(context: Context) {
-        Log.i(TAG, "Toggling Master Auto-Rotate")
-        LightspeedOrientationEngine.toggleAutoRotate(context)
+    fun toggleNativeAutoRotate(context: Context) {
+        if (!LightspeedOrientationEngine.hasPermission(context)) {
+            LightspeedOrientationEngine.requestWriteSettingsPermission(context)
+            return
+        }
+
+        val currentBaseline = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
+        val newBaseline = !currentBaseline
+        Log.i(TAG, "Toggling native auto-rotate baseline: $currentBaseline -> $newBaseline")
+        LightspeedOrientationEngine.setMasterAutoRotateBaseline(context, newBaseline)
+
+        // Clear transient manual override
         manualGestureOverride = null
-        evaluateGravityCascade(context)
+
+        // Apply immediately to system
+        if (newBaseline) {
+            LightspeedOrientationEngine.forceSensor360(context)
+        } else {
+            LightspeedOrientationEngine.forcePortrait(context)
+        }
+
+        // Avionics HUD feedback
+        val label = if (newBaseline) "360° GYRO (ENABLED)" else "0° PORTRAIT (LOCKED)"
+        val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+            title = "AUTO-ROTATE",
+            value = label,
+            stepIndex = if (newBaseline) 1 else 0,
+            totalSteps = 2,
+            durationMs = 1800L
+        )
+        if (!shown) {
+            android.widget.Toast.makeText(context, "Auto-Rotate: $label", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun toggleMasterAutoRotate(context: Context) {
+        toggleNativeAutoRotate(context)
     }
 
     fun overrideTransient360(context: Context) {
         Log.i(TAG, "Engaging transient 360° Gyro override")
         manualGestureOverride = GravityOverrideMode.FORCE_360
         LightspeedOrientationEngine.forceSensor360(context)
+        com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+            title = "GRAVITY OVERRIDE",
+            value = "FORCED 360° GYRO",
+            durationMs = 1800L
+        )
     }
 
     fun overrideTransientLandscape(context: Context) {
         Log.i(TAG, "Engaging transient Landscape override")
         manualGestureOverride = GravityOverrideMode.FORCE_LANDSCAPE
         LightspeedOrientationEngine.forceLandscape(context)
+        com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+            title = "GRAVITY OVERRIDE",
+            value = "FORCED LANDSCAPE (90°)",
+            durationMs = 1800L
+        )
     }
 
     fun overrideTransientPortrait(context: Context) {
         Log.i(TAG, "Engaging transient Portrait override")
         manualGestureOverride = GravityOverrideMode.FORCE_PORTRAIT
         LightspeedOrientationEngine.forcePortrait(context)
+        com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+            title = "GRAVITY OVERRIDE",
+            value = "FORCED PORTRAIT (0°)",
+            durationMs = 1800L
+        )
     }
 
     // Aliases for backward compatibility
-    fun toggleRotation(context: Context) = toggleMasterAutoRotate(context)
+    fun toggleRotation(context: Context) = toggleNativeAutoRotate(context)
     fun forcePortrait(context: Context) = overrideTransientPortrait(context)
     fun forceSensor360(context: Context) = overrideTransient360(context)
     fun setSensorPortrait(context: Context) = overrideTransientPortrait(context)
 
-    fun onForegroundPackageChanged(context: Context, newPackage: String?, isLocked: Boolean) {
-        if (newPackage.isNullOrBlank()) return
-        val isSelf = newPackage == context.packageName || newPackage.contains("com.sbf.lightspeed")
-        val isSystemUI = newPackage == "com.android.systemui" || newPackage == "android"
+    fun onExternalAutoRotateChanged(context: Context, isEnabled: Boolean) {
+        Log.i(TAG, "External Auto-Rotate change synced: $isEnabled")
+        LightspeedOrientationEngine.setMasterAutoRotateBaseline(context, isEnabled)
+        evaluateGravityCascade(context)
+    }
 
-        if (isSelf || isSystemUI) {
-            // Transient override is preserved during overlays & heads-up notifications
+    fun onForegroundPackageChanged(context: Context, newPackage: String?, isLocked: Boolean) {
+        val targetPkg = newPackage ?: lastForegroundPackage
+        val isSelf = targetPkg != null && (targetPkg == context.packageName || targetPkg.contains("com.sbf.lightspeed"))
+        val isSystemUI = targetPkg == "com.android.systemui" || targetPkg == "android"
+
+        // Keyguard lockscreen must evaluate guardrails even if package is com.android.systemui
+        if (isLocked) {
+            evaluateGravityCascade(context, isLocked = true, foregroundPackage = targetPkg)
             return
         }
 
-        if (newPackage != lastForegroundPackage) {
-            lastForegroundPackage = newPackage
+        if (isSelf) {
+            // Transient override is preserved during overlays & internal settings
+            return
+        }
+
+        if (isSystemUI) {
+            // Transient override is preserved during notifications & quick settings
+            return
+        }
+
+        if (!targetPkg.isNullOrBlank() && targetPkg != lastForegroundPackage) {
+            lastForegroundPackage = targetPkg
             // Yields/Clears transient override on app/task switch
             manualGestureOverride = null
         }
-        evaluateGravityCascade(context, isLocked = isLocked, foregroundPackage = newPackage)
+        evaluateGravityCascade(context, isLocked = isLocked, foregroundPackage = targetPkg)
     }
 
     fun onScreenOff(context: Context) {
@@ -179,8 +252,9 @@ object LightspeedOrientationManager {
             }
         }
 
-        // Priority 4: Master Auto-Rotate baseline (Auto-Rotate Off [0° Locked] vs Auto-Rotate On [360° Gyro])
-        if (LightspeedOrientationEngine.isAutoRotateEnabled(context)) {
+        // Priority 4: Master Auto-Rotate baseline (Persistent User Baseline)
+        val masterAutoRotate = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
+        if (masterAutoRotate) {
             LightspeedOrientationEngine.forceSensor360(context)
         } else {
             LightspeedOrientationEngine.forcePortrait(context)

@@ -154,7 +154,13 @@ fun buildFlatItemsList(
                     "sys_orient",
                     "System Attitude & Orientation",
                     listOf(
+                        "system:auto_rotate_toggle",
+                        "system:gravity_reset",
+                        "system:gravity_override_portrait",
+                        "system:gravity_override_landscape",
+                        "system:gravity_override_360",
                         "system:orientation_toggle",
+                        "system:gravity_toggle_master",
                         "system:orientation_portrait",
                         "system:orientation_sensor_360",
                         "system:orientation_sensor_portrait"

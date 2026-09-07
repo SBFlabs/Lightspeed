@@ -51,9 +51,17 @@ object LightspeedOrientationEngine {
         )
     }
 
-    private var isContextGuarded = false
-    private var preGuardAccelRotation: Int = 1
-    private var preGuardUserRotation: Int = Surface.ROTATION_0
+    @Volatile
+    private var lastInternalWriteTime = 0L
+    private var lastPermissionPromptTime = 0L
+
+    fun isRecentInternalWrite(): Boolean {
+        return android.os.SystemClock.uptimeMillis() - lastInternalWriteTime < 600L
+    }
+
+    fun recordInternalWrite() {
+        lastInternalWriteTime = android.os.SystemClock.uptimeMillis()
+    }
 
     fun canWriteSettings(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -61,6 +69,45 @@ object LightspeedOrientationEngine {
         } else {
             true
         }
+    }
+
+    fun hasPermission(context: Context): Boolean {
+        return canWriteSettings(context) || ElevatedTaskCloser.isShizukuActive || ElevatedTaskCloser.isRootActive
+    }
+
+    fun requestWriteSettingsPermission(context: Context) {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastPermissionPromptTime < 3000L) return
+        lastPermissionPromptTime = now
+        try {
+            val intent = android.content.Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            android.widget.Toast.makeText(
+                context,
+                "Lightspeed requires 'Modify system settings' permission to control screen rotation",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch ACTION_MANAGE_WRITE_SETTINGS", e)
+        }
+    }
+
+    fun getMasterAutoRotateBaseline(context: Context): Boolean {
+        val prefs = context.defaultPrefs()
+        if (!prefs.contains(LightspeedPreferences.KEY_SAVED_ACCEL_ROTATION)) {
+            val systemDefault = isAutoRotateEnabled(context)
+            prefs.edit().putBoolean(LightspeedPreferences.KEY_SAVED_ACCEL_ROTATION, systemDefault).apply()
+            return systemDefault
+        }
+        return prefs.getBoolean(LightspeedPreferences.KEY_SAVED_ACCEL_ROTATION, true)
+    }
+
+    fun setMasterAutoRotateBaseline(context: Context, enabled: Boolean) {
+        val prefs = context.defaultPrefs()
+        prefs.edit().putBoolean(LightspeedPreferences.KEY_SAVED_ACCEL_ROTATION, enabled).apply()
     }
 
     fun isAutoRotateEnabled(context: Context): Boolean {
@@ -74,11 +121,12 @@ object LightspeedOrientationEngine {
     fun setAutoRotateEnabled(context: Context, enabled: Boolean): Boolean {
         val target = if (enabled) 1 else 0
         Log.i(TAG, "Setting Accelerometer Rotation: $target")
+        setMasterAutoRotateBaseline(context, enabled)
         return writeSystemSetting(context, Settings.System.ACCELEROMETER_ROTATION, target)
     }
 
     fun toggleAutoRotate(context: Context): Boolean {
-        val current = isAutoRotateEnabled(context)
+        val current = getMasterAutoRotateBaseline(context)
         return setAutoRotateEnabled(context, !current)
     }
 
@@ -159,9 +207,11 @@ object LightspeedOrientationEngine {
     fun forceSensor360(context: Context) {
         Log.i(TAG, "Forcing full 360° sensor auto-rotation")
         writeSystemSetting(context, Settings.System.ACCELEROMETER_ROTATION, 1)
+        writeSystemSetting(context, Settings.System.USER_ROTATION, Surface.ROTATION_0)
     }
 
     private fun writeSystemSetting(context: Context, name: String, value: Int): Boolean {
+        recordInternalWrite()
         if (canWriteSettings(context)) {
             try {
                 Settings.System.putInt(context.contentResolver, name, value)
@@ -199,55 +249,7 @@ object LightspeedOrientationEngine {
         prefs.edit().putStringSet(bucket.prefKey, packages).apply()
     }
 
-    /**
-     * Contextual Guardrails & App Rules Evaluation.
-     */
-    fun evaluateContextAndAppRules(context: Context, isLocked: Boolean, currentPackage: String?) {
-        val prefs = context.defaultPrefs()
-        val guardEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ORIENTATION_CONTEXT_GUARD_ENABLED, true)
-        if (!guardEnabled) return
 
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        val inCall = audioManager?.mode == AudioManager.MODE_IN_CALL || audioManager?.mode == AudioManager.MODE_IN_COMMUNICATION
-
-        val isLauncher = isDefaultLauncherPackage(context, currentPackage)
-
-        // Check assigned buckets
-        val strictPortraitApps = getAssignedPackages(context, AttitudeBucket.STRICT_PORTRAIT)
-        val sensorPortraitApps = getAssignedPackages(context, AttitudeBucket.SENSOR_PORTRAIT)
-        val sensorLandscapeApps = getAssignedPackages(context, AttitudeBucket.SENSOR_LANDSCAPE)
-        val sensor360Apps = getAssignedPackages(context, AttitudeBucket.SENSOR_360)
-
-        val isStrictApp = currentPackage != null && strictPortraitApps.contains(currentPackage)
-        val isSensorPortApp = currentPackage != null && sensorPortraitApps.contains(currentPackage)
-        val isLandscapeApp = currentPackage != null && sensorLandscapeApps.contains(currentPackage)
-        val is360App = currentPackage != null && sensor360Apps.contains(currentPackage)
-
-        val shouldGuard = inCall || isLocked || isLauncher || isStrictApp || isSensorPortApp || isLandscapeApp || is360App
-
-        if (shouldGuard) {
-            if (!isContextGuarded) {
-                preGuardAccelRotation = if (isAutoRotateEnabled(context)) 1 else 0
-                preGuardUserRotation = getUserRotation(context)
-                isContextGuarded = true
-                Log.d(TAG, "Engaged orientation guardrail. Saved: accel=$preGuardAccelRotation, user=$preGuardUserRotation")
-            }
-
-            when {
-                inCall || isStrictApp -> forcePortrait(context)
-                isLocked || isLauncher || isSensorPortApp -> setSensorPortrait(context)
-                isLandscapeApp -> forceLandscape(context)
-                is360App -> forceSensor360(context)
-            }
-        } else {
-            if (isContextGuarded) {
-                Log.d(TAG, "Leaving guarded context. Restoring: accel=$preGuardAccelRotation, user=$preGuardUserRotation")
-                writeSystemSetting(context, Settings.System.USER_ROTATION, preGuardUserRotation)
-                writeSystemSetting(context, Settings.System.ACCELEROMETER_ROTATION, preGuardAccelRotation)
-                isContextGuarded = false
-            }
-        }
-    }
 
     fun isDefaultLauncherPackage(context: Context, pkg: String?): Boolean {
         if (pkg.isNullOrBlank()) return false

@@ -50,15 +50,11 @@ object LightspeedActionRegistry {
         "system:notifications",
         "system:quick_settings",
         "system:scroll_to_top",
+        "system:auto_rotate_toggle",
         "system:gravity_reset",
-        "system:gravity_toggle_master",
-        "system:gravity_override_360",
-        "system:gravity_override_landscape",
         "system:gravity_override_portrait",
-        "system:orientation_toggle",
-        "system:orientation_portrait",
-        "system:orientation_sensor_360",
-        "system:orientation_sensor_portrait",
+        "system:gravity_override_landscape",
+        "system:gravity_override_360",
 
         // 3. Gesture Scrubbers & Sliders
         "system:screen_timeout",
@@ -256,8 +252,8 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
+        token == "system:auto_rotate_toggle" || token == "system:toggle_auto_rotate" || token == "system:gravity_toggle_master" || token == "ACTION_GRAVITY_TOGGLE_MASTER" || token == "system:orientation_toggle" || token == "ACTION_TOGGLE_ROTATION" -> "Toggle Native Auto-Rotate"
         token == "system:gravity_reset" || token == "ACTION_GRAVITY_RESET" -> "Restore Default Gravity"
-        token == "system:gravity_toggle_master" || token == "ACTION_GRAVITY_TOGGLE_MASTER" || token == "system:orientation_toggle" -> "Toggle Master Auto-Rotate"
         token == "system:gravity_override_360" || token == "ACTION_GRAVITY_OVERRIDE_360" || token == "system:orientation_sensor_360" -> "Force Transient 360° Gyro"
         token == "system:gravity_override_landscape" || token == "ACTION_GRAVITY_OVERRIDE_LANDSCAPE" -> "Force Transient Landscape"
         token == "system:gravity_override_portrait" || token == "ACTION_GRAVITY_OVERRIDE_PORTRAIT" || token == "system:orientation_portrait" || token == "system:orientation_sensor_portrait" -> "Force Transient Portrait"

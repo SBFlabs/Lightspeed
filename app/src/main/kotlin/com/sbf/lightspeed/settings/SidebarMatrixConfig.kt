@@ -156,6 +156,8 @@ fun SidebarMatrixConfigurationFields(
     var isNotchCalibExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", false)) }
     var isMarqueeSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", false)) }
     var isOrientationSubSectionExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_orientation", false)) }
+    val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
+    var isOemNoticeDemoted by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_demoted", false)) }
 
     // Live Impulse Calibration Meter State (Hull Tap)
     var currentZImpulse by remember { mutableFloatStateOf(0f) }
@@ -466,10 +468,18 @@ fun SidebarMatrixConfigurationFields(
         when (jumpTargetSection) {
             "statusbar", "sensor_deck" -> isSensorDeckExpanded = true
             "telemetry", "telemetry_indicators" -> isTelemetryExpanded = true
-            "volumekeys", "tactical_hardware", "power", "backtap" -> isTacticalHardwareExpanded = true
+            "volumekeys", "tactical_hardware", "backtap" -> isTacticalHardwareExpanded = true
             "refueling", "refueling_bay" -> isRefuelingExpanded = true
             "backup", "config_vault", "shizuku_jettison" -> isConfigVaultExpanded = true
             "experimental_labs", "labs", "experimental", "core_cooling" -> isExperimentalLabsExpanded = true
+            "power", "power_button" -> {
+                isExperimentalLabsExpanded = true
+                isSubPowerExpanded = true
+            }
+            "orbital", "orbital_capsule", "notch" -> {
+                isExperimentalLabsExpanded = true
+                isNotchCalibExpanded = true
+            }
             "wings" -> {
                 if (jumpTargetTab == 0) isLeftCenterExpanded = true
                 else isCenterExpanded = true
@@ -492,7 +502,7 @@ fun SidebarMatrixConfigurationFields(
                     (if (isRightFlankUnified) isRightUnifiedExpanded else isTopExpanded || isBottomExpanded)
                 )
                 val anyRail = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
-                val notchActive = page == 1 && isTelemetryExpanded && isNotchCalibExpanded
+                val notchActive = page == 1 && isExperimentalLabsExpanded && isNotchCalibExpanded
                 val railActive = page == 1 && isTelemetryExpanded && anyRail
                 prefs.edit()
                     .putBoolean("pref_sidebar_left_preview", leftActive)
@@ -1143,19 +1153,15 @@ fun SidebarMatrixConfigurationFields(
                                                 onToggle = {
                                                     toggleSection(1, "telemetry_indicators", isTelemetryExpanded) { isTelemetryExpanded = it }
                                                     val anyRail = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
-                                                    val notchActive = isTelemetryExpanded && isNotchCalibExpanded
                                                     val railActive = isTelemetryExpanded && anyRail
                                                     prefs.edit()
                                                         .putBoolean("pref_section_telemetry_expanded", isTelemetryExpanded)
-                                                        .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
                                                         .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
                                                         .apply()
                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                    val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
-                                                    var isOemNoticeDemoted by remember { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_demoted", false)) }
                                                     val isNotifAccessGranted = remember(isTelemetryExpanded) {
                                                         val pkgName = context.packageName
                                                         val flat = android.provider.Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
@@ -2153,258 +2159,54 @@ fun SidebarMatrixConfigurationFields(
                                                         )
                                                     }
 
-                                                    // 5. Orbital Capsule Calibration
-                                                    CollapsibleSubSection(
-                                                        title = "Orbital Capsule Calibration (Dynamic Cutout HUD)",
-                                                        subtitle = "Layout modes, vertical snugness height, expansion width & orientation",
-                                                        isExpanded = isNotchCalibExpanded,
-                                                        onToggle = {
-                                                            isNotchCalibExpanded = !isNotchCalibExpanded
-                                                            prefs.edit()
-                                                                .putBoolean("pref_sub_notch_calib", isNotchCalibExpanded)
-                                                                .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isNotchCalibExpanded)
-                                                                .apply()
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                            onRefreshNeeded()
-                                                        }
+                                                    // Tactical Shortcut to Experimental Labs for Orbital Capsule
+                                                    Card(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clip(RoundedCornerShape(12.dp))
+                                                            .clickable {
+                                                                isExperimentalLabsExpanded = true
+                                                                isNotchCalibExpanded = true
+                                                                onRefreshNeeded()
+                                                            }
+                                                            .padding(vertical = 4.dp),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.35f))
                                                     ) {
-                                                        // OEM Dynamic Notch / Dynamic Bar Advisory Glass Callout
-                                                        if (!isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
-                                                            Card(
-                                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                                shape = RoundedCornerShape(12.dp),
-                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-                                                            ) {
-                                                                Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Icon(
-                                                                            imageVector = Icons.Default.Info,
-                                                                            contentDescription = null,
-                                                                            tint = MaterialTheme.colorScheme.primary,
-                                                                            modifier = Modifier.size(20.dp)
-                                                                        )
-                                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                                        Column(modifier = Modifier.weight(1f)) {
-                                                                            Text(
-                                                                                text = "OEM Dynamic Island Conflicts",
-                                                                                fontSize = 12.sp,
-                                                                                fontWeight = FontWeight.Bold,
-                                                                                color = Color.White
-                                                                            )
-                                                                            Text(
-                                                                                text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
-                                                                                fontSize = 11.sp,
-                                                                                color = Color.LightGray.copy(alpha = 0.85f),
-                                                                                lineHeight = 14.sp
-                                                                            )
-                                                                        }
-                                                                        IconButton(
-                                                                            onClick = {
-                                                                                isOemNoticeDemoted = true
-                                                                                prefs.edit().putBoolean("pref_oem_notch_notice_demoted", true).apply()
-                                                                            },
-                                                                            modifier = Modifier.size(24.dp)
-                                                                        ) {
-                                                                            Icon(Icons.Outlined.VerticalAlignBottom, contentDescription = "Demote to Footnote", tint = Color.LightGray, modifier = Modifier.size(16.dp))
-                                                                        }
-                                                                    }
-                                                                    Button(
-                                                                        onClick = { OemNotchDetector.openSearch(context) },
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        shape = RoundedCornerShape(8.dp),
-                                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                                                                    ) {
-                                                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                                                            Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-                                                                            Spacer(modifier = Modifier.width(6.dp))
-                                                                            Text("Open $oemFeatureName Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
-                                                                        }
-                                                                    }
-                                                                }
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Sensors,
+                                                                contentDescription = null,
+                                                                tint = Color(0xFFFFB300),
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    text = "Orbital Capsule Configuration",
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    fontSize = 12.sp,
+                                                                    color = Color.White
+                                                                )
+                                                                Text(
+                                                                    text = "Dynamic cutout HUD calibration & marquee engine have moved to the Experimental Labs deck below. Tap to configure.",
+                                                                    fontSize = 10.5.sp,
+                                                                    color = Color.LightGray.copy(alpha = 0.85f),
+                                                                    lineHeight = 14.sp
+                                                                )
                                                             }
+                                                            Icon(
+                                                                imageVector = Icons.Default.ChevronRight,
+                                                                contentDescription = null,
+                                                                tint = Color(0xFFFFB300).copy(alpha = 0.7f),
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
                                                         }
-
-                                                        val currentCapsuleOrientMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, "both") ?: "both"
-                                                        var isCapsuleOrientDropdownOpen by remember { mutableStateOf(false) }
-                                                        val capsuleOrientOptions = listOf(
-                                                            "both" to "🔄 Both Orientations",
-                                                            "portrait_only" to "📱 Portrait Only (Recommended for Cutout HUD)",
-                                                            "landscape_only" to "📐 Landscape Only"
-                                                        )
-
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                                                            Text("CAPSULE ORIENTATION DISPLAY RULE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            Spacer(modifier = Modifier.height(4.dp))
-                                                            Box {
-                                                                OutlinedButton(
-                                                                    onClick = { isCapsuleOrientDropdownOpen = true },
-                                                                    modifier = Modifier.fillMaxWidth(),
-                                                                    shape = RoundedCornerShape(12.dp)
-                                                                ) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Text(capsuleOrientOptions.firstOrNull { it.first == currentCapsuleOrientMode }?.second ?: "🔄 Both Orientations", color = Color.White, fontSize = 12.sp)
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                                    }
-                                                                }
-                                                                DropdownMenu(
-                                                                    expanded = isCapsuleOrientDropdownOpen,
-                                                                    onDismissRequest = { isCapsuleOrientDropdownOpen = false },
-                                                                    modifier = Modifier
-                                                                        .background(Color(0xF012141A))
-                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                                                    shape = RoundedCornerShape(16.dp),
-                                                                    containerColor = Color(0xF012141A)
-                                                                ) {
-                                                                    capsuleOrientOptions.forEach { (key, label) ->
-                                                                        DropdownMenuItem(
-                                                                            modifier = Modifier.heightIn(min = 48.dp),
-                                                                            text = { Text(label) },
-                                                                            onClick = {
-                                                                                isCapsuleOrientDropdownOpen = false
-                                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, key).apply()
-                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                onRefreshNeeded()
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-
-                                                        val currentCapsuleLayout = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, "unified_right") ?: "unified_right"
-                                                        var isCapsuleDropdownOpen by remember { mutableStateOf(false) }
-                                                        val capsuleOptions = listOf(
-                                                            "unified_right" to "Unified Right (Compact)",
-                                                            "dual_wing" to "Dual-Wing Bridge",
-                                                            "unified_left" to "Unified Left"
-                                                        )
-
-                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                                                            Text("ORBITAL CAPSULE LAYOUT MODE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            Spacer(modifier = Modifier.height(4.dp))
-                                                            Box {
-                                                                OutlinedButton(
-                                                                    onClick = { isCapsuleDropdownOpen = true },
-                                                                    modifier = Modifier.fillMaxWidth(),
-                                                                    shape = RoundedCornerShape(12.dp)
-                                                                ) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Text(capsuleOptions.firstOrNull { it.first == currentCapsuleLayout }?.second ?: "Unified Right (Compact)", color = Color.White, fontSize = 12.sp)
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                                    }
-                                                                }
-                                                                DropdownMenu(
-                                                                    expanded = isCapsuleDropdownOpen,
-                                                                    onDismissRequest = { isCapsuleDropdownOpen = false },
-                                                                    modifier = Modifier
-                                                                        .background(Color(0xF012141A))
-                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                                                    shape = RoundedCornerShape(16.dp),
-                                                                    containerColor = Color(0xF012141A)
-                                                                ) {
-                                                                    capsuleOptions.forEach { (key, label) ->
-                                                                        DropdownMenuItem(
-                                                                            modifier = Modifier.heightIn(min = 48.dp),
-                                                                            text = { Text(label) },
-                                                                            onClick = {
-                                                                                isCapsuleDropdownOpen = false
-                                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, key).apply()
-                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                onRefreshNeeded()
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_PADDING_SNUGNESS, "", "Capsule Vertical Snugness Padding (0 to 8dp)", 0, 8, 1, 2)
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Capsule Expansion Width (0 to 80dp)", 0, 80, 2, 0)
                                                     }
-
-                                                    // 2. Title Overflow & Marquee Engine
-                                                    CollapsibleSubSection(
-                                                        title = "Orbital Capsule Marquee Engine",
-                                                        subtitle = "Text scroll velocity, pause delays & maximum width",
-                                                        isExpanded = isMarqueeSubSectionExpanded,
-                                                        onToggle = {
-                                                            isMarqueeSubSectionExpanded = !isMarqueeSubSectionExpanded
-                                                            prefs.edit().putBoolean("pref_sub_notch_marquee", isMarqueeSubSectionExpanded).apply()
-                                                        }
-                                                    ) {
-                                                        PrefToggleRow(
-                                                            prefs = prefs,
-                                                            prefKey = LightspeedPreferences.KEY_NOTCH_MARQUEE_ENABLED,
-                                                            defaultVal = true,
-                                                            title = "Enable Text Marquee Animation",
-                                                            subtitle = "Smoothly scrolls overflowing download filenames and song titles across the HUD capsule.",
-                                                            onChanged = { onRefreshNeeded() }
-                                                        )
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_SPEED, "", "Scroll Velocity (px/sec)", 15, 80, 5, 30)
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_INITIAL_DELAY, "", "Initial Pause Delay (ms)", 500, 3000, 250, 1500)
-                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MAX_CAPSULE_WIDTH, "", "Max HUD Capsule Width (dp)", 120, 320, 10, 200)
-                                                    }
-
-                                                        // OEM Advisory Footnote: OEM Dynamic Island Conflicts (Demoted)
-                                                        if (isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
-                                                            Card(
-                                                                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                                                                shape = RoundedCornerShape(12.dp),
-                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
-                                                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                                                            ) {
-                                                                Column(
-                                                                    modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                                                ) {
-                                                                    Row(
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        verticalAlignment = Alignment.CenterVertically
-                                                                    ) {
-                                                                        Icon(Icons.Outlined.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
-                                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                                        Column(modifier = Modifier.weight(1f)) {
-                                                                            Text("OEM Advisory Footnote: OEM Dynamic Island Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
-                                                                            Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f), lineHeight = 13.sp)
-                                                                        }
-                                                                        IconButton(
-                                                                            onClick = {
-                                                                                isOemNoticeDemoted = false
-                                                                                prefs.edit().putBoolean("pref_oem_notch_notice_demoted", false).apply()
-                                                                            },
-                                                                            modifier = Modifier.size(24.dp)
-                                                                        ) {
-                                                                            Icon(Icons.Outlined.VerticalAlignTop, contentDescription = "Move Upward", tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), modifier = Modifier.size(16.dp))
-                                                                        }
-                                                                    }
-                                                                    Button(
-                                                                        onClick = { OemNotchDetector.openSearch(context) },
-                                                                        modifier = Modifier.fillMaxWidth(),
-                                                                        shape = RoundedCornerShape(8.dp),
-                                                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
-                                                                        contentPadding = PaddingValues(vertical = 6.dp)
-                                                                    ) {
-                                                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                                                            Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-                                                                            Spacer(modifier = Modifier.width(6.dp))
-                                                                            Text("Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
                                                     }
                                                 }
                                             }
@@ -2621,101 +2423,51 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // Power Button Engine
-                                                    CollapsibleSubSection(
-                                                        title = "Power Button Engine",
-                                                        subtitle = "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
-                                                        icon = {
+                                                    // Tactical Shortcut to Experimental Labs for Power Button Remapping
+                                                    Card(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clip(RoundedCornerShape(12.dp))
+                                                            .clickable {
+                                                                isExperimentalLabsExpanded = true
+                                                                isSubPowerExpanded = true
+                                                                onRefreshNeeded()
+                                                            }
+                                                            .padding(vertical = 4.dp),
+                                                        shape = RoundedCornerShape(12.dp),
+                                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+                                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.35f))
+                                                    ) {
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
                                                             Icon(
                                                                 imageVector = Icons.Outlined.PowerSettingsNew,
                                                                 contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.primary,
-                                                                modifier = Modifier.size(16.dp)
+                                                                tint = Color(0xFFFFB300),
+                                                                modifier = Modifier.size(20.dp)
                                                             )
-                                                        },
-                                                        isExpanded = isSubPowerExpanded,
-                                                        onToggle = {
-                                                            isSubPowerExpanded = !isSubPowerExpanded
-                                                            prefs.edit().putBoolean("pref_sub_power_expanded", isSubPowerExpanded).apply()
-                                                        }
-                                                    ) {
-                                                        // Emergency Reset Hardware Notice Banner
-                                                        Card(
-                                                            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                                                            shape = RoundedCornerShape(12.dp),
-                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                                                        ) {
-                                                            Row(
-                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                Icon(
-                                                                    imageVector = Icons.Default.WarningAmber,
-                                                                    contentDescription = null,
-                                                                    tint = MaterialTheme.colorScheme.primary,
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                            Spacer(modifier = Modifier.width(10.dp))
+                                                            Column(modifier = Modifier.weight(1f)) {
                                                                 Text(
-                                                                    text = "Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
-                                                                    fontSize = 11.sp,
+                                                                    text = "Power Button Remapping",
+                                                                    fontWeight = FontWeight.Bold,
+                                                                    fontSize = 12.sp,
+                                                                    color = Color.White
+                                                                )
+                                                                Text(
+                                                                    text = "Single, double, hold and chord triggers have moved to the Experimental Labs deck below. Tap to configure.",
+                                                                    fontSize = 10.5.sp,
                                                                     color = Color.LightGray.copy(alpha = 0.85f),
                                                                     lineHeight = 14.sp
                                                                 )
                                                             }
-                                                        }
-
-                                                        PrefToggleRow(
-                                                            prefs = prefs,
-                                                            prefKey = LightspeedPreferences.KEY_POWER_GESTURES_ENABLED,
-                                                            defaultVal = true,
-                                                            title = "Enable Power Button Gestures",
-                                                            subtitle = "Low-latency physical power button gesture interception",
-                                                            onChanged = { onRefreshNeeded() }
-                                                        )
-
-                                                        val powerGestures = listOf(
-                                                            Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS),
-                                                            Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS),
-                                                            Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD),
-                                                            Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
-                                                        )
-
-                                                        powerGestures.forEach { (prefKey, title, slot) ->
-                                                            PowerGestureMappingRow(
-                                                                context = context,
-                                                                prefs = prefs,
-                                                                prefKey = prefKey,
-                                                                title = title,
-                                                                slot = slot,
-                                                                isSinglePress = slot == LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS,
-                                                                isSinglePressUnlocked = isSinglePressUnlocked,
-                                                                onSinglePressUnlockStep = {
-                                                                    singlePressTapCount++
-                                                                    if (singlePressTapCount in 4..6) {
-                                                                        android.widget.Toast.makeText(
-                                                                            context,
-                                                                            "You are ${7 - singlePressTapCount} steps away from unlocking Single Press remap.",
-                                                                            android.widget.Toast.LENGTH_SHORT
-                                                                        ).show()
-                                                                    } else if (singlePressTapCount >= 7) {
-                                                                        isSinglePressUnlocked = true
-                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, true).apply()
-                                                                        android.widget.Toast.makeText(
-                                                                            context,
-                                                                            "Single Press Remapping Unlocked",
-                                                                            android.widget.Toast.LENGTH_SHORT
-                                                                        ).show()
-                                                                        com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
-                                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                        onRefreshNeeded()
-                                                                    }
-                                                                },
-                                                                installedTools = installedTacticalTools,
-                                                                options = dynamicActionTokens,
-                                                                labelCache = tokenLabelCache,
-                                                                onRefreshNeeded = onRefreshNeeded
+                                                            Icon(
+                                                                imageVector = Icons.Default.ChevronRight,
+                                                                contentDescription = null,
+                                                                tint = Color(0xFFFFB300).copy(alpha = 0.7f),
+                                                                modifier = Modifier.size(18.dp)
                                                             )
                                                         }
                                                     }
@@ -3388,7 +3140,12 @@ fun SidebarMatrixConfigurationFields(
                                                 isExpanded = isExperimentalLabsExpanded,
                                                 onToggle = {
                                                     toggleSection(1, "experimental_labs", isExperimentalLabsExpanded) { isExperimentalLabsExpanded = it }
-                                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, isExperimentalLabsExpanded).apply()
+                                                    val notchActive = isExperimentalLabsExpanded && isNotchCalibExpanded
+                                                    prefs.edit()
+                                                        .putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, isExperimentalLabsExpanded)
+                                                        .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
+                                                        .apply()
+                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -3414,7 +3171,390 @@ fun SidebarMatrixConfigurationFields(
                                                         }
                                                     }
 
-                                                    // 1. Core Cooling Schedule
+                                                    // 1. Orbital Capsule Calibration
+                                                    CollapsibleSubSection(
+                                                        title = "Orbital Capsule Calibration (Dynamic Cutout HUD)",
+                                                        subtitle = "Layout modes, vertical snugness height, expansion width & orientation",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Sensors,
+                                                                contentDescription = null,
+                                                                tint = cautionAmber,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
+                                                        isExpanded = isNotchCalibExpanded,
+                                                        onToggle = {
+                                                            isNotchCalibExpanded = !isNotchCalibExpanded
+                                                            prefs.edit()
+                                                                .putBoolean("pref_sub_notch_calib", isNotchCalibExpanded)
+                                                                .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isNotchCalibExpanded)
+                                                                .apply()
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            onRefreshNeeded()
+                                                        }
+                                                    ) {
+                                                        // OEM Dynamic Notch / Dynamic Bar Advisory Glass Callout
+                                                        if (!isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
+                                                            Card(
+                                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                                shape = RoundedCornerShape(12.dp),
+                                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                                                                border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.35f))
+                                                            ) {
+                                                                Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.Info,
+                                                                            contentDescription = null,
+                                                                            tint = cautionAmber,
+                                                                            modifier = Modifier.size(20.dp)
+                                                                        )
+                                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                                        Column(modifier = Modifier.weight(1f)) {
+                                                                            Text(
+                                                                                text = "OEM Dynamic Island Conflicts",
+                                                                                fontSize = 12.sp,
+                                                                                fontWeight = FontWeight.Bold,
+                                                                                color = Color.White
+                                                                            )
+                                                                            Text(
+                                                                                text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
+                                                                                fontSize = 11.sp,
+                                                                                color = Color.LightGray.copy(alpha = 0.85f),
+                                                                                lineHeight = 14.sp
+                                                                            )
+                                                                        }
+                                                                        IconButton(
+                                                                            onClick = {
+                                                                                isOemNoticeDemoted = true
+                                                                                prefs.edit().putBoolean("pref_oem_notch_notice_demoted", true).apply()
+                                                                            },
+                                                                            modifier = Modifier.size(24.dp)
+                                                                        ) {
+                                                                            Icon(Icons.Outlined.VerticalAlignBottom, contentDescription = "Demote to Footnote", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                                                        }
+                                                                    }
+                                                                    Button(
+                                                                        onClick = { OemNotchDetector.openSearch(context) },
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        shape = RoundedCornerShape(8.dp),
+                                                                        colors = ButtonDefaults.buttonColors(containerColor = cautionAmber.copy(alpha = 0.2f))
+                                                                    ) {
+                                                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                                            Icon(Icons.Default.Search, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(14.dp))
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Text("Open $oemFeatureName Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = cautionAmber)
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        val currentCapsuleOrientMode = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, "both") ?: "both"
+                                                        var isCapsuleOrientDropdownOpen by remember { mutableStateOf(false) }
+                                                        val capsuleOrientOptions = listOf(
+                                                            "both" to "🔄 Both Orientations",
+                                                            "portrait_only" to "📱 Portrait Only (Recommended for Cutout HUD)",
+                                                            "landscape_only" to "📐 Landscape Only"
+                                                        )
+
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("CAPSULE ORIENTATION DISPLAY RULE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cautionAmber, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isCapsuleOrientDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(capsuleOrientOptions.firstOrNull { it.first == currentCapsuleOrientMode }?.second ?: "🔄 Both Orientations", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cautionAmber)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isCapsuleOrientDropdownOpen,
+                                                                    onDismissRequest = { isCapsuleOrientDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    capsuleOrientOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isCapsuleOrientDropdownOpen = false
+                                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        val currentCapsuleLayout = prefs.getString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, "unified_right") ?: "unified_right"
+                                                        var isCapsuleDropdownOpen by remember { mutableStateOf(false) }
+                                                        val capsuleOptions = listOf(
+                                                            "unified_right" to "Unified Right (Compact)",
+                                                            "dual_wing" to "Dual-Wing Bridge",
+                                                            "unified_left" to "Unified Left"
+                                                        )
+
+                                                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                            Text("ORBITAL CAPSULE LAYOUT MODE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cautionAmber, letterSpacing = 1.sp)
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Box {
+                                                                OutlinedButton(
+                                                                    onClick = { isCapsuleDropdownOpen = true },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(12.dp)
+                                                                ) {
+                                                                    Row(
+                                                                        modifier = Modifier.fillMaxWidth(),
+                                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                                        verticalAlignment = Alignment.CenterVertically
+                                                                    ) {
+                                                                        Text(capsuleOptions.firstOrNull { it.first == currentCapsuleLayout }?.second ?: "Unified Right (Compact)", color = Color.White, fontSize = 12.sp)
+                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cautionAmber)
+                                                                    }
+                                                                }
+                                                                DropdownMenu(
+                                                                    expanded = isCapsuleDropdownOpen,
+                                                                    onDismissRequest = { isCapsuleDropdownOpen = false },
+                                                                    modifier = Modifier
+                                                                        .background(Color(0xF012141A))
+                                                                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                                                    shape = RoundedCornerShape(16.dp),
+                                                                    containerColor = Color(0xF012141A)
+                                                                ) {
+                                                                    capsuleOptions.forEach { (key, label) ->
+                                                                        DropdownMenuItem(
+                                                                            modifier = Modifier.heightIn(min = 48.dp),
+                                                                            text = { Text(label) },
+                                                                            onClick = {
+                                                                                isCapsuleDropdownOpen = false
+                                                                                prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, key).apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_PADDING_SNUGNESS, "", "Capsule Vertical Snugness Padding (0 to 8dp)", 0, 8, 1, 2)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_EXPANSION_WIDTH, "", "Capsule Expansion Width (0 to 80dp)", 0, 80, 2, 0)
+
+                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                        Text("HARDWARE CAMERA HOLE CALIBRATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cautionAmber, letterSpacing = 1.sp)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HARDWARE_CUTOUT_WIDTH, "", "Camera Lens Punch-Hole Diameter (0 to 60dp)", 0, 60, 1, 20)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HARDWARE_CUTOUT_OFFSET_X, "", "Horizontal Center Offset X (-30 to +30dp)", -30, 30, 1, 0)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HARDWARE_CUTOUT_OFFSET_Y, "", "Vertical Center Offset Y (-30 to +30dp)", -30, 30, 1, 0)
+
+                                                        PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_NOTCH_TEST_BEACON,
+                                                            defaultVal = false,
+                                                            title = "Live Alignment Test Beacon",
+                                                            subtitle = "Renders a live HUD calibration reticle over the camera hole while calibrating.",
+                                                            onChanged = { onRefreshNeeded() }
+                                                        )
+                                                    }
+
+                                                    // 2. Orbital Capsule Marquee Engine
+                                                    CollapsibleSubSection(
+                                                        title = "Orbital Capsule Marquee Engine",
+                                                        subtitle = "Text scroll velocity, pause delays & maximum width",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.TextFields,
+                                                                contentDescription = null,
+                                                                tint = cautionAmber,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
+                                                        isExpanded = isMarqueeSubSectionExpanded,
+                                                        onToggle = {
+                                                            isMarqueeSubSectionExpanded = !isMarqueeSubSectionExpanded
+                                                            prefs.edit().putBoolean("pref_sub_notch_marquee", isMarqueeSubSectionExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_NOTCH_MARQUEE_ENABLED,
+                                                            defaultVal = true,
+                                                            title = "Enable Text Marquee Animation",
+                                                            subtitle = "Smoothly scrolls overflowing download filenames and song titles across the HUD capsule.",
+                                                            onChanged = { onRefreshNeeded() }
+                                                        )
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_SPEED, "", "Scroll Velocity (px/sec)", 15, 80, 5, 30)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MARQUEE_INITIAL_DELAY, "", "Initial Pause Delay (ms)", 500, 3000, 250, 1500)
+                                                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_NOTCH_MAX_CAPSULE_WIDTH, "", "Max HUD Capsule Width (dp)", 120, 320, 10, 200)
+                                                    }
+
+                                                    // OEM Advisory Footnote: OEM Dynamic Island Conflicts (Demoted)
+                                                    if (isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                                        ) {
+                                                            Column(
+                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    verticalAlignment = Alignment.CenterVertically
+                                                                ) {
+                                                                    Icon(Icons.Outlined.Info, contentDescription = null, tint = cautionAmber.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
+                                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                                    Column(modifier = Modifier.weight(1f)) {
+                                                                        Text("OEM Advisory Footnote: OEM Dynamic Island Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = cautionAmber.copy(alpha = 0.85f))
+                                                                        Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f), lineHeight = 13.sp)
+                                                                    }
+                                                                    IconButton(
+                                                                        onClick = {
+                                                                            isOemNoticeDemoted = false
+                                                                            prefs.edit().putBoolean("pref_oem_notch_notice_demoted", false).apply()
+                                                                        },
+                                                                        modifier = Modifier.size(24.dp)
+                                                                    ) {
+                                                                        Icon(Icons.Outlined.VerticalAlignTop, contentDescription = "Move Upward", tint = cautionAmber.copy(alpha = 0.85f), modifier = Modifier.size(16.dp))
+                                                                    }
+                                                                }
+                                                                Button(
+                                                                    onClick = { OemNotchDetector.openSearch(context) },
+                                                                    modifier = Modifier.fillMaxWidth(),
+                                                                    shape = RoundedCornerShape(8.dp),
+                                                                    colors = ButtonDefaults.buttonColors(containerColor = cautionAmber.copy(alpha = 0.18f)),
+                                                                    contentPadding = PaddingValues(vertical = 6.dp)
+                                                                ) {
+                                                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                                        Icon(Icons.Default.Settings, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(14.dp))
+                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text("Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = cautionAmber)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // 3. Power Button Remapping
+                                                    CollapsibleSubSection(
+                                                        title = "Power Button Remapping",
+                                                        subtitle = "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
+                                                        icon = {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.PowerSettingsNew,
+                                                                contentDescription = null,
+                                                                tint = cautionAmber,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        },
+                                                        isExpanded = isSubPowerExpanded,
+                                                        onToggle = {
+                                                            isSubPowerExpanded = !isSubPowerExpanded
+                                                            prefs.edit().putBoolean("pref_sub_power_expanded", isSubPowerExpanded).apply()
+                                                        }
+                                                    ) {
+                                                        // Emergency Reset Hardware Notice Banner
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                                                            shape = RoundedCornerShape(12.dp),
+                                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                                            border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.3f))
+                                                        ) {
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Icon(
+                                                                    imageVector = Icons.Default.WarningAmber,
+                                                                    contentDescription = null,
+                                                                    tint = cautionAmber,
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                                Text(
+                                                                    text = "Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
+                                                                    fontSize = 11.sp,
+                                                                    color = Color.LightGray.copy(alpha = 0.85f),
+                                                                    lineHeight = 14.sp
+                                                                )
+                                                            }
+                                                        }
+
+                                                        PrefToggleRow(
+                                                            prefs = prefs,
+                                                            prefKey = LightspeedPreferences.KEY_POWER_GESTURES_ENABLED,
+                                                            defaultVal = true,
+                                                            title = "Enable Power Button Gestures",
+                                                            subtitle = "Low-latency physical power button gesture interception",
+                                                            onChanged = { onRefreshNeeded() }
+                                                        )
+
+                                                        val powerGestures = listOf(
+                                                            Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS),
+                                                            Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS),
+                                                            Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD),
+                                                            Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
+                                                        )
+
+                                                        powerGestures.forEach { (prefKey, title, slot) ->
+                                                            PowerGestureMappingRow(
+                                                                context = context,
+                                                                prefs = prefs,
+                                                                prefKey = prefKey,
+                                                                title = title,
+                                                                slot = slot,
+                                                                isSinglePress = slot == LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS,
+                                                                isSinglePressUnlocked = isSinglePressUnlocked,
+                                                                onSinglePressUnlockStep = {
+                                                                    singlePressTapCount++
+                                                                    if (singlePressTapCount in 4..6) {
+                                                                        android.widget.Toast.makeText(
+                                                                            context,
+                                                                            "You are ${7 - singlePressTapCount} steps away from unlocking Single Press remap.",
+                                                                            android.widget.Toast.LENGTH_SHORT
+                                                                        ).show()
+                                                                    } else if (singlePressTapCount >= 7) {
+                                                                        isSinglePressUnlocked = true
+                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, true).apply()
+                                                                        android.widget.Toast.makeText(
+                                                                            context,
+                                                                            "Single Press Remapping Unlocked",
+                                                                            android.widget.Toast.LENGTH_SHORT
+                                                                        ).show()
+                                                                        com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
+                                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                        onRefreshNeeded()
+                                                                    }
+                                                                },
+                                                                installedTools = installedTacticalTools,
+                                                                options = dynamicActionTokens,
+                                                                labelCache = tokenLabelCache,
+                                                                onRefreshNeeded = onRefreshNeeded
+                                                            )
+                                                        }
+                                                    }
+
+                                                    // 4. Core Cooling Schedule
                                                     var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
                                                     CollapsibleSubSection(
                                                         title = "Core Cooling Schedule",

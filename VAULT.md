@@ -25,14 +25,19 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 
 [THE MASTER AVIONICS TAXONOMY (SPATIAL & SEMANTIC MAP)]
 * Horizon Rail: Top edge status bar progress line, battery telemetry curve, and horizontal scrubbers.
-* Sensor Deck / Area: Top bezel tactile gesture capture zone for instant action triggers.
+* Sensor Area (Touch Strip): Top bezel tactile gesture capture zone for instant action triggers.
+* Synthetic Gravity Engine (Orientation Preferences): Native gyro, face-posture, and 4-bucket application orientation automation.
+* Info Beacons (Telemetry & Indicators): Real-time network throughput, media/download progress flare, and Orbital Capsule notch dynamics.
+* Hull & Ship Maneuvers (Hardware & Kinetic Gestures): Physical key interception, volume long-press, kinetic back-tap, and future device kinematics.
 * Orbital Capsule: Camera punch-hole dynamic HUD (cutout calibration, marquee telemetry, media flare).
+* Flight Blackbox (Diagnostics & Crash Logs): Isolated crash-telemetry and fault recorder with one-touch clipboard export.
 * Deflectors (Port & Starboard): Left and right kinetic screen-edge gesture wings with progressive frosted glass diffusion, specular rims, and directional macro gestures.
 * Cockpit Hangar & Gears: Orbital app launcher wheels with rotating gimbal rings and flight-lock reticles.
 * Category Cruise: Full-screen launcher cruising deck for categorizing application fleets.
-* Refueling Bay: Cryo charging and widget dashboard (Mode 1: 3D Cube Smart Stack, Mode 2: Freeform FlowRow Grid).
+* Refueling Bay & Cryo Stasis (Charging Screen): Cryo charging and widget dashboard (Mode 1: 3D Cube Smart Stack, Mode 2: Freeform FlowRow Grid).
 * Deep Space: Custom high-performance Canvas graphics engine (cosmic starfield, gimbal rings, lightspeed warp surges).
 * Central Command: Master configuration deck with dynamic accordion matrices (formerly SidebarMatrixConfig).
+* Config Vault (Backup & Restore): Complete offline JSON export/import engine with Base64 custom icon persistence and instant cache flush.
 
 [THE LANGUAGE ENGINE: 3-WAY COMMUNICATION PROTOCOL & GLOBAL I18N]
 * Conceived in Central Command Guidebook as an interactive 3-way toggle:
@@ -68,6 +73,14 @@ PART 1: THE BACK BURNER (ESTABLISHED DEFERRED ARCHITECTURE)
    - "Right Deflector — Upper Vector Zone" -> "Upper Flank"
    - "Right Deflector — Lower Vector Zone" -> "Lower Flank"
    - Complete lexicon review for all flank zones across left/right deflectors.
+
+6. Hull Maneuvers: Rhythmic Cadence / "Morse Code" Tap Patterns:
+   - Expand kinetic hull tapping beyond standard Double Tap / Triple Tap counts into temporal rhythm and cadence pattern detection (e.g. `[Tap] — [Pause] — [Double Tap]`, `[Tap] — [Tap] — [Pause] — [Tap]`).
+   - Time-windowed state machine with maximum tap sequence ceiling (e.g., 4 or 5 beats max), inter-tap pause window threshold, and timeout commit.
+   - Prevents sensor saturation, eliminates false-positive misfires in pocket, and opens a rich vocabulary of physical tactile triggers on the phone chassis.
+
+7. Ship Maneuvers: Kinetic Expansion:
+   - Future kinetic gesture recognition: "Chop-Chop" double flick (e.g. flashlight toggle), twist/flip gesture (quick camera or DND toggle), and pick-up/tilt sensor triggers.
 
 --------------------------------------------------------------------------------
 PART 2: UNCERTAIN FIELD STATUS & TESTING AUDIT (VERIFY ON RUNTIME)
@@ -220,6 +233,23 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Added dedicated system action `system:auto_rotate_toggle` ("Toggle Native Auto-Rotate") with instant avionics canopy HUD telemetry ("360° GYRO (ENABLED)" / "0° PORTRAIT (LOCKED)").
   - Synchronized external Quick Settings auto-rotate toggles via internal write tracking and ContentObserver in `LightspeedAccessibilityService`.
   - Added Central Command `WRITE_SETTINGS` permission diagnostics card with direct intent launcher.
+✓ Synthetic Gravity Engine HUD Strip Promotion & Face-Posture Architecture:
+  - Promoted Synthetic Gravity Engine from Experimental Labs into a top-level first-class accordion in the HUD Strip tab.
+  - Added native Face-Oriented Auto-Rotate (`camera_autorotate`) integration via API 31+ Android Private Compute Core sensor subsystem (100% offline, zero camera permissions).
+  - Implemented 4 Attitude Buckets (`Natural Portrait`, `Reverse Portrait`, `Landscape Standard`, `Reverse Landscape`) with real-time per-app assignment modal sheet.
+  - Added configurable Action Override Lifetime duration picker (`until_app_switch`, `until_screen_off`, `persistent`, `disabled`) and overlay rotation enforcement policy.
+✓ Central Command HUD Strip 7-Deck Nomenclature & Layout Standard:
+  - Reorganized HUD Strip accordions into a standardized 7-deck hierarchy with complete dual-mode vocabulary parity (Spaceship Lore / Clear Comms):
+    1. Sensor Area (`sensor_deck`) / Touch Strip
+    2. Synthetic Gravity Engine (`synthetic_gravity`) / Orientation Preferences
+    3. Info Beacons (`telemetry_indicators`) / Telemetry & Indicators
+    4. Hull & Ship Maneuvers (`tactical_hardware`) / Hardware & Kinetic Gestures
+    5. Refueling Bay & Cryo Stasis (`refueling_bay`) / Charging Screen
+    6. Config Vault (`config_vault`) / Backup & Restore
+    7. Experimental Labs (`experimental_labs`) / Experimental Features
+✓ Avionics Flight Blackbox & Crash Isolation:
+  - Hardened WindowManager token validation across telephony interrupts to eliminate BadTokenException crashes when waking up after phone calls.
+  - Canonized "Flight Blackbox" (Vessel Mode) / "Diagnostics & Crash Logs" (Clear Comms) in Central Command telemetry deck with one-tap clipboard export.
 
 [STATUS: WORK IN PROGRESS & PAUSED REDESIGN QUEUE]
 * Grid Mode Vertical Scroll Delegation Over Non-Overflowing Widgets (e.g., Tall Anki Deck):

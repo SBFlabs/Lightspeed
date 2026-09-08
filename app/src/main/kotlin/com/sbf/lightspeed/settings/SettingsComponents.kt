@@ -1639,6 +1639,48 @@ fun WatchdogQuickTelemetryCard(
     val cautionAmber = Color(0xFFFFB300)
     var showPerimeterDialog by rememberSaveable { mutableStateOf(false) }
 
+    var lastCrashTimestamp by remember(prefs) {
+        mutableStateOf(prefs.getLong("key_last_crash_timestamp", 0L))
+    }
+    var lastCrashMessage by remember(prefs) {
+        mutableStateOf(prefs.getString("key_last_crash_message", null))
+    }
+    var lastCrashStack by remember(prefs) {
+        mutableStateOf(prefs.getString("key_last_crash_stack", null))
+    }
+    var showCrashDetailDialog by rememberSaveable { mutableStateOf(false) }
+
+    val copyTelemetryToClipboard: () -> Unit = {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        val timeStr = if (lastCrashTimestamp > 0L) {
+            java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(lastCrashTimestamp))
+        } else "Unknown"
+        val payload = """
+LIGHTSPEED FLIGHT RECORDER TELEMETRY
+Timestamp: $timeStr
+Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})
+Exception: ${lastCrashMessage ?: "Unknown Anomaly"}
+
+STACKTRACE:
+${lastCrashStack ?: "No stacktrace recorded"}
+        """.trimIndent()
+        val clip = android.content.ClipData.newPlainText("Lightspeed Flight Telemetry", payload)
+        clipboard?.setPrimaryClip(clip)
+        com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
+        Toast.makeText(context, "Telemetry copied to clipboard", Toast.LENGTH_SHORT).show()
+    }
+
+    val clearTelemetry: () -> Unit = {
+        LightspeedWatchdogEngine.clearCrashTelemetry(context)
+        lastCrashTimestamp = 0L
+        lastCrashMessage = null
+        lastCrashStack = null
+        showCrashDetailDialog = false
+        com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
+        Toast.makeText(context, "Telemetry cleared", Toast.LENGTH_SHORT).show()
+        onStateChanged()
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -1939,45 +1981,226 @@ fun WatchdogQuickTelemetryCard(
             }
 
             // Flight Recorder Telemetry Anomaly Notice (if recorded)
-            val lastCrashTimestamp = prefs.getLong("key_last_crash_timestamp", 0L)
-            val lastCrashMessage = prefs.getString("key_last_crash_message", null)
             if (lastCrashTimestamp > 0L && !lastCrashMessage.isNullOrBlank()) {
+                val timeStr = remember(lastCrashTimestamp) {
+                    java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(lastCrashTimestamp))
+                }
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { showCrashDetailDialog = true },
                     shape = RoundedCornerShape(10.dp),
                     color = cautionAmber.copy(alpha = 0.12f),
                     border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.4f))
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp)
                     ) {
-                        Row(modifier = Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(modifier = Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "FLIGHT RECORDER ANOMALY",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = cautionAmber,
+                                    letterSpacing = 0.6.sp
+                                )
+                            }
                             Text(
-                                text = "Anomaly: ${lastCrashMessage.take(40)}...",
-                                fontSize = 10.5.sp,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = timeStr,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = cautionAmber.copy(alpha = 0.8f)
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
                         Text(
-                            text = "Clear Log",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = cautionAmber,
-                            modifier = Modifier.clickable {
-                                LightspeedWatchdogEngine.clearCrashTelemetry(context)
-                                onStateChanged()
-                            }
+                            text = lastCrashMessage ?: "Core exception recorded",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.9f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 15.sp
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Copy button
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color.White.copy(alpha = 0.08f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color.White.copy(alpha = 0.2f)),
+                                modifier = Modifier.clickable { copyTelemetryToClipboard() }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("COPY", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.9f))
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // View Log button
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = cautionAmber.copy(alpha = 0.18f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, cautionAmber.copy(alpha = 0.45f)),
+                                modifier = Modifier.clickable { showCrashDetailDialog = true }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Code, contentDescription = "View Log", tint = cautionAmber, modifier = Modifier.size(12.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("VIEW LOG", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = cautionAmber)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // Clear button
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFFF5252).copy(alpha = 0.15f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0xFFFF5252).copy(alpha = 0.4f)),
+                                modifier = Modifier.clickable { clearTelemetry() }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.DeleteOutline, contentDescription = "Clear", tint = Color(0xFFFF5252), modifier = Modifier.size(12.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("CLEAR", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF5252))
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    if (showCrashDetailDialog && !lastCrashMessage.isNullOrBlank()) {
+        val timeStr = if (lastCrashTimestamp > 0L) {
+            java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(lastCrashTimestamp))
+        } else "Unknown"
+
+        AlertDialog(
+            onDismissRequest = { showCrashDetailDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = cautionAmber,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "FLIGHT RECORDER TELEMETRY",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Recorded $timeStr",
+                        fontSize = 11.sp,
+                        color = cautionAmber.copy(alpha = 0.85f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.White.copy(alpha = 0.05f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                    ) {
+                        Text(
+                            text = lastCrashMessage ?: "Unknown Anomaly",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 260.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFF0D1117),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.3f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                text = lastCrashStack ?: "No stacktrace recorded",
+                                fontSize = 9.5.sp,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                color = Color(0xFF81D4FA),
+                                lineHeight = 13.sp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = copyTelemetryToClipboard) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(15.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("COPY", color = cautionAmber, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = clearTelemetry) {
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("CLEAR", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    TextButton(onClick = { showCrashDetailDialog = false }) {
+                        Text("CLOSE", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+                    }
+                }
+            },
+            containerColor = Color(0xFF1B1F2B),
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
     if (showPerimeterDialog) {

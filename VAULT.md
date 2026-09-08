@@ -38,7 +38,7 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 * Deep Space: Custom high-performance Canvas graphics engine (cosmic starfield, gimbal rings, lightspeed warp surges).
 * Central Command: Master configuration deck with dynamic accordion matrices (formerly SidebarMatrixConfig).
 * Config Vault (Backup & Restore): Complete offline JSON export/import engine with Base64 custom icon persistence and instant cache flush.
-* Subsystem Overwrite Deck (Developer & Display Tuning): Direct system value overrides (DPI/smallest width, continuous animation speed slider 0.0x–2.0x, 0-sensitivity full-edge back gesture capture), and real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
+* System Override Deck (Developer & Display Tuning): Direct system value overrides utilizing Shizuku or standalone elevated ADB permissions (DPI/PPI/smallest width, continuous animation speed scaling with simplified master or detailed subdomains, zero-sensitivity native Android edge gesture neutralization), connected via direct bridge buttons in Deflector setup, plus real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
 * Adaptive Kinetic Scroll Engine (Top & Bottom): Priority fallback orchestration checklist (Accessibility Direct Node -> Directional Step -> Kinetic Fling -> Native Toolbar Tap -> Key Injection) with per-app learning and persistent profile memory.
 
 [THE LANGUAGE ENGINE: 3-WAY COMMUNICATION PROTOCOL & GLOBAL I18N]
@@ -162,10 +162,13 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 
 [GLOBAL / GENERALIZED / APP-WIDE DEFAULTS]
 ** Add systemUI tuner setting I use plus the ones from that Foss app for pixels and animation speed:
-   - Subsystem Overwrite: On-the-fly developer options tuning for DPI, width, and smallest width (sw<N>dp).
-   - Continuous animation speed scaling slider UI (window, transition, animator duration) instead of fixed discrete taps.
-   - Side and right-side gesture sensitivity zero-out (inset scale = 0) so edge gestures cover the whole screen border.
-   - Hardware telemetry overlay (CPU cluster load, GPU frequency/load, FPS frame-pacing, and Vulkan vs. OpenGL ES active renderer indicator) with per-app foreground activation whitelist.
+   - System Override: Direct developer options control powered via Shizuku or standalone elevated ADB permissions (zero-dependency light speed execution):
+     * PPI, DPI, and smallest width (sw<N>dp) overrides without reboot.
+     * Continuous animation speed scaling: tactile slider UI with dual modes (simplified global master slider or detailed subdomains for window, transition, and animator duration).
+     * Native Android side/start gesture sensitivity zero-out (inset scale = 0) so edge gestures cover the whole screen border without OS interference.
+     * Deep integration: Placed natively in System Override, but also surfaced via direct bridge buttons and hint cards directly within the Deflector/developer gesture configuration steps.
+     * Hardware telemetry overlay (CPU cluster load, GPU frequency/load, FPS frame-pacing, and Vulkan vs. OpenGL ES active renderer indicator) with per-app foreground activation whitelist.
+
 * Cruise vs gears settings vs for both?
   - haptics? icons? text size? scale?
   - cruise background blur etc
@@ -275,13 +278,22 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
    - Elevated process manager / background killer powered via Shizuku integration for granular memory and runaway app mitigation.
 4. Comprehensive Language Engine System Settings Migration:
    - Propagate dynamic string resolution (`LightspeedLanguageEngine.resolve()`) beyond Guidebook into all Central Command configuration cards, accordions, and action pickers.
-5. Subsystem Overwrite Deck (Developer Tuning, Full-Edge Gesture Sovereignty & Hardware Telemetry):
-   - Developer Options & Display Metrics Overwrite:
-     * Dynamic display density & smallest width scaling (`display_density_forced`, `wm density`, `sw<N>dp`) without requiring reboot, enabling instant switching between compact HUD scaling and expanded viewport layouts.
-     * Tactile Continuous Animation Speed Slider: Material 3 slider controlling `window_animation_scale`, `transition_animation_scale`, and `animator_duration_scale` (from 0.0x / instant disabled to 2.0x in fine 0.1x / 0.25x micro-steps) with live speed indicator, replacing rigid discrete stepping.
-   - Side & Right-Side Gesture Sensitivity Override (Zero-Sensitivity Full-Edge Sovereignty):
-     * Override native Android navigation bar back-gesture insets (`back_gesture_inset_scale_left`, `back_gesture_inset_scale_right` reduced to 0).
-     * Eliminates system back-gesture deadzones, allowing Lightspeed Deflector wings and edge gestures to capture touches across 100% of the screen border without OS interference.
+5. System Override Deck (Developer Options, Elevated ADB/Shizuku Bridge, Gesture Sovereignty & Hardware Telemetry):
+   - Execution Engine & Zero-Dependency Elevation:
+     * Dual-mode system execution: Operates via Shizuku IPC binder when active, OR through elevated standalone Android permissions granted once via ADB (`android.permission.WRITE_SECURE_SETTINGS`, `android.permission.SET_ANIMATION_SCALE`, `android.permission.DUMP`, or local shell).
+     * Enables sub-millisecond, zero-latency system overrides ("running at light speed") without hard runtime dependencies on external daemons.
+   - Developer Options — Display Metrics Overwrite (PPI / DPI / Smallest Width):
+     * Direct control over `display_density_forced`, `wm density`, and `sw<N>dp` to modify PPI/DPI on-the-fly.
+     * Instant switching between compact avionics HUD scaling and high-density viewports without requiring system reboots.
+   - Developer Options — Continuous Animation Speeds (Simplified vs. Detailed Subdomains):
+     * Tactile Compose Slider UI replacing discrete buttons or raw value entry.
+     * Dual-tier UX presentation:
+       * *Simplified Global Master Mode*: Single unified slider driving all animation scales simultaneously (0.0x / instant off to 2.0x).
+       * *Detailed Subdomain Matrix*: Granular independent sliders for Window animation scale (`window_animation_scale`), Transition animation scale (`transition_animation_scale`), and Animator duration scale (`animator_duration_scale`).
+   - Native Android Edge Gesture Sensitivity Override (Side & Start Gesture Sovereignty):
+     * Direct calibration and zero-out of Android's native back-gesture insets (`back_gesture_inset_scale_left`, `back_gesture_inset_scale_right` set to 0).
+     * Fully eliminates native OS back-gesture deadzones so Deflector wings and edge gestures can cover 100% of the screen border without gesture conflicts.
+     * *Cross-Deck Deep Integration & Direct Bridge*: Centrally managed within System Override, but also contextually surfaced via direct one-tap bridge buttons and guidance hint cards directly within the Deflector setup and gesture calibration steps.
    - Floating Avionics Hardware Telemetry HUD (CPU, GPU, FPS & Graphics Engine):
      * Non-intrusive floating diagnostic pill rendering real-time CPU per-core/cluster utilization, GPU active load/clock, and real-time FPS frame-pacing.
      * Graphics Pipeline Detection: Live indicator showing active rendering backend (Vulkan vs. OpenGL ES).

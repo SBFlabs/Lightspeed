@@ -85,7 +85,7 @@ object LightspeedVocabulary {
         Key.IGNITION_OVERRIDE       to "Ignition Override",
 
         Key.REFUELING_BAY           to "Refueling Bay & Cryo Stasis",
-        Key.SHIP_DATA_VAULT         to "Ship Data Log Vault",
+        Key.SHIP_DATA_VAULT         to "Config Vault",
         Key.SHIZUKU_JETTISON        to "Emergency Shizuku Jettison",
         Key.WATCHDOG_SENTINELS      to "Watchdog Sentinels",
         Key.PERIMETER_DEFENSE       to "Perimeter Defense",
@@ -97,8 +97,8 @@ object LightspeedVocabulary {
         Key.EXPERIMENTAL_LABS       to "Experimental Labs",
 
         Key.GUIDEBOOK               to "The Stranded in Space Guidebook",
-        Key.TELEMETRY_AND_INDICATORS to "Telemetry & Indicators",
-        Key.TACTICAL_HARDWARE       to "Tactical Hardware",
+        Key.TELEMETRY_AND_INDICATORS to "Info Beacons",
+        Key.TACTICAL_HARDWARE       to "Hull & Ship Maneuvers",
     )
 
     // ─── Clear Comms dictionary ──────────────────────────────────────────────
@@ -112,7 +112,7 @@ object LightspeedVocabulary {
         Key.DEFLECTORS              to "Left & Right Gesture Sidebars",
         Key.LEFT_DEFLECTOR          to "Left Gesture Sidebar",
         Key.RIGHT_DEFLECTOR         to "Right Gesture Sidebar",
-        Key.SENSOR_AREA             to "Top-Edge Gesture Area",
+        Key.SENSOR_AREA             to "Touch Strip",
 
         Key.HORIZON_RAIL            to "Progress Rail",
         Key.ORBITAL_CAPSULE         to "Camera Cutout HUD",
@@ -126,7 +126,7 @@ object LightspeedVocabulary {
         Key.SHIZUKU_JETTISON        to "Task Closer (Shizuku)",
         Key.WATCHDOG_SENTINELS      to "Watchdog & Crash Guard",
         Key.PERIMETER_DEFENSE       to "Accessibility Service Manager",
-        Key.GRAVITY_ENGINE          to "Physics Profiles",
+        Key.GRAVITY_ENGINE          to "Orientation Preferences",
         Key.CORE_COOLING            to "Thermal Schedule",
 
         Key.MASTER_FLIGHT           to "Master Toggle",
@@ -134,8 +134,8 @@ object LightspeedVocabulary {
         Key.EXPERIMENTAL_LABS       to "Experimental Features",
 
         Key.GUIDEBOOK               to "Feature Dictionary",
-        Key.TELEMETRY_AND_INDICATORS to "Status Bar & Overlays",
-        Key.TACTICAL_HARDWARE       to "Hardware Controls",
+        Key.TELEMETRY_AND_INDICATORS to "Telemetry & Indicators",
+        Key.TACTICAL_HARDWARE       to "Hardware & Kinetic Gestures",
     )
 
     // ─── Lookup functions ───────────────────────────────────────────────────

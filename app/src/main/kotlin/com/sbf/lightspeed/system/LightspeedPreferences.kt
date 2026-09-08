@@ -101,6 +101,7 @@ object LightspeedPreferences {
     const val KEY_SUPPRESS_DEEP_ACTIVITY_WARNING = "pref_suppress_deep_activity_warning"
     const val KEY_PICKER_PINNED_APPS = "pref_picker_pinned_apps"
     const val KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED = "pref_section_experimental_labs_expanded"
+    const val KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED = "pref_section_synthetic_gravity_expanded"
     const val KEY_CORE_COOLING_ENABLED = "pref_core_cooling_enabled"
     const val KEY_CORE_COOLING_SCHEDULE = "pref_core_cooling_schedule"
     const val KEY_CORE_COOLING_DAY_OF_WEEK = "pref_core_cooling_day_of_week"

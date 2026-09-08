@@ -38,13 +38,23 @@ data class GuidebookEntry(
 val GUIDEBOOK_ENTRIES = listOf(
     GuidebookEntry(
         id = "canopy",
-        vesselTitle = "Sensor Area (Top Edge)",
-        androidTitle = "Top-Edge Gesture Matrix",
+        vesselTitle = "Sensor Area",
+        androidTitle = "Touch Strip Matrix",
         icon = Icons.Default.TouchApp,
         vesselLore = "The vessel's overhead touch zone calibrated for sub-second macro sweeps, taps, and rebound maneuvers.",
         androidUtility = "A non-intrusive top-edge gesture area supporting taps, horizontal swipes, and hold modifiers without conflicting with Android's notification shade.",
         tabIndex = 1,
         sectionKey = "statusbar"
+    ),
+    GuidebookEntry(
+        id = "synthetic_gravity",
+        vesselTitle = "Synthetic Gravity Engine",
+        androidTitle = "Orientation Preferences & Attitude Buckets",
+        icon = Icons.Default.Rotate90DegreesCw,
+        vesselLore = "Artificial gravity generator modulating the ship's 3D spatial attitude, active gyro stabilization, face posture tracking, and per-app orientation lock.",
+        androidUtility = "Controls system auto-rotate, face posture auto-rotate, active 5Hz gyro sensor-portrait driver, and per-app attitude buckets (Portrait, Landscape, 360°).",
+        tabIndex = 1,
+        sectionKey = "gravity"
     ),
     GuidebookEntry(
         id = "deflectors",
@@ -58,8 +68,8 @@ val GUIDEBOOK_ENTRIES = listOf(
     ),
     GuidebookEntry(
         id = "notch_beacon",
-        vesselTitle = "Horizon Rail & Orbital Capsule",
-        androidTitle = "Top Progress Rail & Camera Cutout Cutout HUD",
+        vesselTitle = "Info Beacons",
+        androidTitle = "Telemetry & Indicators",
         icon = Icons.Default.Sensors,
         vesselLore = "A dual-channel telemetry matrix comprising the horizon rail (top line progress) and orbital capsule (floating dynamic cutout HUD).",
         androidUtility = "Real-time download and media progress streamed along the top-edge horizon rail and/or the front camera punch-hole capsule with marquee scrolling and mini-player controls.",
@@ -68,7 +78,7 @@ val GUIDEBOOK_ENTRIES = listOf(
     ),
     GuidebookEntry(
         id = "hardware_keys",
-        vesselTitle = "Sub-Light Impulse Thrusters",
+        vesselTitle = "Hull & Ship Maneuvers",
         androidTitle = "Hardware Volume Button Matrix & Chords",
         icon = Icons.Default.Tune,
         vesselLore = "Emergency analog thruster triggers wired directly to primary propulsion. Enables blind cockpit firing through multi-switch sequence chords.",
@@ -98,7 +108,7 @@ val GUIDEBOOK_ENTRIES = listOf(
     ),
     GuidebookEntry(
         id = "vault",
-        vesselTitle = "Ship Data Log Vault",
+        vesselTitle = "Config Vault",
         androidTitle = "Offline JSON Backup & Restore Engine",
         icon = Icons.Default.Storage,
         vesselLore = "An air-gapped crystalline datacore archiving all bridge ergonomics, flight trajectories, and customized telemetry calibrations in standalone JSON format.",

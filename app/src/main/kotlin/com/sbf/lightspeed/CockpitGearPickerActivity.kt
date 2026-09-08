@@ -537,20 +537,62 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                         val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
                                                             singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
                                                         } else "pref_macro_hud_style_default"
-                                                        if (item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward") {
-                                                            val sec = item.optionKey.toIntOrNull() ?: 10
-                                                            prefs.edit().putInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
-                                                            LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_forward")
-                                                            LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_backward")
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                            hudStyleVersion++
-                                                        } else {
-                                                            prefs.edit()
-                                                                .putString(hudPrefKey, item.optionKey)
-                                                                .putString("pref_macro_hud_style_default", item.optionKey)
-                                                                .apply()
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                            hudStyleVersion++
+                                                        when {
+                                                            item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward" -> {
+                                                                val sec = item.optionKey.toIntOrNull() ?: 10
+                                                                prefs.edit().putInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
+                                                                LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_forward")
+                                                                LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_backward")
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            item.optionKey.startsWith("brightness_hud_toggle:") -> {
+                                                                val enabled = item.optionKey.endsWith(":on")
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, enabled).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            item.optionKey.startsWith("volume_hud_toggle:") -> {
+                                                                val enabled = item.optionKey.endsWith(":on")
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, enabled).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            item.optionKey.startsWith("volume_native_slider:") -> {
+                                                                val enabled = item.optionKey.endsWith(":on")
+                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, enabled).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            item.optionKey.startsWith("brightness_step:") -> {
+                                                                val step = item.optionKey.removePrefix("brightness_step:").toIntOrNull() ?: 8
+                                                                prefs.edit().putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, step).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            item.optionKey.startsWith("volume_step:") -> {
+                                                                val step = item.optionKey.removePrefix("volume_step:").toIntOrNull() ?: 1
+                                                                prefs.edit().putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, step).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            item.optionKey.startsWith("hud_style:") -> {
+                                                                val style = item.optionKey.removePrefix("hud_style:")
+                                                                prefs.edit()
+                                                                    .putString(hudPrefKey, style)
+                                                                    .putString("pref_macro_hud_style_default", style)
+                                                                    .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            else -> {
+                                                                prefs.edit()
+                                                                    .putString(hudPrefKey, item.optionKey)
+                                                                    .putString("pref_macro_hud_style_default", item.optionKey)
+                                                                    .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
                                                         }
                                                     }
                                                 )

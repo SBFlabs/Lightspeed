@@ -189,18 +189,21 @@ class LightspeedLeftWingOverlay(
     private var initialScrubTouchY = 0f
     private var currentRawY = 0f
     private var scrubAccumulator = 0f
+    private var activeHoldActionKey: String? = null
     private var hudTitle = ""
     private var hudValue = ""
 
     private val holdRunnable = Runnable {
         if (!isScrubbing) {
             val gestureKey = if (currentGesture == "NONE") "TAP" else currentGesture
+            val holdActionKey = "pref_macro_action_${activeZoneKey}_${gestureKey}_HOLD"
             val action = getEffectiveAction(activeZoneKey, gestureKey, true)
             if (action != "none") {
                 isHoldFired = true
                 if (action == "system:volume" || action == "system:brightness" || action == "system:screen_timeout") {
                     isScrubbing = true
                     scrubType = action
+                    activeHoldActionKey = holdActionKey
                     scrubAccumulator = 0f
                     initialScrubTouchY = currentRawY
                     triggerHaptic(35, 180)
@@ -390,6 +393,7 @@ class LightspeedLeftWingOverlay(
                 if (isScrubbing) {
                     isTwoStepDownwardScrub = false
                     isScrubbing = false
+                    activeHoldActionKey = null
                     hudTitle = ""
                     hudValue = ""
                     invalidate()
@@ -423,6 +427,7 @@ class LightspeedLeftWingOverlay(
                 }
                 isTwoStepDownwardScrub = false
                 isScrubbing = false
+                activeHoldActionKey = null
                 hudTitle = ""
                 hudValue = ""
                 invalidate()
@@ -517,7 +522,8 @@ class LightspeedLeftWingOverlay(
             "system:volume" -> {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
                 val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                val stepOffset = (-dy / stepDistance).toInt()
+                val volStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1)
+                val stepOffset = (-dy / stepDistance).toInt() * volStep
                 val targetVol = (initialScrubValue + stepOffset).coerceIn(0, maxVol)
                 val currentVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val showNativeUi = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
@@ -532,7 +538,8 @@ class LightspeedLeftWingOverlay(
             }
             "system:brightness" -> {
                 if (Settings.System.canWrite(context)) {
-                    val stepOffset = ((-dy / (stepDistance * 1.2f)) * 12).toInt()
+                    val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
+                    val stepOffset = ((-dy / (stepDistance * 1.2f)) * (brightStep * 1.5f)).toInt()
                     val target = (initialScrubValue + stepOffset).coerceIn(10, 255)
                     try {
                         val currentBrightness = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
@@ -618,7 +625,9 @@ class LightspeedLeftWingOverlay(
                 val screenW = resources.displayMetrics.widthPixels.toFloat()
                 val cx = screenW / 2f
                 val cy = height / 2f
-                val hudStyle = prefs.getString("pref_macro_hud_style_${activeZoneKey}_SCRUBBING", null)
+                val specificHudKey = activeHoldActionKey?.replace("pref_macro_action_", "pref_macro_hud_style_")
+                val hudStyle = (if (specificHudKey != null) prefs.getString(specificHudKey, null) else null)
+                    ?: prefs.getString("pref_macro_hud_style_${activeZoneKey}_SCRUBBING", null)
                     ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
                 val (stepIdx, totalSteps) = when (scrubType) {
                     "system:volume" -> {

@@ -214,6 +214,181 @@ fun buildFlatItemsList(
                                             )
                                         )
                                     }
+                                } else if (token == "system:brightness") {
+                                    val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
+                                        singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+                                    } else "pref_macro_hud_style_default"
+                                    val currentStyle = prefs.getString(hudPrefKey, null) ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+                                    val isHudOn = prefs.getBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)
+                                    val brightStep = prefs.getInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "brightness_hud_toggle:on",
+                                            title = "Overlay HUD: Enabled",
+                                            subtitle = "Render real-time brightness telemetry HUD while scrubbing",
+                                            isSelected = isHudOn
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "brightness_hud_toggle:off",
+                                            title = "Overlay HUD: Disabled",
+                                            subtitle = "Silent scrubbing without on-screen visual overlay",
+                                            isSelected = !isHudOn
+                                        )
+                                    )
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "brightness_step:4",
+                                            title = "Sensitivity: Fine (4% per step)",
+                                            subtitle = "Ultra-smooth high-precision brightness adjustment",
+                                            isSelected = brightStep == 4
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "brightness_step:8",
+                                            title = "Sensitivity: Standard (8% per step)",
+                                            subtitle = "Balanced tactile step per drag notch",
+                                            isSelected = brightStep == 8
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "brightness_step:16",
+                                            title = "Sensitivity: Fast (16% per step)",
+                                            subtitle = "Rapid coarse adjustment across brightness range",
+                                            isSelected = brightStep == 16
+                                        )
+                                    )
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:canopy_droppod",
+                                            title = "Style: Tactical Canopy Drop-Pod",
+                                            subtitle = "Chamfered visor below status bar with 7-segment gauge",
+                                            isSelected = currentStyle == "canopy_droppod"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:cockpit_reticle",
+                                            title = "Style: Holographic Cockpit Reticle",
+                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
+                                            isSelected = currentStyle == "cockpit_reticle"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:edge_blade",
+                                            title = "Style: Dynamic Edge Blade",
+                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
+                                            isSelected = currentStyle == "edge_blade"
+                                        )
+                                    )
+                                } else if (token == "system:volume") {
+                                    val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
+                                        singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+                                    } else "pref_macro_hud_style_default"
+                                    val currentStyle = prefs.getString(hudPrefKey, null) ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+                                    val isHudOn = prefs.getBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)
+                                    val showNative = prefs.getBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
+                                    val volStep = prefs.getInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1)
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "volume_hud_toggle:on",
+                                            title = "Overlay HUD: Enabled",
+                                            subtitle = "Render real-time volume telemetry HUD while scrubbing",
+                                            isSelected = isHudOn
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "volume_hud_toggle:off",
+                                            title = "Overlay HUD: Disabled",
+                                            subtitle = "Silent scrubbing without on-screen visual overlay",
+                                            isSelected = !isHudOn
+                                        )
+                                    )
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "volume_native_slider:off",
+                                            title = "Native Volume Slider: Hidden (Stealth)",
+                                            subtitle = "Suppress Android's system volume dialog during scrub",
+                                            isSelected = !showNative
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "volume_native_slider:on",
+                                            title = "Native Volume Slider: Visible",
+                                            subtitle = "Show Android's default system volume popup alongside scrub",
+                                            isSelected = showNative
+                                        )
+                                    )
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "volume_step:1",
+                                            title = "Sensitivity: Standard (1 step per notch)",
+                                            subtitle = "Single audio stream volume step per tactile notch",
+                                            isSelected = volStep == 1
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "volume_step:2",
+                                            title = "Sensitivity: Fast (2 steps per notch)",
+                                            subtitle = "Double-speed audio volume adjustment across range",
+                                            isSelected = volStep == 2
+                                        )
+                                    )
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:canopy_droppod",
+                                            title = "Style: Tactical Canopy Drop-Pod",
+                                            subtitle = "Chamfered visor below status bar with 7-segment gauge",
+                                            isSelected = currentStyle == "canopy_droppod"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:cockpit_reticle",
+                                            title = "Style: Holographic Cockpit Reticle",
+                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
+                                            isSelected = currentStyle == "cockpit_reticle"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:edge_blade",
+                                            title = "Style: Dynamic Edge Blade",
+                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
+                                            isSelected = currentStyle == "edge_blade"
+                                        )
+                                    )
                                 } else {
                                     val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
                                         singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")

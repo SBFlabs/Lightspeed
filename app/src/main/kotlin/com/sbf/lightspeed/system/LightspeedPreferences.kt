@@ -100,6 +100,8 @@ object LightspeedPreferences {
     const val KEY_HUD_BRIGHTNESS_ENABLED = "pref_hud_brightness_enabled"
     const val KEY_HUD_VOLUME_ENABLED = "pref_hud_volume_enabled"
     const val KEY_VOLUME_SHOW_NATIVE_SLIDER = "pref_volume_show_native_slider"
+    const val KEY_BRIGHTNESS_SCRUB_STEP = "pref_brightness_scrub_step"
+    const val KEY_VOLUME_SCRUB_STEP = "pref_volume_scrub_step"
 
     // Power Button Safety & Experimental Labs Keys
     const val KEY_POWER_SINGLE_PRESS_UNLOCKED = "pref_power_single_press_unlocked"
@@ -504,6 +506,12 @@ object LightspeedPreferences {
 
     fun isVolumeShowNativeSlider(context: Context): Boolean =
         context.defaultPrefs().getBoolean(KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
+
+    fun getBrightnessScrubStep(context: Context): Int =
+        context.defaultPrefs().getInt(KEY_BRIGHTNESS_SCRUB_STEP, 8)
+
+    fun getVolumeScrubStep(context: Context): Int =
+        context.defaultPrefs().getInt(KEY_VOLUME_SCRUB_STEP, 1)
 }
 
 /**

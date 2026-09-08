@@ -140,7 +140,6 @@ fun CentralCommandMatrixFields(
     val installedTacticalTools = remember { com.sbf.lightspeed.system.InstalledTacticalToolsScanner.scan(context) }
 
     // Tactical Hardware Deck Sub-Sections
-    var isSubAvionicsExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_avionics_expanded", true)) }
     var isSubVolumeExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", true)) }
     var isSubPowerExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_power_expanded", true)) }
     var isSubHullTapExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_hulltap_expanded", false)) }
@@ -2987,32 +2986,7 @@ fun CentralCommandMatrixFields(
                                                 }
                                             ) {
                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                     // Brightness & Volume Avionics Controls
-                                                     CollapsibleSubSection(
-                                                         title = "Brightness & Volume Controls",
-                                                         subtitle = "Interactive sliders, tactical HUD visibility & native volume overlay",
-                                                         icon = {
-                                                             Icon(
-                                                                 imageVector = Icons.Outlined.Tune,
-                                                                 contentDescription = null,
-                                                                 tint = MaterialTheme.colorScheme.primary,
-                                                                 modifier = Modifier.size(16.dp)
-                                                             )
-                                                         },
-                                                         isExpanded = isSubAvionicsExpanded,
-                                                         onToggle = {
-                                                             isSubAvionicsExpanded = !isSubAvionicsExpanded
-                                                             prefs.edit().putBoolean("pref_sub_avionics_expanded", isSubAvionicsExpanded).apply()
-                                                         }
-                                                     ) {
-                                                         TacticalAvionicsControlCard(
-                                                             context = context,
-                                                             prefs = prefs,
-                                                             onRefreshNeeded = onRefreshNeeded
-                                                         )
-                                                     }
-
-                                                     // Volume Key Matrix (Combos & Chords)
+                                                    // Volume Key Matrix (Combos & Chords)
                                                     CollapsibleSubSection(
                                                         title = "Volume Key Matrix",
                                                         subtitle = "Hardware chording, sequences, hold auto-repeat & suppression",

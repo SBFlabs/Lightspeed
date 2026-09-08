@@ -176,6 +176,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private var activeHoldScrubAction: String? = null
+    private var activeHoldScrubActionKey: String? = null
     private var scrubHudTitle = ""
     private var scrubHudValue = ""
 
@@ -204,7 +205,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
             val isMirroringLeft = gestMode == "left"
 
-            val actionValue = if (isMirroringLeft) {
+            val actionKey = if (isMirroringLeft) {
                 val isLeftUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
                 val leftZone = if (isLeftUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
                 val leftGesture = when (gestureKey) {
@@ -212,20 +213,21 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     "SWIPE_LEFT_UP_HOLD" -> "SWIPE_RIGHT_UP_HOLD"
                     "SWIPE_LEFT_DOWN_HOLD" -> "SWIPE_RIGHT_DOWN_HOLD"
                     "SWIPE_LEFT_BACK_HOLD" -> "SWIPE_RIGHT_BACK_HOLD"
-                    "SWIPE_UP_LEFT_HOLD" -> "SWIPE_UP_RIGHT_HOLD"
+                    "SWIPE_UP_LEFT_HOLD" -> "SWIPE_RIGHT_UP_HOLD"
                     "SWIPE_DOWN_LEFT_HOLD" -> "SWIPE_DOWN_RIGHT_HOLD"
                     else -> gestureKey
                 }
-                prefs.getString("pref_macro_action_${leftZone}_$leftGesture", "none") ?: "none"
+                "pref_macro_action_${leftZone}_$leftGesture"
             } else {
                 val dynamicZone = if (isFlankUnified) "UNIFIED" else zoneName
-                val actionKey = "pref_macro_action_${dynamicZone}_$gestureKey"
-                prefs.getString(actionKey, "none") ?: "none"
+                "pref_macro_action_${dynamicZone}_$gestureKey"
             }
+            val actionValue = prefs.getString(actionKey, "none") ?: "none"
 
             if (actionValue == "system:volume" || actionValue == "system:brightness" || actionValue == "system:screen_timeout" || actionValue == "scrub:volume" || actionValue == "scrub:brightness") {
                 currentDetectedGesture = MacroGesture.SCRUBBING
                 activeHoldScrubAction = actionValue
+                activeHoldScrubActionKey = actionKey
                 aggregateScrubAccumulator = 0f
                 isScrubEntranceHapticFired = true
                 triggerHardwareHaptic(35, 180)
@@ -1215,7 +1217,34 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
                             if (assignedScrub != "none" && assignedScrub != null && abs(deltaX) > thresholdX_Scrub) {
                                 currentDetectedGesture = MacroGesture.SCRUBBING
+                                activeHoldScrubAction = assignedScrub
+                                activeHoldScrubActionKey = "pref_macro_action_${dynamicZone}_SCRUBBING"
                                 uiHandler.removeCallbacks(holdTimerRunnable)
+                                aggregateScrubAccumulator = 0f
+                                if (!isScrubEntranceHapticFired) {
+                                    triggerHardwareHaptic(65, 255)
+                                    isScrubEntranceHapticFired = true
+                                }
+                                when (assignedScrub) {
+                                    "system:volume", "scrub:volume" -> {
+                                        val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                        scrubHudTitle = "MEDIA VOLUME"
+                                        scrubHudValue = "$currentVol / $maxVol"
+                                    }
+                                    "system:brightness", "scrub:brightness" -> {
+                                        val currentBrightness = try {
+                                            Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                                        } catch (_: Exception) { 128 }
+                                        scrubHudTitle = "BRIGHTNESS"
+                                        scrubHudValue = "${(currentBrightness * 100 / 255)}%"
+                                    }
+                                    "system:screen_timeout" -> {
+                                        scrubHudTitle = "SHIP GOES DARK IN"
+                                        scrubHudValue = LightspeedTimeoutEngine.getCurrentFormatted(context)
+                                    }
+                                }
+                                invalidate()
                             } else if (deltaY < (-25f * density)) {
                                 currentDetectedGesture = MacroGesture.SWIPE_LEFT_UP
                             } else if (deltaY > (25f * density)) {
@@ -1385,6 +1414,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     }
                 }
                 activeHoldScrubAction = null
+                activeHoldScrubActionKey = null
                 scrubHudTitle = ""
                 scrubHudValue = ""
                 invalidate()
@@ -1419,9 +1449,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
 
             if (assignedScrub == "scrub:volume" || assignedScrub == "system:volume") {
+                val volStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1)
                 val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                val targetVol = (currentVol + steps).coerceIn(0, maxVol)
+                val targetVol = (currentVol + (steps * volStep)).coerceIn(0, maxVol)
                 val showNativeUi = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
                 val flags = if (showNativeUi) AudioManager.FLAG_SHOW_UI else 0
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, flags)
@@ -1430,10 +1461,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 invalidate()
             } else if (assignedScrub == "scrub:brightness" || assignedScrub == "system:brightness") {
                 if (Settings.System.canWrite(context)) {
+                    val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
                     val currentBrightness = try {
                         Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                     } catch (_: Exception) { 128 }
-                    val targetBrightness = (currentBrightness + (steps * 8)).coerceIn(10, 255)
+                    val targetBrightness = (currentBrightness + (steps * brightStep)).coerceIn(10, 255)
                     try {
                         Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
                         scrubHudTitle = "BRIGHTNESS"
@@ -2632,7 +2664,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 val cx = screenW / 2f
                 val cy = h / 2f
 
-                val hudStyle = prefs.getString("pref_macro_hud_style_${dynamicZone}_SCRUBBING", null)
+                val specificHudKey = activeHoldScrubActionKey?.replace("pref_macro_action_", "pref_macro_hud_style_")
+                val hudStyle = (if (specificHudKey != null) prefs.getString(specificHudKey, null) else null)
+                    ?: prefs.getString("pref_macro_hud_style_${dynamicZone}_SCRUBBING", null)
                     ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
 
                 val (stepIdx, totalSteps) = when {

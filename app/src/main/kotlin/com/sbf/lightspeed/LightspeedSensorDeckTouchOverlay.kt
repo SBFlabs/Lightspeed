@@ -172,7 +172,8 @@ class LightspeedSensorDeckTouchOverlay(
                     if (am != null) {
                         val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                         val curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-                        val targetVol = (curVol + steps).coerceIn(0, maxVol)
+                        val volStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1)
+                        val targetVol = (curVol + (steps * volStep)).coerceIn(0, maxVol)
                         val showNativeUi = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
                         val flags = if (showNativeUi) AudioManager.FLAG_SHOW_UI else 0
                         if (targetVol != curVol) {
@@ -198,7 +199,8 @@ class LightspeedSensorDeckTouchOverlay(
                         val curBrightness = try {
                             Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                         } catch (_: Exception) { 128 }
-                        val targetBrightness = (curBrightness + (steps * 12)).coerceIn(10, 255)
+                        val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
+                        val targetBrightness = (curBrightness + (steps * brightStep * 1.5f).toInt()).coerceIn(10, 255)
                         if (abs(targetBrightness - curBrightness) >= 3) {
                             try {
                                 Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)

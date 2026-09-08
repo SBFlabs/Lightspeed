@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
@@ -673,282 +674,6 @@ fun CollapsibleSubSection(
         }
     }
 }
-
-@Composable
-fun TacticalAvionicsControlCard(
-    context: Context,
-    prefs: SharedPreferences,
-    onRefreshNeeded: () -> Unit = {}
-) {
-    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }
-    val maxVol = remember { audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15 }
-    var currentVol by remember {
-        mutableIntStateOf(audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0)
-    }
-
-    var canWriteSettings by remember {
-        mutableStateOf(android.provider.Settings.System.canWrite(context))
-    }
-    var currentBrightness by remember {
-        mutableIntStateOf(
-            try {
-                android.provider.Settings.System.getInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS)
-            } catch (_: Exception) { 128 }
-        )
-    }
-
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // --- 1. SCREEN BRIGHTNESS CONTROL ---
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "SCREEN BRIGHTNESS",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 0.8.sp
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-                    ) {
-                        val pct = (currentBrightness * 100 / 255).coerceIn(0, 100)
-                        Text(
-                            text = "$pct%",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-
-                if (!canWriteSettings) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f))
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "System Write Settings Permission required to modify brightness.",
-                                fontSize = 11.5.sp,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Button(
-                                onClick = {
-                                    com.sbf.lightspeed.system.LightspeedTimeoutEngine.requestWriteSettingsPermission(context)
-                                    canWriteSettings = android.provider.Settings.System.canWrite(context)
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text("Grant Permission", fontSize = 11.5.sp)
-                            }
-                        }
-                    }
-                } else {
-                    Slider(
-                        value = currentBrightness.toFloat(),
-                        onValueChange = { newVal ->
-                            currentBrightness = newVal.toInt()
-                            try {
-                                android.provider.Settings.System.putInt(
-                                    context.contentResolver,
-                                    android.provider.Settings.System.SCREEN_BRIGHTNESS,
-                                    currentBrightness
-                                )
-                            } catch (_: Exception) {}
-                        },
-                        onValueChangeFinished = {
-                            com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-                        },
-                        valueRange = 10f..255f,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Quick Preset Chips
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(25 to 64, 50 to 128, 75 to 192, 100 to 255).forEach { (labelPct, rawVal) ->
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                                modifier = Modifier.weight(1f).clickable {
-                                    currentBrightness = rawVal
-                                    try {
-                                        android.provider.Settings.System.putInt(
-                                            context.contentResolver,
-                                            android.provider.Settings.System.SCREEN_BRIGHTNESS,
-                                            rawVal
-                                        )
-                                        com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-                                    } catch (_: Exception) {}
-                                }
-                            ) {
-                                Text(
-                                    text = "$labelPct%",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    textAlign = TextAlign.Center,
-                                    color = Color.White,
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                PrefToggleRow(
-                    prefs = prefs,
-                    prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED,
-                    defaultVal = true,
-                    title = "Show HUD on Brightness Gestures",
-                    subtitle = "Render holographic reticle / drop-pod HUD during brightness adjustments",
-                    onChanged = { onRefreshNeeded() }
-                )
-            }
-        }
-
-        // --- 2. MEDIA VOLUME CONTROL ---
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f))
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "MEDIA VOLUME",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            letterSpacing = 0.8.sp
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
-                    ) {
-                        Text(
-                            text = "$currentVol / $maxVol",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-
-                Slider(
-                    value = currentVol.toFloat(),
-                    onValueChange = { newVal ->
-                        currentVol = newVal.toInt()
-                        val showNative = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
-                        audioManager?.setStreamVolume(
-                            AudioManager.STREAM_MUSIC,
-                            currentVol,
-                            if (showNative) AudioManager.FLAG_SHOW_UI else 0
-                        )
-                    },
-                    onValueChangeFinished = {
-                        com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-                    },
-                    valueRange = 0f..maxVol.toFloat(),
-                    steps = (maxVol - 1).coerceAtLeast(0),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Quick Preset Chips
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf("Mute" to 0, "33%" to (maxVol / 3), "66%" to (maxVol * 2 / 3), "Max" to maxVol).forEach { (label, rawVal) ->
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                            modifier = Modifier.weight(1f).clickable {
-                                currentVol = rawVal
-                                val showNative = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
-                                audioManager?.setStreamVolume(
-                                    AudioManager.STREAM_MUSIC,
-                                    rawVal,
-                                    if (showNative) AudioManager.FLAG_SHOW_UI else 0
-                                )
-                                com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-                            }
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center,
-                                color = Color.White,
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-
-                PrefToggleRow(
-                    prefs = prefs,
-                    prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED,
-                    defaultVal = true,
-                    title = "Show HUD on Volume Gestures",
-                    subtitle = "Render holographic reticle / drop-pod HUD during volume adjustments",
-                    onChanged = { onRefreshNeeded() }
-                )
-
-                PrefToggleRow(
-                    prefs = prefs,
-                    prefKey = com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER,
-                    defaultVal = false,
-                    title = "Show Native Volume Slider",
-                    subtitle = "Display Android's default system volume popup alongside volume adjustments",
-                    onChanged = { onRefreshNeeded() }
-                )
-            }
-        }
-    }
-}
-
 
 @Composable
 fun UnifyFlankActionsCard(
@@ -3060,6 +2785,8 @@ fun GestureMappingRow(
 
     val hasControls = showMediaQuickAccess ||
             (currentRawValue == "system:screen_timeout") ||
+            (currentRawValue == "system:brightness") ||
+            (currentRawValue == "system:volume") ||
             (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward")
 
     Column(
@@ -3138,13 +2865,14 @@ fun GestureMappingRow(
             }
         }
 
-        // Line 3: Dedicated Action Chips & Dropdowns (No cramping / full horizontal space)
+        // Line 3: Dedicated Action Chips & Dropdowns (Horizontally scrollable, crisp layout)
         if (hasControls) {
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 46.dp),
+                    .padding(start = 46.dp)
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -3234,9 +2962,14 @@ fun GestureMappingRow(
                     var showHudMenu by remember { mutableStateOf(false) }
 
                     if (currentRawValue == "system:brightness") {
-                        var hudEnabled by remember {
+                        var hudEnabled by remember(currentRawValue) {
                             mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true))
                         }
+                        var brightStep by remember(currentRawValue) {
+                            mutableIntStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8))
+                        }
+                        var showBrightStepMenu by remember { mutableStateOf(false) }
+
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = if (hudEnabled) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -3254,15 +2987,67 @@ fun GestureMappingRow(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
                             )
                         }
+
+                        Box {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.clickable { showBrightStepMenu = true }
+                            ) {
+                                val stepLabel = when (brightStep) {
+                                    4 -> "Step: 4% (Fine) ▾"
+                                    16 -> "Step: 16% (Fast) ▾"
+                                    else -> "Step: 8% (Standard) ▾"
+                                }
+                                Text(
+                                    text = stepLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showBrightStepMenu,
+                                onDismissRequest = { showBrightStepMenu = false },
+                                modifier = Modifier
+                                    .background(Color(0xF012141A))
+                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                shape = RoundedCornerShape(16.dp),
+                                containerColor = Color(0xF012141A)
+                            ) {
+                                listOf(4 to "Fine (4%)", 8 to "Standard (8%)", 16 to "Fast (16%)").forEach { (stepVal, stepTitle) ->
+                                    DropdownMenuItem(
+                                        modifier = Modifier.heightIn(min = 48.dp),
+                                        text = {
+                                            Text(
+                                                text = if (stepVal == brightStep) "✓ $stepTitle" else stepTitle,
+                                                fontWeight = if (stepVal == brightStep) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        onClick = {
+                                            brightStep = stepVal
+                                            prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, stepVal).apply()
+                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            showBrightStepMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     if (currentRawValue == "system:volume") {
-                        var hudEnabled by remember {
+                        var hudEnabled by remember(currentRawValue) {
                             mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true))
                         }
-                        var nativeSliderEnabled by remember {
+                        var nativeSliderEnabled by remember(currentRawValue) {
                             mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false))
                         }
+                        var volStep by remember(currentRawValue) {
+                            mutableIntStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1))
+                        }
+                        var showVolStepMenu by remember { mutableStateOf(false) }
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -3298,6 +3083,53 @@ fun GestureMappingRow(
                                 color = if (nativeSliderEnabled) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
                             )
+                        }
+
+                        Box {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier.clickable { showVolStepMenu = true }
+                            ) {
+                                val stepLabel = when (volStep) {
+                                    2 -> "Step: 2 (Fast) ▾"
+                                    else -> "Step: 1 (Standard) ▾"
+                                }
+                                Text(
+                                    text = stepLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showVolStepMenu,
+                                onDismissRequest = { showVolStepMenu = false },
+                                modifier = Modifier
+                                    .background(Color(0xF012141A))
+                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                                shape = RoundedCornerShape(16.dp),
+                                containerColor = Color(0xF012141A)
+                            ) {
+                                listOf(1 to "Standard (1 Step)", 2 to "Fast (2 Steps)").forEach { (stepVal, stepTitle) ->
+                                    DropdownMenuItem(
+                                        modifier = Modifier.heightIn(min = 48.dp),
+                                        text = {
+                                            Text(
+                                                text = if (stepVal == volStep) "✓ $stepTitle" else stepTitle,
+                                                fontWeight = if (stepVal == volStep) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        },
+                                        onClick = {
+                                            volStep = stepVal
+                                            prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, stepVal).apply()
+                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            showVolStepMenu = false
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
 

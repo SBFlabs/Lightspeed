@@ -29,6 +29,7 @@ import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 
 class LightspeedLeftWingOverlay(
     context: Context,

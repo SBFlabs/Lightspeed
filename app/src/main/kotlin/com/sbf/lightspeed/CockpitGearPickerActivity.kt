@@ -700,6 +700,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                                 is PickerRowItem.SystemCategoryHeader -> item.title
                                                                 is PickerRowItem.SystemAction -> item.label
                                                                 is PickerRowItem.SystemCustomizationOption -> item.title
+                                                                is PickerRowItem.SystemCustomizationSlider -> item.title
                                                                 is PickerRowItem.AppHeader -> item.appName
                                                                 is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
                                                                 is PickerRowItem.ShortcutAction -> item.label
@@ -724,6 +725,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                                         is PickerRowItem.SystemCategoryHeader -> item.title
                                                                         is PickerRowItem.SystemAction -> item.label
                                                                         is PickerRowItem.SystemCustomizationOption -> item.title
+                                                                        is PickerRowItem.SystemCustomizationSlider -> item.title
                                                                         is PickerRowItem.AppHeader -> item.appName
                                                                         is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
                                                                         is PickerRowItem.ShortcutAction -> item.label

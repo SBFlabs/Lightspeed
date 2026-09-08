@@ -39,7 +39,8 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 * Central Command: Master configuration deck with dynamic accordion matrices (formerly SidebarMatrixConfig).
 * Config Vault (Backup & Restore): Complete offline JSON export/import engine with Base64 custom icon persistence and instant cache flush.
 * System Override Deck (Developer & Display Tuning): Direct system value overrides utilizing Shizuku or standalone elevated ADB permissions (DPI/PPI/smallest width, continuous animation speed scaling with simplified master or detailed subdomains, zero-sensitivity native Android edge gesture neutralization), connected via direct bridge buttons in Deflector setup, plus real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
-* Adaptive Kinetic Scroll Engine (Top & Bottom): Priority fallback orchestration checklist (Accessibility Direct Node -> Directional Step -> Kinetic Fling -> Native Toolbar Tap -> Key Injection) with per-app learning and persistent profile memory.
+* Adaptive Kinetic Scroll Engine (Top, Bottom & Continuous Scrub): Priority fallback orchestration checklist (Accessibility Direct Node -> Directional Step -> Kinetic Fling -> Native Toolbar Tap -> Key Injection), per-app learning memory, and a kinetic Scrub-to-Scroll action with customizable starting speed, acceleration curve, and max velocity ceiling.
+
 
 [THE LANGUAGE ENGINE: 3-WAY COMMUNICATION PROTOCOL & GLOBAL I18N]
 * Conceived in Central Command Guidebook as an interactive 3-way toggle:
@@ -180,10 +181,11 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 * Toggles for WiFi, Bluetooth, GPS, airplane mode, audio mode, DND etc
 *** Bot which is basically clicker as Loop or UbikiTouch as one time trigger OR BETTER YET, use Keysh or Key Mapper but with the better implementation mention in issue no.¿xx?
 ** Add pop window and split Screen launch modes for app launch actions
-** Scroll to bottom & scrub to scroll:
+** Kinetic Scroll Engine (Scroll to Top, Scroll to Bottom & Continuous Scrub):
    - Complete architectural symmetry between Scroll to Top and new Scroll to Bottom action.
    - Priority fallback checklist: reorderable fallback execution chain (Accessibility Direct Node, Multi-Pass Step, Kinetic Fling, Native Toolbar Tap, Key Injection).
    - Per-app fallback memory: remembers and enforces the optimal fallback mechanism per app package directly through the action configurator.
+   - Continuous Scrub-to-Scroll Action (`scrub:scroll`): Drag along flank/rail analogous to brightness and volume scrubbers, with customizable starting speed, acceleration curve, velocity ceiling, and haptic impulse ticks.
 * Action Engine Vector III: Reserved placeholder for pending action enhancement.
 ** Power menu
 * Rotation mode scrubber & actions
@@ -298,7 +300,7 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
      * Non-intrusive floating diagnostic pill rendering real-time CPU per-core/cluster utilization, GPU active load/clock, and real-time FPS frame-pacing.
      * Graphics Pipeline Detection: Live indicator showing active rendering backend (Vulkan vs. OpenGL ES).
      * Per-App Automation Whitelist: Configurable per-app memory to automatically activate the hardware telemetry HUD when designated apps/games are brought to foreground and dismiss it seamlessly upon exit.
-6. Adaptive Kinetic Scroll Engine (Priority Fallback Checklist, Scroll-to-Bottom Symmetry & Per-App Adaptive Memory):
+6. Adaptive Kinetic Scroll Engine (Priority Fallback Checklist, Scroll-to-Bottom Symmetry, Continuous Scrub & Per-App Adaptive Memory):
    - Dual Action Parity:
      * Full architectural symmetry between `system:scroll_to_top` ("Scroll to Top") and the brand-new `system:scroll_to_bottom` ("Scroll to Bottom").
    - Reorderable Priority Fallback Execution Checklist:
@@ -309,6 +311,15 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
        3. Kinetic Synthetic Fling Gestures (dispatched high-velocity accessibility swipe strokes).
        4. Status Bar / Navigation Toolbar Tap Emulation (targeting top/bottom title bar coordinates for apps with built-in scroll-to-top listeners like Twitter/X, Reddit, Telegram).
        5. Hardware Navigation Key Injection (`KEYCODE_MOVE_HOME` / `KEYCODE_MOVE_END`, `KEYCODE_PAGE_UP` / `KEYCODE_PAGE_DOWN`).
+   - Continuous Scrub-to-Scroll Action (`scrub:scroll` / `system:scrub_scroll`):
+     * Direct parity with Volume and Brightness scrubbers: operates along gesture flanks and horizon rail via continuous vertical/horizontal finger drag.
+     * Real-time continuous accessibility scroll injection (interpolated scroll gestures/deltas).
+     * Configurable Kinetic Physics Suite:
+       * *Starting Speed (Base Velocity)*: Adjustable initial step size so scrolling engages immediately with comfortable precision.
+       * *Acceleration Curve / Multiplier*: Dynamic acceleration ramping up as dragging speed or displacement increases, allowing fine slow browsing or ultra-fast cruising through massive feeds.
+       * *Max Velocity Ceiling*: Adjustable peak scroll speed cap to prevent runaway jumps and lost position.
+       * *Directional Inversion*: Natural scroll vs. inverted direction toggle.
+       * *Tactile Feedback & Telemetry*: Real-time micro-haptic impulse ticks synchronized with scroll notches, paired with transient HUD badge.
    - Per-App Adaptive Memory & Profile Engine:
      * Granular per-app overrides: allows the user (or an intelligent last-known-working heuristic) to assign specific fallback orders to specific apps.
      * Embedded directly inside the Scroll to Top and Scroll to Bottom action configuration sheets for instant, unified adjustment without navigating away.

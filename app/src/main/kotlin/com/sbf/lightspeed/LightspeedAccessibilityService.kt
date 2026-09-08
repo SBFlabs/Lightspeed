@@ -493,6 +493,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
+        com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateGravityCascade(this)
         updateOverlaysVisibility()
         com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
     }

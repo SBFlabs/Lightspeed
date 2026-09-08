@@ -103,6 +103,51 @@ object LightspeedPreferences {
     const val KEY_BRIGHTNESS_SCRUB_STEP = "pref_brightness_scrub_step"
     const val KEY_BRIGHTNESS_SCRUB_RESOLUTION = "pref_brightness_scrub_resolution"
     const val KEY_VOLUME_SCRUB_STEP = "pref_volume_scrub_step"
+    const val KEY_HUD_STYLE_DEFAULT = "pref_macro_hud_style_default"
+    const val DEFAULT_HUD_STYLE = "canopy_droppod"
+
+    /**
+     * Resolves the configured HUD style for a gesture and action.
+     * Priority:
+     * 1. Action-specific gesture key: "pref_macro_hud_style_<GESTURE>_<ACTION>"
+     * 2. Base gesture key: "pref_macro_hud_style_<GESTURE>"
+     * 3. Global default HUD style: "pref_macro_hud_style_default"
+     * 4. Fallback: "canopy_droppod"
+     */
+    fun resolveHudStyle(prefs: SharedPreferences, gestureActionKey: String?, actionToken: String? = null): String {
+        if (!gestureActionKey.isNullOrBlank() && !actionToken.isNullOrBlank()) {
+            val cleanToken = actionToken.replace(":", "_")
+            val baseHudKey = gestureActionKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+            val specificActionKey = "${baseHudKey}_$cleanToken"
+            val styleForAction = prefs.getString(specificActionKey, null)
+            if (!styleForAction.isNullOrBlank()) return styleForAction
+        }
+        if (!gestureActionKey.isNullOrBlank()) {
+            val baseHudKey = gestureActionKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+            val styleForGesture = prefs.getString(baseHudKey, null)
+            if (!styleForGesture.isNullOrBlank()) return styleForGesture
+        }
+        return prefs.getString(KEY_HUD_STYLE_DEFAULT, DEFAULT_HUD_STYLE) ?: DEFAULT_HUD_STYLE
+    }
+
+    /**
+     * Persists the chosen HUD style for a specific gesture and action without polluting the global default.
+     * If gestureActionKey is null/blank, it updates the global default.
+     */
+    fun saveHudStyle(prefs: SharedPreferences, gestureActionKey: String?, actionToken: String?, style: String) {
+        val editor = prefs.edit()
+        if (!gestureActionKey.isNullOrBlank()) {
+            val baseHudKey = gestureActionKey.replace("pref_macro_action_", "pref_macro_hud_style_")
+            editor.putString(baseHudKey, style)
+            if (!actionToken.isNullOrBlank()) {
+                val cleanToken = actionToken.replace(":", "_")
+                editor.putString("${baseHudKey}_$cleanToken", style)
+            }
+        } else {
+            editor.putString(KEY_HUD_STYLE_DEFAULT, style)
+        }
+        editor.apply()
+    }
 
     // Power Button Safety & Experimental Labs Keys
     const val KEY_POWER_SINGLE_PRESS_UNLOCKED = "pref_power_single_press_unlocked"

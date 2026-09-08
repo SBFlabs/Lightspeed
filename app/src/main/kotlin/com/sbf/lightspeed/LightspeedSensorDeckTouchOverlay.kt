@@ -53,6 +53,7 @@ class LightspeedSensorDeckTouchOverlay(
     // Scrubbing State (Hold-to-Scrub & Long-Sweep Scrub)
     private var isScrubbing = false
     private var activeScrubType = "none"
+    private var activeScrubActionKey: String? = null
     private var lastScrubRawX = 0f
     private var lastScrubRawY = 0f
     private var latestRawX = 0f
@@ -80,8 +81,8 @@ class LightspeedSensorDeckTouchOverlay(
     }
 
     private fun initScrubStateAndHud(scrubType: String) {
-        val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR", null)
-            ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+        val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR_SCRUBBING"
+        val hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, scrubType)
 
         when (scrubType) {
             "system:screen_timeout" -> {
@@ -147,8 +148,8 @@ class LightspeedSensorDeckTouchOverlay(
             val steps = (scrubAccumulator / stepThreshold).toInt()
             scrubAccumulator %= stepThreshold
 
-            val hudStyle = prefs.getString("pref_macro_hud_style_STATUSBAR", null)
-                ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+            val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR_SCRUBBING"
+            val hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, activeScrubType)
 
             when (activeScrubType) {
                 "system:screen_timeout" -> {
@@ -234,11 +235,11 @@ class LightspeedSensorDeckTouchOverlay(
         val gestureKey = if (currentGesture != "NONE") currentGesture else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
         val holdActionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
         val configuredHold = prefs.getString(holdActionKey, "none") ?: "none"
-        val action = if (configuredHold != "none") {
-            configuredHold
+        val (action, resolvedKey) = if (configuredHold != "none") {
+            configuredHold to holdActionKey
         } else {
             val baseAction = prefs.getString("pref_macro_action_STATUSBAR_$gestureKey", "none") ?: "none"
-            if (isScrubAction(baseAction)) baseAction else "none"
+            if (isScrubAction(baseAction)) baseAction to "pref_macro_action_STATUSBAR_$gestureKey" else "none" to null
         }
 
         if (action != "none") {
@@ -246,6 +247,7 @@ class LightspeedSensorDeckTouchOverlay(
                 isHoldFired = true
                 isScrubbing = true
                 activeScrubType = normalizeScrubAction(action)
+                activeScrubActionKey = resolvedKey
                 lastScrubRawX = latestRawX
                 lastScrubRawY = latestRawY
                 scrubAccumulator = 0f
@@ -270,6 +272,7 @@ class LightspeedSensorDeckTouchOverlay(
         uiHandler.removeCallbacks(holdRunnable)
         if (isScrubbing) {
             isScrubbing = false
+            activeScrubActionKey = null
             LightspeedStatusBarOverlay.dismissActionHud(0L)
         }
     }
@@ -309,6 +312,7 @@ class LightspeedSensorDeckTouchOverlay(
                 isHoldFired = false
                 isScrubbing = false
                 activeScrubType = "none"
+                activeScrubActionKey = null
                 scrubAccumulator = 0f
                 lastScrubRawX = event.rawX
                 lastScrubRawY = event.rawY
@@ -367,16 +371,17 @@ class LightspeedSensorDeckTouchOverlay(
                     // Check Long Sweep Scrubbing (continuous swipe past threshold)
                     val assignedScrub = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "none")
                     val swipeAction = prefs.getString("pref_macro_action_STATUSBAR_$currentGesture", "none")
-                    val effectiveScrub = when {
-                        assignedScrub != null && assignedScrub != "none" && isScrubAction(assignedScrub) -> assignedScrub
-                        isScrubAction(swipeAction ?: "") -> swipeAction
-                        else -> null
+                    val (effectiveScrub, resolvedKey) = when {
+                        assignedScrub != null && assignedScrub != "none" && isScrubAction(assignedScrub) -> assignedScrub to "pref_macro_action_STATUSBAR_SCRUBBING"
+                        isScrubAction(swipeAction ?: "") -> (swipeAction ?: "") to "pref_macro_action_STATUSBAR_$currentGesture"
+                        else -> null to null
                     }
                     if (effectiveScrub != null && abs(rawDx) > threshold * 1.8f && !isScrubbing) {
                         isScrubbing = true
                         isHoldFired = true
                         uiHandler.removeCallbacks(holdRunnable)
                         activeScrubType = normalizeScrubAction(effectiveScrub)
+                        activeScrubActionKey = resolvedKey
                         lastScrubRawX = event.rawX
                         lastScrubRawY = event.rawY
                         scrubAccumulator = 0f
@@ -403,6 +408,7 @@ class LightspeedSensorDeckTouchOverlay(
                 if (isScrubbing) {
                     isScrubbing = false
                     activeScrubType = "none"
+                    activeScrubActionKey = null
                     isHoldFired = false
                     isSecondTapInSequence = false
                     lastTapTime = 0L
@@ -446,6 +452,7 @@ class LightspeedSensorDeckTouchOverlay(
                 if (isScrubbing) {
                     isScrubbing = false
                     activeScrubType = "none"
+                    activeScrubActionKey = null
                     LightspeedStatusBarOverlay.dismissActionHud(600L)
                 }
                 isHoldFired = false

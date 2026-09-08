@@ -190,21 +190,20 @@ class LightspeedLeftWingOverlay(
     private var initialScrubTouchY = 0f
     private var currentRawY = 0f
     private var scrubAccumulator = 0f
-    private var activeHoldActionKey: String? = null
+    private var activeScrubActionKey: String? = null
     private var hudTitle = ""
     private var hudValue = ""
 
     private val holdRunnable = Runnable {
         if (!isScrubbing) {
             val gestureKey = if (currentGesture == "NONE") "TAP" else currentGesture
-            val holdActionKey = "pref_macro_action_${activeZoneKey}_${gestureKey}_HOLD"
-            val action = getEffectiveAction(activeZoneKey, gestureKey, true)
+            val (action, resolvedKey) = getEffectiveActionWithKey(activeZoneKey, gestureKey, true)
             if (action != "none") {
                 isHoldFired = true
                 if (action == "system:volume" || action == "system:brightness" || action == "system:screen_timeout" || action == "scrub:volume" || action == "scrub:brightness") {
                     isScrubbing = true
                     scrubType = action
-                    activeHoldActionKey = holdActionKey
+                    activeScrubActionKey = resolvedKey
                     scrubAccumulator = 0f
                     initialScrubTouchY = currentRawY
                     triggerHaptic(35, 180)
@@ -328,6 +327,7 @@ class LightspeedLeftWingOverlay(
                     if (isHorizontalEngaged && dy > 35f && abs(dy) > abs(dx) * 0.8f) {
                         isTwoStepDownwardScrub = true
                         isScrubbing = true
+                        activeScrubActionKey = "pref_macro_action_${activeZoneKey}_SCRUBBING"
                         uiHandler.removeCallbacks(holdRunnable)
                         triggerHaptic(30, 180)
 
@@ -402,7 +402,7 @@ class LightspeedLeftWingOverlay(
                 if (isScrubbing) {
                     isTwoStepDownwardScrub = false
                     isScrubbing = false
-                    activeHoldActionKey = null
+                    activeScrubActionKey = null
                     hudTitle = ""
                     hudValue = ""
                     LightspeedStatusBarOverlay.dismissActionHud(1200L)
@@ -440,7 +440,7 @@ class LightspeedLeftWingOverlay(
                 }
                 isTwoStepDownwardScrub = false
                 isScrubbing = false
-                activeHoldActionKey = null
+                activeScrubActionKey = null
                 hudTitle = ""
                 hudValue = ""
                 invalidate()
@@ -537,10 +537,8 @@ class LightspeedLeftWingOverlay(
             else -> true
         }
         if (showHud) {
-            val specificHudKey = activeHoldActionKey?.replace("pref_macro_action_", "pref_macro_hud_style_")
-            val hudStyle = (if (specificHudKey != null) prefs.getString(specificHudKey, null) else null)
-                ?: prefs.getString("pref_macro_hud_style_${activeZoneKey}_SCRUBBING", null)
-                ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+            val fallbackKey = activeScrubActionKey ?: "pref_macro_action_${activeZoneKey}_SCRUBBING"
+            val hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, scrubType)
 
             LightspeedStatusBarOverlay.showActionHud(
                 title = title,
@@ -661,7 +659,7 @@ class LightspeedLeftWingOverlay(
         )
     }
 
-    private fun getEffectiveAction(zoneKey: String, gesture: String, isHold: Boolean): String {
+    private fun getEffectiveActionWithKey(zoneKey: String, gesture: String, isHold: Boolean): Pair<String, String> {
         val isFlankUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
         val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
         val isMirroringRight = gestMode == "right"
@@ -682,15 +680,19 @@ class LightspeedLeftWingOverlay(
                 else -> gesture
             }
             if (rightZone == "CENTER" && rightGesture == "SWIPE_LEFT") {
-                return "lightspeed:cockpit_hangar"
+                return "lightspeed:cockpit_hangar" to "lightspeed:cockpit_hangar"
             }
             val key = if (isHold) "pref_macro_action_${rightZone}_${rightGesture}_HOLD" else "pref_macro_action_${rightZone}_$rightGesture"
-            return prefs.getString(key, "none") ?: "none"
+            return (prefs.getString(key, "none") ?: "none") to key
         } else {
             val dynamicZone = if (isFlankUnified && (zoneKey == "LEFT_TOP" || zoneKey == "LEFT_BOTTOM")) "LEFT_UNIFIED" else zoneKey
             val key = if (isHold) "pref_macro_action_${dynamicZone}_${gesture}_HOLD" else "pref_macro_action_${dynamicZone}_$gesture"
-            return prefs.getString(key, "none") ?: "none"
+            return (prefs.getString(key, "none") ?: "none") to key
         }
+    }
+
+    private fun getEffectiveAction(zoneKey: String, gesture: String, isHold: Boolean): String {
+        return getEffectiveActionWithKey(zoneKey, gesture, isHold).first
     }
 
     private fun performActionByName(actionKey: String) {

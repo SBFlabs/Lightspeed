@@ -1456,10 +1456,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (showHud) {
             val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
             val dynamicZone = if (isFlankUnified) "UNIFIED" else (if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM")
-            val specificHudKey = activeHoldScrubActionKey?.replace("pref_macro_action_", "pref_macro_hud_style_")
-            val hudStyle = (if (specificHudKey != null) prefs.getString(specificHudKey, null) else null)
-                ?: prefs.getString("pref_macro_hud_style_${dynamicZone}_SCRUBBING", null)
-                ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+            val fallbackKey = activeHoldScrubActionKey ?: "pref_macro_action_${dynamicZone}_SCRUBBING"
+            val hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, activeHoldScrubAction)
 
             LightspeedStatusBarOverlay.showActionHud(
                 title = title,

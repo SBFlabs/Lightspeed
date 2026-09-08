@@ -565,9 +565,6 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                     item = item,
                                                     dynamicSecondary = dynamicSecondary,
                                                     onClick = {
-                                                        val hudPrefKey = if (!singleSelectPrefKey.isNullOrBlank()) {
-                                                            singleSelectPrefKey.replace("pref_macro_action_", "pref_macro_hud_style_")
-                                                        } else "pref_macro_hud_style_default"
                                                         when {
                                                             item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward" -> {
                                                                 val sec = item.optionKey.toIntOrNull() ?: 10
@@ -609,18 +606,13 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                             }
                                                             item.optionKey.startsWith("hud_style:") -> {
                                                                 val style = item.optionKey.removePrefix("hud_style:")
-                                                                prefs.edit()
-                                                                    .putString(hudPrefKey, style)
-                                                                    .putString("pref_macro_hud_style_default", style)
-                                                                    .apply()
+                                                                LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 hudStyleVersion++
                                                             }
                                                             else -> {
-                                                                prefs.edit()
-                                                                    .putString(hudPrefKey, item.optionKey)
-                                                                    .putString("pref_macro_hud_style_default", item.optionKey)
-                                                                    .apply()
+                                                                val style = item.optionKey
+                                                                LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 hudStyleVersion++
                                                             }

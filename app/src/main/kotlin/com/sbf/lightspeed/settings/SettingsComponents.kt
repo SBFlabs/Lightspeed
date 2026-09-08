@@ -2955,9 +2955,8 @@ fun GestureMappingRow(
 
                 // 2. HUD Style & Controls for Scrubbers (Screen Timeout, Brightness, Volume)
                 if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:brightness" || currentRawValue == "system:volume") {
-                    val hudKey = key.replace("pref_macro_action_", "pref_macro_hud_style_")
-                    var hudStyle by remember(currentRawValue) {
-                        mutableStateOf(prefs.getString(hudKey, null) ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod")
+                    var hudStyle by remember(currentRawValue, key) {
+                        mutableStateOf(com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, key, currentRawValue))
                     }
                     var showHudMenu by remember { mutableStateOf(false) }
 
@@ -3244,7 +3243,10 @@ fun GestureMappingRow(
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
-                            modifier = Modifier.clickable { showHudMenu = true }
+                            modifier = Modifier.clickable {
+                                hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, key, currentRawValue)
+                                showHudMenu = true
+                            }
                         ) {
                             val hudName = when (hudStyle) {
                                 "canopy_droppod" -> "Drop-Pod"
@@ -3288,10 +3290,7 @@ fun GestureMappingRow(
                                     },
                                     onClick = {
                                         hudStyle = styleKey
-                                        prefs.edit()
-                                            .putString(hudKey, styleKey)
-                                            .putString("pref_macro_hud_style_default", styleKey)
-                                            .apply()
+                                        com.sbf.lightspeed.system.LightspeedPreferences.saveHudStyle(prefs, key, currentRawValue, styleKey)
                                         try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                         showHudMenu = false
                                     }

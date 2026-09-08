@@ -239,6 +239,13 @@ fun CentralCommandMatrixFields(
                     editor.putString(targetKey, value)
                 }
             }
+            if (key.startsWith("pref_macro_hud_style_${sourcePrefix}_")) {
+                val suffix = key.removePrefix("pref_macro_hud_style_${sourcePrefix}_")
+                val targetKey = "pref_macro_hud_style_${targetPrefix}_$suffix"
+                if (value is String) {
+                    editor.putString(targetKey, value)
+                }
+            }
         }
         editor.apply()
     }

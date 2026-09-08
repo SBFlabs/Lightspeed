@@ -461,32 +461,45 @@ fun AttitudeAppAssignmentSheet(
                 }
             }
 
-            if (bucket == LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = dynamicPrimary.copy(alpha = 0.12f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, dynamicPrimary.copy(alpha = 0.35f)),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+            var activeInfoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+            if (activeInfoDialog != null) {
+                val (infoTitle, infoMessage) = activeInfoDialog!!
+                AlertDialog(
+                    onDismissRequest = { activeInfoDialog = null },
+                    icon = {
                         Icon(
-                            Icons.Default.Info,
+                            imageVector = if (infoTitle.contains("LOCK SCREEN")) Icons.Default.PriorityHigh else Icons.Default.Info,
                             contentDescription = null,
-                            tint = dynamicPrimary,
-                            modifier = Modifier.size(16.dp)
+                            tint = if (infoTitle.contains("LOCK SCREEN")) Color(0xFFFFB300) else dynamicPrimary,
+                            modifier = Modifier.size(28.dp)
                         )
+                    },
+                    title = {
                         Text(
-                            text = "Active 0° & 180° gyro driver bypasses launcher NOSENSOR locks. Note: Lock screens with in-display fingerprint sensors stay 0° for security.",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 14.sp
+                            text = infoTitle,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
                         )
-                    }
-                }
+                    },
+                    text = {
+                        Text(
+                            text = infoMessage,
+                            fontSize = 12.5.sp,
+                            color = Color.LightGray.copy(alpha = 0.9f),
+                            lineHeight = 18.sp,
+                            textAlign = TextAlign.Start
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { activeInfoDialog = null }) {
+                            Text("UNDERSTOOD", color = dynamicPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    },
+                    containerColor = Color(0xFF1B1F2B),
+                    shape = RoundedCornerShape(16.dp)
+                )
             }
 
             // Search Field
@@ -631,6 +644,8 @@ fun AttitudeAppAssignmentSheet(
                                     context = context,
                                     dynamicPrimary = dynamicPrimary,
                                     dynamicSecondary = dynamicSecondary,
+                                    bucket = bucket,
+                                    onShowDetailInfo = { title, msg -> activeInfoDialog = Pair(title, msg) },
                                     onToggle = {
                                         if (isAssigned) assignedPackages.remove(target.id)
                                         else assignedPackages.add(target.id)
@@ -671,6 +686,8 @@ fun AttitudeAppAssignmentSheet(
                                     context = context,
                                     dynamicPrimary = dynamicPrimary,
                                     dynamicSecondary = dynamicSecondary,
+                                    bucket = bucket,
+                                    onShowDetailInfo = { title, msg -> activeInfoDialog = Pair(title, msg) },
                                     onToggle = {
                                         if (isAssigned) assignedPackages.remove(target.id)
                                         else assignedPackages.add(target.id)
@@ -706,6 +723,8 @@ fun AttitudeAppAssignmentSheet(
                                     context = context,
                                     dynamicPrimary = dynamicPrimary,
                                     dynamicSecondary = dynamicSecondary,
+                                    bucket = bucket,
+                                    onShowDetailInfo = { title, msg -> activeInfoDialog = Pair(title, msg) },
                                     onToggle = {
                                         if (isAssigned) assignedPackages.remove(target.id)
                                         else assignedPackages.add(target.id)
@@ -778,9 +797,9 @@ fun AttitudeAppAssignmentSheet(
                                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                                     Text(
                                         text = letter.toString(),
+                                        color = if (hasApps) Color.White.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.18f),
                                         fontSize = 8.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (hasApps) dynamicSecondary else Color.White.copy(alpha = 0.2f)
+                                        fontWeight = if (hasApps) FontWeight.Bold else FontWeight.Normal
                                     )
                                 }
                             }
@@ -788,14 +807,15 @@ fun AttitudeAppAssignmentSheet(
                     }
                 }
 
-                // Dragging HUD Letter Overlay
-                if (isDragging && hudLetter.isNotEmpty()) {
+                // HUD Magnifier Preview
+                if (isDragging && hudLetter.isNotBlank()) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.Center)
                             .size(72.dp)
-                            .background(Color(0xFF1E1E28).copy(alpha = 0.94f), shape = RoundedCornerShape(16.dp))
-                            .border(2.dp, dynamicPrimary, shape = RoundedCornerShape(16.dp)),
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xE610121C))
+                            .border(1.5.dp, dynamicPrimary, RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = hudLetter, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
@@ -843,6 +863,8 @@ private fun AttitudeTargetRow(
     context: Context,
     dynamicPrimary: Color,
     dynamicSecondary: Color,
+    bucket: LightspeedOrientationEngine.AttitudeBucket,
+    onShowDetailInfo: ((title: String, message: String) -> Unit)? = null,
     onToggle: () -> Unit
 ) {
     Row(
@@ -985,6 +1007,54 @@ private fun AttitudeTargetRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+
+            if (item.id == "keyguard:lockscreen") {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 6.dp)
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFFB300).copy(alpha = 0.15f))
+                        .border(1.dp, Color(0xFFFFB300).copy(alpha = 0.45f), CircleShape)
+                        .clickable {
+                            onShowDetailInfo?.invoke(
+                                "LOCK SCREEN INTERLOCK",
+                                "Under-display optical or ultrasonic fingerprint sensors (UDFPS) lock the Keyguard to 0° portrait at the Android OS level to keep the physical optical lens aligned with the OLED display.\n\nDevices with side power-button sensors, rear sensors, or face unlock will rotate normally."
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PriorityHigh,
+                        contentDescription = "Lockscreen Interlock Info",
+                        tint = Color(0xFFFFB300),
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            } else if (item.badge == "LAUNCHER" && bucket == LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT) {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 6.dp)
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(dynamicPrimary.copy(alpha = 0.15f))
+                        .border(1.dp, dynamicPrimary.copy(alpha = 0.45f), CircleShape)
+                        .clickable {
+                            onShowDetailInfo?.invoke(
+                                "ACTIVE GYRO DRIVER",
+                                "Lightspeed's active gyro driver automatically flips the home launcher between 0° upright and 180° inverted portrait based on device tilt, bypassing launcher NOSENSOR restrictions.\n\nLandscape angles (90° & 270°) remain strictly blocked."
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Active Gyro Info",
+                        tint = dynamicPrimary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
 
             if (isAssigned) {

@@ -3707,7 +3707,7 @@ fun CentralCommandMatrixFields(
                                                         // 2. Attitude Mode Buckets (Per-App Rules)
                                                         Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                                             Text("ATTITUDE MODE BUCKETS (PER-APP RULES)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = cautionAmber, letterSpacing = 1.sp)
-                                                            Text("Tap a bucket to assign apps or core system targets to automatically enforce that rotation policy upon launch:", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.75f))
+                                                            Text("All apps default to native Auto-Rotate (on/off) above, unless assigned to a bucket below:", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.8f))
 
                                                             val buckets = listOf(
                                                                 LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT,
@@ -3871,15 +3871,28 @@ fun CentralCommandMatrixFields(
                                                                 OutlinedButton(
                                                                     onClick = { isOrientationDropdownOpen = true },
                                                                     modifier = Modifier.fillMaxWidth(),
-                                                                    shape = RoundedCornerShape(12.dp)
+                                                                    shape = RoundedCornerShape(12.dp),
+                                                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
                                                                 ) {
                                                                     Row(
                                                                         modifier = Modifier.fillMaxWidth(),
                                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                                         verticalAlignment = Alignment.CenterVertically
                                                                     ) {
-                                                                        Text(orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: "Adaptive (360°)", color = Color.White, fontSize = 12.sp)
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cautionAmber)
+                                                                        Text(
+                                                                            text = orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: "Adaptive (360°)",
+                                                                            color = Color.White,
+                                                                            fontSize = 12.sp,
+                                                                            maxLines = 1,
+                                                                            overflow = TextOverflow.Ellipsis,
+                                                                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                                                        )
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.ArrowDropDown,
+                                                                            contentDescription = null,
+                                                                            tint = cautionAmber,
+                                                                            modifier = Modifier.size(24.dp)
+                                                                        )
                                                                     }
                                                                 }
                                                                 DropdownMenu(
@@ -3925,15 +3938,28 @@ fun CentralCommandMatrixFields(
                                                                 OutlinedButton(
                                                                     onClick = { isOverrideExpirationDropdownOpen = true },
                                                                     modifier = Modifier.fillMaxWidth(),
-                                                                    shape = RoundedCornerShape(12.dp)
+                                                                    shape = RoundedCornerShape(12.dp),
+                                                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
                                                                 ) {
                                                                     Row(
                                                                         modifier = Modifier.fillMaxWidth(),
                                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                                         verticalAlignment = Alignment.CenterVertically
                                                                     ) {
-                                                                        Text(overrideExpirationOptions.firstOrNull { it.first == currentOverrideExpiration }?.second ?: "Until App Switch", color = Color.White, fontSize = 12.sp)
-                                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cautionAmber)
+                                                                        Text(
+                                                                            text = overrideExpirationOptions.firstOrNull { it.first == currentOverrideExpiration }?.second ?: "Until App Switch",
+                                                                            color = Color.White,
+                                                                            fontSize = 12.sp,
+                                                                            maxLines = 1,
+                                                                            overflow = TextOverflow.Ellipsis,
+                                                                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                                                        )
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.ArrowDropDown,
+                                                                            contentDescription = null,
+                                                                            tint = cautionAmber,
+                                                                            modifier = Modifier.size(24.dp)
+                                                                        )
                                                                     }
                                                                 }
                                                                 DropdownMenu(

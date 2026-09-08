@@ -870,7 +870,7 @@ private fun AttitudeTargetRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp)
+            .heightIn(min = 52.dp)
             .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -974,7 +974,8 @@ private fun AttitudeTargetRow(
                             lineHeight = 16.sp
                         ),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (item.badge != null) {
                         Spacer(modifier = Modifier.width(6.dp))
@@ -984,14 +985,17 @@ private fun AttitudeTargetRow(
                             border = androidx.compose.foundation.BorderStroke(
                                 0.5.dp,
                                 if (item.badge == "SYSTEM") Color(0xFFFFD700).copy(alpha = 0.6f) else dynamicPrimary.copy(alpha = 0.5f)
-                            )
+                            ),
+                            modifier = Modifier.wrapContentWidth()
                         ) {
                             Text(
                                 text = item.badge,
                                 fontSize = 8.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = if (item.badge == "SYSTEM") Color(0xFFFFD700) else dynamicPrimary,
-                                modifier = Modifier.padding(horizontal = 4.5.dp, vertical = 1.dp)
+                                modifier = Modifier.padding(horizontal = 4.5.dp, vertical = 1.dp),
+                                softWrap = false,
+                                maxLines = 1
                             )
                         }
                     }
@@ -1009,7 +1013,7 @@ private fun AttitudeTargetRow(
                 )
             }
 
-            if (item.id == "keyguard:lockscreen") {
+            if (item.id == "keyguard:lockscreen" && bucket != LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT) {
                 Box(
                     modifier = Modifier
                         .padding(end = 6.dp)

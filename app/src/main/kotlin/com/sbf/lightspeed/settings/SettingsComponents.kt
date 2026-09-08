@@ -623,12 +623,12 @@ fun CollapsibleSubSection(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
                 ) {
                     if (icon != null) {
                         icon()
                     }
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = title,
                             fontWeight = FontWeight.SemiBold,
@@ -655,7 +655,7 @@ fun CollapsibleSubSection(
                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

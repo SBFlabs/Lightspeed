@@ -1656,7 +1656,7 @@ fun WatchdogQuickTelemetryCard(
             java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(lastCrashTimestamp))
         } else "Unknown"
         val payload = """
-LIGHTSPEED FLIGHT RECORDER TELEMETRY
+LIGHTSPEED BLACKBOX TELEMETRY
 Timestamp: $timeStr
 Device: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})
 Exception: ${lastCrashMessage ?: "Unknown Anomaly"}
@@ -1664,10 +1664,10 @@ Exception: ${lastCrashMessage ?: "Unknown Anomaly"}
 STACKTRACE:
 ${lastCrashStack ?: "No stacktrace recorded"}
         """.trimIndent()
-        val clip = android.content.ClipData.newPlainText("Lightspeed Flight Telemetry", payload)
+        val clip = android.content.ClipData.newPlainText("Lightspeed Blackbox Telemetry", payload)
         clipboard?.setPrimaryClip(clip)
         com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-        Toast.makeText(context, "Telemetry copied to clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Blackbox telemetry copied to clipboard", Toast.LENGTH_SHORT).show()
     }
 
     val clearTelemetry: () -> Unit = {
@@ -1677,7 +1677,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
         lastCrashStack = null
         showCrashDetailDialog = false
         com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
-        Toast.makeText(context, "Telemetry cleared", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Blackbox telemetry cleared", Toast.LENGTH_SHORT).show()
         onStateChanged()
     }
 
@@ -2008,7 +2008,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                                 Icon(Icons.Default.Warning, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "FLIGHT RECORDER ANOMALY",
+                                    text = "BLACKBOX ANOMALY",
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = cautionAmber,
@@ -2120,7 +2120,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
             title = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "FLIGHT RECORDER TELEMETRY",
+                        text = "BLACKBOX FLIGHT RECORDER",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,

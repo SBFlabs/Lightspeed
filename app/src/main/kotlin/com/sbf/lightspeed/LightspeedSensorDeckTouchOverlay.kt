@@ -100,16 +100,18 @@ class LightspeedSensorDeckTouchOverlay(
             }
             "system:volume" -> {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-                scrubCurrentValue = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
                 val maxVol = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
+                val curVol = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+                val volResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
+                scrubCurrentValue = kotlin.math.round(curVol * 100f / maxVol.coerceAtLeast(1)).toInt().coerceIn(0, 100)
                 scrubHudTitle = "MEDIA VOLUME"
-                scrubHudValue = "$scrubCurrentValue / $maxVol"
+                scrubHudValue = "$scrubCurrentValue%"
                 if (prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)) {
                     LightspeedStatusBarOverlay.showActionHud(
                         title = scrubHudTitle,
                         value = scrubHudValue,
-                        stepIndex = scrubCurrentValue,
-                        totalSteps = maxVol,
+                        stepIndex = (scrubCurrentValue * volResolution / 100).coerceIn(0, volResolution),
+                        totalSteps = volResolution,
                         durationMs = 0L,
                         style = hudStyle
                     )
@@ -175,22 +177,24 @@ class LightspeedSensorDeckTouchOverlay(
                     if (am != null) {
                         val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                         val curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
-                        val volStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1)
-                        val targetVol = (curVol + (steps * volStep)).coerceIn(0, maxVol)
+                        val volResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
+                        val volStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, (100f / volResolution).roundToInt().coerceIn(1, 20))
+                        val targetPct = (scrubCurrentValue + (steps * volStep)).coerceIn(0, 100)
+                        val targetVol = kotlin.math.round(targetPct * maxVol / 100f).toInt().coerceIn(0, maxVol)
                         val showNativeUi = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
                         val flags = if (showNativeUi) AudioManager.FLAG_SHOW_UI else 0
                         if (targetVol != curVol) {
                             am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, flags)
                             triggerHaptic(18, 110)
                         }
-                        scrubCurrentValue = targetVol
-                        scrubHudValue = "$targetVol / $maxVol"
+                        scrubCurrentValue = targetPct
+                        scrubHudValue = "$targetPct%"
                         if (prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)) {
                             LightspeedStatusBarOverlay.showActionHud(
                                 title = "MEDIA VOLUME",
                                 value = scrubHudValue,
-                                stepIndex = targetVol,
-                                totalSteps = maxVol,
+                                stepIndex = (targetPct * volResolution / 100).coerceIn(0, volResolution),
+                                totalSteps = volResolution,
                                 durationMs = 0L,
                                 style = hudStyle
                             )

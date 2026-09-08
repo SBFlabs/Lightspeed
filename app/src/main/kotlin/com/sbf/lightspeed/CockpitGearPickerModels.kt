@@ -313,7 +313,7 @@ fun buildFlatItemsList(
                                     val currentStyle = LightspeedPreferences.resolveHudStyle(prefs, singleSelectPrefKey, token)
                                     val isHudOn = prefs.getBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)
                                     val showNative = prefs.getBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
-                                    val volStep = prefs.getInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1)
+                                    val volRes = prefs.getInt(LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100)
 
                                     list.add(
                                         PickerRowItem.SystemCustomizationOption(
@@ -356,13 +356,13 @@ fun buildFlatItemsList(
                                     list.add(
                                         PickerRowItem.SystemCustomizationSlider(
                                             parentToken = token,
-                                            prefKey = LightspeedPreferences.KEY_VOLUME_SCRUB_STEP,
-                                            title = "Volume Step Velocity",
-                                            subtitle = "Audio volume steps changed per tactile notch (1 to 5)",
-                                            value = volStep.toFloat(),
-                                            range = 1f..5f,
-                                            steps = 3,
-                                            formatValue = { "${it.toInt()} ${if (it.toInt() == 1) "Step" else "Steps"}" }
+                                            prefKey = LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION,
+                                            title = "Scrub Resolution",
+                                            subtitle = "Graduation steps across 0–100% volume range (5 to 100 steps / 100ths)",
+                                            value = volRes.toFloat(),
+                                            range = 5f..100f,
+                                            steps = 94,
+                                            formatValue = { "${it.toInt()} Steps (~${String.format(java.util.Locale.US, "%.1f", 100f / it.coerceAtLeast(1f))}%)" }
                                         )
                                     )
 

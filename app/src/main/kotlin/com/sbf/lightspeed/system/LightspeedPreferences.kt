@@ -103,6 +103,7 @@ object LightspeedPreferences {
     const val KEY_BRIGHTNESS_SCRUB_STEP = "pref_brightness_scrub_step"
     const val KEY_BRIGHTNESS_SCRUB_RESOLUTION = "pref_brightness_scrub_resolution"
     const val KEY_VOLUME_SCRUB_STEP = "pref_volume_scrub_step"
+    const val KEY_VOLUME_SCRUB_RESOLUTION = "pref_volume_scrub_resolution"
     const val KEY_HUD_STYLE_DEFAULT = "pref_macro_hud_style_default"
     const val DEFAULT_HUD_STYLE = "canopy_droppod"
 
@@ -558,6 +559,9 @@ object LightspeedPreferences {
 
     fun getVolumeScrubStep(context: Context): Int =
         context.defaultPrefs().getInt(KEY_VOLUME_SCRUB_STEP, 1)
+
+    fun getVolumeScrubResolution(context: Context): Int =
+        context.defaultPrefs().getInt(KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
 }
 
 /**

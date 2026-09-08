@@ -3097,8 +3097,8 @@ fun GestureMappingRow(
                         var nativeSliderEnabled by remember(currentRawValue) {
                             mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false))
                         }
-                        var volStep by remember(currentRawValue) {
-                            mutableIntStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1))
+                        var volResolution by remember(currentRawValue) {
+                            mutableIntStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100))
                         }
                         var showVolSliderDialog by remember { mutableStateOf(false) }
 
@@ -3144,7 +3144,7 @@ fun GestureMappingRow(
                             modifier = Modifier.clickable { showVolSliderDialog = true }
                         ) {
                             Text(
-                                text = "Step: $volStep ▾",
+                                text = "Res: ${volResolution} ▾",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -3153,14 +3153,14 @@ fun GestureMappingRow(
                         }
 
                         if (showVolSliderDialog) {
-                            var tempVol by remember { mutableFloatStateOf(volStep.toFloat()) }
+                            var tempRes by remember { mutableFloatStateOf(volResolution.toFloat()) }
                             AlertDialog(
                                 onDismissRequest = { showVolSliderDialog = false },
                                 containerColor = Color(0xF012141A),
                                 shape = RoundedCornerShape(18.dp),
                                 title = {
                                     Text(
-                                        text = "Volume Scrub Velocity",
+                                        text = "Volume Scrub Resolution",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
@@ -3172,7 +3172,7 @@ fun GestureMappingRow(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = "Audio stream increments stepped per physical or gesture scrub tick notch.",
+                                            text = "Graduation steps mapped across the audio volume range (5 to 100 steps / 100th precision).",
                                             fontSize = 12.sp,
                                             color = Color.LightGray.copy(alpha = 0.75f)
                                         )
@@ -3182,18 +3182,19 @@ fun GestureMappingRow(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "Volume Step Velocity",
+                                                text = "Scrub Steps",
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Color.White
                                             )
-                                            val curVol = tempVol.toInt().coerceIn(1, 5)
+                                            val curRes = tempRes.toInt().coerceIn(5, 100)
+                                            val pct = String.format(java.util.Locale.US, "%.1f", 100f / curRes.coerceAtLeast(1))
                                             Surface(
                                                 shape = RoundedCornerShape(6.dp),
                                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
                                             ) {
                                                 Text(
-                                                    text = "$curVol ${if (curVol == 1) "Step" else "Steps"}",
+                                                    text = "$curRes Steps (~$pct%)",
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -3202,10 +3203,10 @@ fun GestureMappingRow(
                                             }
                                         }
                                         Slider(
-                                            value = tempVol,
-                                            onValueChange = { tempVol = it },
-                                            valueRange = 1f..5f,
-                                            steps = 3,
+                                            value = tempRes,
+                                            onValueChange = { tempRes = it },
+                                            valueRange = 5f..100f,
+                                            steps = 94,
                                             colors = SliderDefaults.colors(
                                                 thumbColor = MaterialTheme.colorScheme.primary,
                                                 activeTrackColor = MaterialTheme.colorScheme.primary,
@@ -3218,10 +3219,12 @@ fun GestureMappingRow(
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            val finalVol = tempVol.toInt().coerceIn(1, 5)
-                                            volStep = finalVol
+                                            val finalRes = tempRes.toInt().coerceIn(5, 100)
+                                            val derivedStep = (100f / finalRes).roundToInt().coerceIn(1, 20)
+                                            volResolution = finalRes
                                             prefs.edit()
-                                                .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, finalVol)
+                                                .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, finalRes)
+                                                .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, derivedStep)
                                                 .apply()
                                             try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                             showVolSliderDialog = false

@@ -545,8 +545,18 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 hudStyleVersion++
                                                             }
+                                                            LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION -> {
+                                                                val resVal = kotlin.math.round(newVal).toInt().coerceIn(5, 100)
+                                                                val stepVal = (100f / resVal).roundToInt().coerceIn(1, 20)
+                                                                prefs.edit()
+                                                                    .putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, resVal)
+                                                                    .putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, stepVal)
+                                                                    .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
                                                             LightspeedPreferences.KEY_VOLUME_SCRUB_STEP -> {
-                                                                val volVal = kotlin.math.round(newVal).toInt().coerceIn(1, 5)
+                                                                val volVal = kotlin.math.round(newVal).toInt().coerceIn(1, 25)
                                                                 prefs.edit()
                                                                     .putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, volVal)
                                                                     .apply()

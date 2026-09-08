@@ -95,6 +95,10 @@ object LightspeedHudRenderer {
         density: Float,
         isLeftFlank: Boolean = false
     ) {
+        headerTextPaint.textAlign = Paint.Align.CENTER
+        valueTextPaint.textAlign = Paint.Align.CENTER
+        subTextPaint.textAlign = Paint.Align.CENTER
+
         when (style) {
             "cockpit_reticle" -> drawCockpitReticle(
                 canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density
@@ -115,6 +119,10 @@ object LightspeedHudRenderer {
                 canvas, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density
             )
         }
+
+        headerTextPaint.textAlign = Paint.Align.CENTER
+        valueTextPaint.textAlign = Paint.Align.CENTER
+        subTextPaint.textAlign = Paint.Align.CENTER
     }
 
     /**
@@ -193,10 +201,22 @@ object LightspeedHudRenderer {
         // 4. Header Telemetry (Material 3 Dynamic Accent)
         headerTextPaint.color = primaryColor
         headerTextPaint.textSize = 10.5f * d
-        canvas.drawText("✦ $title", cx, topY + (18f * d), headerTextPaint)
+        headerTextPaint.textAlign = Paint.Align.CENTER
+        val maxTitleW = cardW - (36f * d)
+        val safeTitle = if (headerTextPaint.measureText("✦ $title") > maxTitleW) {
+            var t = title
+            while (t.isNotEmpty() && headerTextPaint.measureText("✦ $t…") > maxTitleW) {
+                t = t.dropLast(1)
+            }
+            "✦ $t…"
+        } else {
+            "✦ $title"
+        }
+        canvas.drawText(safeTitle, cx, topY + (18f * d), headerTextPaint)
 
         // 5. Value Readout (Crisp White Glow)
         valueTextPaint.textSize = 19f * d
+        valueTextPaint.textAlign = Paint.Align.CENTER
         canvas.drawText("[ $value ]", cx, topY + (41f * d), valueTextPaint)
 
         // 6. 7-Segment Liquid Glass Quantum Gauge / Continuous Precision Track
@@ -373,14 +393,27 @@ object LightspeedHudRenderer {
         // 4. Center Telemetry
         headerTextPaint.color = primaryColor
         headerTextPaint.textSize = 10f * d
-        canvas.drawText("✦ $title", cx, cy - (16f * d), headerTextPaint)
+        headerTextPaint.textAlign = Paint.Align.CENTER
+        val maxTitleW = (radius * 2f) + (16f * d)
+        val safeTitle = if (headerTextPaint.measureText("✦ $title") > maxTitleW) {
+            var t = title
+            while (t.isNotEmpty() && headerTextPaint.measureText("✦ $t…") > maxTitleW) {
+                t = t.dropLast(1)
+            }
+            "✦ $t…"
+        } else {
+            "✦ $title"
+        }
+        canvas.drawText(safeTitle, cx, cy - (16f * d), headerTextPaint)
 
         valueTextPaint.textSize = 21f * d
+        valueTextPaint.textAlign = Paint.Align.CENTER
         canvas.drawText(value, cx, cy + (7f * d), valueTextPaint)
 
         if (hasGauge) {
             subTextPaint.color = Color.argb(175, 210, 225, 245)
             subTextPaint.textSize = 8.5f * d
+            subTextPaint.textAlign = Paint.Align.CENTER
             val label = if (totalSteps <= 24) "STEP ${stepIndex + 1} / $totalSteps" else "LEVEL: $value"
             canvas.drawText(label, cx, cy + (24f * d), subTextPaint)
         }
@@ -479,14 +512,27 @@ object LightspeedHudRenderer {
         val textCx = if (isLeftFlank) rect.centerX() + (6f * d) else rect.centerX() - (6f * d)
         headerTextPaint.color = primaryColor
         headerTextPaint.textSize = 9.5f * d
-        canvas.drawText("✦ $title", textCx, rect.top + (20f * d), headerTextPaint)
+        headerTextPaint.textAlign = Paint.Align.CENTER
+        val maxTitleW = cardW - (32f * d)
+        val safeTitle = if (headerTextPaint.measureText("✦ $title") > maxTitleW) {
+            var t = title
+            while (t.isNotEmpty() && headerTextPaint.measureText("✦ $t…") > maxTitleW) {
+                t = t.dropLast(1)
+            }
+            "✦ $t…"
+        } else {
+            "✦ $title"
+        }
+        canvas.drawText(safeTitle, textCx, rect.top + (20f * d), headerTextPaint)
 
         valueTextPaint.textSize = 17f * d
+        valueTextPaint.textAlign = Paint.Align.CENTER
         canvas.drawText("[ $value ]", textCx, rect.top + (42f * d), valueTextPaint)
 
         if (hasGauge) {
             subTextPaint.color = Color.argb(175, 210, 225, 245)
             subTextPaint.textSize = 8.5f * d
+            subTextPaint.textAlign = Paint.Align.CENTER
             val label = if (totalSteps <= 24) "STEP ${stepIndex + 1} OF $totalSteps" else "LEVEL: $value"
             canvas.drawText(label, textCx, rect.top + (61f * d), subTextPaint)
         }
@@ -573,12 +619,6 @@ object LightspeedHudRenderer {
         canvas.drawLine(cx - (18f * d), bracketY - (10f * d), cx + (18f * d), bracketY - (10f * d), specularPaint)
         canvas.drawLine(cx - (18f * d), bracketY + (10f * d), cx + (18f * d), bracketY + (10f * d), specularPaint)
 
-        // 5. Header Telemetry
-        headerTextPaint.color = primaryColor
-        headerTextPaint.textSize = 9.5f * d
-        headerTextPaint.textAlign = Paint.Align.LEFT
-        canvas.drawText("✦ HORIZON // $title", rect.left + (16f * d), rect.top + (18f * d), headerTextPaint)
-
         // Monospace Status Readout (Top Right)
         subTextPaint.color = Color.argb(190, 220, 230, 245)
         subTextPaint.textSize = 9.5f * d
@@ -586,7 +626,25 @@ object LightspeedHudRenderer {
         val subLabel = if (hasGauge) {
             if (totalSteps <= 24) "STEP ${stepIndex + 1}/$totalSteps" else "LEVEL $value"
         } else "ACTIVE"
+        val subW = subTextPaint.measureText(subLabel)
         canvas.drawText(subLabel, rect.right - (16f * d), rect.top + (18f * d), subTextPaint)
+
+        // 5. Header Telemetry
+        headerTextPaint.color = primaryColor
+        headerTextPaint.textSize = 9.5f * d
+        headerTextPaint.textAlign = Paint.Align.LEFT
+        val maxHeaderW = rect.width() - (36f * d) - subW - (12f * d)
+        val rawHeader = "✦ $title"
+        val safeHeader = if (headerTextPaint.measureText(rawHeader) > maxHeaderW) {
+            var t = title
+            while (t.isNotEmpty() && headerTextPaint.measureText("✦ $t…") > maxHeaderW) {
+                t = t.dropLast(1)
+            }
+            "✦ $t…"
+        } else {
+            rawHeader
+        }
+        canvas.drawText(safeHeader, rect.left + (16f * d), rect.top + (18f * d), headerTextPaint)
 
         // 6. Central Digital Readout
         valueTextPaint.textSize = 19f * d
@@ -637,6 +695,10 @@ object LightspeedHudRenderer {
             specularPaint.color = Color.argb(120, 255, 255, 255)
             canvas.drawLine(cx, barY - (3f * d), cx, barY + barH + (3f * d), specularPaint)
         }
+
+        headerTextPaint.textAlign = Paint.Align.CENTER
+        subTextPaint.textAlign = Paint.Align.CENTER
+        valueTextPaint.textAlign = Paint.Align.CENTER
     }
 
     /**
@@ -751,7 +813,17 @@ object LightspeedHudRenderer {
         headerTextPaint.color = primaryColor
         headerTextPaint.textSize = 9f * d
         headerTextPaint.textAlign = Paint.Align.CENTER
-        canvas.drawText("✦ $title", cx, cy - (16f * d), headerTextPaint)
+        val maxTitleW = (radius * 2f) - (14f * d)
+        val safeTitle = if (headerTextPaint.measureText("✦ $title") > maxTitleW) {
+            var t = title
+            while (t.isNotEmpty() && headerTextPaint.measureText("✦ $t…") > maxTitleW) {
+                t = t.dropLast(1)
+            }
+            "✦ $t…"
+        } else {
+            "✦ $title"
+        }
+        canvas.drawText(safeTitle, cx, cy - (16f * d), headerTextPaint)
 
         valueTextPaint.textSize = 19f * d
         valueTextPaint.textAlign = Paint.Align.CENTER
@@ -946,5 +1018,9 @@ object LightspeedHudRenderer {
 
         gaugeFillPaint.color = Color.WHITE
         canvas.drawCircle(thumbX, thumbY, 5f * d, gaugeFillPaint)
+
+        headerTextPaint.textAlign = Paint.Align.CENTER
+        valueTextPaint.textAlign = Paint.Align.CENTER
+        subTextPaint.textAlign = Paint.Align.CENTER
     }
 }

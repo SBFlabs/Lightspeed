@@ -178,6 +178,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private var activeHoldScrubAction: String? = null
     private var activeHoldScrubActionKey: String? = null
+    private var activeScrubVolumePct: Int = -1
     private var scrubHudTitle = ""
     private var scrubHudValue = ""
 
@@ -236,9 +237,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     "system:volume", "scrub:volume" -> {
                         val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                         val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        val volResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
+                        val pct = kotlin.math.round(currentVol * 100f / maxVol.coerceAtLeast(1)).toInt().coerceIn(0, 100)
+                        activeScrubVolumePct = pct
                         scrubHudTitle = "MEDIA VOLUME"
-                        scrubHudValue = "$currentVol / $maxVol"
-                        dispatchScrubHud(scrubHudTitle, scrubHudValue, currentVol, maxVol)
+                        scrubHudValue = "$pct%"
+                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (pct * volResolution / 100).coerceIn(0, volResolution), volResolution)
                     }
                     "system:brightness", "scrub:brightness" -> {
                         val currentBrightness = try {
@@ -1235,9 +1239,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                     "system:volume", "scrub:volume" -> {
                                         val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                                         val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                                        val volResolution = context.defaultPrefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
+                                        val pct = kotlin.math.round(currentVol * 100f / maxVol.coerceAtLeast(1)).toInt().coerceIn(0, 100)
+                                        activeScrubVolumePct = pct
                                         scrubHudTitle = "MEDIA VOLUME"
-                                        scrubHudValue = "$currentVol / $maxVol"
-                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, currentVol, maxVol)
+                                        scrubHudValue = "$pct%"
+                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (pct * volResolution / 100).coerceIn(0, volResolution), volResolution)
                                     }
                                     "system:brightness", "scrub:brightness" -> {
                                         val currentBrightness = try {
@@ -1429,6 +1436,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 }
                 activeHoldScrubAction = null
                 activeHoldScrubActionKey = null
+                activeScrubVolumePct = -1
                 scrubHudTitle = ""
                 scrubHudValue = ""
                 invalidate()
@@ -1489,16 +1497,25 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             }
 
             if (assignedScrub == "scrub:volume" || assignedScrub == "system:volume") {
-                val volStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1)
-                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val volResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
+                val volStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, (100f / volResolution).roundToInt().coerceIn(1, 20))
                 val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                val targetVol = (currentVol + (steps * volStep)).coerceIn(0, maxVol)
+                if (activeScrubVolumePct < 0) {
+                    val curVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                    activeScrubVolumePct = kotlin.math.round(curVol * 100f / maxVol.coerceAtLeast(1)).toInt().coerceIn(0, 100)
+                }
+                val targetPct = (activeScrubVolumePct + (steps * volStep)).coerceIn(0, 100)
+                activeScrubVolumePct = targetPct
+                val targetStreamVol = kotlin.math.round(targetPct * maxVol / 100f).toInt().coerceIn(0, maxVol)
+                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val showNativeUi = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
                 val flags = if (showNativeUi) AudioManager.FLAG_SHOW_UI else 0
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, flags)
+                if (targetStreamVol != currentVol) {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetStreamVol, flags)
+                }
                 scrubHudTitle = "MEDIA VOLUME"
-                scrubHudValue = "$targetVol / $maxVol"
-                dispatchScrubHud(scrubHudTitle, scrubHudValue, targetVol, maxVol)
+                scrubHudValue = "$targetPct%"
+                dispatchScrubHud(scrubHudTitle, scrubHudValue, (targetPct * volResolution / 100).coerceIn(0, volResolution), volResolution)
                 invalidate()
             } else if (assignedScrub == "scrub:brightness" || assignedScrub == "system:brightness") {
                 if (Settings.System.canWrite(context)) {

@@ -205,11 +205,13 @@ object ActionDispatcher {
                 if (context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)) {
                     val cur = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
                     val max = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
+                    val pct = kotlin.math.round(cur * 100f / max.coerceAtLeast(1)).toInt().coerceIn(0, 100)
+                    val volResolution = context.defaultPrefs().getInt(LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
                     com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
                         title = "MEDIA VOLUME",
-                        value = "$cur / $max",
-                        stepIndex = cur,
-                        totalSteps = max
+                        value = "$pct%",
+                        stepIndex = (pct * volResolution / 100).coerceIn(0, volResolution),
+                        totalSteps = volResolution
                     )
                 }
             }

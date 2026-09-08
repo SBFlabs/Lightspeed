@@ -626,11 +626,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
             instanceRef?.clear()
             instanceRef = null
         }
-        val prefs = defaultPrefs()
-        prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
-        com.sbf.lightspeed.system.LightspeedKeyEngine.stopShizukuPowerMonitor()
-        com.sbf.lightspeed.system.LightspeedWatchdogEngine.stopSentinel()
-        teardown()
+        try {
+            val prefs = defaultPrefs()
+            prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
+            com.sbf.lightspeed.system.LightspeedKeyEngine.stopShizukuPowerMonitor()
+            com.sbf.lightspeed.system.LightspeedWatchdogEngine.stopSentinel()
+            teardown()
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during service onDestroy: ${e.message}", e)
+        }
     }
 
     private fun getScreenRotation(): Int {
@@ -1011,11 +1015,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
             orientationAnchorView = null
         }
         overlayView?.let {
-            windowManager?.removeView(it)
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
             overlayView = null
         }
         leftWingOverlayView?.let {
-            windowManager?.removeView(it)
+            try { windowManager?.removeView(it) } catch (_: Exception) {}
             leftWingOverlayView = null
         }
         statusBarOverlayView?.let {

@@ -3703,7 +3703,12 @@ fun CentralCommandMatrixFields(
                                                                     .clip(RoundedCornerShape(12.dp))
                                                                     .clickable {
                                                                         val ok = LightspeedOrientationEngine.setFaceRotateEnabled(context, !isFaceRotateActive)
-                                                                        if (ok) isFaceRotateActive = !isFaceRotateActive
+                                                                        if (ok) {
+                                                                            isFaceRotateActive = !isFaceRotateActive
+                                                                        } else {
+                                                                            android.widget.Toast.makeText(context, "Elevated permission needed. Opening system settings...", android.widget.Toast.LENGTH_SHORT).show()
+                                                                            LightspeedOrientationEngine.openAutoRotateSettings(context)
+                                                                        }
                                                                         onRefreshNeeded()
                                                                     },
                                                                 shape = RoundedCornerShape(12.dp),
@@ -3745,7 +3750,12 @@ fun CentralCommandMatrixFields(
                                                                         checked = isFaceRotateActive,
                                                                         onCheckedChange = {
                                                                             val ok = LightspeedOrientationEngine.setFaceRotateEnabled(context, it)
-                                                                            if (ok) isFaceRotateActive = it
+                                                                            if (ok) {
+                                                                                isFaceRotateActive = it
+                                                                            } else {
+                                                                                android.widget.Toast.makeText(context, "Elevated permission needed. Opening system settings...", android.widget.Toast.LENGTH_SHORT).show()
+                                                                                LightspeedOrientationEngine.openAutoRotateSettings(context)
+                                                                            }
                                                                             onRefreshNeeded()
                                                                         },
                                                                         colors = SwitchDefaults.colors(

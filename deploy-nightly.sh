@@ -40,6 +40,7 @@ killall -9 java aapt2 2>/dev/null || true
 
 echo "🚀 [4/4] Installing Nightly build to device ($APK_PATH)..."
 adb -s "$DEVICE_IP" install -r -d "$APK_PATH"
+adb -s "$DEVICE_IP" shell "pm grant com.sbf.lightspeed.nightly android.permission.WRITE_SECURE_SETTINGS 2>/dev/null || true"
 
 echo "🔍 Verifying physical installation on device..."
 adb -s "$DEVICE_IP" shell "dumpsys package com.sbf.lightspeed.nightly | grep -E 'versionCode|lastUpdateTime'"

@@ -1,6 +1,8 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.media.AudioManager
 import android.net.Uri
@@ -149,9 +151,22 @@ object LightspeedOrientationEngine {
         }
     }
 
+    fun canWriteSecureSettings(context: Context): Boolean {
+        return context.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
+    }
+
     fun setFaceRotateEnabled(context: Context, enabled: Boolean): Boolean {
         val target = if (enabled) 1 else 0
         Log.i(TAG, "Setting Face-Oriented Auto-Rotate (camera_autorotate): $target")
+
+        if (canWriteSecureSettings(context)) {
+            try {
+                Settings.Secure.putInt(context.contentResolver, "camera_autorotate", target)
+                return true
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed writing camera_autorotate via Settings.Secure with permission: ${e.message}")
+            }
+        }
 
         if (ElevatedTaskCloser.isShizukuActive) {
             try {
@@ -176,6 +191,22 @@ object LightspeedOrientationEngine {
             Log.w(TAG, "Failed writing camera_autorotate via Settings.Secure: ${e.message}")
         }
         return false
+    }
+
+    fun openAutoRotateSettings(context: Context) {
+        try {
+            val intent = Intent("android.settings.AUTO_ROTATE_SETTINGS").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            try {
+                val intent = Intent(Settings.ACTION_DISPLAY_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {}
+        }
     }
 
     fun getUserRotation(context: Context): Int {

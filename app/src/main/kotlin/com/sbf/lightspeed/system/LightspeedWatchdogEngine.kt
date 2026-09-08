@@ -3,6 +3,7 @@ package com.sbf.lightspeed.system
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -77,42 +78,76 @@ object LightspeedWatchdogEngine {
         return false
     }
 
+    fun canWriteSecureSettings(context: Context): Boolean {
+        return context.checkSelfPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
+    }
+
     /**
-     * Revives LightspeedAccessibilityService using Shizuku privileged shell.
+     * Revives LightspeedAccessibilityService using WRITE_SECURE_SETTINGS or Shizuku privileged shell.
      */
     fun reviveAccessibilityService(context: Context): Boolean {
-        if (!ElevatedTaskCloser.isShizukuActive && !ElevatedTaskCloser.isRootActive) {
-            Log.w(TAG, "Cannot revive accessibility service: Shizuku / Root not available")
-            return false
-        }
-
         val serviceComponent = ComponentName(context, LightspeedAccessibilityService::class.java).flattenToString()
         Log.i(TAG, "Reviving Accessibility Service: $serviceComponent")
 
-        val cmd = """
-            current_services=$(settings get secure enabled_accessibility_services)
-            if [ -z "${'$'}current_services" ] || [ "${'$'}current_services" = "null" ]; then
-                new_services="$serviceComponent"
-            else
-                case ":${'$'}current_services:" in
-                    *":$serviceComponent:"*) new_services="${'$'}current_services" ;;
-                    *) new_services="${'$'}current_services:$serviceComponent" ;;
-                esac
-            fi
-            settings put secure enabled_accessibility_services "${'$'}new_services"
-            settings put secure accessibility_enabled 1
-        """.trimIndent()
-
-        val success = if (ElevatedTaskCloser.isShizukuActive) {
-            val p = ElevatedTaskCloser.execShizuku(cmd)
-            p?.waitFor() == 0
-        } else {
-            val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
-            p.waitFor() == 0
+        // 1. Direct ContentResolver write if WRITE_SECURE_SETTINGS is granted
+        if (canWriteSecureSettings(context)) {
+            try {
+                val current = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""
+                val newServices = if (current.isEmpty() || current == "null") {
+                    serviceComponent
+                } else {
+                    val list = current.split(":").filter { it.isNotBlank() }.toMutableList()
+                    if (!list.contains(serviceComponent)) list.add(serviceComponent)
+                    list.joinToString(":")
+                }
+                Settings.Secure.putString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, newServices)
+                Settings.Secure.putInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+                Log.i(TAG, "Revived via direct Settings.Secure: $newServices")
+                return true
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed writing secure accessibility settings: ${e.message}")
+            }
         }
 
-        Log.i(TAG, "Revival command result: $success")
-        return success
+        // 2. Shizuku / Root privileged shell
+        if (ElevatedTaskCloser.isShizukuActive || ElevatedTaskCloser.isRootActive) {
+            val cmd = """
+                current_services=$(settings get secure enabled_accessibility_services)
+                if [ -z "${'$'}current_services" ] || [ "${'$'}current_services" = "null" ]; then
+                    new_services="$serviceComponent"
+                else
+                    case ":${'$'}current_services:" in
+                        *":$serviceComponent:"*) new_services="${'$'}current_services" ;;
+                        *) new_services="${'$'}current_services:$serviceComponent" ;;
+                    esac
+                fi
+                settings put secure enabled_accessibility_services "${'$'}new_services"
+                settings put secure accessibility_enabled 1
+            """.trimIndent()
+
+            val success = if (ElevatedTaskCloser.isShizukuActive) {
+                val p = ElevatedTaskCloser.execShizuku(cmd)
+                p?.waitFor() == 0
+            } else {
+                val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+                p.waitFor() == 0
+            }
+
+            Log.i(TAG, "Revival command result: $success")
+            if (success) return true
+        }
+
+        Log.w(TAG, "Cannot revive accessibility service: Elevated permissions / Shizuku not available")
+        return false
+    }
+
+    fun openAccessibilitySettings(context: Context) {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (_: Exception) {}
     }
 
     /**

@@ -1670,17 +1670,28 @@ fun WatchdogQuickTelemetryCard(
                         letterSpacing = 0.8.sp
                     )
                 }
+                val statusColor = when {
+                    isServiceRunning && isShizukuActive -> Color(0xFF00E676)
+                    isServiceRunning -> MaterialTheme.colorScheme.primary
+                    else -> cautionAmber
+                }
+                val statusText = when {
+                    isServiceRunning && isShizukuActive -> "FORTIFIED"
+                    isServiceRunning -> "ONLINE"
+                    else -> "STANDBY"
+                }
                 Surface(
                     shape = RoundedCornerShape(6.dp),
-                    color = if (isServiceRunning && isShizukuActive) Color(0xFF00E676).copy(alpha = 0.18f) else Color(0xFFFF9800).copy(alpha = 0.18f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning && isShizukuActive) Color(0xFF00E676).copy(alpha = 0.5f) else Color(0xFFFF9800).copy(alpha = 0.5f))
+                    color = statusColor.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, statusColor.copy(alpha = 0.35f))
                 ) {
                     Text(
-                        text = if (isServiceRunning && isShizukuActive) "PROTECTED" else "ATTENTION NEEDED",
+                        text = statusText,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isServiceRunning && isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        color = statusColor,
+                        letterSpacing = 0.6.sp,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                     )
                 }
             }
@@ -1858,7 +1869,12 @@ fun WatchdogQuickTelemetryCard(
                             val ok = LightspeedWatchdogEngine.reviveAccessibilityService(context)
                             withContext(Dispatchers.Main) {
                                 com.sbf.lightspeed.system.LightspeedHapticEngine.heavyClick(context)
-                                Toast.makeText(context, if (ok) "Core Watchdog pulse sent" else "Shizuku required", Toast.LENGTH_SHORT).show()
+                                if (ok) {
+                                    Toast.makeText(context, "Core pulse sent: Online", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Opening Accessibility Settings...", Toast.LENGTH_SHORT).show()
+                                    LightspeedWatchdogEngine.openAccessibilitySettings(context)
+                                }
                                 onStateChanged()
                             }
                         }

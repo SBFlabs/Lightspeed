@@ -28,7 +28,7 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 * Sensor Area (Touch Strip): Top bezel tactile gesture capture zone for instant action triggers.
 * Synthetic Gravity Engine (Orientation Preferences): Native gyro, face-posture, and 4-bucket application orientation automation.
 * Info Beacons (Telemetry & Indicators): Real-time network throughput, media/download progress flare, and Orbital Capsule notch dynamics.
-* Hull & Ship Maneuvers (Hardware & Kinetic Gestures): Physical key interception, volume long-press, kinetic back-tap, and future device kinematics.
+* Hull & Ship Maneuvers (Hardware & Kinetic Gestures): Physical key interception, volume long-press, power double-press camera revival, kinetic back-tap, wrist-twist/flip camera kinematics, and temporal rhythm detection.
 * Orbital Capsule: Camera punch-hole dynamic HUD (cutout calibration, marquee telemetry, media flare).
 * Flight Blackbox (Diagnostics & Crash Logs): Isolated crash-telemetry and fault recorder with one-touch clipboard export.
 * Deflectors (Port & Starboard): Left and right kinetic screen-edge gesture wings with progressive frosted glass diffusion, specular rims, and directional macro gestures.
@@ -38,8 +38,9 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 * Deep Space: Custom high-performance Canvas graphics engine (cosmic starfield, gimbal rings, lightspeed warp surges).
 * Central Command: Master configuration deck with dynamic accordion matrices (formerly SidebarMatrixConfig).
 * Config Vault (Backup & Restore): Complete offline JSON export/import engine with Base64 custom icon persistence and instant cache flush.
-* System Override Deck (Developer & Display Tuning): Direct system value overrides utilizing Shizuku or standalone elevated ADB permissions (DPI/PPI/smallest width, continuous animation speed scaling with simplified master or detailed subdomains, zero-sensitivity native Android edge gesture neutralization), connected via direct bridge buttons in Deflector setup, plus real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
+* System Override Deck (Developer & System Tuning): Direct system value overrides utilizing Shizuku or standalone elevated ADB permissions (DPI/PPI/smallest width, font scale, continuous animation speed scaling with simplified master or detailed subdomains, zero-sensitivity native edge gesture neutralization, custom long-press delays, stay-awake charging, ADB/Wi-Fi debugging switchboard, freeform multi-window mode selection, and lock-screen shortcuts), connected via direct bridge buttons in Deflector setup, companion volume slider DND pills, plus real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
 * Adaptive Kinetic Scroll Engine (Top, Bottom & Continuous Scrub): Priority fallback orchestration checklist (Accessibility Direct Node -> Directional Step -> Kinetic Fling -> Native Toolbar Tap -> Key Injection), per-app learning memory, and a kinetic Scrub-to-Scroll action with customizable starting speed, acceleration curve, and max velocity ceiling.
+
 
 
 [THE LANGUAGE ENGINE: 3-WAY COMMUNICATION PROTOCOL & GLOBAL I18N]
@@ -84,6 +85,11 @@ PART 1: THE BACK BURNER (ESTABLISHED DEFERRED ARCHITECTURE)
 
 7. Ship Maneuvers: Kinetic Expansion:
    - Future kinetic gesture recognition: "Chop-Chop" double flick (e.g. flashlight toggle), twist/flip gesture (quick camera or DND toggle), and pick-up/tilt sensor triggers.
+
+8. Per-App Enforced Force-Dark Mode (Targeted Amazon / Stubborn White Apps):
+   - Explicitly deferred low-priority back-burner capability.
+   - Targeted hardware-accelerated dark mode enforcement (`debug.hwui.force_dark` injection via elevated ADB/Shizuku) restricted strictly to selected app packages (specifically enforcing notoriously bright, non-compliant apps like Amazon Shopping) without corrupting global Android system color schemes.
+
 
 --------------------------------------------------------------------------------
 PART 2: UNCERTAIN FIELD STATUS & TESTING AUDIT (VERIFY ON RUNTIME)
@@ -165,10 +171,19 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 ** Add systemUI tuner setting I use plus the ones from that Foss app for pixels and animation speed:
    - System Override: Direct developer options control powered via Shizuku or standalone elevated ADB permissions (zero-dependency light speed execution):
      * PPI, DPI, and smallest width (sw<N>dp) overrides without reboot.
+     * Font Scale (`Settings.System.FONT_SCALE`) dynamic slider control.
+     * Custom Long-Press Delay (`Settings.Secure.LONG_PRESS_TIMEOUT`) with custom millisecond thresholds (e.g. 200ms - 500ms).
+     * Stay Awake While Plugged In (`Settings.Global.STAY_ON_WHILE_PLUGGED_IN`) flags for AC, USB, and wireless charging.
      * Continuous animation speed scaling: tactile slider UI with dual modes (simplified global master slider or detailed subdomains for window, transition, and animator duration).
      * Native Android side/start gesture sensitivity zero-out (inset scale = 0) so edge gestures cover the whole screen border without OS interference.
      * Deep integration: Placed natively in System Override, but also surfaced via direct bridge buttons and hint cards directly within the Deflector/developer gesture configuration steps.
+     * ADB & Wireless Debugging Switchboard (`adb_enabled`, `adb_wifi_enabled`) with architecture to retain elevated execution without persistent Wi-Fi debugging notifications.
+     * Freeform Multi-Window Selection: Native Android AOSP freeform desktop mode vs. OEM vendor floating window implementations.
+     * Custom Lock-Screen Shortcuts: Re-assignment of left/right lock screen triggers via MacroDroid / secure settings bridge.
+     * Floating OEM Volume Slider Companion: 1–2 micro floating action icons anchored adjacent to device volume slider for instant Do Not Disturb (DND) and sound mode toggling.
+     * Targeted Per-App Force Dark Mode: Scoped `debug.hwui.force_dark` override for stubborn apps (e.g. Amazon Shopping) - low priority back burner.
      * Hardware telemetry overlay (CPU cluster load, GPU frequency/load, FPS frame-pacing, and Vulkan vs. OpenGL ES active renderer indicator) with per-app foreground activation whitelist.
+
 
 * Cruise vs gears settings vs for both?
   - haptics? icons? text size? scale?
@@ -287,6 +302,12 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
    - Developer Options — Display Metrics Overwrite (PPI / DPI / Smallest Width):
      * Direct control over `display_density_forced`, `wm density`, and `sw<N>dp` to modify PPI/DPI on-the-fly.
      * Instant switching between compact avionics HUD scaling and high-density viewports without requiring system reboots.
+   - Developer Options — Dynamic Font Scale Overwrite:
+     * Tactile slider control for `Settings.System.FONT_SCALE` (0.80x to 1.30x) within System Override, eliminating deep OS settings navigation.
+   - Developer Options — Custom Long-Press Delay:
+     * Dynamic control over `Settings.Secure.LONG_PRESS_TIMEOUT` with fine-tuned millisecond presets and slider (e.g. 200ms, 250ms, 300ms, 400ms, 500ms) to slash system-wide UI latency.
+   - Developer Options — Stay Awake While Plugged In:
+     * Direct control over `Settings.Global.STAY_ON_WHILE_PLUGGED_IN` with granular charging flags (AC power, USB, and Wireless charging docks).
    - Developer Options — Continuous Animation Speeds (Simplified vs. Detailed Subdomains):
      * Tactile Compose Slider UI replacing discrete buttons or raw value entry.
      * Dual-tier UX presentation:
@@ -296,6 +317,16 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
      * Direct calibration and zero-out of Android's native back-gesture insets (`back_gesture_inset_scale_left`, `back_gesture_inset_scale_right` set to 0).
      * Fully eliminates native OS back-gesture deadzones so Deflector wings and edge gestures can cover 100% of the screen border without gesture conflicts.
      * *Cross-Deck Deep Integration & Direct Bridge*: Centrally managed within System Override, but also contextually surfaced via direct one-tap bridge buttons and guidance hint cards directly within the Deflector setup and gesture calibration steps.
+   - Developer Options — ADB & Wireless Debugging Switchboard:
+     * Fast toggle matrix for USB Debugging (`adb_enabled`) and Wireless Debugging (`adb_wifi_enabled`).
+     * Investigating elevated headless architecture allowing Lightspeed to maintain execution authority without persistent Wi-Fi debugging notifications or manual pairing cycles.
+   - Freeform Multi-Window Mode Selection:
+     * Switchboard between Native Android AOSP freeform desktop mode (`enable_freeform_support`, `force_resizable_activities`) and OEM manufacturer proprietary floating window implementations (e.g. Samsung DeX / Pop-up view, Xiaomi floating windows).
+   - Custom Lock-Screen Shortcuts Engine:
+     * Re-mapping left/right lock-screen shortcut slots via direct secure settings manipulation, MacroDroid bridge, or custom intent routing.
+   - Floating OEM Volume Slider Companion:
+     * 1–2 contextual micro floating action icons anchored directly adjacent to or below the native device/OEM volume slider dialog.
+     * Provides instantaneous one-tap Do Not Disturb (DND) mode toggle and sound profile switching (Sound / Vibrate / Mute) right at the user's volume touchpoint.
    - Floating Avionics Hardware Telemetry HUD (CPU, GPU, FPS & Graphics Engine):
      * Non-intrusive floating diagnostic pill rendering real-time CPU per-core/cluster utilization, GPU active load/clock, and real-time FPS frame-pacing.
      * Graphics Pipeline Detection: Live indicator showing active rendering backend (Vulkan vs. OpenGL ES).
@@ -325,6 +356,9 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
      * Embedded directly inside the Scroll to Top and Scroll to Bottom action configuration sheets for instant, unified adjustment without navigating away.
 7. Action Engine Vector III (Reserved Placeholder for Pending Specification):
    - Dedicated architectural vector held in stasis in the Actions Engine backlog, pending exact design confirmation from the Founder.
+8. Hull & Ship Maneuvers: Power Double-Press Camera Revival & Kinetic Wrist-Flip Kinematics:
+   - Native Power Double-Press Camera Revival: Hardware key interception or system override ensuring the Android power button quick double-press reliably revives and launches the camera over the keyguard without Google Assistant / Gemini collision.
+   - Kinetic Wrist-Flip Camera Gesture: Rapid double-twist / back-and-forth wrist flip kinetic sensor gesture (gyroscope and accelerometer kinetic signature recognition) to wake device and launch camera instantly.
 
 
 [STATUS: EXPLICITLY DEFERRED (THE BACK BURNER)]

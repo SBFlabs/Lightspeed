@@ -8,6 +8,8 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Surface
 import android.content.pm.ActivityInfo
+import android.hardware.SensorManager
+import android.view.OrientationEventListener
 import com.sbf.lightspeed.LightspeedAccessibilityService
 
 /**
@@ -52,6 +54,66 @@ object LightspeedOrientationManager {
     @Volatile
     private var lastForegroundPackage: String? = null
 
+    @Volatile
+    private var isSensorPortraitDriverActive = false
+    private var sensorPortraitListener: OrientationEventListener? = null
+    @Volatile
+    private var currentSensorPortraitOrientation: Int = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+    fun startActiveSensorPortraitDriver(context: Context) {
+        LightspeedOrientationEngine.setSensorPortrait(context)
+        if (isSensorPortraitDriverActive) {
+            LightspeedAccessibilityService.instance?.updateForcedOrientation(currentSensorPortraitOrientation)
+            return
+        }
+        isSensorPortraitDriverActive = true
+
+        // Immediately apply current portrait mode to anchor
+        LightspeedAccessibilityService.instance?.updateForcedOrientation(currentSensorPortraitOrientation)
+
+        val appContext = context.applicationContext
+        if (sensorPortraitListener == null) {
+            sensorPortraitListener = object : OrientationEventListener(appContext, SensorManager.SENSOR_DELAY_NORMAL) {
+                override fun onOrientationChanged(orientation: Int) {
+                    if (orientation == ORIENTATION_UNKNOWN || !isSensorPortraitDriverActive) return
+
+                    // Dynamic Gyro Inversion:
+                    // Upright 0° cone: 315°..360° or 0°..45°
+                    // Inverted 180° cone: 135°..225°
+                    // Landscape angles (45°..135° and 225°..315°): ignored to strictly enforce portrait
+                    val target = when {
+                        orientation >= 315 || orientation <= 45 -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        orientation in 135..225 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+                        else -> null
+                    }
+
+                    if (target != null && target != currentSensorPortraitOrientation) {
+                        currentSensorPortraitOrientation = target
+                        Log.i(TAG, "Active Sensor Portrait dynamic flip: $target (angle=$orientation°)")
+                        LightspeedAccessibilityService.instance?.updateForcedOrientation(target)
+                    }
+                }
+            }
+        }
+        try {
+            sensorPortraitListener?.enable()
+            Log.i(TAG, "Enabled Active Sensor Portrait Driver")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to enable OrientationEventListener", e)
+        }
+    }
+
+    fun stopActiveSensorPortraitDriver() {
+        if (!isSensorPortraitDriverActive) return
+        isSensorPortraitDriverActive = false
+        try {
+            sensorPortraitListener?.disable()
+            Log.i(TAG, "Disabled Active Sensor Portrait Driver")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to disable OrientationEventListener", e)
+        }
+    }
+
     fun canWriteSettings(context: Context): Boolean = LightspeedOrientationEngine.canWriteSettings(context)
     fun getAccelerometerRotation(context: Context): Int = if (LightspeedOrientationEngine.isAutoRotateEnabled(context)) 1 else 0
     fun getUserRotation(context: Context): Int = LightspeedOrientationEngine.getUserRotation(context)
@@ -59,6 +121,7 @@ object LightspeedOrientationManager {
     fun resetGravity(context: Context) {
         Log.i(TAG, "Restoring Default Gravity baseline")
         manualGestureOverride = null
+        stopActiveSensorPortraitDriver()
         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
         val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY RESTORED",
@@ -265,6 +328,7 @@ object LightspeedOrientationManager {
     }
 
     fun onScreenOff(context: Context) {
+        stopActiveSensorPortraitDriver()
         val prefs = context.defaultPrefs()
         val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"
         if (expiration != "persistent") {
@@ -313,6 +377,7 @@ object LightspeedOrientationManager {
         // Priority 1: Runtime Manual Gesture Override (Instant user veto if enabled)
         if (isActionOverrideAllowed(context)) {
             manualGestureOverride?.let { override ->
+                stopActiveSensorPortraitDriver()
                 when (override) {
                     GravityOverrideMode.FORCE_PORTRAIT -> {
                         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
@@ -344,21 +409,23 @@ object LightspeedOrientationManager {
             val lockscreenToken = "keyguard:lockscreen"
             when {
                 strictPortraitApps.contains(lockscreenToken) -> {
+                    stopActiveSensorPortraitDriver()
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                     LightspeedOrientationEngine.forcePortrait(context)
                     return
                 }
                 sensorPortraitApps.contains(lockscreenToken) -> {
-                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT)
-                    LightspeedOrientationEngine.setSensorPortrait(context)
+                    startActiveSensorPortraitDriver(context)
                     return
                 }
                 sensorLandscapeApps.contains(lockscreenToken) -> {
+                    stopActiveSensorPortraitDriver()
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     LightspeedOrientationEngine.forceLandscape(context)
                     return
                 }
                 sensor360Apps.contains(lockscreenToken) -> {
+                    stopActiveSensorPortraitDriver()
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
                     LightspeedOrientationEngine.forceSensor360(context)
                     return
@@ -375,21 +442,23 @@ object LightspeedOrientationManager {
         if (!resolvedPackage.isNullOrBlank()) {
             when {
                 strictPortraitApps.contains(resolvedPackage) -> {
+                    stopActiveSensorPortraitDriver()
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                     LightspeedOrientationEngine.forcePortrait(context)
                     return
                 }
                 sensorPortraitApps.contains(resolvedPackage) -> {
-                    LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT)
-                    LightspeedOrientationEngine.setSensorPortrait(context)
+                    startActiveSensorPortraitDriver(context)
                     return
                 }
                 sensorLandscapeApps.contains(resolvedPackage) -> {
+                    stopActiveSensorPortraitDriver()
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     LightspeedOrientationEngine.forceLandscape(context)
                     return
                 }
                 sensor360Apps.contains(resolvedPackage) -> {
+                    stopActiveSensorPortraitDriver()
                     LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
                     LightspeedOrientationEngine.forceSensor360(context)
                     return
@@ -398,6 +467,7 @@ object LightspeedOrientationManager {
         }
 
         // Priority 4: User's Master Auto-Rotate (Fallback for unassigned apps / native)
+        stopActiveSensorPortraitDriver()
         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
         val masterAutoRotate = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
         if (masterAutoRotate) {

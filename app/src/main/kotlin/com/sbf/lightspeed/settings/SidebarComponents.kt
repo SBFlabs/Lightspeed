@@ -461,6 +461,34 @@ fun AttitudeAppAssignmentSheet(
                 }
             }
 
+            if (bucket == LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = dynamicPrimary.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, dynamicPrimary.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            tint = dynamicPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Active 0° & 180° gyro driver bypasses launcher NOSENSOR locks. Note: Lock screens with in-display fingerprint sensors stay 0° for security.",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            lineHeight = 14.sp
+                        )
+                    }
+                }
+            }
+
             // Search Field
             TextField(
                 value = searchQuery,

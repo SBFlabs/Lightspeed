@@ -992,6 +992,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     private fun teardown() {
         LightspeedKeyEngine.reset()
         com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
+        com.sbf.lightspeed.system.LightspeedOrientationManager.stopActiveSensorPortraitDriver()
         displayManager?.unregisterDisplayListener(displayListener)
         rotationContentObserver?.let {
             try { contentResolver.unregisterContentObserver(it) } catch (_: Exception) {}

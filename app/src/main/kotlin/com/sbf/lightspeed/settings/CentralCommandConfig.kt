@@ -3758,6 +3758,26 @@ fun CentralCommandMatrixFields(
                                                                             Text(bucket.title, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
                                                                             Spacer(modifier = Modifier.height(2.dp))
                                                                             Text(bucket.subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f), lineHeight = 12.sp)
+                                                                            if (bucket == LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT) {
+                                                                                Spacer(modifier = Modifier.height(4.dp))
+                                                                                Row(
+                                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                                                                ) {
+                                                                                    Icon(
+                                                                                        Icons.Default.Info,
+                                                                                        contentDescription = null,
+                                                                                        tint = cautionAmber,
+                                                                                        modifier = Modifier.size(9.dp)
+                                                                                    )
+                                                                                    Text(
+                                                                                        text = "Active 180° gyro • Lockscreen UDFPS pins 0°",
+                                                                                        fontSize = 8.5.sp,
+                                                                                        color = cautionAmber.copy(alpha = 0.9f),
+                                                                                        lineHeight = 10.sp
+                                                                                    )
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
                                                                 }

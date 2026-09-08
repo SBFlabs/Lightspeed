@@ -453,9 +453,14 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (statusBarOverlayView == null) {
             setupStatusBarOverlay(prefs)
         } else {
+            val isHudActive = statusBarOverlayView?.isHudActive() == true
             statusBarWindowParams.flags = statusBarWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             statusBarWindowParams.width = screenWidthPx
-            statusBarWindowParams.height = heightPx
+            if (!isHudActive) {
+                statusBarWindowParams.height = heightPx
+            } else {
+                statusBarWindowParams.height = (260 * density).toInt()
+            }
             statusBarWindowParams.x = 0
             statusBarWindowParams.y = 0
             statusBarOverlayView?.invalidate()

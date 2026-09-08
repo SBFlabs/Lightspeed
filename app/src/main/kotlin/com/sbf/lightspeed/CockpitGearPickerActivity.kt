@@ -530,6 +530,37 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                         expandedSubsections = if (item.isExpanded) expandedSubsections - customKey else expandedSubsections + customKey
                                                     }
                                                 )
+                                                is PickerRowItem.SystemCustomizationSlider -> PickerCustomizationSliderRow(
+                                                    item = item,
+                                                    dynamicSecondary = dynamicSecondary,
+                                                    onValueChange = { newVal ->
+                                                        when (item.prefKey) {
+                                                            LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION -> {
+                                                                val resVal = kotlin.math.round(newVal).toInt().coerceIn(10, 254)
+                                                                val stepVal = (255f / resVal).toInt().coerceIn(1, 32)
+                                                                prefs.edit()
+                                                                    .putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, resVal)
+                                                                    .putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, stepVal)
+                                                                    .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            LightspeedPreferences.KEY_VOLUME_SCRUB_STEP -> {
+                                                                val volVal = kotlin.math.round(newVal).toInt().coerceIn(1, 5)
+                                                                prefs.edit()
+                                                                    .putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, volVal)
+                                                                    .apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                            else -> {
+                                                                prefs.edit().putFloat(item.prefKey, newVal).apply()
+                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                hudStyleVersion++
+                                                            }
+                                                        }
+                                                    }
+                                                )
                                                 is PickerRowItem.SystemCustomizationOption -> PickerCustomizationOptionRow(
                                                     item = item,
                                                     dynamicSecondary = dynamicSecondary,

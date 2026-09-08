@@ -218,7 +218,7 @@ object ActionDispatcher {
                     val current = try {
                         android.provider.Settings.System.getInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS)
                     } catch (_: Exception) { 128 }
-                    val steps = listOf(51, 102, 153, 204, 255)
+                    val steps = listOf(0, 51, 102, 153, 204, 255)
                     val next = steps.firstOrNull { it > current + 10 } ?: steps.first()
                     try {
                         android.provider.Settings.System.putInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, next)

@@ -56,6 +56,19 @@ sealed class PickerRowItem {
         override val key = "sys_opt_${parentToken}_$optionKey"
     }
 
+    data class SystemCustomizationSlider(
+        val parentToken: String,
+        val prefKey: String,
+        val title: String,
+        val subtitle: String,
+        val value: Float,
+        val range: ClosedFloatingPointRange<Float>,
+        val steps: Int = 0,
+        val formatValue: (Float) -> String
+    ) : PickerRowItem() {
+        override val key = "sys_slider_${parentToken}_$prefKey"
+    }
+
     data class AppHeader(
         val appName: String,
         val packageName: String,
@@ -220,7 +233,7 @@ fun buildFlatItemsList(
                                     } else "pref_macro_hud_style_default"
                                     val currentStyle = prefs.getString(hudPrefKey, null) ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
                                     val isHudOn = prefs.getBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)
-                                    val brightStep = prefs.getInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
+                                    val brightRes = prefs.getInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32)
 
                                     list.add(
                                         PickerRowItem.SystemCustomizationOption(
@@ -242,30 +255,15 @@ fun buildFlatItemsList(
                                     )
 
                                     list.add(
-                                        PickerRowItem.SystemCustomizationOption(
+                                        PickerRowItem.SystemCustomizationSlider(
                                             parentToken = token,
-                                            optionKey = "brightness_step:4",
-                                            title = "Sensitivity: Fine (4% per step)",
-                                            subtitle = "Ultra-smooth high-precision brightness adjustment",
-                                            isSelected = brightStep == 4
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "brightness_step:8",
-                                            title = "Sensitivity: Standard (8% per step)",
-                                            subtitle = "Balanced tactile step per drag notch",
-                                            isSelected = brightStep == 8
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "brightness_step:16",
-                                            title = "Sensitivity: Fast (16% per step)",
-                                            subtitle = "Rapid coarse adjustment across brightness range",
-                                            isSelected = brightStep == 16
+                                            prefKey = LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION,
+                                            title = "Scrub Resolution",
+                                            subtitle = "Graduation steps across 0–100% brightness range (10 to 254)",
+                                            value = brightRes.toFloat(),
+                                            range = 10f..254f,
+                                            steps = 243,
+                                            formatValue = { "${it.toInt()} Steps (~${String.format(java.util.Locale.US, "%.1f", 100f / it.coerceAtLeast(1f))}%)" }
                                         )
                                     )
 
@@ -274,7 +272,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with 7-segment gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive liquid glass gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )
@@ -294,6 +292,24 @@ fun buildFlatItemsList(
                                             title = "Style: Dynamic Edge Blade",
                                             subtitle = "Lateral energy ladder aligned to active swipe edge",
                                             isSelected = currentStyle == "edge_blade"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:quantum_horizon",
+                                            title = "Style: Quantum Synthetic Horizon",
+                                            subtitle = "Synthetic horizon collimator with swept flight wings & digital telemetry",
+                                            isSelected = currentStyle == "quantum_horizon"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:tachyon_dial",
+                                            title = "Style: Tachyon Orbital Radar",
+                                            subtitle = "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair",
+                                            isSelected = currentStyle == "tachyon_dial"
                                         )
                                     )
                                 } else if (token == "system:volume") {
@@ -344,21 +360,15 @@ fun buildFlatItemsList(
                                     )
 
                                     list.add(
-                                        PickerRowItem.SystemCustomizationOption(
+                                        PickerRowItem.SystemCustomizationSlider(
                                             parentToken = token,
-                                            optionKey = "volume_step:1",
-                                            title = "Sensitivity: Standard (1 step per notch)",
-                                            subtitle = "Single audio stream volume step per tactile notch",
-                                            isSelected = volStep == 1
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "volume_step:2",
-                                            title = "Sensitivity: Fast (2 steps per notch)",
-                                            subtitle = "Double-speed audio volume adjustment across range",
-                                            isSelected = volStep == 2
+                                            prefKey = LightspeedPreferences.KEY_VOLUME_SCRUB_STEP,
+                                            title = "Volume Step Velocity",
+                                            subtitle = "Audio volume steps changed per tactile notch (1 to 5)",
+                                            value = volStep.toFloat(),
+                                            range = 1f..5f,
+                                            steps = 3,
+                                            formatValue = { "${it.toInt()} ${if (it.toInt() == 1) "Step" else "Steps"}" }
                                         )
                                     )
 
@@ -367,7 +377,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with 7-segment gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive liquid glass gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )
@@ -387,6 +397,24 @@ fun buildFlatItemsList(
                                             title = "Style: Dynamic Edge Blade",
                                             subtitle = "Lateral energy ladder aligned to active swipe edge",
                                             isSelected = currentStyle == "edge_blade"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:quantum_horizon",
+                                            title = "Style: Quantum Synthetic Horizon",
+                                            subtitle = "Synthetic horizon collimator with swept flight wings & digital telemetry",
+                                            isSelected = currentStyle == "quantum_horizon"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "hud_style:tachyon_dial",
+                                            title = "Style: Tachyon Orbital Radar",
+                                            subtitle = "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair",
+                                            isSelected = currentStyle == "tachyon_dial"
                                         )
                                     )
                                 } else {
@@ -420,6 +448,24 @@ fun buildFlatItemsList(
                                             title = "Dynamic Edge Blade",
                                             subtitle = "Lateral energy ladder aligned to active swipe edge",
                                             isSelected = currentStyle == "edge_blade"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "quantum_horizon",
+                                            title = "Quantum Synthetic Horizon",
+                                            subtitle = "Synthetic horizon collimator with swept flight wings & digital telemetry",
+                                            isSelected = currentStyle == "quantum_horizon"
+                                        )
+                                    )
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "tachyon_dial",
+                                            title = "Tachyon Orbital Radar",
+                                            subtitle = "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair",
+                                            isSelected = currentStyle == "tachyon_dial"
                                         )
                                     )
                                 }

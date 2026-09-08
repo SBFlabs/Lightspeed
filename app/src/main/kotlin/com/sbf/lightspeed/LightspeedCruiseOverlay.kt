@@ -243,9 +243,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         val currentBrightness = try {
                             Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                         } catch (_: Exception) { 128 }
+                        val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                         scrubHudTitle = "BRIGHTNESS"
                         scrubHudValue = "${(currentBrightness * 100 / 255)}%"
-                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * 10 / 255), 10)
+                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * brightResolution / 255), brightResolution)
                     }
                     "system:screen_timeout" -> {
                         scrubHudTitle = "SHIP GOES DARK IN"
@@ -1241,9 +1242,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         val currentBrightness = try {
                                             Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                                         } catch (_: Exception) { 128 }
+                                        val brightResolution = context.defaultPrefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                                         scrubHudTitle = "BRIGHTNESS"
                                         scrubHudValue = "${(currentBrightness * 100 / 255)}%"
-                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * 10 / 255), 10)
+                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * brightResolution / 255), brightResolution)
                                     }
                                     "system:screen_timeout" -> {
                                         scrubHudTitle = "SHIP GOES DARK IN"
@@ -1501,16 +1503,17 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 invalidate()
             } else if (assignedScrub == "scrub:brightness" || assignedScrub == "system:brightness") {
                 if (Settings.System.canWrite(context)) {
-                    val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
+                    val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
+                    val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, (255f / brightResolution).roundToInt().coerceIn(1, 32))
                     val currentBrightness = try {
                         Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                     } catch (_: Exception) { 128 }
-                    val targetBrightness = (currentBrightness + (steps * brightStep)).coerceIn(10, 255)
+                    val targetBrightness = (currentBrightness + (steps * brightStep)).coerceIn(0, 255)
                     try {
                         Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
                         scrubHudTitle = "BRIGHTNESS"
                         scrubHudValue = "${(targetBrightness * 100 / 255)}%"
-                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (targetBrightness * 10 / 255), 10)
+                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (targetBrightness * brightResolution / 255), brightResolution)
                         invalidate()
                     } catch (e: Exception) {
                         Log.e("GestureEngine", "System write failure", e)

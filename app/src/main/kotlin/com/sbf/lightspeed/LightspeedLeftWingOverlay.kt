@@ -220,9 +220,10 @@ class LightspeedLeftWingOverlay(
                             initialScrubValue = try {
                                 Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                             } catch (_: Exception) { 128 }
+                            val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                             hudTitle = "BRIGHTNESS"
                             hudValue = "${(initialScrubValue * 100 / 255)}%"
-                            dispatchScrubHud(hudTitle, hudValue, (initialScrubValue * 10 / 255), 10)
+                            dispatchScrubHud(hudTitle, hudValue, (initialScrubValue * brightResolution / 255), brightResolution)
                         }
                         "system:screen_timeout" -> {
                             initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
@@ -342,9 +343,10 @@ class LightspeedLeftWingOverlay(
                                 initialScrubValue = try {
                                     Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                                 } catch (_: Exception) { 128 }
+                                val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                                 hudTitle = "BRIGHTNESS"
                                 hudValue = "${(initialScrubValue * 100 / 255)}%"
-                                dispatchScrubHud(hudTitle, hudValue, (initialScrubValue * 10 / 255), 10)
+                                dispatchScrubHud(hudTitle, hudValue, (initialScrubValue * brightResolution / 255), brightResolution)
                             }
                             "system:screen_timeout" -> {
                                 initialScrubValue = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
@@ -402,6 +404,7 @@ class LightspeedLeftWingOverlay(
                     activeHoldActionKey = null
                     hudTitle = ""
                     hudValue = ""
+                    LightspeedStatusBarOverlay.dismissActionHud(1200L)
                     invalidate()
                     return true
                 }
@@ -430,6 +433,9 @@ class LightspeedLeftWingOverlay(
                 if (activeZoneKey == "LEFT_CENTER") {
                     (service as? LightspeedAccessibilityService)?.forwardTouchEventToCruise(isLeft = true, event = event)
                     return true
+                }
+                if (isScrubbing) {
+                    LightspeedStatusBarOverlay.dismissActionHud(600L)
                 }
                 isTwoStepDownwardScrub = false
                 isScrubbing = false
@@ -570,9 +576,10 @@ class LightspeedLeftWingOverlay(
             }
             "system:brightness", "scrub:brightness" -> {
                 if (Settings.System.canWrite(context)) {
-                    val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
+                    val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
+                    val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, (255f / brightResolution).roundToInt().coerceIn(1, 32))
                     val stepOffset = ((-dy / (stepDistance * 1.2f)) * (brightStep * 1.5f)).toInt()
-                    val target = (initialScrubValue + stepOffset).coerceIn(10, 255)
+                    val target = (initialScrubValue + stepOffset).coerceIn(0, 255)
                     try {
                         val currentBrightness = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                         if (abs(target - currentBrightness) > 2) {
@@ -581,7 +588,7 @@ class LightspeedLeftWingOverlay(
                         }
                         hudTitle = "BRIGHTNESS"
                         hudValue = "${(target * 100 / 255)}%"
-                        dispatchScrubHud(hudTitle, hudValue, (target * 10 / 255), 10)
+                        dispatchScrubHud(hudTitle, hudValue, (target * brightResolution / 255), brightResolution)
                         invalidate()
                     } catch (_: Exception) {}
                 } else {

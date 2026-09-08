@@ -117,14 +117,15 @@ class LightspeedSensorDeckTouchOverlay(
                 scrubCurrentValue = try {
                     Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                 } catch (_: Exception) { 128 }
+                val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                 scrubHudTitle = "BRIGHTNESS"
                 scrubHudValue = "${(scrubCurrentValue * 100 / 255)}%"
                 if (prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)) {
                     LightspeedStatusBarOverlay.showActionHud(
                         title = scrubHudTitle,
                         value = scrubHudValue,
-                        stepIndex = (scrubCurrentValue * 10 / 255),
-                        totalSteps = 10,
+                        stepIndex = (scrubCurrentValue * brightResolution / 255),
+                        totalSteps = brightResolution,
                         durationMs = 0L,
                         style = hudStyle
                     )
@@ -199,9 +200,10 @@ class LightspeedSensorDeckTouchOverlay(
                         val curBrightness = try {
                             Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                         } catch (_: Exception) { 128 }
-                        val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8)
-                        val targetBrightness = (curBrightness + (steps * brightStep * 1.5f).toInt()).coerceIn(10, 255)
-                        if (abs(targetBrightness - curBrightness) >= 3) {
+                        val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
+                        val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, (255f / brightResolution).roundToInt().coerceIn(1, 32))
+                        val targetBrightness = (curBrightness + (steps * brightStep * 1.5f).toInt()).coerceIn(0, 255)
+                        if (abs(targetBrightness - curBrightness) >= 1) {
                             try {
                                 Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
                                 triggerHaptic(14, 90)
@@ -213,8 +215,8 @@ class LightspeedSensorDeckTouchOverlay(
                             LightspeedStatusBarOverlay.showActionHud(
                                 title = "BRIGHTNESS",
                                 value = scrubHudValue,
-                                stepIndex = (targetBrightness * 10 / 255),
-                                totalSteps = 10,
+                                stepIndex = (targetBrightness * brightResolution / 255),
+                                totalSteps = brightResolution,
                                 durationMs = 0L,
                                 style = hudStyle
                             )

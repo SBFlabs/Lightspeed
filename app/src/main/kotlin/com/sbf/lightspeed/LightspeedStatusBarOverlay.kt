@@ -179,20 +179,26 @@ class LightspeedStatusBarOverlay(
         com.sbf.lightspeed.system.LightspeedKeyEngine.onNavStateListener = null
     }
 
+    fun isHudActive(): Boolean = (currentTransientHudState != null) || (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive == true)
+
     private fun expandForHud() {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
         val d = resources.displayMetrics.density
         val screenW = resources.displayMetrics.widthPixels
-        lp.x = 0
-        lp.y = 0
-        lp.width = screenW
-        lp.height = (260 * d).toInt()
-        lp.gravity = Gravity.TOP or Gravity.START
-        try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
+        val targetH = (260 * d).toInt()
+        if (lp.height != targetH || lp.width != screenW) {
+            lp.x = 0
+            lp.y = 0
+            lp.width = screenW
+            lp.height = targetH
+            lp.gravity = Gravity.TOP or Gravity.START
+            try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
+        }
     }
 
     private fun restoreWindowLayout() {
+        if (isHudActive()) return
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
         val d = resources.displayMetrics.density
@@ -956,6 +962,7 @@ class LightspeedStatusBarOverlay(
         val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
         if (navState != null && navState.isActive) {
             val topY = (prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52) * d) + (8f * d)
+            val hudCenterY = topY + (72f * d)
             LightspeedHudRenderer.renderHud(
                 canvas = canvas,
                 style = "canopy_droppod",
@@ -964,7 +971,7 @@ class LightspeedStatusBarOverlay(
                 stepIndex = navState.currentIndex,
                 totalSteps = navState.totalCount,
                 centerX = screenW / 2f,
-                centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
+                centerY = hudCenterY,
                 topY = topY,
                 primaryColor = m3Primary,
                 density = d
@@ -973,6 +980,7 @@ class LightspeedStatusBarOverlay(
             val transientHud = currentTransientHudState
             if (transientHud != null) {
                 val topY = (prefs.getInt("pref_statusbar_thickness", 48).coerceIn(20, 52) * d) + (8f * d)
+                val hudCenterY = topY + (72f * d)
                 LightspeedHudRenderer.renderHud(
                     canvas = canvas,
                     style = transientHud.style,
@@ -981,7 +989,7 @@ class LightspeedStatusBarOverlay(
                     stepIndex = transientHud.stepIndex,
                     totalSteps = transientHud.totalSteps,
                     centerX = screenW / 2f,
-                    centerY = (h / 2f).coerceAtLeast(topY + 40f * d),
+                    centerY = hudCenterY,
                     topY = topY,
                     primaryColor = m3Primary,
                     density = d

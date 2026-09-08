@@ -288,6 +288,91 @@ fun PickerCustomizationOptionRow(
     }
 }
 
+@Composable
+fun PickerCustomizationSliderRow(
+    item: PickerRowItem.SystemCustomizationSlider,
+    dynamicSecondary: Color,
+    onValueChange: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 2.dp, top = 3.dp, bottom = 3.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.04f))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.06f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
+                Text(
+                    text = item.title,
+                    color = Color.White,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeight = 15.sp
+                    )
+                )
+                Text(
+                    text = item.subtitle,
+                    color = Color.LightGray.copy(alpha = 0.55f),
+                    fontSize = 10.sp,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeight = 12.sp
+                    )
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(dynamicSecondary.copy(alpha = 0.2f))
+                    .border(1.dp, dynamicSecondary.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 7.dp, vertical = 2.5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = item.formatValue(item.value),
+                    color = dynamicSecondary,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false)
+                    )
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Slider(
+            value = item.value,
+            onValueChange = onValueChange,
+            valueRange = item.range,
+            steps = item.steps,
+            colors = SliderDefaults.colors(
+                thumbColor = dynamicSecondary,
+                activeTrackColor = dynamicSecondary,
+                inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(30.dp)
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PickerAppHeaderRow(

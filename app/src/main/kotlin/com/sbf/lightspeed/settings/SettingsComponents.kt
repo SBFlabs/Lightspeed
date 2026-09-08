@@ -2965,10 +2965,10 @@ fun GestureMappingRow(
                         var hudEnabled by remember(currentRawValue) {
                             mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true))
                         }
-                        var brightStep by remember(currentRawValue) {
-                            mutableIntStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, 8))
+                        var brightRes by remember(currentRawValue) {
+                            mutableIntStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32))
                         }
-                        var showBrightStepMenu by remember { mutableStateOf(false) }
+                        var showBrightSliderDialog by remember { mutableStateOf(false) }
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -2988,52 +2988,106 @@ fun GestureMappingRow(
                             )
                         }
 
-                        Box {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                                modifier = Modifier.clickable { showBrightStepMenu = true }
-                            ) {
-                                val stepLabel = when (brightStep) {
-                                    4 -> "Step: 4% (Fine) ▾"
-                                    16 -> "Step: 16% (Fast) ▾"
-                                    else -> "Step: 8% (Standard) ▾"
-                                }
-                                Text(
-                                    text = stepLabel,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showBrightStepMenu,
-                                onDismissRequest = { showBrightStepMenu = false },
-                                modifier = Modifier
-                                    .background(Color(0xF012141A))
-                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                shape = RoundedCornerShape(16.dp),
-                                containerColor = Color(0xF012141A)
-                            ) {
-                                listOf(4 to "Fine (4%)", 8 to "Standard (8%)", 16 to "Fast (16%)").forEach { (stepVal, stepTitle) ->
-                                    DropdownMenuItem(
-                                        modifier = Modifier.heightIn(min = 48.dp),
-                                        text = {
-                                            Text(
-                                                text = if (stepVal == brightStep) "✓ $stepTitle" else stepTitle,
-                                                fontWeight = if (stepVal == brightStep) FontWeight.Bold else FontWeight.Normal
-                                            )
-                                        },
-                                        onClick = {
-                                            brightStep = stepVal
-                                            prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, stepVal).apply()
-                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                            showBrightStepMenu = false
-                                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                            modifier = Modifier.clickable { showBrightSliderDialog = true }
+                        ) {
+                            Text(
+                                text = "Steps: $brightRes ▾",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            )
+                        }
+
+                        if (showBrightSliderDialog) {
+                            var tempRes by remember { mutableFloatStateOf(brightRes.toFloat()) }
+                            AlertDialog(
+                                onDismissRequest = { showBrightSliderDialog = false },
+                                containerColor = Color(0xF012141A),
+                                shape = RoundedCornerShape(18.dp),
+                                title = {
+                                    Text(
+                                        text = "Brightness Scrub Resolution",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
                                     )
+                                },
+                                text = {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Control total tactile graduation notches across the full 0–100% brightness range.",
+                                            fontSize = 12.sp,
+                                            color = Color.LightGray.copy(alpha = 0.75f)
+                                        )
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Graduation Steps",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                            val curSteps = tempRes.toInt().coerceIn(10, 254)
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                            ) {
+                                                Text(
+                                                    text = "$curSteps Steps (~${String.format(java.util.Locale.US, "%.1f", 100f / curSteps)}%)",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                                )
+                                            }
+                                        }
+                                        Slider(
+                                            value = tempRes,
+                                            onValueChange = { tempRes = it },
+                                            valueRange = 10f..254f,
+                                            steps = 243,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = MaterialTheme.colorScheme.primary,
+                                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                                inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            val finalRes = tempRes.toInt().coerceIn(10, 254)
+                                            brightRes = finalRes
+                                            val derivedStep = (255f / finalRes).toInt().coerceIn(1, 32)
+                                            prefs.edit()
+                                                .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, finalRes)
+                                                .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, derivedStep)
+                                                .apply()
+                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            showBrightSliderDialog = false
+                                        }
+                                    ) {
+                                        Text("APPLY", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showBrightSliderDialog = false }) {
+                                        Text("CANCEL", color = Color.LightGray)
+                                    }
                                 }
-                            }
+                            )
                         }
                     }
 
@@ -3047,7 +3101,7 @@ fun GestureMappingRow(
                         var volStep by remember(currentRawValue) {
                             mutableIntStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, 1))
                         }
-                        var showVolStepMenu by remember { mutableStateOf(false) }
+                        var showVolSliderDialog by remember { mutableStateOf(false) }
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -3085,51 +3139,104 @@ fun GestureMappingRow(
                             )
                         }
 
-                        Box {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                                modifier = Modifier.clickable { showVolStepMenu = true }
-                            ) {
-                                val stepLabel = when (volStep) {
-                                    2 -> "Step: 2 (Fast) ▾"
-                                    else -> "Step: 1 (Standard) ▾"
-                                }
-                                Text(
-                                    text = stepLabel,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = showVolStepMenu,
-                                onDismissRequest = { showVolStepMenu = false },
-                                modifier = Modifier
-                                    .background(Color(0xF012141A))
-                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                shape = RoundedCornerShape(16.dp),
-                                containerColor = Color(0xF012141A)
-                            ) {
-                                listOf(1 to "Standard (1 Step)", 2 to "Fast (2 Steps)").forEach { (stepVal, stepTitle) ->
-                                    DropdownMenuItem(
-                                        modifier = Modifier.heightIn(min = 48.dp),
-                                        text = {
-                                            Text(
-                                                text = if (stepVal == volStep) "✓ $stepTitle" else stepTitle,
-                                                fontWeight = if (stepVal == volStep) FontWeight.Bold else FontWeight.Normal
-                                            )
-                                        },
-                                        onClick = {
-                                            volStep = stepVal
-                                            prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, stepVal).apply()
-                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                            showVolStepMenu = false
-                                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                            modifier = Modifier.clickable { showVolSliderDialog = true }
+                        ) {
+                            Text(
+                                text = "Step: $volStep ▾",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            )
+                        }
+
+                        if (showVolSliderDialog) {
+                            var tempVol by remember { mutableFloatStateOf(volStep.toFloat()) }
+                            AlertDialog(
+                                onDismissRequest = { showVolSliderDialog = false },
+                                containerColor = Color(0xF012141A),
+                                shape = RoundedCornerShape(18.dp),
+                                title = {
+                                    Text(
+                                        text = "Volume Scrub Velocity",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
                                     )
+                                },
+                                text = {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Audio stream increments stepped per physical or gesture scrub tick notch.",
+                                            fontSize = 12.sp,
+                                            color = Color.LightGray.copy(alpha = 0.75f)
+                                        )
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Volume Step Velocity",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White
+                                            )
+                                            val curVol = tempVol.toInt().coerceIn(1, 5)
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                            ) {
+                                                Text(
+                                                    text = "$curVol ${if (curVol == 1) "Step" else "Steps"}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                                )
+                                            }
+                                        }
+                                        Slider(
+                                            value = tempVol,
+                                            onValueChange = { tempVol = it },
+                                            valueRange = 1f..5f,
+                                            steps = 3,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = MaterialTheme.colorScheme.primary,
+                                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                                inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            val finalVol = tempVol.toInt().coerceIn(1, 5)
+                                            volStep = finalVol
+                                            prefs.edit()
+                                                .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, finalVol)
+                                                .apply()
+                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            showVolSliderDialog = false
+                                        }
+                                    ) {
+                                        Text("APPLY", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showVolSliderDialog = false }) {
+                                        Text("CANCEL", color = Color.LightGray)
+                                    }
                                 }
-                            }
+                            )
                         }
                     }
 
@@ -3143,6 +3250,8 @@ fun GestureMappingRow(
                                 "canopy_droppod" -> "Drop-Pod"
                                 "cockpit_reticle" -> "Reticle"
                                 "edge_blade" -> "Blade"
+                                "quantum_horizon" -> "Horizon"
+                                "tachyon_dial" -> "Radar"
                                 else -> "Drop-Pod"
                             }
                             Text(
@@ -3165,7 +3274,9 @@ fun GestureMappingRow(
                             listOf(
                                 "canopy_droppod" to "Tactical Canopy Drop-Pod",
                                 "cockpit_reticle" to "Holographic Cockpit Reticle",
-                                "edge_blade" to "Dynamic Edge Blade"
+                                "edge_blade" to "Dynamic Edge Blade",
+                                "quantum_horizon" to "Quantum Synthetic Horizon",
+                                "tachyon_dial" to "Tachyon Orbital Radar"
                             ).forEach { (styleKey, styleTitle) ->
                                 DropdownMenuItem(
                                     modifier = Modifier.heightIn(min = 48.dp),

@@ -101,6 +101,7 @@ object LightspeedPreferences {
     const val KEY_HUD_VOLUME_ENABLED = "pref_hud_volume_enabled"
     const val KEY_VOLUME_SHOW_NATIVE_SLIDER = "pref_volume_show_native_slider"
     const val KEY_BRIGHTNESS_SCRUB_STEP = "pref_brightness_scrub_step"
+    const val KEY_BRIGHTNESS_SCRUB_RESOLUTION = "pref_brightness_scrub_resolution"
     const val KEY_VOLUME_SCRUB_STEP = "pref_volume_scrub_step"
 
     // Power Button Safety & Experimental Labs Keys

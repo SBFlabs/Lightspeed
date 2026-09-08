@@ -195,11 +195,45 @@ object ActionDispatcher {
             }
             token == "system:volume" -> {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                val showNative = context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
+                val flags = if (showNative) AudioManager.FLAG_SHOW_UI else 0
                 audioManager?.adjustSuggestedStreamVolume(
                     AudioManager.ADJUST_SAME,
                     AudioManager.USE_DEFAULT_STREAM_TYPE,
-                    AudioManager.FLAG_SHOW_UI
+                    flags
                 )
+                if (context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)) {
+                    val cur = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+                    val max = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
+                    com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                        title = "MEDIA VOLUME",
+                        value = "$cur / $max",
+                        stepIndex = cur,
+                        totalSteps = max
+                    )
+                }
+            }
+            token == "system:brightness" -> {
+                if (android.provider.Settings.System.canWrite(context)) {
+                    val current = try {
+                        android.provider.Settings.System.getInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS)
+                    } catch (_: Exception) { 128 }
+                    val steps = listOf(51, 102, 153, 204, 255)
+                    val next = steps.firstOrNull { it > current + 10 } ?: steps.first()
+                    try {
+                        android.provider.Settings.System.putInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, next)
+                        if (context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)) {
+                            com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                                title = "BRIGHTNESS",
+                                value = "${(next * 100 / 255)}%",
+                                stepIndex = (next * 10 / 255),
+                                totalSteps = 10
+                            )
+                        }
+                    } catch (_: Exception) {}
+                } else {
+                    LightspeedTimeoutEngine.requestWriteSettingsPermission(context)
+                }
             }
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")

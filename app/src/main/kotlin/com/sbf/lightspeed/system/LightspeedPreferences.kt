@@ -96,6 +96,11 @@ object LightspeedPreferences {
     const val ACTION_CORE_COOLING = "system:core_cooling"
     const val ACTION_TORCH = "system:torch"
 
+    // Avionics & HUD Scrubber Controls (Brightness & Volume)
+    const val KEY_HUD_BRIGHTNESS_ENABLED = "pref_hud_brightness_enabled"
+    const val KEY_HUD_VOLUME_ENABLED = "pref_hud_volume_enabled"
+    const val KEY_VOLUME_SHOW_NATIVE_SLIDER = "pref_volume_show_native_slider"
+
     // Power Button Safety & Experimental Labs Keys
     const val KEY_POWER_SINGLE_PRESS_UNLOCKED = "pref_power_single_press_unlocked"
     const val KEY_SUPPRESS_DEEP_ACTIVITY_WARNING = "pref_suppress_deep_activity_warning"
@@ -490,6 +495,15 @@ object LightspeedPreferences {
         val style = context.defaultPrefs().getString(KEY_DECK_BACKDROP_STYLE, "cosmic") ?: "cosmic"
         _deckBackdropStyleFlow.value = style
     }
+
+    fun isHudBrightnessEnabled(context: Context): Boolean =
+        context.defaultPrefs().getBoolean(KEY_HUD_BRIGHTNESS_ENABLED, true)
+
+    fun isHudVolumeEnabled(context: Context): Boolean =
+        context.defaultPrefs().getBoolean(KEY_HUD_VOLUME_ENABLED, true)
+
+    fun isVolumeShowNativeSlider(context: Context): Boolean =
+        context.defaultPrefs().getBoolean(KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
 }
 
 /**

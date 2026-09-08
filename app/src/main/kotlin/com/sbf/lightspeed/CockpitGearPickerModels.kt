@@ -184,6 +184,8 @@ fun buildFlatItemsList(
                     if (catExpanded) {
                         matchingTokens.forEach { token ->
                             val isCustomizable = token == "system:screen_timeout" ||
+                                    token == "system:volume" ||
+                                    token == "system:brightness" ||
                                     token == "system:media_skip_forward" ||
                                     token == "system:media_skip_backward"
                             val customKey = "customization:$token"

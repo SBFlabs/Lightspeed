@@ -520,8 +520,10 @@ class LightspeedLeftWingOverlay(
                 val stepOffset = (-dy / stepDistance).toInt()
                 val targetVol = (initialScrubValue + stepOffset).coerceIn(0, maxVol)
                 val currentVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+                val showNativeUi = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
+                val flags = if (showNativeUi) AudioManager.FLAG_SHOW_UI else 0
                 if (targetVol != currentVol) {
-                    am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, flags)
                     triggerHaptic(18, 110)
                 }
                 hudTitle = "MEDIA VOLUME"
@@ -607,32 +609,53 @@ class LightspeedLeftWingOverlay(
         )
 
         if (isScrubbing && hudTitle.isNotEmpty()) {
-            val screenW = resources.displayMetrics.widthPixels.toFloat()
-            val cx = screenW / 2f
-            val cy = height / 2f
-            val hudStyle = prefs.getString("pref_macro_hud_style_${activeZoneKey}_SCRUBBING", null)
-                ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
-            val totalSteps = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.TIMEOUT_STEPS.size else 0
-            val stepIdx = if (scrubType == "system:screen_timeout") LightspeedTimeoutEngine.getCurrentTimeoutIndex(context) else -1
+            val showHud = when (scrubType) {
+                "system:brightness" -> prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)
+                "system:volume" -> prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)
+                else -> true
+            }
+            if (showHud) {
+                val screenW = resources.displayMetrics.widthPixels.toFloat()
+                val cx = screenW / 2f
+                val cy = height / 2f
+                val hudStyle = prefs.getString("pref_macro_hud_style_${activeZoneKey}_SCRUBBING", null)
+                    ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
+                val (stepIdx, totalSteps) = when (scrubType) {
+                    "system:volume" -> {
+                        val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                        val cur = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+                        val max = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
+                        Pair(cur, max)
+                    }
+                    "system:brightness" -> {
+                        val cur = try { Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) } catch (_: Exception) { 128 }
+                        Pair(cur * 10 / 255, 10)
+                    }
+                    "system:screen_timeout" -> {
+                        Pair(LightspeedTimeoutEngine.getCurrentTimeoutIndex(context), LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
+                    }
+                    else -> Pair(-1, 0)
+                }
 
-            val primaryAccent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.resources.getColor(android.R.color.system_accent1_300, context.theme)
-            } else m3Primary
+                val primaryAccent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    context.resources.getColor(android.R.color.system_accent1_300, context.theme)
+                } else m3Primary
 
-            LightspeedHudRenderer.renderHud(
-                canvas = canvas,
-                style = hudStyle,
-                title = hudTitle,
-                value = hudValue,
-                stepIndex = stepIdx,
-                totalSteps = totalSteps,
-                centerX = cx,
-                centerY = cy,
-                topY = 70f * d,
-                primaryColor = primaryAccent,
-                density = d,
-                isLeftFlank = true
-            )
+                LightspeedHudRenderer.renderHud(
+                    canvas = canvas,
+                    style = hudStyle,
+                    title = hudTitle,
+                    value = hudValue,
+                    stepIndex = stepIdx,
+                    totalSteps = totalSteps,
+                    centerX = cx,
+                    centerY = cy,
+                    topY = 70f * d,
+                    primaryColor = primaryAccent,
+                    density = d,
+                    isLeftFlank = true
+                )
+            }
         }
     }
 

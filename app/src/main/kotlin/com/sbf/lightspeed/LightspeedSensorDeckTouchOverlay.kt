@@ -102,14 +102,16 @@ class LightspeedSensorDeckTouchOverlay(
                 val maxVol = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
                 scrubHudTitle = "MEDIA VOLUME"
                 scrubHudValue = "$scrubCurrentValue / $maxVol"
-                LightspeedStatusBarOverlay.showActionHud(
-                    title = scrubHudTitle,
-                    value = scrubHudValue,
-                    stepIndex = scrubCurrentValue,
-                    totalSteps = maxVol,
-                    durationMs = 0L,
-                    style = hudStyle
-                )
+                if (prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)) {
+                    LightspeedStatusBarOverlay.showActionHud(
+                        title = scrubHudTitle,
+                        value = scrubHudValue,
+                        stepIndex = scrubCurrentValue,
+                        totalSteps = maxVol,
+                        durationMs = 0L,
+                        style = hudStyle
+                    )
+                }
             }
             "system:brightness" -> {
                 scrubCurrentValue = try {
@@ -117,21 +119,23 @@ class LightspeedSensorDeckTouchOverlay(
                 } catch (_: Exception) { 128 }
                 scrubHudTitle = "BRIGHTNESS"
                 scrubHudValue = "${(scrubCurrentValue * 100 / 255)}%"
-                LightspeedStatusBarOverlay.showActionHud(
-                    title = scrubHudTitle,
-                    value = scrubHudValue,
-                    stepIndex = (scrubCurrentValue * 10 / 255),
-                    totalSteps = 10,
-                    durationMs = 0L,
-                    style = hudStyle
-                )
+                if (prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)) {
+                    LightspeedStatusBarOverlay.showActionHud(
+                        title = scrubHudTitle,
+                        value = scrubHudValue,
+                        stepIndex = (scrubCurrentValue * 10 / 255),
+                        totalSteps = 10,
+                        durationMs = 0L,
+                        style = hudStyle
+                    )
+                }
             }
         }
     }
 
     private fun handleScrubMotion(rawDx: Float, rawDy: Float) {
-        // Allow scrubbing both sideways (rawDx) and up/down (rawDy) based on dominant movement
-        val delta = if (abs(rawDx) >= abs(rawDy)) rawDx else rawDy
+        // Allow scrubbing both sideways (rawDx: right is +) and up/down (-rawDy: up is +) based on dominant movement
+        val delta = if (abs(rawDx) >= abs(rawDy)) rawDx else -rawDy
         scrubAccumulator += delta
 
         val density = resources.displayMetrics.density
@@ -169,20 +173,24 @@ class LightspeedSensorDeckTouchOverlay(
                         val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                         val curVol = am.getStreamVolume(AudioManager.STREAM_MUSIC)
                         val targetVol = (curVol + steps).coerceIn(0, maxVol)
+                        val showNativeUi = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
+                        val flags = if (showNativeUi) AudioManager.FLAG_SHOW_UI else 0
                         if (targetVol != curVol) {
-                            am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                            am.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, flags)
                             triggerHaptic(18, 110)
                         }
                         scrubCurrentValue = targetVol
                         scrubHudValue = "$targetVol / $maxVol"
-                        LightspeedStatusBarOverlay.showActionHud(
-                            title = "MEDIA VOLUME",
-                            value = scrubHudValue,
-                            stepIndex = targetVol,
-                            totalSteps = maxVol,
-                            durationMs = 0L,
-                            style = hudStyle
-                        )
+                        if (prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)) {
+                            LightspeedStatusBarOverlay.showActionHud(
+                                title = "MEDIA VOLUME",
+                                value = scrubHudValue,
+                                stepIndex = targetVol,
+                                totalSteps = maxVol,
+                                durationMs = 0L,
+                                style = hudStyle
+                            )
+                        }
                     }
                 }
                 "system:brightness" -> {
@@ -199,14 +207,16 @@ class LightspeedSensorDeckTouchOverlay(
                         }
                         scrubCurrentValue = targetBrightness
                         scrubHudValue = "${(targetBrightness * 100 / 255)}%"
-                        LightspeedStatusBarOverlay.showActionHud(
-                            title = "BRIGHTNESS",
-                            value = scrubHudValue,
-                            stepIndex = (targetBrightness * 10 / 255),
-                            totalSteps = 10,
-                            durationMs = 0L,
-                            style = hudStyle
-                        )
+                        if (prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)) {
+                            LightspeedStatusBarOverlay.showActionHud(
+                                title = "BRIGHTNESS",
+                                value = scrubHudValue,
+                                stepIndex = (targetBrightness * 10 / 255),
+                                totalSteps = 10,
+                                durationMs = 0L,
+                                style = hudStyle
+                            )
+                        }
                     } else {
                         LightspeedTimeoutEngine.requestWriteSettingsPermission(context)
                     }

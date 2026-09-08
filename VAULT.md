@@ -38,8 +38,9 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 * Deep Space: Custom high-performance Canvas graphics engine (cosmic starfield, gimbal rings, lightspeed warp surges).
 * Central Command: Master configuration deck with dynamic accordion matrices (formerly SidebarMatrixConfig).
 * Config Vault (Backup & Restore): Complete offline JSON export/import engine with Base64 custom icon persistence and instant cache flush.
-* System Override Deck (Developer & System Tuning): Direct system value overrides utilizing Shizuku or standalone elevated ADB permissions (DPI/PPI/smallest width, font scale, continuous animation speed scaling with simplified master or detailed subdomains, zero-sensitivity native edge gesture neutralization, custom long-press delays, stay-awake charging, ADB/Wi-Fi debugging switchboard, freeform multi-window mode selection, and lock-screen shortcuts), connected via direct bridge buttons in Deflector setup, companion volume slider DND pills, plus real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
+* System Override Deck (Developer & System Tuning): Direct system value overrides utilizing Shizuku or standalone elevated ADB permissions (DPI/PPI/smallest width, font scale, continuous animation speed scaling with simplified master or detailed subdomains, zero-sensitivity native edge gesture neutralization, custom long-press delays, stay-awake charging, ADB/Wi-Fi debugging switchboard, freeform multi-window mode selection, and lock-screen shortcuts), connected via direct bridge buttons in Deflector setup, the 4-in-1 OEM volume slider companion dock (paired app volume slider, multi-sound concurrent background playback, DND toggle, sound profile switcher), plus real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
 * Adaptive Kinetic Scroll Engine (Top, Bottom & Continuous Scrub): Priority fallback orchestration checklist (Accessibility Direct Node -> Directional Step -> Kinetic Fling -> Native Toolbar Tap -> Key Injection), per-app learning memory, and a kinetic Scrub-to-Scroll action with customizable starting speed, acceleration curve, and max velocity ceiling.
+
 
 
 
@@ -180,7 +181,11 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
      * ADB & Wireless Debugging Switchboard (`adb_enabled`, `adb_wifi_enabled`) with architecture to retain elevated execution without persistent Wi-Fi debugging notifications.
      * Freeform Multi-Window Selection: Native Android AOSP freeform desktop mode vs. OEM vendor floating window implementations.
      * Custom Lock-Screen Shortcuts: Re-assignment of left/right lock screen triggers via MacroDroid / secure settings bridge.
-     * Floating OEM Volume Slider Companion: 1–2 micro floating action icons anchored adjacent to device volume slider for instant Do Not Disturb (DND) and sound mode toggling.
+     * Floating OEM Volume Slider Companion (4-in-1 Audio Dock): Anchored directly beneath/adjacent to the native OEM volume slider dialog:
+       1. Paired App Volume Slider (independent volume slider for the active/paired foreground or background media app, decoupled from system master volume).
+       2. Multi-Sound Sovereign Audio Lock (allows one or multiple designated apps to continuously play audio in the background unconditionally, even when other players, media streams, or games are actively playing).
+       3. Instant Do Not Disturb (DND) mode toggle.
+       4. Sound profile mode switcher (Normal Sound / Vibrate / Mute).
      * Targeted Per-App Force Dark Mode: Scoped `debug.hwui.force_dark` override for stubborn apps (e.g. Amazon Shopping) - low priority back burner.
      * Hardware telemetry overlay (CPU cluster load, GPU frequency/load, FPS frame-pacing, and Vulkan vs. OpenGL ES active renderer indicator) with per-app foreground activation whitelist.
 
@@ -324,9 +329,13 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
      * Switchboard between Native Android AOSP freeform desktop mode (`enable_freeform_support`, `force_resizable_activities`) and OEM manufacturer proprietary floating window implementations (e.g. Samsung DeX / Pop-up view, Xiaomi floating windows).
    - Custom Lock-Screen Shortcuts Engine:
      * Re-mapping left/right lock-screen shortcut slots via direct secure settings manipulation, MacroDroid bridge, or custom intent routing.
-   - Floating OEM Volume Slider Companion:
-     * 1–2 contextual micro floating action icons anchored directly adjacent to or below the native device/OEM volume slider dialog.
-     * Provides instantaneous one-tap Do Not Disturb (DND) mode toggle and sound profile switching (Sound / Vibrate / Mute) right at the user's volume touchpoint.
+   - Floating OEM Volume Slider Companion (4-in-1 Avionics Audio Dock):
+     * Contextual micro-dock anchored directly beneath or adjacent to the native device/OEM volume slider dialog when active.
+     * Integrates 4 core audio sovereignty controls in one tactile touchpoint:
+       1. *Paired App Volume Slider*: Dynamic secondary slider to adjust volume specifically for the currently foreground app or designated paired audio app, independent of global master media volume.
+       2. *Multi-Sound Concurrent Playback Lock*: Enforces concurrent background audio playback for one or multiple designated apps, preventing other media players, videos, or games from stealing audio focus, ducking, or pausing background streams.
+       3. *Instant Do Not Disturb (DND) Mode Toggle*: One-tap tactile toggle for system DND state with canopy telemetry.
+       4. *Sound Profile Mode Quick-Cycle*: Direct switching between Normal Sound, Vibrate, and Silent/Mute modes.
    - Floating Avionics Hardware Telemetry HUD (CPU, GPU, FPS & Graphics Engine):
      * Non-intrusive floating diagnostic pill rendering real-time CPU per-core/cluster utilization, GPU active load/clock, and real-time FPS frame-pacing.
      * Graphics Pipeline Detection: Live indicator showing active rendering backend (Vulkan vs. OpenGL ES).

@@ -237,6 +237,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                         scrubHudTitle = "MEDIA VOLUME"
                         scrubHudValue = "$currentVol / $maxVol"
+                        dispatchScrubHud(scrubHudTitle, scrubHudValue, currentVol, maxVol)
                     }
                     "system:brightness", "scrub:brightness" -> {
                         val currentBrightness = try {
@@ -244,10 +245,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         } catch (_: Exception) { 128 }
                         scrubHudTitle = "BRIGHTNESS"
                         scrubHudValue = "${(currentBrightness * 100 / 255)}%"
+                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * 10 / 255), 10)
                     }
                     "system:screen_timeout" -> {
                         scrubHudTitle = "SHIP GOES DARK IN"
-                        scrubHudValue = LightspeedTimeoutEngine.getCurrentFormatted(context)
+                        val idx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
+                        scrubHudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[idx].second
+                        dispatchScrubHud(scrubHudTitle, scrubHudValue, idx, LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
                     }
                 }
                 invalidate()
@@ -1231,6 +1235,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                                         scrubHudTitle = "MEDIA VOLUME"
                                         scrubHudValue = "$currentVol / $maxVol"
+                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, currentVol, maxVol)
                                     }
                                     "system:brightness", "scrub:brightness" -> {
                                         val currentBrightness = try {
@@ -1238,10 +1243,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         } catch (_: Exception) { 128 }
                                         scrubHudTitle = "BRIGHTNESS"
                                         scrubHudValue = "${(currentBrightness * 100 / 255)}%"
+                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * 10 / 255), 10)
                                     }
                                     "system:screen_timeout" -> {
                                         scrubHudTitle = "SHIP GOES DARK IN"
-                                        scrubHudValue = LightspeedTimeoutEngine.getCurrentFormatted(context)
+                                        val idx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
+                                        scrubHudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[idx].second
+                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, idx, LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
                                     }
                                 }
                                 invalidate()
@@ -1413,6 +1421,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         }
                     }
                 }
+                if (currentDetectedGesture == MacroGesture.SCRUBBING) {
+                    LightspeedStatusBarOverlay.dismissActionHud(1200L)
+                }
                 activeHoldScrubAction = null
                 activeHoldScrubActionKey = null
                 scrubHudTitle = ""
@@ -1428,6 +1439,34 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private fun resetHoldTimer() {
         uiHandler.removeCallbacks(holdTimerRunnable)
         uiHandler.postDelayed(holdTimerRunnable, ViewConfiguration.getLongPressTimeout().toLong())
+    }
+
+    private fun dispatchScrubHud(title: String, value: String, stepIndex: Int, totalSteps: Int) {
+        val prefs = context.defaultPrefs()
+        val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness" || title == "BRIGHTNESS"
+        val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume" || title == "MEDIA VOLUME"
+        val showHud = when {
+            isBrightness -> prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)
+            isVolume -> prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)
+            else -> true
+        }
+        if (showHud) {
+            val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
+            val dynamicZone = if (isFlankUnified) "UNIFIED" else (if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM")
+            val specificHudKey = activeHoldScrubActionKey?.replace("pref_macro_action_", "pref_macro_hud_style_")
+            val hudStyle = (if (specificHudKey != null) prefs.getString(specificHudKey, null) else null)
+                ?: prefs.getString("pref_macro_hud_style_${dynamicZone}_SCRUBBING", null)
+                ?: prefs.getString("pref_macro_hud_style_default", "canopy_droppod") ?: "canopy_droppod"
+
+            LightspeedStatusBarOverlay.showActionHud(
+                title = title,
+                value = value,
+                stepIndex = stepIndex,
+                totalSteps = totalSteps,
+                durationMs = 0L,
+                style = hudStyle
+            )
+        }
     }
 
     private fun executeLinearScrubTrack(zone: TouchZone, pixelDelta: Float) {
@@ -1458,6 +1497,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, flags)
                 scrubHudTitle = "MEDIA VOLUME"
                 scrubHudValue = "$targetVol / $maxVol"
+                dispatchScrubHud(scrubHudTitle, scrubHudValue, targetVol, maxVol)
                 invalidate()
             } else if (assignedScrub == "scrub:brightness" || assignedScrub == "system:brightness") {
                 if (Settings.System.canWrite(context)) {
@@ -1470,10 +1510,13 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                         Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
                         scrubHudTitle = "BRIGHTNESS"
                         scrubHudValue = "${(targetBrightness * 100 / 255)}%"
+                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (targetBrightness * 10 / 255), 10)
                         invalidate()
                     } catch (e: Exception) {
                         Log.e("GestureEngine", "System write failure", e)
                     }
+                } else {
+                    LightspeedTimeoutEngine.requestWriteSettingsPermission(context)
                 }
             } else if (assignedScrub == "system:screen_timeout") {
                 val curIdx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
@@ -1483,6 +1526,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 if (scrubHudValue != label) {
                     scrubHudTitle = "SHIP GOES DARK IN"
                     scrubHudValue = label
+                    dispatchScrubHud(scrubHudTitle, scrubHudValue, targetIndex, LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
                     triggerHardwareHaptic(22, 140)
                     invalidate()
                 }
@@ -2643,68 +2687,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
 
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
-
-        if (currentDetectedGesture == MacroGesture.SCRUBBING && scrubHudTitle.isNotEmpty()) {
-            val prefs = context.defaultPrefs()
-            val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
-            val dynamicZone = if (isFlankUnified) "UNIFIED" else (if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM")
-            val assignedScrub = activeHoldScrubAction ?: (prefs.getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none") ?: "none")
-
-            val isBrightness = assignedScrub == "scrub:brightness" || assignedScrub == "system:brightness" || scrubHudTitle == "BRIGHTNESS"
-            val isVolume = assignedScrub == "scrub:volume" || assignedScrub == "system:volume" || scrubHudTitle == "MEDIA VOLUME"
-            val showHud = when {
-                isBrightness -> prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, true)
-                isVolume -> prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)
-                else -> true
-            }
-
-            if (showHud) {
-                val d = resources.displayMetrics.density
-                val screenW = resources.displayMetrics.widthPixels.toFloat()
-                val cx = screenW / 2f
-                val cy = h / 2f
-
-                val specificHudKey = activeHoldScrubActionKey?.replace("pref_macro_action_", "pref_macro_hud_style_")
-                val hudStyle = (if (specificHudKey != null) prefs.getString(specificHudKey, null) else null)
-                    ?: prefs.getString("pref_macro_hud_style_${dynamicZone}_SCRUBBING", null)
-                    ?: prefs.getString("pref_macro_hud_style_default", "cockpit_reticle") ?: "cockpit_reticle"
-
-                val (stepIdx, totalSteps) = when {
-                    isVolume -> {
-                        val cur = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                        val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                        Pair(cur, max)
-                    }
-                    isBrightness -> {
-                        val cur = try { Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS) } catch (_: Exception) { 128 }
-                        Pair(cur * 10 / 255, 10)
-                    }
-                    activeHoldScrubAction == "system:screen_timeout" || scrubHudTitle == "SHIP GOES DARK IN" -> {
-                        Pair(LightspeedTimeoutEngine.getCurrentTimeoutIndex(context), LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
-                    }
-                    else -> Pair(-1, 0)
-                }
-
-                val primaryAccent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    context.resources.getColor(android.R.color.system_accent1_300, context.theme)
-                } else m3Primary
-
-                LightspeedHudRenderer.renderHud(
-                    canvas = canvas,
-                    style = hudStyle,
-                    title = scrubHudTitle,
-                    value = scrubHudValue,
-                    stepIndex = stepIdx,
-                    totalSteps = totalSteps,
-                    centerX = cx,
-                    centerY = cy,
-                    topY = 70f * d,
-                    primaryColor = primaryAccent,
-                    density = d,
-                    isLeftFlank = false
-                )
-            }
-        }
     }
 
     companion object {

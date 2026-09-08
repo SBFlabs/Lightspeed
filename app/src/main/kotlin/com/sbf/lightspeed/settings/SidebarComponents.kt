@@ -468,9 +468,9 @@ fun AttitudeAppAssignmentSheet(
                     onDismissRequest = { activeInfoDialog = null },
                     icon = {
                         Icon(
-                            imageVector = if (infoTitle.contains("LOCK SCREEN")) Icons.Default.PriorityHigh else Icons.Default.Info,
+                            imageVector = if (infoTitle.contains("LOCK SCREEN") || infoTitle.contains("ADVISORY")) Icons.Default.PriorityHigh else Icons.Default.Info,
                             contentDescription = null,
-                            tint = if (infoTitle.contains("LOCK SCREEN")) Color(0xFFFFB300) else dynamicPrimary,
+                            tint = if (infoTitle.contains("LOCK SCREEN") || infoTitle.contains("ADVISORY")) Color(0xFFFFB300) else dynamicPrimary,
                             modifier = Modifier.size(28.dp)
                         )
                     },
@@ -1046,8 +1046,8 @@ private fun AttitudeTargetRow(
                         .border(1.dp, dynamicPrimary.copy(alpha = 0.45f), CircleShape)
                         .clickable {
                             onShowDetailInfo?.invoke(
-                                "ACTIVE GYRO DRIVER",
-                                "Lightspeed's active gyro driver automatically flips the home launcher between 0° upright and 180° inverted portrait based on device tilt, bypassing launcher NOSENSOR restrictions.\n\nLandscape angles (90° & 270°) remain strictly blocked."
+                                "ACTIVE GYRO DRIVER (PHONES VS TABLETS)",
+                                "• Phone vs Tablet/Fold Discrepancy:\nTablets and large foldables (sw600dp+) feature adaptive multi-column grids that rotate cleanly into landscape. Standard phone launchers are designed solely for vertical portrait grids and glitch/squish when forced into landscape.\n\n• Lightspeed Sensor Portrait Solution:\nThe active 5 Hz gyro driver dynamically flips your phone launcher between 0° upright and 180° inverted portrait based on tilt, bypassing launcher NOSENSOR locks while strictly locking out 90° and 270° landscape.\n\n• Zero Glitches:\nGives you full upside-down usability (charging from top or reading in bed) with zero home screen overlapping."
                             )
                         },
                     contentAlignment = Alignment.Center
@@ -1056,6 +1056,29 @@ private fun AttitudeTargetRow(
                         imageVector = Icons.Default.Info,
                         contentDescription = "Active Gyro Info",
                         tint = dynamicPrimary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            } else if (item.badge == "LAUNCHER" && (bucket == LightspeedOrientationEngine.AttitudeBucket.SENSOR_360 || bucket == LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE)) {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 6.dp)
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFFB300).copy(alpha = 0.15f))
+                        .border(1.dp, Color(0xFFFFB300).copy(alpha = 0.45f), CircleShape)
+                        .clickable {
+                            onShowDetailInfo?.invoke(
+                                "LAUNCHER LANDSCAPE ADVISORY",
+                                "• Form Factor Discrepancy:\nTablets and foldables (sw600dp+) handle landscape home screens natively with wide multi-column layouts. Standard phone launchers lack adaptive landscape grids.\n\n• Phone Launcher Glitching:\nForcing landscape on a phone launcher compresses widgets, overlaps search bars, and misaligns icon grids.\n\n• Recommended Setting:\nFor phones, assign the Launcher to 'Sensor Portrait' instead to enjoy 180° inverted portrait freedom without landscape glitches."
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PriorityHigh,
+                        contentDescription = "Launcher Landscape Advisory",
+                        tint = Color(0xFFFFB300),
                         modifier = Modifier.size(15.dp)
                     )
                 }

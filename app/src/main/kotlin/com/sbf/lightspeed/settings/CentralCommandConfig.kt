@@ -3656,6 +3656,46 @@ fun CentralCommandMatrixFields(
 
                                                         // 1. Face-Oriented Auto-Rotate (CAMERA_AUTOROTATE)
                                                         if (LightspeedOrientationEngine.isFaceRotateSupported(context)) {
+                                                            var showFaceRotatePrivacyDialog by remember { mutableStateOf(false) }
+                                                            if (showFaceRotatePrivacyDialog) {
+                                                                AlertDialog(
+                                                                    onDismissRequest = { showFaceRotatePrivacyDialog = false },
+                                                                    icon = {
+                                                                        Icon(
+                                                                            imageVector = Icons.Default.Security,
+                                                                            contentDescription = null,
+                                                                            tint = cautionAmber,
+                                                                            modifier = Modifier.size(28.dp)
+                                                                        )
+                                                                    },
+                                                                    title = {
+                                                                        Text(
+                                                                            text = "FACE ORIENTATION & PRIVACY",
+                                                                            fontSize = 15.sp,
+                                                                            fontWeight = FontWeight.Bold,
+                                                                            color = Color.White,
+                                                                            textAlign = TextAlign.Center
+                                                                        )
+                                                                    },
+                                                                    text = {
+                                                                        Text(
+                                                                            text = "• Native Android OS Feature (API 31+):\nManaged directly by Android's on-device Private Compute Core sensor subsystem.\n\n• Zero Camera Permissions:\nLightspeed does NOT request or hold camera permission (android.permission.CAMERA is not even declared in the app). Lightspeed only toggles the system setting (Settings.Secure.camera_autorotate).\n\n• 100% Offline & Private:\nZero photos, video feeds, or biometric data are ever accessed, captured, or transmitted. 100% offline.",
+                                                                            fontSize = 12.5.sp,
+                                                                            color = Color.LightGray.copy(alpha = 0.9f),
+                                                                            lineHeight = 18.sp,
+                                                                            textAlign = TextAlign.Start
+                                                                        )
+                                                                    },
+                                                                    confirmButton = {
+                                                                        TextButton(onClick = { showFaceRotatePrivacyDialog = false }) {
+                                                                            Text("UNDERSTOOD", color = cautionAmber, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                                        }
+                                                                    },
+                                                                    containerColor = Color(0xFF1B1F2B),
+                                                                    shape = RoundedCornerShape(16.dp)
+                                                                )
+                                                            }
+
                                                             Card(
                                                                 modifier = Modifier
                                                                     .fillMaxWidth()
@@ -3680,9 +3720,26 @@ fun CentralCommandMatrixFields(
                                                                             Icon(Icons.Default.Face, contentDescription = null, tint = cautionAmber, modifier = Modifier.size(16.dp))
                                                                             Spacer(modifier = Modifier.width(6.dp))
                                                                             Text("Face-Oriented Auto-Rotate", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                            Box(
+                                                                                modifier = Modifier
+                                                                                    .size(18.dp)
+                                                                                    .clip(CircleShape)
+                                                                                    .background(cautionAmber.copy(alpha = 0.15f))
+                                                                                    .border(0.8.dp, cautionAmber.copy(alpha = 0.4f), CircleShape)
+                                                                                    .clickable { showFaceRotatePrivacyDialog = true },
+                                                                                contentAlignment = Alignment.Center
+                                                                            ) {
+                                                                                Icon(
+                                                                                    Icons.Default.Info,
+                                                                                    contentDescription = "Privacy Architecture",
+                                                                                    tint = cautionAmber,
+                                                                                    modifier = Modifier.size(12.dp)
+                                                                                )
+                                                                            }
                                                                         }
                                                                         Spacer(modifier = Modifier.height(2.dp))
-                                                                        Text("Uses front camera facial posture to prevent accidental rotations while lying down", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
+                                                                        Text("Native OS sensor posture check. Lightspeed requires 0 camera permissions (100% offline & private).", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
                                                                     }
                                                                     Switch(
                                                                         checked = isFaceRotateActive,

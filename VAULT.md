@@ -28,6 +28,7 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 * Sensor Area (Touch Strip): Top bezel tactile gesture capture zone for instant action triggers.
 * Synthetic Gravity Engine (Orientation Preferences): Native gyro, face-posture, and 4-bucket application orientation automation.
 * Info Beacons (Telemetry & Indicators): Real-time network throughput, media/download progress flare, and Orbital Capsule notch dynamics.
+* Tactical Scrub HUD Suite (Telemetry HUDs): Five custom-rendered liquid glass Canvas visualizer styles (Tactical Canopy Drop-Pod, Holographic Cockpit Reticle, Dynamic Edge Blade, Quantum Synthetic Horizon, Tachyon Orbital Radar) plus interactive Media Timeline Scrubber, with per-gesture style isolation and adaptive 16-segment to continuous 100+ precision gauge tracking.
 * Hull & Ship Maneuvers (Hardware & Kinetic Gestures): Physical key interception, volume long-press, power double-press camera revival, kinetic back-tap, wrist-twist/flip camera kinematics, and temporal rhythm detection.
 * Orbital Capsule: Camera punch-hole dynamic HUD (cutout calibration, marquee telemetry, media flare).
 * Flight Blackbox (Diagnostics & Crash Logs): Isolated crash-telemetry and fault recorder with one-touch clipboard export.
@@ -212,11 +213,14 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 
 [ANT / BUGS REGISTER]
 * Calendar icon (dynamic date sync)
-* Screen timeout HUD custom choice/action
 * Scroll action fallback fixes (tap chaos)
 * Freeform windows OEM vs stock android
 * Progressive blur turning whitish
 ✓ [RESOLVED] Rotating back to portrait after closing Brawl Stars messes things up (Fixed via baseline separation and ROTATION_0 reset)
+✓ [RESOLVED] Screen timeout HUD custom choice/action & per-gesture style conflict (Fixed with isolated per-gesture preference hierarchy and independent HUD style resolution)
+✓ [RESOLVED] Flank gesture scrub resting-finger collapse (Fixed by continuously preserving active telemetry HUD on touch hold until gesture release)
+✓ [RESOLVED] Brightness 3% artificial floor cutoff (Fixed by unlocking full 0%–100% linear brightness control)
+✓ [RESOLVED] HUD title right-edge squeezing & paint leakage (Fixed via defensive Paint.Align resets in LightspeedHudRenderer and adaptive text bounds fitting)
 
 [OPTIMIZE & REFACTOR]
 * Update dependencies?
@@ -230,7 +234,7 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 * 60, 90, 120, 144Hz or not imp?
 *** Live overlay to indicate the pill
 *** Live Notification Listener (status bar line OR notch pill (disable OEM ones note))
-** HUD for vol & brightness (brightness To always take control from Video playing brightness hoarding... also swiping Down on brightness triggers extra dimming acc serv and up To exit? OR use Edge Seek?
+✓ [RESOLVED] Tactical HUD suite for volume, brightness & timeout (5 liquid glass avionics styles, 100th volume resolution, 0% brightness floor, and isolated per-gesture memory)
 
 [SUPERAPP STRATEGY & MODULARITY]
 ❕ Is this considered a superapp? Are super apps suitable for a hobby project utilizing ai agent and a medical student as founder?
@@ -285,6 +289,33 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
 ✓ Avionics Flight Blackbox & Crash Isolation:
   - Hardened WindowManager token validation across telephony interrupts to eliminate BadTokenException crashes when waking up after phone calls.
   - Canonized "Flight Blackbox" (Vessel Mode) / "Diagnostics & Crash Logs" (Clear Comms) in Central Command telemetry deck with one-tap clipboard export.
+✓ Tactical Avionics Liquid Glass HUD Suite (5 High-Performance Styles):
+  - Conceived, architected, and deployed a suite of 5 custom-rendered Canvas HUD styles in `LightspeedHudRenderer`, powered by dynamic Material 3 palette extraction and layered liquid glass optics (chamfered frosted backplanes, refractive specular rims, and glint lines):
+    1. *Style 1: Tactical Canopy Drop-Pod* (`canopy_droppod`): Floats cleanly beneath the status bar cutout/icons with 45° chamfered glass visor, dynamic frosted backplane, and dual-mode 7-segment quantum bar / continuous precision gauge.
+    2. *Style 2: Holographic Cockpit Reticle* (`cockpit_reticle`): Upper-third focal projection with circular frosted plate, 260° tachyon orbital arc, target collimator pips, and glowing lock bead.
+    3. *Style 3: Dynamic Edge Blade* (`edge_blade`): Anchored directly alongside the active gesture swipe flank (left or right) as a vertical energy ladder with chamfered glass card and graduated energy rungs.
+    4. *Style 4: Quantum Synthetic Horizon* (`quantum_horizon`): Aircraft/starship artificial horizon collimator with swept flight wing brackets, pitch ladder avionics grid, monospace status readout, and synthetic waterline level bar.
+    5. *Style 5: Tachyon Orbital Radar* (`tachyon_dial`): Circular tactical scanner with 360° azimuth degree graduation marks, concentric range rings, crosshairs, and 270° sweeping orbital energy arc.
+  - Interactive Media Timeline Scrubber HUD (`drawMediaScrubberHud`): Specialized liquid glass card with live song title, artist, elapsed/total MM:SS readouts, and interactive quantum seekbar with live thumb pip.
+  - Adaptive Gauge Physics: Automatically transitions from tactile discrete segment blocks (≤16 steps) to continuous high-precision liquid glass tracks with glowing specular bead (>16 steps) to flawlessly support fine-grained scrub actions up to 254 steps without UI overflow.
+✓ Per-Gesture HUD Style Memory & Isolation Engine:
+  - Eliminated global style crosstalk where changing a HUD style on one gesture would overwrite styles across other gestures.
+  - Implemented a 4-tier hierarchical resolution contract in `LightspeedPreferences`:
+    1. Action-specific gesture key (`pref_macro_hud_style_<GESTURE>_<ACTION>`)
+    2. Base gesture key (`pref_macro_hud_style_<GESTURE>`)
+    3. Global default HUD style (`pref_macro_hud_style_default`)
+    4. Hardware fallback (`canopy_droppod`)
+  - Integrated full per-gesture HUD style pickers into `CockpitGearPickerActivity` and `SettingsComponents`, updating dynamically per assigned action (Screen Timeout, Media Volume, Display Brightness).
+✓ 100th Volume Scrub Resolution (0%–100%) & Fine-Grained Audio Engine:
+  - Slashed reliance on crude 1–5 step volume jumps across Android's native 0–15 stream indices.
+  - Added `KEY_VOLUME_SCRUB_RESOLUTION` (`pref_volume_scrub_resolution`), defaulting to 100 steps (1/100th / 1% precision per notch, configurable 5..100).
+  - Fine-Grained Virtual Scrubbing: Tracks normalized `0%..100%` during touch drag across all overlay decks (`LightspeedCruiseOverlay`, `LightspeedLeftWingOverlay`, `LightspeedSensorDeckTouchOverlay`), displaying crisp `XX%` telemetry with continuous high-precision liquid glass gauge track.
+  - Dynamic Stream Hardware Mapping: Accurately maps virtual percentage to `AudioManager.setStreamVolume(STREAM_MUSIC, round(pct * maxVol / 100f), flags)` whenever hardware thresholds cross.
+  - Cockpit Picker & Settings Suite: Replaced rigid 1..5 velocity slider with an interactive **Volume Scrub Resolution** slider (5 to 100 steps / 100ths) with live step percentage preview.
+✓ Avionics Scrubbing Stability & Paint Hygiene Hardening:
+  - Fixed resting-finger collapse where pausing finger motion mid-scrub caused the overlay to collapse to the status bar or disappear: gesture HUD now remains anchored and stable continuously until finger release.
+  - Unlocked true 0% brightness floor (eliminating legacy 3% clamp).
+  - Defensively hardened `LightspeedHudRenderer` against text paint alignment leaks (`headerTextPaint.textAlign = Paint.Align.LEFT` leaking into center-drawn HUD styles), ensuring strict `CENTER` alignment resets before and after each render pass, paired with adaptive text width measurement and ellipsis truncation.
 
 [STATUS: WORK IN PROGRESS & PAUSED REDESIGN QUEUE]
 * Grid Mode Vertical Scroll Delegation Over Non-Overflowing Widgets (e.g., Tall Anki Deck):

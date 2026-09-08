@@ -38,6 +38,8 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 * Deep Space: Custom high-performance Canvas graphics engine (cosmic starfield, gimbal rings, lightspeed warp surges).
 * Central Command: Master configuration deck with dynamic accordion matrices (formerly SidebarMatrixConfig).
 * Config Vault (Backup & Restore): Complete offline JSON export/import engine with Base64 custom icon persistence and instant cache flush.
+* Subsystem Overwrite Deck (Developer & Display Tuning): Direct system value overrides (DPI/smallest width, continuous animation speed slider 0.0x–2.0x, 0-sensitivity full-edge back gesture capture), and real-time per-app Vulkan/OpenGL ES FPS/CPU/GPU HUD telemetry.
+* Adaptive Kinetic Scroll Engine (Top & Bottom): Priority fallback orchestration checklist (Accessibility Direct Node -> Directional Step -> Kinetic Fling -> Native Toolbar Tap -> Key Injection) with per-app learning and persistent profile memory.
 
 [THE LANGUAGE ENGINE: 3-WAY COMMUNICATION PROTOCOL & GLOBAL I18N]
 * Conceived in Central Command Guidebook as an interactive 3-way toggle:
@@ -159,7 +161,11 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 * Quick Notes plugin with sync?
 
 [GLOBAL / GENERALIZED / APP-WIDE DEFAULTS]
-** Add systemUI tuner setting I use plus the ones from that Foss app for pixels and animation speed
+** Add systemUI tuner setting I use plus the ones from that Foss app for pixels and animation speed:
+   - Subsystem Overwrite: On-the-fly developer options tuning for DPI, width, and smallest width (sw<N>dp).
+   - Continuous animation speed scaling slider UI (window, transition, animator duration) instead of fixed discrete taps.
+   - Side and right-side gesture sensitivity zero-out (inset scale = 0) so edge gestures cover the whole screen border.
+   - Hardware telemetry overlay (CPU cluster load, GPU frequency/load, FPS frame-pacing, and Vulkan vs. OpenGL ES active renderer indicator) with per-app foreground activation whitelist.
 * Cruise vs gears settings vs for both?
   - haptics? icons? text size? scale?
   - cruise background blur etc
@@ -171,7 +177,11 @@ PART 3: THE DREAMS & FUTURE VISIONS REGISTER (VERBATIM ACCUMULATION)
 * Toggles for WiFi, Bluetooth, GPS, airplane mode, audio mode, DND etc
 *** Bot which is basically clicker as Loop or UbikiTouch as one time trigger OR BETTER YET, use Keysh or Key Mapper but with the better implementation mention in issue no.¿xx?
 ** Add pop window and split Screen launch modes for app launch actions
-** Scroll to bottom & scrub to scroll
+** Scroll to bottom & scrub to scroll:
+   - Complete architectural symmetry between Scroll to Top and new Scroll to Bottom action.
+   - Priority fallback checklist: reorderable fallback execution chain (Accessibility Direct Node, Multi-Pass Step, Kinetic Fling, Native Toolbar Tap, Key Injection).
+   - Per-app fallback memory: remembers and enforces the optimal fallback mechanism per app package directly through the action configurator.
+* Action Engine Vector III: Reserved placeholder for pending action enhancement.
 ** Power menu
 * Rotation mode scrubber & actions
 
@@ -265,6 +275,34 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
    - Elevated process manager / background killer powered via Shizuku integration for granular memory and runaway app mitigation.
 4. Comprehensive Language Engine System Settings Migration:
    - Propagate dynamic string resolution (`LightspeedLanguageEngine.resolve()`) beyond Guidebook into all Central Command configuration cards, accordions, and action pickers.
+5. Subsystem Overwrite Deck (Developer Tuning, Full-Edge Gesture Sovereignty & Hardware Telemetry):
+   - Developer Options & Display Metrics Overwrite:
+     * Dynamic display density & smallest width scaling (`display_density_forced`, `wm density`, `sw<N>dp`) without requiring reboot, enabling instant switching between compact HUD scaling and expanded viewport layouts.
+     * Tactile Continuous Animation Speed Slider: Material 3 slider controlling `window_animation_scale`, `transition_animation_scale`, and `animator_duration_scale` (from 0.0x / instant disabled to 2.0x in fine 0.1x / 0.25x micro-steps) with live speed indicator, replacing rigid discrete stepping.
+   - Side & Right-Side Gesture Sensitivity Override (Zero-Sensitivity Full-Edge Sovereignty):
+     * Override native Android navigation bar back-gesture insets (`back_gesture_inset_scale_left`, `back_gesture_inset_scale_right` reduced to 0).
+     * Eliminates system back-gesture deadzones, allowing Lightspeed Deflector wings and edge gestures to capture touches across 100% of the screen border without OS interference.
+   - Floating Avionics Hardware Telemetry HUD (CPU, GPU, FPS & Graphics Engine):
+     * Non-intrusive floating diagnostic pill rendering real-time CPU per-core/cluster utilization, GPU active load/clock, and real-time FPS frame-pacing.
+     * Graphics Pipeline Detection: Live indicator showing active rendering backend (Vulkan vs. OpenGL ES).
+     * Per-App Automation Whitelist: Configurable per-app memory to automatically activate the hardware telemetry HUD when designated apps/games are brought to foreground and dismiss it seamlessly upon exit.
+6. Adaptive Kinetic Scroll Engine (Priority Fallback Checklist, Scroll-to-Bottom Symmetry & Per-App Adaptive Memory):
+   - Dual Action Parity:
+     * Full architectural symmetry between `system:scroll_to_top` ("Scroll to Top") and the brand-new `system:scroll_to_bottom` ("Scroll to Bottom").
+   - Reorderable Priority Fallback Execution Checklist:
+     * Eliminates "tap chaos" and erratic failures across inconsistent Android UI toolkits (Jetpack Compose LazyColumn/LazyRow, RecyclerView, NestedScrollView, WebView, Canvas).
+     * Users can visually configure and reorder the fallback execution hierarchy:
+       1. Accessibility Direct Node Target (`ACTION_SCROLL_TO_POSITION` to row 0 / max row).
+       2. Directional Accessibility Stepping (multi-pass `ACTION_PAGE_UP`/`ACTION_PAGE_DOWN`, `ACTION_SCROLL_UP`/`ACTION_SCROLL_DOWN`, `ACTION_SCROLL_BACKWARD`/`ACTION_SCROLL_FORWARD`).
+       3. Kinetic Synthetic Fling Gestures (dispatched high-velocity accessibility swipe strokes).
+       4. Status Bar / Navigation Toolbar Tap Emulation (targeting top/bottom title bar coordinates for apps with built-in scroll-to-top listeners like Twitter/X, Reddit, Telegram).
+       5. Hardware Navigation Key Injection (`KEYCODE_MOVE_HOME` / `KEYCODE_MOVE_END`, `KEYCODE_PAGE_UP` / `KEYCODE_PAGE_DOWN`).
+   - Per-App Adaptive Memory & Profile Engine:
+     * Granular per-app overrides: allows the user (or an intelligent last-known-working heuristic) to assign specific fallback orders to specific apps.
+     * Embedded directly inside the Scroll to Top and Scroll to Bottom action configuration sheets for instant, unified adjustment without navigating away.
+7. Action Engine Vector III (Reserved Placeholder for Pending Specification):
+   - Dedicated architectural vector held in stasis in the Actions Engine backlog, pending exact design confirmation from the Founder.
+
 
 [STATUS: EXPLICITLY DEFERRED (THE BACK BURNER)]
 1. Orbital Capsule Polish: Micro-telemetry and layout snugness for punch-hole camera cutouts.

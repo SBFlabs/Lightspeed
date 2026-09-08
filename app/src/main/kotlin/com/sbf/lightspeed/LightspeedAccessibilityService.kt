@@ -303,12 +303,14 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, textHeightDp) else textHeightDp
         val heightPx = (effectiveHeightDp * density).toInt()
 
+        @Suppress("DEPRECATION")
         val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
         statusBarWindowParams = WindowManager.LayoutParams(
             screenWidthPx,
@@ -799,6 +801,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
                         
                         updateOverlaysVisibility(isLocked, null)
                         resyncOverlayMetrics()
+                        
+                        com.sbf.lightspeed.system.LightspeedOrientationManager.onDeviceUnlocked(this@LightspeedAccessibilityService)
                         
                         val activePkg = rootInActiveWindow?.packageName?.toString() 
                             ?: com.sbf.lightspeed.system.LightspeedOrientationEngine.getDefaultLauncherPackage(this@LightspeedAccessibilityService)

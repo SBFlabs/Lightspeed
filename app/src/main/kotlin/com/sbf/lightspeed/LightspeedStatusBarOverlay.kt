@@ -96,6 +96,10 @@ class LightspeedStatusBarOverlay(
         style: String = "canopy_droppod"
     ) {
         uiHandler.post {
+            val wasHidden = visibility != View.VISIBLE
+            if (wasHidden) {
+                visibility = View.VISIBLE
+            }
             transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
             transientDismissRunnable = null
             currentTransientHudState = TransientHudState(title, value, stepIndex, totalSteps, style)
@@ -108,6 +112,9 @@ class LightspeedStatusBarOverlay(
                     if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
                         restoreWindowLayout()
                     }
+                    if (wasHidden) {
+                        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+                    }
                     postInvalidate()
                 }
                 transientDismissRunnable = runnable
@@ -118,11 +125,15 @@ class LightspeedStatusBarOverlay(
 
     fun dismissTransientHud(delayMs: Long = 1200L) {
         uiHandler.post {
+            val wasHidden = visibility != View.VISIBLE
             transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
             val runnable = Runnable {
                 currentTransientHudState = null
                 if (com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState?.isActive != true) {
                     restoreWindowLayout()
+                }
+                if (wasHidden) {
+                    LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
                 }
                 postInvalidate()
             }

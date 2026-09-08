@@ -272,6 +272,15 @@ object LightspeedOrientationManager {
         }
     }
 
+    fun onDeviceUnlocked(context: Context) {
+        val prefs = context.defaultPrefs()
+        val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"
+        if (expiration != "persistent") {
+            Log.i(TAG, "Device unlocked - clearing transient lockscreen manual overrides")
+            manualGestureOverride = null
+        }
+    }
+
     fun onCallStateChanged(context: Context) {
         val prefs = context.defaultPrefs()
         val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, "until_app_switch") ?: "until_app_switch"

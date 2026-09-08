@@ -43,6 +43,7 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedShortcutManager
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 class CockpitGearPickerActivity : ComponentActivity() {

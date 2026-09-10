@@ -11,7 +11,12 @@
 -keepclassmembers class kotlin.Lazy { *; }
 
 # ── Jetpack Compose ─────────────────────────────────────────────────────────────
--keep class androidx.compose.** { *; }
+# Removed blanket "-keep class androidx.compose.** { *; }".
+# The Compose Kotlin compiler plugin annotates all retention targets for R8.
+# The blanket rule was defeating tree-shaking of material-icons-extended (~7 MB).
+# Only sub-packages with reflective runtime access are explicitly kept.
+-keep class androidx.compose.runtime.snapshots.** { *; }
+-keep class androidx.compose.ui.platform.** { *; }
 -dontwarn androidx.compose.**
 -keep class **ComposableSingletons** { *; }
 -keepclassmembers class * {
@@ -68,7 +73,9 @@
 -dontwarn org.xmlpull.**
 
 # ── Coroutines ──────────────────────────────────────────────────────────────────
--keep class kotlinx.coroutines.** { *; }
+# kotlinx.coroutines ships its own consumer ProGuard rules in its JAR (since 1.6+).
+# The blanket "-keep class kotlinx.coroutines.** { *; }" is not needed and
+# was preventing R8 from removing unused coroutines internals.
 -dontwarn kotlinx.coroutines.**
 
 # ── Strip verbose logs in release ───────────────────────────────────────────────

@@ -383,7 +383,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private val highlightPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
 
     /** Extracted renderer for the COCKPIT_HANGAR layer and all shared draw helpers. */
-    private val deepSpaceRenderer by lazy { DeepSpaceRenderer(textPaint, elementPaint, highlightPaint) }
+    private val deepSpaceRenderer = DeepSpaceRenderer(textPaint, elementPaint, highlightPaint)
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -1653,6 +1653,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             applicationIconCache.clear()
             for (target in cachedApps) {
                 if (!target.isWidget) {
+                    if (applicationIconCache.size >= 100) break // Cap: prevent unbounded RAM from large categories
                     val drawable = dataBridge.getIcon(target.packageName)
                     if (drawable != null) {
                         applicationIconCache[target.packageName] = drawable

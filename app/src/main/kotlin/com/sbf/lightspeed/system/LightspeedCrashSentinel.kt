@@ -33,16 +33,19 @@ object LightspeedCrashSentinel {
     private fun handleUncaughtException(context: Context, thread: Thread, throwable: Throwable) {
         val prefs = context.defaultPrefs()
         val errorMsg = throwable.message ?: throwable.javaClass.simpleName
-        val stackTrace = Log.getStackTraceString(throwable)
         val timestamp = System.currentTimeMillis()
 
-        Log.e(TAG, "FATAL ANOMALY on thread ${thread.name}: $errorMsg\n$stackTrace")
+        // Full trace only goes to logcat (stripped by R8 in release via -assumenosideeffects)
+        Log.e(TAG, "FATAL ANOMALY on thread ${thread.name}: $errorMsg", throwable)
 
-        // 1. Record Crash Telemetry in persistent preferences
+        // 1. Record sanitized crash telemetry in persistent preferences.
+        // Stores only the exception type + top 8 frames to avoid writing a full
+        // internal class-path dump into a user-readable SharedPreferences store.
+        val sanitizedTrace = buildSanitizedTrace(throwable)
         prefs.edit()
             .putLong("key_last_crash_timestamp", timestamp)
             .putString("key_last_crash_message", errorMsg)
-            .putString("key_last_crash_stack", stackTrace.take(4000))
+            .putString("key_last_crash_stack", sanitizedTrace)
             .putBoolean("key_has_unreported_crash", true)
             .apply()
 
@@ -92,7 +95,7 @@ object LightspeedCrashSentinel {
         }
     }
 
-    fun createNotificationChannel(context: Context) {
+     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             val channel = NotificationChannel(
@@ -105,5 +108,30 @@ object LightspeedCrashSentinel {
             }
             nm?.createNotificationChannel(channel)
         }
+    }
+
+    /**
+     * Produces a compact crash summary for persistent storage.
+     * Retains the exception type + first 8 stack frames only.
+     * Remaining frames are replaced with a count to avoid storing full
+     * internal package paths in a user-readable SharedPreferences file.
+     */
+    private fun buildSanitizedTrace(throwable: Throwable): String {
+        val sb = StringBuilder()
+        var current: Throwable? = throwable
+        var depth = 0
+        while (current != null && depth < 3) {
+            if (depth > 0) sb.append("\nCaused by: ")
+            sb.append(current.javaClass.name)
+            if (!current.message.isNullOrBlank()) sb.append(": ").append(current.message)
+            val frames = current.stackTrace
+            val kept = frames.take(8)
+            kept.forEach { frame -> sb.append("\n  at ").append(frame.toString()) }
+            val remaining = frames.size - kept.size
+            if (remaining > 0) sb.append("\n  ... $remaining more frames")
+            current = current.cause
+            depth++
+        }
+        return sb.toString().take(2000)
     }
 }

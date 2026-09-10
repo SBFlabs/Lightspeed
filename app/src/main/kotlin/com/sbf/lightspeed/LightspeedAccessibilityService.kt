@@ -37,8 +37,28 @@ class LightspeedAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "LightspeedService"
         private var instanceRef: java.lang.ref.WeakReference<LightspeedAccessibilityService>? = null
+
         val instance: LightspeedAccessibilityService?
             get() = instanceRef?.get()
+
+        /** True when the service is bound and its WeakReference is still live. */
+        val isAlive: Boolean
+            get() = instanceRef?.get() != null
+
+        /**
+         * Executes [block] on the live service instance. If the instance has been
+         * GC'd or was never set, logs a diagnostic warning instead of silently
+         * dropping the action. Use this at call sites where a null service is
+         * unexpected (gestures, overlay lifecycle, automation commands).
+         */
+        inline fun withService(block: LightspeedAccessibilityService.() -> Unit) {
+            val svc = instanceRef?.get()
+            if (svc != null) {
+                svc.block()
+            } else {
+                Log.w(TAG, "withService: instance unavailable — action dropped (WeakRef GC'd or service not started)")
+            }
+        }
     }
 
     private var windowManager: WindowManager? = null

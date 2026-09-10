@@ -137,7 +137,11 @@ fun CentralCommandMatrixFields(
     // Power Button Safety Interlock & Dynamic Tools
     var singlePressTapCount by rememberSaveable { mutableIntStateOf(0) }
     var isSinglePressUnlocked by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)) }
-    val installedTacticalTools = remember { com.sbf.lightspeed.system.InstalledTacticalToolsScanner.scan(context) }
+    val installedTacticalTools by produceState(initialValue = emptyList<com.sbf.lightspeed.system.TacticalToolItem>()) {
+        value = withContext(Dispatchers.IO) {
+            com.sbf.lightspeed.system.InstalledTacticalToolsScanner.scan(context)
+        }
+    }
 
     // Tactical Hardware Deck Sub-Sections
     var isSubVolumeExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", true)) }

@@ -14,6 +14,11 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Signature-level permission: only apps signed with the same key can send automation intents -->
+    <permission
+        android:name="com.sbf.lightspeed.permission.AUTOMATION"
+        android:protectionLevel="signature" />
+
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
         <package android:name="io.github.shevery" />
@@ -25,6 +30,7 @@
     <application
         android:name=".LightspeedApplication"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="${appName}"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -208,7 +214,8 @@
         <!-- Automation Receiver for MacroDroid, Tasker, ADB, and internal quick actions -->
         <receiver
             android:name=".system.LightspeedAutomationReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:permission="com.sbf.lightspeed.permission.AUTOMATION">
             <intent-filter>
                 <action android:name="com.sbf.lightspeed.action.TOGGLE_FLIGHT_MODE" />
                 <action android:name="com.sbf.lightspeed.action.SET_FLIGHT_MODE" />

@@ -202,7 +202,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             val gestureKey = if (hostGesture == MacroGesture.NONE) "TAP_HOLD" else holdEquivalent.name
             val zoneName = if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-            val prefs = context.defaultPrefs()
+            val prefs = prefs()
             val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
             val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
             val isMirroringLeft = gestMode == "left"
@@ -281,8 +281,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_deflector_"))) {
+        if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_deflector_") || key.startsWith("pref_gear_"))) {
             post {
+                updateRenderCache()
                 updateMetricsDimensions()
                 invalidate()
             }
@@ -319,7 +320,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private var lastTargetedIndex = intArrayOf(-1, -1)
 
     private fun triggerGearCogHaptic() {
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         val strength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
         when (strength) {
             "subtle" -> triggerHardwareHaptic(10, 50)
@@ -347,6 +348,25 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     private val launchpadPillBounds = RectF() 
     private val dataBridge = LightspeedDataBridge(context)
 
+    // ── Cached SharedPreferences reference (set once in onAttachedToWindow) ──────
+    // Eliminates per-frame file I/O from onDraw() and per-touch I/O from onTouchEvent().
+    private var cachedPrefs: android.content.SharedPreferences? = null
+    private inline fun prefs() = cachedPrefs ?: context.defaultPrefs().also { cachedPrefs = it }
+
+    // ── Render-path pref cache (updated by prefChangeListener via updateRenderCache) ─
+    private var renderCacheRightFlankUnified = false
+    private var renderCacheRightUnifiedExpanded = false
+    private var renderCacheTopExpanded = false
+    private var renderCacheCenterExpanded = false
+    private var renderCacheBottomExpanded = false
+    private var renderCacheSidebarPreview = false
+    private var renderCacheCenterTransparency = 0
+    private var renderCacheTopTransparency = 0
+    private var renderCacheBottomTransparency = 0
+    private var renderCacheGlowStyle = "progressive_frost"
+    private var renderCacheReticleStyle = "tactical"
+    private var renderCacheLinkEdges = false
+
     private val projectionCamera3D = Camera()
     private val transformMatrixPipeline = Matrix()
     private val cylinderRadius = 500f
@@ -367,16 +387,33 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        val prefs = context.defaultPrefs()
-        prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
+        cachedPrefs = prefs()
+        cachedPrefs!!.registerOnSharedPreferenceChangeListener(prefChangeListener)
+        updateRenderCache()
         updateMetricsDimensions()
     }
 
     override fun onDetachedFromWindow() {
         glowAnimator?.cancel()
-        val prefs = context.defaultPrefs()
-        prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
+        cachedPrefs?.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
+        cachedPrefs = null
         super.onDetachedFromWindow()
+    }
+
+    private fun updateRenderCache() {
+        val p = prefs()
+        renderCacheRightFlankUnified    = p.getBoolean("pref_sidebar_right_link_flank_actions", false)
+        renderCacheRightUnifiedExpanded = p.getBoolean("pref_section_right_unified_expanded", false)
+        renderCacheTopExpanded          = if (renderCacheRightFlankUnified) renderCacheRightUnifiedExpanded else p.getBoolean("pref_section_top_expanded", false)
+        renderCacheCenterExpanded       = p.getBoolean("pref_section_center_expanded", false)
+        renderCacheBottomExpanded       = if (renderCacheRightFlankUnified) renderCacheRightUnifiedExpanded else p.getBoolean("pref_section_bottom_expanded", false)
+        renderCacheSidebarPreview       = p.getBoolean("pref_sidebar_preview", false)
+        renderCacheLinkEdges            = p.getBoolean("pref_sidebar_link_edges", false)
+        renderCacheCenterTransparency   = p.getInt("pref_sidebar_center_transparency", 0)
+        renderCacheTopTransparency      = p.getInt("pref_sidebar_top_transparency", 0)
+        renderCacheBottomTransparency   = if (renderCacheLinkEdges) renderCacheTopTransparency else p.getInt("pref_sidebar_bottom_transparency", 0)
+        renderCacheGlowStyle            = p.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
+        renderCacheReticleStyle         = p.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
     }
 
     fun updateMetricsDimensions() {
@@ -388,7 +425,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         val screenH = displayMetrics.heightPixels.toFloat()
         val density = displayMetrics.density
 
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         
         centerHeightPx = prefs.getInt("pref_sidebar_center_height", 280).toFloat() * density
         centerYOffsetPx = prefs.getInt("pref_sidebar_center_y_offset", 0).toFloat() * density
@@ -517,7 +554,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val gap = 8f * d
 
             val topHangarY = (screenH * 0.07f).coerceAtLeast(54f * d)
-            val prefs = context.defaultPrefs()
+            val prefs = prefs()
             val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
             if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
             val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
@@ -1166,7 +1203,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     if ((currentLayer == CruiseLayer.NEUTRAL || currentLayer == CruiseLayer.CATEGORY) &&
                         !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
                         uiHandler.removeCallbacks(neutralToCategoryRunnable)
-                        val cPrefs = context.defaultPrefs()
+                        val cPrefs = prefs()
                         val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
                         val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
                         val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
@@ -1222,8 +1259,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     when (currentDetectedGesture) {
                         MacroGesture.SWIPE_LEFT -> {
                             val zoneName = if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-                            val dynamicZone = if (context.defaultPrefs().getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
-                            val assignedScrub = context.defaultPrefs().getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none")
+                            val dynamicZone = if (prefs().getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
+                            val assignedScrub = prefs().getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none")
 
                             if (assignedScrub != "none" && assignedScrub != null && abs(deltaX) > thresholdX_Scrub) {
                                 currentDetectedGesture = MacroGesture.SCRUBBING
@@ -1239,7 +1276,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                     "system:volume", "scrub:volume" -> {
                                         val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                                         val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                        val volResolution = context.defaultPrefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
+                                        val volResolution = prefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
                                         val pct = kotlin.math.round(currentVol * 100f / maxVol.coerceAtLeast(1)).toInt().coerceIn(0, 100)
                                         activeScrubVolumePct = pct
                                         scrubHudTitle = "MEDIA VOLUME"
@@ -1250,7 +1287,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                                         val currentBrightness = try {
                                             Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                                         } catch (_: Exception) { 128 }
-                                        val brightResolution = context.defaultPrefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
+                                        val brightResolution = prefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                                         scrubHudTitle = "BRIGHTNESS"
                                         scrubHudValue = "${(currentBrightness * 100 / 255)}%"
                                         dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * brightResolution / 255), brightResolution)
@@ -1453,7 +1490,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private fun dispatchScrubHud(title: String, value: String, stepIndex: Int, totalSteps: Int) {
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness" || title == "BRIGHTNESS"
         val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume" || title == "MEDIA VOLUME"
         val showHud = when {
@@ -1480,7 +1517,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private fun executeLinearScrubTrack(zone: TouchZone, pixelDelta: Float) {
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         val dynamicZone = if (prefs.getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
         val assignedScrub = activeHoldScrubAction ?: (prefs.getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none") ?: "none")
 
@@ -1555,7 +1592,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     private fun executeMacroAction(zone: TouchZone, gesture: MacroGesture) {
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
         val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
         val isMirroringLeft = gestMode == "left"
@@ -1766,7 +1803,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     private fun querySystemColumnPreference(isLandscape: Boolean): Int {
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         return try { val v = prefs.all[if (isLandscape) "pref_numcolsland" else "pref_numcolspor"]; if (v is Int) v else v?.toString()?.toInt() ?: 4 } catch (e: Exception) { 4 }
     }
 
@@ -1808,7 +1845,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         isStickyPinned = false; isCruising = false; currentLayer = CruiseLayer.HIDDEN
         activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f
         placedAppsList.clear(); cachedApps = emptyList(); cachedCategories = emptyList()
-        val cPrefs = context.defaultPrefs()
+        val cPrefs = prefs()
         if (cPrefs.getString("cockpit_launch_behavior", "default") != "last") {
             activeGearSetIndex = 0
         }
@@ -1864,7 +1901,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         snapAnimator?.cancel()
         categoryAppsCache.clear(); categoryGridCache.clear()
 
-        val cPrefs = context.defaultPrefs()
+        val cPrefs = prefs()
         val setsList = getGearSetsOrder(isLeft)
         val launchBehavior = getFlankLaunchBehavior(isLeft)
         val lastActiveKey = if (isLeft) "last_active_set_index_left" else "last_active_set_index_right"
@@ -1918,7 +1955,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     if ((currentLayer == CruiseLayer.NEUTRAL || currentLayer == CruiseLayer.CATEGORY) &&
                         !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
                         uiHandler.removeCallbacks(neutralToCategoryRunnable)
-                        val cPrefs = context.defaultPrefs()
+                        val cPrefs = prefs()
                         val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
                         val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
                         val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
@@ -2066,7 +2103,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     fun openHangarFromFlank(isLeftFlank: Boolean) {
         isOpenedFromLeftFlank = isLeftFlank
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         val setsList = getGearSetsOrder(isLeftFlank)
         val launchBehavior = getFlankLaunchBehavior(isLeftFlank)
         val lastActiveKey = if (isLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
@@ -2215,7 +2252,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
 
         // Rotational Axis Crank Math: Scale angular velocity by true kinematic arc-length and flight physics profile
-        val prefs = context.defaultPrefs()
+        val prefs = prefs()
         val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
         val physicsMultiplier = when (physicsProfile) {
             "fluid" -> 1.45f
@@ -2260,7 +2297,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         if (activeGearSetIndex >= totalGearSetsCount) { activeGearSetIndex = 0 }
-        val prefs = context.defaultPrefs()
+        // No per-frame prefs I/O — use render cache updated by prefChangeListener
 
         val m3Primary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             context.resources.getColor(android.R.color.system_accent1_600, context.theme)
@@ -2288,18 +2325,18 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         if (currentLayer == CruiseLayer.HIDDEN) {
             val d = resources.displayMetrics.density
 
-            val isRightFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
-            val isRightUnifiedExpanded = prefs.getBoolean("pref_section_right_unified_expanded", false)
-            val isTopExpanded = if (isRightFlankUnified) isRightUnifiedExpanded else prefs.getBoolean("pref_section_top_expanded", false)
-            val isCenterExpanded = prefs.getBoolean("pref_section_center_expanded", false)
-            val isBottomExpanded = if (isRightFlankUnified) isRightUnifiedExpanded else prefs.getBoolean("pref_section_bottom_expanded", false)
-            val isSidebarPreview = prefs.getBoolean("pref_sidebar_preview", false)
+            val isRightFlankUnified = renderCacheRightFlankUnified
+            val isRightUnifiedExpanded = renderCacheRightUnifiedExpanded
+            val isTopExpanded = renderCacheTopExpanded
+            val isCenterExpanded = renderCacheCenterExpanded
+            val isBottomExpanded = renderCacheBottomExpanded
+            val isSidebarPreview = renderCacheSidebarPreview
 
-            val centerTransparency = prefs.getInt("pref_sidebar_center_transparency", 0)
-            val topTransparency = prefs.getInt("pref_sidebar_top_transparency", 0)
-            val bottomTransparency = if (prefs.getBoolean("pref_sidebar_link_edges", false)) topTransparency else prefs.getInt("pref_sidebar_bottom_transparency", 0)
+            val centerTransparency = renderCacheCenterTransparency
+            val topTransparency = renderCacheTopTransparency
+            val bottomTransparency = renderCacheBottomTransparency
 
-            val glowStyle = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
+            val glowStyle = renderCacheGlowStyle
 
             com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
                 canvas = canvas,
@@ -2486,7 +2523,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     m3Secondary = m3Secondary,
                     appName = activeHighlightedLabel,
                     density = density,
-                    reticleStyle = prefs.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
+                    reticleStyle = renderCacheReticleStyle
                 )
             }
             

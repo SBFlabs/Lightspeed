@@ -267,7 +267,7 @@ object LightspeedIconManager {
 
     /** Records a token as manually icon-overridden in SharedPreferences. */
     fun markAsManuallyOverridden(context: Context, token: String) {
-        val prefs = context.getSharedPreferences("lightspeed_prefs", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val current = prefs.getStringSet("manual_icon_overrides", emptySet())?.toMutableSet() ?: mutableSetOf()
         current.add(token)
         prefs.edit().putStringSet("manual_icon_overrides", current).apply()
@@ -275,13 +275,13 @@ object LightspeedIconManager {
 
     /** Returns all tokens that the user has manually overridden icons for. */
     fun getManuallyOverriddenTokens(context: Context): Set<String> {
-        val prefs = context.getSharedPreferences("lightspeed_prefs", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         return prefs.getStringSet("manual_icon_overrides", emptySet()) ?: emptySet()
     }
 
     /** Removes a token from the manually overridden set (e.g. when the user resets to default). */
     fun clearManualOverride(context: Context, token: String) {
-        val prefs = context.getSharedPreferences("lightspeed_prefs", Context.MODE_PRIVATE)
+        val prefs = context.defaultPrefs()
         val current = prefs.getStringSet("manual_icon_overrides", emptySet())?.toMutableSet() ?: return
         current.remove(token)
         prefs.edit().putStringSet("manual_icon_overrides", current).apply()

@@ -20,7 +20,10 @@
 
 # ── Android Core ────────────────────────────────────────────────────────────────
 -keepattributes *Annotation*
--keepattributes SourceFile,LineNumberTable
+# Source file names are stripped from the release binary.
+# Use the R8 mapping file (build/outputs/mapping/release/mapping.txt) for crash deobfuscation.
+-keepattributes LineNumberTable
+-renamesourcefileattribute SourceFile
 -keepattributes Signature
 -keepattributes Exceptions
 -keepattributes InnerClasses,EnclosingMethod

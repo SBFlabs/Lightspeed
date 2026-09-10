@@ -8,6 +8,9 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.SideEffect
 import com.sbf.lightspeed.settings.MainSettingsScreen
 import com.sbf.lightspeed.settings.rememberDeckBackdropVisuals
@@ -37,7 +40,9 @@ class MainActivity : ComponentActivity() {
 
         checkAndRequest()
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
-        LightspeedToggleActivity.updateDynamicShortcuts(this)
+        lifecycleScope.launch(Dispatchers.Default) {
+            LightspeedToggleActivity.updateDynamicShortcuts(this@MainActivity)
+        }
 
         setContent {
             val backdrop = rememberDeckBackdropVisuals(this)

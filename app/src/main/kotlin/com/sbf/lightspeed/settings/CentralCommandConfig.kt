@@ -745,9 +745,10 @@ fun CentralCommandMatrixFields(
         pinnedSection0State = pinnedSection0State,
         prefs = prefs,
         sectionOrder0StrState = sectionOrder0StrState,
+        sectionTitles0 = sectionTitles0,
         showUnifyInfoDialogState = showUnifyInfoDialogState,
         showUnifyTemplateDialogForLeftState = showUnifyTemplateDialogForLeftState,
-        toggleSection = toggleSection,
+        toggleSection = ::toggleSection,
         tokenLabelCache = tokenLabelCache
                     )
                 }
@@ -792,8 +793,9 @@ fun CentralCommandMatrixFields(
         showOemShieldDialogState = showOemShieldDialogState,
         showResetConfirmDialogState = showResetConfirmDialogState,
         singlePressTapCountState = singlePressTapCountState,
+        sectionTitles1 = sectionTitles1,
         thresholdCrossedFlashState = thresholdCrossedFlashState,
-        toggleSection = toggleSection,
+        toggleSection = ::toggleSection,
         tokenLabelCache = tokenLabelCache
                     )
                 }
@@ -839,7 +841,8 @@ fun CentralCommandMatrixFields(
         showUnifyInfoDialogState = showUnifyInfoDialogState,
         showUnifyTemplateDialogForLeftState = showUnifyTemplateDialogForLeftState,
         showUnifyTemplateDialogForRightState = showUnifyTemplateDialogForRightState,
-        toggleSection = toggleSection,
+        sectionTitles2 = sectionTitles2,
+        toggleSection = ::toggleSection,
         tokenLabelCache = tokenLabelCache
                     )
                 }

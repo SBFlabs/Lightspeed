@@ -53,13 +53,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import android.content.Context
-import android.content.SharedPreferences
-import androidx.compose.runtime.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 
 @Composable
 fun HudStripTabContent(
@@ -89,10 +82,11 @@ fun HudStripTabContent(
     isTelemetryExpandedState: MutableState<Boolean>,
     listState1: androidx.compose.foundation.lazy.LazyListState,
     onRefreshNeeded: () -> Unit,
-    pendingBackTapScopeState: MutableState<String?>,
-    pinnedSection1State: MutableState<String?>,
+    pendingBackTapScopeState: MutableState<String>,
+    pinnedSection1State: MutableState<String>,
     prefs: android.content.SharedPreferences,
     sectionOrder1StrState: MutableState<String>,
+    sectionTitles1: Map<String, String>,
     showAmoledWarningDialogState: MutableState<Boolean>,
     showBatteryWarningDialogState: MutableState<Boolean>,
     showImportOptionsDialogState: MutableState<Boolean>,
@@ -101,7 +95,7 @@ fun HudStripTabContent(
     showResetConfirmDialogState: MutableState<Boolean>,
     singlePressTapCountState: MutableIntState,
     thresholdCrossedFlashState: MutableState<Boolean>,
-    toggleSection: (String) -> Unit,
+    toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
     tokenLabelCache: Map<String, String>
 ) {
     var blueprintTabTarget by blueprintTabTargetState

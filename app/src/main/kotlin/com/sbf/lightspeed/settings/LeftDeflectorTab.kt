@@ -83,12 +83,13 @@ fun LeftDeflectorTabContent(
     isLeftUnifiedScrubExpandedState: MutableState<Boolean>,
     listState0: androidx.compose.foundation.lazy.LazyListState,
     onRefreshNeeded: () -> Unit,
-    pinnedSection0State: MutableState<String?>,
+    pinnedSection0State: MutableState<String>,
     prefs: android.content.SharedPreferences,
     sectionOrder0StrState: MutableState<String>,
+    sectionTitles0: Map<String, String>,
     showUnifyInfoDialogState: MutableState<Boolean>,
     showUnifyTemplateDialogForLeftState: MutableState<Boolean>,
-    toggleSection: (String) -> Unit,
+    toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
     tokenLabelCache: Map<String, String>
 ) {
     var blueprintTabTarget by blueprintTabTargetState
@@ -111,6 +112,19 @@ fun LeftDeflectorTabContent(
     var sectionOrder0Str by sectionOrder0StrState
     var showUnifyInfoDialog by showUnifyInfoDialogState
     var showUnifyTemplateDialogForLeft by showUnifyTemplateDialogForLeftState
+    val leftCustomVectors = listOf(
+        "TAP" to ("Tap" to ArrowDirection.TAP),
+        "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
+        "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
+        "SWIPE_RIGHT" to ("Swipe Inward" to ArrowDirection.SWIPE_RIGHT),
+        "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
+        "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
+        "SWIPE_RIGHT_BACK" to ("Rebound Inward" to ArrowDirection.RIGHT_BACK),
+        "SWIPE_UP_RIGHT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_RIGHT),
+        "SWIPE_DOWN_RIGHT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_RIGHT),
+        "SWIPE_RIGHT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.RIGHT_UP),
+        "SWIPE_RIGHT_DOWN" to ("Two-Step: Inward → Down" to ArrowDirection.RIGHT_DOWN)
+    )
                     val defaultOrder0 = if (isLeftFlankUnified) listOf("left_unified") else listOf("left_center", "left_top", "left_bottom")
                     val currentOrder0 = sectionOrder0Str.split(",").map { it.trim() }.filter { it in defaultOrder0 }.distinct().let { list ->
                         list + (defaultOrder0 - list.toSet())

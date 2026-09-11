@@ -78,10 +78,11 @@ fun RightDeflectorTabContent(
     listState2: androidx.compose.foundation.lazy.LazyListState,
     onRefreshNeeded: () -> Unit,
     pastedJsonTextState: MutableState<String>,
-    pendingBackTapScopeState: MutableState<String?>,
-    pinnedSection2State: MutableState<String?>,
+    pendingBackTapScopeState: MutableState<String>,
+    pinnedSection2State: MutableState<String>,
     prefs: android.content.SharedPreferences,
     sectionOrder2StrState: MutableState<String>,
+    sectionTitles2: Map<String, String>,
     selectedTemplateOptionState: MutableIntState,
     showAmoledWarningDialogState: MutableState<Boolean>,
     showBatteryWarningDialogState: MutableState<Boolean>,
@@ -94,7 +95,7 @@ fun RightDeflectorTabContent(
     showUnifyInfoDialogState: MutableState<Boolean>,
     showUnifyTemplateDialogForLeftState: MutableState<Boolean>,
     showUnifyTemplateDialogForRightState: MutableState<Boolean>,
-    toggleSection: (String) -> Unit,
+    toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
     tokenLabelCache: Map<String, String>
 ) {
     var blueprintTabTarget by blueprintTabTargetState
@@ -130,6 +131,19 @@ fun RightDeflectorTabContent(
     var showUnifyInfoDialog by showUnifyInfoDialogState
     var showUnifyTemplateDialogForLeft by showUnifyTemplateDialogForLeftState
     var showUnifyTemplateDialogForRight by showUnifyTemplateDialogForRightState
+    val rightCustomVectors = listOf(
+        "TAP" to ("Tap" to ArrowDirection.TAP),
+        "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
+        "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
+        "SWIPE_LEFT" to ("Swipe Inward" to ArrowDirection.SWIPE_LEFT),
+        "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
+        "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
+        "SWIPE_LEFT_BACK" to ("Rebound Inward" to ArrowDirection.LEFT_BACK),
+        "SWIPE_UP_LEFT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_LEFT),
+        "SWIPE_DOWN_LEFT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_LEFT),
+        "SWIPE_LEFT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.LEFT_UP),
+        "SWIPE_LEFT_DOWN" to ("Two-Step: Inward → Down" to ArrowDirection.LEFT_DOWN)
+    )
                     val defaultOrder2 = if (isRightFlankUnified) listOf("unified") else listOf("center", "top", "bottom")
                     val currentOrder2 = sectionOrder2Str.split(",").map { it.trim() }.filter { it in defaultOrder2 }.distinct().let { list ->
                         list + (defaultOrder2 - list.toSet())

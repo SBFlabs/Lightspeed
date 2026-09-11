@@ -471,11 +471,11 @@ fun HudStripTabContent(
                                                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                                                         Icon(Icons.Default.Face, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                                                         Spacer(modifier = Modifier.width(6.dp))
-                                                                        Text("Face-Oriented Auto-Rotate", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-                                                                        Spacer(modifier = Modifier.width(6.dp))
+                                                                        Text("Face-Oriented Auto-Rotate", modifier = Modifier.weight(1f, fill = false), fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                                                        Spacer(modifier = Modifier.width(8.dp))
                                                                         Box(
                                                                             modifier = Modifier
-                                                                                .size(18.dp)
+                                                                                .requiredSize(22.dp)
                                                                                 .clip(CircleShape)
                                                                                 .background(cautionAmber.copy(alpha = 0.15f))
                                                                                 .border(0.8.dp, cautionAmber.copy(alpha = 0.4f), CircleShape)
@@ -486,7 +486,7 @@ fun HudStripTabContent(
                                                                                 Icons.Default.Info,
                                                                                 contentDescription = "Privacy Architecture",
                                                                                 tint = cautionAmber,
-                                                                                modifier = Modifier.size(12.dp)
+                                                                                modifier = Modifier.requiredSize(14.dp)
                                                                             )
                                                                         }
                                                                     }

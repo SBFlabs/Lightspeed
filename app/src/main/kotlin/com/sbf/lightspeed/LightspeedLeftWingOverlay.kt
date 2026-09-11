@@ -1,4 +1,5 @@
 package com.sbf.lightspeed
+import com.sbf.lightspeed.system.LightspeedPreferences
 
 import android.accessibilityservice.AccessibilityService
 import android.animation.ValueAnimator
@@ -668,6 +669,7 @@ class LightspeedLeftWingOverlay(
             glowStyle = glowStyle,
             isGlowEnabled = isGlowEnabled,
             useM3Color = useM3Color,
+            pillStyle = com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorPillStyle(context),
             touchY = null,
             visualWidthPx = centerVisualWidthPx
         )

@@ -1,4 +1,5 @@
 package com.sbf.lightspeed
+import com.sbf.lightspeed.system.LightspeedPreferences
 import android.accessibilityservice.AccessibilityService
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -115,6 +116,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 glowStyle = glowStyle,
                 isGlowEnabled = renderCacheGlowEnabled,
                 useM3Color = renderCacheUseM3Color,
+                pillStyle = com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorPillStyle(context),
                 touchY = null,
                 visualWidthPx = centerVisualWidthPx
             )
@@ -544,6 +546,7 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
         glowStyle = renderCacheGlowStyle,
         isGlowEnabled = true,
         useM3Color = renderCacheUseM3Color,
+                pillStyle = com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorPillStyle(context),
         touchY = null,
         visualWidthPx = visualWidth
     )

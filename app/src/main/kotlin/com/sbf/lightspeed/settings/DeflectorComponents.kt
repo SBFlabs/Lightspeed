@@ -279,6 +279,7 @@ fun DeflectorGlowCard(
     }
     var useM3Color by remember { mutableStateOf(LightspeedPreferences.isDeflectorUseM3Color(context)) }
     var glowStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorGlowStyle(context)) }
+    var pillStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorPillStyle(context)) }
     var glowOnGestureStep by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) }
     var glowDuration by remember {
         mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_GLOW_DURATION, "1500ms") ?: "1500ms")
@@ -654,6 +655,7 @@ fun DeflectorPillStylingContent(
     }
     var useM3Color by remember { mutableStateOf(LightspeedPreferences.isDeflectorUseM3Color(context)) }
     var glowStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorGlowStyle(context)) }
+    var pillStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorPillStyle(context)) }
     var glowOnGestureStep by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) }
 
     val styleOptions = listOf(
@@ -726,6 +728,81 @@ fun DeflectorPillStylingContent(
         if (glowEnabled) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
+
+            val pillOptions1 = listOf(
+                "anchored_glow" to "Anchored",
+                "floating_smart_pill" to "Smart Pill",
+                "neon_core" to "Neon Core"
+            )
+            val pillOptions2 = listOf(
+                "razor_edge" to "Razor Edge",
+                "kinetic_elastic" to "Elastic",
+                "hollow_ghost" to "Ghost Rim"
+            )
+            
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Pill Geometry Style", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    pillOptions1.forEach { (id, label) ->
+                        val isSelected = pillStyle == id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                pillStyle = id
+                                LightspeedPreferences.setDeflectorPillStyle(context, id)
+                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                            },
+                            label = {
+                                Text(
+                                    label,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    pillOptions2.forEach { (id, label) ->
+                        val isSelected = pillStyle == id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                pillStyle = id
+                                LightspeedPreferences.setDeflectorPillStyle(context, id)
+                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                            },
+                            label = {
+                                Text(
+                                    label,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
             // Dynamic M3 Color Switch
             Row(
                 modifier = Modifier

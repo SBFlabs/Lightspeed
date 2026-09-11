@@ -124,6 +124,22 @@ fun LeftDeflectorTabContent(
                         list + (defaultOrder0 - list.toSet())
                     }
 
+
+                    val defaultSubLeftTop = listOf("geo", "scrub", "gestures")
+                    val subLeftTopStr = prefs.getString("pref_sub_order_left_top_2", "geo,scrub,gestures")!!
+                    var currentSubLeftTop by remember { mutableStateOf(subLeftTopStr.split(",").filter { it in defaultSubLeftTop }.let { it + (defaultSubLeftTop - it.toSet()) }) }
+                    var pinnedSubLeftTop by remember { mutableStateOf(prefs.getString("pref_sub_pinned_left_top_2", "geo")) }
+
+                    val defaultSubLeftBottom = listOf("geo", "scrub", "gestures")
+                    val subLeftBottomStr = prefs.getString("pref_sub_order_left_bottom_2", "geo,scrub,gestures")!!
+                    var currentSubLeftBottom by remember { mutableStateOf(subLeftBottomStr.split(",").filter { it in defaultSubLeftBottom }.let { it + (defaultSubLeftBottom - it.toSet()) }) }
+                    var pinnedSubLeftBottom by remember { mutableStateOf(prefs.getString("pref_sub_pinned_left_bottom_2", "geo")) }
+
+                    val defaultSubLeftUnified = listOf("geo", "scrub", "gestures")
+                    val subLeftUnifiedStr = prefs.getString("pref_sub_order_left_unified_2", "geo,scrub,gestures")!!
+                    var currentSubLeftUnified by remember { mutableStateOf(subLeftUnifiedStr.split(",").filter { it in defaultSubLeftUnified }.let { it + (defaultSubLeftUnified - it.toSet()) }) }
+                    var pinnedSubLeftUnified by remember { mutableStateOf(prefs.getString("pref_sub_pinned_left_unified_2", "geo")) }
+
                     if (blueprintTabTarget == 0) {
                         BlueprintWireframeView(
                             tabTitle = "◀ Deflectors",
@@ -156,6 +172,73 @@ fun LeftDeflectorTabContent(
                             },
                             onExitBlueprint = {
                                 blueprintTabTarget = null
+                            },
+                            subSections = mapOf(
+                                "left_top" to currentSubLeftTop,
+                                "left_bottom" to currentSubLeftBottom,
+                                "left_unified" to currentSubLeftUnified
+                            ),
+                            subSectionTitles = mapOf(
+                                "geo" to "Sensor Geometry",
+                                "scrub" to "Inward Scrubbing Control",
+                                "gestures" to "Gesture Actions & Macro Mappings"
+                            ),
+                            pinnedSubSections = mapOf(
+                                "left_top" to pinnedSubLeftTop,
+                                "left_bottom" to pinnedSubLeftBottom,
+                                "left_unified" to pinnedSubLeftUnified
+                            ),
+                            onMoveSubUp = { secId, idx ->
+                                if (idx > 0) {
+                                    val (list, key) = when (secId) {
+                                        "left_top" -> currentSubLeftTop to "pref_sub_order_left_top_2"
+                                        "left_bottom" -> currentSubLeftBottom to "pref_sub_order_left_bottom_2"
+                                        "left_unified" -> currentSubLeftUnified to "pref_sub_order_left_unified_2"
+                                        else -> return@BlueprintWireframeView
+                                    }
+                                    val mutable = list.toMutableList()
+                                    val item = mutable.removeAt(idx)
+                                    mutable.add(idx - 1, item)
+                                    when (secId) {
+                                        "left_top" -> currentSubLeftTop = mutable
+                                        "left_bottom" -> currentSubLeftBottom = mutable
+                                        "left_unified" -> currentSubLeftUnified = mutable
+                                    }
+                                    prefs.edit().putString(key, mutable.joinToString(",")).apply()
+                                }
+                            },
+                            onMoveSubDown = { secId, idx ->
+                                val (list, key) = when (secId) {
+                                    "left_top" -> currentSubLeftTop to "pref_sub_order_left_top_2"
+                                    "left_bottom" -> currentSubLeftBottom to "pref_sub_order_left_bottom_2"
+                                    "left_unified" -> currentSubLeftUnified to "pref_sub_order_left_unified_2"
+                                    else -> return@BlueprintWireframeView
+                                }
+                                if (idx < list.size - 1) {
+                                    val mutable = list.toMutableList()
+                                    val item = mutable.removeAt(idx)
+                                    mutable.add(idx + 1, item)
+                                    when (secId) {
+                                        "left_top" -> currentSubLeftTop = mutable
+                                        "left_bottom" -> currentSubLeftBottom = mutable
+                                        "left_unified" -> currentSubLeftUnified = mutable
+                                    }
+                                    prefs.edit().putString(key, mutable.joinToString(",")).apply()
+                                }
+                            },
+                            onPinSubSection = { secId, subId ->
+                                val key = when (secId) {
+                                    "left_top" -> "pref_sub_pinned_left_top_2"
+                                    "left_bottom" -> "pref_sub_pinned_left_bottom_2"
+                                    "left_unified" -> "pref_sub_pinned_left_unified_2"
+                                    else -> return@BlueprintWireframeView
+                                }
+                                when (secId) {
+                                    "left_top" -> pinnedSubLeftTop = subId
+                                    "left_bottom" -> pinnedSubLeftBottom = subId
+                                    "left_unified" -> pinnedSubLeftUnified = subId
+                                }
+                                prefs.edit().putString(key, subId).apply()
                             }
                         )
                     } else {

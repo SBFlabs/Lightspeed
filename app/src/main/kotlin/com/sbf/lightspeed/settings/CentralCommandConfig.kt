@@ -354,12 +354,12 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
         if (isLeftFlankUnified) {
-            mapOf("left_unified" to "Unified Deflectors (Flank Vectors)")
+            mapOf("left_unified" to "Unified Deflectors")
         } else {
             mapOf(
                 "left_center" to "Central Pill (Core Astrogation)",
-                "left_top" to "Upper Vector Zone",
-                "left_bottom" to "Lower Vector Zone"
+                "left_top" to "Upper Deflector Zone",
+                "left_bottom" to "Lower Deflector Zone"
             )
         }
     }
@@ -378,12 +378,12 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode) {
         if (isRightFlankUnified) {
-            mapOf("unified" to "Unified Deflectors (Flank Vectors)")
+            mapOf("unified" to "Unified Deflectors")
         } else {
             mapOf(
                 "center" to "Central Pill (Core Astrogation)",
-                "top" to "Upper Vector Zone",
-                "bottom" to "Lower Vector Zone"
+                "top" to "Upper Deflector Zone",
+                "bottom" to "Lower Deflector Zone"
             )
         }
     }

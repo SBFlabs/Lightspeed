@@ -306,7 +306,7 @@ fun LeftDeflectorTabContent(
                                         if (isLeftFlankUnified) {
                                             item(key = "left_unified") {
                                                 CompactAccordionSection(
-                                                    title = "Unified Deflectors (Flank Vectors)",
+                                                    title = "Unified Deflectors",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.SwapVert,
@@ -387,7 +387,7 @@ fun LeftDeflectorTabContent(
                                         if (!isLeftFlankUnified) {
                                             item(key = "left_top") {
                                                 CompactAccordionSection(
-                                                    title = "Upper Vector Zone",
+                                                    title = "Upper Deflector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowUp,
@@ -460,7 +460,7 @@ fun LeftDeflectorTabContent(
                                         if (!isLeftFlankUnified) {
                                             item(key = "left_bottom") {
                                                 CompactAccordionSection(
-                                                    title = "Lower Vector Zone",
+                                                    title = "Lower Deflector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowDown,

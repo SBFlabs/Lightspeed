@@ -332,7 +332,7 @@ fun RightDeflectorTabContent(
                                         if (isRightFlankUnified) {
                                             item(key = "unified") {
                                                 CompactAccordionSection(
-                                                    title = "Unified Deflectors (Flank Vectors)",
+                                                    title = "Unified Deflectors",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.SwapVert,
@@ -462,7 +462,7 @@ fun RightDeflectorTabContent(
                                         if (!isRightFlankUnified) {
                                             item(key = "top") {
                                                 CompactAccordionSection(
-                                                    title = "Upper Vector Zone",
+                                                    title = "Upper Deflector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowUp,
@@ -490,7 +490,7 @@ fun RightDeflectorTabContent(
                                                     }
                                                     if (subBlueprintTarget == "top") {
                                                         BlueprintWireframeView(
-                                                            tabTitle = "Upper Vector Zone",
+                                                            tabTitle = "Upper Deflector Zone",
                                                             sectionIds = currentTopSubOrder,
                                                             pinnedSectionId = topPinnedSection,
                                                             sectionTitles = mapOf("geo" to "Sensor Geometry", "scrub" to "Inward Scrubbing Control", "gestures" to "Gesture Actions & Macro Mappings"),
@@ -585,7 +585,7 @@ fun RightDeflectorTabContent(
                                         if (!isRightFlankUnified) {
                                             item(key = "bottom") {
                                                 CompactAccordionSection(
-                                                    title = "Lower Vector Zone",
+                                                    title = "Lower Deflector Zone",
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowDown,
@@ -613,7 +613,7 @@ fun RightDeflectorTabContent(
                                                     }
                                                     if (subBlueprintTarget == "bottom") {
                                                         BlueprintWireframeView(
-                                                            tabTitle = "Lower Vector Zone",
+                                                            tabTitle = "Lower Deflector Zone",
                                                             sectionIds = currentBottomSubOrder,
                                                             pinnedSectionId = bottomPinnedSection,
                                                             sectionTitles = mapOf("geo" to "Sensor Geometry", "scrub" to "Inward Scrubbing Control", "gestures" to "Gesture Actions & Macro Mappings"),

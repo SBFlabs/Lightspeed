@@ -105,6 +105,7 @@ fun LeftDeflectorTabContent(
     var sectionOrder0Str by sectionOrder0StrState
     var showUnifyInfoDialog by showUnifyInfoDialogState
     var showUnifyTemplateDialogForLeft by showUnifyTemplateDialogForLeftState
+    var subBlueprintTarget by remember { mutableStateOf<String?>(null) }
     val leftCustomVectors = listOf(
         "TAP" to ("Tap" to ArrowDirection.TAP),
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),

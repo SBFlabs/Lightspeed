@@ -131,7 +131,7 @@
             android:showForAllUsers="true"
             android:launchMode="singleInstance"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <intent-filter android:priority="1000">
+            <intent-filter>
                 <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
                 <action android:name="android.media.action.STILL_IMAGE_CAMERA_SECURE" />
                 <action android:name="android.media.action.IMAGE_CAPTURE" />

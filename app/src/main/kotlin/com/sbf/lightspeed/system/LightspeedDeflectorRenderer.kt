@@ -79,11 +79,7 @@ object LightspeedDeflectorRenderer {
             val pillTop = centerTouchBounds.top
             val pillBottom = centerTouchBounds.bottom
 
-            val restingAlpha = if (centerTransparency > 0) {
-                (centerTransparency * 2.55f).toInt().coerceIn(15, 255)
-            } else {
-                75 // Clean resting baseline presence
-            }
+            val restingAlpha = (centerTransparency * 2.55f).toInt().coerceIn(0, 255)
             val activeAlpha = 210 // Clean responsive active glow
             val effectiveAlpha = if (isTouched) activeAlpha else maxOf(restingAlpha, (activeAlpha * glowFraction).toInt())
 

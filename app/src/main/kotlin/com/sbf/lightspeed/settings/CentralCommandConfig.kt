@@ -1461,6 +1461,9 @@ fun CentralCommandMatrixFields(
                             prefs.edit().putString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, newMode).apply()
                         }
                     }
+                    if (newMode == "custom_pinned" && (currentPinned == null || currentPinned == "none" || currentPinned.isEmpty())) {
+                        blueprintTabTarget = tabId
+                    }
                     popoverTabTarget = null
                     onRefreshNeeded()
                 },

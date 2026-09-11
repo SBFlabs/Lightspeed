@@ -637,6 +637,280 @@ fun DeflectorGlowCard(
 }
 
 @Composable
+fun DeflectorPillStylingContent(
+    context: Context,
+    prefs: SharedPreferences,
+    isLeft: Boolean,
+    onRefreshNeeded: () -> Unit
+) {
+    val prefix = if (isLeft) "pref_sidebar_left_center" else "pref_sidebar_center"
+
+    var glowEnabled by remember {
+        mutableStateOf(
+            if (isLeft) LightspeedPreferences.isLeftDeflectorGlowEnabled(context)
+            else LightspeedPreferences.isRightDeflectorGlowEnabled(context)
+        )
+    }
+    var useM3Color by remember { mutableStateOf(LightspeedPreferences.isDeflectorUseM3Color(context)) }
+    var glowStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorGlowStyle(context)) }
+    var glowOnGestureStep by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) }
+
+    val styleOptions = listOf(
+        "progressive_frost" to "Frosted Glass",
+        "material_shade" to "Material Shade",
+        "crimson_reactor" to "Crimson Reactor",
+        "cyber_plasma" to "Cyber Plasma"
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // 1. Central Pill Active Switch Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                .clickable {
+                    val next = !glowEnabled
+                    glowEnabled = next
+                    if (isLeft) LightspeedPreferences.setLeftDeflectorGlowEnabled(context, next)
+                    else LightspeedPreferences.setRightDeflectorGlowEnabled(context, next)
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    if (next) LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                    onRefreshNeeded()
+                }
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                Text("Central Pill Active Glow", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                Text(
+                    if (glowEnabled) "Tactile static bezel indicator active" else "Pill hidden / dormant",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
+            }
+            Switch(
+                checked = glowEnabled,
+                onCheckedChange = { checked ->
+                    glowEnabled = checked
+                    if (isLeft) LightspeedPreferences.setLeftDeflectorGlowEnabled(context, checked)
+                    else LightspeedPreferences.setRightDeflectorGlowEnabled(context, checked)
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    if (checked) LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                    onRefreshNeeded()
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    checkedBorderColor = Color.Transparent,
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                    uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                    uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                )
+            )
+        }
+
+        if (glowEnabled) {
+            // Visual Thickness Slider
+            PrefDottedSliderRow(context, prefs, "${prefix}_visual_width", "", "Pill Visual Thickness", 2, 40, 2, 6)
+        }
+
+        // Geometry Sliders
+        PrefDottedSliderRow(context, prefs, "${prefix}_height", "", "Deflector Span (Height)", 50, 1000, 10, 400)
+        PrefDottedSliderRow(context, prefs, "${prefix}_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+        PrefDottedSliderRow(context, prefs, "${prefix}_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+        PrefDottedSliderRow(context, prefs, "${prefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+
+        if (glowEnabled) {
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+            // Dynamic M3 Color Switch
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                    .clickable {
+                        val next = !useM3Color
+                        useM3Color = next
+                        LightspeedPreferences.setDeflectorUseM3Color(context, next)
+                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                        LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                        onRefreshNeeded()
+                    }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Material 3 Dynamic Color", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                    Text(
+                        if (useM3Color) "Tints pill with dynamic wallpaper theme color" else "Use custom aesthetic shading palette",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    )
+                }
+                Switch(
+                    checked = useM3Color,
+                    onCheckedChange = { checked ->
+                        useM3Color = checked
+                        LightspeedPreferences.setDeflectorUseM3Color(context, checked)
+                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                        LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                        onRefreshNeeded()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        checkedBorderColor = Color.Transparent,
+                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                    )
+                )
+            }
+
+            if (!useM3Color) {
+                // Style selector chips
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "Pill Aesthetic Style",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        styleOptions.take(2).forEach { (id, label) ->
+                            val isSelected = glowStyle == id
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    glowStyle = id
+                                    LightspeedPreferences.setDeflectorGlowStyle(context, id)
+                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                                },
+                                label = {
+                                    Text(
+                                        label,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        styleOptions.drop(2).forEach { (id, label) ->
+                            val isSelected = glowStyle == id
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    glowStyle = id
+                                    LightspeedPreferences.setDeflectorGlowStyle(context, id)
+                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                                },
+                                label = {
+                                    Text(
+                                        label,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Glow on Gesture Step
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                    .clickable {
+                        val next = !glowOnGestureStep
+                        glowOnGestureStep = next
+                        LightspeedPreferences.setDeflectorGlowOnGestureStep(context, next)
+                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                        onRefreshNeeded()
+                    }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Glow on Gesture Registration", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                    Text(
+                        "Briefly pulse pill when gesture recognition begins",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    )
+                }
+                Switch(
+                    checked = glowOnGestureStep,
+                    onCheckedChange = { checked ->
+                        glowOnGestureStep = checked
+                        LightspeedPreferences.setDeflectorGlowOnGestureStep(context, checked)
+                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                        onRefreshNeeded()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        checkedBorderColor = Color.Transparent,
+                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                    )
+                )
+            }
+
+            // Test FX button
+            OutlinedButton(
+                onClick = {
+                    LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    contentColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Text("PREVIEW PILL GLOW FX", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
 fun SymmetryCouplingCard(
     context: Context,
     prefs: SharedPreferences,

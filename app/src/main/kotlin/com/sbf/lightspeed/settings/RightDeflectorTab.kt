@@ -211,10 +211,6 @@ fun RightDeflectorTabContent(
                                 )
                             }
 
-                            item(key = "right_deflector_glow") {
-                                DeflectorGlowCard(context = context, prefs = prefs, isLeft = false)
-                            }
-
                             item {
                                 UnifyFlankActionsCard(
                                     isUnified = isRightFlankUnified,
@@ -257,8 +253,8 @@ fun RightDeflectorTabContent(
                                             ) {
                                                  Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                                     CollapsibleSubSection(
-                                                        title = "Sensor Geometry",
-                                                        subtitle = "Deflector span, touch reach, offset & stealth glow",
+                                                        title = "Central Pill Geometry & Styling",
+                                                        subtitle = "Pill presence, visual thickness, dimensions & aesthetic color",
                                                         isExpanded = isCenterGeoExpanded,
                                                         onToggle = {
                                                             isCenterGeoExpanded = !isCenterGeoExpanded
@@ -270,10 +266,12 @@ fun RightDeflectorTabContent(
                                                             onRefreshNeeded()
                                                         }
                                                     ) {
-                                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_height", "", "Deflector Span (Height)", 50, 1000, 10, 400)
-                                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
-                                                        PrefDottedSliderRow(context, prefs, "pref_sidebar_center_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                                        DeflectorPillStylingContent(
+                                                            context = context,
+                                                            prefs = prefs,
+                                                            isLeft = false,
+                                                            onRefreshNeeded = onRefreshNeeded
+                                                        )
                                                     }
                                                 }
                                             }

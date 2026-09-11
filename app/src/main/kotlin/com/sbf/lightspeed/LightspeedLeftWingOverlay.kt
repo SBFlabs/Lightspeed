@@ -64,6 +64,7 @@ class LightspeedLeftWingOverlay(
     private var bottomHeightPx = 0f
     private var topTouchWidthPx = 0f
     private var centerTouchWidthPx = 0f
+    private var centerVisualWidthPx = 6f
     private var bottomTouchWidthPx = 0f
     private var centerYOffsetPx = 0f
 
@@ -132,6 +133,7 @@ class LightspeedLeftWingOverlay(
         centerHeightPx = prefs.getInt("${centerPrefix}_height", 400).toFloat() * density
         centerYOffsetPx = prefs.getInt("${centerPrefix}_y_offset", 0).toFloat() * density
         centerTouchWidthPx = prefs.getInt("${centerPrefix}_touch_width", 40).toFloat() * density
+        centerVisualWidthPx = prefs.getInt("${centerPrefix}_visual_width", 6).toFloat() * density
 
         topHeightPx = prefs.getInt("${topPrefix}_height", 200).toFloat() * density
         topTouchWidthPx = prefs.getInt("${topPrefix}_touch_width", 40).toFloat() * density
@@ -665,7 +667,9 @@ class LightspeedLeftWingOverlay(
             m3Primary = m3Primary,
             glowStyle = glowStyle,
             isGlowEnabled = isGlowEnabled,
-            useM3Color = useM3Color
+            useM3Color = useM3Color,
+            touchY = null,
+            visualWidthPx = centerVisualWidthPx
         )
     }
 

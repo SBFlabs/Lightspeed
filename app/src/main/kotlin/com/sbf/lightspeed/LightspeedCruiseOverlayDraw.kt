@@ -115,7 +115,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 glowStyle = glowStyle,
                 isGlowEnabled = renderCacheGlowEnabled,
                 useM3Color = renderCacheUseM3Color,
-                touchY = if (isCurrentlyTouched && currentTouchY > 0f) currentTouchY else null
+                touchY = null,
+                visualWidthPx = centerVisualWidthPx
             )
             if (currentLayer == CruiseLayer.NEUTRAL) return
             return
@@ -505,7 +506,6 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
     val isLeft = isOpenedFromLeftFlank
     val isGlowEnabled = if (isLeft) renderCacheLeftGlowEnabled else renderCacheGlowEnabled
     if (!isGlowEnabled) {
-        updatePillShaderUniforms(active = false)
         return
     }
 
@@ -513,30 +513,14 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
     val w = width.toFloat()
     val h = height.toFloat()
 
-    // Calculate dynamic pill geometry matching renderer
-    val cy = if (isCurrentlyTouched && currentTouchY > 0f) {
-        val minY = (40f * d) + (40f * d)
-        val maxY = h - (40f * d) - (40f * d)
-        currentTouchY.coerceIn(minY, maxY)
+    val visualWidth = if (isLeft) {
+        val geomMode = prefs().getString("pref_symmetry_geometry_mode", "independent") ?: "independent"
+        val isMirroringRight = geomMode == "right"
+        val prefix = if (isMirroringRight) "pref_sidebar_center" else "pref_sidebar_left_center"
+        prefs().getInt("${prefix}_visual_width", 6).toFloat() * d
     } else {
-        centerTouchBounds.centerY()
+        centerVisualWidthPx
     }
-    val pillW = minOf(centerTouchBounds.width(), 32f * d).coerceAtLeast(24f * d)
-    val pillH = (centerTouchBounds.height() * 0.70f).coerceAtLeast(60f * d)
-    val pillTop = (cy - pillH / 2f).coerceAtLeast(2f * d)
-    val pillBottom = (cy + pillH / 2f).coerceAtMost(h - 2f * d)
-    val cornerR = (pillW * 0.5f).coerceAtMost((pillBottom - pillTop) / 2f)
-
-    // Update GPU hardware progressive blur position!
-    updatePillShaderUniforms(
-        left = if (isLeft) 0f else (w - pillW),
-        top = pillTop,
-        right = if (isLeft) pillW else w,
-        bottom = pillBottom,
-        cornerR = cornerR,
-        isLeft = isLeft,
-        active = true
-    )
 
     com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
         canvas = canvas,
@@ -552,7 +536,7 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
         activeZoneIsTop = false,
         activeZoneIsBottom = false,
         glowFraction = 1f,
-        centerTransparency = renderCacheCenterTransparency,
+        centerTransparency = if (isLeft) renderCacheLeftCenterTransparency else renderCacheCenterTransparency,
         topTransparency = 0,
         bottomTransparency = 0,
         isReview = false,
@@ -560,6 +544,7 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
         glowStyle = renderCacheGlowStyle,
         isGlowEnabled = true,
         useM3Color = renderCacheUseM3Color,
-        touchY = if (isCurrentlyTouched && currentTouchY > 0f) currentTouchY else null
+        touchY = null,
+        visualWidthPx = visualWidth
     )
 }

@@ -106,6 +106,7 @@ object LightspeedOrientationManager {
     fun stopActiveSensorPortraitDriver() {
         if (!isSensorPortraitDriverActive) return
         isSensorPortraitDriverActive = false
+        currentSensorPortraitOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         try {
             sensorPortraitListener?.disable()
             Log.i(TAG, "Disabled Active Sensor Portrait Driver")
@@ -154,7 +155,6 @@ object LightspeedOrientationManager {
             LightspeedOrientationEngine.setAutoRotateEnabled(context, true)
         } else {
             LightspeedOrientationEngine.setAutoRotateEnabled(context, false)
-            LightspeedOrientationEngine.forcePortrait(context)
         }
 
         // Avionics HUD feedback
@@ -474,7 +474,6 @@ object LightspeedOrientationManager {
             LightspeedOrientationEngine.setAutoRotateEnabled(context, true)
         } else {
             LightspeedOrientationEngine.setAutoRotateEnabled(context, false)
-            LightspeedOrientationEngine.forcePortrait(context)
         }
     }
 }

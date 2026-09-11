@@ -1,6 +1,5 @@
 package com.sbf.lightspeed.settings
 
-import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService

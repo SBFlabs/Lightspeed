@@ -7,11 +7,9 @@ import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedIconManager
 import kotlinx.coroutines.Dispatchers

@@ -36,11 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
-import android.content.ComponentName
 import android.content.Intent
-import com.sbf.lightspeed.CockpitGearPickerActivity
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -49,18 +46,14 @@ import com.sbf.lightspeed.system.LightspeedBackupEngine
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
-import com.sbf.lightspeed.system.LightspeedOrientationManager
 import com.sbf.lightspeed.system.LightspeedPreferences
-import com.sbf.lightspeed.system.LightspeedWatchdogEngine
-import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.OemNotchDetector
-import com.sbf.lightspeed.system.TacticalFlyoutLauncher
-
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable

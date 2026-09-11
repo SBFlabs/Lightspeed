@@ -883,6 +883,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         hasLongPressFired = false
 
         snapAnimator?.cancel()
+        glowAnimator?.cancel()
+        glowFraction = 0f
+        isCurrentlyTouched = false
+        currentActiveZone = TouchZone.NONE
+        macroTrackingActive = false
+        isDraggingHangarBays = false
+        isSpinningHangarRing = false
+        isTouchingFocusedCog = false
         isStickyPinned = false; isCruising = false; currentLayer = CruiseLayer.HIDDEN
         activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f
         placedAppsList.clear(); cachedApps = emptyList(); cachedCategories = emptyList()
@@ -934,6 +942,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         currentActiveZone = TouchZone.CENTER_CRUISE
         isCruising = true
+        isCurrentlyTouched = true
         categoryScrubbingEngaged = false
         maxVerticalDisplacement = 0f
         categoryVisualOffset = 0f
@@ -1029,6 +1038,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isCurrentlyTouched = false
+                currentActiveZone = TouchZone.NONE
                 isScrubEntranceHapticFired = false
                 uiHandler.removeCallbacks(holdTimerRunnable)
                 if (isCruising) {
@@ -1230,6 +1241,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     ) = deepSpaceRenderer.drawGalacticNebula(canvas, cx, cy, radius, m3Primary, alphaFactor)
 
     internal fun triggerHyperdriveWarpLaunch(focalX: Float, focalY: Float, onLaunch: () -> Unit) {
+        isCurrentlyTouched = false
+        currentActiveZone = TouchZone.NONE
+        glowAnimator?.cancel()
+        glowFraction = 0f
         deepSpaceRenderer.isWarpLaunching = true
         deepSpaceRenderer.warpStartTime = System.currentTimeMillis()
         deepSpaceRenderer.warpFocalPointX = focalX

@@ -869,6 +869,7 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isCurrentlyTouched = false
                 isScrubEntranceHapticFired = false
                 uiHandler.removeCallbacks(holdTimerRunnable)
                 if (isCruising) {

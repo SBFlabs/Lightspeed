@@ -288,7 +288,6 @@ fun LeftDeflectorTabContent(
                                                     toggleSection(0, "left_center", isLeftCenterExpanded) { isLeftCenterExpanded = it }
                                                     prefs.edit()
                                                         .putBoolean("pref_section_left_center_expanded", isLeftCenterExpanded)
-                                                        .putBoolean("pref_sidebar_left_preview", isLeftTopExpanded || isLeftBottomExpanded || isLeftUnifiedExpanded)
                                                         .apply()
                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     onRefreshNeeded()
@@ -321,7 +320,6 @@ fun LeftDeflectorTabContent(
                                                         toggleSection(0, "left_unified", isLeftUnifiedExpanded) { isLeftUnifiedExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_left_unified_expanded", isLeftUnifiedExpanded)
-                                                            .putBoolean("pref_sidebar_left_preview", isLeftUnifiedExpanded && isLeftUnifiedGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
@@ -404,7 +402,6 @@ fun LeftDeflectorTabContent(
                                                         toggleSection(0, "left_top", isLeftTopExpanded) { isLeftTopExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_left_top_expanded", isLeftTopExpanded)
-                                                            .putBoolean("pref_sidebar_left_preview", isLeftTopExpanded && isLeftTopGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }
@@ -479,7 +476,6 @@ fun LeftDeflectorTabContent(
                                                         toggleSection(0, "left_bottom", isLeftBottomExpanded) { isLeftBottomExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_left_bottom_expanded", isLeftBottomExpanded)
-                                                            .putBoolean("pref_sidebar_left_preview", isLeftBottomExpanded && isLeftBottomGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     }

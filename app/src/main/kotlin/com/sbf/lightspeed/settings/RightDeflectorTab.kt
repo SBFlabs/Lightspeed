@@ -314,7 +314,6 @@ fun RightDeflectorTabContent(
                                                     toggleSection(2, "center", isCenterExpanded) { isCenterExpanded = it }
                                                     prefs.edit()
                                                         .putBoolean("pref_section_center_expanded", isCenterExpanded)
-                                                        .putBoolean("pref_sidebar_preview", isTopExpanded || isBottomExpanded || isRightUnifiedExpanded)
                                                         .apply()
                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     onRefreshNeeded()
@@ -347,7 +346,6 @@ fun RightDeflectorTabContent(
                                                         toggleSection(2, "unified", isRightUnifiedExpanded) { isRightUnifiedExpanded = it }
                                                         prefs.edit()
                                                             .putBoolean("pref_section_right_unified_expanded", isRightUnifiedExpanded)
-                                                            .putBoolean("pref_sidebar_preview", isRightUnifiedExpanded && isRightUnifiedGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     },
@@ -480,7 +478,6 @@ fun RightDeflectorTabContent(
                                                         val newTop = isTopExpanded
                                                         prefs.edit()
                                                             .putBoolean("pref_section_top_expanded", newTop)
-                                                            .putBoolean("pref_sidebar_preview", newTop && isTopGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     },
@@ -605,7 +602,6 @@ fun RightDeflectorTabContent(
                                                         val newBottom = isBottomExpanded
                                                         prefs.edit()
                                                             .putBoolean("pref_section_bottom_expanded", newBottom)
-                                                            .putBoolean("pref_sidebar_preview", newBottom && isBottomGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     },

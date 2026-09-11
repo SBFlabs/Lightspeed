@@ -35,7 +35,7 @@ import com.sbf.lightspeed.system.defaultPrefs
 class LightspeedAccessibilityService : AccessibilityService() {
 
     companion object {
-        private const val TAG = "LightspeedService"
+        const val TAG = "LightspeedService"
         internal var instanceRef: java.lang.ref.WeakReference<LightspeedAccessibilityService>? = null
 
         val instance: LightspeedAccessibilityService?
@@ -52,7 +52,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
          * unexpected (gestures, overlay lifecycle, automation commands).
          */
         inline fun withService(block: LightspeedAccessibilityService.() -> Unit) {
-            val svc = instanceRef?.get()
+            val svc = instance
             if (svc != null) {
                 svc.block()
             } else {

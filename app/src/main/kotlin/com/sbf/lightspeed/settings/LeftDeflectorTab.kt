@@ -333,7 +333,6 @@ fun LeftDeflectorTabContent(
                                                                 isLeftUnifiedGeoExpanded = !isLeftUnifiedGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_left_unified", isLeftUnifiedGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_left_preview", isLeftUnifiedGeoExpanded)
                                                                     .apply()
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 onRefreshNeeded()
@@ -415,7 +414,6 @@ fun LeftDeflectorTabContent(
                                                                 isLeftTopGeoExpanded = !isLeftTopGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_left_top", isLeftTopGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_left_preview", isLeftTopGeoExpanded)
                                                                     .apply()
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 onRefreshNeeded()
@@ -489,7 +487,6 @@ fun LeftDeflectorTabContent(
                                                                 isLeftBottomGeoExpanded = !isLeftBottomGeoExpanded
                                                                 prefs.edit()
                                                                     .putBoolean("pref_sub_geo_left_bottom", isLeftBottomGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_left_preview", isLeftBottomGeoExpanded)
                                                                     .apply()
                                                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                                 onRefreshNeeded()

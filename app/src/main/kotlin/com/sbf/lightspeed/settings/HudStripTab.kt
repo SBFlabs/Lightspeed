@@ -221,7 +221,6 @@ fun HudStripTabContent(
                                                     toggleSection(1, "sensor_deck", isSensorDeckExpanded) { isSensorDeckExpanded = it }
                                                     prefs.edit()
                                                         .putBoolean("pref_section_statusbar_expanded", isSensorDeckExpanded)
-                                                        .putBoolean("pref_statusbar_preview", isSensorDeckExpanded && isStatusBarGeoExpanded)
                                                         .apply()
                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                 }
@@ -245,7 +244,6 @@ fun HudStripTabContent(
                                                             isStatusBarGeoExpanded = !isStatusBarGeoExpanded
                                                             prefs.edit()
                                                                 .putBoolean("pref_sub_geo_statusbar", isStatusBarGeoExpanded)
-                                                                .putBoolean("pref_statusbar_preview", isStatusBarGeoExpanded)
                                                                 .apply()
                                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                             onRefreshNeeded()

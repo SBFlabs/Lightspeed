@@ -691,6 +691,39 @@ fun CentralCommandMatrixFields(
         }
 
         // High-Performance Swipable Pages
+
+    LaunchedEffect(
+        pagerState.currentPage,
+        isLeftTopGeoExpanded, isLeftBottomGeoExpanded, isLeftUnifiedGeoExpanded,
+        isTopGeoExpanded, isBottomGeoExpanded, isRightUnifiedGeoExpanded,
+        isStatusBarGeoExpanded
+    ) {
+        val editor = prefs.edit()
+        
+        var showLeftPreview = false
+        var showRightPreview = false
+        var showStatusBarPreview = false
+        
+        when (pagerState.currentPage) {
+            0 -> {
+                showLeftPreview = isLeftTopGeoExpanded || isLeftBottomGeoExpanded || isLeftUnifiedGeoExpanded
+            }
+            1 -> {
+                showStatusBarPreview = isStatusBarGeoExpanded
+            }
+            2 -> {
+                showRightPreview = isTopGeoExpanded || isBottomGeoExpanded || isRightUnifiedGeoExpanded
+            }
+        }
+        
+        editor.putBoolean("pref_sidebar_left_preview", showLeftPreview)
+        editor.putBoolean("pref_sidebar_preview", showRightPreview)
+        editor.putBoolean("pref_statusbar_preview", showStatusBarPreview)
+        editor.apply()
+        
+        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+    }
+
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.weight(1f).fillMaxWidth(),

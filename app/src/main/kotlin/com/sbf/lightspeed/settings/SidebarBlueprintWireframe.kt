@@ -58,10 +58,8 @@ fun BlueprintWireframeView(
     onExitBlueprint: () -> Unit,
     subSections: Map<String, List<String>> = emptyMap(),
     subSectionTitles: Map<String, String> = emptyMap(),
-    pinnedSubSections: Map<String, String?> = emptyMap(),
     onMoveSubUp: (String, Int) -> Unit = { _, _ -> },
-    onMoveSubDown: (String, Int) -> Unit = { _, _ -> },
-    onPinSubSection: (String, String) -> Unit = { _, _ -> }
+    onMoveSubDown: (String, Int) -> Unit = { _, _ -> }
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -180,7 +178,7 @@ fun BlueprintWireframeView(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     subs.forEachIndexed { subIndex, subId ->
-                        val isSubPinned = (subId == pinnedSubSections[secId])
+                        val isSubPinned = ("${secId}_${subId}" == pinnedSectionId)
                         val subTitle = subSectionTitles[subId] ?: subId
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -209,7 +207,7 @@ fun BlueprintWireframeView(
 
                                 // Pin Sub-Section
                                 IconButton(
-                                    onClick = { onPinSubSection(secId, subId) },
+                                    onClick = { onPinSection("${secId}_${subId}") },
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(

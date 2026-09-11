@@ -111,38 +111,38 @@ fun CentralCommandMatrixFields(
     // Left Deflector Accordion States
     val isLeftCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_center" else prefs.getBoolean("pref_section_left_center_expanded", true)) }
     var isLeftCenterExpanded by isLeftCenterExpandedState
-    val isLeftTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_top" else prefs.getBoolean("pref_section_left_top_expanded", true)) }
+    val isLeftTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_top" || pinnedSection0.startsWith("left_top_") else prefs.getBoolean("pref_section_left_top_expanded", true)) }
     var isLeftTopExpanded by isLeftTopExpandedState
-    val isLeftBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_bottom" else prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
+    val isLeftBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_bottom" || pinnedSection0.startsWith("left_bottom_") else prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
     var isLeftBottomExpanded by isLeftBottomExpandedState
     val isLeftFlankUnifiedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)) }
     var isLeftFlankUnified by isLeftFlankUnifiedState
-    val isLeftUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_unified" else prefs.getBoolean("pref_section_left_unified_expanded", false)) }
+    val isLeftUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_unified" || pinnedSection0.startsWith("left_unified_") else prefs.getBoolean("pref_section_left_unified_expanded", false)) }
     var isLeftUnifiedExpanded by isLeftUnifiedExpandedState
 
     // Left Deflector Sub-Section States
     val isLeftCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", true)) }
     var isLeftCenterGeoExpanded by isLeftCenterGeoExpandedState
 
-    val isLeftUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_unified", true)) }
+    val isLeftUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_geo" else prefs.getBoolean("pref_sub_geo_left_unified", true)) }
     var isLeftUnifiedGeoExpanded by isLeftUnifiedGeoExpandedState
-    val isLeftUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_unified", true)) }
+    val isLeftUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_scrub" else prefs.getBoolean("pref_sub_scrub_left_unified", true)) }
     var isLeftUnifiedScrubExpanded by isLeftUnifiedScrubExpandedState
-    val isLeftUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_unified", true)) }
+    val isLeftUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_gestures" else prefs.getBoolean("pref_sub_gestures_left_unified", true)) }
     var isLeftUnifiedGesturesExpanded by isLeftUnifiedGesturesExpandedState
 
-    val isLeftTopGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_top", true)) }
+    val isLeftTopGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_geo" else prefs.getBoolean("pref_sub_geo_left_top", true)) }
     var isLeftTopGeoExpanded by isLeftTopGeoExpandedState
-    val isLeftTopScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_top", true)) }
+    val isLeftTopScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_scrub" else prefs.getBoolean("pref_sub_scrub_left_top", true)) }
     var isLeftTopScrubExpanded by isLeftTopScrubExpandedState
-    val isLeftTopGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_top", true)) }
+    val isLeftTopGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_top_gestures" else prefs.getBoolean("pref_sub_gestures_left_top", true)) }
     var isLeftTopGesturesExpanded by isLeftTopGesturesExpandedState
 
-    val isLeftBottomGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_bottom", true)) }
+    val isLeftBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_geo" else prefs.getBoolean("pref_sub_geo_left_bottom", true)) }
     var isLeftBottomGeoExpanded by isLeftBottomGeoExpandedState
-    val isLeftBottomScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_left_bottom", true)) }
+    val isLeftBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_scrub" else prefs.getBoolean("pref_sub_scrub_left_bottom", true)) }
     var isLeftBottomScrubExpanded by isLeftBottomScrubExpandedState
-    val isLeftBottomGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
+    val isLeftBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_gestures" else prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
     var isLeftBottomGesturesExpanded by isLeftBottomGesturesExpandedState
 
     // HUD Strip Accordion States
@@ -242,13 +242,13 @@ fun CentralCommandMatrixFields(
     // Right Deflector Accordion States
     val isCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", true)) }
     var isCenterExpanded by isCenterExpandedState
-    val isTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" else prefs.getBoolean("pref_section_top_expanded", true)) }
+    val isTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" || pinnedSection2.startsWith("top_") else prefs.getBoolean("pref_section_top_expanded", true)) }
     var isTopExpanded by isTopExpandedState
-    val isBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" else prefs.getBoolean("pref_section_bottom_expanded", false)) }
+    val isBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" || pinnedSection2.startsWith("bottom_") else prefs.getBoolean("pref_section_bottom_expanded", false)) }
     var isBottomExpanded by isBottomExpandedState
     val isRightFlankUnifiedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_LINK_FLANK, false)) }
     var isRightFlankUnified by isRightFlankUnifiedState
-    val isRightUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" else prefs.getBoolean("pref_section_right_unified_expanded", false)) }
+    val isRightUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" || pinnedSection2.startsWith("unified_") else prefs.getBoolean("pref_section_right_unified_expanded", false)) }
     var isRightUnifiedExpanded by isRightUnifiedExpandedState
 
     // Dual Watchdog Sub-Section States
@@ -261,25 +261,25 @@ fun CentralCommandMatrixFields(
     val isCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
     var isCenterGeoExpanded by isCenterGeoExpandedState
 
-    val isRightUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_right_unified", true)) }
+    val isRightUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_geo" else prefs.getBoolean("pref_sub_geo_right_unified", true)) }
     var isRightUnifiedGeoExpanded by isRightUnifiedGeoExpandedState
-    val isRightUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_right_unified", true)) }
+    val isRightUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_scrub" else prefs.getBoolean("pref_sub_scrub_right_unified", true)) }
     var isRightUnifiedScrubExpanded by isRightUnifiedScrubExpandedState
-    val isRightUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_right_unified", true)) }
+    val isRightUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_gestures" else prefs.getBoolean("pref_sub_gestures_right_unified", true)) }
     var isRightUnifiedGesturesExpanded by isRightUnifiedGesturesExpandedState
 
-    val isTopGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_top", true)) }
+    val isTopGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_geo" else prefs.getBoolean("pref_sub_geo_top", true)) }
     var isTopGeoExpanded by isTopGeoExpandedState
-    val isTopScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_top", true)) }
+    val isTopScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_scrub" else prefs.getBoolean("pref_sub_scrub_top", true)) }
     var isTopScrubExpanded by isTopScrubExpandedState
-    val isTopGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_top", true)) }
+    val isTopGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "top_gestures" else prefs.getBoolean("pref_sub_gestures_top", true)) }
     var isTopGesturesExpanded by isTopGesturesExpandedState
 
-    val isBottomGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_bottom", true)) }
+    val isBottomGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_geo" else prefs.getBoolean("pref_sub_geo_bottom", true)) }
     var isBottomGeoExpanded by isBottomGeoExpandedState
-    val isBottomScrubExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_scrub_bottom", true)) }
+    val isBottomScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_scrub" else prefs.getBoolean("pref_sub_scrub_bottom", true)) }
     var isBottomScrubExpanded by isBottomScrubExpandedState
-    val isBottomGesturesExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_gestures_bottom", true)) }
+    val isBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "bottom_gestures" else prefs.getBoolean("pref_sub_gestures_bottom", true)) }
     var isBottomGesturesExpanded by isBottomGesturesExpandedState
 
     val listState0 = rememberLazyListState()

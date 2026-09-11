@@ -24,11 +24,6 @@ object LightspeedDeflectorRenderer {
         style = Paint.Style.FILL
     }
 
-    private val specularRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-    }
-
     private val reviewStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         color = Color.WHITE
@@ -39,7 +34,6 @@ object LightspeedDeflectorRenderer {
     }
 
     private val bladePath = Path()
-    private val rimPath = Path()
 
     fun drawDeflectorWing(
         canvas: Canvas,
@@ -106,7 +100,6 @@ object LightspeedDeflectorRenderer {
                 val cornerR = (pillW * 0.5f).coerceAtLeast(restingW * 0.5f).coerceAtMost((pillBottom - pillTop) / 2f)
 
                 bladePath.reset()
-                rimPath.reset()
 
                 if (isLeft) {
                     val rect = RectF(0f, pillTop, pillW, pillBottom)
@@ -118,15 +111,6 @@ object LightspeedDeflectorRenderer {
                         0f, 0f
                     )
                     bladePath.addRoundRect(rect, radii, Path.Direction.CW)
-
-                    // Specular rim: runs strictly along top ledge, rounded inner corners, and bottom ledge
-                    // Terminating at the bezel (does not stroke against physical screen edge)
-                    rimPath.moveTo(0f, pillTop)
-                    rimPath.lineTo(pillW - cornerR, pillTop)
-                    rimPath.arcTo(RectF(pillW - 2 * cornerR, pillTop, pillW, pillTop + 2 * cornerR), -90f, 90f, false)
-                    rimPath.lineTo(pillW, pillBottom - cornerR)
-                    rimPath.arcTo(RectF(pillW - 2 * cornerR, pillBottom - 2 * cornerR, pillW, pillBottom), 0f, 90f, false)
-                    rimPath.lineTo(0f, pillBottom)
                 } else {
                     val rect = RectF(w - pillW, pillTop, w, pillBottom)
                     // Top-Left: cornerR, Top-Right: 0, Bottom-Right: 0, Bottom-Left: cornerR
@@ -137,22 +121,10 @@ object LightspeedDeflectorRenderer {
                         cornerR, cornerR
                     )
                     bladePath.addRoundRect(rect, radii, Path.Direction.CW)
-
-                    // Specular rim: runs strictly along top ledge, rounded inner corners, and bottom ledge
-                    // Terminating at the bezel (does not stroke against physical screen edge)
-                    rimPath.moveTo(w, pillTop)
-                    rimPath.lineTo(w - pillW + cornerR, pillTop)
-                    rimPath.arcTo(RectF(w - pillW, pillTop, w - pillW + 2 * cornerR, pillTop + 2 * cornerR), -90f, -90f, false)
-                    rimPath.lineTo(w - pillW, pillBottom - cornerR)
-                    rimPath.arcTo(RectF(w - pillW, pillBottom - 2 * cornerR, w - pillW + 2 * cornerR, pillBottom), 180f, -90f, false)
-                    rimPath.lineTo(w, pillBottom)
                 }
 
                 applyPillShading(isLeft, w, pillW, pillTop, pillBottom, finalAlpha, m3Primary, glowStyle, useM3Color, d)
                 canvas.drawPath(bladePath, bladeFillPaint)
-
-                specularRimPaint.strokeWidth = if (morphFactor > 0f) 2.0f * d else 1.2f * d
-                canvas.drawPath(rimPath, specularRimPaint)
             }
         }
 
@@ -242,7 +214,6 @@ object LightspeedDeflectorRenderer {
                     floatArrayOf(0.0f, 0.35f, 0.70f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
-                specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), baseR, baseG, baseB)
             }
             "crimson_reactor" -> {
                 bladeFillPaint.shader = LinearGradient(
@@ -256,7 +227,6 @@ object LightspeedDeflectorRenderer {
                     floatArrayOf(0.0f, 0.30f, 0.70f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
-                specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), 255, 230, 220)
             }
             "cyber_plasma" -> {
                 bladeFillPaint.shader = LinearGradient(
@@ -270,7 +240,6 @@ object LightspeedDeflectorRenderer {
                     floatArrayOf(0.0f, 0.40f, 0.75f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
-                specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), 255, 255, 255)
             }
             else -> {
                 // "progressive_frost" (Default) - Heavy progressive frosted glass diffusion with multi-stop blur curve
@@ -286,7 +255,6 @@ object LightspeedDeflectorRenderer {
                     floatArrayOf(0.0f, 0.28f, 0.62f, 0.88f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
-                specularRimPaint.color = Color.argb((finalAlpha * 0.98f).toInt(), 255, 255, 255)
             }
         }
     }

@@ -1,6 +1,7 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 package com.sbf.lightspeed.settings
 
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+
 
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi

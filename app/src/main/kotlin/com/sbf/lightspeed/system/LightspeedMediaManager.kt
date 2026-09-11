@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.system
 
+import com.sbf.lightspeed.showMediaScrubber
+import com.sbf.lightspeed.updateMediaScrubberProgress
+
 import android.content.Context
 import android.media.AudioManager
 import android.media.MediaMetadata

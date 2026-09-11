@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -162,7 +164,6 @@ fun TabAccordionPopover(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 data class AttitudeTargetItem(
     val id: String,
     val label: String,
@@ -171,4 +172,3 @@ data class AttitudeTargetItem(
     val badge: String? = null
 )
 
-@OptIn(ExperimentalMaterial3Api::class)

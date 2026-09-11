@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService

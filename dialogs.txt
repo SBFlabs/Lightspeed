@@ -1,0 +1,552 @@
+
+        // Dialogs
+        if (showResetConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showResetConfirmDialog = false },
+                title = { Text("Reset to Factory Defaults?", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = { Text("This will wipe all customized gestures, sensitivity sliders, and custom gear sets. This action cannot be undone.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.resetToDefaults(context)
+                            showResetConfirmDialog = false
+                            Toast.makeText(context, "Preferences reset to factory defaults", Toast.LENGTH_SHORT).show()
+                            onRefreshNeeded()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Reset Everything", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetConfirmDialog = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (importStatusMessage != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.clearImportStatus() },
+                title = {
+                    Text(
+                        text = if (isImportSuccess) "Backup Restored" else "Import Status",
+                        fontWeight = FontWeight.Bold,
+                        color = if (isImportSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    )
+                },
+                text = {
+                    Text(
+                        text = importStatusMessage ?: "",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val wasSuccess = isImportSuccess
+                            viewModel.clearImportStatus()
+                            if (wasSuccess) {
+                                (context as? Activity)?.recreate() ?: onRefreshNeeded()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isImportSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Text(if (isImportSuccess) "Done" else "Dismiss", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showImportOptionsDialog) {
+            AlertDialog(
+                onDismissRequest = { showImportOptionsDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Restore Configuration", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "SELECT RESTORE METHOD",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Choose via system picker
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                .clickable {
+                                    showImportOptionsDialog = false
+                                    importLauncher.launch("*/*")
+                                }
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Choose Backup File", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                                Text("Select your backup .json file from storage", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Paste JSON Directly
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                                .clickable {
+                                    showImportOptionsDialog = false
+                                    pastedJsonText = ""
+                                    showPasteJsonDialog = true
+                                }
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                                Text("Paste backup payload from clipboard", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showImportOptionsDialog = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showPasteJsonDialog) {
+            AlertDialog(
+                onDismissRequest = { showPasteJsonDialog = false },
+                title = { Text("Paste Backup JSON", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text("Paste your exported JSON payload below:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = pastedJsonText,
+                            onValueChange = { pastedJsonText = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp),
+                            placeholder = { Text("{\n  \"settings\": {\n    ...\n  }\n}", fontSize = 12.sp) },
+                            maxLines = 15,
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = Color.White)
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val text = pastedJsonText.trim()
+                            showPasteJsonDialog = false
+                            if (text.isBlank()) {
+                                viewModel.importFromJson(context, text)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Restore", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPasteJsonDialog = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showSymmetryInfoDialog) {
+            AlertDialog(
+                onDismissRequest = { showSymmetryInfoDialog = false },
+                icon = { Icon(Icons.Default.SyncAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                title = { Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("The 3-position selector acts as a non-destructive Flight Profile Switch:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text("• CLONE LEFT: Left Wing is master. Right Wing automatically mirrors its geometry or inverts and executes its gestures.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• INDEPENDENT: Bilateral multi-role setup. Both wings have dedicated, independent gesture maps and dimensions.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• CLONE RIGHT: Right Wing is master. Left Wing automatically mirrors its geometry or opens the Cockpit / executes its gestures.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("🔒 Switching profiles never deletes your custom setups. Switching back to INDEPENDENT restores all unique mappings instantly.", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showSymmetryInfoDialog = false }) {
+                        Text("Got it", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showUnifyInfoDialog) {
+            AlertDialog(
+                onDismissRequest = { showUnifyInfoDialog = false },
+                icon = { Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                title = { Text("Unified Flank Actions & Dual Scrubbers", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("This unifies your gesture configuration while preserving ergonomics:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text("• Single Gesture Set: Configure standard directional gestures (Tap, Swipe In, Swipe Up/Down, Hold) once for the whole flank.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• Dual Scrubbers: Independent inward scrubbing selectors for the upper half (e.g. Brightness) and lower half (e.g. Volume).", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("• Independent Geometry: Top and bottom wing spans, reaches, and glows remain independently tunable for natural grip comfort.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("🔒 Toggling OFF immediately restores your previous separate upper and lower gesture mappings without data loss.", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showUnifyInfoDialog = false }) {
+                        Text("Got it", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showUnifyTemplateDialogForLeft) {
+            AlertDialog(
+                onDismissRequest = { showUnifyTemplateDialogForLeft = false },
+                title = { Text("Activate Unified Left Flank", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Choose an action template to initialize your unified flank set:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        listOf(
+                            0 to "Clone Upper Vector Actions (Top Half)",
+                            1 to "Clone Lower Vector Actions (Bottom Half)",
+                            2 to "Use Dedicated Unified Set"
+                        ).forEach { (optIdx, optLabel) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (selectedTemplateOption == optIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                    .clickable { selectedTemplateOption = optIdx }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedTemplateOption == optIdx,
+                                    onClick = { selectedTemplateOption = optIdx },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(optLabel, fontSize = 12.5.sp, color = Color.White)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (selectedTemplateOption == 0) {
+                                cloneFlankActions("LEFT_TOP", "LEFT_UNIFIED")
+                            } else if (selectedTemplateOption == 1) {
+                                cloneFlankActions("LEFT_BOTTOM", "LEFT_UNIFIED")
+                            }
+                            isLeftFlankUnified = true
+                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", true).commit()
+                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                            showUnifyTemplateDialogForLeft = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("Unify Actions", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUnifyTemplateDialogForLeft = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showUnifyTemplateDialogForRight) {
+            AlertDialog(
+                onDismissRequest = { showUnifyTemplateDialogForRight = false },
+                title = { Text("Activate Unified Right Flank", fontWeight = FontWeight.Bold, color = Color.White) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Choose an action template to initialize your unified flank set:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        listOf(
+                            0 to "Clone Upper Vector Actions (Top Half)",
+                            1 to "Clone Lower Vector Actions (Bottom Half)",
+                            2 to "Use Dedicated Unified Set"
+                        ).forEach { (optIdx, optLabel) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (selectedTemplateOption == optIdx) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+                                    .clickable { selectedTemplateOption = optIdx }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedTemplateOption == optIdx,
+                                    onClick = { selectedTemplateOption = optIdx },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(optLabel, fontSize = 12.5.sp, color = Color.White)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (selectedTemplateOption == 0) {
+                                cloneFlankActions("TOP", "UNIFIED")
+                            } else if (selectedTemplateOption == 1) {
+                                cloneFlankActions("BOTTOM", "UNIFIED")
+                            }
+                            isRightFlankUnified = true
+                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", true).commit()
+                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                            showUnifyTemplateDialogForRight = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("Unify Actions", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUnifyTemplateDialogForRight = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showOemShieldDialog) {
+            var preserveScreenshot by remember { mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_SCREENSHOT, true)) }
+            var preserveAccessibility by remember { mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_ACCESSIBILITY, true)) }
+
+            AlertDialog(
+                onDismissRequest = { showOemShieldDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("OEM Compatibility Shield", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+                    }
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "Configure hardware-level passthrough guardrails to ensure native Android system shortcuts remain responsive on your specific device hardware.",
+                            fontSize = 13.sp,
+                            color = Color.LightGray.copy(alpha = 0.85f),
+                            lineHeight = 17.sp
+                        )
+                        PrefToggleRow(
+                            title = "Preserve Screenshot Shortcut",
+                            subtitle = "Whitelist immediate pass-through for Power + Vol Down screenshot captures",
+                            isChecked = preserveScreenshot,
+                            onCheckedChange = { preserveScreenshot = it }
+                        )
+                        PrefToggleRow(
+                            title = "Preserve Accessibility Shortcut",
+                            subtitle = "Bypass custom chords after 1.5s simultaneous hold and yield directly to Android TalkBack / accessibility shortcut",
+                            isChecked = preserveAccessibility,
+                            onCheckedChange = { preserveAccessibility = it }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            prefs.edit()
+                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_SHIELD_COMPLETED, true)
+                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_SCREENSHOT, preserveScreenshot)
+                                .putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OEM_PRESERVE_ACCESSIBILITY, preserveAccessibility)
+                                .apply()
+                            showOemShieldDialog = false
+                            onRefreshNeeded()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("APPLY SHIELD", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showOemShieldDialog = false }) {
+                        Text("DISMISS", color = Color.White.copy(alpha = 0.7f))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showBatteryWarningDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showBatteryWarningDialog = false
+                },
+                title = {
+                    Text("⚠️ High Battery Usage Warning", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                },
+                text = {
+                    Text(
+                        "Detecting back taps while the screen is off keeps your CPU awake (Partial Wake Lock), preventing Android from entering deep sleep. This typically consumes 2% to 4% battery per hour while idle.",
+                        fontSize = 13.sp,
+                        color = Color.LightGray.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_SCOPE, pendingBackTapScope).apply()
+                            showBatteryWarningDialog = false
+                            onRefreshNeeded()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("ENABLE ANYWAY", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BACK_TAP_SCOPE, "screen_on").apply()
+                            showBatteryWarningDialog = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("CANCEL", color = Color.White.copy(alpha = 0.7f))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showNotificationAccessDialog) {
+            AlertDialog(
+                onDismissRequest = { showNotificationAccessDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                    }
+                },
+                text = {
+                    Text(
+                        "To display real-time download progress and active media playback in your status bar or notch pill, Android requires Notification Access (Device & App Notifications).\n\nLightspeed is 100% offline and never records, stores, or transmits your personal notifications.",
+                        fontSize = 13.sp,
+                        color = Color.LightGray.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showNotificationAccessDialog = false
+                            try {
+                                val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                try {
+                                    val intent = Intent(android.provider.Settings.ACTION_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("OPEN SETTINGS", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showNotificationAccessDialog = false }) {
+                        Text("NOT NOW", color = Color.White.copy(alpha = 0.7f))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
+
+        if (showAmoledWarningDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showAmoledWarningDialog = false
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s").apply()
+                    onRefreshNeeded()
+                },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Hardware Notice: AMOLED Image Retention", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                    }
+                },
+                text = {
+                    Text(
+                        "Prolonged static display on OLED panels can cause permanent subpixel degradation (burn-in). Keep auto-sleep enabled?",
+                        fontSize = 13.sp,
+                        color = Color.LightGray.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s").apply()
+                            showAmoledWarningDialog = false
+                            onRefreshNeeded()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Keep Auto-Sleep (Recommended)", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "never").apply()
+                            showAmoledWarningDialog = false
+                            onRefreshNeeded()
+                        }
+                    ) {
+                        Text("Enable Always-On (My Device Has No OLED / I Understand)", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }

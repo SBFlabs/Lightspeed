@@ -354,12 +354,12 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
         if (isLeftFlankUnified) {
-            mapOf("left_unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)")
+            mapOf("left_unified" to "Unified Deflectors (Flank Vectors)")
         } else {
             mapOf(
-                "left_center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Central Pill (Core Zone)",
-                "left_top" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Upper Vector Zone",
-                "left_bottom" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Lower Vector Zone"
+                "left_center" to "Central Pill (Core Astrogation)",
+                "left_top" to "Upper Vector Zone",
+                "left_bottom" to "Lower Vector Zone"
             )
         }
     }
@@ -378,12 +378,12 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode) {
         if (isRightFlankUnified) {
-            mapOf("unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)")
+            mapOf("unified" to "Unified Deflectors (Flank Vectors)")
         } else {
             mapOf(
-                "center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Central Pill (Core Zone)",
-                "top" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Upper Vector Zone",
-                "bottom" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Lower Vector Zone"
+                "center" to "Central Pill (Core Astrogation)",
+                "top" to "Upper Vector Zone",
+                "bottom" to "Lower Vector Zone"
             )
         }
     }

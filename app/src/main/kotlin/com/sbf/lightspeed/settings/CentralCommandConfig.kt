@@ -84,7 +84,7 @@ fun CentralCommandMatrixFields(
     // Tab Display Profiles & Blueprint State
     val tabMode0State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_0, "custom_pinned") ?: "custom_pinned") }
     var tabMode0 by tabMode0State
-    val pinnedSection0State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0, "left_top") ?: "left_top") }
+    val pinnedSection0State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0, "left_center") ?: "left_center") }
     var pinnedSection0 by pinnedSection0State
     val sectionOrder0StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_top,left_bottom") ?: "left_center,left_top,left_bottom") }
     var sectionOrder0Str by sectionOrder0StrState
@@ -98,7 +98,7 @@ fun CentralCommandMatrixFields(
 
     val tabMode2State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
     var tabMode2 by tabMode2State
-    val pinnedSection2State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "top") ?: "top") }
+    val pinnedSection2State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2, "center") ?: "center") }
     var pinnedSection2 by pinnedSection2State
     val sectionOrder2StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,top,bottom") ?: "center,top,bottom") }
     var sectionOrder2Str by sectionOrder2StrState
@@ -109,7 +109,7 @@ fun CentralCommandMatrixFields(
     var blueprintTabTarget by blueprintTabTargetState
 
     // Left Deflector Accordion States
-    val isLeftCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_center" else prefs.getBoolean("pref_section_left_center_expanded", false)) }
+    val isLeftCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_center" else prefs.getBoolean("pref_section_left_center_expanded", true)) }
     var isLeftCenterExpanded by isLeftCenterExpandedState
     val isLeftTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_top" else prefs.getBoolean("pref_section_left_top_expanded", true)) }
     var isLeftTopExpanded by isLeftTopExpandedState
@@ -240,7 +240,7 @@ fun CentralCommandMatrixFields(
     }
 
     // Right Deflector Accordion States
-    val isCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", false)) }
+    val isCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", true)) }
     var isCenterExpanded by isCenterExpandedState
     val isTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" else prefs.getBoolean("pref_section_top_expanded", true)) }
     var isTopExpanded by isTopExpandedState
@@ -357,7 +357,7 @@ fun CentralCommandMatrixFields(
             mapOf("left_unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)")
         } else {
             mapOf(
-                "left_center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Astrogation Core Zone",
+                "left_center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Central Pill (Core Zone)",
                 "left_top" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Upper Vector Zone",
                 "left_bottom" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Lower Vector Zone"
             )
@@ -381,7 +381,7 @@ fun CentralCommandMatrixFields(
             mapOf("unified" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Flank Vector Zones (Upper & Lower)")
         } else {
             mapOf(
-                "center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Astrogation Core Zone",
+                "center" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Central Pill (Core Zone)",
                 "top" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Upper Vector Zone",
                 "bottom" to "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Lower Vector Zone"
             )

@@ -206,8 +206,8 @@ fun LeftDeflectorTabContent(
                                 when (secId) {
                                     "left_center" -> {
                                         item(key = "left_center") {
-                                            CompactAccordionSection(
-                                                title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Astrogation Core Zone",
+                                             CompactAccordionSection(
+                                                title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LEFT_DEFLECTOR)} — Central Pill (Core Zone)",
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Navigation,
@@ -223,31 +223,16 @@ fun LeftDeflectorTabContent(
                                                         .putBoolean("pref_section_left_center_expanded", isLeftCenterExpanded)
                                                         .putBoolean("pref_sidebar_left_preview", isLeftCenterExpanded || isLeftTopExpanded || isLeftBottomExpanded || isLeftUnifiedExpanded)
                                                         .apply()
+                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                    onRefreshNeeded()
                                                 }
                                             ) {
-                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                    CollapsibleSubSection(
-                                                        title = "Central Pill Geometry & Styling",
-                                                        subtitle = "Pill presence, visual thickness, dimensions & aesthetic color",
-                                                        isExpanded = isLeftCenterGeoExpanded,
-                                                        onToggle = {
-                                                            isLeftCenterGeoExpanded = !isLeftCenterGeoExpanded
-                                                            prefs.edit()
-                                                                .putBoolean("pref_sub_geo_left_center", isLeftCenterGeoExpanded)
-                                                                .putBoolean("pref_sidebar_left_preview", isLeftCenterGeoExpanded)
-                                                                .apply()
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                            onRefreshNeeded()
-                                                        }
-                                                    ) {
-                                                        DeflectorPillStylingContent(
-                                                            context = context,
-                                                            prefs = prefs,
-                                                            isLeft = true,
-                                                            onRefreshNeeded = onRefreshNeeded
-                                                        )
-                                                    }
-                                                }
+                                                DeflectorPillStylingContent(
+                                                    context = context,
+                                                    prefs = prefs,
+                                                    isLeft = true,
+                                                    onRefreshNeeded = onRefreshNeeded
+                                                )
                                             }
                                         }
                                     }

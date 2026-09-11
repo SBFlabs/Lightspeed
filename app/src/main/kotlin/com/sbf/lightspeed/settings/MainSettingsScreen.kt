@@ -63,12 +63,6 @@ fun MainSettingsScreen() {
             .putBoolean("pref_sub_horizon_rail_color", false)
             .putBoolean("pref_sub_horizon_rail_text", false)
             .putBoolean("pref_sub_horizon_rail_custom", false)
-            .putBoolean("pref_section_center_expanded", false)
-            .putBoolean("pref_section_top_expanded", false)
-            .putBoolean("pref_section_bottom_expanded", false)
-            .putBoolean("pref_section_left_center_expanded", false)
-            .putBoolean("pref_section_left_top_expanded", false)
-            .putBoolean("pref_section_left_bottom_expanded", false)
             .apply()
         try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
         scope.launch {

@@ -232,8 +232,8 @@ fun RightDeflectorTabContent(
                                 when (secId) {
                                     "center" -> {
                                         item(key = "center") {
-                                            CompactAccordionSection(
-                                                title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Astrogation Core Zone",
+                                             CompactAccordionSection(
+                                                title = "${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.RIGHT_DEFLECTOR)} — Central Pill (Core Zone)",
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Navigation,
@@ -249,31 +249,16 @@ fun RightDeflectorTabContent(
                                                         .putBoolean("pref_section_center_expanded", isCenterExpanded)
                                                         .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded || isRightUnifiedExpanded)
                                                         .apply()
+                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                    onRefreshNeeded()
                                                 }
                                             ) {
-                                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                    CollapsibleSubSection(
-                                                        title = "Central Pill Geometry & Styling",
-                                                        subtitle = "Pill presence, visual thickness, dimensions & aesthetic color",
-                                                        isExpanded = isCenterGeoExpanded,
-                                                        onToggle = {
-                                                            isCenterGeoExpanded = !isCenterGeoExpanded
-                                                            prefs.edit()
-                                                                .putBoolean("pref_sub_geo_center", isCenterGeoExpanded)
-                                                                .putBoolean("pref_sidebar_preview", isCenterGeoExpanded)
-                                                                .apply()
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                            onRefreshNeeded()
-                                                        }
-                                                    ) {
-                                                        DeflectorPillStylingContent(
-                                                            context = context,
-                                                            prefs = prefs,
-                                                            isLeft = false,
-                                                            onRefreshNeeded = onRefreshNeeded
-                                                        )
-                                                    }
-                                                }
+                                                DeflectorPillStylingContent(
+                                                    context = context,
+                                                    prefs = prefs,
+                                                    isLeft = false,
+                                                    onRefreshNeeded = onRefreshNeeded
+                                                )
                                             }
                                         }
                                     }

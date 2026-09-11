@@ -510,6 +510,16 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun triggerDeflectorGlow(isLeft: Boolean, durationMs: Long = -1L) {
+        handler.post {
+            if (isLeft) {
+                leftWingOverlayView?.triggerGlow(durationMs)
+            } else {
+                overlayView?.triggerGlow(durationMs)
+            }
+        }
+    }
+
     fun reloadPreferences() {
         val prefs = defaultPrefs()
         updateStatusBarOverlayFromPrefs(prefs)

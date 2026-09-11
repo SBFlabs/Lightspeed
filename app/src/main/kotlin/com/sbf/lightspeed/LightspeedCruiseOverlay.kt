@@ -397,7 +397,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         renderCacheBottomTransparency   = if (renderCacheLinkEdges) renderCacheTopTransparency else p.getInt("pref_sidebar_bottom_transparency", 0)
         renderCacheGlowStyle            = p.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
         renderCacheReticleStyle         = p.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
-        renderCacheGlowEnabled          = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_ENABLED, true)
+        renderCacheGlowEnabled          = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_RIGHT_GLOW_ENABLED, p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_ENABLED, true))
         renderCacheUseM3Color           = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_USE_M3_COLOR, true)
     }
 

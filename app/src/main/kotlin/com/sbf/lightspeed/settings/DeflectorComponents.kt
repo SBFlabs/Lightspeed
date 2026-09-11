@@ -267,9 +267,15 @@ fun DeflectorMasterCard(
 @Composable
 fun DeflectorGlowCard(
     context: Context,
-    prefs: SharedPreferences
+    prefs: SharedPreferences,
+    isLeft: Boolean = false
 ) {
-    var glowEnabled by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowEnabled(context)) }
+    var glowEnabled by remember {
+        mutableStateOf(
+            if (isLeft) LightspeedPreferences.isLeftDeflectorGlowEnabled(context)
+            else LightspeedPreferences.isRightDeflectorGlowEnabled(context)
+        )
+    }
     var useM3Color by remember { mutableStateOf(LightspeedPreferences.isDeflectorUseM3Color(context)) }
     var glowStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorGlowStyle(context)) }
     var glowOnGestureStep by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) }
@@ -335,7 +341,7 @@ fun DeflectorGlowCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "Central Pill & Deflector FX",
+                            if (isLeft) "Left Pill & Deflector FX" else "Right Pill & Deflector FX",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.5.sp,
                             color = Color.White
@@ -364,7 +370,7 @@ fun DeflectorGlowCard(
                         }
                     }
                     Text(
-                        if (glowEnabled) "Morphing frosted glass pill & edge telemetry flare" else "All deflector glow and glass effects turned off",
+                        if (glowEnabled) "Morphing frosted glass pill & edge telemetry flare" else "${if (isLeft) "Left" else "Right"} deflector glow and glass pill muted",
                         fontSize = 11.5.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
@@ -373,10 +379,14 @@ fun DeflectorGlowCard(
                     checked = glowEnabled,
                     onCheckedChange = { checked ->
                         glowEnabled = checked
-                        LightspeedPreferences.setDeflectorGlowEnabled(context, checked)
+                        if (isLeft) {
+                            LightspeedPreferences.setLeftDeflectorGlowEnabled(context, checked)
+                        } else {
+                            LightspeedPreferences.setRightDeflectorGlowEnabled(context, checked)
+                        }
                         LightspeedAccessibilityService.instance?.reloadPreferences()
                         if (checked) {
-                            LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                            LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                         }
                     },
                     colors = SwitchDefaults.colors(
@@ -417,7 +427,7 @@ fun DeflectorGlowCard(
                             useM3Color = checked
                             LightspeedPreferences.setDeflectorUseM3Color(context, checked)
                             LightspeedAccessibilityService.instance?.reloadPreferences()
-                            LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                            LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
@@ -461,7 +471,7 @@ fun DeflectorGlowCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         OutlinedButton(
                             onClick = {
-                                LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                                LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                             },
                             shape = RoundedCornerShape(10.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
@@ -486,7 +496,7 @@ fun DeflectorGlowCard(
                                     glowStyle = id
                                     LightspeedPreferences.setDeflectorGlowStyle(context, id)
                                     LightspeedAccessibilityService.instance?.reloadPreferences()
-                                    LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                                 },
                                 label = {
                                     Text(
@@ -518,7 +528,7 @@ fun DeflectorGlowCard(
                                     glowStyle = id
                                     LightspeedPreferences.setDeflectorGlowStyle(context, id)
                                     LightspeedAccessibilityService.instance?.reloadPreferences()
-                                    LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                                 },
                                 label = {
                                     Text(
@@ -600,7 +610,7 @@ fun DeflectorGlowCard(
                                     glowDuration = durationKey
                                     prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_GLOW_DURATION, durationKey).apply()
                                     LightspeedAccessibilityService.instance?.reloadPreferences()
-                                    LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                                 },
                                 label = {
                                     Text(

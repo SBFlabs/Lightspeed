@@ -212,7 +212,7 @@ fun RightDeflectorTabContent(
                             }
 
                             item(key = "right_deflector_glow") {
-                                DeflectorGlowCard(context = context, prefs = prefs)
+                                DeflectorGlowCard(context = context, prefs = prefs, isLeft = false)
                             }
 
                             item {

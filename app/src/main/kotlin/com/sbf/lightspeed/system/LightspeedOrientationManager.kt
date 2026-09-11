@@ -368,6 +368,13 @@ object LightspeedOrientationManager {
     }
 
     fun evaluateGravityCascade(context: Context, isLocked: Boolean? = null, foregroundPackage: String? = null) {
+        val prefs = context.defaultPrefs()
+        if (!prefs.getBoolean("pref_synthetic_gravity_enabled", true)) {
+            stopActiveSensorPortraitDriver()
+            LightspeedAccessibilityService.instance?.updateForcedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
+            return
+        }
+
         val targetPackage = foregroundPackage ?: lastForegroundPackage
 
         // Priority 1: Runtime Manual Gesture Override (Instant user veto if enabled)

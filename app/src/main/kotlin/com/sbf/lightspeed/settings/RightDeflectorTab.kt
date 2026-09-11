@@ -131,6 +131,7 @@ fun RightDeflectorTabContent(
     var showUnifyInfoDialog by showUnifyInfoDialogState
     var showUnifyTemplateDialogForLeft by showUnifyTemplateDialogForLeftState
     var showUnifyTemplateDialogForRight by showUnifyTemplateDialogForRightState
+    var subBlueprintTarget by remember { mutableStateOf<String?>(null) }
     val rightCustomVectors = listOf(
         "TAP" to ("Tap" to ArrowDirection.TAP),
         "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
@@ -148,6 +149,22 @@ fun RightDeflectorTabContent(
                     val currentOrder2 = sectionOrder2Str.split(",").map { it.trim() }.filter { it in defaultOrder2 }.distinct().let { list ->
                         list + (defaultOrder2 - list.toSet())
                     }
+
+
+                    val defaultSubTop = listOf("geo", "scrub", "gestures")
+                    val subTopStr = prefs.getString("pref_sub_order_top_2", "geo,scrub,gestures")!!
+                    var currentSubTop by remember { mutableStateOf(subTopStr.split(",").filter { it in defaultSubTop }.let { it + (defaultSubTop - it.toSet()) }) }
+                    var pinnedSubTop by remember { mutableStateOf(prefs.getString("pref_sub_pinned_top_2", "geo")) }
+
+                    val defaultSubBottom = listOf("geo", "scrub", "gestures")
+                    val subBottomStr = prefs.getString("pref_sub_order_bottom_2", "geo,scrub,gestures")!!
+                    var currentSubBottom by remember { mutableStateOf(subBottomStr.split(",").filter { it in defaultSubBottom }.let { it + (defaultSubBottom - it.toSet()) }) }
+                    var pinnedSubBottom by remember { mutableStateOf(prefs.getString("pref_sub_pinned_bottom_2", "geo")) }
+
+                    val defaultSubUnified = listOf("geo", "scrub", "gestures")
+                    val subUnifiedStr = prefs.getString("pref_sub_order_unified_2", "geo,scrub,gestures")!!
+                    var currentSubUnified by remember { mutableStateOf(subUnifiedStr.split(",").filter { it in defaultSubUnified }.let { it + (defaultSubUnified - it.toSet()) }) }
+                    var pinnedSubUnified by remember { mutableStateOf(prefs.getString("pref_sub_pinned_unified_2", "geo")) }
 
                     if (blueprintTabTarget == 2) {
                         BlueprintWireframeView(
@@ -181,6 +198,73 @@ fun RightDeflectorTabContent(
                             },
                             onExitBlueprint = {
                                 blueprintTabTarget = null
+                            },
+                            subSections = mapOf(
+                                "top" to currentSubTop,
+                                "bottom" to currentSubBottom,
+                                "unified" to currentSubUnified
+                            ),
+                            subSectionTitles = mapOf(
+                                "geo" to "Sensor Geometry",
+                                "scrub" to "Inward Scrubbing Control",
+                                "gestures" to "Gesture Actions & Macro Mappings"
+                            ),
+                            pinnedSubSections = mapOf(
+                                "top" to pinnedSubTop,
+                                "bottom" to pinnedSubBottom,
+                                "unified" to pinnedSubUnified
+                            ),
+                            onMoveSubUp = { secId, idx ->
+                                if (idx > 0) {
+                                    val (list, key) = when (secId) {
+                                        "top" -> currentSubTop to "pref_sub_order_top_2"
+                                        "bottom" -> currentSubBottom to "pref_sub_order_bottom_2"
+                                        "unified" -> currentSubUnified to "pref_sub_order_unified_2"
+                                        else -> return@BlueprintWireframeView
+                                    }
+                                    val mutable = list.toMutableList()
+                                    val item = mutable.removeAt(idx)
+                                    mutable.add(idx - 1, item)
+                                    when (secId) {
+                                        "top" -> currentSubTop = mutable
+                                        "bottom" -> currentSubBottom = mutable
+                                        "unified" -> currentSubUnified = mutable
+                                    }
+                                    prefs.edit().putString(key, mutable.joinToString(",")).apply()
+                                }
+                            },
+                            onMoveSubDown = { secId, idx ->
+                                val (list, key) = when (secId) {
+                                    "top" -> currentSubTop to "pref_sub_order_top_2"
+                                    "bottom" -> currentSubBottom to "pref_sub_order_bottom_2"
+                                    "unified" -> currentSubUnified to "pref_sub_order_unified_2"
+                                    else -> return@BlueprintWireframeView
+                                }
+                                if (idx < list.size - 1) {
+                                    val mutable = list.toMutableList()
+                                    val item = mutable.removeAt(idx)
+                                    mutable.add(idx + 1, item)
+                                    when (secId) {
+                                        "top" -> currentSubTop = mutable
+                                        "bottom" -> currentSubBottom = mutable
+                                        "unified" -> currentSubUnified = mutable
+                                    }
+                                    prefs.edit().putString(key, mutable.joinToString(",")).apply()
+                                }
+                            },
+                            onPinSubSection = { secId, subId ->
+                                val key = when (secId) {
+                                    "top" -> "pref_sub_pinned_top_2"
+                                    "bottom" -> "pref_sub_pinned_bottom_2"
+                                    "unified" -> "pref_sub_pinned_unified_2"
+                                    else -> return@BlueprintWireframeView
+                                }
+                                when (secId) {
+                                    "top" -> pinnedSubTop = subId
+                                    "bottom" -> pinnedSubBottom = subId
+                                    "unified" -> pinnedSubUnified = subId
+                                }
+                                prefs.edit().putString(key, subId).apply()
                             }
                         )
                     } else {
@@ -283,61 +367,110 @@ fun RightDeflectorTabContent(
                                                             .putBoolean("pref_sidebar_preview", isRightUnifiedExpanded && isRightUnifiedGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                    }
+                                                    },
+                                                    onLongToggle = { subBlueprintTarget = if (subBlueprintTarget == "unified") null else "unified" }
                                                 ) {
-                                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                        CollapsibleSubSection(
-                                                            title = "Sensor Geometry",
-                                                            subtitle = "Independent height, touch reach & stealth glow",
-                                                            isExpanded = isRightUnifiedGeoExpanded,
-                                                            onToggle = {
-                                                                isRightUnifiedGeoExpanded = !isRightUnifiedGeoExpanded
-                                                                prefs.edit()
-                                                                    .putBoolean("pref_sub_geo_unified", isRightUnifiedGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_preview", isRightUnifiedGeoExpanded)
-                                                                    .apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
-                                                        ) {
-                                                            Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Upper Deflector Span (Height)", 50, 600, 10, 200)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
+                                                    var unifiedSubOrderStr by remember { mutableStateOf(prefs.getString("pref_sub_order_unified", "geo,scrub,gestures")!!) }
+                                                    var unifiedPinnedSection by remember { mutableStateOf(prefs.getString("pref_sub_pinned_unified", "geo")) }
+                                                    val defaultUnifiedSubOrder = listOf("geo", "scrub", "gestures")
+                                                    val currentUnifiedSubOrder = unifiedSubOrderStr.split(",").map { it.trim() }.filter { it in defaultUnifiedSubOrder }.distinct().let { list ->
+                                                        list + (defaultUnifiedSubOrder - list.toSet())
+                                                    }
+                                                    if (subBlueprintTarget == "unified") {
+                                                        BlueprintWireframeView(
+                                                            tabTitle = "Flank Vector Zones",
+                                                            sectionIds = currentUnifiedSubOrder,
+                                                            pinnedSectionId = unifiedPinnedSection,
+                                                            sectionTitles = mapOf("geo" to "Sensor Geometry", "scrub" to "Dual Inward Scrubber Controls", "gestures" to "Unified Gesture Matrix"),
+                                                            onMoveUp = { idx ->
+                                                                if (idx > 0) {
+                                                                    val mutable = currentUnifiedSubOrder.toMutableList()
+                                                                    val item = mutable.removeAt(idx)
+                                                                    mutable.add(idx - 1, item)
+                                                                    val newStr = mutable.joinToString(",")
+                                                                    unifiedSubOrderStr = newStr
+                                                                    prefs.edit().putString("pref_sub_order_unified", newStr).apply()
+                                                                }
+                                                            },
+                                                            onMoveDown = { idx ->
+                                                                if (idx < currentUnifiedSubOrder.size - 1) {
+                                                                    val mutable = currentUnifiedSubOrder.toMutableList()
+                                                                    val item = mutable.removeAt(idx)
+                                                                    mutable.add(idx + 1, item)
+                                                                    val newStr = mutable.joinToString(",")
+                                                                    unifiedSubOrderStr = newStr
+                                                                    prefs.edit().putString("pref_sub_order_unified", newStr).apply()
+                                                                }
+                                                            },
+                                                            onPinSection = { id -> 
+                                                                unifiedPinnedSection = id
+                                                                prefs.edit().putString("pref_sub_pinned_unified", id).apply() 
+                                                            },
+                                                            onExitBlueprint = { subBlueprintTarget = null }
+                                                        )
+                                                    } else {
+                                                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                            currentUnifiedSubOrder.forEach { subKey ->
+                                                                when (subKey) {
+                                                                    "geo" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Sensor Geometry",
+                                                                            subtitle = "Independent height, touch reach & stealth glow",
+                                                                            isExpanded = isRightUnifiedGeoExpanded,
+                                                                            onToggle = {
+                                                                                isRightUnifiedGeoExpanded = !isRightUnifiedGeoExpanded
+                                                                                prefs.edit()
+                                                                                    .putBoolean("pref_sub_geo_unified", isRightUnifiedGeoExpanded)
+                                                                                    .putBoolean("pref_sidebar_preview", isRightUnifiedGeoExpanded)
+                                                                                    .apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        ) {
+                                                                            Text("UPPER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Upper Deflector Span (Height)", 50, 600, 10, 200)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Upper Touch Vector Reach", 10, 100, 5, 40)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Upper Stealth Idle Glow", 0, 100, 5, 0)
 
-                                                            Spacer(modifier = Modifier.height(4.dp))
-                                                            Text("LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Lower Deflector Span (Height)", 50, 600, 10, 200)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
-                                                        }
-
-                                                        CollapsibleSubSection(
-                                                            title = "Dual Inward Scrubber Controls",
-                                                            subtitle = "Independent upper & lower half scrubbers",
-                                                            isExpanded = isRightUnifiedScrubExpanded,
-                                                            onToggle = {
-                                                                isRightUnifiedScrubExpanded = !isRightUnifiedScrubExpanded
-                                                                prefs.edit().putBoolean("pref_sub_scrub_unified", isRightUnifiedScrubExpanded).apply()
-                                                            }
-                                                        ) {
-                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
-                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
-                                                        }
-
-                                                        CollapsibleSubSection(
-                                                            title = "Unified Gesture Matrix",
-                                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
-                                                            isExpanded = isRightUnifiedGesturesExpanded,
-                                                            onToggle = {
-                                                                isRightUnifiedGesturesExpanded = !isRightUnifiedGesturesExpanded
-                                                                prefs.edit().putBoolean("pref_sub_gestures_unified", isRightUnifiedGesturesExpanded).apply()
-                                                            }
-                                                        ) {
-                                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                                                val (vectorTitle, arrowEnum) = pairInfo
-                                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                                            Text("LOWER VECTOR GEOMETRY", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Lower Deflector Span (Height)", 50, 600, 10, 200)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Lower Touch Vector Reach", 10, 100, 5, 40)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Lower Stealth Idle Glow", 0, 100, 5, 0)
+                                                                        }
+                                                                    }
+                                                                    "scrub" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Dual Inward Scrubber Controls",
+                                                                            subtitle = "Independent upper & lower half scrubbers",
+                                                                            isExpanded = isRightUnifiedScrubExpanded,
+                                                                            onToggle = {
+                                                                                isRightUnifiedScrubExpanded = !isRightUnifiedScrubExpanded
+                                                                                prefs.edit().putBoolean("pref_sub_scrub_unified", isRightUnifiedScrubExpanded).apply()
+                                                                            }
+                                                                        ) {
+                                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
+                                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                                                        }
+                                                                    }
+                                                                    "gestures" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Unified Gesture Matrix",
+                                                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
+                                                                            isExpanded = isRightUnifiedGesturesExpanded,
+                                                                            onToggle = {
+                                                                                isRightUnifiedGesturesExpanded = !isRightUnifiedGesturesExpanded
+                                                                                prefs.edit().putBoolean("pref_sub_gestures_unified", isRightUnifiedGesturesExpanded).apply()
+                                                                            }
+                                                                        ) {
+                                                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_UNIFIED_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_UNIFIED_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -367,53 +500,102 @@ fun RightDeflectorTabContent(
                                                             .putBoolean("pref_sidebar_preview", newTop && isTopGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                    }
+                                                    },
+                                                    onLongToggle = { subBlueprintTarget = if (subBlueprintTarget == "top") null else "top" }
                                                 ) {
-                                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                        CollapsibleSubSection(
-                                                            title = "Sensor Geometry",
-                                                            subtitle = "Upper deflector span, touch reach & stealth glow",
-                                                            isExpanded = isTopGeoExpanded,
-                                                            onToggle = {
-                                                                isTopGeoExpanded = !isTopGeoExpanded
-                                                                prefs.edit()
-                                                                    .putBoolean("pref_sub_geo_top", isTopGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_preview", isTopGeoExpanded)
-                                                                    .apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
-                                                        ) {
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-                                                        }
-
-                                                        CollapsibleSubSection(
-                                                            title = "Inward Scrubbing Control",
-                                                            subtitle = "Upper vector inward sweep scrubber",
-                                                            isExpanded = isTopScrubExpanded,
-                                                            onToggle = {
-                                                                isTopScrubExpanded = !isTopScrubExpanded
-                                                                prefs.edit().putBoolean("pref_sub_scrub_top", isTopScrubExpanded).apply()
-                                                            }
-                                                        ) {
-                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
-                                                        }
-
-                                                        CollapsibleSubSection(
-                                                            title = "Gesture Actions & Macro Mappings",
-                                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
-                                                            isExpanded = isTopGesturesExpanded,
-                                                            onToggle = {
-                                                                isTopGesturesExpanded = !isTopGesturesExpanded
-                                                                prefs.edit().putBoolean("pref_sub_gestures_top", isTopGesturesExpanded).apply()
-                                                            }
-                                                        ) {
-                                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                                                val (vectorTitle, arrowEnum) = pairInfo
-                                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                                    var topSubOrderStr by remember { mutableStateOf(prefs.getString("pref_sub_order_top", "geo,scrub,gestures")!!) }
+                                                    var topPinnedSection by remember { mutableStateOf(prefs.getString("pref_sub_pinned_top", "geo")) }
+                                                    val defaultTopSubOrder = listOf("geo", "scrub", "gestures")
+                                                    val currentTopSubOrder = topSubOrderStr.split(",").map { it.trim() }.filter { it in defaultTopSubOrder }.distinct().let { list ->
+                                                        list + (defaultTopSubOrder - list.toSet())
+                                                    }
+                                                    if (subBlueprintTarget == "top") {
+                                                        BlueprintWireframeView(
+                                                            tabTitle = "Upper Vector Zone",
+                                                            sectionIds = currentTopSubOrder,
+                                                            pinnedSectionId = topPinnedSection,
+                                                            sectionTitles = mapOf("geo" to "Sensor Geometry", "scrub" to "Inward Scrubbing Control", "gestures" to "Gesture Actions & Macro Mappings"),
+                                                            onMoveUp = { idx ->
+                                                                if (idx > 0) {
+                                                                    val mutable = currentTopSubOrder.toMutableList()
+                                                                    val item = mutable.removeAt(idx)
+                                                                    mutable.add(idx - 1, item)
+                                                                    val newStr = mutable.joinToString(",")
+                                                                    topSubOrderStr = newStr
+                                                                    prefs.edit().putString("pref_sub_order_top", newStr).apply()
+                                                                }
+                                                            },
+                                                            onMoveDown = { idx ->
+                                                                if (idx < currentTopSubOrder.size - 1) {
+                                                                    val mutable = currentTopSubOrder.toMutableList()
+                                                                    val item = mutable.removeAt(idx)
+                                                                    mutable.add(idx + 1, item)
+                                                                    val newStr = mutable.joinToString(",")
+                                                                    topSubOrderStr = newStr
+                                                                    prefs.edit().putString("pref_sub_order_top", newStr).apply()
+                                                                }
+                                                            },
+                                                            onPinSection = { id -> 
+                                                                topPinnedSection = id
+                                                                prefs.edit().putString("pref_sub_pinned_top", id).apply() 
+                                                            },
+                                                            onExitBlueprint = { subBlueprintTarget = null }
+                                                        )
+                                                    } else {
+                                                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                            currentTopSubOrder.forEach { subKey ->
+                                                                when (subKey) {
+                                                                    "geo" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Sensor Geometry",
+                                                                            subtitle = "Upper deflector span, touch reach & stealth glow",
+                                                                            isExpanded = isTopGeoExpanded,
+                                                                            onToggle = {
+                                                                                isTopGeoExpanded = !isTopGeoExpanded
+                                                                                prefs.edit()
+                                                                                    .putBoolean("pref_sub_geo_top", isTopGeoExpanded)
+                                                                                    .putBoolean("pref_sidebar_preview", isTopGeoExpanded)
+                                                                                    .apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        ) {
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_top_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                                                        }
+                                                                    }
+                                                                    "scrub" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Inward Scrubbing Control",
+                                                                            subtitle = "Upper vector inward sweep scrubber",
+                                                                            isExpanded = isTopScrubExpanded,
+                                                                            onToggle = {
+                                                                                isTopScrubExpanded = !isTopScrubExpanded
+                                                                                prefs.edit().putBoolean("pref_sub_scrub_top", isTopScrubExpanded).apply()
+                                                                            }
+                                                                        ) {
+                                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_TOP_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                                                        }
+                                                                    }
+                                                                    "gestures" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Gesture Actions & Macro Mappings",
+                                                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
+                                                                            isExpanded = isTopGesturesExpanded,
+                                                                            onToggle = {
+                                                                                isTopGesturesExpanded = !isTopGesturesExpanded
+                                                                                prefs.edit().putBoolean("pref_sub_gestures_top", isTopGesturesExpanded).apply()
+                                                                            }
+                                                                        ) {
+                                                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_TOP_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_TOP_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -443,53 +625,102 @@ fun RightDeflectorTabContent(
                                                             .putBoolean("pref_sidebar_preview", newBottom && isBottomGeoExpanded)
                                                             .apply()
                                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                    }
+                                                    },
+                                                    onLongToggle = { subBlueprintTarget = if (subBlueprintTarget == "bottom") null else "bottom" }
                                                 ) {
-                                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                        CollapsibleSubSection(
-                                                            title = "Sensor Geometry",
-                                                            subtitle = "Lower deflector span, touch reach & stealth glow",
-                                                            isExpanded = isBottomGeoExpanded,
-                                                            onToggle = {
-                                                                isBottomGeoExpanded = !isBottomGeoExpanded
-                                                                prefs.edit()
-                                                                    .putBoolean("pref_sub_geo_bottom", isBottomGeoExpanded)
-                                                                    .putBoolean("pref_sidebar_preview", isBottomGeoExpanded)
-                                                                    .apply()
-                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                onRefreshNeeded()
-                                                            }
-                                                        ) {
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
-                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
-                                                        }
-
-                                                        CollapsibleSubSection(
-                                                            title = "Inward Scrubbing Control",
-                                                            subtitle = "Lower vector inward sweep scrubber",
-                                                            isExpanded = isBottomScrubExpanded,
-                                                            onToggle = {
-                                                                isBottomScrubExpanded = !isBottomScrubExpanded
-                                                                prefs.edit().putBoolean("pref_sub_scrub_bottom", isBottomScrubExpanded).apply()
-                                                            }
-                                                        ) {
-                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
-                                                        }
-
-                                                        CollapsibleSubSection(
-                                                            title = "Gesture Actions & Macro Mappings",
-                                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
-                                                            isExpanded = isBottomGesturesExpanded,
-                                                            onToggle = {
-                                                                isBottomGesturesExpanded = !isBottomGesturesExpanded
-                                                                prefs.edit().putBoolean("pref_sub_gestures_bottom", isBottomGesturesExpanded).apply()
-                                                            }
-                                                        ) {
-                                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
-                                                                val (vectorTitle, arrowEnum) = pairInfo
-                                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
-                                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                                    var bottomSubOrderStr by remember { mutableStateOf(prefs.getString("pref_sub_order_bottom", "geo,scrub,gestures")!!) }
+                                                    var bottomPinnedSection by remember { mutableStateOf(prefs.getString("pref_sub_pinned_bottom", "geo")) }
+                                                    val defaultBottomSubOrder = listOf("geo", "scrub", "gestures")
+                                                    val currentBottomSubOrder = bottomSubOrderStr.split(",").map { it.trim() }.filter { it in defaultBottomSubOrder }.distinct().let { list ->
+                                                        list + (defaultBottomSubOrder - list.toSet())
+                                                    }
+                                                    if (subBlueprintTarget == "bottom") {
+                                                        BlueprintWireframeView(
+                                                            tabTitle = "Lower Vector Zone",
+                                                            sectionIds = currentBottomSubOrder,
+                                                            pinnedSectionId = bottomPinnedSection,
+                                                            sectionTitles = mapOf("geo" to "Sensor Geometry", "scrub" to "Inward Scrubbing Control", "gestures" to "Gesture Actions & Macro Mappings"),
+                                                            onMoveUp = { idx ->
+                                                                if (idx > 0) {
+                                                                    val mutable = currentBottomSubOrder.toMutableList()
+                                                                    val item = mutable.removeAt(idx)
+                                                                    mutable.add(idx - 1, item)
+                                                                    val newStr = mutable.joinToString(",")
+                                                                    bottomSubOrderStr = newStr
+                                                                    prefs.edit().putString("pref_sub_order_bottom", newStr).apply()
+                                                                }
+                                                            },
+                                                            onMoveDown = { idx ->
+                                                                if (idx < currentBottomSubOrder.size - 1) {
+                                                                    val mutable = currentBottomSubOrder.toMutableList()
+                                                                    val item = mutable.removeAt(idx)
+                                                                    mutable.add(idx + 1, item)
+                                                                    val newStr = mutable.joinToString(",")
+                                                                    bottomSubOrderStr = newStr
+                                                                    prefs.edit().putString("pref_sub_order_bottom", newStr).apply()
+                                                                }
+                                                            },
+                                                            onPinSection = { id -> 
+                                                                bottomPinnedSection = id
+                                                                prefs.edit().putString("pref_sub_pinned_bottom", id).apply() 
+                                                            },
+                                                            onExitBlueprint = { subBlueprintTarget = null }
+                                                        )
+                                                    } else {
+                                                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                            currentBottomSubOrder.forEach { subKey ->
+                                                                when (subKey) {
+                                                                    "geo" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Sensor Geometry",
+                                                                            subtitle = "Lower deflector span, touch reach & stealth glow",
+                                                                            isExpanded = isBottomGeoExpanded,
+                                                                            onToggle = {
+                                                                                isBottomGeoExpanded = !isBottomGeoExpanded
+                                                                                prefs.edit()
+                                                                                    .putBoolean("pref_sub_geo_bottom", isBottomGeoExpanded)
+                                                                                    .putBoolean("pref_sidebar_preview", isBottomGeoExpanded)
+                                                                                    .apply()
+                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                onRefreshNeeded()
+                                                                            }
+                                                                        ) {
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_height", "", "Deflector Span (Height)", 50, 600, 10, 200)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_touch_width", "", "Touch Vector Reach", 10, 100, 5, 40)
+                                                                            PrefDottedSliderRow(context, prefs, "pref_sidebar_bottom_transparency", "", "Stealth Idle Glow", 0, 100, 5, 0)
+                                                                        }
+                                                                    }
+                                                                    "scrub" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Inward Scrubbing Control",
+                                                                            subtitle = "Lower vector inward sweep scrubber",
+                                                                            isExpanded = isBottomScrubExpanded,
+                                                                            onToggle = {
+                                                                                isBottomScrubExpanded = !isBottomScrubExpanded
+                                                                                prefs.edit().putBoolean("pref_sub_scrub_bottom", isBottomScrubExpanded).apply()
+                                                                            }
+                                                                        ) {
+                                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_BOTTOM_SCRUBBING", "Extended Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness"), tokenLabelCache)
+                                                                        }
+                                                                    }
+                                                                    "gestures" -> {
+                                                                        CollapsibleSubSection(
+                                                                            title = "Gesture Actions & Macro Mappings",
+                                                                            subtitle = "Tap · Swipe · Rebound · Two-Step · Hold Modifiers",
+                                                                            isExpanded = isBottomGesturesExpanded,
+                                                                            onToggle = {
+                                                                                isBottomGesturesExpanded = !isBottomGesturesExpanded
+                                                                                prefs.edit().putBoolean("pref_sub_gestures_bottom", isBottomGesturesExpanded).apply()
+                                                                            }
+                                                                        ) {
+                                                                            rightCustomVectors.forEach { (vectorKey, pairInfo) ->
+                                                                                val (vectorTitle, arrowEnum) = pairInfo
+                                                                                GestureMappingRow(context, prefs, arrowEnum, false, "pref_macro_action_BOTTOM_${vectorKey}", vectorTitle, dynamicActionTokens, tokenLabelCache)
+                                                                                GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_BOTTOM_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }

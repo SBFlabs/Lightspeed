@@ -295,11 +295,13 @@ fun FloatingOverlayContainer(
 }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun CompactAccordionSection(
     title: String,
     isExpanded: Boolean,
     onToggle: () -> Unit,
+    onLongToggle: (() -> Unit)? = null,
     icon: (@Composable () -> Unit)? = null,
     headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
@@ -313,7 +315,10 @@ fun CompactAccordionSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onToggle() }
+                    .combinedClickable(
+                        onClick = { onToggle() },
+                        onLongClick = { onLongToggle?.invoke() }
+                    )
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

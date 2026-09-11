@@ -492,6 +492,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     internal fun updateSidebarOverlayFromPrefs(prefs: SharedPreferences) {
         if (windowManager == null || overlayView == null) return
+        overlayView?.updateRenderCache()
         overlayView?.updateMetricsDimensions()
         overlayView?.postInvalidate()
     }

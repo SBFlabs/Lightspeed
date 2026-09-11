@@ -15,6 +15,8 @@ object LightspeedPreferences {
     const val KEY_DEFLECTOR_LEFT_ENABLED = "pref_deflector_left_enabled"
     const val KEY_DEFLECTOR_RIGHT_ENABLED = "pref_deflector_right_enabled"
     const val KEY_DEFLECTOR_DEFAULT_STATE = "pref_deflector_default_state" // "always_armed", "standby_by_default"
+    const val KEY_DEFLECTOR_GLOW_ENABLED = "pref_deflector_glow_enabled" // Boolean, default true
+    const val KEY_DEFLECTOR_USE_M3_COLOR = "pref_deflector_use_m3_color" // Boolean, default true
     const val KEY_DEFLECTOR_GLOW_STYLE = "pref_deflector_glow_style" // "progressive_frost", "material_shade", "crimson_reactor", "cyber_plasma"
     const val KEY_DEFLECTOR_GLOW_ON_GESTURE_STEP = "pref_deflector_glow_on_gesture_step" // Boolean, default true
     const val KEY_DEFLECTOR_GLOW_DURATION = "pref_deflector_glow_duration" // "800ms", "1500ms", "2200ms"
@@ -414,6 +416,20 @@ object LightspeedPreferences {
 
     fun setRightDeflectorEnabled(context: Context, enabled: Boolean) {
         context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_RIGHT_ENABLED, enabled).apply()
+    }
+
+    fun isDeflectorGlowEnabled(context: Context): Boolean =
+        context.defaultPrefs().getBoolean(KEY_DEFLECTOR_GLOW_ENABLED, true)
+
+    fun setDeflectorGlowEnabled(context: Context, enabled: Boolean) {
+        context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_GLOW_ENABLED, enabled).apply()
+    }
+
+    fun isDeflectorUseM3Color(context: Context): Boolean =
+        context.defaultPrefs().getBoolean(KEY_DEFLECTOR_USE_M3_COLOR, true)
+
+    fun setDeflectorUseM3Color(context: Context, enabled: Boolean) {
+        context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_USE_M3_COLOR, enabled).apply()
     }
 
     fun getDeflectorGlowStyle(context: Context): String =

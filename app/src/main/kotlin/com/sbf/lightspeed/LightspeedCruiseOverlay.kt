@@ -347,6 +347,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var renderCacheGlowStyle = "progressive_frost"
     internal var renderCacheReticleStyle = "tactical"
     internal var renderCacheLinkEdges = false
+    internal var renderCacheGlowEnabled = true
+    internal var renderCacheUseM3Color = true
 
     internal val projectionCamera3D = Camera()
     internal val transformMatrixPipeline = Matrix()
@@ -395,6 +397,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         renderCacheBottomTransparency   = if (renderCacheLinkEdges) renderCacheTopTransparency else p.getInt("pref_sidebar_bottom_transparency", 0)
         renderCacheGlowStyle            = p.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
         renderCacheReticleStyle         = p.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
+        renderCacheGlowEnabled          = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_ENABLED, true)
+        renderCacheUseM3Color           = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_USE_M3_COLOR, true)
     }
 
     fun updateMetricsDimensions() {

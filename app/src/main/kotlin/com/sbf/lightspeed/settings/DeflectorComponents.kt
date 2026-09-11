@@ -269,6 +269,8 @@ fun DeflectorGlowCard(
     context: Context,
     prefs: SharedPreferences
 ) {
+    var glowEnabled by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowEnabled(context)) }
+    var useM3Color by remember { mutableStateOf(LightspeedPreferences.isDeflectorUseM3Color(context)) }
     var glowStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorGlowStyle(context)) }
     var glowOnGestureStep by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) }
     var glowDuration by remember {
@@ -292,11 +294,13 @@ fun DeflectorGlowCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
+            containerColor = if (glowEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
+            else MaterialTheme.colorScheme.surface.copy(alpha = 0.2f)
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+            if (glowEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+            else Color.White.copy(alpha = 0.08f)
         )
     ) {
         Column(
@@ -305,6 +309,7 @@ fun DeflectorGlowCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Master Switch Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -313,157 +318,66 @@ fun DeflectorGlowCard(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+                        .background(
+                            if (glowEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                            else Color.White.copy(alpha = 0.08f)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.AutoAwesome,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = if (glowEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.5f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Central Pill & Deflector FX",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.5.sp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (glowEnabled) Color(0xFF00E676).copy(alpha = 0.18f)
+                            else Color.White.copy(alpha = 0.1f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (glowEnabled) Color(0xFF00E676).copy(alpha = 0.45f)
+                                else Color.White.copy(alpha = 0.2f)
+                            )
+                        ) {
+                            Text(
+                                text = if (glowEnabled) "ACTIVE" else "OFF",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (glowEnabled) Color(0xFF00E676) else Color.White.copy(alpha = 0.6f),
+                                letterSpacing = 0.5.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                     Text(
-                        "Deflector Glow & Frost FX",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.5.sp,
-                        color = Color.White
-                    )
-                    Text(
-                        "Aerodynamic curved edge diffusion & telemetry flare",
+                        if (glowEnabled) "Morphing frosted glass pill & edge telemetry flare" else "All deflector glow and glass effects turned off",
                         fontSize = 11.5.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
                 }
-                OutlinedButton(
-                    onClick = {
-                        LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        contentColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text("TEST FX", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            // 1. Glow Style Selection
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "Aesthetic Style",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
-                Text(
-                    when (glowStyle) {
-                        "progressive_frost" -> "Heavy progressive frosted diffusion with luminous specular rim."
-                        "material_shade" -> "Adaptive Material 3 dark surface tone with specular accent."
-                        "crimson_reactor" -> "High-energy thermal crimson core with warning glow."
-                        "cyber_plasma" -> "Full-spectrum kinetic chromatic gradient across the edge."
-                        else -> "Smooth aerodynamic edge glow."
-                    },
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    lineHeight = 15.sp
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    styleOptions.take(2).forEach { (id, label) ->
-                        val isSelected = glowStyle == id
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                glowStyle = id
-                                LightspeedPreferences.setDeflectorGlowStyle(context, id)
-                                LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
-                            },
-                            label = {
-                                Text(
-                                    label,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    styleOptions.drop(2).forEach { (id, label) ->
-                        val isSelected = glowStyle == id
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                glowStyle = id
-                                LightspeedPreferences.setDeflectorGlowStyle(context, id)
-                                LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
-                            },
-                            label = {
-                                Text(
-                                    label,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            // 2. Gesture Step Glow
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Glow on Gesture Registration",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
-                    Text(
-                        "Briefly pulse deflector wing when gesture recognition begins",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                    )
-                }
                 Switch(
-                    checked = glowOnGestureStep,
+                    checked = glowEnabled,
                     onCheckedChange = { checked ->
-                        glowOnGestureStep = checked
-                        LightspeedPreferences.setDeflectorGlowOnGestureStep(context, checked)
+                        glowEnabled = checked
+                        LightspeedPreferences.setDeflectorGlowEnabled(context, checked)
+                        LightspeedAccessibilityService.instance?.reloadPreferences()
+                        if (checked) {
+                            LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                        }
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
@@ -476,45 +390,235 @@ fun DeflectorGlowCard(
                 )
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+            if (glowEnabled) {
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-            // 3. Glow Duration
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "Glow Fade Duration",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                // Material 3 Dynamic Tint Switch
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    durationOptions.forEach { (durationKey, label) ->
-                        val isSelected = glowDuration == durationKey
-                        FilterChip(
-                            selected = isSelected,
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Material 3 Dynamic Tint",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Text(
+                            if (useM3Color) "Tints frosted glass & rim highlights with system theme" else "Pure crystalline ice frost with neutral specular sheen",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                        )
+                    }
+                    Switch(
+                        checked = useM3Color,
+                        onCheckedChange = { checked ->
+                            useM3Color = checked
+                            LightspeedPreferences.setDeflectorUseM3Color(context, checked)
+                            LightspeedAccessibilityService.instance?.reloadPreferences()
+                            LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            checkedBorderColor = Color.Transparent,
+                            uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                            uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                            uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                        )
+                    )
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+                // 1. Glow Style Selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Aesthetic Style",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                            Text(
+                                when (glowStyle) {
+                                    "progressive_frost" -> "Heavy progressive frosted diffusion with luminous specular rim."
+                                    "material_shade" -> "Adaptive Material 3 dark surface tone with specular accent."
+                                    "crimson_reactor" -> "High-energy thermal crimson core with warning glow."
+                                    "cyber_plasma" -> "Full-spectrum kinetic chromatic gradient across the edge."
+                                    else -> "Smooth aerodynamic edge glow."
+                                },
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                lineHeight = 15.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedButton(
                             onClick = {
-                                glowDuration = durationKey
-                                prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_GLOW_DURATION, durationKey).apply()
                                 LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
                             },
-                            label = {
-                                Text(
-                                    label,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.weight(1f)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                contentColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text("TEST FX", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        styleOptions.take(2).forEach { (id, label) ->
+                            val isSelected = glowStyle == id
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    glowStyle = id
+                                    LightspeedPreferences.setDeflectorGlowStyle(context, id)
+                                    LightspeedAccessibilityService.instance?.reloadPreferences()
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                                },
+                                label = {
+                                    Text(
+                                        label,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        styleOptions.drop(2).forEach { (id, label) ->
+                            val isSelected = glowStyle == id
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    glowStyle = id
+                                    LightspeedPreferences.setDeflectorGlowStyle(context, id)
+                                    LightspeedAccessibilityService.instance?.reloadPreferences()
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                                },
+                                label = {
+                                    Text(
+                                        label,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+                // 2. Gesture Step Glow
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Glow on Gesture Registration",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
                         )
+                        Text(
+                            "Briefly pulse deflector wing when gesture recognition begins",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                        )
+                    }
+                    Switch(
+                        checked = glowOnGestureStep,
+                        onCheckedChange = { checked ->
+                            glowOnGestureStep = checked
+                            LightspeedPreferences.setDeflectorGlowOnGestureStep(context, checked)
+                            LightspeedAccessibilityService.instance?.reloadPreferences()
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            checkedBorderColor = Color.Transparent,
+                            uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                            uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                            uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                        )
+                    )
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+                // 3. Glow Duration
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "Glow Fade Duration",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        durationOptions.forEach { (durationKey, label) ->
+                            val isSelected = glowDuration == durationKey
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    glowDuration = durationKey
+                                    prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_GLOW_DURATION, durationKey).apply()
+                                    LightspeedAccessibilityService.instance?.reloadPreferences()
+                                    LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
+                                },
+                                label = {
+                                    Text(
+                                        label,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }

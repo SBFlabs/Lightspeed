@@ -76,7 +76,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
             return
         }
         val w = width.toFloat(); val h = height.toFloat()
-        if (currentLayer == CruiseLayer.HIDDEN) {
+        if (currentLayer == CruiseLayer.HIDDEN || currentLayer == CruiseLayer.NEUTRAL) {
             val d = resources.displayMetrics.density
 
             val isRightFlankUnified = renderCacheRightFlankUnified
@@ -111,13 +111,11 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 bottomTransparency = bottomTransparency,
                 isReview = isSidebarPreview && (isTopExpanded || isCenterExpanded || isBottomExpanded),
                 m3Primary = m3Primary,
-                glowStyle = glowStyle
+                glowStyle = glowStyle,
+                isGlowEnabled = renderCacheGlowEnabled,
+                useM3Color = renderCacheUseM3Color
             )
-            return
-        }
-
-        if (currentLayer == CruiseLayer.NEUTRAL) {
-            // Keep background neutral during intent decision gate (eliminates category ghost frames before Gears)
+            if (currentLayer == CruiseLayer.NEUTRAL) return
             return
         }
 

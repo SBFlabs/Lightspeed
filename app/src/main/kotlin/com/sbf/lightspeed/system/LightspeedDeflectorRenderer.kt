@@ -9,12 +9,14 @@ import android.graphics.RectF
 import android.graphics.Shader
 
 /**
- * Unified Kinetic Deflector Renderer for Lightspeed Port & Starboard Wings.
+ * Unified Kinetic Deflector & Central Pill Renderer.
  *
- * Renders an aerodynamic continuous curved blade silhouette with a pronounced central bell,
- * replacing disconnected rectangular blocks with heavy progressive frosted glass diffusion,
- * specular edge refraction, and configurable aesthetic finishes (Progressive Frost,
- * Material Surface Shade, Crimson Reactor, Cyber Plasma).
+ * Renders a dedicated, aesthetically refined Central Pill anchored flush to the bezel
+ * that dynamically morphs and expands on touch and movement, rendered with deep multi-stop
+ * progressive frosted glass diffusion, luminous specular rim highlights, and optical core pip.
+ *
+ * Flank zones (Top & Bottom) have zero idle presence, appearing with subtle on-demand
+ * aerodynamic edge guides strictly while actively touched.
  */
 object LightspeedDeflectorRenderer {
 
@@ -25,6 +27,10 @@ object LightspeedDeflectorRenderer {
     private val specularRimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
+    }
+
+    private val corePipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
     }
 
     private val reviewStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -58,222 +64,205 @@ object LightspeedDeflectorRenderer {
         bottomTransparency: Int,
         isReview: Boolean,
         m3Primary: Int,
-        glowStyle: String
+        glowStyle: String,
+        isGlowEnabled: Boolean = true,
+        useM3Color: Boolean = true
     ) {
         val d = density
         if (isReview) {
-            // Zone Review Mode for manual layout and size tuning in Central Command
             drawReviewZone(canvas, topTouchBounds, Color.rgb(68, 138, 255), d)
             drawReviewZone(canvas, centerTouchBounds, m3Primary, d)
             drawReviewZone(canvas, bottomTouchBounds, Color.rgb(255, 171, 0), d)
             return
         }
 
-        val topLimit = topTouchBounds.top
-        val centerTop = centerTouchBounds.top
-        val centerBottom = centerTouchBounds.bottom
-        val bottomLimit = bottomTouchBounds.bottom
+        // =========================================================================
+        // 1. CENTRAL PILL: Dedicated Morphing Glass Capsule
+        // =========================================================================
+        if (isGlowEnabled) {
+            val cy = centerTouchBounds.centerY()
+            val zoneH = centerTouchBounds.height()
+            val isTouched = isCurrentlyTouched && activeZoneIsCenter
+            val morphFactor = if (isTouched) 1f else glowFraction.coerceIn(0f, 1f)
 
-        val maxRestingTransparency = maxOf(centerTransparency, topTransparency, bottomTransparency)
-        val isAnyTouched = isCurrentlyTouched && (activeZoneIsCenter || activeZoneIsTop || activeZoneIsBottom)
+            // Resting geometry: sleek, elegant capsule along bezel
+            val restingW = minOf(centerTouchBounds.width(), 5f * d)
+            val restingH = (zoneH * 0.40f).coerceIn(45f * d, 140f * d)
 
-        if (maxRestingTransparency <= 0 && !isAnyTouched && glowFraction <= 0f) {
-            return
+            // Morphing geometry: dynamically swells and expands on touch / gesture
+            val activeW = minOf(centerTouchBounds.width(), 26f * d)
+            val activeH = (zoneH * 0.85f).coerceAtLeast(restingH)
+
+            val pillW = restingW + (activeW - restingW) * morphFactor
+            val pillH = restingH + (activeH - restingH) * morphFactor
+
+            val restingAlpha = if (centerTransparency > 0) {
+                (centerTransparency * 2.55f).toInt().coerceIn(0, 255)
+            } else {
+                (35 * 2.55f).toInt() // Aesthetic 35% resting baseline glass presence
+            }
+            val finalAlpha = if (isTouched) 255 else maxOf(restingAlpha, (255 * glowFraction).toInt())
+
+            if (finalAlpha > 0) {
+                val pillTop = (cy - pillH / 2f).coerceAtLeast(centerTouchBounds.top + 2f * d)
+                val pillBottom = (cy + pillH / 2f).coerceAtMost(centerTouchBounds.bottom - 2f * d)
+                val cornerR = (pillW * 0.5f).coerceAtLeast(2.5f * d)
+
+                bladePath.reset()
+                rimPath.reset()
+
+                if (isLeft) {
+                    bladePath.moveTo(0f, pillTop)
+                    bladePath.lineTo(pillW - cornerR, pillTop)
+                    bladePath.quadTo(pillW, pillTop, pillW, pillTop + cornerR)
+                    bladePath.lineTo(pillW, pillBottom - cornerR)
+                    bladePath.quadTo(pillW, pillBottom, pillW - cornerR, pillBottom)
+                    bladePath.lineTo(0f, pillBottom)
+                    bladePath.close()
+
+                    rimPath.moveTo(pillW - cornerR, pillTop)
+                    rimPath.quadTo(pillW, pillTop, pillW, pillTop + cornerR)
+                    rimPath.lineTo(pillW, pillBottom - cornerR)
+                    rimPath.quadTo(pillW, pillBottom, pillW - cornerR, pillBottom)
+                } else {
+                    bladePath.moveTo(w, pillTop)
+                    bladePath.lineTo(w - (pillW - cornerR), pillTop)
+                    bladePath.quadTo(w - pillW, pillTop, w - pillW, pillTop + cornerR)
+                    bladePath.lineTo(w - pillW, pillBottom - cornerR)
+                    bladePath.quadTo(w - pillW, pillBottom, w - (pillW - cornerR), pillBottom)
+                    bladePath.lineTo(w, pillBottom)
+                    bladePath.close()
+
+                    rimPath.moveTo(w - (pillW - cornerR), pillTop)
+                    rimPath.quadTo(w - pillW, pillTop, w - pillW, pillTop + cornerR)
+                    rimPath.lineTo(w - pillW, pillBottom - cornerR)
+                    rimPath.quadTo(w - pillW, pillBottom, w - (pillW - cornerR), pillBottom)
+                }
+
+                applyPillShading(isLeft, w, pillW, pillTop, pillBottom, finalAlpha, m3Primary, glowStyle, useM3Color, d)
+                canvas.drawPath(bladePath, bladeFillPaint)
+
+                specularRimPaint.strokeWidth = if (morphFactor > 0f) 2.2f * d else 1.3f * d
+                canvas.drawPath(rimPath, specularRimPaint)
+
+                // Tactical Center Core Pip (anchors visual focus on prime pivot)
+                val pipX = if (isLeft) pillW * 0.40f else w - (pillW * 0.40f)
+                val pipR = if (morphFactor > 0f) 3.2f * d else 2.0f * d
+                corePipPaint.color = Color.argb((finalAlpha * 0.90f).toInt(), 255, 255, 255)
+                canvas.drawCircle(pipX, cy, pipR, corePipPaint)
+            }
         }
 
-        val restingAlpha = (maxRestingTransparency * 2.55f).toInt().coerceIn(0, 255)
-        val glowAlpha = (255 * glowFraction).toInt()
-        val finalAlpha = if (isAnyTouched) 255 else maxOf(restingAlpha, glowAlpha)
+        // =========================================================================
+        // 2. DEFLECTORS (Top & Bottom Flanks): On-Demand Only (Zero Idle Presence)
+        // =========================================================================
+        if (isCurrentlyTouched && (activeZoneIsTop || activeZoneIsBottom)) {
+            val bounds = if (activeZoneIsTop) topTouchBounds else bottomTouchBounds
+            val flankH = bounds.height() * 0.55f
+            val flankTop = bounds.centerY() - flankH / 2f
+            val flankBottom = bounds.centerY() + flankH / 2f
+            val flankW = minOf(bounds.width(), 12f * d)
+            val cornerR = flankW * 0.5f
 
-        val restingFlankW = minOf(topTouchBounds.width(), 4f * d)
-        val restingCenterW = minOf(centerTouchBounds.width(), 6f * d)
-        val glowFlankW = minOf(topTouchBounds.width(), 16f * d)
-        val glowCenterW = minOf(centerTouchBounds.width(), 28f * d)
+            bladePath.reset()
+            rimPath.reset()
 
-        val topFlankW = if (activeZoneIsTop) 12f * d else restingFlankW + (glowFlankW - restingFlankW) * glowFraction
-        val bottomFlankW = if (activeZoneIsBottom) 12f * d else restingFlankW + (glowFlankW - restingFlankW) * glowFraction
-        val effectiveCenterW = if (activeZoneIsCenter) 16f * d else restingCenterW + (glowCenterW - restingCenterW) * glowFraction
+            if (isLeft) {
+                bladePath.moveTo(0f, flankTop)
+                bladePath.lineTo(flankW - cornerR, flankTop)
+                bladePath.quadTo(flankW, flankTop, flankW, flankTop + cornerR)
+                bladePath.lineTo(flankW, flankBottom - cornerR)
+                bladePath.quadTo(flankW, flankBottom, flankW - cornerR, flankBottom)
+                bladePath.lineTo(0f, flankBottom)
+                bladePath.close()
 
-        val maxW = maxOf(effectiveCenterW, topFlankW, bottomFlankW)
-        if (maxW <= 0f) return
+                rimPath.moveTo(flankW - cornerR, flankTop)
+                rimPath.quadTo(flankW, flankTop, flankW, flankTop + cornerR)
+                rimPath.lineTo(flankW, flankBottom - cornerR)
+                rimPath.quadTo(flankW, flankBottom, flankW - cornerR, flankBottom)
+            } else {
+                bladePath.moveTo(w, flankTop)
+                bladePath.lineTo(w - (flankW - cornerR), flankTop)
+                bladePath.quadTo(w - flankW, flankTop, w - flankW, flankTop + cornerR)
+                bladePath.lineTo(w - flankW, flankBottom - cornerR)
+                bladePath.quadTo(w - flankW, flankBottom, w - (flankW - cornerR), flankBottom)
+                bladePath.lineTo(w, flankBottom)
+                bladePath.close()
 
-        bladePath.reset()
-        rimPath.reset()
+                rimPath.moveTo(w - (flankW - cornerR), flankTop)
+                rimPath.quadTo(w - flankW, flankTop, w - flankW, flankTop + cornerR)
+                rimPath.lineTo(w - flankW, flankBottom - cornerR)
+                rimPath.quadTo(w - flankW, flankBottom, w - (flankW - cornerR), flankBottom)
+            }
 
-        val cornerR = 4f * d
-        val transitionH = 14f * d
-
-        if (isLeft) {
-            // Port Wing (Left Flank, Bezel at x = 0)
-            val topY = topLimit + 2f * d
-            val bottomY = bottomLimit - 2f * d
-
-            bladePath.moveTo(0f, topY)
-            bladePath.lineTo(0f, bottomY)
-            bladePath.quadTo(0f, bottomY + cornerR, bottomFlankW * 0.5f, bottomY)
-
-            rimPath.moveTo(bottomFlankW, bottomY - cornerR)
-            bladePath.lineTo(bottomFlankW, bottomY - cornerR)
-
-            val bottomCurveStart = (centerBottom + transitionH).coerceAtMost(bottomY - cornerR)
-            val bottomCurveEnd = (centerBottom - transitionH * 0.5f).coerceAtLeast(centerTop + transitionH)
-
-            bladePath.lineTo(bottomFlankW, bottomCurveStart)
-            rimPath.lineTo(bottomFlankW, bottomCurveStart)
-
-            // Smooth bezier expansion into thicker central bell
-            bladePath.cubicTo(
-                bottomFlankW, centerBottom + 4f * d,
-                effectiveCenterW, centerBottom,
-                effectiveCenterW, bottomCurveEnd
-            )
-            rimPath.cubicTo(
-                bottomFlankW, centerBottom + 4f * d,
-                effectiveCenterW, centerBottom,
-                effectiveCenterW, bottomCurveEnd
-            )
-
-            val topCurveEnd = (centerTop + transitionH * 0.5f).coerceAtLeast(bottomCurveEnd)
-            val topCurveStart = (centerTop - transitionH).coerceAtLeast(topY + cornerR)
-
-            bladePath.lineTo(effectiveCenterW, topCurveEnd)
-            rimPath.lineTo(effectiveCenterW, topCurveEnd)
-
-            // Smooth bezier taper from central bell into upper flank
-            bladePath.cubicTo(
-                effectiveCenterW, centerTop,
-                topFlankW, centerTop - 4f * d,
-                topFlankW, topCurveStart
-            )
-            rimPath.cubicTo(
-                effectiveCenterW, centerTop,
-                topFlankW, centerTop - 4f * d,
-                topFlankW, topCurveStart
-            )
-
-            bladePath.lineTo(topFlankW, topY + cornerR)
-            rimPath.lineTo(topFlankW, topY + cornerR)
-
-            bladePath.quadTo(0f, topY - cornerR, 0f, topY)
-            bladePath.close()
-        } else {
-            // Starboard Wing (Right Flank, Bezel at x = w)
-            val topY = topLimit + 2f * d
-            val bottomY = bottomLimit - 2f * d
-
-            bladePath.moveTo(w, topY)
-            bladePath.lineTo(w, bottomY)
-            bladePath.quadTo(w, bottomY + cornerR, w - bottomFlankW * 0.5f, bottomY)
-
-            rimPath.moveTo(w - bottomFlankW, bottomY - cornerR)
-            bladePath.lineTo(w - bottomFlankW, bottomY - cornerR)
-
-            val bottomCurveStart = (centerBottom + transitionH).coerceAtMost(bottomY - cornerR)
-            val bottomCurveEnd = (centerBottom - transitionH * 0.5f).coerceAtLeast(centerTop + transitionH)
-
-            bladePath.lineTo(w - bottomFlankW, bottomCurveStart)
-            rimPath.lineTo(w - bottomFlankW, bottomCurveStart)
-
-            // Smooth bezier expansion into thicker central bell
-            bladePath.cubicTo(
-                w - bottomFlankW, centerBottom + 4f * d,
-                w - effectiveCenterW, centerBottom,
-                w - effectiveCenterW, bottomCurveEnd
-            )
-            rimPath.cubicTo(
-                w - bottomFlankW, centerBottom + 4f * d,
-                w - effectiveCenterW, centerBottom,
-                w - effectiveCenterW, bottomCurveEnd
-            )
-
-            val topCurveEnd = (centerTop + transitionH * 0.5f).coerceAtLeast(bottomCurveEnd)
-            val topCurveStart = (centerTop - transitionH).coerceAtLeast(topY + cornerR)
-
-            bladePath.lineTo(w - effectiveCenterW, topCurveEnd)
-            rimPath.lineTo(w - effectiveCenterW, topCurveEnd)
-
-            // Smooth bezier taper from central bell into upper flank
-            bladePath.cubicTo(
-                w - effectiveCenterW, centerTop,
-                w - topFlankW, centerTop - 4f * d,
-                w - topFlankW, topCurveStart
-            )
-            rimPath.cubicTo(
-                w - effectiveCenterW, centerTop,
-                w - topFlankW, centerTop - 4f * d,
-                w - topFlankW, topCurveStart
-            )
-
-            bladePath.lineTo(w - topFlankW, topY + cornerR)
-            rimPath.lineTo(w - topFlankW, topY + cornerR)
-
-            bladePath.quadTo(w, topY - cornerR, w, topY)
-            bladePath.close()
+            applyPillShading(isLeft, w, flankW, flankTop, flankBottom, 255, m3Primary, glowStyle, useM3Color, d)
+            canvas.drawPath(bladePath, bladeFillPaint)
+            specularRimPaint.strokeWidth = 1.6f * d
+            canvas.drawPath(rimPath, specularRimPaint)
         }
-
-        // Apply progressive gradient and specular rim shading
-        applyShading(isLeft, w, maxW, topLimit, bottomLimit, finalAlpha, m3Primary, glowStyle, d)
-
-        canvas.drawPath(bladePath, bladeFillPaint)
-
-        // Draw crisp luminous specular rim line along the curved contour
-        specularRimPaint.strokeWidth = if (glowFraction > 0f) 1.8f * d else 1.2f * d
-        canvas.drawPath(rimPath, specularRimPaint)
     }
 
-    private fun applyShading(
+    private fun applyPillShading(
         isLeft: Boolean,
         w: Float,
-        maxW: Float,
+        pillW: Float,
         topLimit: Float,
         bottomLimit: Float,
         finalAlpha: Int,
         m3Primary: Int,
         glowStyle: String,
+        useM3Color: Boolean,
         d: Float
     ) {
         val x0 = if (isLeft) 0f else w
-        val x1 = if (isLeft) maxW else w - maxW
+        val x1 = if (isLeft) pillW else w - pillW
+
+        val (baseR, baseG, baseB) = if (useM3Color) {
+            Triple(Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
+        } else {
+            when (glowStyle) {
+                "crimson_reactor" -> Triple(255, 36, 75)
+                "cyber_plasma" -> Triple(0, 229, 255)
+                else -> Triple(225, 240, 255) // Pristine crystalline frost
+            }
+        }
 
         when (glowStyle) {
             "material_shade" -> {
-                val pr = Color.red(m3Primary)
-                val pg = Color.green(m3Primary)
-                val pb = Color.blue(m3Primary)
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, pr, pg, pb),
-                        Color.argb((finalAlpha * 0.70f).toInt(), (pr * 0.45f + 25).toInt(), (pg * 0.45f + 25).toInt(), (pb * 0.45f + 32).toInt()),
-                        Color.argb((finalAlpha * 0.25f).toInt(), 32, 28, 40),
-                        Color.argb(0, 18, 16, 24)
+                        Color.argb(finalAlpha, baseR, baseG, baseB),
+                        Color.argb((finalAlpha * 0.65f).toInt(), (baseR * 0.55f + 25).toInt().coerceIn(0, 255), (baseG * 0.55f + 25).toInt().coerceIn(0, 255), (baseB * 0.55f + 32).toInt().coerceIn(0, 255)),
+                        Color.argb((finalAlpha * 0.25f).toInt(), 28, 30, 42),
+                        Color.argb(0, 14, 16, 22)
                     ),
                     floatArrayOf(0.0f, 0.35f, 0.70f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
-                specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), pr, pg, pb)
+                specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), baseR, baseG, baseB)
             }
             "crimson_reactor" -> {
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, 255, 36, 75),
-                        Color.argb((finalAlpha * 0.75f).toInt(), 255, 95, 20),
-                        Color.argb((finalAlpha * 0.25f).toInt(), 180, 20, 45),
-                        Color.argb(0, 120, 0, 25)
+                        Color.argb(finalAlpha, 255, 45, 80),
+                        Color.argb((finalAlpha * 0.75f).toInt(), 255, 110, 30),
+                        Color.argb((finalAlpha * 0.28f).toInt(), 180, 20, 45),
+                        Color.argb(0, 100, 0, 20)
                     ),
-                    floatArrayOf(0.0f, 0.35f, 0.70f, 1.0f),
+                    floatArrayOf(0.0f, 0.30f, 0.70f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
-                specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), 255, 225, 215)
+                specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), 255, 230, 220)
             }
             "cyber_plasma" -> {
                 bladeFillPaint.shader = LinearGradient(
                     x0, topLimit, x1, bottomLimit,
                     intArrayOf(
                         Color.argb(finalAlpha, 0, 229, 255),
-                        Color.argb((finalAlpha * 0.75f).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary)),
-                        Color.argb((finalAlpha * 0.40f).toInt(), 255, 171, 0),
+                        Color.argb((finalAlpha * 0.75f).toInt(), baseR, baseG, baseB),
+                        Color.argb((finalAlpha * 0.35f).toInt(), 255, 171, 0),
                         Color.argb(0, 255, 171, 0)
                     ),
                     floatArrayOf(0.0f, 0.40f, 0.75f, 1.0f),
@@ -282,16 +271,17 @@ object LightspeedDeflectorRenderer {
                 specularRimPaint.color = Color.argb((finalAlpha * 0.95f).toInt(), 255, 255, 255)
             }
             else -> {
-                // "progressive_frost" (Default) - Heavy progressive frosted glass diffusion
+                // "progressive_frost" (Default) - Heavy progressive frosted glass diffusion with multi-stop blur curve
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, 235, 245, 255),
-                        Color.argb((finalAlpha * 0.72f).toInt(), 140, 195, 255),
-                        Color.argb((finalAlpha * 0.28f).toInt(), 70, 150, 245),
-                        Color.argb(0, 30, 100, 220)
+                        Color.argb(finalAlpha, baseR, baseG, baseB),
+                        Color.argb((finalAlpha * 0.78f).toInt(), (baseR * 0.68f + 65).toInt().coerceIn(0, 255), (baseG * 0.68f + 70).toInt().coerceIn(0, 255), (baseB * 0.68f + 80).toInt().coerceIn(0, 255)),
+                        Color.argb((finalAlpha * 0.40f).toInt(), (baseR * 0.35f + 40).toInt().coerceIn(0, 255), (baseG * 0.35f + 45).toInt().coerceIn(0, 255), (baseB * 0.35f + 60).toInt().coerceIn(0, 255)),
+                        Color.argb((finalAlpha * 0.15f).toInt(), 255, 255, 255),
+                        Color.argb(0, baseR, baseG, baseB)
                     ),
-                    floatArrayOf(0.0f, 0.35f, 0.70f, 1.0f),
+                    floatArrayOf(0.0f, 0.28f, 0.62f, 0.88f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
                 specularRimPaint.color = Color.argb((finalAlpha * 0.98f).toInt(), 255, 255, 255)

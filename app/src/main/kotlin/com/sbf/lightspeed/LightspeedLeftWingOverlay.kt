@@ -635,6 +635,8 @@ class LightspeedLeftWingOverlay(
         val bottomTransparency = if (isMirroringRight) prefs.getInt("pref_sidebar_bottom_transparency", 0) else prefs.getInt("pref_sidebar_left_bottom_transparency", 0)
 
         val glowStyle = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
+        val isGlowEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_ENABLED, true)
+        val useM3Color = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_USE_M3_COLOR, true)
 
         val m3Primary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.resources.getColor(android.R.color.system_accent1_600, context.theme)
@@ -661,7 +663,9 @@ class LightspeedLeftWingOverlay(
             bottomTransparency = bottomTransparency,
             isReview = isPreview && (isTopExpanded || isCenterExpanded || isBottomExpanded),
             m3Primary = m3Primary,
-            glowStyle = glowStyle
+            glowStyle = glowStyle,
+            isGlowEnabled = isGlowEnabled,
+            useM3Color = useM3Color
         )
     }
 

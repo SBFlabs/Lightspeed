@@ -26,6 +26,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -40,6 +41,7 @@ import androidx.compose.foundation.Canvas
 
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FloatingOverlayContainer(
     title: String,

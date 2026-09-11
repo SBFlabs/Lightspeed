@@ -1065,4 +1065,6 @@ fun RightDeflectorTabContent(
                 },
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
+        }
+    }
 }

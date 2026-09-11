@@ -214,4 +214,3 @@ fun rememberDeckGlassVisuals(context: Context): DeckGlassVisuals {
     return DeckGlassTheme.resolve(activeStyle)
 }
 
-@OptIn(ExperimentalFoundationApi::class)

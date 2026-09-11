@@ -619,7 +619,107 @@ fun CentralCommandMatrixFields(
         "SWIPE_RIGHT" to ("Swipe Inward" to ArrowDirection.SWIPE_RIGHT),
         // — Rebound —
         "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
-        "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_                // PAGE 0: LEFT DEFLECTOR
+        "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
+        "SWIPE_RIGHT_BACK" to ("Rebound Inward" to ArrowDirection.RIGHT_BACK),
+        // — Two-Step —
+        "SWIPE_UP_RIGHT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_RIGHT),
+        "SWIPE_DOWN_RIGHT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_RIGHT),
+        "SWIPE_RIGHT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.RIGHT_UP),
+        "SWIPE_RIGHT_DOWN" to ("Two-Step: Inward → Down" to ArrowDirection.RIGHT_DOWN)
+    )
+
+    val rightCustomVectors = listOf(
+        // — Tap —
+        "TAP" to ("Tap" to ArrowDirection.TAP),
+        // — Swipe —
+        "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
+        "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
+        "SWIPE_LEFT" to ("Swipe Inward" to ArrowDirection.SWIPE_LEFT),
+        // — Rebound —
+        "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
+        "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
+        "SWIPE_LEFT_BACK" to ("Rebound Inward" to ArrowDirection.LEFT_BACK),
+        // — Two-Step —
+        "SWIPE_UP_LEFT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_LEFT),
+        "SWIPE_DOWN_LEFT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_LEFT),
+        "SWIPE_LEFT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.LEFT_UP),
+        "SWIPE_LEFT_DOWN" to ("Two-Step: Inward → Down" to ArrowDirection.LEFT_DOWN)
+    )
+
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
+        // Balanced, Optically Centered 3-Tab Navigator
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color.White.copy(alpha = 0.06f))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val deflStr = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.DEFLECTORS).replace("Left & Right ", ""); val hudStr = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HUD_STRIP).uppercase(); val tabTitles = listOf("◀ $deflStr", hudStr, "$deflStr ▶")
+            tabTitles.forEachIndexed { index, tabTitle ->
+                val isSelected = pagerState.currentPage == index
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .combinedClickable(
+                            onClick = {
+                                if (isSelected) {
+                                    LightspeedHapticEngine.heavyClick(context)
+                                    popoverTabTarget = index
+                                } else {
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                }
+                            },
+                            onLongClick = {
+                                LightspeedHapticEngine.heavyClick(context)
+                                popoverTabTarget = index
+                            }
+                        )
+                        .padding(vertical = 7.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = tabTitle,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 14.dp, height = 2.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // High-Performance Swipable Pages
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            beyondViewportPageCount = 1
+        ) { pageIndex ->
+            when (pageIndex) {
+                // PAGE 0: LEFT DEFLECTOR
                 0 -> {
                     LeftDeflectorTabContent(
         blueprintTabTargetState = blueprintTabTargetState,
@@ -743,7 +843,11 @@ fun CentralCommandMatrixFields(
         tokenLabelCache = tokenLabelCache
                     )
                 }
+            }  // end when(pageIndex)
+        }  // end HorizontalPager
+
         if (popoverTabTarget != null) {
+
             val tabId = popoverTabTarget!!
             val tabTitle = when (tabId) {
                 0 -> "◀ Deflectors"

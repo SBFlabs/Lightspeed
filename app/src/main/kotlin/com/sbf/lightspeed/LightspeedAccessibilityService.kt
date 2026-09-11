@@ -36,7 +36,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "LightspeedService"
-        private var instanceRef: java.lang.ref.WeakReference<LightspeedAccessibilityService>? = null
+        internal var instanceRef: java.lang.ref.WeakReference<LightspeedAccessibilityService>? = null
 
         val instance: LightspeedAccessibilityService?
             get() = instanceRef?.get()

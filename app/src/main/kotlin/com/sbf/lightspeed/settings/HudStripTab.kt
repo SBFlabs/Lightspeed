@@ -386,22 +386,7 @@ fun HudStripTabContent(
                                                         }
                                                     }
 
-                                                    // Master Auto-Rotate Toggle
-                                                    PrefToggleRow(
-                                                        title = "Auto-Rotate Master Switch",
-                                                        subtitle = "Global Android display rotation controller",
-                                                        isChecked = isAutoRotateActive,
-                                                        onCheckedChange = { checked ->
-                                                            val ok = LightspeedOrientationEngine.setAutoRotateEnabled(context, checked)
-                                                            if (ok) {
-                                                                isAutoRotateActive = checked
-                                                            } else {
-                                                                android.widget.Toast.makeText(context, "Elevated permission needed. Opening system settings...", android.widget.Toast.LENGTH_SHORT).show()
-                                                                LightspeedOrientationEngine.openAutoRotateSettings(context)
-                                                            }
-                                                            onRefreshNeeded()
-                                                        }
-                                                    )
+
 
                                                     // 1. Face-Oriented Auto-Rotate (CAMERA_AUTOROTATE)
                                                     if (LightspeedOrientationEngine.isFaceRotateSupported(context)) {

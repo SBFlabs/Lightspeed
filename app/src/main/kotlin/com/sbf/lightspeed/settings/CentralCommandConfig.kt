@@ -166,11 +166,6 @@ fun CentralCommandMatrixFields(
     var singlePressTapCount by singlePressTapCountState
     val isSinglePressUnlockedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)) }
     var isSinglePressUnlocked by isSinglePressUnlockedState
-    val installedTacticalTools by produceState(initialValue = emptyList<com.sbf.lightspeed.system.TacticalToolItem>()) {
-        value = withContext(Dispatchers.IO) {
-            com.sbf.lightspeed.system.InstalledTacticalToolsScanner.scan(context)
-        }
-    }
 
     // Tactical Hardware Deck Sub-Sections
     val isSubVolumeExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", true)) }
@@ -207,7 +202,6 @@ fun CentralCommandMatrixFields(
     var isNotchCalibExpanded by isNotchCalibExpandedState
     val isMarqueeSubSectionExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", false)) }
     var isMarqueeSubSectionExpanded by isMarqueeSubSectionExpandedState
-    val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
     val isOemNoticeDemotedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_demoted", false)) }
     var isOemNoticeDemoted by isOemNoticeDemotedState
 
@@ -334,22 +328,6 @@ fun CentralCommandMatrixFields(
     val showResetConfirmDialogState = remember { mutableStateOf(false) }
     var showResetConfirmDialog by showResetConfirmDialogState
 
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                val result = withContext(Dispatchers.IO) {
-                    LightspeedBackupEngine.exportToFile(context, uri)
-                }
-                result.onSuccess { count ->
-                    Toast.makeText(context, "Successfully exported $count settings to backup!", Toast.LENGTH_SHORT).show()
-                }.onFailure { err ->
-                    Toast.makeText(context, "Failed to export backup: ${err.message ?: err.javaClass.simpleName}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -846,6 +824,8 @@ fun CentralCommandMatrixFields(
         tokenLabelCache = tokenLabelCache
                     )
                 }
+            }
+        }
 
         // Dialogs
         if (showResetConfirmDialog) {
@@ -1398,8 +1378,6 @@ fun CentralCommandMatrixFields(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
-            }  // end when(pageIndex)
-        }  // end HorizontalPager
 
         if (popoverTabTarget != null) {
 

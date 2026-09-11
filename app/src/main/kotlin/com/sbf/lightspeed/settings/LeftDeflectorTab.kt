@@ -53,13 +53,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import android.content.Context
-import android.content.SharedPreferences
-import androidx.compose.runtime.*
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 
 @Composable
 fun LeftDeflectorTabContent(

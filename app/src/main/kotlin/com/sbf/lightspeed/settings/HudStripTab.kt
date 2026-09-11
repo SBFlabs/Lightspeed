@@ -131,6 +131,31 @@ fun HudStripTabContent(
     var showResetConfirmDialog by showResetConfirmDialogState
     var singlePressTapCount by singlePressTapCountState
     var thresholdCrossedFlash by thresholdCrossedFlashState
+
+    val oemFeatureName = remember { com.sbf.lightspeed.system.OemNotchDetector.getDetectedFeatureName() }
+    val installedTacticalTools by produceState(initialValue = emptyList<com.sbf.lightspeed.system.TacticalToolItem>()) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.sbf.lightspeed.system.InstalledTacticalToolsScanner.scan(context)
+        }
+    }
+    val scope = rememberCoroutineScope()
+    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.sbf.lightspeed.system.LightspeedBackupEngine.exportToFile(context, uri)
+                }
+                result.onSuccess { count ->
+                    android.widget.Toast.makeText(context, "Successfully exported $count settings to backup!", android.widget.Toast.LENGTH_SHORT).show()
+                }.onFailure { err ->
+                    android.widget.Toast.makeText(context, "Failed to export backup: ${err.message ?: err.javaClass.simpleName}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
                     val defaultOrder1 = listOf("sensor_deck", "synthetic_gravity", "telemetry_indicators", "tactical_hardware", "refueling_bay", "config_vault", "experimental_labs")
                     val currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
                         list + (defaultOrder1 - list.toSet())

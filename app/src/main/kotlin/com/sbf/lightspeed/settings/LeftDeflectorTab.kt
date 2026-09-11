@@ -118,7 +118,7 @@ fun LeftDeflectorTabContent(
         "SWIPE_RIGHT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.RIGHT_UP),
         "SWIPE_RIGHT_DOWN" to ("Two-Step: Inward → Down" to ArrowDirection.RIGHT_DOWN)
     )
-                    val defaultOrder0 = if (isLeftFlankUnified) listOf("left_unified") else listOf("left_center", "left_top", "left_bottom")
+                    val defaultOrder0 = if (isLeftFlankUnified) listOf("left_center", "left_unified") else listOf("left_center", "left_top", "left_bottom")
                     val currentOrder0 = sectionOrder0Str.split(",").map { it.trim() }.filter { it in defaultOrder0 }.distinct().let { list ->
                         list + (defaultOrder0 - list.toSet())
                     }

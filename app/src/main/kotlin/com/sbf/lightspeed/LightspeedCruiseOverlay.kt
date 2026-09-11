@@ -52,77 +52,58 @@ import kotlin.math.sin
 class LightspeedCruiseOverlay @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
-    private val totalGearSetsCount: Int
+    internal val totalGearSetsCount: Int
         get() {
             val count = getGearSetsOrder(isOpenedFromLeftFlank).size
             return if (count > 0) count else 1
         }
 
 
-    enum class CruiseLayer { HIDDEN, NEUTRAL, CATEGORY, GRID, STICKY_PIN, FAVORITES_GEARS, COCKPIT_HANGAR }
-    enum class TouchZone { NONE, TOP_EDGE, CENTER_CRUISE, BOTTOM_EDGE }
-    
-    enum class MacroGesture {
-        NONE,
-        SWIPE_UP, SWIPE_UP_HOLD,
-        SWIPE_DOWN, SWIPE_DOWN_HOLD,
-        SWIPE_LEFT, SWIPE_LEFT_HOLD,
-        SWIPE_UP_DOWN, SWIPE_UP_DOWN_HOLD,
-        SWIPE_DOWN_UP, SWIPE_DOWN_UP_HOLD,
-        SWIPE_UP_LEFT, SWIPE_UP_LEFT_HOLD,
-        SWIPE_DOWN_LEFT, SWIPE_DOWN_LEFT_HOLD,
-        SWIPE_LEFT_BACK, SWIPE_LEFT_BACK_HOLD,
-        SWIPE_LEFT_UP, SWIPE_LEFT_UP_HOLD,
-        SWIPE_LEFT_DOWN, SWIPE_LEFT_DOWN_HOLD,
-        SCRUBBING
-    }
 
-    data class PlacedItem(val app: LightspeedDataBridge.LaunchTarget, val bounds: RectF)
-
-    private val service = context as? LightspeedAccessibilityService
-    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    internal val service = context as? LightspeedAccessibilityService
+    internal val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     
-    private var isCruising = false
-    private var isStickyPinned = false
-    private var currentLayer: CruiseLayer = CruiseLayer.HIDDEN
+    internal var isCruising = false
+    internal var isStickyPinned = false
+    internal var currentLayer: CruiseLayer = CruiseLayer.HIDDEN
         set(value) {
             field = value
             refreshActiveRenderEffect()
         }
-    private var currentActiveZone = TouchZone.NONE
+    internal var currentActiveZone = TouchZone.NONE
 
-    private var centerHeightPx = 400f
-    private var centerVisualWidthPx = 12f
-    private var centerTouchWidthPx = 45f
-    private var centerYOffsetPx = 0f
+    internal var centerHeightPx = 400f
+    internal var centerVisualWidthPx = 12f
+    internal var centerTouchWidthPx = 45f
+    internal var centerYOffsetPx = 0f
 
-    private var topHeightPx = 300f
-    private var topVisualWidthPx = 2f
-    private var topTouchWidthPx = 32f
+    internal var topHeightPx = 300f
+    internal var topVisualWidthPx = 2f
+    internal var topTouchWidthPx = 32f
 
-    private var bottomHeightPx = 300f
-    private var bottomVisualWidthPx = 2f
-    private var bottomTouchWidthPx = 32f
+    internal var bottomHeightPx = 300f
+    internal var bottomVisualWidthPx = 2f
+    internal var bottomTouchWidthPx = 32f
 
-    private var linkEdges = false
+    internal var linkEdges = false
 
-    private val topTouchBounds = RectF()
-    private val centerTouchBounds = RectF()
-    private val bottomTouchBounds = RectF()
+    internal val topTouchBounds = RectF()
+    internal val centerTouchBounds = RectF()
+    internal val bottomTouchBounds = RectF()
 
-    private val topVisualBounds = RectF()
-    private val centerVisualBounds = RectF()
-    private val bottomVisualBounds = RectF()
+    internal val topVisualBounds = RectF()
+    internal val centerVisualBounds = RectF()
+    internal val bottomVisualBounds = RectF()
 
-    private val uiHandler = Handler(Looper.getMainLooper())
-    private var touchDownTime = 0L
-    private var gestureStartX = 0f
-    private var gestureStartY = 0f
-    private var macroTrackingActive = false
-    private var currentDetectedGesture = MacroGesture.NONE
+    internal val uiHandler = Handler(Looper.getMainLooper())
+    internal var touchDownTime = 0L
+    internal var gestureStartX = 0f
+    internal var gestureStartY = 0f
+    internal var macroTrackingActive = false
+    internal var currentDetectedGesture = MacroGesture.NONE
 
-    private var glowFraction: Float = 0f
-    private var glowAnimator: ValueAnimator? = null
+    internal var glowFraction: Float = 0f
+    internal var glowAnimator: ValueAnimator? = null
 
     fun triggerGlow(durationMs: Long = -1L) {
         post {
@@ -140,49 +121,49 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private var trackingStateLocked = false
-    private var isCurrentlyTouched = false
-    private var initialLeftSweepDistance = 0f
-    private var lowestXReached = 0f
-    private var highestYReached = 0f
-    private var lowestYReached = 0f
+    internal var trackingStateLocked = false
+    internal var isCurrentlyTouched = false
+    internal var initialLeftSweepDistance = 0f
+    internal var lowestXReached = 0f
+    internal var highestYReached = 0f
+    internal var lowestYReached = 0f
     
-    private var aggregateScrubAccumulator = 0f
-    private var isScrubEntranceHapticFired = false
+    internal var aggregateScrubAccumulator = 0f
+    internal var isScrubEntranceHapticFired = false
 
-    private fun triggerHardwareHaptic(durationMs: Long, amplitude: Int) {
+    internal fun triggerHardwareHaptic(durationMs: Long, amplitude: Int) {
         LightspeedHapticEngine.vibrate(context, durationMs, amplitude)
     }
-    private var lastPermissionToastTime = 0L
-    private var overScrollBoundaryAccumulator = 0f
-    private var settingsCategoryAppended = false
-    private var hangarBayScrollOffset = 0f
-    private var hangarBayTouchDownX = 0f
-    private var hangarBayTouchDownY = 0f
-    private var isDraggingHangarBays = false
-    private var isSpinningHangarRing = false
-    private var hangarSpinTouchY = 0f
-    private var activeHangarRing = 0
-    private var isHangarEjectArmed = false
-    private var hangarEjectTargetIndex = -1
-    private var hangarEjectRing = -1
-    private var longPressHangarBayRunnable: Runnable? = null
-    private var longPressCogRunnable: Runnable? = null
-    private var hasLongPressFired = false
-    private var isTouchingFocusedCog = false
-    private var isOpenedFromLeftFlank = false
+    internal var lastPermissionToastTime = 0L
+    internal var overScrollBoundaryAccumulator = 0f
+    internal var settingsCategoryAppended = false
+    internal var hangarBayScrollOffset = 0f
+    internal var hangarBayTouchDownX = 0f
+    internal var hangarBayTouchDownY = 0f
+    internal var isDraggingHangarBays = false
+    internal var isSpinningHangarRing = false
+    internal var hangarSpinTouchY = 0f
+    internal var activeHangarRing = 0
+    internal var isHangarEjectArmed = false
+    internal var hangarEjectTargetIndex = -1
+    internal var hangarEjectRing = -1
+    internal var longPressHangarBayRunnable: Runnable? = null
+    internal var longPressCogRunnable: Runnable? = null
+    internal var hasLongPressFired = false
+    internal var isTouchingFocusedCog = false
+    internal var isOpenedFromLeftFlank = false
 
-    private fun persistActiveGearSetIndex() {
+    internal fun persistActiveGearSetIndex() {
         com.sbf.lightspeed.system.CockpitGearRepository.persistActiveGearSetIndex(context, activeGearSetIndex, isOpenedFromLeftFlank)
     }
 
-    private var activeHoldScrubAction: String? = null
-    private var activeHoldScrubActionKey: String? = null
-    private var activeScrubVolumePct: Int = -1
-    private var scrubHudTitle = ""
-    private var scrubHudValue = ""
+    internal var activeHoldScrubAction: String? = null
+    internal var activeHoldScrubActionKey: String? = null
+    internal var activeScrubVolumePct: Int = -1
+    internal var scrubHudTitle = ""
+    internal var scrubHudValue = ""
 
-    private val holdTimerRunnable = Runnable {
+    internal val holdTimerRunnable = Runnable {
         if (macroTrackingActive) {
             val hostGesture = currentDetectedGesture
             val holdEquivalent = when(hostGesture) {
@@ -272,7 +253,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private val neutralToCategoryRunnable = Runnable {
+    internal val neutralToCategoryRunnable = Runnable {
         if (isCruising && currentLayer == CruiseLayer.NEUTRAL) {
             currentLayer = CruiseLayer.CATEGORY
             entranceStartTime = System.currentTimeMillis()
@@ -280,7 +261,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+    internal val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_deflector_") || key.startsWith("pref_gear_"))) {
             post {
                 updateRenderCache()
@@ -290,36 +271,36 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private var cachedRenderEffect: RenderEffect? = null
+    internal var cachedRenderEffect: RenderEffect? = null
 
-    private var cachedCategories = listOf<LightspeedDataBridge.CategoryNode>()
-    private var activeCatIndex = -1
-    private var initialCatIndex = 0
-    private var categoryVisualOffset = 0f
-    private var entranceStartTime = 0L
-    private var snapAnimator: ValueAnimator? = null
+    internal var cachedCategories = listOf<LightspeedDataBridge.CategoryNode>()
+    internal var activeCatIndex = -1
+    internal var initialCatIndex = 0
+    internal var categoryVisualOffset = 0f
+    internal var entranceStartTime = 0L
+    internal var snapAnimator: ValueAnimator? = null
 
-    private var cachedApps = listOf<LightspeedDataBridge.LaunchTarget>()
-    private var placedAppsList = mutableListOf<PlacedItem>()
-    private var totalGridContentHeight = 0f
-    private var viewportScrollOffset = 0f
-    private var activeItem: LightspeedDataBridge.LaunchTarget? = null
+    internal var cachedApps = listOf<LightspeedDataBridge.LaunchTarget>()
+    internal var placedAppsList = mutableListOf<PlacedItem>()
+    internal var totalGridContentHeight = 0f
+    internal var viewportScrollOffset = 0f
+    internal var activeItem: LightspeedDataBridge.LaunchTarget? = null
 
-    private val categoryAppsCache = mutableMapOf<String, List<LightspeedDataBridge.LaunchTarget>>()
-    private val categoryGridCache = mutableMapOf<String, List<PlacedItem>>()
-    private val categoryHeightCache = mutableMapOf<String, Float>()
-    private val applicationIconCache = mutableMapOf<String, Drawable>()
-    private var lastLoadedCategoryId: String? = null
+    internal val categoryAppsCache = mutableMapOf<String, List<LightspeedDataBridge.LaunchTarget>>()
+    internal val categoryGridCache = mutableMapOf<String, List<PlacedItem>>()
+    internal val categoryHeightCache = mutableMapOf<String, Float>()
+    internal val applicationIconCache = mutableMapOf<String, Drawable>()
+    internal var lastLoadedCategoryId: String? = null
 
     // --- GYROSCOPE CORE WORKSPACE STATES ---
-    private var activeGearRing = 0          // 0 = Outer Ring, 1 = Inner Ring, 2 = Center Control Hub
-    private var activeGearSetIndex = 0      // Active profile face (Set A, B, C, D)
-    private var gearRingRotations = FloatArray(3) { 0f }
-    private var rawHorizontalXAccumulator = 0f
-    private var isCubeRotationFired = false
-    private var lastTargetedIndex = intArrayOf(-1, -1)
+    internal var activeGearRing = 0          // 0 = Outer Ring, 1 = Inner Ring, 2 = Center Control Hub
+    internal var activeGearSetIndex = 0      // Active profile face (Set A, B, C, D)
+    internal var gearRingRotations = FloatArray(3) { 0f }
+    internal var rawHorizontalXAccumulator = 0f
+    internal var isCubeRotationFired = false
+    internal var lastTargetedIndex = intArrayOf(-1, -1)
 
-    private fun triggerGearCogHaptic() {
+    internal fun triggerGearCogHaptic() {
         val prefs = prefs()
         val strength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
         when (strength) {
@@ -331,59 +312,59 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private var touchDownRawX = 0f
-    private var touchDownRawY = 0f
-    private var lastTouchRawX = 0f
-    private var lastTouchRawY = 0f
-    private var categoryScrubbingEngaged = false
-    private var maxVerticalDisplacement = 0f
-    private var depthPercentage = 0f
-    private var virtualCursorX = 0f
-    private var virtualCursorY = 0f
+    internal var touchDownRawX = 0f
+    internal var touchDownRawY = 0f
+    internal var lastTouchRawX = 0f
+    internal var lastTouchRawY = 0f
+    internal var categoryScrubbingEngaged = false
+    internal var maxVerticalDisplacement = 0f
+    internal var depthPercentage = 0f
+    internal var virtualCursorX = 0f
+    internal var virtualCursorY = 0f
 
-    private var touchDownX = 0f
-    private var touchDownY = 0f
-    private var lastTouchY = 0f
+    internal var touchDownX = 0f
+    internal var touchDownY = 0f
+    internal var lastTouchY = 0f
 
-    private val launchpadPillBounds = RectF() 
-    private val dataBridge = LightspeedDataBridge(context)
+    internal val launchpadPillBounds = RectF() 
+    internal val dataBridge = LightspeedDataBridge(context)
 
     // ── Cached SharedPreferences reference (set once in onAttachedToWindow) ──────
     // Eliminates per-frame file I/O from onDraw() and per-touch I/O from onTouchEvent().
-    private var cachedPrefs: android.content.SharedPreferences? = null
-    private inline fun prefs() = cachedPrefs ?: context.defaultPrefs().also { cachedPrefs = it }
+    internal var cachedPrefs: android.content.SharedPreferences? = null
+    internal inline fun prefs() = cachedPrefs ?: context.defaultPrefs().also { cachedPrefs = it }
 
     // ── Render-path pref cache (updated by prefChangeListener via updateRenderCache) ─
-    private var renderCacheRightFlankUnified = false
-    private var renderCacheRightUnifiedExpanded = false
-    private var renderCacheTopExpanded = false
-    private var renderCacheCenterExpanded = false
-    private var renderCacheBottomExpanded = false
-    private var renderCacheSidebarPreview = false
-    private var renderCacheCenterTransparency = 0
-    private var renderCacheTopTransparency = 0
-    private var renderCacheBottomTransparency = 0
-    private var renderCacheGlowStyle = "progressive_frost"
-    private var renderCacheReticleStyle = "tactical"
-    private var renderCacheLinkEdges = false
+    internal var renderCacheRightFlankUnified = false
+    internal var renderCacheRightUnifiedExpanded = false
+    internal var renderCacheTopExpanded = false
+    internal var renderCacheCenterExpanded = false
+    internal var renderCacheBottomExpanded = false
+    internal var renderCacheSidebarPreview = false
+    internal var renderCacheCenterTransparency = 0
+    internal var renderCacheTopTransparency = 0
+    internal var renderCacheBottomTransparency = 0
+    internal var renderCacheGlowStyle = "progressive_frost"
+    internal var renderCacheReticleStyle = "tactical"
+    internal var renderCacheLinkEdges = false
 
-    private val projectionCamera3D = Camera()
-    private val transformMatrixPipeline = Matrix()
-    private val cylinderRadius = 500f
+    internal val projectionCamera3D = Camera()
+    internal val transformMatrixPipeline = Matrix()
+    internal val cylinderRadius = 500f
 
-    private val textPaint = Paint().apply {
+    internal val textPaint = Paint().apply {
         style = Paint.Style.FILL; color = Color.WHITE; textSize = 24f
         isAntiAlias = true; textAlign = Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
     }
-    private val catTextPaint = Paint().apply {
+    internal val catTextPaint = Paint().apply {
         style = Paint.Style.FILL; color = Color.WHITE; textSize = 52f
         isAntiAlias = true; textAlign = Paint.Align.RIGHT; typeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
     }
-    private val elementPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
-    private val highlightPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+    internal val elementPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+    internal val highlightPaint = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
 
     /** Extracted renderer for the COCKPIT_HANGAR layer and all shared draw helpers. */
-    private val deepSpaceRenderer = DeepSpaceRenderer(textPaint, elementPaint, highlightPaint)
+    internal val deepSpaceRenderer = DeepSpaceRenderer(textPaint, elementPaint, highlightPaint)
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -400,7 +381,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    private fun updateRenderCache() {
+    internal fun updateRenderCache() {
         val p = prefs()
         renderCacheRightFlankUnified    = p.getBoolean("pref_sidebar_right_link_flank_actions", false)
         renderCacheRightUnifiedExpanded = p.getBoolean("pref_section_right_unified_expanded", false)
@@ -532,7 +513,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         invalidate()
     }
 
-    private fun refreshActiveRenderEffect() {
+    internal fun refreshActiveRenderEffect() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val shouldApplyBlur = (currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN)
             setRenderEffect(if (shouldApplyBlur) cachedRenderEffect else null)
@@ -540,956 +521,15 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val x = event.x; val y = event.y
-        val rawX = event.rawX; val rawY = event.rawY
-        if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
-            val d = resources.displayMetrics.density
-            val screenW = width.toFloat()
-            val screenH = height.toFloat()
-            val cx = screenW / 2f
-            val cy = screenH / 2f
-            val deckW = (screenW * 0.92f).coerceAtMost(480f * d)
-            val leftX = cx - (deckW / 2f)
-            val rightX = cx + (deckW / 2f)
-            val gap = 8f * d
-
-            val topHangarY = (screenH * 0.07f).coerceAtLeast(54f * d)
-            val prefs = prefs()
-            val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
-            if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
-            val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
-
-            val r0Y = topHangarY + 40f * d
-            val r1Y = r0Y + 38f * d
-            val r2Y = r1Y + 44f * d
-            val r3Y = r2Y + 44f * d
-            val r4Y = r3Y + 38f * d
-            val r5Y = r4Y + 38f * d
-            val r6Y = r5Y + 38f * d
-            val r7Y = r6Y + 35f * d
-
-            val cyGimbal = (r7Y + 160f * d).coerceAtLeast(screenH * 0.62f)
-            val radOuter = 135f * d
-            val radInner = 84f * d
-            val radHub = 32f * d
-            val shiftBarY = cyGimbal + radOuter + 26f * d
-            val transferBarY = cyGimbal + radOuter + 58f * d
-
-            val bayCount = setsList.size + 1
-            val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
-            val totalBayRailW = bayCount * slotW
-            val maxScroll = (totalBayRailW - deckW).coerceAtLeast(0f)
-
-            if (totalBayRailW <= deckW) {
-                hangarBayScrollOffset = 0f
-            } else {
-                hangarBayScrollOffset = hangarBayScrollOffset.coerceIn(-maxScroll, 0f)
-            }
-            val railStartX = if (totalBayRailW <= deckW) (leftX + (deckW - totalBayRailW) / 2f) else (leftX + hangarBayScrollOffset)
-
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    hasLongPressFired = false
-                    longPressHangarBayRunnable?.let { removeCallbacks(it) }
-                    longPressCogRunnable?.let { removeCallbacks(it) }
-                    longPressHangarBayRunnable = null
-                    longPressCogRunnable = null
-
-                    hangarBayTouchDownX = x
-                    hangarBayTouchDownY = y
-                    isDraggingHangarBays = (y in (r2Y - 24f * d)..(r2Y + 24f * d)) && (x in (leftX - 10f * d)..(rightX + 10f * d))
-
-                    if (isDraggingHangarBays) {
-                        for (gIndex in setsList.indices) {
-                            val btnX = railStartX + (gIndex + 0.5f) * slotW
-                            val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
-                            if (bayRect.contains(x, y)) {
-                                val targetSetId = setsList[gIndex]
-                                val currentName = prefs.getString("gear_set_${targetSetId}_name", "SET ${gIndex + 1}") ?: "SET ${gIndex + 1}"
-                                val runnable = Runnable {
-                                    hasLongPressFired = true
-                                    triggerHardwareHaptic(50, 255)
-                                    val intent = Intent(context, CockpitDialogActivity::class.java).apply {
-                                        action = CockpitDialogActivity.ACTION_RENAME_GEAR
-                                        putExtra(CockpitDialogActivity.EXTRA_SET_ID, targetSetId)
-                                        putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, gIndex)
-                                        putExtra(CockpitDialogActivity.EXTRA_CURRENT_NAME, currentName)
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                                    }
-                                    dismissOverlay()
-                                    context.startActivity(intent)
-                                }
-                                longPressHangarBayRunnable = runnable
-                                postDelayed(runnable, 400)
-                                break
-                            }
-                        }
-                    } else {
-                        // 0. Flank Switcher: Port (Left) vs Starboard (Right)
-                        val halfBtnW = (deckW - gap) / 2f
-                        val portRect = RectF(leftX, r0Y - 16f * d, leftX + halfBtnW, r0Y + 16f * d)
-                        val starboardRect = RectF(rightX - halfBtnW, r0Y - 16f * d, rightX, r0Y + 16f * d)
-                        if (portRect.contains(x, y)) {
-                            isOpenedFromLeftFlank = true
-                            val flankSets = getGearSetsOrder(true)
-                            if (activeGearSetIndex >= flankSets.size) activeGearSetIndex = 0
-                            hangarBayScrollOffset = 0f
-                            triggerHardwareHaptic(25, 140)
-                            invalidate()
-                            return true
-                        }
-                        if (starboardRect.contains(x, y)) {
-                            isOpenedFromLeftFlank = false
-                            val flankSets = getGearSetsOrder(false)
-                            if (activeGearSetIndex >= flankSets.size) activeGearSetIndex = 0
-                            hangarBayScrollOffset = 0f
-                            triggerHardwareHaptic(25, 140)
-                            invalidate()
-                            return true
-                        }
-
-                        // 1. Startup Default Mode: Always First vs Resume Last (Per-Flank)
-                        val btn1Rect = RectF(leftX, r1Y - 16f * d, leftX + halfBtnW, r1Y + 16f * d)
-                        val btn2Rect = RectF(rightX - halfBtnW, r1Y - 16f * d, rightX, r1Y + 16f * d)
-                        if (btn1Rect.contains(x, y)) {
-                            setFlankLaunchBehavior(isOpenedFromLeftFlank, "default")
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-                        if (btn2Rect.contains(x, y)) {
-                            setFlankLaunchBehavior(isOpenedFromLeftFlank, "last")
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-
-                        // 3. Reorder & Delete Active Profile in Rotation (Per-Flank)
-                        val shiftW = deckW * 0.35f
-                        val deleteW = deckW * 0.26f
-                        val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
-                        val deleteBayRect = RectF(cx - deleteW / 2f, r3Y - 16f * d, cx + deleteW / 2f, r3Y + 16f * d)
-                        val shiftRightRect = RectF(rightX - shiftW, r3Y - 16f * d, rightX, r3Y + 16f * d)
-
-                        if (shiftLeftRect.contains(x, y) && activeGearSetIndex > 0) {
-                            val temp = setsList[activeGearSetIndex]
-                            setsList[activeGearSetIndex] = setsList[activeGearSetIndex - 1]
-                            setsList[activeGearSetIndex - 1] = temp
-                            activeGearSetIndex--
-                            saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
-                            val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
-                            hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
-                            triggerHardwareHaptic(30, 160)
-                            invalidate()
-                            return true
-                        }
-                        if (shiftRightRect.contains(x, y) && activeGearSetIndex < setsList.size - 1) {
-                            val temp = setsList[activeGearSetIndex]
-                            setsList[activeGearSetIndex] = setsList[activeGearSetIndex + 1]
-                            setsList[activeGearSetIndex + 1] = temp
-                            activeGearSetIndex++
-                            saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
-                            val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
-                            hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
-                            triggerHardwareHaptic(30, 160)
-                            invalidate()
-                            return true
-                        }
-                        if (deleteBayRect.contains(x, y)) {
-                            if (setsList.size > 1) {
-                                val removedId = setsList.removeAt(activeGearSetIndex)
-                                if (activeGearSetIndex >= setsList.size) {
-                                    activeGearSetIndex = setsList.size - 1
-                                }
-                                saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
-                                val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
-                                hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
-                                triggerHardwareHaptic(45, 230)
-                                invalidate()
-                                return true
-                            } else {
-                                android.widget.Toast.makeText(context, "Cannot delete the last remaining gear set", android.widget.Toast.LENGTH_SHORT).show()
-                                return true
-                            }
-                        }
-
-                        // 4. Icon Theme Carousel
-                        val iconThemeRect = RectF(leftX, r4Y - 18f * d, rightX, r4Y + 18f * d)
-                        if (iconThemeRect.contains(x, y)) {
-                            val availablePacks = com.sbf.lightspeed.system.LightspeedIconManager.getAvailableIconPacks(context)
-                            if (availablePacks.isNotEmpty()) {
-                                val activePack = com.sbf.lightspeed.system.LightspeedIconManager.getActiveIconPack(context)
-                                val currentIndex = availablePacks.indexOfFirst { it.packageName == activePack }
-                                val nextIndex = (currentIndex + 1) % availablePacks.size
-                                com.sbf.lightspeed.system.LightspeedIconManager.setActiveIconPack(context, availablePacks[nextIndex].packageName)
-                                triggerHardwareHaptic(35, 180)
-                                invalidate()
-                                return true
-                            }
-                        }
-
-                        // 5. Flight Momentum
-                        val physW = (deckW - (gap * 2)) / 3f
-                        val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
-                        val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
-                        val phys3Rect = RectF(rightX - physW, r5Y - 16f * d, rightX, r5Y + 16f * d)
-                        if (phys1Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_physics_profile", "magnetic").apply()
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-                        if (phys2Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_physics_profile", "fluid").apply()
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-                        if (phys3Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_physics_profile", "heavy").apply()
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-
-                        // 6. Tactile Ratchet Haptics
-                        val hapW = (deckW - (gap * 3)) / 4f
-                        val hap1Rect = RectF(leftX, r6Y - 15f * d, leftX + hapW, r6Y + 15f * d)
-                        val hap2Rect = RectF(leftX + (hapW + gap), r6Y - 15f * d, leftX + (hapW + gap) + hapW, r6Y + 15f * d)
-                        val hap3Rect = RectF(leftX + (hapW + gap) * 2, r6Y - 15f * d, leftX + (hapW + gap) * 2 + hapW, r6Y + 15f * d)
-                        val hap4Rect = RectF(rightX - hapW, r6Y - 15f * d, rightX, r6Y + 15f * d)
-                        if (hap1Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_haptic_strength", "subtle").apply()
-                            triggerHardwareHaptic(10, 60)
-                            invalidate()
-                            return true
-                        }
-                        if (hap2Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_haptic_strength", "tactical").apply()
-                            triggerHardwareHaptic(20, 140)
-                            invalidate()
-                            return true
-                        }
-                        if (hap3Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_haptic_strength", "heavy").apply()
-                            triggerHardwareHaptic(35, 240)
-                            invalidate()
-                            return true
-                        }
-                        if (hap4Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_haptic_strength", "off").apply()
-                            invalidate()
-                            return true
-                        }
-
-                        // 7. Reticle Crosshair Style
-                        val retW = (deckW - (gap * 3)) / 4f
-                        val ret1Rect = RectF(leftX, r7Y - 14f * d, leftX + retW, r7Y + 14f * d)
-                        val ret2Rect = RectF(leftX + (retW + gap), r7Y - 14f * d, leftX + (retW + gap) + retW, r7Y + 14f * d)
-                        val ret3Rect = RectF(leftX + (retW + gap) * 2, r7Y - 14f * d, leftX + (retW + gap) * 2 + retW, r7Y + 14f * d)
-                        val ret4Rect = RectF(rightX - retW, r7Y - 14f * d, rightX, r7Y + 14f * d)
-                        if (ret1Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_reticle_style", "tactical").apply()
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-                        if (ret2Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_reticle_style", "cyber").apply()
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-                        if (ret3Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_reticle_style", "cross").apply()
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-                        if (ret4Rect.contains(x, y)) {
-                            prefs.edit().putString("pref_gear_reticle_style", "diamond").apply()
-                            triggerHardwareHaptic(20, 120)
-                            invalidate()
-                            return true
-                        }
-
-                        // 7. Live Gimbal Touch & Interaction
-                        val shiftCogLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
-                        val shiftCogRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
-                        val transferRect = RectF(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
-                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing).toMutableList()
-
-                        // Check Inter-Ring Transfer Tap (Move App between Ring 0 and Ring 1)
-                        if (transferRect.contains(x, y) && ringApps.isNotEmpty()) {
-                            val count = ringApps.size
-                            val baseRotation = gearRingRotations[activeHangarRing]
-                            var targetedIdx = 0
-                            var minDiff = Float.MAX_VALUE
-                            for (i in ringApps.indices) {
-                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                                val diff = kotlin.math.abs(norm - 180f)
-                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
-                            }
-                            val destRing = if (activeHangarRing == 0) 1 else 0
-                            val r0 = getAppsForActiveGear(activeGearSetIndex, 0).toMutableList()
-                            val r1 = getAppsForActiveGear(activeGearSetIndex, 1).toMutableList()
-                            val movedItem = if (activeHangarRing == 0) r0.removeAt(targetedIdx) else r1.removeAt(targetedIdx)
-                            if (destRing == 0) r0.add(movedItem) else r1.add(movedItem)
-
-                            prefs.edit()
-                                .putString("gear_set_${currentSetId}_ring_0_packages", r0.joinToString(","))
-                                .putString("gear_set_${currentSetId}_ring_1_packages", r1.joinToString(","))
-                                .apply()
-
-                            activeHangarRing = destRing
-                            triggerHardwareHaptic(50, 255)
-                            invalidate()
-                            return true
-                        }
-
-                        // Check Live Orbital Shift Left
-                        if (shiftCogLeftRect.contains(x, y) && ringApps.size > 1) {
-                            val count = ringApps.size
-                            val baseRotation = gearRingRotations[activeHangarRing]
-                            var targetedIdx = 0
-                            var minDiff = Float.MAX_VALUE
-                            for (i in ringApps.indices) {
-                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                                val diff = kotlin.math.abs(norm - 180f)
-                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
-                            }
-                            val prevIdx = (targetedIdx - 1 + ringApps.size) % ringApps.size
-                            val temp = ringApps[targetedIdx]
-                            ringApps[targetedIdx] = ringApps[prevIdx]
-                            ringApps[prevIdx] = temp
-                            prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
-                            gearRingRotations[activeHangarRing] = (gearRingRotations[activeHangarRing] + (360f / count)) % 360f
-                            triggerHardwareHaptic(30, 160)
-                            invalidate()
-                            return true
-                        }
-
-                        // Check Live Orbital Shift Right
-                        if (shiftCogRightRect.contains(x, y) && ringApps.size > 1) {
-                            val count = ringApps.size
-                            val baseRotation = gearRingRotations[activeHangarRing]
-                            var targetedIdx = 0
-                            var minDiff = Float.MAX_VALUE
-                            for (i in ringApps.indices) {
-                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                                val diff = kotlin.math.abs(norm - 180f)
-                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
-                            }
-                            val nextIdx = (targetedIdx + 1) % ringApps.size
-                            val temp = ringApps[targetedIdx]
-                            ringApps[targetedIdx] = ringApps[nextIdx]
-                            ringApps[nextIdx] = temp
-                            prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
-                            gearRingRotations[activeHangarRing] = (gearRingRotations[activeHangarRing] - (360f / count)) % 360f
-                            triggerHardwareHaptic(30, 160)
-                            invalidate()
-                            return true
-                        }
-
-                        val distFromCore = kotlin.math.hypot(x - cx, y - cyGimbal)
-                        val reticleX = cx - (if (activeHangarRing == 0) radOuter else radInner)
-                        val reticleY = cyGimbal
-                        val distFromReticle = kotlin.math.hypot(x - reticleX, y - reticleY)
-                        val targetBadgeRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
-
-                        // 1. Center Command Core Tap -> Open Gear Picker for Active Ring
-                        if (distFromCore <= radHub) {
-                            isHangarEjectArmed = false
-                            val intent = android.content.Intent(context, CockpitGearPickerActivity::class.java).apply {
-                                putExtra("SET_ID", currentSetId)
-                                putExtra("RING_INDEX", activeHangarRing)
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                            }
-                            context.startActivity(intent)
-                            uiHandler.postDelayed({ dismissOverlay() }, 150)
-                            return true
-                        }
-
-                        // 2. Focused Cog or Target Badge -> Long Press to Edit, Tap to Eject
-                        val isTouchingReticleOrBadge = (distFromReticle <= 48f * d) || targetBadgeRect.contains(x, y)
-
-                        if (isTouchingReticleOrBadge && ringApps.isNotEmpty()) {
-                            isTouchingFocusedCog = true
-                            val count = ringApps.size
-                            val baseRotation = gearRingRotations[activeHangarRing]
-                            var targetedIdx = 0
-                            var minDiff = Float.MAX_VALUE
-                            for (i in ringApps.indices) {
-                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                                val diff = kotlin.math.abs(norm - 180f)
-                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
-                            }
-
-                            val targetedToken = if (targetedIdx in ringApps.indices) ringApps[targetedIdx] else null
-                            if (targetedToken != null) {
-                                val runnable = Runnable {
-                                    hasLongPressFired = true
-                                    triggerHardwareHaptic(50, 255)
-                                    val intent = Intent(context, CockpitDialogActivity::class.java).apply {
-                                        action = CockpitDialogActivity.ACTION_EDIT_ITEM
-                                        putExtra(CockpitDialogActivity.EXTRA_TOKEN, targetedToken)
-                                        putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, activeGearSetIndex)
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                                    }
-                                    context.startActivity(intent)
-                                    uiHandler.postDelayed({ dismissOverlay() }, 150)
-                                }
-                                longPressCogRunnable = runnable
-                                postDelayed(runnable, 400)
-                            }
-                            return true
-                        }
-
-                        if (distFromCore in (radInner + 16f * d)..(radOuter + 32f * d)) {
-                            isHangarEjectArmed = false
-                            activeHangarRing = 0
-                            isSpinningHangarRing = true
-                            hangarSpinTouchY = y
-                            triggerHardwareHaptic(15, 80)
-                            invalidate()
-                            return true
-                        } else if (distFromCore in (radHub + 4f * d)..(radInner + 16f * d)) {
-                            isHangarEjectArmed = false
-                            activeHangarRing = 1
-                            isSpinningHangarRing = true
-                            hangarSpinTouchY = y
-                            triggerHardwareHaptic(15, 80)
-                            invalidate()
-                            return true
-                        }
-
-                        // 8. Bottom Exit Capsule
-                        val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 58f * d, cx + (deckW * 0.42f), screenH - 18f * d)
-                        if (exitBtnRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
-                            dismissOverlay()
-                            return true
-                        }
-                    }
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
-                    if (distMoved > 10f * d) {
-                        longPressHangarBayRunnable?.let { removeCallbacks(it) }
-                        longPressCogRunnable?.let { removeCallbacks(it) }
-                        longPressHangarBayRunnable = null
-                        longPressCogRunnable = null
-                        isTouchingFocusedCog = false
-                    }
-
-                    if (isDraggingHangarBays) {
-                        val dx = x - hangarBayTouchDownX
-                        hangarBayTouchDownX = x
-                        if (maxScroll > 0f) {
-                            hangarBayScrollOffset = (hangarBayScrollOffset + dx).coerceIn(-maxScroll, 0f)
-                            invalidate()
-                        }
-                        return true
-                    } else if (isSpinningHangarRing) {
-                        val dy = y - hangarSpinTouchY
-                        hangarSpinTouchY = y
-                        val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
-                        val multiplier = when (physicsProfile) {
-                            "magnetic" -> 1.0f
-                            "fluid" -> 1.45f
-                            "heavy" -> 0.72f
-                            else -> 1.0f
-                        }
-                        val baseDegreesPerDp = 1.35f * multiplier
-                        val dyInDp = dy / d
-                        val rotDelta = dyInDp * baseDegreesPerDp
-                        val oldRot = gearRingRotations[activeHangarRing]
-                        val newRot = (oldRot + rotDelta) % 360f
-                        gearRingRotations[activeHangarRing] = newRot
-
-                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing)
-                        if (ringApps.isNotEmpty()) {
-                            val step = 360f / ringApps.size
-                            val oldNotch = (((oldRot % 360f) + 360f) % 360f / step).toInt()
-                            val newNotch = (((newRot % 360f) + 360f) % 360f / step).toInt()
-                            if (oldNotch != newNotch) {
-                                triggerGearCogHaptic()
-                            }
-                        }
-                        invalidate()
-                        return true
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    longPressHangarBayRunnable?.let { removeCallbacks(it) }
-                    longPressCogRunnable?.let { removeCallbacks(it) }
-                    longPressHangarBayRunnable = null
-                    longPressCogRunnable = null
-
-                    if (hasLongPressFired) {
-                        hasLongPressFired = false
-                        isTouchingFocusedCog = false
-                        isSpinningHangarRing = false
-                        isDraggingHangarBays = false
-                        return true
-                    }
-
-                    if (isTouchingFocusedCog) {
-                        isTouchingFocusedCog = false
-                        isSpinningHangarRing = false
-                        val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing).toMutableList()
-                        if (ringApps.isNotEmpty()) {
-                            val count = ringApps.size
-                            val baseRotation = gearRingRotations[activeHangarRing]
-                            var targetedIdx = 0
-                            var minDiff = Float.MAX_VALUE
-                            for (i in ringApps.indices) {
-                                val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                                val norm = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                                val diff = kotlin.math.abs(norm - 180f)
-                                if (diff < minDiff) { minDiff = diff; targetedIdx = i }
-                            }
-
-                            if (isHangarEjectArmed && hangarEjectTargetIndex == targetedIdx && hangarEjectRing == activeHangarRing) {
-                                // CONFIRM EJECT: Purge targeted cog from ring
-                                ringApps.removeAt(targetedIdx)
-                                prefs.edit().putString("gear_set_${currentSetId}_ring_${activeHangarRing}_packages", ringApps.joinToString(",")).apply()
-                                isHangarEjectArmed = false
-                                hangarEjectTargetIndex = -1
-                                triggerHardwareHaptic(60, 255)
-                                invalidate()
-                                return true
-                            } else {
-                                // ARM EJECT: Show red containment and white X on the tapped cog, and show badge alert with eject shake
-                                isHangarEjectArmed = true
-                                hangarEjectTargetIndex = targetedIdx
-                                hangarEjectRing = activeHangarRing
-                                triggerHardwareHaptic(40, 220)
-                                invalidate()
-                                return true
-                            }
-                        }
-                    }
-
-                    isSpinningHangarRing = false
-                    val distMoved = kotlin.math.hypot(x - hangarBayTouchDownX, y - hangarBayTouchDownY)
-                    if (isDraggingHangarBays) {
-                        isDraggingHangarBays = false
-                        if (distMoved < 14f * d) {
-                            for (gIndex in setsList.indices) {
-                                val btnX = railStartX + (gIndex + 0.5f) * slotW
-                                val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
-                                if (bayRect.contains(x, y)) {
-                                    activeGearSetIndex = gIndex
-                                    persistActiveGearSetIndex()
-                                    triggerHardwareHaptic(25, 140)
-                                    invalidate()
-                                    return true
-                                }
-                            }
-                            val plusBtnX = railStartX + (setsList.size + 0.5f) * slotW
-                            val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 18f * d, plusBtnX + slotW * 0.42f, r2Y + 18f * d)
-                            if (plusRect.contains(x, y)) {
-                                val newId = System.currentTimeMillis().toString()
-                                setsList.add(newId)
-                                saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
-                                prefs.edit().putString("gear_set_${newId}_name", "SET ${setsList.size}").apply()
-                                activeGearSetIndex = setsList.size - 1
-                                val newTotalRailW = (setsList.size + 1) * slotW
-                                val newMaxScroll = (newTotalRailW - deckW).coerceAtLeast(0f)
-                                hangarBayScrollOffset = -newMaxScroll
-                                triggerHardwareHaptic(40, 200)
-                                invalidate()
-                                return true
-                            }
-                        }
-                        invalidate()
-                        return true
-                    }
-                }
-            }
-            return true
-        }
-
-        if (isStickyPinned) {
-            val hF = height.toFloat()
-            val gridTopLimit = hF * 0.15f
-            val gridBottomLimit = hF * 0.94f
-            val gridHeightScope = gridBottomLimit - gridTopLimit
-            val maxScroll = max(0f, totalGridContentHeight - gridHeightScope)
-
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    touchDownX = x; touchDownY = y; lastTouchY = y
-                    activeItem = null
-                    if (y in gridTopLimit..gridBottomLimit) {
-                        val absoluteY = y + viewportScrollOffset
-                        for (placedItem in placedAppsList) {
-                            if (placedItem.bounds.contains(x, absoluteY)) { activeItem = placedItem.app; break }
-                        }
-                    }
-                    invalidate(); return true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val deltaY = y - lastTouchY
-                    lastTouchY = y
-                    if (abs(y - touchDownY) > 16f || abs(x - touchDownX) > 16f) activeItem = null
-                    if (maxScroll > 0f) {
-                        viewportScrollOffset = (viewportScrollOffset - deltaY).coerceIn(0f, maxScroll)
-                        invalidate()
-                    }
-                    return true
-                }
-                MotionEvent.ACTION_UP -> {
-                    if (hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble()) < 16f) {
-                        if (y in gridTopLimit..gridBottomLimit) activeItem?.let { executeLaunch(it); dismissOverlay() } ?: dismissOverlay()
-                        else dismissOverlay()
-                    }
-                    activeItem = null; invalidate(); return true
-                }
-                MotionEvent.ACTION_CANCEL -> { isCurrentlyTouched = false; activeItem = null; invalidate(); return true }
-            }
-            return true
-        }
-
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                touchDownRawX = rawX; touchDownRawY = rawY
-                lastTouchRawX = rawX; lastTouchRawY = rawY
-                touchDownTime = System.currentTimeMillis()
-                gestureStartX = rawX; gestureStartY = rawY
-
-                trackingStateLocked = false
-                isCurrentlyTouched = true; invalidate()
-                initialLeftSweepDistance = 0f
-                lowestXReached = rawX
-                highestYReached = rawY
-                lowestYReached = rawY
-                aggregateScrubAccumulator = 0f
-                isScrubEntranceHapticFired = false
-                currentDetectedGesture = MacroGesture.NONE
-                overScrollBoundaryAccumulator = 0f
-                settingsCategoryAppended = false
-
-                currentActiveZone = when {
-                    centerTouchBounds.contains(x, y) -> TouchZone.CENTER_CRUISE
-                    topTouchBounds.contains(x, y) -> TouchZone.TOP_EDGE
-                    bottomTouchBounds.contains(x, y) -> TouchZone.BOTTOM_EDGE
-                    else -> TouchZone.NONE
-                }
-
-                if (currentActiveZone == TouchZone.CENTER_CRUISE) {
-                    startCruiseFromFlank(isLeft = false, startRawX = rawX, startRawY = rawY)
-                } else if (currentActiveZone != TouchZone.NONE) {
-                    macroTrackingActive = true
-                    uiHandler.postDelayed(holdTimerRunnable, ViewConfiguration.getLongPressTimeout().toLong())
-                }
-                return true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                val density = resources.displayMetrics.density // Convert hardcoded pixels to device-agnostic DP
-                if (isCruising) {
-                    val deltaX = if (isOpenedFromLeftFlank) (rawX - touchDownRawX) else (touchDownRawX - rawX)
-                    val deltaY = abs(rawY - touchDownRawY)
-                    if (deltaY > maxVerticalDisplacement) {
-                        maxVerticalDisplacement = deltaY
-                    }
-
-                    // 1. Direct Lateral Swipe from rest -> Open Gears / Cockpit immediately
-                    // Zero category flicker because NEUTRAL never painted categories on screen!
-                    if ((currentLayer == CruiseLayer.NEUTRAL || currentLayer == CruiseLayer.CATEGORY) &&
-                        !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
-                        uiHandler.removeCallbacks(neutralToCategoryRunnable)
-                        val cPrefs = prefs()
-                        val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
-                        val launchBehavior = getFlankLaunchBehavior(isOpenedFromLeftFlank)
-                        val lastActiveKey = if (isOpenedFromLeftFlank) "last_active_set_index_left" else "last_active_set_index_right"
-                        if (launchBehavior == "last") {
-                            val lastIndex = cPrefs.getInt(lastActiveKey, cPrefs.getInt("last_active_set_index", 0))
-                            activeGearSetIndex = if (lastIndex in setsList.indices) lastIndex else 0
-                        } else {
-                            activeGearSetIndex = 0
-                        }
-                        currentLayer = CruiseLayer.FAVORITES_GEARS
-                        triggerHardwareHaptic(30, 180)
-                    }
-
-                    // 2. Deliberate vertical movement -> Engage Category 3D Cylinder
-                    if (currentLayer == CruiseLayer.NEUTRAL && maxVerticalDisplacement > (14f * density)) {
-                        uiHandler.removeCallbacks(neutralToCategoryRunnable)
-                        categoryScrubbingEngaged = true
-                        currentLayer = CruiseLayer.CATEGORY
-                        entranceStartTime = System.currentTimeMillis()
-                    }
-
-                    if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
-                        processGyroscopeTouchPhysics(rawX, rawY)
-                    } else if (currentLayer == CruiseLayer.CATEGORY || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN) {
-                        evaluateSpatialMetrics(rawX, rawY, x, y)
-                    }
-                    lastTouchRawX = rawX
-                    lastTouchRawY = rawY
-                } else if (macroTrackingActive) {
-                    val previousGesture = currentDetectedGesture
-                    val deltaX = rawX - gestureStartX
-                    val deltaY = rawY - gestureStartY
-
-                    if (rawX < lowestXReached) lowestXReached = rawX
-                    if (rawY > highestYReached) highestYReached = rawY
-                    if (rawY < lowestYReached) lowestYReached = rawY
-
-                    val screenW = resources.displayMetrics.widthPixels.toFloat()
-                    val thresholdX_Scrub = screenW * 0.333f 
-                    val thresholdY_Compound = 60f
-
-                    if (currentDetectedGesture == MacroGesture.NONE) {
-                        if (abs(deltaX) > (22f * density) && abs(deltaX) > abs(deltaY)) {
-                            currentDetectedGesture = MacroGesture.SWIPE_LEFT
-                            initialLeftSweepDistance = abs(deltaX)
-                        } else if (deltaY < (-25f * density) && abs(deltaY) > abs(deltaX)) {
-                            currentDetectedGesture = MacroGesture.SWIPE_UP
-                        } else if (deltaY > (25f * density) && abs(deltaY) > abs(deltaX)) {
-                            currentDetectedGesture = MacroGesture.SWIPE_DOWN
-                        }
-                    }
-
-                    when (currentDetectedGesture) {
-                        MacroGesture.SWIPE_LEFT -> {
-                            val zoneName = if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-                            val dynamicZone = if (prefs().getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
-                            val assignedScrub = prefs().getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none")
-
-                            if (assignedScrub != "none" && assignedScrub != null && abs(deltaX) > thresholdX_Scrub) {
-                                currentDetectedGesture = MacroGesture.SCRUBBING
-                                activeHoldScrubAction = assignedScrub
-                                activeHoldScrubActionKey = "pref_macro_action_${dynamicZone}_SCRUBBING"
-                                uiHandler.removeCallbacks(holdTimerRunnable)
-                                aggregateScrubAccumulator = 0f
-                                if (!isScrubEntranceHapticFired) {
-                                    triggerHardwareHaptic(65, 255)
-                                    isScrubEntranceHapticFired = true
-                                }
-                                when (assignedScrub) {
-                                    "system:volume", "scrub:volume" -> {
-                                        val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                                        val volResolution = prefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
-                                        val pct = kotlin.math.round(currentVol * 100f / maxVol.coerceAtLeast(1)).toInt().coerceIn(0, 100)
-                                        activeScrubVolumePct = pct
-                                        scrubHudTitle = "MEDIA VOLUME"
-                                        scrubHudValue = "$pct%"
-                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (pct * volResolution / 100).coerceIn(0, volResolution), volResolution)
-                                    }
-                                    "system:brightness", "scrub:brightness" -> {
-                                        val currentBrightness = try {
-                                            Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
-                                        } catch (_: Exception) { 128 }
-                                        val brightResolution = prefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
-                                        scrubHudTitle = "BRIGHTNESS"
-                                        scrubHudValue = "${(currentBrightness * 100 / 255)}%"
-                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * brightResolution / 255), brightResolution)
-                                    }
-                                    "system:screen_timeout" -> {
-                                        scrubHudTitle = "SHIP GOES DARK IN"
-                                        val idx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                                        scrubHudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[idx].second
-                                        dispatchScrubHud(scrubHudTitle, scrubHudValue, idx, LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
-                                    }
-                                }
-                                invalidate()
-                            } else if (deltaY < (-25f * density)) {
-                                currentDetectedGesture = MacroGesture.SWIPE_LEFT_UP
-                            } else if (deltaY > (25f * density)) {
-                                currentDetectedGesture = MacroGesture.SWIPE_LEFT_DOWN
-                            } else {
-                                val currentReturnRightDistance = rawX - lowestXReached
-                                if (currentReturnRightDistance > (18f * density)) {
-                                    currentDetectedGesture = MacroGesture.SWIPE_LEFT_BACK
-                                }
-                            }
-                        }
-                        MacroGesture.SWIPE_UP -> {
-                            if ((rawY - lowestYReached) > (22f * density)) {
-                                currentDetectedGesture = MacroGesture.SWIPE_UP_DOWN
-                            } else if (deltaX < (-25f * density)) {
-                                currentDetectedGesture = MacroGesture.SWIPE_UP_LEFT
-                            }
-                        }
-                        MacroGesture.SWIPE_DOWN -> {
-                            if ((highestYReached - rawY) > (22f * density)) {
-                                currentDetectedGesture = MacroGesture.SWIPE_DOWN_UP
-                            } else if (deltaX < (-25f * density)) {
-                                currentDetectedGesture = MacroGesture.SWIPE_DOWN_LEFT
-                            }
-                        }
-                        MacroGesture.SCRUBBING -> {
-                            uiHandler.removeCallbacks(holdTimerRunnable) // PORTAL LINE LOCK: Suppress any hold actions immediately
-                            if (!isScrubEntranceHapticFired) {
-                                triggerHardwareHaptic(65, 255) // Chunky high-inertia hardware pop (50ms)
-                                isScrubEntranceHapticFired = true
-                            }
-                            val dx = rawX - lastTouchRawX
-                            val dy = rawY - lastTouchRawY
-                            // Upward sweep (-dy > 0) or rightward sweep (dx > 0) increases level.
-                            // Downward sweep (-dy < 0) or leftward sweep (dx < 0) decreases level.
-                            val pixelDelta = if (abs(dx) >= abs(dy)) dx else -dy
-                            executeLinearScrubTrack(currentActiveZone, pixelDelta)
-                        }
-                        else -> {}
-                    }
-
-                    if (currentDetectedGesture != MacroGesture.SCRUBBING && !currentDetectedGesture.name.endsWith("_HOLD")) {
-                        val moveDelta = hypot(rawX - lastTouchRawX, rawY - lastTouchRawY)
-                        if (currentDetectedGesture != previousGesture || moveDelta > (3f * density)) {
-                            if (currentDetectedGesture != previousGesture && previousGesture == MacroGesture.NONE) {
-                                if (com.sbf.lightspeed.system.LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) {
-                                    triggerGlow(500L)
-                                }
-                            }
-                            resetHoldTimer()
-                        }
-                    }
-
-                    lastTouchRawX = rawX
-                    lastTouchRawY = rawY
-                }
-                return true
-            }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isScrubEntranceHapticFired = false
-                uiHandler.removeCallbacks(holdTimerRunnable)
-                if (isCruising) {
-                    if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
-                        val packages = getAppsForActiveGear(activeGearSetIndex, activeGearRing)
-                        if (packages.isNotEmpty() && activeGearRing in 0..1) {
-                            val itemCount = packages.size
-                            val currentRotation = gearRingRotations[activeGearRing]
-                            
-                            var targetedPackage: String? = null
-                            var minAngleDiff = Float.MAX_VALUE
-                            
-                            for (i in packages.indices) {
-                                val itemAngle = (currentRotation + i * (360f / itemCount)) % 360f
-                                val normalizedAngle = if (itemAngle < 0) itemAngle + 360f else itemAngle
-                                val diff = abs(normalizedAngle - 180f)
-                                if (diff < minAngleDiff) {
-                                    minAngleDiff = diff
-                                    targetedPackage = packages[i]
-                                }
-                            }
-                            
-                            if (targetedPackage != null) {
-                                val density = resources.displayMetrics.density
-                                val cx = width / 2f
-                                val cy = height / 2f
-                                val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
-                                val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
-                                val currentTrackRadius = if (activeGearRing == 0) rad0 else rad1
-                                val targetedX = cx - currentTrackRadius
-                                val targetedY = cy
-
-                                triggerHyperdriveWarpLaunch(targetedX, targetedY) {
-                                    com.sbf.lightspeed.system.ActionDispatcher.execute(service ?: context, targetedPackage)
-                                }
-                                return true
-                            }
-                        } else if (activeGearRing == 2) {
-                            triggerHardwareHaptic(50, 220)
-                            persistActiveGearSetIndex()
-                            
-                            // Align hangar bay profile rail to center the active gear set
-                            val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
-                            val d = resources.displayMetrics.density
-                            val deckW = width * 0.88f
-                            val bayCount = setsList.size + 1
-                            val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
-                            val totalBayRailW = bayCount * slotW
-                            val maxScroll = (totalBayRailW - deckW).coerceAtLeast(0f)
-                            if (totalBayRailW > deckW) {
-                                val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
-                                hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
-                            } else {
-                                hangarBayScrollOffset = 0f
-                            }
-                            
-                            currentLayer = CruiseLayer.COCKPIT_HANGAR
-                            invalidate()
-                            return true
-                        }
-                        currentLayer = CruiseLayer.HIDDEN
-                        isCruising = false
-                        service?.updateWindowLayout(false) // CRITICAL DIRECTIVE: Disengage overlay window touch-trap immediately
-                        updateMetricsDimensions()
-                        invalidate()
-                        return true
-                    }
-
-                    uiHandler.removeCallbacks(neutralToCategoryRunnable)
-                    if (currentLayer == CruiseLayer.STICKY_PIN) {
-                        isStickyPinned = true; currentLayer = CruiseLayer.GRID
-                        updateMetricsDimensions(); invalidate()
-                    } else if (currentLayer == CruiseLayer.CATEGORY && activeCatIndex in cachedCategories.indices && cachedCategories[activeCatIndex].id == "launcher_settings_virtual_id") {
-                        launchLauncherSettings()
-                    } else if (currentLayer == CruiseLayer.NEUTRAL) {
-                        val duration = System.currentTimeMillis() - touchDownTime
-                        val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
-                        dismissOverlay()
-                        if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
-                            triggerHardwareHaptic(25, 120)
-                            service?.triggerDeflectorsGlow() ?: triggerGlow()
-                        }
-                    } else {
-                        val launchTarget = activeItem
-                        if (launchTarget != null) {
-                            val placed = placedAppsList.find { it.app == launchTarget }
-                            val focalX = placed?.bounds?.centerX() ?: (width / 2f)
-                            val focalY = placed?.bounds?.centerY() ?: (height / 2f)
-                            triggerHyperdriveWarpLaunch(focalX, focalY) {
-                                executeLaunch(launchTarget)
-                            }
-                        } else {
-                            dismissOverlay()
-                        }
-                    }
-                    isCruising = false
-                } else if (macroTrackingActive) {
-                    macroTrackingActive = false
-                    if (currentDetectedGesture != MacroGesture.NONE && currentDetectedGesture != MacroGesture.SCRUBBING) {
-                        executeMacroAction(currentActiveZone, currentDetectedGesture)
-                    } else if (currentDetectedGesture == MacroGesture.NONE) {
-                        val duration = System.currentTimeMillis() - touchDownTime
-                        val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
-                        if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
-                            triggerHardwareHaptic(25, 120)
-                            service?.triggerDeflectorsGlow() ?: triggerGlow()
-                        }
-                    }
-                }
-                if (currentDetectedGesture == MacroGesture.SCRUBBING) {
-                    LightspeedStatusBarOverlay.dismissActionHud(1200L)
-                }
-                activeHoldScrubAction = null
-                activeHoldScrubActionKey = null
-                activeScrubVolumePct = -1
-                scrubHudTitle = ""
-                scrubHudValue = ""
-                invalidate()
-                currentActiveZone = TouchZone.NONE
-                return true
-            }
-        }
-        return super.onTouchEvent(event)
+        return handleTouchEvent(event) { super.onTouchEvent(event) }
     }
 
-    private fun resetHoldTimer() {
+    internal fun resetHoldTimer() {
         uiHandler.removeCallbacks(holdTimerRunnable)
         uiHandler.postDelayed(holdTimerRunnable, ViewConfiguration.getLongPressTimeout().toLong())
     }
 
-    private fun dispatchScrubHud(title: String, value: String, stepIndex: Int, totalSteps: Int) {
+    internal fun dispatchScrubHud(title: String, value: String, stepIndex: Int, totalSteps: Int) {
         val prefs = prefs()
         val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness" || title == "BRIGHTNESS"
         val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume" || title == "MEDIA VOLUME"
@@ -1515,7 +555,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private fun executeLinearScrubTrack(zone: TouchZone, pixelDelta: Float) {
+    internal fun executeLinearScrubTrack(zone: TouchZone, pixelDelta: Float) {
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
         val prefs = prefs()
         val dynamicZone = if (prefs.getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
@@ -1590,7 +630,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private fun executeMacroAction(zone: TouchZone, gesture: MacroGesture) {
+    internal fun executeMacroAction(zone: TouchZone, gesture: MacroGesture) {
         val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
         val prefs = prefs()
         val isFlankUnified = prefs.getBoolean("pref_sidebar_right_link_flank_actions", false)
@@ -1625,7 +665,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         ActionDispatcher.execute(service ?: context, actionValue)
     }
 
-    private fun loadActiveCategoryGrid() {
+    internal fun loadActiveCategoryGrid() {
         if (activeCatIndex !in cachedCategories.indices) return
         val targetId = cachedCategories[activeCatIndex].id
         if (targetId == "launcher_settings_virtual_id") {
@@ -1648,7 +688,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private fun preloadActiveCategoryIcons() {
+    internal fun preloadActiveCategoryIcons() {
         try {
             applicationIconCache.clear()
             for (target in cachedApps) {
@@ -1663,7 +703,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         } catch (_: Exception) {}
     }
 
-    private fun evaluateSpatialMetrics(rawX: Float, rawY: Float, localX: Float, localY: Float) {
+    internal fun evaluateSpatialMetrics(rawX: Float, rawY: Float, localX: Float, localY: Float) {
         val wF = width.toFloat(); val hF = height.toFloat()
         if (wF <= 0f || hF <= 0f) return
         val density = resources.displayMetrics.density
@@ -1776,7 +816,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         invalidate()
     }
 
-    private fun buildPackedGridLayout() {
+    internal fun buildPackedGridLayout() {
         val wF = width.toFloat(); val hF = height.toFloat()
         if (wF <= 0f) return
         val columns = querySystemColumnPreference(resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
@@ -1803,12 +843,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         totalGridContentHeight = if (occupied.isEmpty()) 0f else ((occupied.maxOf { it.first }) + 1) * cellH
     }
 
-    private fun querySystemColumnPreference(isLandscape: Boolean): Int {
+    internal fun querySystemColumnPreference(isLandscape: Boolean): Int {
         val prefs = prefs()
         return try { val v = prefs.all[if (isLandscape) "pref_numcolsland" else "pref_numcolspor"]; if (v is Int) v else v?.toString()?.toInt() ?: 4 } catch (e: Exception) { 4 }
     }
 
-    private fun executeLaunch(target: LightspeedDataBridge.LaunchTarget) {
+    internal fun executeLaunch(target: LightspeedDataBridge.LaunchTarget) {
         val launchIntent = context.packageManager.getLaunchIntentForPackage(target.packageName)
         if (launchIntent != null) {
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1816,11 +856,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private fun resolveCleanAppLabel(itemToken: String): String {
+    internal fun resolveCleanAppLabel(itemToken: String): String {
         return com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(context, itemToken)
     }
 
-    private fun launchLauncherSettings() {
+    internal fun launchLauncherSettings() {
         dismissOverlay()
         try {
             val settingsIntent = Intent(context, MainActivity::class.java).apply {
@@ -1835,7 +875,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
     }
 
-    private fun dismissOverlay() {
+    internal fun dismissOverlay() {
         longPressHangarBayRunnable?.let { removeCallbacks(it) }
         longPressCogRunnable?.let { removeCallbacks(it) }
         longPressHangarBayRunnable = null
@@ -2129,20 +1169,20 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         invalidate()
     }
 
-    private fun getAppsForActiveGear(setIndex: Int, ringIndex: Int): List<String> {
+    internal fun getAppsForActiveGear(setIndex: Int, ringIndex: Int): List<String> {
         return com.sbf.lightspeed.system.CockpitGearRepository.getAppsForActiveGear(context, isOpenedFromLeftFlank, setIndex, ringIndex)
     }
 
-    private fun getGearSetNameById(setId: String): String {
+    internal fun getGearSetNameById(setId: String): String {
         return com.sbf.lightspeed.system.CockpitGearRepository.getGearSetNameById(context, setId)
     }
 
-    private fun getGearSetNameByIndex(index: Int): String {
+    internal fun getGearSetNameByIndex(index: Int): String {
         return com.sbf.lightspeed.system.CockpitGearRepository.getGearSetNameByIndex(context, isOpenedFromLeftFlank, index)
     }
 
 
-    private fun drawSpaceshipGimbalRing(
+    internal fun drawSpaceshipGimbalRing(
         canvas: Canvas,
         cx: Float,
         cy: Float,
@@ -2155,7 +1195,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         m3Primary: Int
     ) = deepSpaceRenderer.drawSpaceshipGimbalRing(canvas, cx, cy, trackRadius, trackWidth, teethCount, toothDepth, rotationDeg, isActive, m3Primary)
 
-    private fun drawFlightLockReticle(
+    internal fun drawFlightLockReticle(
         canvas: Canvas,
         targetCX: Float,
         targetCY: Float,
@@ -2167,7 +1207,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         reticleStyle: String = "tactical"
     ) = deepSpaceRenderer.drawFlightLockReticle(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle)
 
-    private fun drawHolographicReactorCore(
+    internal fun drawHolographicReactorCore(
         canvas: Canvas,
         cx: Float,
         cy: Float,
@@ -2177,10 +1217,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         density: Float
     ) = deepSpaceRenderer.drawHolographicReactorCore(canvas, cx, cy, coreRadius, isActive, m3Primary, density)
 
-    private fun drawCosmicStarfield(canvas: Canvas, w: Float, h: Float, density: Float, alphaFactor: Float) =
+    internal fun drawCosmicStarfield(canvas: Canvas, w: Float, h: Float, density: Float, alphaFactor: Float) =
         deepSpaceRenderer.drawCosmicStarfield(canvas, w, h, density, alphaFactor)
 
-    private fun drawGalacticNebula(
+    internal fun drawGalacticNebula(
         canvas: Canvas,
         cx: Float,
         cy: Float,
@@ -2189,7 +1229,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         alphaFactor: Float
     ) = deepSpaceRenderer.drawGalacticNebula(canvas, cx, cy, radius, m3Primary, alphaFactor)
 
-    private fun triggerHyperdriveWarpLaunch(focalX: Float, focalY: Float, onLaunch: () -> Unit) {
+    internal fun triggerHyperdriveWarpLaunch(focalX: Float, focalY: Float, onLaunch: () -> Unit) {
         deepSpaceRenderer.isWarpLaunching = true
         deepSpaceRenderer.warpStartTime = System.currentTimeMillis()
         deepSpaceRenderer.warpFocalPointX = focalX
@@ -2204,11 +1244,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }, 130L)
     }
 
-    private fun drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) =
+    internal fun drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) =
         deepSpaceRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density)
 
 
-    private fun processGyroscopeTouchPhysics(rawX: Float, rawY: Float) {
+    internal fun processGyroscopeTouchPhysics(rawX: Float, rawY: Float) {
         val density = resources.displayMetrics.density
         val deltaX = if (isOpenedFromLeftFlank) (rawX - touchDownRawX) else (touchDownRawX - rawX)
         val deltaY = rawY - lastTouchRawY
@@ -2297,457 +1337,11 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
-        if (activeGearSetIndex >= totalGearSetsCount) { activeGearSetIndex = 0 }
-        // No per-frame prefs I/O — use render cache updated by prefChangeListener
-
-        val m3Primary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_accent1_600, context.theme)
-        } else {
-            Color.parseColor("#6750A4")
-        }
-        val m3Secondary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_accent1_300, context.theme)
-        } else {
-            Color.parseColor("#D0BCFF")
-        }
-
-        super.onDraw(canvas)
-        if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
-            val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
-            deepSpaceRenderer.drawDeepSpace(
-                canvas, context, width.toFloat(), height.toFloat(), resources.displayMetrics.density,
-                m3Primary, m3Secondary, isOpenedFromLeftFlank, activeGearSetIndex, activeHangarRing,
-                isHangarEjectArmed, gearRingRotations, hangarBayScrollOffset, setsList,
-                ::resolveCleanAppLabel, ::getAppsForActiveGear, ::getFlankLaunchBehavior
-            )
-            return
-        }
-        val w = width.toFloat(); val h = height.toFloat()
-        if (currentLayer == CruiseLayer.HIDDEN) {
-            val d = resources.displayMetrics.density
-
-            val isRightFlankUnified = renderCacheRightFlankUnified
-            val isRightUnifiedExpanded = renderCacheRightUnifiedExpanded
-            val isTopExpanded = renderCacheTopExpanded
-            val isCenterExpanded = renderCacheCenterExpanded
-            val isBottomExpanded = renderCacheBottomExpanded
-            val isSidebarPreview = renderCacheSidebarPreview
-
-            val centerTransparency = renderCacheCenterTransparency
-            val topTransparency = renderCacheTopTransparency
-            val bottomTransparency = renderCacheBottomTransparency
-
-            val glowStyle = renderCacheGlowStyle
-
-            com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
-                canvas = canvas,
-                isLeft = false,
-                density = d,
-                w = w,
-                h = h,
-                topTouchBounds = topTouchBounds,
-                centerTouchBounds = centerTouchBounds,
-                bottomTouchBounds = bottomTouchBounds,
-                isCurrentlyTouched = isCurrentlyTouched,
-                activeZoneIsCenter = currentActiveZone == TouchZone.CENTER_CRUISE,
-                activeZoneIsTop = currentActiveZone == TouchZone.TOP_EDGE,
-                activeZoneIsBottom = currentActiveZone == TouchZone.BOTTOM_EDGE,
-                glowFraction = glowFraction,
-                centerTransparency = centerTransparency,
-                topTransparency = topTransparency,
-                bottomTransparency = bottomTransparency,
-                isReview = isSidebarPreview && (isTopExpanded || isCenterExpanded || isBottomExpanded),
-                m3Primary = m3Primary,
-                glowStyle = glowStyle
-            )
-            return
-        }
-
-        if (currentLayer == CruiseLayer.NEUTRAL) {
-            // Keep background neutral during intent decision gate (eliminates category ghost frames before Gears)
-            return
-        }
-
-        if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
-            val density = resources.displayMetrics.density
-            val cx = width / 2f
-            val cy = height / 2f
-            
-            // 1. Deep Space Astrogation Backdrop with subtle radial vignette
-            val spaceGrad = android.graphics.RadialGradient(
-                cx, cy, (width.toFloat().coerceAtLeast(height.toFloat()) * 0.75f),
-                intArrayOf(Color.argb(210, 10, 14, 22), Color.argb(245, 4, 6, 10)),
-                floatArrayOf(0.0f, 1.0f),
-                android.graphics.Shader.TileMode.CLAMP
-            )
-            elementPaint.style = Paint.Style.FILL
-            elementPaint.shader = spaceGrad
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), elementPaint)
-            elementPaint.shader = null
-
-            // 2. Flight Telemetry Grid & Attitude Axis Crosshairs
-            elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = 1f * density
-            elementPaint.color = Color.argb(24, 200, 220, 255)
-            canvas.drawLine(cx - (380f * density / 2.6f), cy, cx + (380f * density / 2.6f), cy, elementPaint)
-            canvas.drawLine(cx, cy - (380f * density / 2.6f), cx, cy + (380f * density / 2.6f), elementPaint)
-            
-            // Scaled Radii for Outer, Inner, and Core Hub
-            val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
-            val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
-            val radHub = 64f * (density / 2.6f).coerceAtLeast(0.9f)
-            
-            // Draw Outer Orbital Gimbal Ring (Ring 0, 16 Magnetic Cogs)
-            drawSpaceshipGimbalRing(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                trackRadius = rad0,
-                trackWidth = 48f * density / 2.6f,
-                teethCount = 16,
-                toothDepth = 16f * density / 2.6f,
-                rotationDeg = gearRingRotations[0],
-                isActive = (activeGearRing == 0),
-                m3Primary = m3Primary
-            )
-
-            // Draw Inner Orbital Gimbal Ring (Ring 1, 12 Magnetic Cogs)
-            drawSpaceshipGimbalRing(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                trackRadius = rad1,
-                trackWidth = 42f * density / 2.6f,
-                teethCount = 12,
-                toothDepth = 14f * density / 2.6f,
-                rotationDeg = gearRingRotations[1],
-                isActive = (activeGearRing == 1),
-                m3Primary = m3Primary
-            )
-
-            // Draw Central Holographic Warp Core / Cockpit Command Node (Ring 2)
-            drawHolographicReactorCore(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                coreRadius = radHub,
-                isActive = (activeGearRing == 2),
-                m3Primary = m3Primary,
-                density = density
-            )
-
-            // --- ORBITAL APP FLIGHT PODS & ICONS PASS ---
-            val pm = context.packageManager
-            val sizeRaw = (42f * density).toInt()
-
-            var activeHighlightedCX = 0f
-            var activeHighlightedCY = 0f
-            var activeHighlightedBracketSize = 0f
-            var activeHighlightedLabel: String? = null
-
-            for (r in 0..1) {
-                val radius = if (r == 0) rad0 else rad1
-                val ringApps = getAppsForActiveGear(activeGearSetIndex, r)
-                if (ringApps.isEmpty()) continue
-                
-                val count = ringApps.size
-                val baseRotation = gearRingRotations[r]
-                val isRingFocused = (activeGearRing == r)
-                
-                for (i in ringApps.indices) {
-                    val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                    val angleRad = Math.toRadians(angleDeg.toDouble())
-                    
-                    // Core Polar-to-Cartesian projection mapping coordinates
-                    val iconCX = cx + radius * Math.cos(angleRad).toFloat()
-                    val iconCY = cy + radius * Math.sin(angleRad).toFloat()
-                    
-                    // Dynamic Focus Interpolation: Target angle is 180 deg (straight left, pointing to center)
-                    val normalizedDeg = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                    val isHighlighted = isRingFocused && abs(normalizedDeg - 180f) < (180f / count)
-                    val currentScale = if (isHighlighted) 1.28f else 1.0f
-                    val currentSize = (sizeRaw * currentScale).toInt()
-                    
-                    val itemToken = ringApps[i]
-                    val appLabel = resolveCleanAppLabel(itemToken)
-
-                    if (isHighlighted) {
-                        activeHighlightedCX = iconCX
-                        activeHighlightedCY = iconCY
-                        activeHighlightedBracketSize = currentSize + 22f * density
-                        activeHighlightedLabel = appLabel
-                    }
-
-                    // 1. Orbital Flight Pod Socket Behind Icon
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = if (isHighlighted) Color.argb(200, 22, 28, 44) else Color.argb(90, 16, 20, 30)
-                    canvas.drawCircle(iconCX, iconCY, (currentSize / 2f) + (6f * density), highlightPaint)
-
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = if (isHighlighted) 2.4f * density else 1.2f * density
-                    highlightPaint.color = if (isHighlighted) m3Primary else Color.argb(55, 200, 220, 255)
-                    canvas.drawCircle(iconCX, iconCY, (currentSize / 2f) + (6f * density), highlightPaint)
-
-                    // 2. Draw Icon Drawable or Action Glyph
-                    try {
-                        val iconDrawable = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, itemToken)
-                        if (iconDrawable != null) {
-                            iconDrawable.alpha = if (isRingFocused) (if (isHighlighted) 255 else 210) else 110
-                            iconDrawable.setBounds(
-                                (iconCX - currentSize / 2).toInt(),
-                                (iconCY - currentSize / 2).toInt(),
-                                (iconCX + currentSize / 2).toInt(),
-                                (iconCY + currentSize / 2).toInt()
-                            )
-                            iconDrawable.draw(canvas)
-                        } else {
-                            elementPaint.style = Paint.Style.FILL
-                            elementPaint.color = if (isHighlighted) Color.WHITE else Color.GRAY
-                            canvas.drawCircle(iconCX, iconCY, currentSize / 3f, elementPaint)
-                        }
-                    } catch (e: Exception) {
-                        elementPaint.style = Paint.Style.FILL
-                        elementPaint.color = if (isHighlighted) Color.WHITE else Color.GRAY
-                        canvas.drawCircle(iconCX, iconCY, currentSize / 3f, elementPaint)
-                    }
-                }
-            }
-
-            // 3. Draw Flight Lock Targeting Reticle & Holographic Badge AFTER all rings & pods are drawn (Top of Z-Stack)
-            if (activeHighlightedLabel != null) {
-                drawFlightLockReticle(
-                    canvas = canvas,
-                    targetCX = activeHighlightedCX,
-                    targetCY = activeHighlightedCY,
-                    bracketSize = activeHighlightedBracketSize,
-                    m3Primary = m3Primary,
-                    m3Secondary = m3Secondary,
-                    appName = activeHighlightedLabel,
-                    density = density,
-                    reticleStyle = renderCacheReticleStyle
-                )
-            }
-            
-            // --- TOP FLIGHT TELEMETRY HUD HEADER (PROFILE HUD) ---
-            val topBadgeY = 54f * density
-            val profileName = when(activeGearSetIndex) {
-                0 -> getGearSetNameByIndex(0)
-                1 -> getGearSetNameByIndex(1)
-                2 -> getGearSetNameByIndex(2)
-                else -> getGearSetNameByIndex(3)
-            }
-            
-            val headerText = "◈ ASTROGATION // PROFILE $activeGearSetIndex: $profileName ◈"
-            textPaint.textSize = 12f * density
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            textPaint.textAlign = Paint.Align.CENTER
-            val headerWidth = textPaint.measureText(headerText)
-
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(175, 12, 16, 28)
-            val headerRect = RectF(cx - headerWidth / 2f - 16f * density, topBadgeY - 15f * density, cx + headerWidth / 2f + 16f * density, topBadgeY + 15f * density)
-            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
-
-            highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.2f * density
-            highlightPaint.color = Color.argb(80, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
-
-            textPaint.color = Color.WHITE
-            canvas.drawText(headerText, cx, topBadgeY + 4f * density, textPaint)
-
-            // Subtitle Guidance Hint (cleanly separated with zero gear collision)
-            textPaint.textSize = 8.5f * density
-            textPaint.typeface = android.graphics.Typeface.DEFAULT
-            textPaint.color = Color.argb(160, 180, 210, 245)
-            canvas.drawText(if (isOpenedFromLeftFlank) "PULL RIGHT >> SWITCH PROFILE  •  SLIDE LEFT << CANCEL" else "PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
-            return
-        }
-
-        if (currentLayer == CruiseLayer.CATEGORY) {
-            val density = resources.displayMetrics.density
-            val decelerationFactor = sin(((System.currentTimeMillis() - entranceStartTime) / 220f).coerceIn(0f, 1f) * PI / 2.0).toFloat()
-            
-            // 1. Deep Space Astrogation Void Backdrop
-            canvas.drawColor(Color.argb((205 * decelerationFactor).toInt(), 4, 6, 12))
-            
-            // 2. Cosmic Stardust Particle Field
-            drawCosmicStarfield(canvas, w, h, density, decelerationFactor)
-
-            // 3. Top Flight Telemetry Header (Sector Cruise HUD with Auto-Fit)
-            val topBadgeY = 54f * density
-            val currentSector = (activeCatIndex + 1).toString().padStart(2, '0')
-            val totalSectors = cachedCategories.size.toString().padStart(2, '0')
-            val activeCatName = cachedCategories.getOrNull(activeCatIndex)?.label?.uppercase() ?: "CRUISE"
-            val hudHeader = "◈ SECTOR $currentSector / $totalSectors  ✦  $activeCatName ◈"
-
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            textPaint.textAlign = Paint.Align.CENTER
-            var hudTextSize = 10.5f * density
-            textPaint.textSize = hudTextSize
-            val maxHudW = w * 0.85f
-            while (textPaint.measureText(hudHeader) > maxHudW && hudTextSize > 7.5f * density) {
-                hudTextSize -= 0.5f * density
-                textPaint.textSize = hudTextSize
-            }
-            val hudWidth = textPaint.measureText(hudHeader)
-
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb((150 * decelerationFactor).toInt(), 10, 14, 26)
-            val headerRect = RectF(w / 2f - hudWidth / 2f - 14f * density, topBadgeY - 13f * density, w / 2f + hudWidth / 2f + 14f * density, topBadgeY + 13f * density)
-            canvas.drawRoundRect(headerRect, 9f * density, 9f * density, highlightPaint)
-
-            textPaint.color = Color.WHITE
-            textPaint.alpha = (255 * decelerationFactor).toInt()
-            canvas.drawText(hudHeader, w / 2f, topBadgeY + 3.5f * density, textPaint)
-
-            // Subtitle Guidance Hint for Category Cruise
-            textPaint.textSize = 8.5f * density
-            textPaint.typeface = android.graphics.Typeface.DEFAULT
-            textPaint.color = Color.argb((160 * decelerationFactor).toInt(), 180, 210, 245)
-            canvas.drawText(if (isOpenedFromLeftFlank) "PULL RIGHT >> ENTER STAR SYSTEM  •  SLIDE LEFT << CANCEL" else "PULL LEFT >> ENTER STAR SYSTEM  •  SLIDE RIGHT << CANCEL", w / 2f, topBadgeY + 26f * density, textPaint)
-
-            // 4. Galactic Horizon: Cruising Through Nebulae & Star Systems
-            if (cachedCategories.isNotEmpty()) {
-                val startYArea = h * 0.22f; val endYArea = h * 0.78f
-                val catLineH = (endYArea - startYArea) / cachedCategories.size
-
-                cachedCategories.forEachIndexed { idx, cat ->
-                    val centerY = startYArea + (idx * catLineH) + (catLineH / 2f) + categoryVisualOffset
-                    val relativeDistanceFromCenter = centerY - (h / 2f)
-                    val sweepAngleRad = (relativeDistanceFromCenter / ((endYArea - startYArea) / 2f)).coerceIn(-1.2f, 1.2f) * (PI / 2.6f)
-                    
-                    // Symmetrical anchor based on flank origin
-                    val targetTextX = if (isOpenedFromLeftFlank) {
-                        (28f * density) + (cos(sweepAngleRad).toFloat() * 160f * density)
-                    } else {
-                        w - (28f * density) - (cos(sweepAngleRad).toFloat() * 160f * density)
-                    }
-                    val distanceRatio = (abs(relativeDistanceFromCenter) / ((endYArea - startYArea) / 2f)).coerceIn(0f, 1f)
-                    val zoom = 0.70f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.35f
-
-                    // If active category, draw its luminous chromatic Nebula Cloud behind it
-                    if (idx == activeCatIndex) {
-                        drawGalacticNebula(
-                            canvas = canvas,
-                            cx = if (isOpenedFromLeftFlank) targetTextX + (100f * density) else targetTextX - (100f * density),
-                            cy = centerY,
-                            radius = 185f * density,
-                            m3Primary = m3Primary,
-                            alphaFactor = decelerationFactor
-                        )
-                    }
-
-                    canvas.save()
-                    projectionCamera3D.save()
-                    projectionCamera3D.setLocation(0f, 0f, -8f); projectionCamera3D.translate(0f, 0f, cylinderRadius)
-                    projectionCamera3D.rotateX(-Math.toDegrees(sweepAngleRad.toDouble()).toFloat()); projectionCamera3D.translate(0f, 0f, -cylinderRadius)
-                    projectionCamera3D.getMatrix(transformMatrixPipeline); projectionCamera3D.restore()
-                    transformMatrixPipeline.preTranslate(-targetTextX, -centerY)
-                    transformMatrixPipeline.postScale(zoom, zoom); transformMatrixPipeline.postTranslate(targetTextX, centerY)
-                    canvas.concat(transformMatrixPipeline)
-
-                    val labelText = cat.label.uppercase()
-                    val focusFactor = Math.pow((1.0 - distanceRatio).coerceIn(0.0, 1.0), 3.0).toFloat() * decelerationFactor
-                    
-                    // 1. Stable, constant category font size based on text length (Zero per-frame shivering)
-                    val baseTargetSize = when {
-                        labelText.length <= 8 -> 18.5f * density
-                        labelText.length <= 13 -> 14.5f * density
-                        labelText.length <= 18 -> 12f * density
-                        else -> 10.5f * density
-                    }
-
-                    // 2. Smoothly interpolate font size, alpha, and color with distance from center
-                    val currentTextSize = 13f * density + (baseTargetSize - 13f * density) * focusFactor
-                    catTextPaint.textSize = currentTextSize
-                    catTextPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
-                    catTextPaint.typeface = if (focusFactor > 0.6f) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
-
-                    // Color interpolation: Dim starlight (#9EA7B8) to blazing white
-                    val rCol = (158 + (255 - 158) * focusFactor).toInt()
-                    val gCol = (167 + (255 - 167) * focusFactor).toInt()
-                    val bCol = (184 + (255 - 184) * focusFactor).toInt()
-                    val alpha = ((35 + 220 * focusFactor) * decelerationFactor).toInt().coerceIn(0, 255)
-                    catTextPaint.color = Color.argb(alpha, rCol, gCol, bCol)
-
-                    // Draw smoothly gliding Category Star System Typography
-                    canvas.drawText(labelText, targetTextX, centerY + (5f + 1f * focusFactor) * density, catTextPaint)
-
-                    // 3. Glowing Celestial Star Beacon (Fades in smoothly as category enters focus)
-                    if (focusFactor > 0.25f) {
-                        val measuredLabelW = catTextPaint.measureText(labelText)
-                        val beaconAlpha = ((focusFactor - 0.25f) / 0.75f).coerceIn(0f, 1f)
-                        textPaint.textAlign = if (isOpenedFromLeftFlank) Paint.Align.LEFT else Paint.Align.RIGHT
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        textPaint.textSize = (currentTextSize * 0.75f).coerceAtLeast(8.5f * density)
-                        textPaint.color = m3Primary
-                        textPaint.alpha = (255 * beaconAlpha * decelerationFactor).toInt()
-                        val beaconX = if (isOpenedFromLeftFlank) targetTextX + measuredLabelW + 6f * density else targetTextX - measuredLabelW - 6f * density
-                        canvas.drawText("✦", beaconX, centerY + 5.5f * density, textPaint)
-                    }
-                    canvas.restore()
-                }
-            }
-            if (decelerationFactor < 1f) postInvalidateOnAnimation()
-        } else if (currentLayer == CruiseLayer.GRID || isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) {
-            val density = resources.displayMetrics.density
-            canvas.drawColor(Color.argb(195, 4, 6, 12))
-            drawCosmicStarfield(canvas, w, h, density, 0.7f)
-
-            textPaint.textAlign = Paint.Align.CENTER
-            canvas.save(); canvas.clipRect(0f, 0f, w, h)
-            canvas.translate(0f, -(if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset))
-            for (item in placedAppsList) {
-                val b = item.bounds; val isSel = activeItem == item.app
-                if (isSel) {
-                    // Starlight Pod Active Docking Ring
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(160, 24, 32, 52)
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
-                    
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = 2.2f * density
-                    highlightPaint.color = m3Primary
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
-                    
-                    textPaint.color = Color.WHITE
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                } else {
-                    elementPaint.style = Paint.Style.FILL
-                    elementPaint.color = Color.argb(if (item.app.isWidget) 30 else 18, 200, 220, 255)
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 16f, 16f, elementPaint)
-                    
-                    elementPaint.style = Paint.Style.STROKE
-                    elementPaint.strokeWidth = 1f * density
-                    elementPaint.color = Color.argb(35, 200, 220, 255)
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 16f, 16f, elementPaint)
-                    
-                    textPaint.color = Color.parseColor("#E0E5F0")
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT
-                }
-                if (item.app.isWidget) {
-                    canvas.drawText(if (item.app.label.length > 16) item.app.label.take(14) + ".." else item.app.label, b.centerX(), b.centerY() + 8f, textPaint)
-                } else {
-                    val icon = applicationIconCache[item.app.packageName]
-                    if (icon != null) {
-                        val sz = minOf(b.width() * 0.48f, b.height() * 0.48f)
-                        icon.setBounds((b.centerX() - sz / 2f).toInt(), (b.centerY() - sz * 0.62f).toInt(), (b.centerX() + sz / 2f).toInt(), (b.centerY() - sz * 0.62f + sz).toInt())
-                        icon.draw(canvas)
-                        canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
-                    } else {
-                        canvas.drawText(if (item.app.label.length > 14) item.app.label.take(12) + ".." else item.app.label, b.centerX(), b.centerY() + 8f, textPaint)
-                    }
-                }
-            }
-            canvas.restore()
-        }
-
-        drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
+        handleDraw(canvas) { super.onDraw(canvas) }
     }
 
     companion object {
-        private val agslSource = """
+        internal val agslSource = """
             uniform shader inputTexture;
             uniform float2 viewSize;
             uniform float topBlurHeight;

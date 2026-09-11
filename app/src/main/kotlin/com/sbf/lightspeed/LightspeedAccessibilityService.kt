@@ -61,42 +61,42 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    private var windowManager: WindowManager? = null
-    private var displayManager: DisplayManager? = null
-    private val handler = Handler(Looper.getMainLooper())
+    internal var windowManager: WindowManager? = null
+    internal var displayManager: DisplayManager? = null
+    internal val handler = Handler(Looper.getMainLooper())
 
     // Edge Sidebar Overlay
-    private var overlayView: LightspeedCruiseOverlay? = null
+    internal var overlayView: LightspeedCruiseOverlay? = null
     private lateinit var windowParams: WindowManager.LayoutParams
-    private val edgeWidthPx = 45
+    internal val edgeWidthPx = 45
 
     // Status Bar Overlay (Full-Width 100% Pass-Through Visual Canvas for Horizon Rails & Guides)
-    private var statusBarOverlayView: LightspeedStatusBarOverlay? = null
+    internal var statusBarOverlayView: LightspeedStatusBarOverlay? = null
     private lateinit var statusBarWindowParams: WindowManager.LayoutParams
 
     // Sensor Deck Touch Overlay (Isolated Touch Target strictly sized to Sensor Area Geometry)
-    private var sensorTouchOverlayView: LightspeedSensorDeckTouchOverlay? = null
+    internal var sensorTouchOverlayView: LightspeedSensorDeckTouchOverlay? = null
     private lateinit var sensorTouchWindowParams: WindowManager.LayoutParams
 
     // Dedicated Notch Pill Overlay
-    private var notchOverlayView: LightspeedNotchOverlay? = null
+    internal var notchOverlayView: LightspeedNotchOverlay? = null
     private lateinit var notchWindowParams: WindowManager.LayoutParams
 
     // Left Deflector Wing Overlay
-    private var leftWingOverlayView: LightspeedLeftWingOverlay? = null
+    internal var leftWingOverlayView: LightspeedLeftWingOverlay? = null
     private lateinit var leftWingWindowParams: WindowManager.LayoutParams
 
     // Floating Media Scrubber Overlay
-    private var mediaScrubberOverlayView: LightspeedMediaScrubberOverlay? = null
+    internal var mediaScrubberOverlayView: LightspeedMediaScrubberOverlay? = null
 
     // Hardware Orientation Anchor (1x1 Transparent Window enforcing dynamic ScreenOrientation)
-    private var orientationAnchorView: View? = null
-    private var orientationAnchorParams: WindowManager.LayoutParams? = null
+    internal var orientationAnchorView: View? = null
+    internal var orientationAnchorParams: WindowManager.LayoutParams? = null
 
-    private var systemStateReceiver: BroadcastReceiver? = null
-    private var rotationContentObserver: ContentObserver? = null
+    internal var systemStateReceiver: BroadcastReceiver? = null
+    internal var rotationContentObserver: ContentObserver? = null
 
-    private val displayListener = object : DisplayManager.DisplayListener {
+    internal val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) {}
         override fun onDisplayRemoved(displayId: Int) {}
         override fun onDisplayChanged(displayId: Int) {
@@ -104,7 +104,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+    internal val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key != null && (key.startsWith("pref_statusbar_") || key.startsWith("pref_horizon_rail_") || key.startsWith("pref_sub_") || key.startsWith("pref_section_statusbar") || key.startsWith("pref_macro_action_STATUSBAR"))) {
             updateStatusBarOverlayFromPrefs(prefs)
             updateSensorTouchOverlayFromPrefs(prefs)
@@ -266,7 +266,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         updateOverlaysVisibility()
     }
 
-    private fun setupNotchOverlay() {
+    internal fun setupNotchOverlay() {
         val d = resources.displayMetrics.density
         notchWindowParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -293,7 +293,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
-    private fun setupStatusBarOverlay(prefs: SharedPreferences) {
+    internal fun setupStatusBarOverlay(prefs: SharedPreferences) {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
         val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
@@ -356,7 +356,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         setupSensorTouchOverlay(prefs)
     }
 
-    private fun setupSensorTouchOverlay(prefs: SharedPreferences) {
+    internal fun setupSensorTouchOverlay(prefs: SharedPreferences) {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
         if (!enabled) return
 
@@ -398,7 +398,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
-    private fun updateSensorTouchOverlayFromPrefs(prefs: SharedPreferences) {
+    internal fun updateSensorTouchOverlayFromPrefs(prefs: SharedPreferences) {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
         if (!enabled) {
             sensorTouchOverlayView?.let {
@@ -433,7 +433,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun updateStatusBarOverlayFromPrefs(prefs: SharedPreferences) {
+    internal fun updateStatusBarOverlayFromPrefs(prefs: SharedPreferences) {
         val enabled = prefs.getBoolean("pref_statusbar_enabled", true)
         val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
         val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
@@ -490,13 +490,13 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun updateSidebarOverlayFromPrefs(prefs: SharedPreferences) {
+    internal fun updateSidebarOverlayFromPrefs(prefs: SharedPreferences) {
         if (windowManager == null || overlayView == null) return
         overlayView?.updateMetricsDimensions()
         overlayView?.postInvalidate()
     }
 
-    private fun updateLeftWingOverlayFromPrefs(prefs: SharedPreferences) {
+    internal fun updateLeftWingOverlayFromPrefs(prefs: SharedPreferences) {
         if (windowManager == null || leftWingOverlayView == null) return
         leftWingOverlayView?.updateMetricsDimensions()
         leftWingOverlayView?.postInvalidate()
@@ -563,65 +563,6 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    fun showMediaScrubber() {
-        handler.post {
-            if (mediaScrubberOverlayView != null) {
-                mediaScrubberOverlayView?.updateTrackInfo()
-                return@post
-            }
-
-            val d = resources.displayMetrics.density
-            val widthPx = (350 * d).toInt().coerceAtMost(resources.displayMetrics.widthPixels)
-            val heightPx = (116 * d).toInt()
-
-            val params = WindowManager.LayoutParams(
-                widthPx,
-                heightPx,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                        WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                y = (60 * d).toInt()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                }
-            }
-
-            val overlay = LightspeedMediaScrubberOverlay(this) {
-                hideMediaScrubber()
-            }
-            mediaScrubberOverlayView = overlay
-            try {
-                windowManager?.addView(overlay, params)
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun hideMediaScrubber() {
-        handler.post {
-            mediaScrubberOverlayView?.let {
-                try {
-                    windowManager?.removeView(it)
-                } catch (_: Exception) {}
-                mediaScrubberOverlayView = null
-            }
-        }
-    }
-
-    fun updateMediaScrubberProgress() {
-        handler.post {
-            if (mediaScrubberOverlayView != null) {
-                mediaScrubberOverlayView?.updateTrackInfo()
-            } else {
-                showMediaScrubber()
-            }
-        }
-    }
-
     override fun onKeyEvent(event: KeyEvent?): Boolean {
         if (event == null) return false
         if (!LightspeedPreferences.isMasterFlightArmed(this)) return false
@@ -663,13 +604,13 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun getScreenRotation(): Int {
+    internal fun getScreenRotation(): Int {
         val dm = displayManager ?: (getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager)
         val disp = dm?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
         return disp?.rotation ?: Surface.ROTATION_0
     }
 
-    private fun handleDisplayOrientationChange() {
+    internal fun handleDisplayOrientationChange() {
         val prefs = defaultPrefs()
         val policy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
         val rotation = getScreenRotation()
@@ -695,7 +636,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun isSuppressedByOrientation(): Boolean {
+    internal fun isSuppressedByOrientation(): Boolean {
         val prefs = defaultPrefs()
         val policy = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive"
         val rotation = getScreenRotation()
@@ -703,7 +644,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         return policy == "portrait_only" && isLandscape
     }
 
-    private fun setOverlaysVisible(visible: Boolean) {
+    internal fun setOverlaysVisible(visible: Boolean) {
         val v = if (visible) View.VISIBLE else View.GONE
         overlayView?.visibility = v
         leftWingOverlayView?.visibility = v
@@ -767,7 +708,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         handler.postDelayed({ resyncOverlayMetrics() }, 300L)
     }
 
-    private fun resyncOverlayMetrics() {
+    internal fun resyncOverlayMetrics() {
         if (windowManager == null) return
         overlayView?.updateMetricsDimensions()
         leftWingOverlayView?.updateMetricsDimensions()
@@ -781,7 +722,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         notchOverlayView?.postInvalidate()
     }
 
-    private fun registerSystemStateReceiver() {
+    internal fun registerSystemStateReceiver() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_DREAMING_STARTED)
             addAction(Intent.ACTION_DREAMING_STOPPED)
@@ -863,88 +804,6 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
-    private fun isDeviceCharging(): Boolean {
-        return try {
-            val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-            val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-            status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun checkPowerConnectedRefuelingTrigger(prefs: SharedPreferences) {
-        val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
-        if (trigger == "disabled" || trigger == "screensaver_only") return
-
-        val rotation = getScreenRotation()
-        val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
-
-        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-        val isScreenOff = powerManager?.isInteractive == false
-        val isLocked = keyguardManager?.isKeyguardLocked == true
-
-        when (trigger) {
-            "charging_screen_off", "always_charging" -> {
-                // If cable plugged in while locked or screen off -> wake & launch Refueling Bay
-                if (isScreenOff || isLocked) {
-                    launchRefuelingActivity()
-                }
-            }
-            "charging_dock_landscape", "landscape_charging" -> {
-                if (isLandscape) {
-                    launchRefuelingActivity()
-                }
-            }
-        }
-    }
-
-    private fun checkScreenOffRefuelingTrigger(prefs: SharedPreferences) {
-        val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
-        if (trigger == "disabled" || trigger == "screensaver_only") return
-
-        val rotation = getScreenRotation()
-        val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
-
-        if (trigger == "screen_timeout" || trigger == "screen_off_always") {
-            launchRefuelingActivity()
-            return
-        }
-
-        if (isDeviceCharging()) {
-            when (trigger) {
-                "charging_screen_off", "always_charging" -> {
-                    // Screen went off while plugged in -> launch over lockscreen
-                    launchRefuelingActivity()
-                }
-                "charging_dock_landscape", "landscape_charging" -> {
-                    if (isLandscape) {
-                        launchRefuelingActivity()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun launchRefuelingActivity() {
-        try {
-            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
-            val wl = pm?.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
-                "lightspeed:refueling_wake"
-            )
-            wl?.acquire(3000L)
-        } catch (_: Exception) {}
-
-        val intent = Intent(this, LightspeedRefuelingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-        }
-        try {
-            startActivity(intent)
-        } catch (_: Exception) {}
-    }
-
     fun updateNotchWindowBounds(isExpanded: Boolean, targetX: Int, targetY: Int, targetWidth: Int, targetHeight: Int, isVisible: Boolean = true) {
         if (windowManager == null || notchOverlayView == null) return
         notchWindowParams.width = targetWidth.coerceAtLeast(1)
@@ -964,7 +823,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {}
     }
 
-    private fun setupOrientationAnchor() {
+    internal fun setupOrientationAnchor() {
         if (orientationAnchorView != null) return
         val windowType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -1019,7 +878,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun teardown() {
+    internal fun teardown() {
         LightspeedKeyEngine.reset()
         com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
         com.sbf.lightspeed.system.LightspeedOrientationManager.stopActiveSensorPortraitDriver()

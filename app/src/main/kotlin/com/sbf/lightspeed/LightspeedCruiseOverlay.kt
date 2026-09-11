@@ -342,6 +342,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var renderCacheBottomExpanded = false
     internal var renderCacheSidebarPreview = false
     internal var renderCacheCenterTransparency = 0
+    internal var renderCacheLeftCenterTransparency = 0
     internal var renderCacheTopTransparency = 0
     internal var renderCacheBottomTransparency = 0
     internal var renderCacheGlowStyle = "progressive_frost"
@@ -395,6 +396,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         renderCacheSidebarPreview       = p.getBoolean("pref_sidebar_preview", false)
         renderCacheLinkEdges            = p.getBoolean("pref_sidebar_link_edges", false)
         renderCacheCenterTransparency   = p.getInt("pref_sidebar_center_transparency", 0)
+        renderCacheLeftCenterTransparency = p.getInt("pref_sidebar_left_center_transparency", 0)
         renderCacheTopTransparency      = p.getInt("pref_sidebar_top_transparency", 0)
         renderCacheBottomTransparency   = if (renderCacheLinkEdges) renderCacheTopTransparency else p.getInt("pref_sidebar_bottom_transparency", 0)
         renderCacheGlowStyle            = p.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"

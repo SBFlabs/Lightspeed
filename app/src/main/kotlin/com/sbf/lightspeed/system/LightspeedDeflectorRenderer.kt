@@ -92,13 +92,14 @@ object LightspeedDeflectorRenderer {
             val pillH = restingH + (activeH - restingH) * morphFactor
 
             val restingAlpha = if (centerTransparency > 0) {
-                (centerTransparency * 2.55f).toInt().coerceIn(0, 255)
+                (centerTransparency * 2.55f).toInt().coerceIn(15, 100)
             } else {
-                (45 * 2.55f).toInt() // Aesthetic resting baseline glass presence
+                38 // Apple Liquid Glass resting opacity (~15%)
             }
-            val finalAlpha = if (isTouched) 255 else maxOf(restingAlpha, (255 * glowFraction).toInt())
+            val activeAlpha = 82 // Apple Liquid Glass active opacity (~32% - crystal clear translucency!)
+            val effectiveAlpha = if (isTouched) activeAlpha else maxOf(restingAlpha, (activeAlpha * glowFraction).toInt())
 
-            if (finalAlpha > 0) {
+            if (effectiveAlpha > 0) {
                 val cy = if (isTouched && touchY != null && touchY > 0f) {
                     val minY = if (h > centerTouchBounds.height() * 1.5f) (40f * d + pillH / 2f) else (centerTouchBounds.top + pillH / 2f)
                     val maxY = if (h > centerTouchBounds.height() * 1.5f) (h - 40f * d - pillH / 2f) else (centerTouchBounds.bottom - pillH / 2f)
@@ -136,8 +137,8 @@ object LightspeedDeflectorRenderer {
                     bladePath.addRoundRect(rect, radii, Path.Direction.CW)
                 }
 
-                // 1. Core Progressive Frosted Glass Diffusion (Milky opalescent volume)
-                applyPillShading(isLeft, w, pillW, pillTop, pillBottom, finalAlpha, m3Primary, glowStyle, useM3Color, d)
+                // 1. Core Apple Liquid Glass Translucency
+                applyPillShading(isLeft, w, pillW, pillTop, pillBottom, effectiveAlpha, m3Primary, glowStyle, useM3Color, d)
                 canvas.drawPath(bladePath, bladeFillPaint)
 
                 // 2. Soft Optical Refraction Caustic (Dual-layer light lens)
@@ -160,20 +161,25 @@ object LightspeedDeflectorRenderer {
                     causticPath.lineTo(w, pillBottom - causticInset)
                 }
 
-                // Pass A: Diffuse Caustic Light Bloom (wider, soft optical scatter)
-                causticPaint.strokeWidth = if (morphFactor > 0f) 4.0f * d else 2.4f * d
-                causticPaint.color = Color.argb((finalAlpha * 0.18f).toInt(), 255, 255, 255)
+                // Pass A: Diffuse Caustic Light Bloom (soft optical refraction scatter)
+                causticPaint.strokeWidth = if (morphFactor > 0f) 3.5f * d else 2.0f * d
+                causticPaint.color = Color.argb((effectiveAlpha * 0.28f).toInt(), 255, 255, 255)
                 canvas.drawPath(causticPath, causticPaint)
 
-                // Pass B: Sharp Refractive Specular Crest (inner curved boundary)
-                causticPaint.strokeWidth = if (morphFactor > 0f) 1.5f * d else 1.0f * d
-                causticPaint.color = Color.argb((finalAlpha * 0.48f).toInt(), 255, 255, 255)
+                // Pass B: Sharp Specular Caustic Crest (inner curved boundary meniscus)
+                causticPaint.strokeWidth = if (morphFactor > 0f) 1.2f * d else 0.9f * d
+                causticPaint.color = Color.argb((effectiveAlpha * 0.80f).toInt(), 255, 255, 255)
+                canvas.drawPath(causticPath, causticPaint)
+
+                // Pass C: Subtle Chromatic Prism Dispersion Glint
+                causticPaint.strokeWidth = 0.8f * d
+                causticPaint.color = Color.argb((effectiveAlpha * 0.35f).toInt(), 180, 235, 255)
                 canvas.drawPath(causticPath, causticPaint)
 
                 // 3. Bezel Contact Grounding (Subtle bezel shadow giving tangible depth)
                 val bezelX = if (isLeft) 0.5f * d else w - 0.5f * d
                 causticPaint.strokeWidth = 1.0f * d
-                causticPaint.color = Color.argb((finalAlpha * 0.22f).toInt(), 0, 0, 0)
+                causticPaint.color = Color.argb((effectiveAlpha * 0.35f).toInt(), 0, 0, 0)
                 canvas.drawLine(bezelX, pillTop, bezelX, pillBottom, causticPaint)
             }
         }
@@ -232,7 +238,7 @@ object LightspeedDeflectorRenderer {
         pillW: Float,
         topLimit: Float,
         bottomLimit: Float,
-        finalAlpha: Int,
+        effectiveAlpha: Int,
         m3Primary: Int,
         glowStyle: String,
         useM3Color: Boolean,
@@ -247,71 +253,51 @@ object LightspeedDeflectorRenderer {
             when (glowStyle) {
                 "crimson_reactor" -> Triple(255, 45, 80)
                 "cyber_plasma" -> Triple(0, 229, 255)
-                else -> Triple(225, 240, 255) // Pristine crystalline frost
+                else -> Triple(180, 215, 255)
             }
         }
 
-        // Opalescent frosted light-scattering core
-        val frostR = ((baseR * 0.30f) + (255 * 0.70f)).toInt().coerceIn(0, 255)
-        val frostG = ((baseG * 0.30f) + (255 * 0.70f)).toInt().coerceIn(0, 255)
-        val frostB = ((baseB * 0.30f) + (255 * 0.70f)).toInt().coerceIn(0, 255)
-
         when (glowStyle) {
-            "material_shade" -> {
-                bladeFillPaint.shader = LinearGradient(
-                    x0, 0f, x1, 0f,
-                    intArrayOf(
-                        Color.argb(finalAlpha, frostR, frostG, frostB),
-                        Color.argb((finalAlpha * 0.80f).toInt(), (baseR * 0.65f + 40).toInt().coerceIn(0, 255), (baseG * 0.65f + 40).toInt().coerceIn(0, 255), (baseB * 0.65f + 50).toInt().coerceIn(0, 255)),
-                        Color.argb((finalAlpha * 0.48f).toInt(), baseR, baseG, baseB),
-                        Color.argb((finalAlpha * 0.18f).toInt(), (baseR * 0.4f + 30).toInt().coerceIn(0, 255), (baseG * 0.4f + 30).toInt().coerceIn(0, 255), (baseB * 0.4f + 40).toInt().coerceIn(0, 255)),
-                        Color.argb(0, 14, 16, 22)
-                    ),
-                    floatArrayOf(0.0f, 0.25f, 0.55f, 0.82f, 1.0f),
-                    Shader.TileMode.CLAMP
-                )
-            }
             "crimson_reactor" -> {
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, 255, 215, 225),
-                        Color.argb((finalAlpha * 0.82f).toInt(), 255, 65, 95),
-                        Color.argb((finalAlpha * 0.50f).toInt(), 255, 110, 30),
-                        Color.argb((finalAlpha * 0.18f).toInt(), 180, 20, 45),
-                        Color.argb(0, 100, 0, 20)
+                        Color.argb(effectiveAlpha, 255, 140, 160),
+                        Color.argb((effectiveAlpha * 0.65f).toInt(), 255, 60, 90),
+                        Color.argb((effectiveAlpha * 0.30f).toInt(), 180, 20, 45),
+                        Color.argb((effectiveAlpha * 0.08f).toInt(), 120, 10, 30),
+                        Color.argb(0, 80, 0, 20)
                     ),
-                    floatArrayOf(0.0f, 0.20f, 0.52f, 0.80f, 1.0f),
+                    floatArrayOf(0.0f, 0.20f, 0.55f, 0.82f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
             }
             "cyber_plasma" -> {
                 bladeFillPaint.shader = LinearGradient(
-                    x0, topLimit, x1, bottomLimit,
+                    x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, 230, 252, 255),
-                        Color.argb((finalAlpha * 0.80f).toInt(), 0, 229, 255),
-                        Color.argb((finalAlpha * 0.50f).toInt(), baseR, baseG, baseB),
-                        Color.argb((finalAlpha * 0.20f).toInt(), 255, 171, 0),
-                        Color.argb(0, 255, 171, 0)
+                        Color.argb(effectiveAlpha, 180, 245, 255),
+                        Color.argb((effectiveAlpha * 0.65f).toInt(), 0, 229, 255),
+                        Color.argb((effectiveAlpha * 0.30f).toInt(), 0, 150, 220),
+                        Color.argb((effectiveAlpha * 0.08f).toInt(), 0, 80, 160),
+                        Color.argb(0, 0, 40, 100)
                     ),
-                    floatArrayOf(0.0f, 0.22f, 0.52f, 0.80f, 1.0f),
+                    floatArrayOf(0.0f, 0.20f, 0.55f, 0.82f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
             }
             else -> {
-                // "progressive_frost" (Default) - Heavy progressive frosted glass diffusion with milky opalescent scattering
+                // "progressive_frost" (Default) - Apple Liquid Glass Crystalline Translucency
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, frostR, frostG, frostB),
-                        Color.argb((finalAlpha * 0.84f).toInt(), (frostR * 0.88f + 25).toInt().coerceIn(0, 255), (frostG * 0.90f + 22).toInt().coerceIn(0, 255), (frostB * 0.94f + 12).toInt().coerceIn(0, 255)),
-                        Color.argb((finalAlpha * 0.54f).toInt(), (baseR * 0.65f + 85).toInt().coerceIn(0, 255), (baseG * 0.65f + 90).toInt().coerceIn(0, 255), (baseB * 0.65f + 100).toInt().coerceIn(0, 255)),
-                        Color.argb((finalAlpha * 0.24f).toInt(), (baseR * 0.30f + 60).toInt().coerceIn(0, 255), (baseG * 0.30f + 65).toInt().coerceIn(0, 255), (baseB * 0.30f + 80).toInt().coerceIn(0, 255)),
-                        Color.argb((finalAlpha * 0.06f).toInt(), 255, 255, 255),
+                        Color.argb(effectiveAlpha, 255, 255, 255), // Outer bezel reflection glint
+                        Color.argb((effectiveAlpha * 0.60f).toInt(), 220, 235, 255), // Translucent ice sheen
+                        Color.argb((effectiveAlpha * 0.32f).toInt(), (baseR * 0.4f + 25).toInt().coerceIn(0, 255), (baseG * 0.4f + 30).toInt().coerceIn(0, 255), (baseB * 0.4f + 45).toInt().coerceIn(0, 255)), // Liquid substrate
+                        Color.argb((effectiveAlpha * 0.10f).toInt(), baseR, baseG, baseB), // Soft edge fade
                         Color.argb(0, baseR, baseG, baseB)
                     ),
-                    floatArrayOf(0.0f, 0.22f, 0.52f, 0.78f, 0.92f, 1.0f),
+                    floatArrayOf(0.0f, 0.22f, 0.58f, 0.85f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
             }

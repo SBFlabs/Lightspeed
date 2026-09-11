@@ -504,11 +504,39 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
 private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Primary: Int) {
     val isLeft = isOpenedFromLeftFlank
     val isGlowEnabled = if (isLeft) renderCacheLeftGlowEnabled else renderCacheGlowEnabled
-    if (!isGlowEnabled) return
+    if (!isGlowEnabled) {
+        updatePillShaderUniforms(active = false)
+        return
+    }
 
     val d = resources.displayMetrics.density
     val w = width.toFloat()
     val h = height.toFloat()
+
+    // Calculate dynamic pill geometry matching renderer
+    val cy = if (isCurrentlyTouched && currentTouchY > 0f) {
+        val minY = (40f * d) + (40f * d)
+        val maxY = h - (40f * d) - (40f * d)
+        currentTouchY.coerceIn(minY, maxY)
+    } else {
+        centerTouchBounds.centerY()
+    }
+    val pillW = minOf(centerTouchBounds.width(), 32f * d).coerceAtLeast(24f * d)
+    val pillH = (centerTouchBounds.height() * 0.70f).coerceAtLeast(60f * d)
+    val pillTop = (cy - pillH / 2f).coerceAtLeast(2f * d)
+    val pillBottom = (cy + pillH / 2f).coerceAtMost(h - 2f * d)
+    val cornerR = (pillW * 0.5f).coerceAtMost((pillBottom - pillTop) / 2f)
+
+    // Update GPU hardware progressive blur position!
+    updatePillShaderUniforms(
+        left = if (isLeft) 0f else (w - pillW),
+        top = pillTop,
+        right = if (isLeft) pillW else w,
+        bottom = pillBottom,
+        cornerR = cornerR,
+        isLeft = isLeft,
+        active = true
+    )
 
     com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
         canvas = canvas,

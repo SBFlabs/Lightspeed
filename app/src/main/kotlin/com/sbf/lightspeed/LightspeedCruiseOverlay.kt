@@ -502,11 +502,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
-                progressiveShader.apply {
-                    setFloatUniform("viewSize", screenW, screenH)
-                    setFloatUniform("topBlurHeight", 130.0f * density)
-                    setFloatUniform("bottomBlurHeight", 160.0f * density)
-                }
+                updatePillShaderUniforms(active = false)
                 cachedRenderEffect = RenderEffect.createRuntimeShaderEffect(progressiveShader, "inputTexture")
             } catch (e: Exception) {
                 Log.e("LightspeedBlur", "AGSL fault", e)
@@ -532,8 +528,40 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     internal fun refreshActiveRenderEffect() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val shouldApplyBlur = (currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN)
+            val isPillEnabled = if (isOpenedFromLeftFlank) renderCacheLeftGlowEnabled else renderCacheGlowEnabled
+            val isExpanded = (currentLayer != CruiseLayer.HIDDEN && currentLayer != CruiseLayer.NEUTRAL)
+            val shouldApplyBlur = isExpanded && (isPillEnabled || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN)
             setRenderEffect(if (shouldApplyBlur) cachedRenderEffect else null)
+        }
+    }
+
+    internal fun updatePillShaderUniforms(
+        left: Float = 0f,
+        top: Float = 0f,
+        right: Float = 0f,
+        bottom: Float = 0f,
+        cornerR: Float = 0f,
+        isLeft: Boolean = false,
+        active: Boolean = false
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            try {
+                val screenW = width.toFloat().coerceAtLeast(1f)
+                val screenH = height.toFloat().coerceAtLeast(1f)
+                val density = resources.displayMetrics.density
+                progressiveShader.apply {
+                    setFloatUniform("viewSize", screenW, screenH)
+                    setFloatUniform("pillRect", left, top, right, bottom)
+                    setFloatUniform("cornerRadius", cornerR)
+                    setFloatUniform("isLeftPill", if (isLeft) 1f else 0f)
+                    setFloatUniform("pillActive", if (active) 1f else 0f)
+                    setFloatUniform("topBlurHeight", 130.0f * density)
+                    setFloatUniform("bottomBlurHeight", 160.0f * density)
+                    setFloatUniform("headerBlurActive", if (currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN) 1f else 0f)
+                }
+            } catch (e: Exception) {
+                Log.e("LightspeedBlur", "Failed to update AGSL uniforms", e)
+            }
         }
     }
 
@@ -905,6 +933,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         isCurrentlyTouched = false
         currentTouchY = -1f
         currentActiveZone = TouchZone.NONE
+        updatePillShaderUniforms(active = false)
         macroTrackingActive = false
         isDraggingHangarBays = false
         isSpinningHangarRing = false
@@ -1377,23 +1406,65 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         internal val agslSource = """
             uniform shader inputTexture;
             uniform float2 viewSize;
+            uniform float4 pillRect;
+            uniform float cornerRadius;
+            uniform float isLeftPill;
+            uniform float pillActive;
             uniform float topBlurHeight;
             uniform float bottomBlurHeight;
+            uniform float headerBlurActive;
 
             half4 main(float2 fragCoord) {
-                float blurAlpha = 0.0;
-                if (fragCoord.y < topBlurHeight) {
-                    blurAlpha = 1.0 - (fragCoord.y / topBlurHeight);
-                } else if (fragCoord.y > viewSize.y - bottomBlurHeight) {
-                    blurAlpha = (fragCoord.y - (viewSize.y - bottomBlurHeight)) / bottomBlurHeight;
+                float dist = -1.0;
+                if (pillActive > 0.5) {
+                    if (fragCoord.y >= pillRect.y && fragCoord.y <= pillRect.w) {
+                        if (isLeftPill > 0.5) {
+                            if (fragCoord.x >= 0.0 && fragCoord.x <= pillRect.z) {
+                                float dx = fragCoord.x - (pillRect.z - cornerRadius);
+                                float dyTop = (pillRect.y + cornerRadius) - fragCoord.y;
+                                float dyBottom = fragCoord.y - (pillRect.w - cornerRadius);
+                                if (dx > 0.0 && dyTop > 0.0) {
+                                    float dCorner = length(float2(dx, dyTop));
+                                    if (dCorner <= cornerRadius) {
+                                        dist = cornerRadius - dCorner;
+                                    }
+                                } else if (dx > 0.0 && dyBottom > 0.0) {
+                                    float dCorner = length(float2(dx, dyBottom));
+                                    if (dCorner <= cornerRadius) {
+                                        dist = cornerRadius - dCorner;
+                                    }
+                                } else {
+                                    dist = min(pillRect.z - fragCoord.x, min(fragCoord.y - pillRect.y, pillRect.w - fragCoord.y));
+                                }
+                            }
+                        } else {
+                            if (fragCoord.x >= pillRect.x && fragCoord.x <= viewSize.x) {
+                                float dx = (pillRect.x + cornerRadius) - fragCoord.x;
+                                float dyTop = (pillRect.y + cornerRadius) - fragCoord.y;
+                                float dyBottom = fragCoord.y - (pillRect.w - cornerRadius);
+                                if (dx > 0.0 && dyTop > 0.0) {
+                                    float dCorner = length(float2(dx, dyTop));
+                                    if (dCorner <= cornerRadius) {
+                                        dist = cornerRadius - dCorner;
+                                    }
+                                } else if (dx > 0.0 && dyBottom > 0.0) {
+                                    float dCorner = length(float2(dx, dyBottom));
+                                    if (dCorner <= cornerRadius) {
+                                        dist = cornerRadius - dCorner;
+                                    }
+                                } else {
+                                    dist = min(fragCoord.x - pillRect.x, min(fragCoord.y - pillRect.y, pillRect.w - fragCoord.y));
+                                }
+                            }
+                        }
+                    }
                 }
-                blurAlpha = clamp(blurAlpha, 0.0, 1.0);
-                float fadeProgress = pow(blurAlpha, 1.3);
-                float radius = blurAlpha * 24.0;
 
-                half4 color = half4(0.0);
-                if (radius > 0.4) {
-                    // Multi-tap Poisson sampling for velvet-smooth liquid glass
+                if (dist >= 0.0) {
+                    float blurProgress = clamp(dist / max(cornerRadius * 1.2, 1.0), 0.15, 1.0);
+                    float radius = blurProgress * 26.0;
+
+                    half4 color = half4(0.0);
                     color += inputTexture.eval(fragCoord) * 0.22;
                     color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * 0.13;
                     color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * 0.13;
@@ -1404,19 +1475,48 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * 0.065;
                     color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * 0.065;
 
-                    // Subtle chromatic edge refraction (frosted prism effect)
-                    float chroma = radius * 0.08;
+                    float chroma = (1.0 - clamp(dist / 8.0, 0.0, 1.0)) * 3.2;
                     half4 rSample = inputTexture.eval(fragCoord + float2(chroma, 0.0));
                     half4 bSample = inputTexture.eval(fragCoord - float2(chroma, 0.0));
-                    color.r = mix(color.r, rSample.r, 0.25);
-                    color.b = mix(color.b, bSample.b, 0.25);
-                } else {
-                    color = inputTexture.eval(fragCoord);
+                    color.r = mix(color.r, rSample.r, 0.30);
+                    color.b = mix(color.b, bSample.b, 0.30);
+
+                    half4 crystalTint = half4(0.06, 0.08, 0.14, 1.0);
+                    color = mix(color, crystalTint, 0.15);
+
+                    float meniscus = exp(-abs(dist - 1.2) * 1.2) * 0.28;
+                    color += half4(meniscus);
+
+                    return color;
                 }
 
-                // Deep Space Void tint with subtle cosmic purple glow
-                half4 deepSpaceVoid = half4(0.022, 0.018, 0.035, 1.0);
-                return mix(color, deepSpaceVoid, fadeProgress * 0.88);
+                if (headerBlurActive > 0.5) {
+                    float blurAlpha = 0.0;
+                    if (fragCoord.y < topBlurHeight) {
+                        blurAlpha = 1.0 - (fragCoord.y / topBlurHeight);
+                    } else if (fragCoord.y > viewSize.y - bottomBlurHeight) {
+                        blurAlpha = (fragCoord.y - (viewSize.y - bottomBlurHeight)) / bottomBlurHeight;
+                    }
+                    if (blurAlpha > 0.0) {
+                        blurAlpha = clamp(blurAlpha, 0.0, 1.0);
+                        float fadeProgress = pow(blurAlpha, 1.3);
+                        float radius = blurAlpha * 24.0;
+                        half4 color = half4(0.0);
+                        color += inputTexture.eval(fragCoord) * 0.22;
+                        color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * 0.13;
+                        color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * 0.13;
+                        color += inputTexture.eval(fragCoord + float2(radius * 0.55, 0.0)) * 0.13;
+                        color += inputTexture.eval(fragCoord - float2(radius * 0.55, 0.0)) * 0.13;
+                        color += inputTexture.eval(fragCoord + float2(radius * 0.38, radius * 0.38)) * 0.065;
+                        color += inputTexture.eval(fragCoord - float2(radius * 0.38, radius * 0.38)) * 0.065;
+                        color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * 0.065;
+                        color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * 0.065;
+                        half4 deepSpaceVoid = half4(0.022, 0.018, 0.035, 1.0);
+                        return mix(color, deepSpaceVoid, fadeProgress * 0.88);
+                    }
+                }
+
+                return inputTexture.eval(fragCoord);
             }
         """.trimIndent()
 

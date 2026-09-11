@@ -209,6 +209,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                blurBehindRadius = 45
+            }
         }
 
         try {
@@ -232,6 +236,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
             gravity = Gravity.TOP or Gravity.START
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                blurBehindRadius = 45
             }
         }
 
@@ -542,8 +550,16 @@ class LightspeedAccessibilityService : AccessibilityService() {
             windowParams.x = 0; windowParams.y = 0
             windowParams.width = WindowManager.LayoutParams.MATCH_PARENT
             windowParams.height = WindowManager.LayoutParams.MATCH_PARENT
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                windowParams.flags = windowParams.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                windowParams.blurBehindRadius = 75
+            }
             windowManager?.updateViewLayout(overlayView, windowParams)
         } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                windowParams.flags = windowParams.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                windowParams.blurBehindRadius = 45
+            }
             overlayView?.updateMetricsDimensions()
         }
     }

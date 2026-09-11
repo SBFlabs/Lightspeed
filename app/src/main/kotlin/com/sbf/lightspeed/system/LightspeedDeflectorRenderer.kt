@@ -24,6 +24,11 @@ object LightspeedDeflectorRenderer {
         style = Paint.Style.FILL
     }
 
+    private val causticPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+
     private val reviewStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         color = Color.WHITE
@@ -34,6 +39,7 @@ object LightspeedDeflectorRenderer {
     }
 
     private val bladePath = Path()
+    private val causticPath = Path()
 
     fun drawDeflectorWing(
         canvas: Canvas,
@@ -56,7 +62,8 @@ object LightspeedDeflectorRenderer {
         m3Primary: Int,
         glowStyle: String,
         isGlowEnabled: Boolean = true,
-        useM3Color: Boolean = true
+        useM3Color: Boolean = true,
+        touchY: Float? = null
     ) {
         val d = density
         if (isReview) {
@@ -70,18 +77,16 @@ object LightspeedDeflectorRenderer {
         // 1. CENTRAL PILL: Dedicated Morphing Glass Capsule Resting Flush on Screen Edge
         // =========================================================================
         if (isGlowEnabled) {
-            val cy = centerTouchBounds.centerY()
-            val zoneH = centerTouchBounds.height()
             val isTouched = isCurrentlyTouched && activeZoneIsCenter
             val morphFactor = if (isTouched) 1f else glowFraction.coerceIn(0f, 1f)
 
             // Resting geometry: sleek capsule flattened and resting toward the screen edge
-            val restingW = minOf(centerTouchBounds.width(), 6f * d)
-            val restingH = (zoneH * 0.40f).coerceIn(45f * d, 140f * d)
+            val restingW = minOf(centerTouchBounds.width(), 6.5f * d)
+            val restingH = (centerTouchBounds.height() * 0.38f).coerceIn(44f * d, 130f * d)
 
             // Morphing geometry: dynamically swells into the screen on touch / gesture
-            val activeW = minOf(centerTouchBounds.width(), 26f * d)
-            val activeH = (zoneH * 0.85f).coerceAtLeast(restingH)
+            val activeW = minOf(centerTouchBounds.width(), 32f * d).coerceAtLeast(24f * d)
+            val activeH = (centerTouchBounds.height() * 0.75f).coerceAtLeast(restingH)
 
             val pillW = restingW + (activeW - restingW) * morphFactor
             val pillH = restingH + (activeH - restingH) * morphFactor
@@ -89,14 +94,22 @@ object LightspeedDeflectorRenderer {
             val restingAlpha = if (centerTransparency > 0) {
                 (centerTransparency * 2.55f).toInt().coerceIn(0, 255)
             } else {
-                (40 * 2.55f).toInt() // Aesthetic resting baseline glass presence
+                (45 * 2.55f).toInt() // Aesthetic resting baseline glass presence
             }
             val finalAlpha = if (isTouched) 255 else maxOf(restingAlpha, (255 * glowFraction).toInt())
 
             if (finalAlpha > 0) {
-                val pillTop = (cy - pillH / 2f).coerceAtLeast(centerTouchBounds.top + 2f * d)
-                val pillBottom = (cy + pillH / 2f).coerceAtMost(centerTouchBounds.bottom - 2f * d)
-                // Corner radius for inner corners facing toward screen center
+                val cy = if (isTouched && touchY != null && touchY > 0f) {
+                    val minY = if (h > centerTouchBounds.height() * 1.5f) (40f * d + pillH / 2f) else (centerTouchBounds.top + pillH / 2f)
+                    val maxY = if (h > centerTouchBounds.height() * 1.5f) (h - 40f * d - pillH / 2f) else (centerTouchBounds.bottom - pillH / 2f)
+                    touchY.coerceIn(minY, maxY)
+                } else {
+                    centerTouchBounds.centerY()
+                }
+
+                val pillTop = (cy - pillH / 2f).coerceAtLeast(2f * d)
+                val pillBottom = (cy + pillH / 2f).coerceAtMost(h - 2f * d)
+                // Corner radius for inner corners facing toward screen center (outer corners flush at 0)
                 val cornerR = (pillW * 0.5f).coerceAtLeast(restingW * 0.5f).coerceAtMost((pillBottom - pillTop) / 2f)
 
                 bladePath.reset()
@@ -123,15 +136,52 @@ object LightspeedDeflectorRenderer {
                     bladePath.addRoundRect(rect, radii, Path.Direction.CW)
                 }
 
+                // 1. Core Progressive Frosted Glass Diffusion (Milky opalescent volume)
                 applyPillShading(isLeft, w, pillW, pillTop, pillBottom, finalAlpha, m3Primary, glowStyle, useM3Color, d)
                 canvas.drawPath(bladePath, bladeFillPaint)
+
+                // 2. Soft Optical Refraction Caustic (Dual-layer light lens)
+                val causticInset = 1.0f * d
+                val causticR = (cornerR - causticInset).coerceAtLeast(1f * d).coerceAtMost((pillBottom - pillTop - 2 * causticInset) / 2f)
+                causticPath.reset()
+                if (isLeft) {
+                    causticPath.moveTo(0f, pillTop + causticInset)
+                    causticPath.lineTo((pillW - cornerR).coerceAtLeast(0f), pillTop + causticInset)
+                    causticPath.arcTo(RectF(pillW - 2 * causticR - causticInset, pillTop + causticInset, pillW - causticInset, pillTop + 2 * causticR + causticInset), -90f, 90f, false)
+                    causticPath.lineTo(pillW - causticInset, pillBottom - cornerR)
+                    causticPath.arcTo(RectF(pillW - 2 * causticR - causticInset, pillBottom - 2 * causticR - causticInset, pillW - causticInset, pillBottom - causticInset), 0f, 90f, false)
+                    causticPath.lineTo(0f, pillBottom - causticInset)
+                } else {
+                    causticPath.moveTo(w, pillTop + causticInset)
+                    causticPath.lineTo((w - pillW + cornerR).coerceAtMost(w), pillTop + causticInset)
+                    causticPath.arcTo(RectF(w - pillW + causticInset, pillTop + causticInset, w - pillW + 2 * causticR + causticInset, pillTop + 2 * causticR + causticInset), -90f, -90f, false)
+                    causticPath.lineTo(w - pillW + causticInset, pillBottom - cornerR)
+                    causticPath.arcTo(RectF(w - pillW + causticInset, pillBottom - 2 * causticR - causticInset, w - pillW + 2 * causticR + causticInset, pillBottom - causticInset), 180f, -90f, false)
+                    causticPath.lineTo(w, pillBottom - causticInset)
+                }
+
+                // Pass A: Diffuse Caustic Light Bloom (wider, soft optical scatter)
+                causticPaint.strokeWidth = if (morphFactor > 0f) 4.0f * d else 2.4f * d
+                causticPaint.color = Color.argb((finalAlpha * 0.18f).toInt(), 255, 255, 255)
+                canvas.drawPath(causticPath, causticPaint)
+
+                // Pass B: Sharp Refractive Specular Crest (inner curved boundary)
+                causticPaint.strokeWidth = if (morphFactor > 0f) 1.5f * d else 1.0f * d
+                causticPaint.color = Color.argb((finalAlpha * 0.48f).toInt(), 255, 255, 255)
+                canvas.drawPath(causticPath, causticPaint)
+
+                // 3. Bezel Contact Grounding (Subtle bezel shadow giving tangible depth)
+                val bezelX = if (isLeft) 0.5f * d else w - 0.5f * d
+                causticPaint.strokeWidth = 1.0f * d
+                causticPaint.color = Color.argb((finalAlpha * 0.22f).toInt(), 0, 0, 0)
+                canvas.drawLine(bezelX, pillTop, bezelX, pillBottom, causticPaint)
             }
         }
 
         // =========================================================================
         // 2. DEFLECTORS (Top & Bottom Flanks): Aerodynamic Edge Glow Only (Zero Pill / Zero Rim)
         // =========================================================================
-        if (isCurrentlyTouched && (activeZoneIsTop || activeZoneIsBottom)) {
+        if (isGlowEnabled && isCurrentlyTouched && (activeZoneIsTop || activeZoneIsBottom)) {
             val bounds = if (activeZoneIsTop) topTouchBounds else bottomTouchBounds
             val flankTop = bounds.top + 4f * d
             val flankBottom = bounds.bottom - 4f * d
@@ -195,23 +245,29 @@ object LightspeedDeflectorRenderer {
             Triple(Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
         } else {
             when (glowStyle) {
-                "crimson_reactor" -> Triple(255, 36, 75)
+                "crimson_reactor" -> Triple(255, 45, 80)
                 "cyber_plasma" -> Triple(0, 229, 255)
                 else -> Triple(225, 240, 255) // Pristine crystalline frost
             }
         }
+
+        // Opalescent frosted light-scattering core
+        val frostR = ((baseR * 0.30f) + (255 * 0.70f)).toInt().coerceIn(0, 255)
+        val frostG = ((baseG * 0.30f) + (255 * 0.70f)).toInt().coerceIn(0, 255)
+        val frostB = ((baseB * 0.30f) + (255 * 0.70f)).toInt().coerceIn(0, 255)
 
         when (glowStyle) {
             "material_shade" -> {
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, baseR, baseG, baseB),
-                        Color.argb((finalAlpha * 0.65f).toInt(), (baseR * 0.55f + 25).toInt().coerceIn(0, 255), (baseG * 0.55f + 25).toInt().coerceIn(0, 255), (baseB * 0.55f + 32).toInt().coerceIn(0, 255)),
-                        Color.argb((finalAlpha * 0.25f).toInt(), 28, 30, 42),
+                        Color.argb(finalAlpha, frostR, frostG, frostB),
+                        Color.argb((finalAlpha * 0.80f).toInt(), (baseR * 0.65f + 40).toInt().coerceIn(0, 255), (baseG * 0.65f + 40).toInt().coerceIn(0, 255), (baseB * 0.65f + 50).toInt().coerceIn(0, 255)),
+                        Color.argb((finalAlpha * 0.48f).toInt(), baseR, baseG, baseB),
+                        Color.argb((finalAlpha * 0.18f).toInt(), (baseR * 0.4f + 30).toInt().coerceIn(0, 255), (baseG * 0.4f + 30).toInt().coerceIn(0, 255), (baseB * 0.4f + 40).toInt().coerceIn(0, 255)),
                         Color.argb(0, 14, 16, 22)
                     ),
-                    floatArrayOf(0.0f, 0.35f, 0.70f, 1.0f),
+                    floatArrayOf(0.0f, 0.25f, 0.55f, 0.82f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
             }
@@ -219,12 +275,13 @@ object LightspeedDeflectorRenderer {
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, 255, 45, 80),
-                        Color.argb((finalAlpha * 0.75f).toInt(), 255, 110, 30),
-                        Color.argb((finalAlpha * 0.28f).toInt(), 180, 20, 45),
+                        Color.argb(finalAlpha, 255, 215, 225),
+                        Color.argb((finalAlpha * 0.82f).toInt(), 255, 65, 95),
+                        Color.argb((finalAlpha * 0.50f).toInt(), 255, 110, 30),
+                        Color.argb((finalAlpha * 0.18f).toInt(), 180, 20, 45),
                         Color.argb(0, 100, 0, 20)
                     ),
-                    floatArrayOf(0.0f, 0.30f, 0.70f, 1.0f),
+                    floatArrayOf(0.0f, 0.20f, 0.52f, 0.80f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
             }
@@ -232,27 +289,29 @@ object LightspeedDeflectorRenderer {
                 bladeFillPaint.shader = LinearGradient(
                     x0, topLimit, x1, bottomLimit,
                     intArrayOf(
-                        Color.argb(finalAlpha, 0, 229, 255),
-                        Color.argb((finalAlpha * 0.75f).toInt(), baseR, baseG, baseB),
-                        Color.argb((finalAlpha * 0.35f).toInt(), 255, 171, 0),
+                        Color.argb(finalAlpha, 230, 252, 255),
+                        Color.argb((finalAlpha * 0.80f).toInt(), 0, 229, 255),
+                        Color.argb((finalAlpha * 0.50f).toInt(), baseR, baseG, baseB),
+                        Color.argb((finalAlpha * 0.20f).toInt(), 255, 171, 0),
                         Color.argb(0, 255, 171, 0)
                     ),
-                    floatArrayOf(0.0f, 0.40f, 0.75f, 1.0f),
+                    floatArrayOf(0.0f, 0.22f, 0.52f, 0.80f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
             }
             else -> {
-                // "progressive_frost" (Default) - Heavy progressive frosted glass diffusion with multi-stop blur curve
+                // "progressive_frost" (Default) - Heavy progressive frosted glass diffusion with milky opalescent scattering
                 bladeFillPaint.shader = LinearGradient(
                     x0, 0f, x1, 0f,
                     intArrayOf(
-                        Color.argb(finalAlpha, baseR, baseG, baseB),
-                        Color.argb((finalAlpha * 0.78f).toInt(), (baseR * 0.68f + 65).toInt().coerceIn(0, 255), (baseG * 0.68f + 70).toInt().coerceIn(0, 255), (baseB * 0.68f + 80).toInt().coerceIn(0, 255)),
-                        Color.argb((finalAlpha * 0.40f).toInt(), (baseR * 0.35f + 40).toInt().coerceIn(0, 255), (baseG * 0.35f + 45).toInt().coerceIn(0, 255), (baseB * 0.35f + 60).toInt().coerceIn(0, 255)),
-                        Color.argb((finalAlpha * 0.15f).toInt(), 255, 255, 255),
+                        Color.argb(finalAlpha, frostR, frostG, frostB),
+                        Color.argb((finalAlpha * 0.84f).toInt(), (frostR * 0.88f + 25).toInt().coerceIn(0, 255), (frostG * 0.90f + 22).toInt().coerceIn(0, 255), (frostB * 0.94f + 12).toInt().coerceIn(0, 255)),
+                        Color.argb((finalAlpha * 0.54f).toInt(), (baseR * 0.65f + 85).toInt().coerceIn(0, 255), (baseG * 0.65f + 90).toInt().coerceIn(0, 255), (baseB * 0.65f + 100).toInt().coerceIn(0, 255)),
+                        Color.argb((finalAlpha * 0.24f).toInt(), (baseR * 0.30f + 60).toInt().coerceIn(0, 255), (baseG * 0.30f + 65).toInt().coerceIn(0, 255), (baseB * 0.30f + 80).toInt().coerceIn(0, 255)),
+                        Color.argb((finalAlpha * 0.06f).toInt(), 255, 255, 255),
                         Color.argb(0, baseR, baseG, baseB)
                     ),
-                    floatArrayOf(0.0f, 0.28f, 0.62f, 0.88f, 1.0f),
+                    floatArrayOf(0.0f, 0.22f, 0.52f, 0.78f, 0.92f, 1.0f),
                     Shader.TileMode.CLAMP
                 )
             }

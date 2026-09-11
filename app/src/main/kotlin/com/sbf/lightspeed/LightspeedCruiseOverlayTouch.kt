@@ -52,6 +52,7 @@ import kotlin.math.sin
 internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superCall: () -> Boolean): Boolean {
         val x = event.x; val y = event.y
         val rawX = event.rawX; val rawY = event.rawY
+        currentTouchY = if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) -1f else y
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
             val d = resources.displayMetrics.density
             val screenW = width.toFloat()

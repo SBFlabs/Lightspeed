@@ -348,7 +348,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var renderCacheReticleStyle = "tactical"
     internal var renderCacheLinkEdges = false
     internal var renderCacheGlowEnabled = true
+    internal var renderCacheLeftGlowEnabled = true
     internal var renderCacheUseM3Color = true
+    internal var currentTouchY = -1f
 
     internal val projectionCamera3D = Camera()
     internal val transformMatrixPipeline = Matrix()
@@ -398,6 +400,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         renderCacheGlowStyle            = p.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
         renderCacheReticleStyle         = p.getString("pref_gear_reticle_style", "tactical") ?: "tactical"
         renderCacheGlowEnabled          = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_RIGHT_GLOW_ENABLED, p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_ENABLED, true))
+        renderCacheLeftGlowEnabled      = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_LEFT_GLOW_ENABLED, p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_GLOW_ENABLED, true))
         renderCacheUseM3Color           = p.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_USE_M3_COLOR, true)
     }
 
@@ -469,13 +472,23 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             val topLimit = (centerTop - topHeightPx).coerceAtLeast(0f)
             val bottomLimit = (centerBottom + bottomHeightPx).coerceAtMost(h)
 
-            topTouchBounds.set(w - topTouchWidthPx, topLimit, w, centerTop)
-            centerTouchBounds.set(w - centerTouchWidthPx, centerTop, w, centerBottom)
-            bottomTouchBounds.set(w - bottomTouchWidthPx, centerBottom, w, bottomLimit)
+            if (isOpenedFromLeftFlank) {
+                topTouchBounds.set(0f, topLimit, topTouchWidthPx, centerTop)
+                centerTouchBounds.set(0f, centerTop, centerTouchWidthPx, centerBottom)
+                bottomTouchBounds.set(0f, centerBottom, bottomTouchWidthPx, bottomLimit)
 
-            topVisualBounds.set(w - topVisualWidthPx, topLimit, w, centerTop)
-            centerVisualBounds.set(w - centerVisualWidthPx, centerTop, w, centerBottom)
-            bottomVisualBounds.set(w - bottomVisualWidthPx, centerBottom, w, bottomLimit)
+                topVisualBounds.set(0f, topLimit, topVisualWidthPx, centerTop)
+                centerVisualBounds.set(0f, centerTop, centerVisualWidthPx, centerBottom)
+                bottomVisualBounds.set(0f, centerBottom, bottomVisualWidthPx, bottomLimit)
+            } else {
+                topTouchBounds.set(w - topTouchWidthPx, topLimit, w, centerTop)
+                centerTouchBounds.set(w - centerTouchWidthPx, centerTop, w, centerBottom)
+                bottomTouchBounds.set(w - bottomTouchWidthPx, centerBottom, w, bottomLimit)
+
+                topVisualBounds.set(w - topVisualWidthPx, topLimit, w, centerTop)
+                centerVisualBounds.set(w - centerVisualWidthPx, centerTop, w, centerBottom)
+                bottomVisualBounds.set(w - bottomVisualWidthPx, centerBottom, w, bottomLimit)
+            }
 
             launchpadPillBounds.set(centerVisualBounds)
 
@@ -890,6 +903,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         glowAnimator?.cancel()
         glowFraction = 0f
         isCurrentlyTouched = false
+        currentTouchY = -1f
         currentActiveZone = TouchZone.NONE
         macroTrackingActive = false
         isDraggingHangarBays = false

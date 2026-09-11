@@ -73,6 +73,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 isHangarEjectArmed, gearRingRotations, hangarBayScrollOffset, setsList,
                 ::resolveCleanAppLabel, ::getAppsForActiveGear, ::getFlankLaunchBehavior
             )
+            drawCruiseCentralPill(canvas, m3Primary)
             return
         }
         val w = width.toFloat(); val h = height.toFloat()
@@ -113,7 +114,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 m3Primary = m3Primary,
                 glowStyle = glowStyle,
                 isGlowEnabled = renderCacheGlowEnabled,
-                useM3Color = renderCacheUseM3Color
+                useM3Color = renderCacheUseM3Color,
+                touchY = if (isCurrentlyTouched && currentTouchY > 0f) currentTouchY else null
             )
             if (currentLayer == CruiseLayer.NEUTRAL) return
             return
@@ -312,6 +314,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
             textPaint.typeface = android.graphics.Typeface.DEFAULT
             textPaint.color = Color.argb(160, 180, 210, 245)
             canvas.drawText(if (isOpenedFromLeftFlank) "PULL RIGHT >> SWITCH PROFILE  •  SLIDE LEFT << CANCEL" else "PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
+            drawCruiseCentralPill(canvas, m3Primary)
             return
         }
 
@@ -495,4 +498,40 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
         }
 
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
+        drawCruiseCentralPill(canvas, m3Primary)
+}
+
+private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Primary: Int) {
+    val isLeft = isOpenedFromLeftFlank
+    val isGlowEnabled = if (isLeft) renderCacheLeftGlowEnabled else renderCacheGlowEnabled
+    if (!isGlowEnabled) return
+
+    val d = resources.displayMetrics.density
+    val w = width.toFloat()
+    val h = height.toFloat()
+
+    com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
+        canvas = canvas,
+        isLeft = isLeft,
+        density = d,
+        w = w,
+        h = h,
+        topTouchBounds = topTouchBounds,
+        centerTouchBounds = centerTouchBounds,
+        bottomTouchBounds = bottomTouchBounds,
+        isCurrentlyTouched = true,
+        activeZoneIsCenter = true,
+        activeZoneIsTop = false,
+        activeZoneIsBottom = false,
+        glowFraction = 1f,
+        centerTransparency = renderCacheCenterTransparency,
+        topTransparency = 0,
+        bottomTransparency = 0,
+        isReview = false,
+        m3Primary = m3Primary,
+        glowStyle = renderCacheGlowStyle,
+        isGlowEnabled = true,
+        useM3Color = renderCacheUseM3Color,
+        touchY = if (isCurrentlyTouched && currentTouchY > 0f) currentTouchY else null
+    )
 }

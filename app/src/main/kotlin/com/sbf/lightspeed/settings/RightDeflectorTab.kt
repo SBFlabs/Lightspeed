@@ -247,7 +247,7 @@ fun RightDeflectorTabContent(
                                                     toggleSection(2, "center", isCenterExpanded) { isCenterExpanded = it }
                                                     prefs.edit()
                                                         .putBoolean("pref_section_center_expanded", isCenterExpanded)
-                                                        .putBoolean("pref_sidebar_preview", isCenterExpanded || isTopExpanded || isBottomExpanded || isRightUnifiedExpanded)
+                                                        .putBoolean("pref_sidebar_preview", isTopExpanded || isBottomExpanded || isRightUnifiedExpanded)
                                                         .apply()
                                                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                                     onRefreshNeeded()

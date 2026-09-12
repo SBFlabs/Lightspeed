@@ -20,6 +20,8 @@ object LightspeedPreferences {
     const val KEY_DEFLECTOR_RIGHT_GLOW_ENABLED = "pref_deflector_right_glow_enabled" // Boolean, default true
     const val KEY_DEFLECTOR_USE_M3_COLOR = "pref_deflector_use_m3_color" // Boolean, default true
     const val KEY_DEFLECTOR_GLOW_STYLE = "pref_deflector_glow_style" // "progressive_frost", "material_shade", "crimson_reactor", "cyber_plasma"
+    const val KEY_DEFLECTOR_LEFT_PILL_STYLE = "pref_deflector_left_pill_style"
+    const val KEY_DEFLECTOR_RIGHT_PILL_STYLE = "pref_deflector_right_pill_style"
     const val KEY_DEFLECTOR_PILL_STYLE = "pref_deflector_pill_style" // "anchored_glow", "floating_smart_pill", "neon_core", "razor_edge", "kinetic_elastic", "hollow_ghost"
     const val KEY_DEFLECTOR_GLOW_ON_GESTURE_STEP = "pref_deflector_glow_on_gesture_step" // Boolean, default true
     const val KEY_DEFLECTOR_GLOW_DURATION = "pref_deflector_glow_duration" // "800ms", "1500ms", "2200ms"
@@ -452,11 +454,15 @@ object LightspeedPreferences {
     fun getDeflectorGlowStyle(context: Context): String =
         context.defaultPrefs().getString(KEY_DEFLECTOR_GLOW_STYLE, "progressive_frost") ?: "progressive_frost"
 
-    fun getDeflectorPillStyle(context: Context): String =
-        context.defaultPrefs().getString(KEY_DEFLECTOR_PILL_STYLE, "anchored_glow") ?: "anchored_glow"
+        fun getDeflectorPillStyle(context: Context, isLeft: Boolean): String {
+        val key = if (isLeft) KEY_DEFLECTOR_LEFT_PILL_STYLE else KEY_DEFLECTOR_RIGHT_PILL_STYLE
+        val fallback = context.defaultPrefs().getString(KEY_DEFLECTOR_PILL_STYLE, "anchored_glow") ?: "anchored_glow"
+        return context.defaultPrefs().getString(key, fallback) ?: fallback
+    }
 
-    fun setDeflectorPillStyle(context: Context, style: String) {
-        context.defaultPrefs().edit().putString(KEY_DEFLECTOR_PILL_STYLE, style).apply()
+    fun setDeflectorPillStyle(context: Context, isLeft: Boolean, style: String) {
+        val key = if (isLeft) KEY_DEFLECTOR_LEFT_PILL_STYLE else KEY_DEFLECTOR_RIGHT_PILL_STYLE
+        context.defaultPrefs().edit().putString(key, style).apply()
     }
 
     fun setDeflectorGlowStyle(context: Context, style: String) {

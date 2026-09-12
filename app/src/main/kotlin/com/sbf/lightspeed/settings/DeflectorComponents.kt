@@ -279,7 +279,7 @@ fun DeflectorGlowCard(
     }
     var useM3Color by remember { mutableStateOf(LightspeedPreferences.isDeflectorUseM3Color(context)) }
     var glowStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorGlowStyle(context)) }
-    var pillStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorPillStyle(context)) }
+    var pillStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorPillStyle(context, isLeft)) }
     var glowOnGestureStep by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) }
     var glowDuration by remember {
         mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_GLOW_DURATION, "1500ms") ?: "1500ms")
@@ -655,7 +655,7 @@ fun DeflectorPillStylingContent(
     }
     var useM3Color by remember { mutableStateOf(LightspeedPreferences.isDeflectorUseM3Color(context)) }
     var glowStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorGlowStyle(context)) }
-    var pillStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorPillStyle(context)) }
+    var pillStyle by remember { mutableStateOf(LightspeedPreferences.getDeflectorPillStyle(context, isLeft)) }
     var glowOnGestureStep by remember { mutableStateOf(LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) }
 
     val styleOptions = listOf(
@@ -749,7 +749,7 @@ fun DeflectorPillStylingContent(
                             selected = isSelected,
                             onClick = {
                                 pillStyle = id
-                                LightspeedPreferences.setDeflectorPillStyle(context, id)
+                                LightspeedPreferences.setDeflectorPillStyle(context, isLeft, id)
                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                 LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                             },
@@ -778,7 +778,7 @@ fun DeflectorPillStylingContent(
                             selected = isSelected,
                             onClick = {
                                 pillStyle = id
-                                LightspeedPreferences.setDeflectorPillStyle(context, id)
+                                LightspeedPreferences.setDeflectorPillStyle(context, isLeft, id)
                                 try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                 LightspeedAccessibilityService.instance?.triggerDeflectorGlow(isLeft)
                             },

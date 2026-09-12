@@ -669,7 +669,7 @@ class LightspeedLeftWingOverlay(
             glowStyle = glowStyle,
             isGlowEnabled = isGlowEnabled,
             useM3Color = useM3Color,
-            pillStyle = com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorPillStyle(context),
+            pillStyle = com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorPillStyle(context, true),
             touchY = null,
             visualWidthPx = centerVisualWidthPx
         )

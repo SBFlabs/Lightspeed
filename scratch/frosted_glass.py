@@ -1,4 +1,6 @@
-package com.sbf.lightspeed.system
+import re
+
+code = """package com.sbf.lightspeed.system
 
 import android.app.Activity
 import android.content.BroadcastReceiver
@@ -305,3 +307,7 @@ fun DockActionButton(modifier: Modifier, title: String, icon: ImageVector, color
         }
     }
 }
+"""
+
+with open('app/src/main/kotlin/com/sbf/lightspeed/system/OmniscientAudioDockActivity.kt', 'w') as f:
+    f.write(code)

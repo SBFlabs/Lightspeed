@@ -194,10 +194,11 @@ fun MainSettingsScreen() {
                                                     onDragStart = { _ ->
                                                         LightspeedHapticEngine.tick(context)
                                                         showLanguageHud = true
-                                                        activeLanguageIndex = when (LightspeedLanguageEngine.getMode(context)) {
+                                                        activeLanguageIndex = when (LightspeedLanguageEngine.mode) {
                                                             LightspeedLanguageEngine.LanguageMode.VESSEL_LORE -> 0
                                                             LightspeedLanguageEngine.LanguageMode.CO_PILOT -> 1
                                                             LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS -> 2
+                                                            else -> 0
                                                         }
                                                     },
                                                     onDragEnd = {
@@ -209,7 +210,7 @@ fun MainSettingsScreen() {
                                                                 2 -> LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS
                                                                 else -> return@detectDragGesturesAfterLongPress
                                                             }
-                                                            if (LightspeedLanguageEngine.getMode(context) != mode) {
+                                                            if (LightspeedLanguageEngine.mode != mode) {
                                                                 LightspeedLanguageEngine.setMode(context, mode)
                                                                 LightspeedHapticEngine.click(context)
                                                             }

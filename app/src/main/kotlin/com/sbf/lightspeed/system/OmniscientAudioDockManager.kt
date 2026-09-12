@@ -1,3 +1,4 @@
+import androidx.compose.foundation.verticalScroll
 package com.sbf.lightspeed.system
 
 import android.accessibilityservice.AccessibilityService
@@ -272,7 +273,7 @@ object OmniscientAudioDockManager {
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.9f)
+                        .fillMaxWidth(0.9f).heightIn(max = 750.dp)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                         .clip(RoundedCornerShape(36.dp))
                         
@@ -291,6 +292,7 @@ object OmniscientAudioDockManager {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .verticalScroll(androidx.compose.foundation.rememberScrollState())
                             .padding(24.dp)
                     ) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

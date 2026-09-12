@@ -274,7 +274,7 @@ fun LeftDeflectorTabContent(
                                     "left_center" -> {
                                         item(key = "left_center") {
                                              CompactAccordionSection(
-                                                title = "Central Pill (Core Astrogation)",
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CORE_ZONE),
                                                 icon = {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Navigation,
@@ -306,7 +306,7 @@ fun LeftDeflectorTabContent(
                                         if (isLeftFlankUnified) {
                                             item(key = "left_unified") {
                                                 CompactAccordionSection(
-                                                    title = "Unified Deflectors",
+                                                    title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.UNIFIED_DEFLECTORS),
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.SwapVert,
@@ -387,7 +387,7 @@ fun LeftDeflectorTabContent(
                                         if (!isLeftFlankUnified) {
                                             item(key = "left_top") {
                                                 CompactAccordionSection(
-                                                    title = "Upper Deflector Zone",
+                                                    title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.UPPER_FLANK),
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowUp,
@@ -460,7 +460,7 @@ fun LeftDeflectorTabContent(
                                         if (!isLeftFlankUnified) {
                                             item(key = "left_bottom") {
                                                 CompactAccordionSection(
-                                                    title = "Lower Deflector Zone",
+                                                    title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LOWER_FLANK),
                                                     icon = {
                                                         Icon(
                                                             imageVector = Icons.Outlined.KeyboardArrowDown,

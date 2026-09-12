@@ -28,6 +28,9 @@ object LightspeedVocabulary {
         CRUISE,
         COCKPIT,
         HUD_STRIP,
+        TAB_LEFT,
+        TAB_CENTER,
+        TAB_RIGHT,
 
         // Gesture zones
         DEFLECTORS,
@@ -82,6 +85,9 @@ object LightspeedVocabulary {
         Key.CRUISE                  to "Cruise",
         Key.COCKPIT                 to "Cockpit",
         Key.HUD_STRIP               to "HUD Strip",
+        Key.TAB_LEFT                to "◀ PORT",
+        Key.TAB_CENTER              to "HUD STRIP",
+        Key.TAB_RIGHT               to "STARBOARD ▶",
 
         Key.DEFLECTORS              to "Left & Right Deflectors",
         Key.LEFT_DEFLECTOR          to "Port Deflector",
@@ -130,6 +136,9 @@ object LightspeedVocabulary {
         Key.CRUISE                  to "Navigation",
         Key.COCKPIT                 to "Launcher Settings",
         Key.HUD_STRIP               to "Status Bar Features",
+        Key.TAB_LEFT                to "◀ LEFT",
+        Key.TAB_CENTER              to "STATUS BAR",
+        Key.TAB_RIGHT               to "RIGHT ▶",
 
         Key.DEFLECTORS              to "Left & Right Gesture Sidebars",
         Key.LEFT_DEFLECTOR          to "Left Gesture Sidebar",

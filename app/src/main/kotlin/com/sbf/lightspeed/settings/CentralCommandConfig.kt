@@ -637,7 +637,11 @@ fun CentralCommandMatrixFields(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val deflStr = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.DEFLECTORS).replace("Left & Right ", ""); val hudStr = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HUD_STRIP).uppercase(); val tabTitles = listOf("◀ $deflStr", hudStr, "$deflStr ▶")
+            val tabTitles = listOf(
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TAB_LEFT),
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TAB_CENTER),
+                com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TAB_RIGHT)
+            )
             tabTitles.forEachIndexed { index, tabTitle ->
                 val isSelected = pagerState.currentPage == index
                 Box(
@@ -1416,9 +1420,9 @@ fun CentralCommandMatrixFields(
 
             val tabId = popoverTabTarget!!
             val tabTitle = when (tabId) {
-                0 -> "◀ Deflectors"
-                1 -> "HUD STRIP"
-                2 -> "Deflectors ▶"
+                0 -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TAB_LEFT)
+                1 -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TAB_CENTER)
+                2 -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.TAB_RIGHT)
                 else -> "Avionics Tab"
             }
             val currentMode = when (tabId) {

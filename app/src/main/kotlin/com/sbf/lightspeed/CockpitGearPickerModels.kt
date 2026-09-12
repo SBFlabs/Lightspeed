@@ -266,7 +266,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive "liquid glass" gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive \"liquid glass\" gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )
@@ -368,7 +368,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive "liquid glass" gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive \"liquid glass\" gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )
@@ -416,7 +416,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive "liquid glass" gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive \"liquid glass\" gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )

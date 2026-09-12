@@ -671,6 +671,12 @@ object LightspeedShortcutManager {
                     }
 
                     if (launchIntent != null) {
+                        // 0. Unpack OEM Dialer / Hidden Intents
+                        if (launchIntent.hasExtra("shortcut_action")) {
+                            launchIntent.action = launchIntent.getStringExtra("shortcut_action")
+                            launchIntent.component = null
+                        }
+
                         // Unpack nested ShortcutMaker intent if present
                         val extraIntent = launchIntent.getStringExtra("extra_intent")
                         if (!extraIntent.isNullOrBlank()) {

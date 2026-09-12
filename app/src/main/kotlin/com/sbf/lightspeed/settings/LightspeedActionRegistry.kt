@@ -266,8 +266,8 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         }
         token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"
         token == "system:media_stop" -> "Media: Stop Playback"
-        token == "system:refueling_bay" -> "Refueling Bay (Cryo Charging Dashboard)"
-        token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> "Core Cooling (Reboot System)"
+        token == "system:refueling_bay" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.REFUELING_BAY)
+        token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CORE_COOLING)
         token == "system:perimeter_watchdog" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.PERIMETER_DEFENSE)
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")

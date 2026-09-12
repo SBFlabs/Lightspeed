@@ -112,7 +112,7 @@ object LightspeedVocabulary {
         Key.WATCHDOG_SENTINELS      to "Watchdog Sentinels",
         Key.PERIMETER_DEFENSE       to "Perimeter Watchdog",
         Key.GRAVITY_ENGINE          to "Synthetic Gravity Engine",
-        Key.CORE_COOLING            to "Core Cooling Schedule",
+        Key.CORE_COOLING            to "System Reboot",
 
         Key.MASTER_FLIGHT           to "Master Flight",
         Key.FLIGHT_DECK             to "Flight Control Deck",
@@ -160,7 +160,7 @@ object LightspeedVocabulary {
         Key.WATCHDOG_SENTINELS      to "Watchdog & Crash Guard",
         Key.PERIMETER_DEFENSE       to "Accessibility Service Manager (Shizuku)",
         Key.GRAVITY_ENGINE          to "Orientation Preferences",
-        Key.CORE_COOLING            to "Thermal Schedule",
+        Key.CORE_COOLING            to "System Reboot",
 
         Key.MASTER_FLIGHT           to "Master Toggle",
         Key.FLIGHT_DECK             to "Quick Controls",

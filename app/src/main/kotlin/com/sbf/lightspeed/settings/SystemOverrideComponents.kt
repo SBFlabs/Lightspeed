@@ -2,6 +2,7 @@ package com.sbf.lightspeed.settings
 
 import android.content.Context
 import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.combinedClickable
 
 import android.content.SharedPreferences
 import android.provider.Settings
@@ -97,6 +98,10 @@ fun SystemOverrideDeckContents(
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
         OverrideSliderRow(
+            context = context,
+            prefs = prefs,
+            sliderKey = "sys_override_edge_gesture",
+            defaultValue = 1.0f,
             icon = Icons.Default.VerticalDistribute,
             title = "Native Edge Gesture Sovereignty",
             subtitle = "Force back-gesture insets to 0 to allow Lightspeed full edge control",
@@ -119,6 +124,10 @@ fun SystemOverrideDeckContents(
 
         // 2. Animation Speeds
         OverrideSliderRow(
+            context = context,
+            prefs = prefs,
+            sliderKey = "sys_override_animation_speed",
+            defaultValue = 1.0f,
             icon = Icons.Default.Speed,
             title = "Animation Speeds",
             subtitle = "Global master scale & Window/Transition/Animator subdomains",
@@ -142,6 +151,10 @@ fun SystemOverrideDeckContents(
 
         // 3. Display Metrics
         OverrideSliderRow(
+            context = context,
+            prefs = prefs,
+            sliderKey = "sys_override_display_dpi",
+            defaultValue = context.resources.configuration.densityDpi.toFloat(),
             icon = Icons.Default.ScreenshotMonitor,
             title = "Display Metrics",
             subtitle = "On-the-fly PPI / DPI adjustments (Default: ${context.resources.configuration.densityDpi})",
@@ -164,6 +177,10 @@ fun SystemOverrideDeckContents(
 
         // 4. Font Scale
         OverrideSliderRow(
+            context = context,
+            prefs = prefs,
+            sliderKey = "sys_override_font_scale",
+            defaultValue = 1.0f,
             icon = Icons.Default.FontDownload,
             title = "Font Scale",
             subtitle = "Tactile slider for system FONT_SCALE override",
@@ -286,8 +303,13 @@ fun OverrideSettingRow(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun OverrideSliderRow(
+    context: Context,
+    prefs: SharedPreferences,
+    sliderKey: String,
+    defaultValue: Float,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
@@ -299,6 +321,9 @@ fun OverrideSliderRow(
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
+    var isFlyoutOpen by remember { mutableStateOf(false) }
+    var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_$sliderKey", false)) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -329,12 +354,33 @@ fun OverrideSliderRow(
                     color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.2f)
                 )
             }
-            Text(
-                text = valueFormatter(value),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Black,
-                color = if (isEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.2f)
-            )
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .combinedClickable(
+                        enabled = isEnabled,
+                        onClick = {
+                            LightspeedHapticEngine.tick(context)
+                            onValueChange(defaultValue)
+                            onValueChangeFinished()
+                        },
+                        onLongClick = {
+                            LightspeedHapticEngine.heavyClick(context)
+                            isFlyoutOpen = true
+                        }
+                    )
+            ) {
+                Text(
+                    text = valueFormatter(value),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (isEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.2f),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(4.dp))
         Slider(
@@ -350,6 +396,39 @@ fun OverrideSliderRow(
                 activeTrackColor = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.1f),
                 inactiveTrackColor = Color.White.copy(alpha = 0.1f)
             )
+        )
+    }
+
+    if (isFlyoutOpen) {
+        SliderCalibrationFlyoutDialog(
+            title = title,
+            sliderKey = sliderKey,
+            currentValueStr = value.toString(),
+            defaultValueStr = defaultValue.toString(),
+            onValueTyped = { typed ->
+                typed.toFloatOrNull()?.let { f ->
+                    onValueChange(f.coerceIn(valueRange))
+                    onValueChangeFinished()
+                }
+            },
+            onResetToDefault = {
+                onValueChange(defaultValue)
+                onValueChangeFinished()
+            },
+            onSelectProfile = { profileValueStr ->
+                profileValueStr.toFloatOrNull()?.let { f ->
+                    onValueChange(f.coerceIn(valueRange))
+                    onValueChangeFinished()
+                }
+            },
+            onDismiss = { isFlyoutOpen = false },
+            prefs = prefs,
+            context = context,
+            isTapToJumpEnabled = isTapToJumpEnabled,
+            onTapToJumpChanged = {
+                isTapToJumpEnabled = it
+                prefs.edit().putBoolean("pref_slider_tap_to_jump_$sliderKey", it).apply()
+            }
         )
     }
 }

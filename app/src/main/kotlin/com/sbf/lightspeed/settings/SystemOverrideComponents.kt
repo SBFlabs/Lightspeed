@@ -1,6 +1,8 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
+import androidx.compose.foundation.clickable
+
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

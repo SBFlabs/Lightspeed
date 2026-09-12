@@ -132,7 +132,7 @@ object LightspeedVocabulary {
     // ─── Clear Comms dictionary ──────────────────────────────────────────────
 
     private val clearMap: Map<Key, String> = mapOf(
-        Key.CENTRAL_COMMAND         to "Settings",
+        Key.CENTRAL_COMMAND         to "Central Command",
         Key.CRUISE                  to "Navigation",
         Key.COCKPIT                 to "Launcher Settings",
         Key.HUD_STRIP               to "System & Overlay Features",

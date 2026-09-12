@@ -122,7 +122,7 @@ object LightspeedVocabulary {
         Key.GRAVITY_ENGINE          to "Synthetic Gravity Engine",
         Key.CORE_COOLING            to "System Reboot",
 
-        Key.SYSTEM_OVERRIDES        to "System Overrides",
+        Key.SYSTEM_OVERRIDES        to "System Override",
 
         Key.MASTER_FLIGHT           to "Master Flight",
         Key.FLIGHT_DECK             to "Flight Control Deck",
@@ -173,7 +173,7 @@ object LightspeedVocabulary {
         Key.WATCHDOG_SENTINELS      to "Watchdog & Crash Guard",
         Key.PERIMETER_DEFENSE       to "Accessibility Service Manager (Shizuku)",
         Key.GRAVITY_ENGINE          to "Orientation Preferences",
-        Key.SYSTEM_OVERRIDES        to "System Overrides",
+        Key.SYSTEM_OVERRIDES        to "System Override",
 
         Key.CORE_COOLING            to "System Reboot",
 

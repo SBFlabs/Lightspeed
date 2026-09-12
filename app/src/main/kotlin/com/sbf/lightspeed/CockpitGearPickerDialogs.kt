@@ -178,3 +178,97 @@ fun DeepActivityWarningDialog(
         }
     }
 }
+
+@Composable
+fun SystemAccordionPrefsDialog(
+    dynamicPrimary: Color,
+    currentPreference: String, // "remember", "expanded", "collapsed"
+    onSelectPreference: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF161822).copy(alpha = 0.95f))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF161822).copy(alpha = 0.95f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = "System Actions Default State",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "How should the System Actions categories behave when you open the Action Picker?",
+                    fontSize = 13.sp,
+                    color = Color.LightGray.copy(alpha = 0.85f),
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                val options = listOf(
+                    Triple("remember", "Remember Last State", "Restore the exact categories you left open"),
+                    Triple("expanded", "Always Start Expanded", "Expand all categories by default"),
+                    Triple("collapsed", "Always Start Collapsed", "Keep all categories neatly collapsed by default")
+                )
+
+                options.forEach { (key, title, subtitle) ->
+                    val isSelected = currentPreference == key
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isSelected) dynamicPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, if (isSelected) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(12.dp))
+                            .clickable { onSelectPreference(key) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = isSelected,
+                            onClick = null,
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = dynamicPrimary,
+                                unselectedColor = Color.Gray
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(text = title, color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                            Text(text = subtitle, color = Color.LightGray, fontSize = 11.sp, lineHeight = 14.sp)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Close", color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+

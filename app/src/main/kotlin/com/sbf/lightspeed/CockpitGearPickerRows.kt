@@ -31,11 +31,14 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.LightspeedShortcutManager
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun PickerSystemHeaderRow(
     item: PickerRowItem.SystemHeader,
     dynamicSecondary: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleAll: () -> Unit,
+    onToggleAllLongClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -53,8 +56,27 @@ fun PickerSystemHeaderRow(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f)
         )
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.1f))
+                .combinedClickable(
+                    onClick = onToggleAll,
+                    onLongClick = onToggleAllLongClick
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                androidx.compose.material.icons.Icons.Default.UnfoldMore,
+                contentDescription = "Expand/Collapse All",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
         Icon(
-            Icons.Default.ArrowDropDown,
+            androidx.compose.material.icons.Icons.Default.ArrowDropDown,
             contentDescription = null,
             tint = dynamicSecondary,
             modifier = Modifier

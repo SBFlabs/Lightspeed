@@ -354,12 +354,12 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
         if (isLeftFlankUnified) {
-            mapOf("left_unified" to "Unified Deflectors")
+            mapOf("left_unified" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.UNIFIED_DEFLECTORS))
         } else {
             mapOf(
-                "left_center" to "Central Pill (Core Astrogation)",
-                "left_top" to "Upper Deflector Zone",
-                "left_bottom" to "Lower Deflector Zone"
+                "left_center" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CORE_ZONE),
+                "left_top" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.UPPER_FLANK),
+                "left_bottom" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LOWER_FLANK)
             )
         }
     }
@@ -378,12 +378,12 @@ fun CentralCommandMatrixFields(
 
     val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode) {
         if (isRightFlankUnified) {
-            mapOf("unified" to "Unified Deflectors")
+            mapOf("unified" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.UNIFIED_DEFLECTORS))
         } else {
             mapOf(
-                "center" to "Central Pill (Core Astrogation)",
-                "top" to "Upper Deflector Zone",
-                "bottom" to "Lower Deflector Zone"
+                "center" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CORE_ZONE),
+                "top" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.UPPER_FLANK),
+                "bottom" to com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.LOWER_FLANK)
             )
         }
     }

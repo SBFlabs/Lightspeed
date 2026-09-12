@@ -72,17 +72,7 @@ object LightspeedActionRegistry {
 
         // 5. Ambient Dashboards & Tactical Quick Action Tools
         "system:refueling_bay",
-        "system:tactical_flyout",
-        "system:lens",
-        "system:qr_scanner",
-        "system:camera_photo",
-        "system:camera_video",
-        "system:chatgpt",
-        "system:claude",
-        "system:gemini",
-        "system:folax",
-        "system:core_cooling",
-        "system:glow_deflectors"
+        "system:core_cooling"
     )
 
     fun initializeSync(context: Context) {
@@ -238,17 +228,17 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
     return when {
         token == "none" -> "None"
         token == "action_enter_gearset_nav" || token == "system:gearset_nav" -> "Gear Set HUD Navigation Mode"
-        token == "system:previous_app" -> "Switch to Previous App"
-        token == "system:close_app" || token == "shizuku:close_app" -> "Close App (Remove from Recents)"
+        token == "system:previous_app" -> "Switch to Previous App (Shizuku)"
+        token == "system:close_app" || token == "shizuku:close_app" -> "Close App Gracefully & Remove from Recents (Shizuku)"
         token == "system:recents" -> "Recents Overview"
         token == "system:home" -> "Home"
         token == "system:back" -> "Back"
         token == "system:split_screen" -> "Split Screen"
         token == "system:popup_window" || token == "system:freeform" -> "Pop-up Window"
 
-        token == "system:flashlight" -> "Flashlight / Torch"
+        token == "system:flashlight" -> "External Torch"
         token == "system:screenshot" -> "Take Screenshot"
-        token == "system:lock_screen" -> "Lock Screen / Sleep"
+        token == "system:lock_screen" -> "Lock Ship"
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
@@ -258,8 +248,8 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:gravity_override_landscape" || token == "ACTION_GRAVITY_OVERRIDE_LANDSCAPE" -> "Force Transient Landscape"
         token == "system:gravity_override_portrait" || token == "ACTION_GRAVITY_OVERRIDE_PORTRAIT" || token == "system:orientation_portrait" || token == "system:orientation_sensor_portrait" -> "Force Transient Portrait"
 
-        token == "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
-        token == "system:volume" -> "Volume (Media Scrubber)"
+        token == "system:screen_timeout" -> "Ship Goes Dark"
+        token == "system:volume" -> "Media Volume"
         token == "system:brightness" -> "Brightness Scrubber"
 
         token == "system:media_play_pause" -> "Media: Play / Pause"
@@ -276,17 +266,7 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"
         token == "system:media_stop" -> "Media: Stop Playback"
         token == "system:refueling_bay" -> "Refueling Bay (Cryo Charging Dashboard)"
-        token == "system:tactical_flyout" || token == "action_quick_flyout" || token == "ACTION_TACTICAL_FLYOUT" -> "Tactical Quick Action Flyout"
-        token == "system:lens" || token == "ACTION_LENS" -> "Google Lens (Visual Search)"
-        token == "system:qr_scanner" || token == "ACTION_QR_SCANNER" -> "QR Scanner (Optical Scan)"
-        token == "system:camera_photo" || token == "ACTION_CAMERA_PHOTO" || token == "camera_photo" -> "Camera (Photo Mode)"
-        token == "system:camera_video" || token == "ACTION_CAMERA_VIDEO" || token == "camera_video" -> "Camera (Video Mode)"
-        token == "system:chatgpt" || token == "ACTION_CHATGPT" -> "ChatGPT (AI Assistant)"
-        token == "system:claude" || token == "ACTION_CLAUDE" -> "Claude (AI Assistant)"
-        token == "system:gemini" || token == "ACTION_GEMINI" -> "Gemini (Google AI)"
-        token == "system:folax" || token == "ACTION_FOLAX" -> "Folax (Transsion AI)"
         token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> "Core Cooling (Reboot System)"
-        token == "system:glow_deflectors" || token == "ACTION_GLOW_DEFLECTORS" || token == "glow_deflectors" -> "Glow Deflector Wings (Tactical Shields)"
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

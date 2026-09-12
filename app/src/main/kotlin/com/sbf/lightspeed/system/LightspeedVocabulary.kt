@@ -34,6 +34,10 @@ object LightspeedVocabulary {
         LEFT_DEFLECTOR,
         RIGHT_DEFLECTOR,
         SENSOR_AREA,
+        UNIFIED_DEFLECTORS,
+        CORE_ZONE,
+        UPPER_FLANK,
+        LOWER_FLANK,
 
         // Status bar components
         HORIZON_RAIL,
@@ -76,6 +80,10 @@ object LightspeedVocabulary {
         Key.LEFT_DEFLECTOR          to "Port Deflector",
         Key.RIGHT_DEFLECTOR         to "Starboard Deflector",
         Key.SENSOR_AREA             to "Sensor Area",
+        Key.UNIFIED_DEFLECTORS      to "Unified Deflectors",
+        Key.CORE_ZONE               to "Core Astrogation",
+        Key.UPPER_FLANK             to "Upper Flank",
+        Key.LOWER_FLANK             to "Lower Flank",
 
         Key.HORIZON_RAIL            to "Horizon Rail",
         Key.ORBITAL_CAPSULE         to "Orbital Capsule",
@@ -113,6 +121,10 @@ object LightspeedVocabulary {
         Key.LEFT_DEFLECTOR          to "Left Gesture Sidebar",
         Key.RIGHT_DEFLECTOR         to "Right Gesture Sidebar",
         Key.SENSOR_AREA             to "Touch Strip",
+        Key.UNIFIED_DEFLECTORS      to "Unified Gesture Sidebars",
+        Key.CORE_ZONE               to "Central Trigger Area",
+        Key.UPPER_FLANK             to "Upper Trigger Zone",
+        Key.LOWER_FLANK             to "Lower Trigger Zone",
 
         Key.HORIZON_RAIL            to "Progress Rail",
         Key.ORBITAL_CAPSULE         to "Camera Cutout HUD",

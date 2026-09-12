@@ -120,7 +120,25 @@ class CockpitGearPickerActivity : ComponentActivity() {
                 val context: Context = this@CockpitGearPickerActivity
                 var searchQuery by remember { mutableStateOf("") }
                 val selectedTokens = remember { mutableStateListOf<String>().apply { addAll(initialItems) } }
-                var expandedSubsections by remember { mutableStateOf(setOf<String>()) }
+                val allSysCategories = listOf("collapsed:sys_nav", "collapsed:sys_hw", "collapsed:sys_media", "collapsed:sys_tactical", "collapsed:sys_orient", "collapsed:sys_scrub")
+                var systemAccordionMode by remember { mutableStateOf(prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SYSTEM_ACCORDION_MODE, "expanded") ?: "expanded") }
+                var expandedSubsections by remember {
+                    mutableStateOf(
+                        if (systemAccordionMode == "remember") {
+                            prefs.getStringSet(com.sbf.lightspeed.system.LightspeedPreferences.KEY_EXPANDED_SUBSECTIONS, emptySet()) ?: emptySet()
+                        } else if (systemAccordionMode == "collapsed") {
+                            allSysCategories.toSet()
+                        } else {
+                            emptySet()
+                        }
+                    )
+                }
+
+                LaunchedEffect(expandedSubsections, systemAccordionMode) {
+                    if (systemAccordionMode == "remember") {
+                        prefs.edit().putStringSet(com.sbf.lightspeed.system.LightspeedPreferences.KEY_EXPANDED_SUBSECTIONS, expandedSubsections).apply()
+                    }
+                }
                 val listState = rememberLazyListState()
                 val coroutineScope = rememberCoroutineScope()
                 var sideBarHeight by remember { mutableStateOf(1f) }
@@ -133,6 +151,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
                 var pendingDeepActivitySubKey by remember { mutableStateOf<String?>(null) }
                 var showDeepActivityWarning by remember { mutableStateOf(false) }
                 var hudStyleVersion by remember { mutableStateOf(0) }
+                var showSystemAccordionPrefsDialog by remember { mutableStateOf(false) }
 
                 fun handleTokenSelection(token: String) {
                     if (isSingleSelect) {
@@ -510,6 +529,17 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                     onClick = {
                                                         val sysKey = "category:system"
                                                         expandedSubsections = if (item.isExpanded) expandedSubsections - sysKey else expandedSubsections + sysKey
+                                                    },
+                                                    onToggleAll = {
+                                                        val areAllCollapsed = allSysCategories.all { expandedSubsections.contains(it) }
+                                                        expandedSubsections = if (areAllCollapsed) {
+                                                            expandedSubsections - allSysCategories.toSet()
+                                                        } else {
+                                                            expandedSubsections + allSysCategories.toSet()
+                                                        }
+                                                    },
+                                                    onToggleAllLongClick = {
+                                                        showSystemAccordionPrefsDialog = true
                                                     }
                                                 )
                                                 is PickerRowItem.SystemCategoryHeader -> PickerSystemCategoryHeaderRow(
@@ -843,6 +873,24 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                 showDeepActivityWarning = false
                                 pendingDeepActivitySubKey = null
                             }
+                        )
+                    }
+
+                    if (showSystemAccordionPrefsDialog) {
+                        SystemAccordionPrefsDialog(
+                            dynamicPrimary = dynamicPrimary,
+                            currentPreference = systemAccordionMode,
+                            onSelectPreference = { mode ->
+                                systemAccordionMode = mode
+                                prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SYSTEM_ACCORDION_MODE, mode).apply()
+                                if (mode == "expanded") {
+                                    expandedSubsections = expandedSubsections - allSysCategories.toSet()
+                                } else if (mode == "collapsed") {
+                                    expandedSubsections = expandedSubsections + allSysCategories.toSet()
+                                }
+                                showSystemAccordionPrefsDialog = false
+                            },
+                            onDismiss = { showSystemAccordionPrefsDialog = false }
                         )
                     }
                 }

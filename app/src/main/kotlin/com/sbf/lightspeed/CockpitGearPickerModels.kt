@@ -129,7 +129,7 @@ fun buildFlatItemsList(
             val categories = listOf(
                 Triple(
                     "sys_nav",
-                    "Navigation & Multitasking",
+                    "Navigation",
                     listOf("action_enter_gearset_nav", "system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen", "system:popup_window")
                 ),
                 Triple(
@@ -139,7 +139,7 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_media",
-                    "Media Actions",
+                    "Media Controls",
                     listOf(
                         "system:media_play_pause",
                         "system:media_next",
@@ -152,20 +152,15 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_tactical",
-                    "Tactical Quick Action & AI Tools",
+                    "Ship Maintenance",
                     listOf(
-                        "system:tactical_flyout",
-                        "system:lens",
-                        "system:qr_scanner",
-                        "system:chatgpt",
-                        "system:claude",
-                        "system:gemini",
-                        "system:refueling_bay"
+                        "system:refueling_bay",
+                        "system:core_cooling"
                     )
                 ),
                 Triple(
                     "sys_orient",
-                    "System Attitude & Orientation",
+                    "Screen Orientation / Synthetic Gravity",
                     listOf(
                         "system:auto_rotate_toggle",
                         "system:gravity_reset",

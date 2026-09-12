@@ -262,8 +262,8 @@ object OmniscientAudioDockManager {
         var glassStyleIndex by remember { mutableIntStateOf(prefs.getInt("pref_glass_style", 0)) }
         var dragAccumulator by remember { mutableFloatStateOf(0f) }
         
-        val dynamicPrimary = Color(0xFF6366F1)
-        val dynamicSecondary = Color(0xFFEAB308)
+        val dynamicPrimary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).primary else Color(0xFF6366F1)
+        val dynamicSecondary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).secondary else Color(0xFFEAB308)
 
         // Glass Style Configuration
         val glassStyleNames = listOf("CLEAR GLASS", "HEAVY ACRYLIC", "AGSL FROSTED", "MATERIAL ADAPTIVE")

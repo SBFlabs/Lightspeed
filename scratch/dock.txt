@@ -1,0 +1,569 @@
+     1	package com.sbf.lightspeed.system
+     2	
+     3	import android.accessibilityservice.AccessibilityService
+     4	import android.annotation.SuppressLint
+     5	import android.content.BroadcastReceiver
+     6	import android.content.Context
+     7	import android.content.Intent
+     8	import android.content.IntentFilter
+     9	import android.content.pm.PackageManager
+    10	import android.graphics.PixelFormat
+    11	import android.media.AudioManager
+    12	import android.os.Build
+    13	import android.view.Gravity
+    14	import android.view.KeyEvent
+    15	import android.view.WindowManager
+    16	import androidx.compose.animation.AnimatedVisibility
+    17	import androidx.compose.animation.core.tween
+    18	import androidx.compose.animation.fadeIn
+    19	import androidx.compose.animation.fadeOut
+    20	import androidx.compose.animation.scaleIn
+    21	import androidx.compose.animation.scaleOut
+    22	import androidx.compose.foundation.background
+    23	import androidx.compose.foundation.border
+    24	import androidx.compose.foundation.clickable
+    25	import androidx.compose.foundation.interaction.MutableInteractionSource
+    26	import androidx.compose.foundation.layout.*
+    27	import androidx.compose.foundation.shape.CircleShape
+    28	import androidx.compose.foundation.shape.RoundedCornerShape
+    29	import androidx.compose.material.icons.Icons
+    30	import androidx.compose.material.icons.automirrored.filled.VolumeOff
+    31	import androidx.compose.material.icons.automirrored.filled.VolumeUp
+    32	import androidx.compose.material.icons.filled.Android
+    33	import androidx.compose.material.icons.filled.Accessibility
+    34	import androidx.compose.material.icons.filled.DoNotDisturbOn
+    35	import androidx.compose.material.icons.filled.PushPin
+    36	import androidx.compose.material.icons.filled.Notifications
+    37	import androidx.compose.material.icons.filled.AccessAlarm
+    38	import androidx.compose.material.icons.filled.Phone
+    39	import androidx.compose.material.icons.filled.Settings
+    40	import androidx.compose.material.icons.filled.Tune
+    41	import androidx.compose.material3.Icon
+    42	import androidx.compose.material3.IconButton
+    43	import androidx.compose.material3.Slider
+    44	import androidx.compose.material3.SliderDefaults
+    45	import androidx.compose.material3.Text
+    46	import androidx.compose.runtime.*
+    47	import androidx.compose.ui.Alignment
+    48	import androidx.compose.ui.Modifier
+    49	import androidx.compose.ui.draw.blur
+    50	import androidx.compose.ui.draw.clip
+    51	import androidx.compose.ui.graphics.Brush
+    52	import androidx.compose.ui.graphics.Color
+    53	import androidx.compose.ui.graphics.graphicsLayer
+    54	import androidx.compose.ui.graphics.asComposeRenderEffect
+    55	import androidx.compose.ui.graphics.asImageBitmap
+    56	import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+    57	import androidx.compose.ui.input.pointer.pointerInput
+    58	import android.graphics.RenderEffect
+    59	import android.graphics.Shader
+    60	import android.graphics.RuntimeShader
+    61	import androidx.compose.ui.platform.ComposeView
+    62	import androidx.compose.ui.text.font.FontWeight
+    63	import androidx.compose.ui.unit.dp
+    64	import androidx.compose.ui.unit.sp
+    65	import kotlinx.coroutines.delay
+    66	import kotlinx.coroutines.launch
+    67	import kotlin.math.roundToInt
+    68	
+    69	@SuppressLint("StaticFieldLeak")
+    70	object OmniscientAudioDockManager {
+    71	    
+    72	        uniform float2 resolution;
+    73	        uniform float time;
+    74	        uniform shader content;
+    75	        
+    76	        float random(float2 st) {
+    77	            return fract(sin(dot(st.xy, float2(12.9898,78.233))) * 43758.5453123);
+    78	        }
+    79	        
+    80	        half4 main(float2 fragCoord) {
+    81	            half4 color = content.eval(fragCoord);
+    82	            float noise = random(fragCoord + time) * 0.15;
+    83	            return color + half4(noise, noise, noise, 0.0);
+    84	        }
+    85	    """
+    86	
+    87	    private var composeView: ComposeView? = null
+    88	    private var windowManager: WindowManager? = null
+    89	    private var lifecycleOwner: OverlayLifecycleOwner? = null
+    90	    private var volumeReceiver: BroadcastReceiver? = null
+    91	
+    92	    // State flows
+    93	    private val masterVolumeState = mutableFloatStateOf(0f)
+    94	
+    95	    fun show(service: AccessibilityService) {
+    96	        if (composeView != null) return
+    97	        
+    98	        windowManager = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    99	        
+   100	        composeView = ComposeView(service).apply {
+   101	            setContent {
+   102	                var isVisible by remember { mutableStateOf(false) }
+   103	                LaunchedEffect(Unit) {
+   104	                    isVisible = true
+   105	                }
+   106	                
+   107	                OmniscientAudioDockContent(
+   108	                    service = service,
+   109	                    isVisible = isVisible,
+   110	                    onDismiss = {
+   111	                        isVisible = false
+   112	                        postDelayed({ dismiss(service) }, 250)
+   113	                    }
+   114	                )
+   115	            }
+   116	        }
+   117	
+   118	        lifecycleOwner = OverlayLifecycleOwner()
+   119	        lifecycleOwner?.attachToView(composeView!!)
+   120	        lifecycleOwner?.onCreate()
+   121	        lifecycleOwner?.onStart()
+   122	        lifecycleOwner?.onResume()
+   123	
+   124	        val params = WindowManager.LayoutParams(
+   125	            WindowManager.LayoutParams.MATCH_PARENT,
+   126	            WindowManager.LayoutParams.MATCH_PARENT,
+   127	            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
+   128	            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+   129	            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or 
+   130	            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+   131	            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+   132	            PixelFormat.TRANSLUCENT
+   133	        ).apply {
+   134	            gravity = Gravity.CENTER
+   135	            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+   136	                flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+   137	                blurBehindRadius = 120
+   138	            }
+   139	        }
+   140	
+   141	        windowManager?.addView(composeView, params)
+   142	
+   143	        // Register Volume Receiver
+   144	        val audioManager = service.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+   145	        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+   146	        masterVolumeState.floatValue = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+   147	        
+   148	        volumeReceiver = object : BroadcastReceiver() {
+   149	            override fun onReceive(ctx: Context, intent: Intent) {
+   150	                if (intent.action == "android.media.VOLUME_CHANGED_ACTION") {
+   151	                    val streamType = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
+   152	                    if (streamType == AudioManager.STREAM_MUSIC) {
+   153	                        val currentVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
+   154	                        if (currentVol != -1) {
+   155	                            masterVolumeState.floatValue = currentVol.toFloat()
+   156	                        }
+   157	                    }
+   158	                }
+   159	            }
+   160	        }
+   161	        service.registerReceiver(volumeReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"))
+   162	    }
+   163	
+   164	    fun dismiss(service: Context) {
+   165	        volumeReceiver?.let {
+   166	            try { service.unregisterReceiver(it) } catch (e: Exception) {}
+   167	            volumeReceiver = null
+   168	        }
+   169	        composeView?.let {
+   170	            lifecycleOwner?.onPause()
+   171	            lifecycleOwner?.onStop()
+   172	            lifecycleOwner?.onDestroy()
+   173	            lifecycleOwner = null
+   174	            windowManager?.removeView(it)
+   175	            composeView = null
+   176	        }
+   177	        windowManager = null
+   178	    }
+   179	
+   180	    
+   181	
+   182	    private fun triggerHaptic(context: Context) {
+   183	        LightspeedHapticEngine.vibrate(context, 18, 120)
+   184	    }
+   185	
+   186	    private fun getPinnedApps(context: Context): Set<String> {
+   187	        val prefs = context.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
+   188	        return prefs.getStringSet("pinned_audio_apps", emptySet()) ?: emptySet()
+   189	    }
+   190	
+   191	    private fun addPinnedApp(context: Context, pkg: String) {
+   192	        val prefs = context.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
+   193	        val current = prefs.getStringSet("pinned_audio_apps", emptySet())?.toMutableSet() ?: mutableSetOf()
+   194	        current.add(pkg)
+   195	        prefs.edit().putStringSet("pinned_audio_apps", current).apply()
+   196	    }
+   197	    
+   198	    private fun removePinnedApp(context: Context, pkg: String) {
+   199	        val prefs = context.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
+   200	        val current = prefs.getStringSet("pinned_audio_apps", emptySet())?.toMutableSet() ?: mutableSetOf()
+   201	        current.remove(pkg)
+   202	        prefs.edit().putStringSet("pinned_audio_apps", current).apply()
+   203	    }
+   204	
+   205	    private fun getRawActiveAudioPackages(context: Context): List<String> {
+   206	        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+   207	        val pm = context.packageManager
+   208	        val configs = audioManager.activePlaybackConfigurations
+   209	        val pkgs = mutableListOf<String>()
+   210	        
+   211	        for (config in configs) {
+   212	            try {
+   213	                val getClientUidMethod = config.javaClass.getMethod("getClientUid")
+   214	                val uid = getClientUidMethod.invoke(config) as Int
+   215	                if (uid > 10000) { // Ignore system UIDs
+   216	                    val packages = pm.getPackagesForUid(uid)
+   217	                    if (packages != null) {
+   218	                        pkgs.addAll(packages)
+   219	                    }
+   220	                }
+   221	            } catch (e: Exception) {
+   222	                // Ignore
+   223	            }
+   224	        }
+   225	        return pkgs.distinct()
+   226	    }
+   227	
+   228	    @Composable
+   229	    private fun OmniscientAudioDockContent(service: Context, isVisible: Boolean, onDismiss: () -> Unit) {
+   230	        val audioManager = service.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+   231	        val pm = service.packageManager
+   232	        val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat() }
+   233	
+   234	        var activeAppsList by remember { mutableStateOf<List<ActiveAppInfo>>(emptyList()) }
+   235	        var showAppSelector by remember { mutableStateOf(false) }
+   236	
+   237	        var refreshTrigger by remember { mutableIntStateOf(0) }
+   238	        
+   239	        LaunchedEffect(refreshTrigger) {
+   240	            val activeControllers = LightspeedMediaManager.getActiveControllers(service)
+   241	            val sessionPackages = activeControllers.map { it.packageName }
+   242	            val rawPackages = getRawActiveAudioPackages(service)
+   243	            val pinnedPackages = getPinnedApps(service)
+   244	            
+   245	            val mergedPackages = (sessionPackages + rawPackages + pinnedPackages).distinct()
+   246	            
+   247	            val apps = mergedPackages.mapNotNull { pkg ->
+   248	                try {
+   249	                    val appInfo = pm.getApplicationInfo(pkg, 0)
+   250	                    val label = pm.getApplicationLabel(appInfo).toString()
+   251	                    val icon = pm.getApplicationIcon(appInfo)
+   252	                    ActiveAppInfo(pkg, label, icon)
+   253	                } catch (e: Exception) {
+   254	                    null
+   255	                }
+   256	            }
+   257	            // Sort so pinned apps appear first
+   258	            activeAppsList = apps.sortedByDescending { it.pkg in pinnedPackages }
+   259	        }
+   260	
+   261	        val prefs = service.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
+   262	        var glassStyleIndex by remember { mutableIntStateOf(prefs.getInt("pref_glass_style", 0)) }
+   263	        var dragAccumulator by remember { mutableFloatStateOf(0f) }
+   264	        
+   265	        val dynamicPrimary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).primary else Color(0xFF6366F1)
+   266	        val dynamicSecondary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).secondary else Color(0xFFEAB308)
+   267	
+   268	        val bgColor = Color(0xB3121212) // 70% opacity deep dark grey for the dock itself
+   269	        
+   270	
+   271	        
+   272	        Box(
+   273	            modifier = Modifier
+   274	                .fillMaxSize()
+   275	                .background(Color.Black.copy(alpha = 0.3f))
+   276	                .clickable(
+   277	                    interactionSource = remember { MutableInteractionSource() },
+   278	                    indication = null
+   279	                ) { onDismiss() },
+   280	            contentAlignment = Alignment.Center
+   281	        ) {
+   282	            AnimatedVisibility(
+   283	                visible = isVisible,
+   284	                enter = fadeIn(tween(250)) + scaleIn(tween(250, delayMillis = 50), initialScale = 0.9f),
+   285	                exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.9f)
+   286	            ) {
+   287	                Box(
+   288	                    modifier = Modifier
+   289	                        .fillMaxWidth(0.9f)
+   290	                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+   291	                        .clip(RoundedCornerShape(36.dp))
+   292	                        .then(
+   293	                            if (glassStyleIndex == 2 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+   294	                                Modifier.graphicsLayer {
+   295	                                    val runtimeShader = RuntimeShader(NOISE_SHADER)
+   296	                                    runtimeShader.setFloatUniform("resolution", size.width, size.height)
+   297	                                    runtimeShader.setFloatUniform("time", System.currentTimeMillis() % 100000 / 1000f)
+   298	                                    renderEffect = RenderEffect.createRuntimeShaderEffect(runtimeShader, "content").asComposeRenderEffect()
+   299	                                }
+   300	                            } else Modifier
+   301	                        )
+   302	                        .background(bgColor)
+   303	                        .border(
+   304	                            1.5.dp,
+   305	                            Brush.linearGradient(
+   306	                                0.0f to Color.White.copy(alpha = 0.4f),
+   307	                                0.2f to Color.White.copy(alpha = 0.05f),
+   308	                                0.8f to Color.White.copy(alpha = 0.05f),
+   309	                                1.0f to Color.White.copy(alpha = 0.2f)
+   310	                            ),
+   311	                            RoundedCornerShape(36.dp)
+   312	                        )
+   313	                ) {
+   314	                    Column(
+   315	                        modifier = Modifier
+   316	                            .fillMaxWidth()
+   317	                            .padding(24.dp)
+   318	                    ) {
+   319	                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+   320	                            Text(
+   321	                                text = "OMNISCIENT AUDIO",
+   322	                                color = Color.White,
+   323	                                fontSize = 12.sp,
+   324	                                fontWeight = FontWeight.Black,
+   325	                                letterSpacing = 4.sp
+   326	                            )
+   327	
+   328	                        }
+   329	                        
+   330	                        Spacer(modifier = Modifier.height(36.dp))
+   331	                        
+   332	                        Text("MASTER MEDIA", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+   333	                        Spacer(modifier = Modifier.height(12.dp))
+   334	                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
+   335	                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, tint = Color.White.copy(alpha=0.8f), modifier = Modifier.size(24.dp))
+   336	                            Spacer(modifier = Modifier.width(16.dp))
+   337	                            Slider(
+   338	                                value = masterVolumeState.floatValue,
+   339	                                onValueChange = { 
+   340	                                    masterVolumeState.floatValue = it 
+   341	                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it.roundToInt(), 0)
+   342	                                },
+   343	                                valueRange = 0f..maxVolume,
+   344	                                modifier = Modifier.weight(1f),
+   345	                                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = dynamicPrimary, inactiveTrackColor = Color.White.copy(alpha=0.15f))
+   346	                            )
+   347	                            Spacer(modifier = Modifier.width(16.dp))
+   348	                            Text("${((masterVolumeState.floatValue / maxVolume) * 100).toInt()}%", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
+   349	                        }
+   350	
+   351	                        Spacer(modifier = Modifier.height(32.dp))
+   352	
+   353	                        Text("SYSTEM STREAMS", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+   354	                        Spacer(modifier = Modifier.height(12.dp))
+   355	                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+   356	                            SystemVolumeRow("RINGER & NOTIFICATIONS", Icons.Default.Notifications, AudioManager.STREAM_RING, audioManager, Color(0xFF3B82F6))
+   357	                            SystemVolumeRow("ALARMS", Icons.Default.AccessAlarm, AudioManager.STREAM_ALARM, audioManager, Color(0xFFF59E0B))
+   358	                            SystemVolumeRow("VOICE CALLS", Icons.Default.Phone, AudioManager.STREAM_VOICE_CALL, audioManager, Color(0xFF10B981))
+   359	                            SystemVolumeRow("ASSISTANT (GEMINI)", Icons.Default.Android, 11, audioManager, Color(0xFF8B5CF6))
+   360	                            SystemVolumeRow("ACCESSIBILITY", Icons.Default.Accessibility, 10, audioManager, Color(0xFFEC4899))
+   361	                        }
+   362	                        
+   363	                        Spacer(modifier = Modifier.height(32.dp))
+   364	
+   365	                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+   366	                            Text("APP SOVEREIGNTY", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+   367	                            Text("+ ADD APP", color = dynamicPrimary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp, modifier = Modifier.clickable {
+   368	                                showAppSelector = true
+   369	                            }.padding(4.dp))
+   370	                        }
+   371	                        Spacer(modifier = Modifier.height(12.dp))
+   372	                        
+   373	                        if (activeAppsList.isEmpty()) {
+   374	                            Box(modifier = Modifier.fillMaxWidth().height(80.dp).background(Color.White.copy(alpha=0.02f), RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(alpha=0.04f), RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
+   375	                                Text("No Active Sessions", color = Color.White.copy(alpha = 0.3f), fontSize = 12.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+   376	                            }
+   377	                        } else {
+   378	                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+   379	                                val pinnedSet = remember(refreshTrigger) { getPinnedApps(service) }
+   380	                                activeAppsList.forEach { app ->
+   381	                                    AppVolumeRow(app.pkg, app.name, app.icon, 0.8f, app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
+   382	                                        if (isPinned) addPinnedApp(service, app.pkg) else removePinnedApp(service, app.pkg)
+   383	                                        refreshTrigger++
+   384	                                    }
+   385	                                }
+   386	                            }
+   387	                        }
+   388	
+   389	                        Spacer(modifier = Modifier.height(36.dp))
+   390	
+   391	                        Row(
+   392	                            modifier = Modifier.fillMaxWidth(),
+   393	                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+   394	                        ) {
+   395	                            DockActionButton(Modifier.weight(1f), "MUTE ALL", Icons.AutoMirrored.Filled.VolumeOff, Color(0xFFEF4444)) {}
+   396	                            DockActionButton(Modifier.weight(1f), "DND", Icons.Default.DoNotDisturbOn, dynamicSecondary) {}
+   397	                            DockActionButton(Modifier.weight(1f), "AutoEQ", Icons.Default.Tune, Color(0xFF10B981)) {}
+   398	                        }
+   399	                    }
+   400	                }
+   401	            }
+   402	            
+   403	            AnimatedVisibility(visible = showAppSelector, enter = fadeIn(), exit = fadeOut()) {
+   404	                AppSelectorOverlay(pm = pm, onAppSelected = { pkg ->
+   405	                    addPinnedApp(service, pkg)
+   406	                    refreshTrigger++
+   407	                    showAppSelector = false
+   408	                }, onDismiss = { showAppSelector = false })
+   409	            }
+   410	        }
+   411	    }
+   412	}
+   413	
+   414	@Composable
+   415	fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, streamType: Int, audioManager: AudioManager, tint: Color) {
+   416	    val maxVol = remember { audioManager.getStreamMaxVolume(streamType).toFloat().coerceAtLeast(1f) }
+   417	    var vol by remember { mutableFloatStateOf(audioManager.getStreamVolume(streamType).toFloat()) }
+   418	    
+   419	    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(56.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(20.dp)).padding(horizontal = 16.dp)) {
+   420	        Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.05f)), contentAlignment = Alignment.Center) {
+   421	            Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+   422	        }
+   423	        Spacer(modifier = Modifier.width(12.dp))
+   424	        Column(modifier = Modifier.weight(1f)) {
+   425	            Text(title, color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+   426	            Slider(
+   427	                value = vol,
+   428	                onValueChange = { 
+   429	                    vol = it 
+   430	                    audioManager.setStreamVolume(streamType, it.roundToInt(), 0)
+   431	                },
+   432	                valueRange = 0f..maxVol,
+   433	                modifier = Modifier.height(20.dp),
+   434	                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = tint, inactiveTrackColor = Color.White.copy(alpha=0.1f))
+   435	            )
+   436	        }
+   437	        Spacer(modifier = Modifier.width(12.dp))
+   438	        Text("${((vol / maxVol) * 100).toInt()}%", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+   439	    }
+   440	}
+   441	
+   442	
+   443	    @Composable
+   444	    private fun AppSelectorOverlay(pm: PackageManager, onAppSelected: (String) -> Unit, onDismiss: () -> Unit) {
+   445	        var searchQuery by remember { mutableStateOf("") }
+   446	        var installedApps by remember { mutableStateOf<List<ActiveAppInfo>>(emptyList()) }
+   447	
+   448	        LaunchedEffect(Unit) {
+   449	            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+   450	                val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+   451	                val apps = packages.filter { pm.getLaunchIntentForPackage(it.packageName) != null }.map {
+   452	                    ActiveAppInfo(it.packageName, pm.getApplicationLabel(it).toString(), pm.getApplicationIcon(it))
+   453	                }.sortedBy { it.name.lowercase() }
+   454	                installedApps = apps
+   455	            }
+   456	        }
+   457	
+   458	        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha=0.6f)).clickable { onDismiss() }, contentAlignment = Alignment.Center) {
+   459	            Column(modifier = Modifier.fillMaxWidth(0.85f).fillMaxHeight(0.7f).clip(RoundedCornerShape(24.dp)).background(Color(0xFF1E1E1E)).padding(16.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null){}) {
+   460	                Text("ADD PINNED APP", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+   461	                Spacer(modifier = Modifier.height(16.dp))
+   462	                androidx.compose.foundation.lazy.LazyColumn {
+   463	                    items(installedApps.size) { i ->
+   464	                        val app = installedApps[i]
+   465	                        Row(modifier = Modifier.fillMaxWidth().clickable { onAppSelected(app.pkg) }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+   466	                            val bmp = remember(app.icon) {
+   467	                                val d = app.icon!!
+   468	                                if (d is android.graphics.drawable.BitmapDrawable && d.bitmap != null) d.bitmap else {
+   469	                                    val b = android.graphics.Bitmap.createBitmap(if (d.intrinsicWidth>0) d.intrinsicWidth else 1, if (d.intrinsicHeight>0) d.intrinsicHeight else 1, android.graphics.Bitmap.Config.ARGB_8888)
+   470	                                    val c = android.graphics.Canvas(b)
+   471	                                    d.setBounds(0,0,c.width,c.height)
+   472	                                    d.draw(c)
+   473	                                    b
+   474	                                }
+   475	                            }
+   476	                            androidx.compose.foundation.Image(bitmap = bmp.asImageBitmap(), contentDescription = null, modifier = Modifier.size(32.dp))
+   477	                            Spacer(modifier = Modifier.width(16.dp))
+   478	                            Text(app.name, color = Color.White, fontSize = 14.sp)
+   479	                        }
+   480	                    }
+   481	                }
+   482	            }
+   483	        }
+   484	    }
+   485	
+   486	@Composable
+   487	fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawable.Drawable?, initialVol: Float, isPinned: Boolean, tint: Color, onPinToggled: (Boolean) -> Unit) {
+   488	    var vol by remember { mutableFloatStateOf(initialVol) }
+   489	    var pinned by remember { mutableStateOf(isPinned) }
+   490	    
+   491	    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
+   492	        Box(modifier = Modifier
+   493	            .size(36.dp)
+   494	            .clip(CircleShape)
+   495	            .background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+   496	            if (iconDrawable != null) {
+   497	                val bitmap = remember(iconDrawable) {
+   498	                    if (iconDrawable is android.graphics.drawable.BitmapDrawable && iconDrawable.bitmap != null) {
+   499	                        iconDrawable.bitmap
+   500	                    } else {
+   501	                        val bmp = android.graphics.Bitmap.createBitmap(
+   502	                            if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth else 1,
+   503	                            if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight else 1,
+   504	                            android.graphics.Bitmap.Config.ARGB_8888
+   505	                        )
+   506	                        val canvas = android.graphics.Canvas(bmp)
+   507	                        iconDrawable.setBounds(0, 0, canvas.width, canvas.height)
+   508	                        iconDrawable.draw(canvas)
+   509	                        bmp
+   510	                    }
+   511	                }
+   512	                androidx.compose.foundation.Image(
+   513	                    bitmap = bitmap.asImageBitmap(),
+   514	                    contentDescription = name,
+   515	                    modifier = Modifier.size(24.dp)
+   516	                )
+   517	            } else {
+   518	                Icon(androidx.compose.material.icons.Icons.Default.Android, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+   519	            }
+   520	        }
+   521	        Spacer(modifier = Modifier.width(12.dp))
+   522	        Column(modifier = Modifier.weight(1f)) {
+   523	            Text(name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines=1)
+   524	            Slider(
+   525	                value = vol,
+   526	                onValueChange = { vol = it },
+   527	                valueRange = 0f..1f,
+   528	                modifier = Modifier.height(24.dp),
+   529	                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White.copy(alpha = 0.8f), inactiveTrackColor = Color.White.copy(alpha=0.15f))
+   530	            )
+   531	        }
+   532	        Spacer(modifier = Modifier.width(12.dp))
+   533	        IconButton(
+   534	            onClick = { 
+   535	                pinned = !pinned 
+   536	                onPinToggled(pinned)
+   537	            },
+   538	            modifier = Modifier
+   539	                .size(36.dp)
+   540	                .background(if (pinned) tint.copy(alpha = 0.25f) else Color.Transparent, CircleShape)
+   541	        ) {
+   542	            Icon(androidx.compose.material.icons.Icons.Default.PushPin, contentDescription = "Pin Focus", tint = if (pinned) tint else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
+   543	        }
+   544	    }
+   545	}
+   546	
+   547	@Composable
+   548	fun DockActionButton(modifier: Modifier, title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) {
+   549	    Box(
+   550	        modifier = modifier
+   551	            .height(72.dp)
+   552	            .clip(RoundedCornerShape(24.dp))
+   553	            .background(color.copy(alpha = 0.08f))
+   554	            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(24.dp))
+   555	            .clickable { onClick() },
+   556	        contentAlignment = Alignment.Center
+   557	    ) {
+   558	        Column(
+   559	            horizontalAlignment = Alignment.CenterHorizontally,
+   560	            verticalArrangement = Arrangement.Center
+   561	        ) {
+   562	            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+   563	            Spacer(modifier = Modifier.height(6.dp))
+   564	            Text(title, color = color, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+   565	        }
+   566	    }
+   567	}
+   568	
+   569	data class ActiveAppInfo(val pkg: String, val name: String, val icon: android.graphics.drawable.Drawable?)

@@ -68,21 +68,7 @@ import kotlin.math.roundToInt
 
 @SuppressLint("StaticFieldLeak")
 object OmniscientAudioDockManager {
-    private const val NOISE_SHADER = """
-        uniform float2 resolution;
-        uniform float time;
-        uniform shader content;
-        
-        float random(float2 st) {
-            return fract(sin(dot(st.xy, float2(12.9898,78.233))) * 43758.5453123);
-        }
-        
-        half4 main(float2 fragCoord) {
-            half4 color = content.eval(fragCoord);
-            float noise = random(fragCoord + time) * 0.15;
-            return color + half4(noise, noise, noise, 0.0);
-        }
-    """
+    
 
     private var composeView: ComposeView? = null
     private var windowManager: WindowManager? = null
@@ -265,29 +251,9 @@ object OmniscientAudioDockManager {
         val dynamicPrimary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).primary else Color(0xFF6366F1)
         val dynamicSecondary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).secondary else Color(0xFFEAB308)
 
-        // Glass Style Configuration
-        val glassStyleNames = listOf("CLEAR GLASS", "HEAVY ACRYLIC", "AGSL FROSTED", "MATERIAL ADAPTIVE")
-        val bgAlpha = when (glassStyleIndex) {
-            0 -> 0.04f
-            1 -> 0.25f
-            2 -> 0.15f
-            3 -> 0.25f // Later we can use system colors, for now tinted black
-            else -> 0.04f
-        }
-        val bgColor = if (glassStyleIndex == 3) dynamicPrimary.copy(alpha = 0.2f) else Color.White.copy(alpha = bgAlpha)
+        val bgColor = Color(0xB3121212) // 70% opacity deep dark grey for the dock itself
         
-        LaunchedEffect(glassStyleIndex) {
-            // Update WindowManager blur radius dynamically
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val p = composeView?.layoutParams as? WindowManager.LayoutParams
-                    if (p != null) {
-                        p.blurBehindRadius = if (glassStyleIndex == 1 || glassStyleIndex == 2) 250 else 120
-                        windowManager?.updateViewLayout(composeView, p)
-                    }
-                }
-            } catch (e: Exception) {}
-        }
+
         
         Box(
             modifier = Modifier
@@ -344,52 +310,14 @@ object OmniscientAudioDockManager {
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 4.sp
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(glassStyleNames[glassStyleIndex], color = Color.White.copy(alpha = 0.5f), fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 8.dp))
-                                Icon(
-                                    androidx.compose.material.icons.Icons.Default.Settings,
-                                    contentDescription = "Glass Style",
-                                    tint = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .pointerInput(Unit) {
-                                            detectDragGesturesAfterLongPress(
-                                                onDragStart = { triggerHaptic(service) },
-                                                onDrag = { change, dragAmount -> 
-                                                    change.consume()
-                                                    dragAccumulator += dragAmount.x
-                                                    if (kotlin.math.abs(dragAccumulator) > 40f) {
-                                                        val steps = (dragAccumulator / 40f).toInt()
-                                                        dragAccumulator %= 40f
-                                                        if (steps != 0) {
-                                                            var newIdx = glassStyleIndex + steps
-                                                            while (newIdx < 0) newIdx += glassStyleNames.size
-                                                            newIdx %= glassStyleNames.size
-                                                            glassStyleIndex = newIdx
-                                                            prefs.edit().putInt("pref_glass_style", newIdx).apply()
-                                                            triggerHaptic(service)
-                                                        }
-                                                    }
-                                                },
-                                                onDragEnd = { dragAccumulator = 0f }
-                                            )
-                                        }
-                                        .clickable { 
-                                            var newIdx = glassStyleIndex + 1
-                                            newIdx %= glassStyleNames.size
-                                            glassStyleIndex = newIdx
-                                            prefs.edit().putInt("pref_glass_style", newIdx).apply()
-                                            triggerHaptic(service)
-                                        }
-                                )
-                            }
+
                         }
                         
                         Spacer(modifier = Modifier.height(36.dp))
                         
                         Text("MASTER MEDIA", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.03f), RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
                             Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, tint = Color.White.copy(alpha=0.8f), modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(16.dp))
                             Slider(
@@ -474,7 +402,7 @@ fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.Ima
     val maxVol = remember { audioManager.getStreamMaxVolume(streamType).toFloat().coerceAtLeast(1f) }
     var vol by remember { mutableFloatStateOf(audioManager.getStreamVolume(streamType).toFloat()) }
     
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(56.dp).background(Color.White.copy(alpha=0.02f), RoundedCornerShape(20.dp)).border(1.dp, Color.White.copy(alpha=0.04f), RoundedCornerShape(20.dp)).padding(horizontal = 16.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(56.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(20.dp)).padding(horizontal = 16.dp)) {
         Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.05f)), contentAlignment = Alignment.Center) {
             Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
         }
@@ -546,7 +474,7 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
     var vol by remember { mutableFloatStateOf(initialVol) }
     var pinned by remember { mutableStateOf(isPinned) }
     
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.03f), RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(alpha=0.05f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
         Box(modifier = Modifier
             .size(36.dp)
             .clip(CircleShape)

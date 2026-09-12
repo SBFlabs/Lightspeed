@@ -27,7 +27,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -250,9 +250,11 @@ fun DragOnlySlider(
             }
             .pointerInput(enabled, valueRange, steps) {
                 if (!enabled) return@pointerInput
-                detectHorizontalDragGestures(
+                var accumulatedY = 0f
+                androidx.compose.foundation.gestures.detectDragGestures(
                     onDragStart = { _ ->
                         isDragging = true
+                        accumulatedY = 0f
                         dragProgress = if (range > 0f) ((currentVal - valueRange.start) / range).coerceIn(0f, 1f) else 0f
                         lastHapticSteppedVal = currentVal
                     },
@@ -264,12 +266,17 @@ fun DragOnlySlider(
                         onValueChangeFinished?.invoke()
                         isDragging = false
                     },
-                    onHorizontalDrag = { change, dragAmount ->
+                    onDrag = { change, dragAmount ->
                         change.consume()
+                        accumulatedY += dragAmount.y
                         val totalW = size.width.toFloat()
                         val thumbRadiusPx = 14.dp.toPx()
                         val usableWidth = (totalW - thumbRadiusPx * 2f).coerceAtLeast(1f)
-                        val deltaProgress = dragAmount / usableWidth
+                        
+                        // Precision Scrubbing: For every 75px moved vertically, slider speed halves
+                        val precisionScale = 1f / (1f + (kotlin.math.abs(accumulatedY) / 75f))
+                        val deltaProgress = (dragAmount.x / usableWidth) * precisionScale
+                        
                         dragProgress = (dragProgress + deltaProgress).coerceIn(0f, 1f)
                         val rawValue = valueRange.start + dragProgress * range
                         val steppedValue = if (steps > 0) {

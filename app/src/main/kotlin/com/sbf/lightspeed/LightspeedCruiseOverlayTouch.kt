@@ -842,6 +842,33 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                                 triggerHardwareHaptic(65, 255) // Chunky high-inertia hardware pop (50ms)
                                 isScrubEntranceHapticFired = true
                             }
+                            
+                            val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume"
+                            val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness"
+                            
+                            val perpendicularPull = if (currentActiveZone == TouchZone.LEFT_EDGE) {
+                                rawX - touchStartX
+                            } else if (currentActiveZone == TouchZone.RIGHT_EDGE) {
+                                touchStartX - rawX
+                            } else {
+                                touchStartY - rawY // TOP/BOTTOM EDGE
+                            }
+                            
+                            if (perpendicularPull > 140f * density && (isVolume || isBrightness)) {
+                                currentDetectedGesture = MacroGesture.NONE
+                                isCruising = false
+                                LightspeedStatusBarOverlay.dismissActionHud(0L)
+                                val actionStr = if (isVolume) "com.sbf.lightspeed.OMNISCIENT_AUDIO" else "com.sbf.lightspeed.OMNISCIENT_DISPLAY"
+                                val intent = android.content.Intent(actionStr).apply {
+                                    setPackage(context.packageName)
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                                return true
+                            }
+                            
                             val dx = rawX - lastTouchRawX
                             val dy = rawY - lastTouchRawY
                             // Upward sweep (-dy > 0) or rightward sweep (dx > 0) increases level.

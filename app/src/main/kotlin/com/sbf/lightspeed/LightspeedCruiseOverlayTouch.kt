@@ -866,12 +866,8 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                             
                             val dx = rawX - lastTouchRawX
                             val dy = rawY - lastTouchRawY
-                            // Axis Lock: Side deflectors ALWAYS use Y-axis. Top/Bottom bars ALWAYS use X-axis.
-                            val pixelDelta = if (currentActiveZone == TouchZone.TOP_EDGE || currentActiveZone == TouchZone.BOTTOM_EDGE) {
-                                dx
-                            } else {
-                                -dy
-                            }
+                            // Axis Lock: Lightspeed side deflectors ALWAYS use Y-axis.
+                            val pixelDelta = -dy
                             executeLinearScrubTrack(currentActiveZone, pixelDelta)
                         }
                         else -> {}

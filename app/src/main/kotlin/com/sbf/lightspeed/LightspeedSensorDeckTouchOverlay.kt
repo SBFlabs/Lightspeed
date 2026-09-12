@@ -139,8 +139,8 @@ class LightspeedSensorDeckTouchOverlay(
     }
 
     private fun handleScrubMotion(rawDx: Float, rawDy: Float) {
-        // Allow scrubbing both sideways (rawDx: right is +) and up/down (-rawDy: up is +) based on dominant movement
-        val delta = if (abs(rawDx) >= abs(rawDy)) rawDx else -rawDy
+        // Axis Lock: Status Bar Sensor Deck ALWAYS uses X-axis.
+        val delta = rawDx
         scrubAccumulator += delta
 
         val density = resources.displayMetrics.density

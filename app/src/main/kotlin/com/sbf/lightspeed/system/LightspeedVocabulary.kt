@@ -154,7 +154,7 @@ object LightspeedVocabulary {
         Key.HULL_RESONATOR          to "Back-Tap Gestures",
         Key.IGNITION_OVERRIDE       to "Power Button Remapping",
 
-        Key.REFUELING_BAY           to "Charging Screen",
+        Key.REFUELING_BAY           to "Charging Dashboard",
         Key.SHIP_DATA_VAULT         to "Backup & Restore",
         Key.SHIZUKU_JETTISON        to "Task Closer (Shizuku)",
         Key.WATCHDOG_SENTINELS      to "Watchdog & Crash Guard",

@@ -222,6 +222,7 @@ object OmniscientAudioDockManager {
         var showAppSelector by remember { mutableStateOf(false) }
 
         var refreshTrigger by remember { mutableIntStateOf(0) }
+        val stableSortSet = remember { mutableSetOf<String>() }
         
         LaunchedEffect(refreshTrigger) {
             val activeControllers = LightspeedMediaManager.getActiveControllers(service)
@@ -241,8 +242,9 @@ object OmniscientAudioDockManager {
                     null
                 }
             }
-            // Sort so pinned apps appear first
-            activeAppsList = apps.sortedByDescending { it.pkg in pinnedPackages }
+            // Prevent jumping: keep unpinned items at the top until dock closes
+            stableSortSet.addAll(pinnedPackages)
+            activeAppsList = apps.sortedByDescending { it.pkg in stableSortSet }
         }
 
         val prefs = service.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
@@ -357,9 +359,11 @@ object OmniscientAudioDockManager {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 val pinnedSet = remember(refreshTrigger) { getPinnedApps(service) }
                                 activeAppsList.forEach { app ->
-                                    AppVolumeRow(app.pkg, app.name, app.icon, 0.8f, app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
-                                        if (isPinned) addPinnedApp(service, app.pkg) else removePinnedApp(service, app.pkg)
-                                        refreshTrigger++
+                                    androidx.compose.runtime.key(app.pkg) {
+                                        AppVolumeRow(app.pkg, app.name, app.icon, 0.8f, app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
+                                            if (isPinned) addPinnedApp(service, app.pkg) else removePinnedApp(service, app.pkg)
+                                            refreshTrigger++
+                                        }
                                     }
                                 }
                             }

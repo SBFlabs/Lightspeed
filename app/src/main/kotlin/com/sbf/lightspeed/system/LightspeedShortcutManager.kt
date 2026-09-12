@@ -499,23 +499,7 @@ object LightspeedShortcutManager {
                                 } catch (_: Exception) {}
                             }
                             
-                            if (!launched) {
-                                val directIntent = shortcut.intent
-                                if (directIntent != null) {
-                                    val launchIntent = Intent(directIntent).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    try {
-                                        context.startActivity(launchIntent)
-                                        launched = true
-                                    } catch (_: Exception) {
-                                        try {
-                                            context.sendBroadcast(launchIntent)
-                                            launched = true
-                                        } catch (_: Exception) {}
-                                    }
-                                }
-                            }
+                            // Fallback moved to end of pipeline
                         }
                     } catch (e: Exception) {
                         Log.d(TAG, "Direct shortcut intent resolution failed: ${e.message}")
@@ -592,6 +576,39 @@ object LightspeedShortcutManager {
                     } catch (e: Exception) {
                         Log.e(TAG, "Shizuku shortcut launch failed", e)
                     }
+                }
+
+                // 5. Quinary: Fallback to single/main intent (Last Resort)
+                if (!launched && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
+                    try {
+                        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+                        val query = LauncherApps.ShortcutQuery().apply {
+                            setPackage(parsed.packageName)
+                            setShortcutIds(listOf(parsed.id))
+                            setQueryFlags(
+                                LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
+                                LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or
+                                LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST
+                            )
+                        }
+                        val shortcuts = launcherApps.getShortcuts(query, Process.myUserHandle())
+                        val shortcut = shortcuts?.firstOrNull()
+                        val directIntent = shortcut?.intent
+                        if (directIntent != null) {
+                            val launchIntent = Intent(directIntent).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            try {
+                                context.startActivity(launchIntent)
+                                launched = true
+                            } catch (_: Exception) {
+                                try {
+                                    context.sendBroadcast(launchIntent)
+                                    launched = true
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    } catch (_: Exception) {}
                 }
 
                 // 5. Fallback standard launch

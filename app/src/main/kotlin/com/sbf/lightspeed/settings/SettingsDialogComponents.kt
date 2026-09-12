@@ -700,7 +700,6 @@ fun SliderCalibrationFlyoutDialog(
                                     Icon(imageVector = Icons.Default.Check, contentDescription = "Apply", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                 }
                             }
-                            )
                         }
                     }
 

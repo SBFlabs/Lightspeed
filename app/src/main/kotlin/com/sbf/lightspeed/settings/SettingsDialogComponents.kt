@@ -318,9 +318,7 @@ fun CentralCommandDeckDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Card 0: Communication Protocol (Language Engine)
-                    LanguageEngineCard(context = context)
-
+                    // Card 0: Communication Protocol (Language Engine) (Removed because redundant)
                     // Card 1: Master Flight Controls
                     FlightControlDeckCard(
                         context = context,

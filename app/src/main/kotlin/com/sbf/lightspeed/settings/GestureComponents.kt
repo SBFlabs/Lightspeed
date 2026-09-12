@@ -148,7 +148,7 @@ fun FlightControlDeckCard(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Flight Control Notification in Shade",
+                        "Flight Control Notification",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -200,7 +200,7 @@ fun FlightControlDeckCard(
                         when (currentGlassStyle) {
                             "frost" -> "Deep Frosted Matte"
                             "obsidian" -> "Tactical Stealth"
-                            else -> "Refractive Liquid Glass"
+                            else -> "\"Refractive Liquid Glass\""
                         },
                         fontSize = 10.sp,
                         color = Color.LightGray.copy(alpha = 0.75f)
@@ -212,7 +212,7 @@ fun FlightControlDeckCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     listOf(
-                        "liquid" to "Liquid Glass",
+                        "liquid" to "\"Liquid Glass\"",
                         "frost" to "Deep Frost",
                         "obsidian" to "Obsidian"
                     ).forEach { (styleKey, title) ->

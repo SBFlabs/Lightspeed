@@ -109,18 +109,7 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
-        <activity
-            android:name=".system.OmniscientAudioDockActivity"
-            android:exported="true"
-            android:theme="@style/Theme.Lightspeed.Floating"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:launchMode="singleTask">
-            <intent-filter>
-                <action android:name="com.sbf.lightspeed.OMNISCIENT_AUDIO" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+        
 
         <activity
             android:name=".system.TacticalFlyoutActivity"

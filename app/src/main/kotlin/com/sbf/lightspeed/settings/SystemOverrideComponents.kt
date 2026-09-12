@@ -79,7 +79,7 @@ fun SystemOverrideDeckContents(
         // 2. Continuous Animation Speeds
         OverrideSettingRow(
             icon = Icons.Default.Speed,
-            title = "Continuous Animation Speeds",
+            title = "Animation Speeds",
             subtitle = "Global master scale & Window/Transition/Animator subdomains",
             onClick = { /* TODO */ }
         )
@@ -89,7 +89,7 @@ fun SystemOverrideDeckContents(
         // 3. Display Metrics (PPI/DPI)
         OverrideSettingRow(
             icon = Icons.Default.ScreenshotMonitor,
-            title = "Display Metrics Overwrite",
+            title = "Display Metrics",
             subtitle = "On-the-fly PPI / DPI / Smallest Width adjustments",
             onClick = { /* TODO */ }
         )
@@ -99,7 +99,7 @@ fun SystemOverrideDeckContents(
         // 4. Dynamic Font Scale
         OverrideSettingRow(
             icon = Icons.Default.FontDownload,
-            title = "Dynamic Font Scale",
+            title = "Font Scale",
             subtitle = "Tactile slider for system FONT_SCALE override",
             onClick = { /* TODO */ }
         )
@@ -109,7 +109,7 @@ fun SystemOverrideDeckContents(
         // 5. Custom Lock-Screen Shortcuts Engine
         OverrideSettingRow(
             icon = Icons.Default.LockOpen,
-            title = "Lock-Screen Shortcuts Engine",
+            title = "Lock-Screen Shortcuts",
             subtitle = "Remapping left/right lockscreen shortcuts directly via secure settings",
             onClick = { /* TODO */ }
         )

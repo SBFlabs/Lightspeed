@@ -43,6 +43,12 @@ object LightspeedVocabulary {
         HORIZON_RAIL,
         ORBITAL_CAPSULE,
         SCREEN_ORIENTATION,
+        SYSTEM_ACTIONS,
+        HARDWARE_CONTROLS,
+        GESTURE_SCRUBBERS,
+        NAVIGATION,
+        MEDIA_CONTROLS,
+        SHIP_MAINTENANCE,
 
         // Hardware inputs
         SUB_LIGHT_THRUSTERS,       // Volume buttons
@@ -89,6 +95,12 @@ object LightspeedVocabulary {
         Key.HORIZON_RAIL            to "Horizon Rail",
         Key.ORBITAL_CAPSULE         to "Orbital Capsule",
         Key.SCREEN_ORIENTATION      to "Synthetic Gravity",
+        Key.SYSTEM_ACTIONS          to "Mainframe Operations",
+        Key.HARDWARE_CONTROLS       to "Engineering Relays",
+        Key.GESTURE_SCRUBBERS       to "Scrubbers",
+        Key.NAVIGATION              to "Astrogation",
+        Key.MEDIA_CONTROLS          to "Comms & Audio",
+        Key.SHIP_MAINTENANCE        to "Ship Maintenance",
 
         Key.SUB_LIGHT_THRUSTERS     to "Sub-Light Impulse Thrusters",
         Key.HULL_RESONATOR          to "Hull Kinetic Acoustic Resonator",
@@ -131,6 +143,12 @@ object LightspeedVocabulary {
         Key.HORIZON_RAIL            to "Progress Rail",
         Key.ORBITAL_CAPSULE         to "Camera Cutout HUD",
         Key.SCREEN_ORIENTATION      to "Screen Orientation",
+        Key.SYSTEM_ACTIONS          to "System Actions",
+        Key.HARDWARE_CONTROLS       to "Hardware Toggles",
+        Key.GESTURE_SCRUBBERS       to "Sliders",
+        Key.NAVIGATION              to "System Navigation",
+        Key.MEDIA_CONTROLS          to "Media Controls",
+        Key.SHIP_MAINTENANCE        to "System Maintenance",
 
         Key.SUB_LIGHT_THRUSTERS     to "Volume Button Actions",
         Key.HULL_RESONATOR          to "Back-Tap Gestures",

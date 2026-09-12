@@ -129,17 +129,17 @@ fun buildFlatItemsList(
             val categories = listOf(
                 Triple(
                     "sys_nav",
-                    "Navigation",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.NAVIGATION),
                     listOf("action_enter_gearset_nav", "system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen", "system:popup_window")
                 ),
                 Triple(
                     "sys_hw",
-                    "Hardware & System Controls",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HARDWARE_CONTROLS),
                     listOf("system:flashlight", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top")
                 ),
                 Triple(
                     "sys_media",
-                    "Media Controls",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.MEDIA_CONTROLS),
                     listOf(
                         "system:media_play_pause",
                         "system:media_next",
@@ -152,10 +152,11 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_tactical",
-                    "Ship Maintenance",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SHIP_MAINTENANCE),
                     listOf(
                         "system:refueling_bay",
-                        "system:core_cooling"
+                        "system:core_cooling",
+                        "system:accessibility_settings"
                     )
                 ),
                 Triple(
@@ -176,7 +177,7 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_scrub",
-                    "Gesture Scrubbers & Sliders",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.GESTURE_SCRUBBERS),
                     listOf("system:screen_timeout", "system:volume", "system:brightness")
                 )
             )

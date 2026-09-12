@@ -62,6 +62,12 @@ object ActionDispatcher {
                     ElevatedTaskCloser.execShizuku("input keyevent KEYCODE_POWER")
                 }
             }
+            token == "system:accessibility_settings" -> {
+                val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                try { context.startActivity(intent) } catch (_: Exception) {}
+            }
             token == "system:close_app" || token == "ACTION_CLOSE_APP" || token == "close_app" -> {
                 ElevatedTaskCloser.closeTopApp(context)
             }

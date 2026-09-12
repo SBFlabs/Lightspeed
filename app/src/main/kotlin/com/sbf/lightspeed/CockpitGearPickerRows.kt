@@ -50,8 +50,9 @@ fun PickerSystemHeaderRow(
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_ACTIONS)
         Text(
-            text = "⚡ System Actions (${item.count})",
+            text = "⚡ $title (${item.count})",
             color = Color.White,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,

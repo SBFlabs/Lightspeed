@@ -201,8 +201,9 @@ fun SystemAccordionPrefsDialog(
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
+                val sysTitle = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_ACTIONS)
                 Text(
-                    text = "System Actions Default State",
+                    text = "$sysTitle Default State",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -211,7 +212,7 @@ fun SystemAccordionPrefsDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "How should the System Actions categories behave when you open the Action Picker?",
+                    text = "How should the $sysTitle categories behave when you open the Action Picker?",
                     fontSize = 13.sp,
                     color = Color.LightGray.copy(alpha = 0.85f),
                     lineHeight = 18.sp

@@ -11,6 +11,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.UnfoldLess
 import androidx.compose.material.icons.outlined.UnfoldMore
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.LightspeedLanguageEngine
+import com.sbf.lightspeed.system.LightspeedHapticEngine
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +53,9 @@ fun MainSettingsScreen() {
     LaunchedEffect(Unit) {
         isVisible = true
     }
+
+    var showLanguageHud by remember { mutableStateOf(false) }
+    var activeLanguageIndex by remember { mutableIntStateOf(-1) }
 
     var showGuidebook by remember { mutableStateOf(false) }
     var showCentralCommandDeck by rememberSaveable { mutableStateOf(false) }
@@ -168,18 +182,97 @@ fun MainSettingsScreen() {
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = { showGuidebook = true },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                    )
-                                ) {
-                                    Icon(
-                                        Icons.AutoMirrored.Outlined.MenuBook,
-                                        contentDescription = "The Stranded in Space Guidebook",
-                                        tint = colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                Box {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                            .clickable { showGuidebook = true }
+                                            .pointerInput(Unit) {
+                                                detectDragGesturesAfterLongPress(
+                                                    onDragStart = { _ ->
+                                                        LightspeedHapticEngine.tick(context)
+                                                        showLanguageHud = true
+                                                        activeLanguageIndex = when (LightspeedLanguageEngine.getMode(context)) {
+                                                            LightspeedLanguageEngine.LanguageMode.VESSEL_LORE -> 0
+                                                            LightspeedLanguageEngine.LanguageMode.CO_PILOT -> 1
+                                                            LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS -> 2
+                                                        }
+                                                    },
+                                                    onDragEnd = {
+                                                        showLanguageHud = false
+                                                        if (activeLanguageIndex != -1) {
+                                                            val mode = when (activeLanguageIndex) {
+                                                                0 -> LightspeedLanguageEngine.LanguageMode.VESSEL_LORE
+                                                                1 -> LightspeedLanguageEngine.LanguageMode.CO_PILOT
+                                                                2 -> LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS
+                                                                else -> return@detectDragGesturesAfterLongPress
+                                                            }
+                                                            if (LightspeedLanguageEngine.getMode(context) != mode) {
+                                                                LightspeedLanguageEngine.setMode(context, mode)
+                                                                LightspeedHapticEngine.click(context)
+                                                            }
+                                                        }
+                                                    },
+                                                    onDragCancel = { showLanguageHud = false },
+                                                    onDrag = { change, _ ->
+                                                        val x = change.position.x
+                                                        val density = context.resources.displayMetrics.density
+                                                        val xDp = x / density
+                                                        val newIndex = when {
+                                                            xDp < -15 -> 0
+                                                            xDp > 55 -> 2
+                                                            else -> 1
+                                                        }
+                                                        if (newIndex != activeLanguageIndex) {
+                                                            activeLanguageIndex = newIndex
+                                                            LightspeedHapticEngine.tick(context)
+                                                        }
+                                                    }
+                                                )
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.AutoMirrored.Outlined.MenuBook,
+                                            contentDescription = "The Stranded in Space Guidebook",
+                                            tint = colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    if (showLanguageHud) {
+                                        Popup(alignment = Alignment.TopCenter, offset = IntOffset(0, -180)) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(24.dp))
+                                                    .background(Color(0xFF1E1E1E).copy(alpha = 0.95f))
+                                                    .padding(6.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                @Composable
+                                                fun HudItem(title: String, isSelected: Boolean) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(16.dp))
+                                                            .background(if (isSelected) colorScheme.primary else Color.Transparent)
+                                                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = title,
+                                                            color = if (isSelected) colorScheme.onPrimary else Color.White.copy(alpha = 0.7f),
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                                HudItem("Space Lore", activeLanguageIndex == 0)
+                                                HudItem("Bilingual", activeLanguageIndex == 1)
+                                                HudItem("Clear Comms", activeLanguageIndex == 2)
+                                            }
+                                        }
+                                    }
                                 }
 
                                 IconButton(

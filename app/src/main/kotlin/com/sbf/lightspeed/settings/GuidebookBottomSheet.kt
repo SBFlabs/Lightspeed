@@ -233,8 +233,8 @@ fun GuidebookBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 listOf(
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT to "Co-Pilot",
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE to "Vessel Lore",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT to "Bilingual",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE to "Space Lore",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS to "Clear Comms"
                 ).forEach { (mode, label) ->
                     val isSelected = viewMode == mode

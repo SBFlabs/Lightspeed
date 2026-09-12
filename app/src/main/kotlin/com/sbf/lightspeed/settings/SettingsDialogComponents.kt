@@ -431,6 +431,13 @@ fun CentralCommandDeckDialog(
                             }
                         }
                     }
+                    // Card 4: System Override Deck
+                    SystemOverrideDeckCard(
+                        context = context,
+                        prefs = prefs,
+                        onStateChanged = onRefreshNeeded
+                    )
+
                 }
             }
         }

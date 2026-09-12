@@ -35,7 +35,11 @@ fun SystemOverrideDeckContents(
     val scope = rememberCoroutineScope()
 
     // State for Edge Gesture Sovereignty
+    // State for Edge Gesture Sovereignty
     var edgeGestureScale by remember { mutableFloatStateOf(1.0f) }
+    var animationScale by remember { mutableFloatStateOf(1.0f) }
+    var displayDpi by remember { mutableFloatStateOf(context.resources.configuration.densityDpi.toFloat()) }
+    var fontScale by remember { mutableFloatStateOf(1.0f) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -43,8 +47,12 @@ fun SystemOverrideDeckContents(
                 // Read from system settings directly
                 val left = Settings.Secure.getFloat(context.contentResolver, "back_gesture_inset_scale_left", 1.0f)
                 edgeGestureScale = left
-            } catch (e: Settings.SettingNotFoundException) {
-                edgeGestureScale = 1.0f
+                val anim = Settings.Global.getFloat(context.contentResolver, "window_animation_scale", 1.0f)
+                animationScale = anim
+                val fScale = Settings.System.getFloat(context.contentResolver, "font_scale", 1.0f)
+                fontScale = fScale
+            } catch (e: Exception) {
+                // Ignore exception, defaults are set
             }
         }
     }
@@ -110,34 +118,67 @@ fun SystemOverrideDeckContents(
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
         // 2. Animation Speeds
-        OverrideSettingRow(
+        OverrideSliderRow(
             icon = Icons.Default.Speed,
             title = "Animation Speeds",
             subtitle = "Global master scale & Window/Transition/Animator subdomains",
+            value = animationScale,
+            valueRange = 0.0f..2.0f,
+            steps = 19,
             isEnabled = isShizukuActive,
-            onClick = { /* TODO */ }
+            onValueChange = { animationScale = it },
+            onValueChangeFinished = {
+                if (!isShizukuActive) return@OverrideSliderRow
+                LightspeedHapticEngine.tick(context)
+                scope.launch(Dispatchers.IO) {
+                    ElevatedTaskCloser.execShizuku("settings put global window_animation_scale ${animationScale}")
+                    ElevatedTaskCloser.execShizuku("settings put global transition_animation_scale ${animationScale}")
+                    ElevatedTaskCloser.execShizuku("settings put global animator_duration_scale ${animationScale}")
+                }
+            }
         )
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-        // 3. Display Metrics (PPI/DPI)
-        OverrideSettingRow(
+        // 3. Display Metrics
+        OverrideSliderRow(
             icon = Icons.Default.ScreenshotMonitor,
             title = "Display Metrics",
-            subtitle = "On-the-fly PPI / DPI / Smallest Width adjustments",
+            subtitle = "On-the-fly PPI / DPI adjustments (Default: ${context.resources.configuration.densityDpi})",
+            value = displayDpi,
+            valueRange = 200.0f..800.0f,
+            steps = 59,
+            valueFormatter = { "${it.toInt()} dpi" },
             isEnabled = isShizukuActive,
-            onClick = { /* TODO */ }
+            onValueChange = { displayDpi = it },
+            onValueChangeFinished = {
+                if (!isShizukuActive) return@OverrideSliderRow
+                LightspeedHapticEngine.tick(context)
+                scope.launch(Dispatchers.IO) {
+                    ElevatedTaskCloser.execShizuku("wm density ${displayDpi.toInt()}")
+                }
+            }
         )
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
         // 4. Font Scale
-        OverrideSettingRow(
+        OverrideSliderRow(
             icon = Icons.Default.FontDownload,
             title = "Font Scale",
             subtitle = "Tactile slider for system FONT_SCALE override",
+            value = fontScale,
+            valueRange = 0.5f..2.0f,
+            steps = 14,
             isEnabled = isShizukuActive,
-            onClick = { /* TODO */ }
+            onValueChange = { fontScale = it },
+            onValueChangeFinished = {
+                if (!isShizukuActive) return@OverrideSliderRow
+                LightspeedHapticEngine.tick(context)
+                scope.launch(Dispatchers.IO) {
+                    ElevatedTaskCloser.execShizuku("settings put system font_scale ${fontScale}")
+                }
+            }
         )
         
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)

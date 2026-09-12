@@ -35,16 +35,16 @@ fun SystemOverrideDeckContents(
     val scope = rememberCoroutineScope()
 
     // State for Edge Gesture Sovereignty
-    var edgeGestureEnabled by remember { mutableStateOf(false) }
+    var edgeGestureScale by remember { mutableFloatStateOf(1.0f) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
                 // Read from system settings directly
                 val left = Settings.Secure.getFloat(context.contentResolver, "back_gesture_inset_scale_left", 1.0f)
-                edgeGestureEnabled = (left == 0.0f)
+                edgeGestureScale = left
             } catch (e: Settings.SettingNotFoundException) {
-                edgeGestureEnabled = false
+                edgeGestureScale = 1.0f
             }
         }
     }
@@ -88,21 +88,21 @@ fun SystemOverrideDeckContents(
         
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-        // 1. Native Edge Gesture Sovereignty
-        OverrideToggleRow(
+        OverrideSliderRow(
             icon = Icons.Default.VerticalDistribute,
             title = "Native Edge Gesture Sovereignty",
             subtitle = "Force back-gesture insets to 0 to allow Lightspeed full edge control",
-            isChecked = edgeGestureEnabled,
+            value = edgeGestureScale,
+            valueRange = 0.0f..2.0f,
+            steps = 19,
             isEnabled = isShizukuActive,
-            onCheckedChange = { checked ->
-                if (!isShizukuActive) return@OverrideToggleRow
-                edgeGestureEnabled = checked
+            onValueChange = { edgeGestureScale = it },
+            onValueChangeFinished = {
+                if (!isShizukuActive) return@OverrideSliderRow
                 LightspeedHapticEngine.tick(context)
                 scope.launch(Dispatchers.IO) {
-                    val scale = if (checked) "0" else "1"
-                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left $scale")
-                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_right $scale")
+                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left ${edgeGestureScale}")
+                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_right ${edgeGestureScale}")
                 }
             }
         )
@@ -241,6 +241,74 @@ fun OverrideSettingRow(
             contentDescription = null,
             tint = if (isEnabled) Color.White.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f),
             modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+fun OverrideSliderRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int = 0,
+    isEnabled: Boolean,
+    valueFormatter: (Float) -> String = { String.format("%.2fx", it) },
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .padding(vertical = 8.dp, horizontal = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isEnabled) MaterialTheme.colorScheme.error.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.2f),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isEnabled) Color.White else Color.White.copy(alpha = 0.4f)
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.2f)
+                )
+            }
+            Text(
+                text = valueFormatter(value),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                color = if (isEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.2f)
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = valueRange,
+            steps = steps,
+            enabled = isEnabled,
+            modifier = Modifier.fillMaxWidth().height(36.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = if (isEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.3f),
+                activeTrackColor = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.1f),
+                inactiveTrackColor = Color.White.copy(alpha = 0.1f)
+            )
         )
     }
 }

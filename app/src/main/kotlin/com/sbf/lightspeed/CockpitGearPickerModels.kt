@@ -156,7 +156,7 @@ fun buildFlatItemsList(
                     listOf(
                         "system:refueling_bay",
                         "system:core_cooling",
-                        "system:accessibility_settings"
+                        "system:perimeter_watchdog"
                     )
                 ),
                 Triple(

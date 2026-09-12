@@ -62,9 +62,9 @@ object ActionDispatcher {
                     ElevatedTaskCloser.execShizuku("input keyevent KEYCODE_POWER")
                 }
             }
-            token == "system:accessibility_settings" -> {
-                val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            token == "system:perimeter_watchdog" -> {
+                val intent = Intent(context, LightspeedPerimeterActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
                 try { context.startActivity(intent) } catch (_: Exception) {}
             }

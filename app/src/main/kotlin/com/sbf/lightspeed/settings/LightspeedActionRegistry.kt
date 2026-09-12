@@ -73,7 +73,7 @@ object LightspeedActionRegistry {
         // 5. Ambient Dashboards & Tactical Quick Action Tools
         "system:refueling_bay",
         "system:core_cooling",
-        "system:accessibility_settings"
+        "system:perimeter_watchdog"
     )
 
     fun initializeSync(context: Context) {
@@ -268,7 +268,7 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:media_stop" -> "Media: Stop Playback"
         token == "system:refueling_bay" -> "Refueling Bay (Cryo Charging Dashboard)"
         token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> "Core Cooling (Reboot System)"
-        token == "system:accessibility_settings" -> "Accessibility Services (System Settings)"
+        token == "system:perimeter_watchdog" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.PERIMETER_DEFENSE)
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

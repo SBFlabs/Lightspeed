@@ -120,6 +120,17 @@
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
+            android:name=".system.LightspeedPerimeterActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
             android:name=".system.LightspeedPowerGestureActivity"
             android:exported="true"
             android:taskAffinity=""

@@ -275,16 +275,7 @@ object OmniscientAudioDockManager {
                         .fillMaxWidth(0.9f)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                         .clip(RoundedCornerShape(36.dp))
-                        .then(
-                            if (glassStyleIndex == 2 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                Modifier.graphicsLayer {
-                                    val runtimeShader = RuntimeShader(NOISE_SHADER)
-                                    runtimeShader.setFloatUniform("resolution", size.width, size.height)
-                                    runtimeShader.setFloatUniform("time", System.currentTimeMillis() % 100000 / 1000f)
-                                    renderEffect = RenderEffect.createRuntimeShaderEffect(runtimeShader, "content").asComposeRenderEffect()
-                                }
-                            } else Modifier
-                        )
+                        
                         .background(bgColor)
                         .border(
                             1.5.dp,

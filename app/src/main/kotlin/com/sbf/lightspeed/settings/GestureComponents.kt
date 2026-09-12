@@ -190,7 +190,7 @@ fun FlightControlDeckCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "COCKPIT GLASS MATERIAL",
+                        "CENTRAL COMMAND THEME",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -265,7 +265,7 @@ fun FlightControlDeckCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "BACKDROP / AREA BEHIND WINDOW",
+                        "BACKDROP THEME",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,

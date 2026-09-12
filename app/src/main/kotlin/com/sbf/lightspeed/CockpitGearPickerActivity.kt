@@ -143,6 +143,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
                 val coroutineScope = rememberCoroutineScope()
                 var sideBarHeight by remember { mutableStateOf(1f) }
                 var isDragging by remember { mutableStateOf(false) }
+var showHud by remember { mutableStateOf(false) }
                 var hudLetter by remember { mutableStateOf("") }
                 var pinnedApps by remember {
                     mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_PICKER_PINNED_APPS, emptySet()) ?: emptySet())
@@ -723,6 +724,61 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                         val down = awaitFirstDown(requireUnconsumed = false)
                                                         var hasDragged = false
                                                         var initialY = down.position.y
+                                                        showHud = true
+
+                                                        fun calculateInterpolatedIndex(yPos: Float) {
+                                                            if (flatItemsList.isEmpty()) return
+                                                            val letterArray = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray()
+                                                            val letterRatio = (yPos / sideBarHeight).coerceIn(0f, 0.999f)
+                                                            val fractionalIndex = letterRatio * letterArray.size
+                                                            val letterIndex = fractionalIndex.toInt()
+                                                            val fractionWithinLetter = fractionalIndex - letterIndex
+
+                                                            var startListIdx = -1
+                                                            var searchStart = letterIndex
+                                                            while (searchStart >= 0) {
+                                                                val l = letterArray[searchStart]
+                                                                if (letterIndices.containsKey(l)) {
+                                                                    startListIdx = letterIndices[l]!!
+                                                                    break
+                                                                }
+                                                                searchStart--
+                                                            }
+                                                            if (startListIdx == -1) startListIdx = 0
+
+                                                            var endListIdx = -1
+                                                            var searchEnd = letterIndex + 1
+                                                            while (searchEnd < letterArray.size) {
+                                                                val l = letterArray[searchEnd]
+                                                                if (letterIndices.containsKey(l)) {
+                                                                    endListIdx = letterIndices[l]!!
+                                                                    break
+                                                                }
+                                                                searchEnd++
+                                                            }
+                                                            if (endListIdx == -1) endListIdx = flatItemsList.size - 1
+
+                                                            val finalFloatIdx = startListIdx + (fractionWithinLetter * (endListIdx - startListIdx))
+                                                            val finalListIdx = finalFloatIdx.toInt().coerceIn(0, flatItemsList.size - 1)
+
+                                                            coroutineScope.launch { listState.scrollToItem(finalListIdx) }
+
+                                                            val item = flatItemsList[finalListIdx]
+                                                            val label = when (item) {
+                                                                is PickerRowItem.SystemHeader -> "System Actions"
+                                                                is PickerRowItem.SystemCategoryHeader -> item.title
+                                                                is PickerRowItem.SystemAction -> item.label
+                                                                is PickerRowItem.SystemCustomizationOption -> item.title
+                                                                is PickerRowItem.SystemCustomizationSlider -> item.title
+                                                                is PickerRowItem.AppHeader -> item.appName
+                                                                is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
+                                                                is PickerRowItem.ShortcutAction -> item.label
+                                                            }
+                                                            hudLetter = if (label.length >= 2) label.take(1).uppercase() + label.substring(1, 2).lowercase() else label.uppercase()
+                                                        }
+
+                                                        // Handle immediate tap
+                                                        calculateInterpolatedIndex(initialY.coerceIn(0f, sideBarHeight))
 
                                                         while (true) {
                                                             val event = awaitPointerEvent()
@@ -736,64 +792,12 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                                                 
                                                                 if (hasDragged) {
                                                                     currentDragY = dragY
-                                                                    if (flatItemsList.isNotEmpty()) {
-                                                                        val letterArray = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray()
-                                                                        val letterRatio = (dragY / sideBarHeight).coerceIn(0f, 0.999f)
-                                                                        val letterIndex = (letterRatio * letterArray.size).toInt()
-                                                                        val targetLetter = letterArray[letterIndex]
-                                                                        
-                                                                        var searchIndex = letterIndex
-                                                                        var finalListIdx = -1
-                                                                        while (searchIndex >= 0) {
-                                                                            val l = letterArray[searchIndex]
-                                                                            if (letterIndices.containsKey(l)) {
-                                                                                finalListIdx = letterIndices[l]!!
-                                                                                break
-                                                                            }
-                                                                            searchIndex--
-                                                                        }
-                                                                        if (finalListIdx == -1) finalListIdx = 0
-                                                                        coroutineScope.launch { listState.scrollToItem(finalListIdx) }
-                                                                        
-                                                                        // Extract the 2-letter label from the target app for the HUD overlay
-                                                                        val item = flatItemsList[finalListIdx]
-                                                                        val label = when (item) {
-                                                                            is PickerRowItem.SystemHeader -> "System Actions"
-                                                                            is PickerRowItem.SystemCategoryHeader -> item.title
-                                                                            is PickerRowItem.SystemAction -> item.label
-                                                                            is PickerRowItem.SystemCustomizationOption -> item.title
-                                                                            is PickerRowItem.SystemCustomizationSlider -> item.title
-                                                                            is PickerRowItem.AppHeader -> item.appName
-                                                                            is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
-                                                                            is PickerRowItem.ShortcutAction -> item.label
-                                                                        }
-                                                                        hudLetter = if (label.length >= 2) label.take(1).uppercase() + label.substring(1, 2).lowercase() else label.uppercase()
-                                                                    }
+                                                                    calculateInterpolatedIndex(dragY)
                                                                 }
                                                                 dragChange.consume()
                                                             } else {
-                                                                if (!hasDragged) {
-                                                                    // It was a simple tap, scroll to the exact letter tapped!
-                                                                    if (flatItemsList.isNotEmpty()) {
-                                                                        val letterArray = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray()
-                                                                        val letterRatio = (initialY / sideBarHeight).coerceIn(0f, 0.999f)
-                                                                        val letterIndex = (letterRatio * letterArray.size).toInt()
-                                                                        
-                                                                        var searchIndex = letterIndex
-                                                                        var finalListIdx = -1
-                                                                        while (searchIndex >= 0) {
-                                                                            val l = letterArray[searchIndex]
-                                                                            if (letterIndices.containsKey(l)) {
-                                                                                finalListIdx = letterIndices[l]!!
-                                                                                break
-                                                                            }
-                                                                            searchIndex--
-                                                                        }
-                                                                        if (finalListIdx == -1) finalListIdx = 0
-                                                                        coroutineScope.launch { listState.scrollToItem(finalListIdx) }
-                                                                    }
-                                                                }
                                                                 isDragging = false
+                                                                showHud = false
                                                                 break
                                                             }
                                                         }
@@ -830,7 +834,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
                                 }
 
                                 // Dragging HUD Letter Overlay
-                                if (isDragging && hudLetter.isNotEmpty()) {
+                                if (showHud && hudLetter.isNotEmpty()) {
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.Center)

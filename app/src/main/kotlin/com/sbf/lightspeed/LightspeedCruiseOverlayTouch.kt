@@ -846,15 +846,8 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                             val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume"
                             val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness"
                             
-                            val perpendicularPull = if (currentActiveZone == TouchZone.LEFT_EDGE) {
-                                rawX - touchStartX
-                            } else if (currentActiveZone == TouchZone.RIGHT_EDGE) {
-                                touchStartX - rawX
-                            } else {
-                                touchStartY - rawY // TOP/BOTTOM EDGE
-                            }
-                            
-                            if (perpendicularPull > 140f * density && (isVolume || isBrightness)) {
+                            val horizontalPull = kotlin.math.abs(rawX - gestureStartX)
+                            if (horizontalPull > 140f * density && (isVolume || isBrightness)) {
                                 currentDetectedGesture = MacroGesture.NONE
                                 isCruising = false
                                 LightspeedStatusBarOverlay.dismissActionHud(0L)

@@ -1,7 +1,10 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
+import androidx.compose.ui.draw.scale
+
 import android.content.SharedPreferences
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SystemOverrideDeckContents(
@@ -26,6 +32,22 @@ fun SystemOverrideDeckContents(
     prefs: SharedPreferences
 ) {
     val isShizukuActive = ElevatedTaskCloser.isShizukuActive
+    val scope = rememberCoroutineScope()
+
+    // State for Edge Gesture Sovereignty
+    var edgeGestureEnabled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                // Read from system settings directly
+                val left = Settings.Secure.getFloat(context.contentResolver, "back_gesture_inset_scale_left", 1.0f)
+                edgeGestureEnabled = (left == 0.0f)
+            } catch (e: Settings.SettingNotFoundException) {
+                edgeGestureEnabled = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -67,20 +89,32 @@ fun SystemOverrideDeckContents(
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
         // 1. Native Edge Gesture Sovereignty
-        OverrideSettingRow(
+        OverrideToggleRow(
             icon = Icons.Default.VerticalDistribute,
             title = "Native Edge Gesture Sovereignty",
-            subtitle = "Force back-gesture insets to 0 to allow Lightspeed deflectors full edge control",
-            onClick = { /* TODO */ }
+            subtitle = "Force back-gesture insets to 0 to allow Lightspeed full edge control",
+            isChecked = edgeGestureEnabled,
+            isEnabled = isShizukuActive,
+            onCheckedChange = { checked ->
+                if (!isShizukuActive) return@OverrideToggleRow
+                edgeGestureEnabled = checked
+                LightspeedHapticEngine.tick(context)
+                scope.launch(Dispatchers.IO) {
+                    val scale = if (checked) "0" else "1"
+                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left $scale")
+                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_right $scale")
+                }
+            }
         )
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-        // 2. Continuous Animation Speeds
+        // 2. Animation Speeds
         OverrideSettingRow(
             icon = Icons.Default.Speed,
             title = "Animation Speeds",
             subtitle = "Global master scale & Window/Transition/Animator subdomains",
+            isEnabled = isShizukuActive,
             onClick = { /* TODO */ }
         )
 
@@ -91,16 +125,18 @@ fun SystemOverrideDeckContents(
             icon = Icons.Default.ScreenshotMonitor,
             title = "Display Metrics",
             subtitle = "On-the-fly PPI / DPI / Smallest Width adjustments",
+            isEnabled = isShizukuActive,
             onClick = { /* TODO */ }
         )
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-        // 4. Dynamic Font Scale
+        // 4. Font Scale
         OverrideSettingRow(
             icon = Icons.Default.FontDownload,
             title = "Font Scale",
             subtitle = "Tactile slider for system FONT_SCALE override",
+            isEnabled = isShizukuActive,
             onClick = { /* TODO */ }
         )
         
@@ -111,7 +147,55 @@ fun SystemOverrideDeckContents(
             icon = Icons.Default.LockOpen,
             title = "Lock-Screen Shortcuts",
             subtitle = "Remapping left/right lockscreen shortcuts directly via secure settings",
+            isEnabled = isShizukuActive,
             onClick = { /* TODO */ }
+        )
+    }
+}
+
+@Composable
+fun OverrideToggleRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    isChecked: Boolean,
+    isEnabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = isEnabled) { onCheckedChange(!isChecked) }
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (isEnabled) MaterialTheme.colorScheme.error.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.2f),
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isEnabled) Color.White else Color.White.copy(alpha = 0.4f)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.2f)
+            )
+        }
+        Switch(
+            checked = isChecked,
+            onCheckedChange = onCheckedChange,
+            enabled = isEnabled,
+            modifier = Modifier.scale(0.85f),
+            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.error)
         )
     }
 }
@@ -121,20 +205,21 @@ fun OverrideSettingRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    isEnabled: Boolean,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
+            .clickable(enabled = isEnabled) { onClick() }
             .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+            tint = if (isEnabled) MaterialTheme.colorScheme.error.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.2f),
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -143,18 +228,18 @@ fun OverrideSettingRow(
                 text = title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = if (isEnabled) Color.White else Color.White.copy(alpha = 0.4f)
             )
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.2f)
             )
         }
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.3f),
+            tint = if (isEnabled) Color.White.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f),
             modifier = Modifier.size(20.dp)
         )
     }

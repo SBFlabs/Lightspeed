@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.AccessAlarm
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,7 +50,14 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import android.graphics.RenderEffect
+import android.graphics.Shader
+import android.graphics.RuntimeShader
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,6 +68,22 @@ import kotlin.math.roundToInt
 
 @SuppressLint("StaticFieldLeak")
 object OmniscientAudioDockManager {
+    private const val NOISE_SHADER = """
+        uniform float2 resolution;
+        uniform float time;
+        uniform shader content;
+        
+        float random(float2 st) {
+            return fract(sin(dot(st.xy, float2(12.9898,78.233))) * 43758.5453123);
+        }
+        
+        half4 main(float2 fragCoord) {
+            half4 color = content.eval(fragCoord);
+            float noise = random(fragCoord + time) * 0.15;
+            return color + half4(noise, noise, noise, 0.0);
+        }
+    """
+
     private var composeView: ComposeView? = null
     private var windowManager: WindowManager? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
@@ -154,6 +178,11 @@ object OmniscientAudioDockManager {
     }
 
     
+
+    private fun triggerHaptic(context: Context) {
+        LightspeedHapticEngine.vibrate(context, 18, 120)
+    }
+
     private fun getPinnedApps(context: Context): Set<String> {
         val prefs = context.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
         return prefs.getStringSet("pinned_audio_apps", emptySet()) ?: emptySet()
@@ -229,9 +258,37 @@ object OmniscientAudioDockManager {
             activeAppsList = apps.sortedByDescending { it.pkg in pinnedPackages }
         }
 
+        val prefs = service.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
+        var glassStyleIndex by remember { mutableIntStateOf(prefs.getInt("pref_glass_style", 0)) }
+        var dragAccumulator by remember { mutableFloatStateOf(0f) }
+        
         val dynamicPrimary = Color(0xFF6366F1)
         val dynamicSecondary = Color(0xFFEAB308)
 
+        // Glass Style Configuration
+        val glassStyleNames = listOf("CLEAR GLASS", "HEAVY ACRYLIC", "AGSL FROSTED", "MATERIAL ADAPTIVE")
+        val bgAlpha = when (glassStyleIndex) {
+            0 -> 0.04f
+            1 -> 0.25f
+            2 -> 0.15f
+            3 -> 0.25f // Later we can use system colors, for now tinted black
+            else -> 0.04f
+        }
+        val bgColor = if (glassStyleIndex == 3) dynamicPrimary.copy(alpha = 0.2f) else Color.White.copy(alpha = bgAlpha)
+        
+        LaunchedEffect(glassStyleIndex) {
+            // Update WindowManager blur radius dynamically
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val p = composeView?.layoutParams as? WindowManager.LayoutParams
+                    if (p != null) {
+                        p.blurBehindRadius = if (glassStyleIndex == 1 || glassStyleIndex == 2) 250 else 120
+                        windowManager?.updateViewLayout(composeView, p)
+                    }
+                }
+            } catch (e: Exception) {}
+        }
+        
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -252,7 +309,17 @@ object OmniscientAudioDockManager {
                         .fillMaxWidth(0.9f)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                         .clip(RoundedCornerShape(36.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
+                        .then(
+                            if (glassStyleIndex == 2 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                Modifier.graphicsLayer {
+                                    val runtimeShader = RuntimeShader(NOISE_SHADER)
+                                    runtimeShader.setFloatUniform("resolution", size.width, size.height)
+                                    runtimeShader.setFloatUniform("time", System.currentTimeMillis() % 100000 / 1000f)
+                                    renderEffect = RenderEffect.createRuntimeShaderEffect(runtimeShader, "content").asComposeRenderEffect()
+                                }
+                            } else Modifier
+                        )
+                        .background(bgColor)
                         .border(
                             1.5.dp,
                             Brush.linearGradient(
@@ -269,13 +336,54 @@ object OmniscientAudioDockManager {
                             .fillMaxWidth()
                             .padding(24.dp)
                     ) {
-                        Text(
-                            text = "OMNISCIENT AUDIO",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 4.sp
-                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "OMNISCIENT AUDIO",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 4.sp
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(glassStyleNames[glassStyleIndex], color = Color.White.copy(alpha = 0.5f), fontSize = 8.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 8.dp))
+                                Icon(
+                                    androidx.compose.material.icons.Icons.Default.Settings,
+                                    contentDescription = "Glass Style",
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .pointerInput(Unit) {
+                                            detectDragGesturesAfterLongPress(
+                                                onDragStart = { triggerHaptic(service) },
+                                                onDrag = { change, dragAmount -> 
+                                                    change.consume()
+                                                    dragAccumulator += dragAmount.x
+                                                    if (kotlin.math.abs(dragAccumulator) > 40f) {
+                                                        val steps = (dragAccumulator / 40f).toInt()
+                                                        dragAccumulator %= 40f
+                                                        if (steps != 0) {
+                                                            var newIdx = glassStyleIndex + steps
+                                                            while (newIdx < 0) newIdx += glassStyleNames.size
+                                                            newIdx %= glassStyleNames.size
+                                                            glassStyleIndex = newIdx
+                                                            prefs.edit().putInt("pref_glass_style", newIdx).apply()
+                                                            triggerHaptic(service)
+                                                        }
+                                                    }
+                                                },
+                                                onDragEnd = { dragAccumulator = 0f }
+                                            )
+                                        }
+                                        .clickable { 
+                                            var newIdx = glassStyleIndex + 1
+                                            newIdx %= glassStyleNames.size
+                                            glassStyleIndex = newIdx
+                                            prefs.edit().putInt("pref_glass_style", newIdx).apply()
+                                            triggerHaptic(service)
+                                        }
+                                )
+                            }
+                        }
                         
                         Spacer(modifier = Modifier.height(36.dp))
                         

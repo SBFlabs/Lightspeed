@@ -568,8 +568,7 @@ object LightspeedShortcutManager {
                             val shortcut = shortcuts?.firstOrNull()
                             val targetIntent = shortcut?.intents?.lastOrNull() ?: shortcut?.intent
                             if (targetIntent != null) {
-                                val uriStr = targetIntent.toUri(Intent.URI_INTENT_SCHEME).replace("'", "'\''")
-                                ElevatedTaskCloser.execShizuku("am start '$uriStr'")
+                                ElevatedTaskCloser.execShizuku(intentToAmStartCommand(targetIntent))
                                 launched = true
                             }
                         }
@@ -713,7 +712,7 @@ object LightspeedShortcutManager {
                         // 4. Elevated Shizuku fallback
                         if (ElevatedTaskCloser.isShizukuActive) {
                             try {
-                                ElevatedTaskCloser.execShizuku("am start '${uri}' || am broadcast '${uri}'")
+                                ElevatedTaskCloser.execShizuku(intentToAmStartCommand(launchIntent))
                                 return true
                             } catch (_: Exception) {}
                         }
@@ -733,5 +732,22 @@ object LightspeedShortcutManager {
                 return false
             }
         }
+    }
+    private fun intentToAmStartCommand(intent: Intent): String {
+        val sb = java.lang.StringBuilder("am start ")
+        intent.action?.let { sb.append("-a $it ") }
+        intent.dataString?.let { sb.append("-d '$it' ") }
+        intent.type?.let { sb.append("-t '$it' ") }
+        intent.component?.let { sb.append("-n ${it.flattenToShortString()} ") }
+        intent.extras?.keySet()?.forEach { key ->
+            when (val value = intent.extras?.get(key)) {
+                is String -> sb.append("--es '$key' '${value.replace("'", "'\\''")}' ")
+                is Boolean -> sb.append("--ez '$key' $value ")
+                is Int -> sb.append("--ei '$key' $value ")
+                is Long -> sb.append("--el '$key' $value ")
+                is Float -> sb.append("--ef '$key' $value ")
+            }
+        }
+        return sb.toString().trim()
     }
 }

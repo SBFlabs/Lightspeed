@@ -853,14 +853,16 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                                 macroTrackingActive = false // Portal Line Lock: Prevent re-triggering until finger lifts
                                 isCruising = false
                                 LightspeedStatusBarOverlay.dismissActionHud(0L)
-                                val actionStr = if (isVolume) "com.sbf.lightspeed.OMNISCIENT_AUDIO" else "com.sbf.lightspeed.OMNISCIENT_DISPLAY"
-                                val intent = android.content.Intent(actionStr).apply {
-                                    setPackage(context.packageName)
-                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                if (isVolume) {
+                                    service?.let { com.sbf.lightspeed.system.OmniscientAudioDockManager.show(it) }
+                                } else {
+                                    val actionStr = "com.sbf.lightspeed.OMNISCIENT_DISPLAY"
+                                    val intent = android.content.Intent(actionStr).apply {
+                                        setPackage(context.packageName)
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                    }
+                                    try { context.startActivity(intent) } catch (_: Exception) {}
                                 }
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {}
                                 return true
                             }
                             

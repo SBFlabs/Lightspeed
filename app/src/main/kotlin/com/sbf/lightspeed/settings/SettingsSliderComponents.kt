@@ -199,6 +199,7 @@ object SliderPresetManager {
 fun DragOnlySlider(
     value: Float,
     onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (() -> Unit)? = null,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
     modifier: Modifier = Modifier,
@@ -242,6 +243,7 @@ fun DragOnlySlider(
                             lastHapticSteppedVal = steppedValue
                         }
                         onValueChange(steppedValue)
+                        onValueChangeFinished?.invoke()
                     }
                 )
             }
@@ -254,9 +256,11 @@ fun DragOnlySlider(
                         lastHapticSteppedVal = value
                     },
                     onDragEnd = {
+                        onValueChangeFinished?.invoke()
                         isDragging = false
                     },
                     onDragCancel = {
+                        onValueChangeFinished?.invoke()
                         isDragging = false
                     },
                     onHorizontalDrag = { change, dragAmount ->

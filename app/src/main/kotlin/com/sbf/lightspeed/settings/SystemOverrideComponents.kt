@@ -383,19 +383,15 @@ fun OverrideSliderRow(
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Slider(
+        DragOnlySlider(
             value = value,
             onValueChange = onValueChange,
             onValueChangeFinished = onValueChangeFinished,
             valueRange = valueRange,
             steps = steps,
             enabled = isEnabled,
-            modifier = Modifier.fillMaxWidth().height(36.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = if (isEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.3f),
-                activeTrackColor = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.1f),
-                inactiveTrackColor = Color.White.copy(alpha = 0.1f)
-            )
+            tapToJump = isTapToJumpEnabled,
+            modifier = Modifier.fillMaxWidth().height(36.dp)
         )
     }
 

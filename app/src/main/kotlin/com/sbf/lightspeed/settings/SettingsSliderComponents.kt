@@ -211,11 +211,12 @@ fun DragOnlySlider(
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableFloatStateOf(0f) }
     var lastHapticSteppedVal by remember { mutableFloatStateOf(value) }
+    val currentVal by androidx.compose.runtime.rememberUpdatedState(value)
 
     LaunchedEffect(value) {
         if (!isDragging) {
-            dragProgress = if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
-            lastHapticSteppedVal = value
+            dragProgress = if (range > 0f) ((currentVal - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+            lastHapticSteppedVal = currentVal
         }
     }
 
@@ -252,8 +253,8 @@ fun DragOnlySlider(
                 detectHorizontalDragGestures(
                     onDragStart = { _ ->
                         isDragging = true
-                        dragProgress = if (range > 0f) ((value - valueRange.start) / range).coerceIn(0f, 1f) else 0f
-                        lastHapticSteppedVal = value
+                        dragProgress = if (range > 0f) ((currentVal - valueRange.start) / range).coerceIn(0f, 1f) else 0f
+                        lastHapticSteppedVal = currentVal
                     },
                     onDragEnd = {
                         onValueChangeFinished?.invoke()

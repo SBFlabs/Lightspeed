@@ -291,7 +291,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
                 val letterIndices = remember(flatItemsList) {
                     val map = mutableMapOf<Char, Int>()
                     flatItemsList.forEachIndexed { index, item ->
-                        if (item is PickerRowItem.AppHeader) {
+                        if (item is PickerRowItem.AppHeader && !item.isPinned) {
                             val firstChar = item.appName.firstOrNull()?.uppercaseChar() ?: '#'
                             val targetKey = if (firstChar in 'A'..'Z') firstChar else '#'
                             if (!map.containsKey(targetKey)) map[targetKey] = index

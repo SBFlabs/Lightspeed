@@ -775,6 +775,7 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
 
                             if (assignedScrub != "none" && assignedScrub != null && abs(deltaX) > thresholdX_Scrub) {
                                 currentDetectedGesture = MacroGesture.SCRUBBING
+                                scrubStartX = rawX
                                 activeHoldScrubAction = assignedScrub
                                 activeHoldScrubActionKey = "pref_macro_action_${dynamicZone}_SCRUBBING"
                                 uiHandler.removeCallbacks(holdTimerRunnable)
@@ -846,8 +847,8 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                             val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume"
                             val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness"
                             
-                            val horizontalPull = kotlin.math.abs(rawX - gestureStartX)
-                            if (horizontalPull > 140f * density && (isVolume || isBrightness)) {
+                            val horizontalPull = kotlin.math.abs(rawX - scrubStartX)
+                            if (horizontalPull > 80f * density && (isVolume || isBrightness)) {
                                 currentDetectedGesture = MacroGesture.NONE
                                 macroTrackingActive = false // Portal Line Lock: Prevent re-triggering until finger lifts
                                 isCruising = false

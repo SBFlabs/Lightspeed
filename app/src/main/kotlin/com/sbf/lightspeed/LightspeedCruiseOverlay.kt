@@ -316,6 +316,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var touchDownRawY = 0f
     internal var lastTouchRawX = 0f
     internal var lastTouchRawY = 0f
+    internal var scrubStartX = 0f
     internal var categoryScrubbingEngaged = false
     internal var maxVerticalDisplacement = 0f
     internal var depthPercentage = 0f

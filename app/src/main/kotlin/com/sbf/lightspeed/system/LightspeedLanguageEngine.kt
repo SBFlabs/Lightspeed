@@ -79,8 +79,8 @@ object LightspeedLanguageEngine {
      *   // CO_PILOT     → "Left & Right Deflectors"  (subtitle = "Gesture Sidebars")
      *   // CLEAR_COMMS  → "Left & Right Gesture Sidebars"
      */
-    fun resolve(key: LightspeedVocabulary.Key): String =
-        when (_mode.value) {
+    fun resolve(key: LightspeedVocabulary.Key, mode: LanguageMode = _mode.value): String =
+        when (mode) {
             LanguageMode.VESSEL_LORE -> LightspeedVocabulary.vessel(key)
             LanguageMode.CO_PILOT    -> LightspeedVocabulary.vessel(key)   // headline = vessel
             LanguageMode.CLEAR_COMMS -> LightspeedVocabulary.clear(key)
@@ -90,12 +90,12 @@ object LightspeedLanguageEngine {
      * Returns the secondary plain-language subtitle for CO_PILOT mode.
      * Returns null in other modes so callers can conditionally render it.
      */
-    fun resolveSubtitle(key: LightspeedVocabulary.Key): String? =
-        if (_mode.value == LanguageMode.CO_PILOT) LightspeedVocabulary.clear(key) else null
+    fun resolveSubtitle(key: LightspeedVocabulary.Key, mode: LanguageMode = _mode.value): String? =
+        if (mode == LanguageMode.CO_PILOT) LightspeedVocabulary.clear(key) else null
 
     /**
      * Resolve both the primary label and optional subtitle in one call.
      */
-    fun resolvePair(key: LightspeedVocabulary.Key): Pair<String, String?> =
-        resolve(key) to resolveSubtitle(key)
+    fun resolvePair(key: LightspeedVocabulary.Key, mode: LanguageMode = _mode.value): Pair<String, String?> =
+        resolve(key, mode) to resolveSubtitle(key, mode)
 }

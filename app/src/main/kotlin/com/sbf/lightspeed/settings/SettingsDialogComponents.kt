@@ -369,7 +369,7 @@ fun CentralCommandDeckDialog(
                                 )
                             }
                             Text(
-                                "Holding down '${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND)} ▾' executes this instant shortcut with heavy tactile haptics:",
+                                "Holding down '${com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND, langMode)} ▾' executes this instant shortcut with heavy tactile haptics:",
                                 fontSize = 11.5.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 lineHeight = 16.sp

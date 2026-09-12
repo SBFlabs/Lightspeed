@@ -675,6 +675,7 @@ object LightspeedShortcutManager {
                         if (launchIntent.hasExtra("shortcut_action")) {
                             launchIntent.action = launchIntent.getStringExtra("shortcut_action")
                             launchIntent.component = null
+                            launchIntent.setPackage(null)
                         }
 
                         // Unpack nested ShortcutMaker intent if present
@@ -754,6 +755,10 @@ object LightspeedShortcutManager {
                 }
                 context.startActivity(intent)
             } catch (_: Exception) {}
+        } else if (e is android.content.ActivityNotFoundException) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                android.widget.Toast.makeText(context, "Activity Not Found: Target app might be restricted or missing", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

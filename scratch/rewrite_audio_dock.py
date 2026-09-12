@@ -1,4 +1,6 @@
-package com.sbf.lightspeed.system
+import re
+
+code = """package com.sbf.lightspeed.system
 
 import android.app.Activity
 import android.content.BroadcastReceiver
@@ -42,7 +44,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.asImageBitmap
+import com.google.accompanist.drawablepainter.rememberDrawablePainter
 import kotlin.math.roundToInt
 
 class OmniscientAudioDockActivity : ComponentActivity() {
@@ -225,23 +227,8 @@ fun AppVolumeRow(name: String, iconDrawable: Drawable?, initialVol: Float, isPin
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
             if (iconDrawable != null) {
-                val bitmap = remember(iconDrawable) {
-                    if (iconDrawable is android.graphics.drawable.BitmapDrawable && iconDrawable.bitmap != null) {
-                        iconDrawable.bitmap
-                    } else {
-                        val bmp = android.graphics.Bitmap.createBitmap(
-                            if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth else 1,
-                            if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight else 1,
-                            android.graphics.Bitmap.Config.ARGB_8888
-                        )
-                        val canvas = android.graphics.Canvas(bmp)
-                        iconDrawable.setBounds(0, 0, canvas.width, canvas.height)
-                        iconDrawable.draw(canvas)
-                        bmp
-                    }
-                }
                 androidx.compose.foundation.Image(
-                    bitmap = bitmap.asImageBitmap(),
+                    painter = rememberDrawablePainter(iconDrawable),
                     contentDescription = name,
                     modifier = Modifier.size(24.dp)
                 )
@@ -293,3 +280,7 @@ fun DockActionButton(modifier: Modifier, title: String, icon: ImageVector, color
         }
     }
 }
+"""
+
+with open('app/src/main/kotlin/com/sbf/lightspeed/system/OmniscientAudioDockActivity.kt', 'w') as f:
+    f.write(code)

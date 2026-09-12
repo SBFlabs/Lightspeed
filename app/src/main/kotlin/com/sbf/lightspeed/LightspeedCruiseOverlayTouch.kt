@@ -849,6 +849,7 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                             val horizontalPull = kotlin.math.abs(rawX - gestureStartX)
                             if (horizontalPull > 140f * density && (isVolume || isBrightness)) {
                                 currentDetectedGesture = MacroGesture.NONE
+                                macroTrackingActive = false // Portal Line Lock: Prevent re-triggering until finger lifts
                                 isCruising = false
                                 LightspeedStatusBarOverlay.dismissActionHud(0L)
                                 val actionStr = if (isVolume) "com.sbf.lightspeed.OMNISCIENT_AUDIO" else "com.sbf.lightspeed.OMNISCIENT_DISPLAY"

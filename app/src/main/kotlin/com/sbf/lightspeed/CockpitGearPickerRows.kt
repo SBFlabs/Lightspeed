@@ -107,13 +107,21 @@ fun PickerSystemCategoryHeaderRow(
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "${item.title} (${item.count})",
-            color = dynamicPrimary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "${item.title} (${item.count})",
+                color = dynamicPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (item.subtitle != null) {
+                Text(
+                    text = item.subtitle,
+                    color = dynamicPrimary.copy(alpha = 0.75f),
+                    fontSize = 10.sp
+                )
+            }
+        }
         Icon(
             Icons.Default.ArrowDropDown,
             contentDescription = null,

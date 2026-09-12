@@ -31,6 +31,7 @@ sealed class PickerRowItem {
     data class SystemCategoryHeader(
         val categoryKey: String,
         val title: String,
+        val subtitle: String?,
         val count: Int,
         val isExpanded: Boolean
     ) : PickerRowItem() {
@@ -129,17 +130,17 @@ fun buildFlatItemsList(
             val categories = listOf(
                 Triple(
                     "sys_nav",
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.NAVIGATION),
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.NAVIGATION),
                     listOf("action_enter_gearset_nav", "system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen", "system:popup_window")
                 ),
                 Triple(
                     "sys_hw",
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HARDWARE_CONTROLS),
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HARDWARE_CONTROLS),
                     listOf("system:flashlight", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top")
                 ),
                 Triple(
                     "sys_media",
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.MEDIA_CONTROLS),
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.MEDIA_CONTROLS),
                     listOf(
                         "system:media_play_pause",
                         "system:media_next",
@@ -152,7 +153,7 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_tactical",
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SHIP_MAINTENANCE),
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SHIP_MAINTENANCE),
                     listOf(
                         "system:refueling_bay",
                         "system:core_cooling",
@@ -161,7 +162,7 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_orient",
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SCREEN_ORIENTATION),
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SCREEN_ORIENTATION),
                     listOf(
                         "system:auto_rotate_toggle",
                         "system:gravity_reset",
@@ -177,18 +178,18 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_scrub",
-                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.GESTURE_SCRUBBERS),
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.GESTURE_SCRUBBERS),
                     listOf("system:screen_timeout", "system:volume", "system:brightness")
                 )
             )
 
-            categories.forEach { (catKey, catTitle, tokenList) ->
+            categories.forEach { (catKey, titlePair, tokenList) ->
                 val matchingTokens = systemActions.filter { tokenList.contains(it) }
                 if (matchingTokens.isNotEmpty()) {
                     val collapseKey = "collapsed:$catKey"
                     val catExpanded = if (searchQuery.isNotBlank()) true else !expandedSubsections.contains(collapseKey)
 
-                    list.add(PickerRowItem.SystemCategoryHeader(catKey, catTitle, matchingTokens.size, catExpanded))
+                    list.add(PickerRowItem.SystemCategoryHeader(catKey, titlePair.first, titlePair.second, matchingTokens.size, catExpanded))
 
                     if (catExpanded) {
                         matchingTokens.forEach { token ->

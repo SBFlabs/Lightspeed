@@ -24,6 +24,7 @@ import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +51,7 @@ fun MainSettingsScreen() {
     val scope = rememberCoroutineScope()
 
     var isVisible by remember { mutableStateOf(false) }
+    val langMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
     LaunchedEffect(Unit) {
         isVisible = true
     }

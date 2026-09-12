@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -65,6 +66,7 @@ fun CentralCommandDeckDialog(
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
+    val langMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
 
     val thresholdPx = with(density) { 90.dp.toPx() }
     val dragOffsetY = remember { Animatable(0f) }

@@ -280,8 +280,10 @@ fun DragOnlySlider(
                         dragProgress = (dragProgress + deltaProgress).coerceIn(0f, 1f)
                         val rawValue = valueRange.start + dragProgress * range
                         val steppedValue = if (steps > 0) {
-                            val stepSize = range / (steps + 1)
-                            (kotlin.math.round((rawValue - valueRange.start) / stepSize) * stepSize + valueRange.start).coerceIn(valueRange.start, valueRange.endInclusive)
+                            val normalStepSize = range / (steps + 1)
+                            val isPrecisionScrubbing = kotlin.math.abs(accumulatedY) > 40f
+                            val activeStepSize = if (isPrecisionScrubbing) normalStepSize / 10f else normalStepSize
+                            (kotlin.math.round((rawValue - valueRange.start) / activeStepSize) * activeStepSize + valueRange.start).coerceIn(valueRange.start, valueRange.endInclusive)
                         } else {
                             rawValue.coerceIn(valueRange.start, valueRange.endInclusive)
                         }

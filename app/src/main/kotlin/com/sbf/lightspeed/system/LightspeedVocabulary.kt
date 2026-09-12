@@ -70,6 +70,8 @@ object LightspeedVocabulary {
         // Flight control
         MASTER_FLIGHT,
         FLIGHT_DECK,
+        SYSTEM_OVERRIDES,
+
         EXPERIMENTAL_LABS,
 
         // Settings structure
@@ -120,6 +122,8 @@ object LightspeedVocabulary {
         Key.GRAVITY_ENGINE          to "Synthetic Gravity Engine",
         Key.CORE_COOLING            to "System Reboot",
 
+        Key.SYSTEM_OVERRIDES        to "System Override Deck",
+
         Key.MASTER_FLIGHT           to "Master Flight",
         Key.FLIGHT_DECK             to "Flight Control Deck",
         Key.EXPERIMENTAL_LABS       to "Experimental Labs",
@@ -169,6 +173,8 @@ object LightspeedVocabulary {
         Key.WATCHDOG_SENTINELS      to "Watchdog & Crash Guard",
         Key.PERIMETER_DEFENSE       to "Accessibility Service Manager (Shizuku)",
         Key.GRAVITY_ENGINE          to "Orientation Preferences",
+        Key.SYSTEM_OVERRIDES        to "System Overrides",
+
         Key.CORE_COOLING            to "System Reboot",
 
         Key.MASTER_FLIGHT           to "Master Toggle",

@@ -62,6 +62,8 @@ fun HudStripTabContent(
     currentZImpulseState: MutableFloatState,
     dynamicActionTokens: List<String>,
     isConfigVaultExpandedState: MutableState<Boolean>,
+    isSystemOverridesExpandedState: MutableState<Boolean>,
+
     isExperimentalLabsExpandedState: MutableState<Boolean>,
     isHorizonRailColorExpandedState: MutableState<Boolean>,
     isHorizonRailGeomExpandedState: MutableState<Boolean>,
@@ -101,6 +103,8 @@ fun HudStripTabContent(
     var blueprintTabTarget by blueprintTabTargetState
     var currentThreshold by currentThresholdState
     var currentZImpulse by currentZImpulseState
+    var isSystemOverridesExpanded by isSystemOverridesExpandedState
+
     var isConfigVaultExpanded by isConfigVaultExpandedState
     var isExperimentalLabsExpanded by isExperimentalLabsExpandedState
     var isHorizonRailColorExpanded by isHorizonRailColorExpandedState
@@ -156,7 +160,7 @@ fun HudStripTabContent(
         }
     }
 
-                    val defaultOrder1 = listOf("sensor_deck", "synthetic_gravity", "telemetry_indicators", "tactical_hardware", "refueling_bay", "config_vault", "experimental_labs")
+                    val defaultOrder1 = listOf("sensor_deck", "synthetic_gravity", "telemetry_indicators", "tactical_hardware", "refueling_bay", "config_vault", "system_overrides", "experimental_labs")
                     val currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
                         list + (defaultOrder1 - list.toSet())
                     }
@@ -3021,6 +3025,35 @@ fun HudStripTabContent(
                                             }
                                         }
                                     }
+                                    "system_overrides" -> {
+                                        item(key = "system_overrides") {
+                                            CompactAccordionSection(
+                                                title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_OVERRIDES),
+                                                icon = {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Warning,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                },
+                                                isExpanded = isSystemOverridesExpanded,
+                                                onToggle = {
+                                                    toggleSection(1, "system_overrides", isSystemOverridesExpanded) { isSystemOverridesExpanded = it }
+                                                    prefs.edit()
+                                                        .putBoolean("pref_section_system_overrides_expanded", isSystemOverridesExpanded)
+                                                        .apply()
+                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                }
+                                            ) {
+                                                com.sbf.lightspeed.settings.SystemOverrideDeckContents(
+                                                    context = context,
+                                                    prefs = prefs
+                                                )
+                                            }
+                                        }
+                                    }
+
                                     "experimental_labs" -> {
                                         item(key = "experimental_labs") {
                                             val cautionAmber = Color(0xFFFFB300)

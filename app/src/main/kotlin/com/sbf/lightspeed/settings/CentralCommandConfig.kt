@@ -158,6 +158,9 @@ fun CentralCommandMatrixFields(
     var isRefuelingExpanded by isRefuelingExpandedState
     val isConfigVaultExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean("pref_section_backup_expanded", false)) }
     var isConfigVaultExpanded by isConfigVaultExpandedState
+    val isSystemOverridesExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "system_overrides" else prefs.getBoolean("pref_section_system_overrides_expanded", false)) }
+    var isSystemOverridesExpanded by isSystemOverridesExpandedState
+
     val isExperimentalLabsExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "experimental_labs" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, false)) }
     var isExperimentalLabsExpanded by isExperimentalLabsExpandedState
 
@@ -774,6 +777,8 @@ fun CentralCommandMatrixFields(
         blueprintTabTargetState = blueprintTabTargetState,
         context = context,
         currentThresholdState = currentThresholdState,
+        isSystemOverridesExpandedState = isSystemOverridesExpandedState,
+
         currentZImpulseState = currentZImpulseState,
         dynamicActionTokens = dynamicActionTokens,
         isConfigVaultExpandedState = isConfigVaultExpandedState,

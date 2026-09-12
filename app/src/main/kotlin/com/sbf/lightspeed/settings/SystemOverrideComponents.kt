@@ -1,10 +1,9 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
-import androidx.compose.foundation.clickable
-
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,91 +21,98 @@ import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 
 @Composable
-fun SystemOverrideDeckCard(
+fun SystemOverrideDeckContents(
     context: Context,
-    prefs: SharedPreferences,
-    onStateChanged: () -> Unit = {}
+    prefs: SharedPreferences
 ) {
     val isShizukuActive = ElevatedTaskCloser.isShizukuActive
 
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f))
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column(
+        // Header
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Header
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(22.dp)
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = if (isShizukuActive) Color(0xFF00E676) else MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column {
+                Text(
+                    "ELEVATED EXECUTION",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = 0.6.sp
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        "SYSTEM OVERRIDE DECK",
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        letterSpacing = 0.6.sp
-                    )
-                    Text(
-                        if (isShizukuActive) "ELEVATED EXECUTION ACTIVE // SHIZUKU" else "ELEVATED EXECUTION OFFLINE",
-                        fontSize = 10.sp,
-                        color = if (isShizukuActive) Color(0xFF00E676) else MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    if (isShizukuActive) "SHIZUKU ACTIVE" else "SHIZUKU OFFLINE",
+                    fontSize = 10.sp,
+                    color = if (isShizukuActive) Color(0xFF00E676) else MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            // 1. Native Edge Gesture Sovereignty
-            OverrideSettingRow(
-                icon = Icons.Default.VerticalDistribute,
-                title = "Native Edge Gesture Sovereignty",
-                subtitle = "Force back-gesture insets to 0 to allow Lightspeed deflectors full edge control",
-                onClick = { /* TODO: Execute settings put secure back_gesture_inset_scale_left 0 */ }
-            )
-
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            // 2. Continuous Animation Speeds
-            OverrideSettingRow(
-                icon = Icons.Default.Speed,
-                title = "Continuous Animation Speeds",
-                subtitle = "Global master scale & Window/Transition/Animator subdomains",
-                onClick = { /* TODO: Expand slider UI */ }
-            )
-
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            // 3. Display Metrics (PPI/DPI)
-            OverrideSettingRow(
-                icon = Icons.Default.ScreenshotMonitor,
-                title = "Display Metrics Overwrite",
-                subtitle = "On-the-fly PPI / DPI / Smallest Width adjustments",
-                onClick = { /* TODO: Expand slider UI */ }
-            )
-
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            // 4. Dynamic Font Scale
-            OverrideSettingRow(
-                icon = Icons.Default.FontDownload,
-                title = "Dynamic Font Scale",
-                subtitle = "Tactile slider for system FONT_SCALE override",
-                onClick = { /* TODO: Expand slider UI */ }
-            )
         }
+        
+        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+        // 1. Native Edge Gesture Sovereignty
+        OverrideSettingRow(
+            icon = Icons.Default.VerticalDistribute,
+            title = "Native Edge Gesture Sovereignty",
+            subtitle = "Force back-gesture insets to 0 to allow Lightspeed deflectors full edge control",
+            onClick = { /* TODO */ }
+        )
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+        // 2. Continuous Animation Speeds
+        OverrideSettingRow(
+            icon = Icons.Default.Speed,
+            title = "Continuous Animation Speeds",
+            subtitle = "Global master scale & Window/Transition/Animator subdomains",
+            onClick = { /* TODO */ }
+        )
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+        // 3. Display Metrics (PPI/DPI)
+        OverrideSettingRow(
+            icon = Icons.Default.ScreenshotMonitor,
+            title = "Display Metrics Overwrite",
+            subtitle = "On-the-fly PPI / DPI / Smallest Width adjustments",
+            onClick = { /* TODO */ }
+        )
+
+        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+        // 4. Dynamic Font Scale
+        OverrideSettingRow(
+            icon = Icons.Default.FontDownload,
+            title = "Dynamic Font Scale",
+            subtitle = "Tactile slider for system FONT_SCALE override",
+            onClick = { /* TODO */ }
+        )
+        
+        HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+        // 5. Custom Lock-Screen Shortcuts Engine
+        OverrideSettingRow(
+            icon = Icons.Default.LockOpen,
+            title = "Lock-Screen Shortcuts Engine",
+            subtitle = "Remapping left/right lockscreen shortcuts directly via secure settings",
+            onClick = { /* TODO */ }
+        )
     }
 }
 

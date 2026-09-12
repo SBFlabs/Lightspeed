@@ -32,7 +32,27 @@ fun SystemOverrideDeckContents(
     context: Context,
     prefs: SharedPreferences
 ) {
-    val isShizukuActive = ElevatedTaskCloser.isShizukuActive
+    var isShizukuActive by remember { mutableStateOf(ElevatedTaskCloser.isShizukuActive) }
+    
+    DisposableEffect(Unit) {
+        val listener = rikka.shizuku.Shizuku.OnBinderReceivedListener {
+            isShizukuActive = ElevatedTaskCloser.isShizukuActive
+        }
+        val deadListener = rikka.shizuku.Shizuku.OnBinderDeadListener {
+            isShizukuActive = false
+        }
+        try {
+            rikka.shizuku.Shizuku.addBinderReceivedListenerSticky(listener)
+            rikka.shizuku.Shizuku.addBinderDeadListener(deadListener)
+        } catch (_: Exception) {}
+        
+        onDispose {
+            try {
+                rikka.shizuku.Shizuku.removeBinderReceivedListener(listener)
+                rikka.shizuku.Shizuku.removeBinderDeadListener(deadListener)
+            } catch (_: Exception) {}
+        }
+    }
     val scope = rememberCoroutineScope()
 
     // State for Edge Gesture Sovereignty
@@ -200,14 +220,6 @@ fun SystemOverrideDeckContents(
         
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-        // 5. Custom Lock-Screen Shortcuts Engine
-        OverrideSettingRow(
-            icon = Icons.Default.LockOpen,
-            title = "Lock-Screen Shortcuts",
-            subtitle = "Remapping left/right lockscreen shortcuts directly via secure settings",
-            isEnabled = isShizukuActive,
-            onClick = { /* TODO */ }
-        )
     }
 }
 

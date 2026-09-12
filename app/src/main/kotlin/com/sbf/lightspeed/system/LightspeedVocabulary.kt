@@ -122,7 +122,7 @@ object LightspeedVocabulary {
         Key.GRAVITY_ENGINE          to "Synthetic Gravity Engine",
         Key.CORE_COOLING            to "System Reboot",
 
-        Key.SYSTEM_OVERRIDES        to "System Override Deck",
+        Key.SYSTEM_OVERRIDES        to "System Overrides",
 
         Key.MASTER_FLIGHT           to "Master Flight",
         Key.FLIGHT_DECK             to "Flight Control Deck",

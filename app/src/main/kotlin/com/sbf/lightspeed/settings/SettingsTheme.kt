@@ -67,7 +67,7 @@ object DeckBackdropTheme {
         DeckBackdropVisuals(
             styleKey = "cosmic",
             title = "Cosmic",
-            subtitle = "Tactical spaceship contrast: 50% dim & 60px blur",
+            subtitle = "Tactical spaceship contrast",
             dimAmount = 0.50f,
             scrimAlpha = 0.35f,
             blurBehindRadius = 60
@@ -75,7 +75,7 @@ object DeckBackdropTheme {
         DeckBackdropVisuals(
             styleKey = "void",
             title = "Void",
-            subtitle = "Deep stealth OLED blackout: 72% dim & 50px blur",
+            subtitle = "Deep stealth OLED blackout",
             dimAmount = 0.72f,
             scrimAlpha = 0.55f,
             blurBehindRadius = 50
@@ -83,7 +83,7 @@ object DeckBackdropTheme {
         DeckBackdropVisuals(
             styleKey = "frost_veil",
             title = "Frosted",
-            subtitle = "Luminous ambient diffusion: 32% dim & 90px frosted blur",
+            subtitle = "Luminous ambient diffusion",
             dimAmount = 0.32f,
             scrimAlpha = 0.22f,
             blurBehindRadius = 90
@@ -91,7 +91,7 @@ object DeckBackdropTheme {
         DeckBackdropVisuals(
             styleKey = "clear",
             title = "Clarity",
-            subtitle = "High context visibility: 20% dim & 40px blur",
+            subtitle = "High context visibility",
             dimAmount = 0.20f,
             scrimAlpha = 0.12f,
             blurBehindRadius = 40

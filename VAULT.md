@@ -368,6 +368,7 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
        2. *Multi-Sound Concurrent Playback Lock (App Pinning)*: A physical "Pin" toggle for specific apps (like Spotify or YouTube). When pinned, the app retains absolute audio focus, forcing it to keep playing uninterrupted even when other media, games, or ads try to steal focus or duck the volume.
        3. *Global Mute & DND Matrix*: One-tap tactile toggle for absolute Global Mute, alongside an instant Do Not Disturb (DND) toggle, bypassing all volume streams instantly.
        4. *Sound Profile Quick-Cycle*: Direct switching between Normal Sound, Vibrate, and Silent/Mute modes.
+       5. *Audiophile Parametric EQ (AutoEQ) Import*: Ability to import specific parametric EQ profile files (like Wavelet or AutoEQ presets) tuned for specific headphones directly into the audio engine for system-wide sound correction.
 
    - The Omniscient Display Engine (Advanced Brightness Scrubber Dock):
      * A massive expansion to the `system:brightness` and `scrub:brightness` actions. When scrubbing brightness, the floating telemetry HUD grants access to absolute display control.
@@ -376,6 +377,7 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
        2. *Over-100% Media Player Hijacking*: When dragging past 100%, Lightspeed takes back display control from stubborn media players (like YouTube or Netflix) that use proprietary in-app gesture brightness overriding the system.
        3. *Color Temperature / Eye Care Slider*: A secondary slider to directly adjust the screen's color temperature (Night Light / Eye Comfort Shield / Blue Light Filter) from cool to warm amber.
        4. *Ambient Mesh screensaver*: A toggle/slider to instantly convert the screen into the ambient mesh UI (similar to the Google Home Hub screensaver) for beautiful ambient telemetry when the phone is docked and charging.
+       5. *"Night Sky" Always-On Display (AOD)*: A dedicated, highly customizable AOD feature natively built into Lightspeed (similar in architecture to the Refueling Bay). Night Sky acts as an advanced ambient display, potentially integrating the Mesh UI, to replace the OEM AOD entirely.
    - Floating Avionics Hardware Telemetry HUD (CPU, GPU, FPS & Graphics Engine):
      * Non-intrusive floating diagnostic pill rendering real-time CPU per-core/cluster utilization, GPU active load/clock, and real-time FPS frame-pacing.
      * Graphics Pipeline Detection: Live indicator showing active rendering backend (Vulkan vs. OpenGL ES).

@@ -32,6 +32,9 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.AccessAlarm
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -156,21 +159,17 @@ object OmniscientAudioDockManager {
         val pkgs = mutableListOf<String>()
         
         for (config in configs) {
-            val state = try {
-                config.javaClass.getMethod("getPlayerState").invoke(config) as Int
-            } catch (e: Exception) { -1 }
-            
-            if (state == 2) {
-                try {
-                    val getClientUidMethod = config.javaClass.getMethod("getClientUid")
-                    val uid = getClientUidMethod.invoke(config) as Int
+            try {
+                val getClientUidMethod = config.javaClass.getMethod("getClientUid")
+                val uid = getClientUidMethod.invoke(config) as Int
+                if (uid > 10000) { // Ignore system UIDs
                     val packages = pm.getPackagesForUid(uid)
                     if (packages != null) {
                         pkgs.addAll(packages)
                     }
-                } catch (e: Exception) {
-                    // Ignore
                 }
+            } catch (e: Exception) {
+                // Ignore
             }
         }
         return pkgs.distinct()
@@ -275,6 +274,16 @@ object OmniscientAudioDockManager {
 
                         Spacer(modifier = Modifier.height(32.dp))
 
+                        Text("SYSTEM STREAMS", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SystemVolumeRow("RINGER & NOTIFICATIONS", Icons.Default.Notifications, AudioManager.STREAM_RING, audioManager, Color(0xFF3B82F6))
+                            SystemVolumeRow("ALARMS", Icons.Default.AccessAlarm, AudioManager.STREAM_ALARM, audioManager, Color(0xFFF59E0B))
+                            SystemVolumeRow("VOICE CALLS", Icons.Default.Phone, AudioManager.STREAM_VOICE_CALL, audioManager, Color(0xFF10B981))
+                        }
+                        
+                        Spacer(modifier = Modifier.height(32.dp))
+
                         Text("APP SOVEREIGNTY", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                         Spacer(modifier = Modifier.height(12.dp))
                         
@@ -304,5 +313,33 @@ object OmniscientAudioDockManager {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, streamType: Int, audioManager: AudioManager, tint: Color) {
+    val maxVol = remember { audioManager.getStreamMaxVolume(streamType).toFloat().coerceAtLeast(1f) }
+    var vol by remember { mutableFloatStateOf(audioManager.getStreamVolume(streamType).toFloat()) }
+    
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(56.dp).background(Color.White.copy(alpha=0.02f), RoundedCornerShape(20.dp)).border(1.dp, Color.White.copy(alpha=0.04f), RoundedCornerShape(20.dp)).padding(horizontal = 16.dp)) {
+        Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.05f)), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+            Slider(
+                value = vol,
+                onValueChange = { 
+                    vol = it 
+                    audioManager.setStreamVolume(streamType, it.roundToInt(), 0)
+                },
+                valueRange = 0f..maxVol,
+                modifier = Modifier.height(20.dp),
+                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = tint, inactiveTrackColor = Color.White.copy(alpha=0.1f))
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text("${((vol / maxVol) * 100).toInt()}%", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }

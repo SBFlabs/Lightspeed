@@ -134,50 +134,6 @@ fun FlightControlDeckCard(
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-            // Row 2: Persistent Flight Control Notification Switch
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsActive,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Flight Control Notification",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        "Ongoing tactical notification with 1-tap buttons to Arm/Standby and toggle deflectors",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                    )
-                }
-                Switch(
-                    checked = isNotifEnabled,
-                    onCheckedChange = { enabled ->
-                        isNotifEnabled = enabled
-                        LightspeedPreferences.setFlightNotificationEnabled(context, enabled)
-                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
-                    )
-                )
-            }
-
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             // Live Glass Material Prototype Selector
             val styleFlow by LightspeedPreferences.deckGlassStyleFlow.collectAsState()
@@ -359,7 +315,52 @@ fun FlightControlDeckCard(
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-            // Row 4: Quick Settings Tiles Notice
+            // Row 4: Persistent Flight Control Notification Switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Flight Control Notification",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        "Persistent notification with quick controls",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    )
+                }
+                Switch(
+                    checked = isNotifEnabled,
+                    onCheckedChange = { enabled ->
+                        isNotifEnabled = enabled
+                        LightspeedPreferences.setFlightNotificationEnabled(context, enabled)
+                        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        checkedBorderColor = Color.Transparent,
+                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
+                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                    )
+                )
+            }
+
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+            // Row 5: Quick Settings Tiles Notice
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

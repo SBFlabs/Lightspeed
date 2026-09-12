@@ -515,3 +515,5 @@ fun DockActionButton(modifier: Modifier, title: String, icon: androidx.compose.u
         }
     }
 }
+
+data class ActiveAppInfo(val pkg: String, val name: String, val icon: android.graphics.drawable.Drawable?)

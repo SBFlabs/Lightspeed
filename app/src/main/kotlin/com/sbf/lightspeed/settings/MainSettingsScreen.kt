@@ -132,7 +132,7 @@ fun MainSettingsScreen() {
                     var toggleAllTrigger by remember { mutableStateOf(0) }
 
                     FloatingOverlayContainer(
-                        title = "Central Command",
+                        title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND),
                         onDismiss = { dismissAction() },
                         onTitleClick = {
                             showCentralCommandDeck = true

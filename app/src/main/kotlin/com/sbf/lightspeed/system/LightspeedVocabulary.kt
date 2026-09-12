@@ -135,9 +135,9 @@ object LightspeedVocabulary {
         Key.CENTRAL_COMMAND         to "Settings",
         Key.CRUISE                  to "Navigation",
         Key.COCKPIT                 to "Launcher Settings",
-        Key.HUD_STRIP               to "Status Bar Features",
+        Key.HUD_STRIP               to "System & Overlay Features",
         Key.TAB_LEFT                to "◀ LEFT",
-        Key.TAB_CENTER              to "STATUS BAR",
+        Key.TAB_CENTER              to "SYSTEMS",
         Key.TAB_RIGHT               to "RIGHT ▶",
 
         Key.DEFLECTORS              to "Left & Right Gesture Sidebars",

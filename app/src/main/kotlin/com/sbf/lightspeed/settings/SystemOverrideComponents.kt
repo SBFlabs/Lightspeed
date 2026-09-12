@@ -408,7 +408,6 @@ fun OverrideSliderRow(
             onValueTyped = { typed ->
                 typed.toFloatOrNull()?.let { f ->
                     onValueChange(f.coerceIn(valueRange))
-                    onValueChangeFinished()
                 }
             },
             onResetToDefault = {
@@ -421,7 +420,10 @@ fun OverrideSliderRow(
                     onValueChangeFinished()
                 }
             },
-            onDismiss = { isFlyoutOpen = false },
+            onDismiss = {
+                isFlyoutOpen = false
+                onValueChangeFinished()
+            },
             prefs = prefs,
             context = context,
             isTapToJumpEnabled = isTapToJumpEnabled,

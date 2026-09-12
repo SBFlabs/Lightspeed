@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import kotlin.math.roundToInt
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -679,23 +680,26 @@ fun SliderCalibrationFlyoutDialog(
                                 )
                             }
                             Spacer(modifier = Modifier.height(2.dp))
-                            BasicTextField(
-                                value = directValueText,
-                                onValueChange = { newTxt ->
-                                    directValueText = newTxt
-                                    onValueTyped(newTxt)
-                                },
-                                textStyle = TextStyle(
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done
-                                ),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
+                            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                BasicTextField(
+                                    value = directValueText,
+                                    onValueChange = { newTxt -> directValueText = newTxt },
+                                    textStyle = TextStyle(color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                                    keyboardActions = KeyboardActions(onDone = { 
+                                        onValueTyped(directValueText)
+                                        onDismiss()
+                                    }),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(onClick = {
+                                    onValueTyped(directValueText)
+                                    onDismiss()
+                                }, modifier = Modifier.size(24.dp)) {
+                                    Icon(imageVector = Icons.Default.Check, contentDescription = "Apply", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                }
+                            }
                             )
                         }
                     }

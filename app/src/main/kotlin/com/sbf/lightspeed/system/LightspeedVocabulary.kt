@@ -42,6 +42,7 @@ object LightspeedVocabulary {
         // Status bar components
         HORIZON_RAIL,
         ORBITAL_CAPSULE,
+        SCREEN_ORIENTATION,
 
         // Hardware inputs
         SUB_LIGHT_THRUSTERS,       // Volume buttons
@@ -87,6 +88,7 @@ object LightspeedVocabulary {
 
         Key.HORIZON_RAIL            to "Horizon Rail",
         Key.ORBITAL_CAPSULE         to "Orbital Capsule",
+        Key.SCREEN_ORIENTATION      to "Synthetic Gravity",
 
         Key.SUB_LIGHT_THRUSTERS     to "Sub-Light Impulse Thrusters",
         Key.HULL_RESONATOR          to "Hull Kinetic Acoustic Resonator",
@@ -128,6 +130,7 @@ object LightspeedVocabulary {
 
         Key.HORIZON_RAIL            to "Progress Rail",
         Key.ORBITAL_CAPSULE         to "Camera Cutout HUD",
+        Key.SCREEN_ORIENTATION      to "Screen Orientation",
 
         Key.SUB_LIGHT_THRUSTERS     to "Volume Button Actions",
         Key.HULL_RESONATOR          to "Back-Tap Gestures",

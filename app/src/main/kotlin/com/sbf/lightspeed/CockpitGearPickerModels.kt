@@ -160,7 +160,7 @@ fun buildFlatItemsList(
                 ),
                 Triple(
                     "sys_orient",
-                    "Screen Orientation / Synthetic Gravity",
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SCREEN_ORIENTATION),
                     listOf(
                         "system:auto_rotate_toggle",
                         "system:gravity_reset",

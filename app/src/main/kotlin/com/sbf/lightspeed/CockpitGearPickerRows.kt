@@ -57,23 +57,25 @@ fun PickerSystemHeaderRow(
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f)
         )
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.1f))
-                .combinedClickable(
-                    onClick = onToggleAll,
-                    onLongClick = onToggleAllLongClick
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.UnfoldMore,
-                contentDescription = "Expand/Collapse All",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+        if (item.isExpanded) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.1f))
+                    .combinedClickable(
+                        onClick = onToggleAll,
+                        onLongClick = onToggleAllLongClick
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.UnfoldMore,
+                    contentDescription = "Expand/Collapse All",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.width(8.dp))
         Icon(

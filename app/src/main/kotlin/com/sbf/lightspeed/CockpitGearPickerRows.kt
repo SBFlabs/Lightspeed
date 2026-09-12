@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -68,7 +69,7 @@ fun PickerSystemHeaderRow(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                androidx.compose.material.icons.Icons.Default.UnfoldMore,
+                Icons.Default.UnfoldMore,
                 contentDescription = "Expand/Collapse All",
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)

@@ -112,7 +112,7 @@
         <activity
             android:name=".system.OmniscientAudioDockActivity"
             android:exported="true"
-            android:theme="@style/Theme.Lightspeed.Transparent"
+            android:theme="@style/Theme.Lightspeed.Floating"
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:launchMode="singleTask">

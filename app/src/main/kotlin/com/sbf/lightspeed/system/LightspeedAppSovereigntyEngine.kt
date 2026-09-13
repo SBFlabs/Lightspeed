@@ -2,126 +2,281 @@ package com.sbf.lightspeed.system
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import rikka.shizuku.Shizuku
+import rikka.shizuku.ShizukuBinderWrapper
+import rikka.shizuku.SystemServiceHelper
+import java.lang.reflect.Method
+import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Sovereign Audio & App Sovereignty Engine
+ *
+ * Provides:
+ * 1. MultiSound / Stealth Audio: allows apps to play concurrently without pausing each other
+ *    via native Android/Transsion IAudioService.setMultiAudioFocusEnabled(true)
+ * 2. True Hardware Per-App Volume & Muting: controls individual app volume via IPlayer.setVolume(float)
+ * 3. Dynamic Audio Track Re-anchoring: monitors playback state to keep custom volumes locked
+ */
 object LightspeedAppSovereigntyEngine {
 
     private const val TAG = "AppSovereignty"
+
+    private val appVolumeMap = ConcurrentHashMap<String, Float>()
+    private val stealthLockedApps = ConcurrentHashMap.newKeySet<String>()
+
+    @Volatile
+    private var playbackCallbackRegistered = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     val isShizukuReady: Boolean
         get() = try {
             Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
         } catch (_: Exception) { false }
 
-    /**
-     * Checks if Shizuku is ready. If not, requests permission and shows user-facing toast.
-     * Returns true if ready.
-     */
     fun ensureShizukuPermission(context: Context? = null): Boolean {
         if (!Shizuku.pingBinder()) {
             Log.w(TAG, "Shizuku server is not running")
-            context?.showToast("Shizuku not running. Please start it from Shizuku app.")
+            context?.showToast("Shizuku is not running")
             return false
         }
         if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "Shizuku permission not granted — requesting...")
+            Log.w(TAG, "Shizuku permission not granted")
             try {
                 Shizuku.requestPermission(ElevatedTaskCloser.SHIZUKU_REQ_CODE)
-                context?.showToast("Please authorize Lightspeed in Shizuku prompt")
+                context?.showToast("Please authorize Lightspeed in Shizuku")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to request Shizuku permission", e)
             }
             return false
         }
+
+        // Initialize audio system once Shizuku is ready
+        initAudioEngine(context)
         return true
     }
 
     /**
-     * Runs an elevated shell command via Shizuku's proven execShizuku() pathway.
-     * Returns the stdout output, or null on failure.
+     * Obtains the privileged IAudioService interface through ShizukuBinderWrapper.
      */
-    private fun runElevatedCmd(cmd: String, context: Context? = null): String? {
-        if (!ensureShizukuPermission(context)) return null
+    private fun getPrivilegedAudioService(): Any? {
         return try {
-            val process = ElevatedTaskCloser.execShizuku(cmd) ?: run {
-                Log.e(TAG, "execShizuku returned null for: $cmd")
-                return null
-            }
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
-            Log.i(TAG, "Ran [$cmd] exit=$exitCode output=${output.take(200)}")
-            if (exitCode == 0) output.trim() else {
-                val err = process.errorStream.bufferedReader().readText()
-                Log.e(TAG, "Command failed exit=$exitCode stderr=${err.take(200)}")
-                null
-            }
+            val rawBinder = SystemServiceHelper.getSystemService("audio")
+                ?: SystemServiceHelper.getSystemService(Context.AUDIO_SERVICE)
+                ?: return null
+            val wrapped = ShizukuBinderWrapper(rawBinder)
+            val stubClass = Class.forName("android.media.IAudioService\$Stub")
+            val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+            asInterface.invoke(null, wrapped)
         } catch (e: Throwable) {
-            Log.e(TAG, "Error executing: $cmd", e)
+            Log.e(TAG, "Failed to get privileged IAudioService", e)
             null
         }
     }
 
+    /**
+     * Initializes the sovereignty engine: enables Multi Audio Focus and registers track monitor.
+     */
+    fun initAudioEngine(context: Context?) {
+        try {
+            val audioService = getPrivilegedAudioService()
+            if (audioService != null) {
+                try {
+                    val m = audioService.javaClass.getMethod("setMultiAudioFocusEnabled", Boolean::class.javaPrimitiveType)
+                    m.invoke(audioService, true)
+                    Log.i(TAG, "Native Multi Audio Focus enabled successfully")
+                } catch (e: Exception) {
+                    Log.w(TAG, "setMultiAudioFocusEnabled method invocation error", e)
+                }
+            }
+
+            if (context != null && !playbackCallbackRegistered) {
+                registerPlaybackMonitor(context)
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "initAudioEngine error", e)
+        }
+    }
+
+    private fun registerPlaybackMonitor(context: Context) {
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+            am.registerAudioPlaybackCallback(object : AudioManager.AudioPlaybackCallback() {
+                override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>?) {
+                    reapplyVolumes(context, configs)
+                }
+            }, mainHandler)
+            playbackCallbackRegistered = true
+            Log.i(TAG, "AudioPlaybackCallback registered")
+        } catch (e: Throwable) {
+            Log.w(TAG, "Failed to register AudioPlaybackCallback", e)
+        }
+    }
+
+    private fun reapplyVolumes(context: Context, configs: List<AudioPlaybackConfiguration>?) {
+        if (configs.isNullOrEmpty()) return
+        val pm = context.packageManager
+        for (config in configs) {
+            try {
+                val uid = try {
+                    val getClientUid = config.javaClass.getMethod("getClientUid")
+                    getClientUid.invoke(config) as? Int
+                } catch (_: Exception) { null } ?: continue
+
+                val packages = pm.getPackagesForUid(uid) ?: continue
+                for (pkg in packages) {
+                    val targetVol = appVolumeMap[pkg] ?: continue
+                    applyVolumeToConfig(config, targetVol)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun applyVolumeToConfig(config: Any, volume: Float): Boolean {
+        return try {
+            val getIPlayer = config.javaClass.getDeclaredMethod("getIPlayer").apply { isAccessible = true }
+            val iPlayer = getIPlayer.invoke(config) ?: return false
+            val setVolume = iPlayer.javaClass.getMethod("setVolume", Float::class.javaPrimitiveType)
+            setVolume.invoke(iPlayer, volume)
+            true
+        } catch (e: Throwable) {
+            Log.w(TAG, "applyVolumeToConfig error", e)
+            false
+        }
+    }
+
     // ────────────────────────────────────────────────
-    // AUDIO_MEDIA_VOLUME — mutes app audio at system level
+    // PER-APP VOLUME & MUTING
     // ────────────────────────────────────────────────
 
-    fun setAppMuted(pkg: String, isMuted: Boolean, context: Context? = null) {
-        val mode = if (isMuted) "deny" else "allow"
-        val result = runElevatedCmd("cmd appops set $pkg AUDIO_MEDIA_VOLUME $mode", context)
-        if (result != null) {
-            Log.i(TAG, "setAppMuted($pkg) -> $mode ✓")
-            context?.showToast("${pkg.label()}: ${if (isMuted) "🔇 Muted" else "🔊 Unmuted"}")
+    fun setAppVolume(pkg: String, volume: Float, context: Context? = null) {
+        val clamped = volume.coerceIn(0.0f, 1.0f)
+        appVolumeMap[pkg] = clamped
+        Log.i(TAG, "setAppVolume($pkg, $clamped)")
+
+        val ctx = context ?: return
+        val pm = ctx.packageManager
+        var appliedCount = 0
+
+        try {
+            val audioService = getPrivilegedAudioService()
+            val configs: List<*>? = if (audioService != null) {
+                val getConfigs = audioService.javaClass.getMethod("getActivePlaybackConfigurations")
+                getConfigs.invoke(audioService) as? List<*>
+            } else {
+                val am = ctx.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                am?.activePlaybackConfigurations
+            }
+
+            if (configs != null) {
+                for (config in configs) {
+                    if (config == null) continue
+                    val uid = try {
+                        val getClientUid = config.javaClass.getMethod("getClientUid")
+                        getClientUid.invoke(config) as? Int
+                    } catch (_: Exception) { null } ?: continue
+
+                    val packages = pm.getPackagesForUid(uid) ?: continue
+                    if (pkg in packages) {
+                        if (applyVolumeToConfig(config, clamped)) {
+                            appliedCount++
+                        }
+                    }
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Error applying volume to active tracks", e)
+        }
+
+        // Also ensure Transsion zerosound setting is synced for full hardware silence when muted
+        if (clamped <= 0.05f) {
+            runTranssionZeroSound(pkg, true)
         } else {
-            Log.e(TAG, "setAppMuted($pkg) -> FAILED")
-            context?.showToast("⚠ Mute failed — is Shizuku authorized?")
+            runTranssionZeroSound(pkg, false)
+        }
+
+        Log.i(TAG, "Volume $clamped applied to $appliedCount active track(s) for $pkg")
+    }
+
+    fun getAppVolume(pkg: String): Float {
+        return appVolumeMap[pkg] ?: 1.0f
+    }
+
+    fun setAppMuted(pkg: String, isMuted: Boolean, context: Context? = null) {
+        if (isMuted) {
+            val current = appVolumeMap[pkg] ?: 1.0f
+            if (current > 0.05f) {
+                appVolumeMap["${pkg}_prev"] = current
+            }
+            setAppVolume(pkg, 0.0f, context)
+            context?.showToast("${pkg.label()}: 🔇 Muted")
+        } else {
+            val prev = appVolumeMap["${pkg}_prev"] ?: 0.8f
+            setAppVolume(pkg, prev, context)
+            context?.showToast("${pkg.label()}: 🔊 Unmuted")
         }
     }
 
     fun isAppMuted(pkg: String): Boolean {
-        val output = runElevatedCmd("cmd appops get $pkg AUDIO_MEDIA_VOLUME") ?: return false
-        return output.contains("deny") || output.contains("ignore")
+        val vol = appVolumeMap[pkg] ?: return false
+        return vol <= 0.05f
     }
 
     // ────────────────────────────────────────────────
-    // TAKE_AUDIO_FOCUS — prevents app from stealing focus from others
-    // NOTE: Apply to OFFENDING apps (e.g. AnkiDroid) NOT the primary media app (e.g. Podium)
-    //       Locking the primary app will prevent IT from starting playback.
+    // MULTISOUND / STEALTH AUDIO LOCK
+    // Allows selected app to keep playing continuously alongside any other app
     // ────────────────────────────────────────────────
 
-    fun setAudioFocusLocked(pkg: String, isLocked: Boolean, context: Context? = null) {
-        val mode = if (isLocked) "ignore" else "allow"
-        val result = runElevatedCmd("cmd appops set $pkg TAKE_AUDIO_FOCUS $mode", context)
-        if (result != null) {
-            Log.i(TAG, "setAudioFocusLocked($pkg) -> $mode ✓")
-            if (isLocked) {
-                context?.showToast("${pkg.label()}: 🔒 Focus Lock ON — won't pause other apps")
-            } else {
-                context?.showToast("${pkg.label()}: 🔓 Focus Lock OFF — normal behaviour")
-            }
+    fun setAppStealthLocked(pkg: String, isLocked: Boolean, context: Context? = null) {
+        if (isLocked) {
+            stealthLockedApps.add(pkg)
+            // Ensure global multi audio focus is active
+            initAudioEngine(context)
+            context?.showToast("${pkg.label()}: 🔒 Stealth Play ON — plays simultaneously with any other app")
         } else {
-            Log.e(TAG, "setAudioFocusLocked($pkg) -> FAILED")
-            context?.showToast("⚠ Focus lock failed — is Shizuku authorized?")
+            stealthLockedApps.remove(pkg)
+            context?.showToast("${pkg.label()}: 🔓 Normal focus restored")
         }
+        Log.i(TAG, "setAppStealthLocked($pkg, $isLocked)")
     }
 
-    fun isAudioFocusLocked(pkg: String): Boolean {
-        val output = runElevatedCmd("cmd appops get $pkg TAKE_AUDIO_FOCUS") ?: return false
-        return output.contains("ignore") || output.contains("deny")
+    fun isAppStealthLocked(pkg: String): Boolean {
+        return stealthLockedApps.contains(pkg)
     }
 
-    // ────────────────────────────────────────────────
-    // Helpers
-    // ────────────────────────────────────────────────
+    // Backward compatibility aliases for UI callsites
+    fun isAudioFocusLocked(pkg: String): Boolean = isAppStealthLocked(pkg)
+    fun setAudioFocusLocked(pkg: String, isLocked: Boolean, context: Context? = null) =
+        setAppStealthLocked(pkg, isLocked, context)
+
+    private fun runTranssionZeroSound(pkg: String, enable: Boolean) {
+        try {
+            val process = ElevatedTaskCloser.execShizuku("settings get global audio.zerosound.applist") ?: return
+            val current = process.inputStream.bufferedReader().readText().trim()
+            process.waitFor()
+
+            val list = current.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+            if (enable) {
+                list.add(pkg)
+            } else {
+                list.remove(pkg)
+            }
+            val updated = list.joinToString(",")
+            ElevatedTaskCloser.execShizuku("settings put global audio.zerosound.applist '$updated'")?.waitFor()
+        } catch (_: Exception) {}
+    }
 
     private fun String.label() = substringAfterLast('.')
         .replaceFirstChar { it.uppercaseChar() }
 
     private fun Context.showToast(msg: String) {
-        Handler(Looper.getMainLooper()).post {
+        mainHandler.post {
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         }
     }

@@ -554,8 +554,8 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                 if (focusLocked) {
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
-                        "DISRUPTIVE",
-                        color = Color(0xFFEF4444),
+                        "STEALTH",
+                        color = Color(0xFF10B981),
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp
@@ -565,7 +565,7 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         "MUTED",
-                        color = Color(0xFF94A3B8),
+                        color = Color(0xFFEF4444),
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Black,
                         letterSpacing = 0.5.sp
@@ -583,19 +583,16 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                     value = vol,
                     onValueChange = { newVol ->
                         vol = newVol
-                        val targetMute = newVol <= 0.05f
-                        if (targetMute != isMuted) {
-                            isMuted = targetMute
-                            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                                LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute, context)
-                            }
+                        isMuted = newVol <= 0.05f
+                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            LightspeedAppSovereigntyEngine.setAppVolume(pkg, newVol, context)
                         }
                     },
                     valueRange = 0f..1f,
                     modifier = Modifier.height(24.dp),
                     colors = SliderDefaults.colors(
-                        thumbColor = if (isMuted) Color(0xFFEF4444) else Color.White,
-                        activeTrackColor = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.8f),
+                        thumbColor = if (isMuted) Color(0xFFEF4444) else tint,
+                        activeTrackColor = if (isMuted) Color(0xFFEF4444) else tint,
                         inactiveTrackColor = Color.White.copy(alpha = 0.15f)
                     )
                 )
@@ -629,19 +626,19 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
             )
         }
 
-        // Focus-thief blocker: tap to prevent THIS app from stealing audio focus from others
+        // Stealth / Sovereign Lock: protects this app so it plays simultaneously alongside any other app
         IconButton(
             onClick = {
                 val newLocked = !focusLocked
                 focusLocked = newLocked
                 kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                    LightspeedAppSovereigntyEngine.setAudioFocusLocked(pkg, newLocked, context)
+                    LightspeedAppSovereigntyEngine.setAppStealthLocked(pkg, newLocked, context)
                 }
             },
             modifier = Modifier
                 .size(34.dp)
                 .background(
-                    if (focusLocked) Color(0xFFEF4444).copy(alpha = 0.18f) else Color.Transparent,
+                    if (focusLocked) Color(0xFF10B981).copy(alpha = 0.25f) else Color.Transparent,
                     CircleShape
                 )
         ) {
@@ -650,8 +647,8 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                     androidx.compose.material.icons.Icons.Filled.Lock
                 else
                     androidx.compose.material.icons.Icons.Outlined.Lock,
-                contentDescription = if (focusLocked) "Unblock focus" else "Block focus theft",
-                tint = if (focusLocked) Color(0xFFEF4444) else Color.White.copy(alpha = 0.3f),
+                contentDescription = if (focusLocked) "Stealth Mode Active" else "Enable Stealth Play",
+                tint = if (focusLocked) Color(0xFF10B981) else Color.White.copy(alpha = 0.3f),
                 modifier = Modifier.size(17.dp)
             )
         }

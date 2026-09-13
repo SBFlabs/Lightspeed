@@ -470,6 +470,17 @@ fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.Ima
 fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawable.Drawable?, initialVol: Float, isPinned: Boolean, tint: Color, onPinToggled: (Boolean) -> Unit) {
     var vol by remember { mutableFloatStateOf(initialVol) }
     var pinned by remember { mutableStateOf(isPinned) }
+    var focusLocked by remember { mutableStateOf(false) }
+    var isMuted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pkg) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            focusLocked = LightspeedAppSovereigntyEngine.isAudioFocusLocked(pkg)
+            val muted = LightspeedAppSovereigntyEngine.isAppMuted(pkg)
+            isMuted = muted
+            vol = if (muted) 0f else 1f
+        }
+    }
     
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
         Box(modifier = Modifier
@@ -505,21 +516,6 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
         Column(modifier = Modifier.weight(1f)) {
             Text(name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines=1)
             
-            var isMuted by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-            
-            androidx.compose.runtime.LaunchedEffect(pkg) {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val muted = com.sbf.lightspeed.system.LightspeedAppSovereigntyEngine.isAppMuted(pkg)
-                    if (muted) {
-                        vol = 0f
-                        isMuted = true
-                    } else {
-                        vol = 1f
-                        isMuted = false
-                    }
-                }
-            }
-            
             Slider(
                 value = vol,
                 onValueChange = { newVol -> 
@@ -528,7 +524,7 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
                     if (targetMute != isMuted) {
                         isMuted = targetMute
                         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            com.sbf.lightspeed.system.LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute)
+                            LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute)
                         }
                     }
                 },
@@ -537,7 +533,27 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
                 colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White.copy(alpha = 0.8f), inactiveTrackColor = Color.White.copy(alpha=0.15f))
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        IconButton(
+            onClick = { 
+                val newLocked = !focusLocked
+                focusLocked = newLocked
+                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    LightspeedAppSovereigntyEngine.setAudioFocusLocked(pkg, newLocked)
+                }
+            },
+            modifier = Modifier
+                .size(36.dp)
+                .background(if (focusLocked) Color(0xFF10B981).copy(alpha = 0.25f) else Color.Transparent, CircleShape)
+        ) {
+            Icon(
+                imageVector = if (focusLocked) androidx.compose.material.icons.Icons.Default.Shield else androidx.compose.material.icons.Icons.Default.Security,
+                contentDescription = "Sovereign Focus Lock",
+                tint = if (focusLocked) Color(0xFF10B981) else Color.White.copy(alpha = 0.3f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
         IconButton(
             onClick = { 
                 pinned = !pinned 
@@ -547,7 +563,7 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
                 .size(36.dp)
                 .background(if (pinned) tint.copy(alpha = 0.25f) else Color.Transparent, CircleShape)
         ) {
-            Icon(androidx.compose.material.icons.Icons.Default.PushPin, contentDescription = "Pin Focus", tint = if (pinned) tint else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
+            Icon(androidx.compose.material.icons.Icons.Default.PushPin, contentDescription = "Pin to Dock", tint = if (pinned) tint else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
         }
     }
 }

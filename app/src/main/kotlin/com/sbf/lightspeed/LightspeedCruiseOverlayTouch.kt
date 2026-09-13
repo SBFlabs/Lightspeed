@@ -799,6 +799,7 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                                         val currentBrightness = try {
                                             Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
                                         } catch (_: Exception) { 128 }
+                                        activeScrubBrightness = currentBrightness
                                         val brightResolution = prefs().getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                                         scrubHudTitle = "BRIGHTNESS"
                                         scrubHudValue = "${(currentBrightness * 100 / 255)}%"
@@ -1009,6 +1010,7 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                 activeHoldScrubAction = null
                 activeHoldScrubActionKey = null
                 activeScrubVolumePct = -1
+                activeScrubBrightness = -1
                 scrubHudTitle = ""
                 scrubHudValue = ""
                 invalidate()

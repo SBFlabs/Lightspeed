@@ -160,6 +160,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var activeHoldScrubAction: String? = null
     internal var activeHoldScrubActionKey: String? = null
     internal var activeScrubVolumePct: Int = -1
+    internal var activeScrubBrightness: Int = -1
     internal var scrubHudTitle = ""
     internal var scrubHudValue = ""
 
@@ -642,11 +643,16 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 if (Settings.System.canWrite(context)) {
                     val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
                     val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, (255f / brightResolution).roundToInt().coerceIn(1, 32))
-                    val currentBrightness = try {
-                        Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
-                    } catch (_: Exception) { 128 }
-                    val targetBrightness = (currentBrightness + (steps * brightStep)).coerceIn(0, 255)
+                    if (activeScrubBrightness < 0) {
+                        activeScrubBrightness = try {
+                            Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                        } catch (_: Exception) { 128 }
+                    }
+                    val targetBrightness = (activeScrubBrightness + (steps * brightStep)).coerceIn(0, 255)
+                    activeScrubBrightness = targetBrightness
                     try {
+                        // Force manual brightness so auto-brightness doesn't fight the user's manual scrub
+                        Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
                         Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, targetBrightness)
                         scrubHudTitle = "BRIGHTNESS"
                         scrubHudValue = "${(targetBrightness * 100 / 255)}%"

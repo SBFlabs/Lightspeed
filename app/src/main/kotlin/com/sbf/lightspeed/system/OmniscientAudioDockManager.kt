@@ -508,7 +508,7 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
             var isMuted by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
             
             androidx.compose.runtime.LaunchedEffect(pkg) {
-                kotlinx.coroutines.Dispatchers.IO.invoke {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     val muted = com.sbf.lightspeed.system.LightspeedAppSovereigntyEngine.isAppMuted(pkg)
                     if (muted) {
                         vol = 0f

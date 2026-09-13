@@ -504,9 +504,34 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines=1)
+            
+            var isMuted by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            
+            androidx.compose.runtime.LaunchedEffect(pkg) {
+                kotlinx.coroutines.Dispatchers.IO.invoke {
+                    val muted = com.sbf.lightspeed.system.LightspeedAppSovereigntyEngine.isAppMuted(pkg)
+                    if (muted) {
+                        vol = 0f
+                        isMuted = true
+                    } else {
+                        vol = 1f
+                        isMuted = false
+                    }
+                }
+            }
+            
             Slider(
                 value = vol,
-                onValueChange = { vol = it },
+                onValueChange = { newVol -> 
+                    vol = newVol
+                    val targetMute = newVol == 0f
+                    if (targetMute != isMuted) {
+                        isMuted = targetMute
+                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            com.sbf.lightspeed.system.LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute)
+                        }
+                    }
+                },
                 valueRange = 0f..1f,
                 modifier = Modifier.height(24.dp),
                 colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White.copy(alpha = 0.8f), inactiveTrackColor = Color.White.copy(alpha=0.15f))

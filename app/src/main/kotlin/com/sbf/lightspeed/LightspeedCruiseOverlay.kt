@@ -213,6 +213,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 activeHoldScrubAction = actionValue
                 activeHoldScrubActionKey = actionKey
                 aggregateScrubAccumulator = 0f
+                scrubStartX = lastTouchRawX
                 isScrubEntranceHapticFired = true
                 triggerHardwareHaptic(35, 180)
                 when (actionValue) {

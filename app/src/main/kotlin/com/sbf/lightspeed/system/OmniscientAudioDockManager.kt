@@ -476,8 +476,10 @@ fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.Ima
 fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: android.graphics.drawable.Drawable?, initialVol: Float, isPinned: Boolean, tint: Color, onPinToggled: (Boolean) -> Unit) {
     var vol by remember { mutableFloatStateOf(initialVol) }
     var pinned by remember { mutableStateOf(isPinned) }
+    // focusLocked = true means THIS app is BLOCKED from stealing focus from others (apply to disruptive apps)
     var focusLocked by remember { mutableStateOf(false) }
     var isMuted by remember { mutableStateOf(false) }
+    var stateLoaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(pkg) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -485,14 +487,31 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
             val muted = LightspeedAppSovereigntyEngine.isAppMuted(pkg)
             isMuted = muted
             vol = if (muted) 0f else 1f
+            stateLoaded = true
         }
     }
-    
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
-        Box(modifier = Modifier
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+
+    val rowBg = when {
+        focusLocked -> Color(0xFFEF4444).copy(alpha = 0.07f) // red tint for disruptive-locked apps
+        isMuted -> Color.White.copy(alpha = 0.04f)
+        else -> Color.White.copy(alpha = 0.08f)
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(rowBg, RoundedCornerShape(24.dp))
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        // App icon
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
             if (iconDrawable != null) {
                 val bitmap = remember(iconDrawable) {
                     if (iconDrawable is android.graphics.drawable.BitmapDrawable && iconDrawable.bitmap != null) {
@@ -518,57 +537,101 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                 Icon(androidx.compose.material.icons.Icons.Default.Android, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
             }
         }
-        Spacer(modifier = Modifier.width(12.dp))
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // App name + badges + slider
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                Text(
+                    name,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (focusLocked) {
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        "DISRUPTIVE",
+                        color = Color(0xFFEF4444),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.5.sp
+                    )
+                }
                 if (isMuted) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("MUTED", color = Color(0xFFEF4444), fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        "MUTED",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 0.5.sp
+                    )
                 }
             }
-            
-            Slider(
-                value = vol,
-                onValueChange = { newVol -> 
-                    vol = newVol
-                    val targetMute = newVol <= 0.25f
-                    if (targetMute != isMuted) {
-                        isMuted = targetMute
-                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute, context)
+
+            if (!stateLoaded) {
+                // Loading placeholder
+                Box(modifier = Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.CenterStart) {
+                    Text("...", color = Color.White.copy(alpha = 0.3f), fontSize = 10.sp)
+                }
+            } else {
+                Slider(
+                    value = vol,
+                    onValueChange = { newVol ->
+                        vol = newVol
+                        val targetMute = newVol <= 0.05f
+                        if (targetMute != isMuted) {
+                            isMuted = targetMute
+                            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute, context)
+                            }
                         }
-                    }
-                },
-                valueRange = 0f..1f,
-                modifier = Modifier.height(24.dp),
-                colors = SliderDefaults.colors(thumbColor = if (isMuted) Color(0xFFEF4444) else Color.White, activeTrackColor = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.8f), inactiveTrackColor = Color.White.copy(alpha=0.15f))
-            )
+                    },
+                    valueRange = 0f..1f,
+                    modifier = Modifier.height(24.dp),
+                    colors = SliderDefaults.colors(
+                        thumbColor = if (isMuted) Color(0xFFEF4444) else Color.White,
+                        activeTrackColor = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.8f),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                    )
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(8.dp))
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // Mute button
         IconButton(
-            onClick = { 
+            onClick = {
                 val newMuted = !isMuted
                 isMuted = newMuted
-                vol = if (newMuted) 0f else 1f
+                vol = if (newMuted) 0f else 0.8f
                 kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     LightspeedAppSovereigntyEngine.setAppMuted(pkg, newMuted, context)
                 }
             },
             modifier = Modifier
-                .size(36.dp)
-                .background(if (isMuted) Color(0xFFEF4444).copy(alpha = 0.2f) else Color.Transparent, CircleShape)
+                .size(34.dp)
+                .background(
+                    if (isMuted) Color(0xFFEF4444).copy(alpha = 0.2f) else Color.Transparent,
+                    CircleShape
+                )
         ) {
             Icon(
                 imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                contentDescription = "Mute Toggle",
-                tint = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.6f),
-                modifier = Modifier.size(18.dp)
+                contentDescription = if (isMuted) "Unmute" else "Mute",
+                tint = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.5f),
+                modifier = Modifier.size(17.dp)
             )
         }
-        Spacer(modifier = Modifier.width(4.dp))
+
+        // Focus-thief blocker: tap to prevent THIS app from stealing audio focus from others
         IconButton(
-            onClick = { 
+            onClick = {
                 val newLocked = !focusLocked
                 focusLocked = newLocked
                 kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -576,30 +639,47 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                 }
             },
             modifier = Modifier
-                .size(36.dp)
-                .background(if (focusLocked) Color(0xFF10B981).copy(alpha = 0.25f) else Color.Transparent, CircleShape)
+                .size(34.dp)
+                .background(
+                    if (focusLocked) Color(0xFFEF4444).copy(alpha = 0.18f) else Color.Transparent,
+                    CircleShape
+                )
         ) {
             Icon(
-                imageVector = if (focusLocked) androidx.compose.material.icons.Icons.Filled.Lock else androidx.compose.material.icons.Icons.Outlined.Lock,
-                contentDescription = "Sovereign Focus Lock",
-                tint = if (focusLocked) Color(0xFF10B981) else Color.White.copy(alpha = 0.3f),
-                modifier = Modifier.size(18.dp)
+                imageVector = if (focusLocked)
+                    androidx.compose.material.icons.Icons.Filled.Lock
+                else
+                    androidx.compose.material.icons.Icons.Outlined.Lock,
+                contentDescription = if (focusLocked) "Unblock focus" else "Block focus theft",
+                tint = if (focusLocked) Color(0xFFEF4444) else Color.White.copy(alpha = 0.3f),
+                modifier = Modifier.size(17.dp)
             )
         }
-        Spacer(modifier = Modifier.width(4.dp))
+
+        // Pin button
         IconButton(
-            onClick = { 
-                pinned = !pinned 
+            onClick = {
+                pinned = !pinned
                 onPinToggled(pinned)
             },
             modifier = Modifier
-                .size(36.dp)
-                .background(if (pinned) tint.copy(alpha = 0.25f) else Color.Transparent, CircleShape)
+                .size(34.dp)
+                .background(
+                    if (pinned) tint.copy(alpha = 0.25f) else Color.Transparent,
+                    CircleShape
+                )
         ) {
-            Icon(androidx.compose.material.icons.Icons.Default.PushPin, contentDescription = "Pin to Dock", tint = if (pinned) tint else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
+            Icon(
+                androidx.compose.material.icons.Icons.Default.PushPin,
+                contentDescription = "Pin to Dock",
+                tint = if (pinned) tint else Color.White.copy(alpha = 0.3f),
+                modifier = Modifier.size(17.dp)
+            )
         }
     }
 }
+
+
 
 @Composable
 fun DockActionButton(modifier: Modifier, title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) {

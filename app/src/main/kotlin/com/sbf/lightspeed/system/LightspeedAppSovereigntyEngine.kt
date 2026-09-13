@@ -11,14 +11,18 @@ object LightspeedAppSovereigntyEngine {
         
         if (Shizuku.pingBinder()) {
             try {
-                val process = Shizuku.newProcess(cmd, null, null)
+                val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+                method.isAccessible = true
+                val process = method.invoke(null, cmd, null, null) as Process
                 process.waitFor()
                 Log.d("AppSovereignty", "Set $pkg AUDIO_MEDIA_VOLUME to $mode")
             
     fun isAppMuted(pkg: String): Boolean {
         if (!Shizuku.pingBinder()) return false
         try {
-            val process = Shizuku.newProcess(arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null) as Process
             val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()
@@ -33,7 +37,9 @@ object LightspeedAppSovereigntyEngine {
     fun isAppMuted(pkg: String): Boolean {
         if (!Shizuku.pingBinder()) return false
         try {
-            val process = Shizuku.newProcess(arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null) as Process
             val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()
@@ -47,7 +53,9 @@ object LightspeedAppSovereigntyEngine {
     fun isAppMuted(pkg: String): Boolean {
         if (!Shizuku.pingBinder()) return false
         try {
-            val process = Shizuku.newProcess(arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null) as Process
             val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()
@@ -62,7 +70,9 @@ object LightspeedAppSovereigntyEngine {
     fun isAppMuted(pkg: String): Boolean {
         if (!Shizuku.pingBinder()) return false
         try {
-            val process = Shizuku.newProcess(arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null) as Process
             val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()
@@ -76,7 +86,9 @@ object LightspeedAppSovereigntyEngine {
     fun isAppMuted(pkg: String): Boolean {
         if (!Shizuku.pingBinder()) return false
         try {
-            val process = Shizuku.newProcess(arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null) as Process
             val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()
@@ -90,7 +102,9 @@ object LightspeedAppSovereigntyEngine {
     fun isAppMuted(pkg: String): Boolean {
         if (!Shizuku.pingBinder()) return false
         try {
-            val process = Shizuku.newProcess(arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null)
+            val method = Shizuku::class.java.getDeclaredMethod("newProcess", Array<String>::class.java, Array<String>::class.java, String::class.java)
+            method.isAccessible = true
+            val process = method.invoke(null, arrayOf("cmd", "appops", "get", pkg, "AUDIO_MEDIA_VOLUME"), null, null) as Process
             val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
             val output = reader.readText()
             process.waitFor()

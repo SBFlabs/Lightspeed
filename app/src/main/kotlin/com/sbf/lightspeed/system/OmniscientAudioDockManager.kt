@@ -39,6 +39,8 @@ import androidx.compose.material.icons.filled.AccessAlarm
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
@@ -547,7 +549,7 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
                 .background(if (focusLocked) Color(0xFF10B981).copy(alpha = 0.25f) else Color.Transparent, CircleShape)
         ) {
             Icon(
-                imageVector = if (focusLocked) androidx.compose.material.icons.Icons.Default.Shield else androidx.compose.material.icons.Icons.Default.Security,
+                imageVector = if (focusLocked) androidx.compose.material.icons.Icons.Filled.Lock else androidx.compose.material.icons.Icons.Outlined.Lock,
                 contentDescription = "Sovereign Focus Lock",
                 tint = if (focusLocked) Color(0xFF10B981) else Color.White.copy(alpha = 0.3f),
                 modifier = Modifier.size(18.dp)

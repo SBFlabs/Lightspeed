@@ -225,6 +225,10 @@ object OmniscientAudioDockManager {
 
         var refreshTrigger by remember { mutableIntStateOf(0) }
         val stableSortSet = remember { mutableSetOf<String>() }
+
+        LaunchedEffect(Unit) {
+            LightspeedAppSovereigntyEngine.ensureShizukuPermission(service)
+        }
         
         LaunchedEffect(refreshTrigger) {
             val activeControllers = LightspeedMediaManager.getActiveControllers(service)
@@ -362,7 +366,7 @@ object OmniscientAudioDockManager {
                                 val pinnedSet = remember(refreshTrigger) { getPinnedApps(service) }
                                 activeAppsList.forEach { app ->
                                     androidx.compose.runtime.key(app.pkg) {
-                                        AppVolumeRow(app.pkg, app.name, app.icon, 0.8f, app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
+                                        AppVolumeRow(service, app.pkg, app.name, app.icon, 0.8f, app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
                                             if (isPinned) addPinnedApp(service, app.pkg) else removePinnedApp(service, app.pkg)
                                             refreshTrigger++
                                         }
@@ -469,7 +473,7 @@ fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.Ima
     }
 
 @Composable
-fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawable.Drawable?, initialVol: Float, isPinned: Boolean, tint: Color, onPinToggled: (Boolean) -> Unit) {
+fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: android.graphics.drawable.Drawable?, initialVol: Float, isPinned: Boolean, tint: Color, onPinToggled: (Boolean) -> Unit) {
     var vol by remember { mutableFloatStateOf(initialVol) }
     var pinned by remember { mutableStateOf(isPinned) }
     var focusLocked by remember { mutableStateOf(false) }
@@ -516,32 +520,59 @@ fun AppVolumeRow(pkg: String, name: String, iconDrawable: android.graphics.drawa
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines=1)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                if (isMuted) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("MUTED", color = Color(0xFFEF4444), fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+                }
+            }
             
             Slider(
                 value = vol,
                 onValueChange = { newVol -> 
                     vol = newVol
-                    val targetMute = newVol == 0f
+                    val targetMute = newVol <= 0.25f
                     if (targetMute != isMuted) {
                         isMuted = targetMute
                         kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute)
+                            LightspeedAppSovereigntyEngine.setAppMuted(pkg, targetMute, context)
                         }
                     }
                 },
                 valueRange = 0f..1f,
                 modifier = Modifier.height(24.dp),
-                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White.copy(alpha = 0.8f), inactiveTrackColor = Color.White.copy(alpha=0.15f))
+                colors = SliderDefaults.colors(thumbColor = if (isMuted) Color(0xFFEF4444) else Color.White, activeTrackColor = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.8f), inactiveTrackColor = Color.White.copy(alpha=0.15f))
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
         IconButton(
             onClick = { 
+                val newMuted = !isMuted
+                isMuted = newMuted
+                vol = if (newMuted) 0f else 1f
+                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    LightspeedAppSovereigntyEngine.setAppMuted(pkg, newMuted, context)
+                }
+            },
+            modifier = Modifier
+                .size(36.dp)
+                .background(if (isMuted) Color(0xFFEF4444).copy(alpha = 0.2f) else Color.Transparent, CircleShape)
+        ) {
+            Icon(
+                imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                contentDescription = "Mute Toggle",
+                tint = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        IconButton(
+            onClick = { 
                 val newLocked = !focusLocked
                 focusLocked = newLocked
                 kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                    LightspeedAppSovereigntyEngine.setAudioFocusLocked(pkg, newLocked)
+                    LightspeedAppSovereigntyEngine.setAudioFocusLocked(pkg, newLocked, context)
                 }
             },
             modifier = Modifier

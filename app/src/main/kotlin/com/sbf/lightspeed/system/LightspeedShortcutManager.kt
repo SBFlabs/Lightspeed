@@ -633,96 +633,87 @@ object LightspeedShortcutManager {
         if (parsed.packageName.isBlank()) return false
 
         try {
-            val proc = ElevatedTaskCloser.execShizuku("cmd shortcut get-shortcuts ${parsed.packageName}")
-            if (proc == null) {
-                Log.w(TAG, "launchElevatedHomeShortcut: execShizuku returned null")
-                return false
-            }
+            val proc = ElevatedTaskCloser.execShizuku("cmd shortcut get-shortcuts ${parsed.packageName}") ?: return false
             val output = proc.inputStream.bufferedReader().readText()
             proc.waitFor()
-            Log.i(TAG, "launchElevatedHomeShortcut: get-shortcuts returned ${output.length} chars")
 
             val blocks = output.split("ShortcutInfo {").drop(1)
-            Log.i(TAG, "launchElevatedHomeShortcut: found ${blocks.size} blocks")
-
-            // Match by id or label
             val block = blocks.firstOrNull { b ->
                 (parsed.id.isNotBlank() && (b.contains("id=${parsed.id},") || b.contains("id=${parsed.id}\n") || b.contains("id=${parsed.id}\r\n") || b.contains("id=${parsed.id} "))) ||
                 (parsed.label.isNotBlank() && (b.contains("shortLabel=${parsed.label},") || b.contains("shortLabel=${parsed.label}\n") || b.contains("shortLabel=${parsed.label}\r\n")))
-            }
-
-            if (block == null) {
-                Log.w(TAG, "launchElevatedHomeShortcut: no block match for id='${parsed.id}' label='${parsed.label}'")
-                for (b in blocks) {
-                    val bid = Regex("""id=([^\r\n, ]+)""").find(b)?.groupValues?.getOrNull(1)
-                    val blabel = Regex("""shortLabel=([^,\r\n]+)""").find(b)?.groupValues?.getOrNull(1)
-                    Log.d(TAG, "  candidate: id='$bid', label='$blabel'")
-                }
-                return false
-            }
+            } ?: return false
 
             Log.i(TAG, "launchElevatedHomeShortcut: matched shortcut block successfully")
 
             // Case A: OEM Direct Dial / Contact Shortcut
-            val contactIdMatch = Regex("""contactId=(\\d+)""").find(block)
-            if (contactIdMatch != null || block.contains("CALL_CONTACT")) {
-                val contactId = contactIdMatch?.groupValues?.getOrNull(1)
-                Log.i(TAG, "launchElevatedHomeShortcut: contactId=$contactId")
-                if (!contactId.isNullOrBlank()) {
-                    val phoneProc = ElevatedTaskCloser.execShizuku(
-                        "content query --uri content://com.android.contacts/data/phones --projection data1 --where 'contact_id=$contactId'"
-                    )
-                    val phoneOutput = phoneProc?.inputStream?.bufferedReader()?.readText().orEmpty()
-                    phoneProc?.waitFor()
-                    Log.i(TAG, "launchElevatedHomeShortcut: phone query output: $phoneOutput")
+            val contactId = if (block.contains("contactId=")) {
+                block.substringAfter("contactId=").substringBefore(",").substringBefore("}").substringBefore("\n").substringBefore("\r").trim()
+            } else ""
 
-                    val rawNumber = Regex("""data1=([^\r\n,]+)""").find(phoneOutput)?.groupValues?.getOrNull(1)?.trim()
-                    if (!rawNumber.isNullOrBlank()) {
-                        val cleanNumber = rawNumber.replace(" ", "")
-                        Log.i(TAG, "launchElevatedHomeShortcut: dialing $cleanNumber")
-                        try {
-                            val callIntent = Intent(Intent.ACTION_CALL, android.net.Uri.parse("tel:$cleanNumber")).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(callIntent)
-                            Log.i(TAG, "launchElevatedHomeShortcut: context.startActivity(ACTION_CALL) succeeded")
-                            return true
-                        } catch (e: Exception) {
-                            Log.w(TAG, "launchElevatedHomeShortcut: context.startActivity failed: ${e.message}, trying Shizuku am start")
-                            val amProc = ElevatedTaskCloser.execShizuku("am start -a android.intent.action.CALL -d 'tel:$cleanNumber'")
-                            return amProc?.waitFor() == 0
+            if (contactId.isNotBlank() && contactId.all { it.isDigit() }) {
+                Log.i(TAG, "launchElevatedHomeShortcut: contactId=$contactId")
+                val phoneProc = ElevatedTaskCloser.execShizuku(
+                    "content query --uri content://com.android.contacts/data/phones --projection data1 --where 'contact_id=$contactId'"
+                )
+                val phoneOutput = phoneProc?.inputStream?.bufferedReader()?.readText().orEmpty()
+                phoneProc?.waitFor()
+
+                val rawNumber = if (phoneOutput.contains("data1=")) {
+                    phoneOutput.substringAfter("data1=").substringBefore("\n").substringBefore("\r").substringBefore(",").trim()
+                } else ""
+
+                if (rawNumber.isNotBlank()) {
+                    val cleanNumber = rawNumber.replace(" ", "")
+                    Log.i(TAG, "launchElevatedHomeShortcut: dialing $cleanNumber")
+                    try {
+                        val callIntent = Intent(Intent.ACTION_CALL, android.net.Uri.parse("tel:$cleanNumber")).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
-                    } else {
-                        Log.w(TAG, "launchElevatedHomeShortcut: could not extract phone number")
+                        context.startActivity(callIntent)
+                        return true
+                    } catch (e: Exception) {
+                        val amProc = ElevatedTaskCloser.execShizuku("am start -a android.intent.action.CALL -d 'tel:$cleanNumber'")
+                        return amProc?.waitFor() == 0
                     }
                 }
             }
 
-            // Case B: General App Shortcuts (WhatsApp, MacroDroid, Amazon, Chrome, etc.)
-            val intentMatch = Regex("""Intent\\s*\\{([^}]+)\\}""").find(block)
-            if (intentMatch != null) {
-                val intentBody = intentMatch.groupValues[1]
-                val bundleMatch = Regex("""PersistableBundle\\[\\{([^}]*)\\}\\]""").find(block)
-                val bundleBody = bundleMatch?.groupValues?.getOrNull(1).orEmpty()
+            // Case B: General App Shortcuts (WhatsApp, MacroDroid, Amazon, etc.)
+            if (block.contains("Intent {")) {
+                val intentBody = block.substringAfter("Intent {").substringBefore("}")
+                val bundleBody = if (block.contains("PersistableBundle[{")) {
+                    block.substringAfter("PersistableBundle[{").substringBefore("}]")
+                } else ""
 
-                val act = Regex("""act=([^\\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
-                val cmp = Regex("""cmp=([^\\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
-                val dat = Regex("""dat=([^\\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
-                val flg = Regex("""flg=([^\\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
+                fun extractField(key: String): String {
+                    if (!intentBody.contains("$key=")) return ""
+                    return intentBody.substringAfter("$key=").substringBefore(" ").trim()
+                }
+
+                val act = extractField("act")
+                val cmp = extractField("cmp")
+                val dat = extractField("dat")
+                val flg = extractField("flg")
 
                 val cmd = StringBuilder("am start ")
-                if (!act.isNullOrBlank()) cmd.append("-a '$act' ")
-                if (!cmp.isNullOrBlank()) cmd.append("-n '$cmp' ")
-                if (!dat.isNullOrBlank() && dat != "null" && !dat.endsWith("/...")) cmd.append("-d '$dat' ")
-                if (!flg.isNullOrBlank()) cmd.append("-f $flg ")
+                if (act.isNotBlank()) cmd.append("-a $act ")
+                if (cmp.isNotBlank()) cmd.append("-n $cmp ")
+                if (dat.isNotBlank() && dat != "null" && !dat.endsWith("/...")) cmd.append("-d '$dat' ")
+                if (flg.isNotBlank()) cmd.append("-f $flg ")
 
                 if (bundleBody.isNotBlank()) {
-                    val entries = bundleBody.split(Regex(""",\\s*(?=[a-zA-Z0-9_]+=)"""))
+                    val entries = bundleBody.split(", ")
                     for (entry in entries) {
                         val key = entry.substringBefore("=").trim()
                         val value = entry.substringAfter("=").trim()
-                        if (key.isNotEmpty() && value != "null") {
-                            cmd.append("--es '$key' '${value.replace("'", "'\\''")}' ")
+                        if (key.isNotEmpty() && value.isNotEmpty() && value != "null") {
+                            if (value.toLongOrNull() != null) {
+                                cmd.append("--el '$key' $value ")
+                            } else if (value.equals("true", ignoreCase = true) || value.equals("false", ignoreCase = true)) {
+                                cmd.append("--ez '$key' $value ")
+                            } else {
+                                cmd.append("--es '$key' '${value.replace("'", "'\\''")}' ")
+                            }
                         }
                     }
                 }
@@ -732,8 +723,6 @@ object LightspeedShortcutManager {
                 val exitCode = startProc?.waitFor() ?: -1
                 Log.i(TAG, "launchElevatedHomeShortcut: am start exited with $exitCode")
                 return exitCode == 0
-            } else {
-                Log.w(TAG, "launchElevatedHomeShortcut: no Intent body found in block")
             }
         } catch (e: Exception) {
             Log.e(TAG, "launchElevatedHomeShortcut error", e)

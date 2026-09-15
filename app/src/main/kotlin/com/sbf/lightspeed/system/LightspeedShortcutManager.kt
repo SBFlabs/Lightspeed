@@ -463,7 +463,7 @@ object LightspeedShortcutManager {
             "pinned", "home_shortcut" -> {
                 var launched = false
 
-                // 1. Primary: LauncherApps.startShortcut (works if Lightspeed is home launcher or privileged)
+                // 1. Primary: LauncherApps.startShortcut (works if default launcher or privileged)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
                     try {
                         val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
@@ -474,152 +474,12 @@ object LightspeedShortcutManager {
                     }
                 }
 
-                // 2. Secondary: Extract authentic direct Intents backstack from ShortcutInfo
-                if (!launched && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-                    try {
-                        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-                        val query = LauncherApps.ShortcutQuery().apply {
-                            setPackage(parsed.packageName)
-                            setShortcutIds(listOf(parsed.id))
-                            setQueryFlags(
-                                LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
-                                LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or
-                                LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST
-                            )
-                        }
-                        val shortcuts = launcherApps.getShortcuts(query, Process.myUserHandle())
-                        val shortcut = shortcuts?.firstOrNull()
-                        if (shortcut != null) {
-                            val directIntents = shortcut.intents
-                            if (directIntents != null && directIntents.isNotEmpty()) {
-                                val intentsToStart = directIntents.map { Intent(it) }.toTypedArray()
-                                intentsToStart[0].addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                try {
-                                    context.startActivities(intentsToStart)
-                                    launched = true
-                                } catch (e: Exception) {
-                                    handleLaunchException(context, e)
-                                }
-                            }
-                            
-                            // Fallback moved to end of pipeline
-                        }
-                    } catch (e: Exception) {
-                        Log.d(TAG, "Direct shortcut intent resolution failed: ${e.message}")
-                    }
-                }
-
-                // 3. Tertiary: MacroDroid Explicit Direct Runner Pipelines
-                if (!launched && parsed.packageName == "com.arlosoft.macrodroid") {
-                    val macroId = parsed.id
-                    val macroName = parsed.label
-
-                    // Pipeline A: Explicit ShortcutDispatchActivity (authentic exported receiver for MacroDroid macros)
-                    try {
-                        val mdIntent = Intent(Intent.ACTION_MAIN).apply {
-                            setClassName("com.arlosoft.macrodroid", "com.arlosoft.macrodroid.ShortcutDispatchActivity")
-                            putExtra("com.arlosoft.macrodroid.MACRO_NAME", macroName)
-                            putExtra("macro_name", macroName)
-                            macroId.toLongOrNull()?.let {
-                                putExtra("guid", it)
-                                putExtra("TriggerGuid", it)
-                            }
-                            putExtra("macro_id", macroId)
-                            putExtra("com.arlosoft.macrodroid.MACRO_ID", macroId)
-                            putExtra("is_action_block", false)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                        }
-                        context.startActivity(mdIntent)
-                        launched = true
-                    } catch (e: Exception) {
-                        Log.d(TAG, "MacroDroid ShortcutDispatchActivity failed: ${e.message}")
-                    }
-
-                    // Pipeline B: Broadcast to MacroDroid macro receivers
-                    if (!launched) {
-                        try {
-                            val bcIntent = Intent("com.arlosoft.macrodroid.run_macro").apply {
-                                setPackage("com.arlosoft.macrodroid")
-                                putExtra("macro_id", macroId)
-                                putExtra("macro_name", macroName)
-                                putExtra("com.arlosoft.macrodroid.MACRO_NAME", macroName)
-                            }
-                            context.sendBroadcast(bcIntent)
-                            launched = true
-                        } catch (_: Exception) {}
-                    }
-                }
-
-                // 4. Quaternary: Elevated Shizuku Shell Execution
-                if (!launched && ElevatedTaskCloser.isShizukuActive) {
-                    try {
-                        if (parsed.packageName == "com.arlosoft.macrodroid") {
-                            ElevatedTaskCloser.execShizuku("am start -n com.arlosoft.macrodroid/.ShortcutDispatchActivity -a android.intent.action.MAIN --es com.arlosoft.macrodroid.MACRO_NAME '${parsed.label}'")
-                            launched = true
-                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-                            val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-                            val query = LauncherApps.ShortcutQuery().apply {
-                                setPackage(parsed.packageName)
-                                setShortcutIds(listOf(parsed.id))
-                                setQueryFlags(
-                                    LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
-                                    LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or
-                                    LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST
-                                )
-                            }
-                            val shortcuts = launcherApps.getShortcuts(query, Process.myUserHandle())
-                            val shortcut = shortcuts?.firstOrNull()
-                            val targetIntent = shortcut?.intents?.lastOrNull() ?: shortcut?.intent
-                            if (targetIntent != null) {
-                                ElevatedTaskCloser.execShizuku(intentToAmStartCommand(targetIntent))
-                                launched = true
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Shizuku shortcut launch failed", e)
-                    }
-                }
-
-                // 5. Quinary: Fallback to single/main intent (Last Resort)
-                if (!launched && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-                    try {
-                        val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
-                        val query = LauncherApps.ShortcutQuery().apply {
-                            setPackage(parsed.packageName)
-                            setShortcutIds(listOf(parsed.id))
-                            setQueryFlags(
-                                LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
-                                LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or
-                                LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST
-                            )
-                        }
-                        val shortcuts = launcherApps.getShortcuts(query, Process.myUserHandle())
-                        val shortcut = shortcuts?.firstOrNull()
-                        val directIntent = shortcut?.intent
-                        if (directIntent != null) {
-                            val launchIntent = Intent(directIntent).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            try {
-                                context.startActivity(launchIntent)
-                                launched = true
-                            } catch (e: Exception) {
-                                handleLaunchException(context, e)
-                                try {
-                                    context.sendBroadcast(launchIntent)
-                                    launched = true
-                                } catch (_: Exception) {}
-                            }
-                        }
-                    } catch (_: Exception) {}
-                }
-
-                // Elevated Shizuku Home Shortcut Resolver (Contacts, WhatsApp, Deep Links)
+                // 2. Secondary: Elevated Shizuku Home Shortcut Resolver (Contacts, WhatsApp, MacroDroid, Deep Links)
                 if (!launched) {
                     launched = launchElevatedHomeShortcut(context, parsed)
                 }
 
-                // 5. Fallback standard launch
+                // 3. Fallback: Standard package launcher intent
                 if (!launched) {
                     context.packageManager.getLaunchIntentForPackage(parsed.packageName)?.let {
                         it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -838,11 +698,12 @@ object LightspeedShortcutManager {
                 }
             }
 
-            // Case B: General App Shortcuts
-            val intentMatch = Regex("""intents=\\[Intent\\s*\\{([^}]+)\\}(?:/PersistableBundle\\[\\{([^}]*)\\}\\])?\\]""").find(block)
+            // Case B: General App Shortcuts (WhatsApp, MacroDroid, Amazon, Chrome, etc.)
+            val intentMatch = Regex("""Intent\\s*\\{([^}]+)\\}""").find(block)
             if (intentMatch != null) {
                 val intentBody = intentMatch.groupValues[1]
-                val bundleBody = intentMatch.groupValues.getOrNull(2).orEmpty()
+                val bundleMatch = Regex("""PersistableBundle\\[\\{([^}]*)\\}\\]""").find(block)
+                val bundleBody = bundleMatch?.groupValues?.getOrNull(1).orEmpty()
 
                 val act = Regex("""act=([^\\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
                 val cmp = Regex("""cmp=([^\\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
@@ -868,7 +729,11 @@ object LightspeedShortcutManager {
 
                 Log.i(TAG, "launchElevatedHomeShortcut: running: $cmd")
                 val startProc = ElevatedTaskCloser.execShizuku(cmd.toString().trim())
-                return startProc?.waitFor() == 0
+                val exitCode = startProc?.waitFor() ?: -1
+                Log.i(TAG, "launchElevatedHomeShortcut: am start exited with $exitCode")
+                return exitCode == 0
+            } else {
+                Log.w(TAG, "launchElevatedHomeShortcut: no Intent body found in block")
             }
         } catch (e: Exception) {
             Log.e(TAG, "launchElevatedHomeShortcut error", e)

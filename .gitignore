@@ -12,3 +12,5 @@
 *.aab
 # Production signing credentials — never commit
 keystore.properties
+extract_lightspeed.sh
+lightspeed_source_dump.txt

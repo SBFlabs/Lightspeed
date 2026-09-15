@@ -277,15 +277,16 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Added native Face-Oriented Auto-Rotate (`camera_autorotate`) integration via API 31+ Android Private Compute Core sensor subsystem (100% offline, zero camera permissions).
   - Implemented 4 Attitude Buckets (`Natural Portrait`, `Reverse Portrait`, `Landscape Standard`, `Reverse Landscape`) with real-time per-app assignment modal sheet.
   - Added configurable Action Override Lifetime duration picker (`until_app_switch`, `until_screen_off`, `persistent`, `disabled`) and overlay rotation enforcement policy.
-✓ Central Command HUD Strip 7-Deck Nomenclature & Layout Standard:
-  - Reorganized HUD Strip accordions into a standardized 7-deck hierarchy with complete dual-mode vocabulary parity (Spaceship Lore / Clear Comms):
+✓ Central Command HUD Strip 8-Deck Nomenclature & Layout Standard:
+  - Reorganized HUD Strip accordions into a standardized 8-deck hierarchy with complete dual-mode vocabulary parity (Spaceship Lore / Clear Comms):
     1. Sensor Area (`sensor_deck`) / Touch Strip
     2. Synthetic Gravity Engine (`synthetic_gravity`) / Orientation Preferences
     3. Info Beacons (`telemetry_indicators`) / Telemetry & Indicators
     4. Hull & Ship Maneuvers (`tactical_hardware`) / Hardware & Kinetic Gestures
     5. Refueling Bay & Cryo Stasis (`refueling_bay`) / Charging Screen
-    6. Config Vault (`config_vault`) / Backup & Restore
-    7. Experimental Labs (`experimental_labs`) / Experimental Features
+    6. System Override (`system_override`) / System Override
+    7. Config Vault (`config_vault`) / Backup & Restore
+    8. Experimental Labs (`experimental_labs`) / Experimental Features
 ✓ Avionics Flight Blackbox & Crash Isolation:
   - Hardened WindowManager token validation across telephony interrupts to eliminate BadTokenException crashes when waking up after phone calls.
   - Canonized "Flight Blackbox" (Vessel Mode) / "Diagnostics & Crash Logs" (Clear Comms) in Central Command telemetry deck with one-tap clipboard export.
@@ -316,8 +317,38 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Fixed resting-finger collapse where pausing finger motion mid-scrub caused the overlay to collapse to the status bar or disappear: gesture HUD now remains anchored and stable continuously until finger release.
   - Unlocked true 0% brightness floor (eliminating legacy 3% clamp).
   - Defensively hardened `LightspeedHudRenderer` against text paint alignment leaks (`headerTextPaint.textAlign = Paint.Align.LEFT` leaking into center-drawn HUD styles), ensuring strict `CENTER` alignment resets before and after each render pass, paired with adaptive text width measurement and ellipsis truncation.
+✓ System Override Suite (Shizuku & Elevated Android Core Overrides):
+  - Created and deployed the System Override deck positioned directly above Config Vault in Central Command.
+  - Animation Speeds: Dedicated continuous sliders for Window animation scale, Transition animation scale, and Animator duration scale, with simplified global master slider and detailed granular matrix, instant safety resets, and confirmation dialogs.
+  - Display Metrics (PPI / DPI / Smallest Width): Direct programmatic control over `wm density` and `display_density_forced`. Includes custom PPI overwrite protection to preserve hardware factory defaults, paired with tactile confirmation modals.
+  - Font Scale Overwrite: Real-time slider controlling `Settings.System.FONT_SCALE` (0.80x to 1.30x) without requiring deep Android settings navigation.
+  - Lockscreen Shortcuts Customization: Configures AOSP `sysui_keyguard_left` and `sysui_keyguard_right` across direct-access and unlock-to-access actions.
+✓ Vernier Dual-Axis Precision Scrubbing Architecture:
+  - Pioneered 2D vernier scrubbing on custom sliders: sliding horizontally adjusts values normally; lifting or moving finger vertically on the Y-axis smoothly slows down the horizontal tracking ratio (high-gear precision mode), enabling sub-pixel, single-unit adjustments even on dense scale tracks.
+  - Resolved track thumb clipping at 0% and 100% bounds.
+  - Hardened tap-to-jump physics to strictly respect the `jump_on_track` toggle without unwanted track jumps.
+✓ App Shortcuts & Deep Linking Engine Hardening:
+  - Fixed launcher shortcut execution and deep activity launching via Shizuku and native intent dispatchers.
+  - Resolved carrier/dual-SIM direct-call crashes by integrating explicit `CALL_PHONE` runtime permission checks, preventing permission denials seen across macro automation apps.
+  - Added full Base64 dynamic bitmap serialization in `LightspeedBackupEngine` for deep-linked shortcut icons.
+✓ Alphabetical Index Scrubbing & Morphing Typography:
+  - Alphabetical app jump index formatted with capitalized first letter and lowercase second letter.
+  - Excluded pinned cockpit apps from the alphabetical jump index to eliminate jump stutter and index pollution.
+  - Implemented micro-scrubbing within index buckets for multi-item letter groups.
+✓ Release Hardening & Feature Isolation for GitHub Inspection:
+  - Quarantined incomplete or hardware-dependent features into **Experimental Labs** with dormant default states to ensure a bulletproof public inspection build.
+  - *Orbital Capsule*: Gated camera cutout rendering behind `KEY_ORBITAL_CAPSULE_ENABLED` (`pref_orbital_capsule_enabled`, default: false). Switched default download telemetry routing to `"top_line"` (Horizon Rail). Cutout alignment, width/snugness sliders, marquee typography, and OEM conflict notices moved to Labs.
+  - *Omniscient Audio Dock*: Gated horizontal pull-out gesture on side deflectors and vertical pull-out on Sensor Deck behind `KEY_OMNISCIENT_AUDIO_DOCK_ENABLED` (`pref_omniscient_audio_dock_enabled`, default: false) to eliminate accidental dock triggers during volume scrubbing.
+  - *Tactical Hardware Keys*: Pruned confusing, non-functional power button card from the hardware keys deck; power button remapping safely isolated in Experimental Labs.
 
 [STATUS: WORK IN PROGRESS & PAUSED REDESIGN QUEUE]
+* Audio Sovereignty & The Omniscient Audio Dock (MultiSound Concurrent Playback & Per-App Volume):
+  - Objective: Parity with Samsung SoundAssistant / MultiSound ("Locking" apps like Podium/Spotify so they play concurrently alongside games or flashcard apps like AnkiDroid without pausing or ducking).
+  - Technical Findings:
+    1. OS Multi-Audio Focus: Shizuku IPC hook `IAudioService.setMultiAudioFocusEnabled(true)` was successfully implemented and verified on Android 16.
+    2. App-Level Focus Surrender: Even with OS multi-focus enabled, standard third-party audio engines (e.g. ExoPlayer in podcasts or AnkiDroid) voluntarily register focus listeners and pause upon receiving transient focus loss broadcasts from the OS audio framework. Complete stealth playback without pause requires low-level audio track proxying or Xposed-style method hooking.
+    3. Per-App Hardware Volume: `AppOpsManager.OP_AUDIO_MEDIA_VOLUME` only governs UI volume slider permissions, while Binder `IPlayer.setVolume()` yields inconsistent results depending on whether playback uses AudioTrack, OpenSL ES, or Oboe.
+  - Current Status: Safely isolated in Experimental Labs behind `pref_omniscient_audio_dock_enabled` (disabled by default) while deeper audio track proxy architectures are evaluated.
 * Grid Mode Vertical Scroll Delegation Over Non-Overflowing Widgets (e.g., Tall Anki Deck):
   - Current status: Reverted touch takeover to eliminate synthetic spring jitter/shivering.
   - Active Objective: Cleanly detect when child ListView/ScrollView does not overflow and hand off vertical scroll deltas to the dashboard ScrollState without fighting native gesture detectors or introducing synthetic spring inertia.

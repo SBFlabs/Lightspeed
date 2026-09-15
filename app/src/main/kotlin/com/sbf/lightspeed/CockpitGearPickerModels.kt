@@ -488,7 +488,7 @@ fun buildFlatItemsList(
         val (pkg, appName, tokens) = triple
         val appToken = tokens.firstOrNull { it.startsWith("app:") } ?: "app:$pkg"
         val appShortcuts = tokens.filter { it.contains(";type=app_shortcut;") }
-        val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") }
+        val homeShortcuts = tokens.filter { it.contains(";type=home_shortcut;") || it.contains(";type=pinned;") }
         val deepActivities = tokens.filter { it.contains(";type=activity;") }
 
         val appKey = "app:$pkg"

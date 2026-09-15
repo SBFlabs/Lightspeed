@@ -330,8 +330,8 @@ object LightspeedShortcutManager {
 
         val parsed = parseToken(token)
 
-        // 2. Dynamic / Pinned Shortcut via LauncherApps (Android 7.1+)
-        if (parsed.type == "pinned" && parsed.packageName.isNotBlank() && parsed.id.isNotBlank()) {
+        // 2. Dynamic / Pinned / Home Shortcut via LauncherApps (Android 7.1+)
+        if ((parsed.type == "pinned" || parsed.type == "home_shortcut") && parsed.packageName.isNotBlank() && parsed.id.isNotBlank()) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
                 try {
                     val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
@@ -459,7 +459,7 @@ object LightspeedShortcutManager {
         val parsed = parseToken(token)
 
         when (parsed.type) {
-            "pinned" -> {
+            "pinned", "home_shortcut" -> {
                 var launched = false
 
                 // 1. Primary: LauncherApps.startShortcut (works if Lightspeed is home launcher or privileged)

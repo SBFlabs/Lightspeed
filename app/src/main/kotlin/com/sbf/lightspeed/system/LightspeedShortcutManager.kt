@@ -613,6 +613,11 @@ object LightspeedShortcutManager {
                     } catch (_: Exception) {}
                 }
 
+                // Elevated Shizuku Home Shortcut Resolver (Contacts, WhatsApp, Deep Links)
+                if (!launched && ElevatedTaskCloser.isShizukuActive) {
+                    launched = launchElevatedHomeShortcut(context, parsed)
+                }
+
                 // 5. Fallback standard launch
                 if (!launched) {
                     context.packageManager.getLaunchIntentForPackage(parsed.packageName)?.let {
@@ -760,6 +765,89 @@ object LightspeedShortcutManager {
                 android.widget.Toast.makeText(context, "Activity Not Found: Target app might be restricted or missing", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun launchElevatedHomeShortcut(context: Context, parsed: ParsedShortcut): Boolean {
+        if (!ElevatedTaskCloser.isShizukuActive || parsed.packageName.isBlank() || parsed.id.isBlank()) {
+            return false
+        }
+
+        try {
+            val proc = ElevatedTaskCloser.execShizuku("cmd shortcut get-shortcuts ${parsed.packageName}") ?: return false
+            val output = proc.inputStream.bufferedReader().readText()
+            proc.waitFor()
+
+            val block = output.split("ShortcutInfo {")
+                .drop(1)
+                .firstOrNull { 
+                    it.contains("id=${parsed.id},") || 
+                    it.contains("id=${parsed.id}\n") || 
+                    it.contains("id=${parsed.id}\r\n") || 
+                    it.contains("id=${parsed.id} ") 
+                } ?: return false
+
+            // Case A: OEM Direct Dial / Contact Shortcut
+            val contactIdMatch = Regex("""contactId=(\d+)""").find(block)
+            if (contactIdMatch != null || block.contains("CALL_CONTACT")) {
+                val contactId = contactIdMatch?.groupValues?.getOrNull(1)
+                if (!contactId.isNullOrBlank()) {
+                    val phoneProc = ElevatedTaskCloser.execShizuku(
+                        "content query --uri content://com.android.contacts/data/phones --projection data1 --where 'contact_id=$contactId'"
+                    )
+                    val phoneOutput = phoneProc?.inputStream?.bufferedReader()?.readText().orEmpty()
+                    phoneProc?.waitFor()
+
+                    val rawNumber = Regex("""data1=([^\r\n,]+)""").find(phoneOutput)?.groupValues?.getOrNull(1)?.trim()
+                    if (!rawNumber.isNullOrBlank()) {
+                        val cleanNumber = rawNumber.replace(" ", "")
+                        val callIntent = Intent(Intent.ACTION_CALL, android.net.Uri.parse("tel:$cleanNumber")).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        return try {
+                            context.startActivity(callIntent)
+                            true
+                        } catch (_: Exception) {
+                            ElevatedTaskCloser.execShizuku("am start -a android.intent.action.CALL -d 'tel:$cleanNumber'") != null
+                        }
+                    }
+                }
+            }
+
+            // Case B: General App Shortcuts (WhatsApp conversations, Chrome bookmarks, deep links)
+            val intentMatch = Regex("""intents=\[Intent\s*\{([^}]+)\}(?:/PersistableBundle\[\{([^}]*)\}\])?\]""").find(block)
+            if (intentMatch != null) {
+                val intentBody = intentMatch.groupValues[1]
+                val bundleBody = intentMatch.groupValues.getOrNull(2).orEmpty()
+
+                val act = Regex("""act=([^\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
+                val cmp = Regex("""cmp=([^\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
+                val dat = Regex("""dat=([^\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
+                val flg = Regex("""flg=([^\s]+)""").find(intentBody)?.groupValues?.getOrNull(1)
+
+                val cmd = StringBuilder("am start ")
+                if (!act.isNullOrBlank()) cmd.append("-a '$act' ")
+                if (!cmp.isNullOrBlank()) cmd.append("-n '$cmp' ")
+                if (!dat.isNullOrBlank() && dat != "null" && !dat.endsWith("/...")) cmd.append("-d '$dat' ")
+                if (!flg.isNullOrBlank()) cmd.append("-f $flg ")
+
+                if (bundleBody.isNotBlank()) {
+                    val entries = bundleBody.split(Regex(""",\s*(?=[a-zA-Z0-9_]+=)"""))
+                    for (entry in entries) {
+                        val key = entry.substringBefore("=").trim()
+                        val value = entry.substringAfter("=").trim()
+                        if (key.isNotEmpty() && value != "null") {
+                            cmd.append("--es '$key' '${value.replace("'", "'\\''")}' ")
+                        }
+                    }
+                }
+
+                val startProc = ElevatedTaskCloser.execShizuku(cmd.toString().trim())
+                return startProc?.waitFor() == 0
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "launchElevatedHomeShortcut failed for ${parsed.id}", e)
+        }
+        return false
     }
 
     private fun intentToAmStartCommand(intent: Intent): String {

@@ -171,6 +171,8 @@ object LightspeedPreferences {
     const val KEY_CORE_COOLING_HOUR = "pref_core_cooling_hour"
     const val KEY_CORE_COOLING_LAST_TRIGGER = "pref_core_cooling_last_trigger"
     const val KEY_INFINIX_STANDBY_DISMISSED = "pref_infinix_standby_dismissed"
+    const val KEY_ORBITAL_CAPSULE_ENABLED = "pref_orbital_capsule_enabled"
+    const val KEY_OMNISCIENT_AUDIO_DOCK_ENABLED = "pref_omniscient_audio_dock_enabled"
 
     // Tab Accordion Display Profiles & Blueprint Keys
     const val KEY_TAB_ACCORDION_MODE_0 = "pref_tab_accordion_mode_0" // "all_expanded", "all_collapsed", "solo", "custom_pinned"

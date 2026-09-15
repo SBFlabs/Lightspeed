@@ -36,6 +36,7 @@ import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedHudRenderer
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import java.net.URISyntaxException
@@ -847,9 +848,10 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                             
                             val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume"
                             val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness"
-                            
+                            val isAudioDockEnabled = prefs().getBoolean(LightspeedPreferences.KEY_OMNISCIENT_AUDIO_DOCK_ENABLED, false)
+
                             val horizontalPull = kotlin.math.abs(rawX - scrubStartX)
-                            if (horizontalPull > 80f * density && (isVolume || isBrightness)) {
+                            if (horizontalPull > 80f * density && ((isVolume && isAudioDockEnabled) || isBrightness)) {
                                 currentDetectedGesture = MacroGesture.NONE
                                 macroTrackingActive = false // Portal Line Lock: Prevent re-triggering until finger lifts
                                 isCruising = false

@@ -41,16 +41,17 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
             Color.parseColor("#90CAF9")
         }
 
-        val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "notch_pill") ?: "notch_pill"
+        val isCapsuleEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ORBITAL_CAPSULE_ENABLED, false)
+        val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "top_line") ?: "top_line"
         val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
         val primaryDl = LightspeedNotificationListener.getPrimaryDownload()
         val media = LightspeedNotificationListener.activeMediaTelemetry
 
         val isTestBeacon = prefs.getBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false)
-        val showDlPill = (dlRouting == "notch_pill" || dlRouting == "both") && primaryDl != null
-        val showMediaPill = (mediaRouting == "notch_pill" || mediaRouting == "both") && media != null && media.isPlaying
+        val showDlPill = isCapsuleEnabled && (dlRouting == "notch_pill" || dlRouting == "both") && primaryDl != null
+        val showMediaPill = isCapsuleEnabled && (mediaRouting == "notch_pill" || mediaRouting == "both") && media != null && media.isPlaying
 
-        if (!isTestBeacon && !showDlPill && !showMediaPill && !isExpanded) {
+        if (!isTestBeacon && !showDlPill && !showMediaPill && (!isExpanded || !isCapsuleEnabled)) {
             return
         }
 

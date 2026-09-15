@@ -337,9 +337,10 @@ class LightspeedSensorDeckTouchOverlay(
                     
                     val isVolume = activeScrubType == "system:volume"
                     val isBrightness = activeScrubType == "system:brightness"
+                    val isAudioDockEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OMNISCIENT_AUDIO_DOCK_ENABLED, false)
                     val verticalPull = kotlin.math.abs(event.rawY - startY)
                     
-                    if (verticalPull > 80f * density && (isVolume || isBrightness)) {
+                    if (verticalPull > 80f * density && ((isVolume && isAudioDockEnabled) || isBrightness)) {
                         isScrubbing = false
                         activeScrubType = "none"
                         activeScrubActionKey = null

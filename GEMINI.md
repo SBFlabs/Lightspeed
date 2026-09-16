@@ -10,17 +10,21 @@
 
 ---
 
-# 2. Release Strategy & Strict Immutability
+# 2. Release Strategy, Cloud Backup & Strict Privacy Immutability
 - **Nightly Target (Active Development & Iteration)**:
   * Application ID: `com.sbf.lightspeed.nightly` (App Label: "Lightspeed Nightly")
   * ALL day-to-day development, refactoring, feature work, bug fixes, testing, builds (`assembleDebug`), and ADB installs MUST target `com.sbf.lightspeed.nightly` ONLY.
   * Git Commits: Local commits on branch `nightly-refactor`.
-- **Remote Git & Cloud Backup Strategy (SBF Labs)**:
+- **Remote Git & Habitual Cloud Backup Strategy (SBF Labs)**:
   * **Private Repository (`origin` -> `git@github.com:SBFlabs/Lightspeed-Nightly.git`)**:
-    - **HABITUAL CLOUD BACKUP**: Whenever a development milestone or refactoring session is committed, pushing to `origin` is authorized and encouraged to safeguard the Founder's work against local hardware loss.
-  * **Public Repository (`public` -> `git@github.com:SBFlabs/Lightspeed.git`) (STRICT IMMUTABILITY RULE)**:
+    - **HABITUAL CLOUD BACKUP**: Whenever a development milestone, refactoring session, or documentation update is committed, pushing to `origin` is a mandatory habit to safeguard the Founder's accumulated work against local hardware loss.
+  * **Public Repository (`public` -> `git@github.com:SBFlabs/Lightspeed.git`) (STRICT IMMUTABILITY & PRIVACY RULE)**:
     - **LOCKED**: NEVER push (`git push public`), publish, or synchronize to the public repository UNLESS the user explicitly gives a direct command (e.g., "Push to public repository", "Publish release to public").
-    - Public releases must strictly originate from the audited, stable `master` branch under the anonymous SBF Labs identity with zero personal identifiers.
+    - **MANDATORY PRIVACY SANITIZATION PASS BEFORE ANY PUBLIC RELEASE**:
+      1. Originates strictly from an audited, sanitized `master` branch.
+      2. 100% Anonymous Git Author: Commits must strictly use `SBF Labs <contact@sbflabs.dev>` with zero personal names (no "Sherif") or local hostnames (no "s-arch.local").
+      3. Private Documents Excluded: `VAULT.md`, internal dev notes, local deployment scripts (`deploy-nightly.sh` with LAN IPs), and machine dumps are strictly kept on the private repo and NEVER published to public.
+      4. Zero Telemetry & Offline Invariance: Confirm zero network permissions before any release.
 - **Stable Release (STRICT IMMUTABILITY RULE)**:
   * Application ID: `com.sbf.lightspeed` (App Label: "Lightspeed")
   * **LOCKED**: NEVER build (`assembleRelease`), install, modify, or promote to `com.sbf.lightspeed` UNLESS the user explicitly gives a direct command (e.g., "Promote nightly to stable release").
@@ -80,11 +84,12 @@
   1. **Antigravity** (Gemini Pro for planning, Flash for implementation, Claude Sonnet for complex tasks)
   2. **GitHub Copilot** (Standard Copilot engine)
   3. **OpenCode** (Third-tier specialized bug-fixing and refactoring backup)
-- **Strict Cross-Agent Synchronization Invariant**:
+- **Strict Cross-Agent Synchronization & Habit Invariant**:
   * Whenever ANY agent modifies, adds, or refines project rules, constraints, or architecture guidelines, it MUST synchronously mirror the changes across all 5 official configuration targets:
     1. Canonical Root Manifest: `AGENTS.md` (Read by Antigravity & OpenCode)
     2. Antigravity / Gemini Target: `GEMINI.md`
     3. GitHub Copilot Target: `.github/copilot-instructions.md`
     4. OpenCode Dedicated Target: `OPENCODE.md`
     5. Human / Repository Reference: `RULES.md`
-  * No agent operates in isolation. Every agent is strictly responsible for maintaining unbroken continuity and rule parity for whichever agent collaborates with the Founder next.
+  * **Habitual Documentation & Private Backup**: Any major architecture or feature addition must be documented in `CHANGELOG.md`/`VAULT.md`, synchronized across all 5 manifests, committed to `nightly-refactor`, and habitually pushed to private `origin`.
+  * No agent operates in isolation. Every agent is strictly responsible for maintaining unbroken continuity, privacy locks, and rule parity for whichever agent collaborates with the Founder next.

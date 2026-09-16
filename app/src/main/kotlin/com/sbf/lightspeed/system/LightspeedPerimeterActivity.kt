@@ -26,8 +26,7 @@ class LightspeedPerimeterActivity : ComponentActivity() {
                         context = this@LightspeedPerimeterActivity,
                         prefs = defaultPrefs(),
                         onDismiss = {
-                            finishAndRemoveTask()
-                            overridePendingTransition(0, 0)
+                            finish()
                         },
                         onRefreshNeeded = {}
                     )
@@ -39,6 +38,6 @@ class LightspeedPerimeterActivity : ComponentActivity() {
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
-        overridePendingTransition(0, 0)
+        overrideZeroTransition()
     }
 }

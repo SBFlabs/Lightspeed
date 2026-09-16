@@ -50,8 +50,7 @@ class TacticalFlyoutActivity : ComponentActivity() {
                 TacticalFlyoutContent(
                     context = this,
                     onDismiss = {
-                        finishAndRemoveTask()
-                        overridePendingTransition(0, 0)
+                        finish()
                     }
                 )
             }
@@ -61,7 +60,7 @@ class TacticalFlyoutActivity : ComponentActivity() {
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
-        overridePendingTransition(0, 0)
+        overrideZeroTransition()
     }
 }
 

@@ -52,7 +52,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
-        overridePendingTransition(0, 0)
+        com.sbf.lightspeed.system.overrideZeroTransition()
     }
 
     @Deprecated("Deprecated in Java")

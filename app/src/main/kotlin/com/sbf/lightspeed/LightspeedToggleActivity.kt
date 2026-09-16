@@ -19,8 +19,7 @@ class LightspeedToggleActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        @Suppress("DEPRECATION")
-        overridePendingTransition(0, 0)
+        com.sbf.lightspeed.system.overrideZeroTransition()
 
         val target = intent.getStringExtra(EXTRA_TARGET) ?: TARGET_MASTER
         val broadcastIntent = Intent(this, LightspeedAutomationReceiver::class.java).apply {
@@ -34,8 +33,7 @@ class LightspeedToggleActivity : Activity() {
         sendBroadcast(broadcastIntent)
 
         finish()
-        @Suppress("DEPRECATION")
-        overridePendingTransition(0, 0)
+        com.sbf.lightspeed.system.overrideZeroTransition()
     }
 
     companion object {

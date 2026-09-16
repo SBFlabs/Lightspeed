@@ -66,7 +66,7 @@ class CentralCommandActivity : ComponentActivity() {
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
-        overridePendingTransition(0, 0)
+        com.sbf.lightspeed.system.overrideZeroTransition()
     }
 
     override fun onDestroy() {

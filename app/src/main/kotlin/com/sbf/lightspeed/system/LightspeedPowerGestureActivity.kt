@@ -38,41 +38,34 @@ class LightspeedPowerGestureActivity : Activity() {
                     km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                         override fun onDismissSucceeded() {
                             super.onDismissSucceeded()
-                            finishAndRemoveTask()
-                            overridePendingTransition(0, 0)
+                            finish()
                         }
 
                         override fun onDismissError() {
                             super.onDismissError()
-                            finishAndRemoveTask()
-                            overridePendingTransition(0, 0)
+                            finish()
                         }
 
                         override fun onDismissCancelled() {
                             super.onDismissCancelled()
-                            finishAndRemoveTask()
-                            overridePendingTransition(0, 0)
+                            finish()
                         }
                     })
                     window.decorView.postDelayed({
                         if (!isFinishing && !isDestroyed) {
-                            finishAndRemoveTask()
-                            overridePendingTransition(0, 0)
+                            finish()
                         }
                     }, 350)
                 } else {
-                    finishAndRemoveTask()
-                    overridePendingTransition(0, 0)
+                    finish()
                 }
             } else {
                 launchDefaultCamera()
-                finishAndRemoveTask()
-                overridePendingTransition(0, 0)
+                finish()
             }
         } catch (_: Exception) {
             launchDefaultCamera()
-            finishAndRemoveTask()
-            overridePendingTransition(0, 0)
+            finish()
         }
     }
 
@@ -88,5 +81,11 @@ class LightspeedPowerGestureActivity : Activity() {
             val target = if (secureIntent.resolveActivity(pm) != null) secureIntent else intent
             startActivity(target)
         } catch (_: Exception) {}
+    }
+
+    override fun finish() {
+        finishAndRemoveTask()
+        super.finish()
+        overrideZeroTransition()
     }
 }

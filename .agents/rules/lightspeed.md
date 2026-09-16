@@ -71,3 +71,22 @@
 - **Display Rules**:
   * NEVER generate wide horizontal ASCII or Mermaid diagrams that overflow mobile screen widths.
   * Keep all responses, lists, and markdown layouts vertical, compact, concise, and mobile-friendly.
+
+---
+
+# 7. Multi-Agent Ecosystem & Rule Invariance
+- **Tri-Agent Toolchain**:
+  The Founder uses three primary AI agents interchangeably:
+  1. **Antigravity** (Gemini & Claude Sonnet)
+  2. **GitHub Copilot**
+  3. **OpenCode**
+- **Strict Cross-Agent Synchronization Invariant**:
+  * Whenever ANY agent modifies, adds, or refines project rules, constraints, or architecture guidelines, it MUST synchronously mirror the changes across all 7 configuration targets:
+    1. Root Manifest: `AGENTS.md`
+    2. Antigravity / Gemini: `GEMINI.md`
+    3. GitHub Copilot: `.github/copilot-instructions.md`
+    4. OpenCode: `OPENCODE.md`
+    5. Human / Root Reference: `RULES.md`
+    6. Antigravity Local Rules: `.antigravity/rules`
+    7. Agents Local Cache: `.agents/rules/lightspeed.md`
+  * No agent operates in isolation. Every agent is strictly responsible for maintaining unbroken continuity and rule parity for whichever agent collaborates with the Founder next.

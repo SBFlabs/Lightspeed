@@ -474,6 +474,7 @@ fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.Ima
 
 @Composable
 fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: android.graphics.drawable.Drawable?, initialVol: Float, isPinned: Boolean, tint: Color, onPinToggled: (Boolean) -> Unit) {
+    val coroutineScope = rememberCoroutineScope()
     var vol by remember { mutableFloatStateOf(initialVol) }
     var pinned by remember { mutableStateOf(isPinned) }
     // focusLocked = true means THIS app is BLOCKED from stealing focus from others (apply to disruptive apps)
@@ -584,7 +585,7 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                     onValueChange = { newVol ->
                         vol = newVol
                         isMuted = newVol <= 0.05f
-                        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                             LightspeedAppSovereigntyEngine.setAppVolume(pkg, newVol, context)
                         }
                     },
@@ -607,7 +608,7 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                 val newMuted = !isMuted
                 isMuted = newMuted
                 vol = if (newMuted) 0f else 0.8f
-                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     LightspeedAppSovereigntyEngine.setAppMuted(pkg, newMuted, context)
                 }
             },
@@ -631,7 +632,7 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
             onClick = {
                 val newLocked = !focusLocked
                 focusLocked = newLocked
-                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     LightspeedAppSovereigntyEngine.setAppStealthLocked(pkg, newLocked, context)
                 }
             },

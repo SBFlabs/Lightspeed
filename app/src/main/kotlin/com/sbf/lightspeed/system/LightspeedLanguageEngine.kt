@@ -1,8 +1,11 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /**
  * LightspeedLanguageEngine — the global terminology resolver for the Lightspeed app.
@@ -53,9 +56,12 @@ object LightspeedLanguageEngine {
 
     // ─── Lifecycle ──────────────────────────────────────────────────────────
     fun init(context: Context) {
-        val prefs = context.defaultPrefs()
-        val saved = prefs.getString(KEY_LANGUAGE_MODE, null)
-        _mode.value = LanguageMode.fromPref(saved)
+        val appContext = context.applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            val prefs = appContext.defaultPrefs()
+            val saved = prefs.getString(KEY_LANGUAGE_MODE, null)
+            _mode.value = LanguageMode.fromPref(saved)
+        }
     }
 
     fun setMode(context: Context, newMode: LanguageMode) {

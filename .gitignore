@@ -14,3 +14,4 @@
 keystore.properties
 extract_lightspeed.sh
 lightspeed_source_dump.txt
+*.log

@@ -38,7 +38,7 @@ class LightspeedDataBridge(private val context: Context) {
     )
 
     private val appCache = ConcurrentHashMap<String, List<LaunchTarget>>()
-    private val iconCache = ConcurrentHashMap<String, Drawable>()
+    
     private val executor = Executors.newSingleThreadExecutor()
 
     init {
@@ -58,7 +58,7 @@ class LightspeedDataBridge(private val context: Context) {
     }
 
     fun getIcon(packageName: String): Drawable? {
-        return iconCache[packageName] ?: com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, packageName)
+        return com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, packageName)
     }
 
     fun refreshCacheAsync(onComplete: (() -> Unit)? = null) {
@@ -77,13 +77,6 @@ class LightspeedDataBridge(private val context: Context) {
                 val actv = resolveInfo.activityInfo.name
                 val label = resolveInfo.loadLabel(pm)?.toString() ?: pkg
 
-                // Background decode and cache icon using themed IconManager
-                try {
-                    val icon = com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, pkg)
-                    if (icon != null) {
-                        iconCache[pkg] = icon
-                    }
-                } catch (e: Exception) {}
 
                 val assignedCat = classifyApp(appInfo, pkg, label)
                 val targetList = newCache[assignedCat] ?: newCache.getOrPut("other") { mutableListOf() }

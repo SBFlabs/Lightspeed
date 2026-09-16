@@ -38,6 +38,9 @@
 - **Hardware & Host Safety Invariants (Strict 8GB RAM / 4th-Gen i7 Safeguards)**:
   * Zero Background Process / Timer Stacking: NEVER launch multiple Gradle commands, background tasks, or `schedule` asynchronous timers concurrently.
   * Process Awareness & Instant Flush: Always execute `killall -9 java aapt2 2>/dev/null || true` immediately after every compilation to purge any transient compiler memory or native AAPT daemons.
+- **Two-Phase Feature Lifecycle & Refactoring Protocol**:
+  * **Phase 1 (Feature Delivery)**: Build feature, verify data contracts, update `VAULT.md`, commit milestone, and push to private `origin`.
+  * **Phase 2 (Refactoring & Compliance Audit Handoff)**: Immediately upon completing Phase 1 of any feature or milestone, the AI MUST explicitly remind the Founder to start a clean session with a high-capacity reasoning model (Gemini Pro or Claude Sonnet) using the repository's canonical audit prompt (`REFACTORING_AUDIT_PROMPT.md`), followed by rapid surgical execution via Gemini Flash.
 - **AI Core Responsibilities**:
   * Pure Kotlin / Jetpack Compose code creation, modularization, and refactoring.
   * Architectural design, data model expansion, and logic implementations.
@@ -93,4 +96,5 @@
     5. Human / Repository Reference: `RULES.md`
   * **Habitual Documentation & Private Backup**: Any major architecture or feature addition must be documented in `CHANGELOG.md`/`VAULT.md`, synchronized across all 5 manifests, committed to `nightly-refactor`, and habitually pushed to private `origin`.
   * **Habitual Status & Vault Maintenance**: Whenever features are coded, bugs fixed, or runtime tests conducted on physical hardware, agents MUST update the corresponding section and status taxonomy in `VAULT.md` (`[STATUS: SHIPPED & VERIFIED]`, `[STATUS: FIELD TEST NEEDED]`, `[STATUS: ACTIVE BACKLOG]`, etc.) to keep the master architectural roadmap 100% current.
+  * **Habitual Refactoring Phase Handoff**: Upon concluding any feature implementation, agents MUST explicitly prompt the Founder to initiate the Phase 2 refactoring session using `REFACTORING_AUDIT_PROMPT.md` with Gemini Pro or Claude Sonnet before moving on to subsequent features.
   * No agent operates in isolation. Every agent is strictly responsible for maintaining unbroken continuity, privacy locks, and rule parity for whichever agent collaborates with the Founder next.

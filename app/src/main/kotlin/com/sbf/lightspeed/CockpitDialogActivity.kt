@@ -62,7 +62,7 @@ class CockpitDialogActivity : ComponentActivity() {
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
-        com.sbf.lightspeed.system.overrideZeroTransition()
+        overrideZeroTransition()
     }
 
     override fun onDestroy() {

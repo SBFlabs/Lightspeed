@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.SideEffect
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.overrideZeroTransition
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
@@ -66,7 +67,7 @@ class CentralCommandActivity : ComponentActivity() {
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
-        com.sbf.lightspeed.system.overrideZeroTransition()
+        overrideZeroTransition()
     }
 
     override fun onDestroy() {

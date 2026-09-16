@@ -77,16 +77,14 @@
 # 7. Multi-Agent Ecosystem & Rule Invariance
 - **Tri-Agent Toolchain**:
   The Founder uses three primary AI agents interchangeably:
-  1. **Antigravity** (Gemini & Claude Sonnet)
-  2. **GitHub Copilot**
-  3. **OpenCode**
+  1. **Antigravity** (Gemini Pro for planning, Flash for implementation, Claude Sonnet for complex tasks)
+  2. **GitHub Copilot** (Standard Copilot engine)
+  3. **OpenCode** (Third-tier specialized bug-fixing and refactoring backup)
 - **Strict Cross-Agent Synchronization Invariant**:
-  * Whenever ANY agent modifies, adds, or refines project rules, constraints, or architecture guidelines, it MUST synchronously mirror the changes across all 7 configuration targets:
-    1. Root Manifest: `AGENTS.md`
-    2. Antigravity / Gemini: `GEMINI.md`
-    3. GitHub Copilot: `.github/copilot-instructions.md`
-    4. OpenCode: `OPENCODE.md`
-    5. Human / Root Reference: `RULES.md`
-    6. Antigravity Local Rules: `.antigravity/rules`
-    7. Agents Local Cache: `.agents/rules/lightspeed.md`
+  * Whenever ANY agent modifies, adds, or refines project rules, constraints, or architecture guidelines, it MUST synchronously mirror the changes across all 5 official configuration targets:
+    1. Canonical Root Manifest: `AGENTS.md` (Read by Antigravity & OpenCode)
+    2. Antigravity / Gemini Target: `GEMINI.md`
+    3. GitHub Copilot Target: `.github/copilot-instructions.md`
+    4. OpenCode Dedicated Target: `OPENCODE.md`
+    5. Human / Repository Reference: `RULES.md`
   * No agent operates in isolation. Every agent is strictly responsible for maintaining unbroken continuity and rule parity for whichever agent collaborates with the Founder next.

@@ -558,10 +558,10 @@ fun HudExperimentalLabsSection(
                 )
 
                 val powerGestures = listOf(
-                    Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS),
-                    Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS),
-                    Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD),
-                    Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
+                    Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", PowerTriggerSlot.POWER_SINGLE_PRESS),
+                    Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", PowerTriggerSlot.POWER_DOUBLE_PRESS),
+                    Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", PowerTriggerSlot.POWER_HOLD),
+                    Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
                 )
 
                 powerGestures.forEach { (prefKey, title, slot) ->
@@ -571,7 +571,7 @@ fun HudExperimentalLabsSection(
                         prefKey = prefKey,
                         title = title,
                         slot = slot,
-                        isSinglePress = slot == LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS,
+                        isSinglePress = slot == PowerTriggerSlot.POWER_SINGLE_PRESS,
                         isSinglePressUnlocked = isSinglePressUnlocked,
                         onSinglePressUnlockStep = {
                             val newCount = singlePressTapCount + 1

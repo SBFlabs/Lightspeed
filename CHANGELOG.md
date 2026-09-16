@@ -9,6 +9,10 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
   * Full support for Android 14/15 native zero-duration activity transitions via `Activity.overrideZeroTransition()`, eliminating legacy transition flicker across all 10 system and cockpit activities.
   * Modern `setShowWhenLocked()` and `setTurnScreenOn()` window APIs with strict backward-compatibility fallbacks.
   * Edge-to-edge system bar compliance via Material 3 dynamic theming.
+* **Zero-Allocation Render Pipeline & Monolith Decomposition (<500 lines)**:
+  * Replaced in-canvas path allocations with pre-allocated path objects (`chamferedPath.rewind()`, `circleClipPath.rewind()`, `diamondPath`, `gearPath`, `remember { Path() }`) across `LightspeedHudRenderer`, `DeepSpaceRenderer`, `LightspeedNotchOverlay`, and `RefuelingBatteryTelemetry`.
+  * Preserved full floating-point fidelity in `LightspeedBackupEngine` via explicit type serialization and heuristic float parsing.
+  * Decomposed all monolithic classes (>5,500 lines) into 12 targeted components with all files strictly under 500 lines: `ScrollableAppWidgetContainer`, `RefuelingWidgetControls`, `LightspeedCruiseOverlaySpatial`, `LightspeedCruiseOverlayActions`, `LightspeedKeySlots`, `LightspeedPowerKeyEngine`, `LightspeedKeyHudNav`, `CentralCommandModel`, `CentralCommandState`, `PerimeterServiceCard`, `PerimeterTelemetryBanner`, `PerimeterDialogHeader`, `LightspeedAccessibilityOverlays`, and `LightspeedAccessibilityReceiver`.
 * **Modular Avionics Architecture (Phase 1 & 2)**:
   * Decomposed monolithic controllers into decoupled domain units: `LightspeedCruiseOverlayTouch` & `LightspeedCruiseOverlayDraw`, `HudStripTab` 4-deck breakdown, `CentralCommandDialogs`, `DeflectorStylingComponents`, `FlightControlDeckComponents`, `SliderCalibrationDialog`, and `CoreCoolingComponents`.
   * Reduced maximum file sizes across the settings suite by over 60%, drastically reducing re-composition overhead.

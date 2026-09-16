@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.MediaStore
 import com.sbf.lightspeed.LightspeedAccessibilityService
-import com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot
+import com.sbf.lightspeed.system.PowerTriggerSlot
 
 /**
  * Intercepts the native Android double-click power hardware trigger.

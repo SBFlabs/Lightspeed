@@ -64,18 +64,20 @@ object LightspeedHudRenderer {
         style = Paint.Style.STROKE
     }
 
+    private val chamferedPath = Path()
+
     private fun createChamferedPath(rect: RectF, chamfer: Float): Path {
-        val path = Path()
-        path.moveTo(rect.left + chamfer, rect.top)
-        path.lineTo(rect.right - chamfer, rect.top)
-        path.lineTo(rect.right, rect.top + chamfer)
-        path.lineTo(rect.right, rect.bottom - chamfer)
-        path.lineTo(rect.right - chamfer, rect.bottom)
-        path.lineTo(rect.left + chamfer, rect.bottom)
-        path.lineTo(rect.left, rect.bottom - chamfer)
-        path.lineTo(rect.left, rect.top + chamfer)
-        path.close()
-        return path
+        chamferedPath.rewind()
+        chamferedPath.moveTo(rect.left + chamfer, rect.top)
+        chamferedPath.lineTo(rect.right - chamfer, rect.top)
+        chamferedPath.lineTo(rect.right, rect.top + chamfer)
+        chamferedPath.lineTo(rect.right, rect.bottom - chamfer)
+        chamferedPath.lineTo(rect.right - chamfer, rect.bottom)
+        chamferedPath.lineTo(rect.left + chamfer, rect.bottom)
+        chamferedPath.lineTo(rect.left, rect.bottom - chamfer)
+        chamferedPath.lineTo(rect.left, rect.top + chamfer)
+        chamferedPath.close()
+        return chamferedPath
     }
 
     /**

@@ -34,24 +34,42 @@ object LightspeedBackupEngine {
             put("device", "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})")
 
             val settingsObject = JSONObject()
+            val typesObject = JSONObject()
             for ((key, value) in allEntries) {
                 if (key.startsWith("pending_")) continue // Skip transient state
                 when (value) {
-                    is Boolean -> settingsObject.put(key, value)
-                    is Int -> settingsObject.put(key, value)
-                    is Long -> settingsObject.put(key, value)
-                    is Float -> settingsObject.put(key, value.toDouble())
-                    is String -> settingsObject.put(key, value)
+                    is Boolean -> {
+                        settingsObject.put(key, value)
+                        typesObject.put(key, "bool")
+                    }
+                    is Int -> {
+                        settingsObject.put(key, value)
+                        typesObject.put(key, "int")
+                    }
+                    is Long -> {
+                        settingsObject.put(key, value)
+                        typesObject.put(key, "long")
+                    }
+                    is Float -> {
+                        settingsObject.put(key, value.toDouble())
+                        typesObject.put(key, "float")
+                    }
+                    is String -> {
+                        settingsObject.put(key, value)
+                        typesObject.put(key, "string")
+                    }
                     is Set<*> -> {
                         val arr = JSONArray()
                         value.forEach { item ->
                             if (item != null) arr.put(item.toString())
                         }
                         settingsObject.put(key, arr)
+                        typesObject.put(key, "set")
                     }
                 }
             }
             put("settings", settingsObject)
+            put("types", typesObject)
 
             // Embed custom shortcut icon bitmaps as Base64 strings
             // Includes: actual shortcuts (shortcut:/custom:) AND manually overridden app icons
@@ -153,6 +171,7 @@ object LightspeedBackupEngine {
             } else {
                 root
             }
+            val typesObject = root.optJSONObject("types")
             val prefs = context.defaultPrefs()
             val editor = prefs.edit()
 
@@ -160,7 +179,7 @@ object LightspeedBackupEngine {
             val keys = settingsObject.keys()
             while (keys.hasNext()) {
                 val key = keys.next()
-                if (key == "app" || key == "packageName" || key == "backupVersion" || key == "exportedAt" || key == "exportedAtFormatted" || key == "device") {
+                if (key == "app" || key == "packageName" || key == "backupVersion" || key == "exportedAt" || key == "exportedAtFormatted" || key == "device" || key == "types") {
                     continue
                 }
 
@@ -169,16 +188,19 @@ object LightspeedBackupEngine {
                 }
 
                 val value = settingsObject.get(key)
+                val declaredType = typesObject?.optString(key)
+                val existingVal = prefs.all[key]
+
                 when (value) {
                     is Boolean -> {
                         editor.putBoolean(key, value)
                         importedCount++
                     }
                     is Number -> {
-                        if (key.endsWith("_time") || key.endsWith("_timestamp")) {
-                            editor.putLong(key, value.toLong())
-                        } else if (key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
+                        if (declaredType == "float" || existingVal is Float || (declaredType.isNullOrEmpty() && (value is Double || key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD || key.contains("threshold") || key.contains("scale") || key.contains("friction") || key.contains("sensitivity") || key.contains("velocity")))) {
                             editor.putFloat(key, value.toFloat())
+                        } else if (declaredType == "long" || existingVal is Long || key.endsWith("_time") || key.endsWith("_timestamp")) {
+                            editor.putLong(key, value.toLong())
                         } else {
                             editor.putInt(key, value.toInt())
                         }
@@ -190,7 +212,7 @@ object LightspeedBackupEngine {
                                 editor.putBoolean(key, value.toBoolean())
                             }
                             else -> {
-                                if (key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
+                                if (declaredType == "float" || existingVal is Float || key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
                                     val floatVal = value.toFloatOrNull()
                                     if (floatVal != null) {
                                         editor.putFloat(key, floatVal)
@@ -199,7 +221,7 @@ object LightspeedBackupEngine {
                                     }
                                 } else {
                                     val intVal = value.toIntOrNull()
-                                    if (intVal != null && (key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE)) {
+                                    if (intVal != null && (declaredType == "int" || existingVal is Int || key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE)) {
                                         editor.putInt(key, intVal)
                                     } else {
                                         editor.putString(key, value)

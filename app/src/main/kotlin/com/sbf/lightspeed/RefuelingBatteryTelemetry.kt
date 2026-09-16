@@ -51,6 +51,7 @@ fun BatteryTelemetryCircle(
 
 
     val history = remember { mutableStateListOf<Pair<Float, Float>>() }
+    val graphPath = remember { Path() }
     LaunchedEffect(isCharging) {
         while(isCharging) {
             history.add(Pair(wattage, batteryTempC))
@@ -74,7 +75,7 @@ fun BatteryTelemetryCircle(
 
             // --- DRAW BACKGROUND GRAPH ---
             if (history.size > 1) {
-                val graphPath = Path()
+                graphPath.reset()
                 val innerRadius = radius * 0.7f
                 val graphWidth = innerRadius * 1.5f
                 val graphHeight = innerRadius * 1.0f

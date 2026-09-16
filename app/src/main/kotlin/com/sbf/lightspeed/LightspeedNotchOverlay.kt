@@ -89,6 +89,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
 
     internal val iconBitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     internal val circularIconCache = ConcurrentHashMap<String, Bitmap>()
+    private val circleClipPath = Path()
 
     // Marquee State Tracking
     internal var currentTextKey = ""
@@ -345,10 +346,11 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         return try {
             val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
-            val path = Path().apply {
-                addCircle(sizePx / 2f, sizePx / 2f, sizePx / 2f, Path.Direction.CW)
+            synchronized(circleClipPath) {
+                circleClipPath.rewind()
+                circleClipPath.addCircle(sizePx / 2f, sizePx / 2f, sizePx / 2f, Path.Direction.CW)
+                canvas.clipPath(circleClipPath)
             }
-            canvas.clipPath(path)
             rawDrawable.setBounds(0, 0, sizePx, sizePx)
             rawDrawable.draw(canvas)
             circularIconCache[cacheKey] = bitmap

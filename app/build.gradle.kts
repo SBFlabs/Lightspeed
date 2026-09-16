@@ -75,10 +75,11 @@ android {
 }
 
 dependencies {
-    // Elevated system IPC (Shizuku & compatible forks)
+    // Elevated system IPC (Shizuku & compatible forks) - Apache License 2.0 (Zero copyleft)
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
 
+    // AndroidX & Jetpack Compose - Apache License 2.0
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")

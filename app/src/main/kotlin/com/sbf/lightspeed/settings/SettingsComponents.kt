@@ -39,7 +39,7 @@ fun PowerGestureMappingRow(
     prefs: SharedPreferences,
     prefKey: String,
     title: String,
-    slot: com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot,
+    slot: com.sbf.lightspeed.system.PowerTriggerSlot,
     isSinglePress: Boolean,
     isSinglePressUnlocked: Boolean,
     onSinglePressUnlockStep: () -> Unit,
@@ -51,13 +51,13 @@ fun PowerGestureMappingRow(
     var currentValue by remember {
         mutableStateOf(
             if (isSinglePress && !isSinglePressUnlocked) "none"
-            else prefs.getString(prefKey, if (slot == com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD) "system:tactical_flyout" else "none") ?: "none"
+            else prefs.getString(prefKey, if (slot == com.sbf.lightspeed.system.PowerTriggerSlot.POWER_HOLD) "system:tactical_flyout" else "none") ?: "none"
         )
     }
 
     LaunchedEffect(isSinglePressUnlocked) {
         currentValue = if (isSinglePress && !isSinglePressUnlocked) "none"
-        else prefs.getString(prefKey, if (slot == com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD) "system:tactical_flyout" else "none") ?: "none"
+        else prefs.getString(prefKey, if (slot == com.sbf.lightspeed.system.PowerTriggerSlot.POWER_HOLD) "system:tactical_flyout" else "none") ?: "none"
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -128,7 +128,7 @@ fun PowerGestureMappingRow(
                                 modifier = Modifier.size(15.dp)
                             )
                             when (slot) {
-                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_SINGLE_PRESS -> {
+                                com.sbf.lightspeed.system.PowerTriggerSlot.POWER_SINGLE_PRESS -> {
                                     Text(
                                         text = "1×",
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
@@ -137,7 +137,7 @@ fun PowerGestureMappingRow(
                                         color = if (isLocked) Color.LightGray else MaterialTheme.colorScheme.primary
                                     )
                                 }
-                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS -> {
+                                com.sbf.lightspeed.system.PowerTriggerSlot.POWER_DOUBLE_PRESS -> {
                                     Text(
                                         text = "2×",
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
@@ -146,7 +146,7 @@ fun PowerGestureMappingRow(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_HOLD -> {
+                                com.sbf.lightspeed.system.PowerTriggerSlot.POWER_HOLD -> {
                                     Icon(
                                         imageVector = Icons.Default.Timer,
                                         contentDescription = "Hold",
@@ -154,7 +154,7 @@ fun PowerGestureMappingRow(
                                         modifier = Modifier.size(13.dp)
                                     )
                                 }
-                                com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_PRESS_THEN_HOLD -> {
+                                com.sbf.lightspeed.system.PowerTriggerSlot.POWER_PRESS_THEN_HOLD -> {
                                     Text(
                                         text = "➔",
                                         fontSize = 10.sp,
@@ -351,7 +351,7 @@ fun PowerGestureMappingRow(
                 }
             }
 
-            if (slot == com.sbf.lightspeed.system.LightspeedKeyEngine.PowerTriggerSlot.POWER_DOUBLE_PRESS && currentValue != "none") {
+            if (slot == com.sbf.lightspeed.system.PowerTriggerSlot.POWER_DOUBLE_PRESS && currentValue != "none") {
                 val isDoublePressDefault = remember(currentValue) {
                     try {
                         val pm = context.packageManager

@@ -33,6 +33,9 @@ internal class DeepSpaceRenderer(
     private val highlightPaint: Paint
 ) {
 
+    private val diamondPath = Path()
+    private val gearPath = Path()
+
     // -------------------------------------------------------------------------
     // Warp launch state — written by LightspeedCruiseOverlay, read here
     // -------------------------------------------------------------------------
@@ -468,15 +471,14 @@ internal class DeepSpaceRenderer(
             }
             "diamond" -> {
                 val dOffset = half * 1.05f
-                val path = Path().apply {
-                    moveTo(reticleX, reticleY - dOffset)
-                    lineTo(reticleX + dOffset, reticleY)
-                    lineTo(reticleX, reticleY + dOffset)
-                    lineTo(reticleX - dOffset, reticleY)
-                    close()
-                }
+                diamondPath.rewind()
+                diamondPath.moveTo(reticleX, reticleY - dOffset)
+                diamondPath.lineTo(reticleX + dOffset, reticleY)
+                diamondPath.lineTo(reticleX, reticleY + dOffset)
+                diamondPath.lineTo(reticleX - dOffset, reticleY)
+                diamondPath.close()
                 elementPaint.strokeWidth = 1.8f * d
-                canvas.drawPath(path, elementPaint)
+                canvas.drawPath(diamondPath, elementPaint)
                 elementPaint.style = Paint.Style.FILL
                 canvas.drawCircle(reticleX, reticleY - dOffset, 2.2f * d, elementPaint)
                 canvas.drawCircle(reticleX, reticleY + dOffset, 2.2f * d, elementPaint)
@@ -751,7 +753,7 @@ internal class DeepSpaceRenderer(
             canvas.drawLine(x1, y1, x2, y2, elementPaint)
         }
 
-        val gearPath = Path()
+        gearPath.rewind()
         val toothAngleStep = (2.0 * Math.PI) / teethCount
         val toothInnerR = outerR - (toothDepth * 0.25f)
         val toothOuterR = outerR + toothDepth
@@ -832,15 +834,14 @@ internal class DeepSpaceRenderer(
             }
             "diamond" -> {
                 val dOffset = half * 1.05f
-                val path = Path().apply {
-                    moveTo(targetCX, targetCY - dOffset)
-                    lineTo(targetCX + dOffset, targetCY)
-                    lineTo(targetCX, targetCY + dOffset)
-                    lineTo(targetCX - dOffset, targetCY)
-                    close()
-                }
+                diamondPath.rewind()
+                diamondPath.moveTo(targetCX, targetCY - dOffset)
+                diamondPath.lineTo(targetCX + dOffset, targetCY)
+                diamondPath.lineTo(targetCX, targetCY + dOffset)
+                diamondPath.lineTo(targetCX - dOffset, targetCY)
+                diamondPath.close()
                 elementPaint.strokeWidth = 2f * density
-                canvas.drawPath(path, elementPaint)
+                canvas.drawPath(diamondPath, elementPaint)
                 elementPaint.style = Paint.Style.FILL
                 canvas.drawCircle(targetCX, targetCY - dOffset, 2.2f * density, elementPaint)
                 canvas.drawCircle(targetCX, targetCY + dOffset, 2.2f * density, elementPaint)

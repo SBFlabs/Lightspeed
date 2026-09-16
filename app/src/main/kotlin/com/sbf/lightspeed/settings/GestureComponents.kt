@@ -752,5 +752,6 @@ fun GestureMappingRow(
         }
     }
 }
+}
 
 

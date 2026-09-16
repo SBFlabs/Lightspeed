@@ -554,22 +554,11 @@ fun GestureMappingRow(
     }
 
     val activeLabel = remember(currentRawValue, labelCache[currentRawValue]) {
-        if (currentRawValue.startsWith("shortcut:")) {
-            val raw = currentRawValue.substringAfter("shortcut:")
-            if (raw.contains(";pkg=")) {
-                val pkg = raw.substringAfter(";pkg=").substringBefore(";")
-                val appLabel = labelCache["app:$pkg"] ?: pkg
-                val label = if (raw.contains(";label=")) {
-                    val rawL = raw.substringAfter(";label=").substringBefore(";")
-                    try { android.net.Uri.decode(rawL) } catch (_: Exception) { rawL }
-                } else ""
-                if (label.isNotEmpty()) "$appLabel ($label)" else "$appLabel (Pinned)"
-            } else if (raw.contains("intent:") || raw.contains("b64uri=")) {
-                val appLabel = com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(context, currentRawValue)
-                if (appLabel.isNotBlank()) appLabel else "Shortcut Action"
-            } else {
-                labelCache[currentRawValue] ?: currentRawValue
-            }
+        if (currentRawValue.isBlank() || currentRawValue == "none") {
+            "None"
+        } else if (currentRawValue.startsWith("shortcut:")) {
+            val resolved = com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(context, currentRawValue)
+            if (resolved.isNotBlank()) resolved else (labelCache[currentRawValue] ?: currentRawValue)
         } else {
             labelCache[currentRawValue] ?: currentRawValue
         }

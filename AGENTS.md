@@ -92,4 +92,5 @@
     4. OpenCode Dedicated Target: `OPENCODE.md`
     5. Human / Repository Reference: `RULES.md`
   * **Habitual Documentation & Private Backup**: Any major architecture or feature addition must be documented in `CHANGELOG.md`/`VAULT.md`, synchronized across all 5 manifests, committed to `nightly-refactor`, and habitually pushed to private `origin`.
+  * **Habitual Status & Vault Maintenance**: Whenever features are coded, bugs fixed, or runtime tests conducted on physical hardware, agents MUST update the corresponding section and status taxonomy in `VAULT.md` (`[STATUS: SHIPPED & VERIFIED]`, `[STATUS: FIELD TEST NEEDED]`, `[STATUS: ACTIVE BACKLOG]`, etc.) to keep the master architectural roadmap 100% current.
   * No agent operates in isolation. Every agent is strictly responsible for maintaining unbroken continuity, privacy locks, and rule parity for whichever agent collaborates with the Founder next.

@@ -55,7 +55,19 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
   - Serves as the single global resolution foundation for future real-world languages (Arabic, Chinese, RTL).
 
 --------------------------------------------------------------------------------
-PART 1: THE BACK BURNER (ESTABLISHED DEFERRED ARCHITECTURE)
+MASTER STATUS TAXONOMY & AUDIT CONVENTIONS
+--------------------------------------------------------------------------------
+Every architectural initiative, feature vector, and bug in this Vault is governed by strict status taxonomy:
+* [STATUS: SHIPPED & VERIFIED (v1.4.0)] : Fully implemented, verified on physical hardware, integrated in the active release.
+* [STATUS: FIELD TEST NEEDED (RUNTIME AUDIT)] : Implemented in code, awaiting live device testing / deep-sleep / edge verification.
+* [STATUS: ACTIVE BACKLOG (NEXT SPRINT)] : Fully architected and ready for immediate engineering execution.
+* [STATUS: PAUSED / EXPERIMENTAL LABS] : Quarantined behind settings flags while deeper framework/OS hooks are developed.
+* [STATUS: DEFERRED (THE BACK BURNER)] : Established architectural ideas held in stasis for future milestones.
+* [STATUS: DREAMS & FUTURE VISIONS] : Raw creative accumulation and long-term dream registry.
+* [STATUS: BUG RESOLVED] : Fixed in code, regression-tested, and verified on device.
+
+--------------------------------------------------------------------------------
+PART 1: THE BACK BURNER (ESTABLISHED DEFERRED ARCHITECTURE) [STATUS: DEFERRED]
 --------------------------------------------------------------------------------
 
 1. Hover Peeking (Proximity Pre-Trigger):
@@ -341,7 +353,7 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - *Omniscient Audio Dock*: Gated horizontal pull-out gesture on side deflectors and vertical pull-out on Sensor Deck behind `KEY_OMNISCIENT_AUDIO_DOCK_ENABLED` (`pref_omniscient_audio_dock_enabled`, default: false) to eliminate accidental dock triggers during volume scrubbing.
   - *Tactical Hardware Keys*: Pruned confusing, non-functional power button card from the hardware keys deck; power button remapping safely isolated in Experimental Labs.
 
-[STATUS: WORK IN PROGRESS & PAUSED REDESIGN QUEUE]
+[STATUS: PAUSED / EXPERIMENTAL LABS]
 * Audio Sovereignty & The Omniscient Audio Dock (MultiSound Concurrent Playback & Per-App Volume):
   - Objective: Parity with Samsung SoundAssistant / MultiSound ("Locking" apps like Podium/Spotify so they play concurrently alongside games or flashcard apps like AnkiDroid without pausing or ducking).
   - Technical Findings:
@@ -353,7 +365,7 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Current status: Reverted touch takeover to eliminate synthetic spring jitter/shivering.
   - Active Objective: Cleanly detect when child ListView/ScrollView does not overflow and hand off vertical scroll deltas to the dashboard ScrollState without fighting native gesture detectors or introducing synthetic spring inertia.
 
-[STATUS: NOT YET IMPLEMENTED (ACTIVE BACKLOG & NEXT PRIORITIES)]
+[STATUS: ACTIVE BACKLOG (NEXT SPRINTS)]
 1. "Deep Space" Aesthetic Unification:
    - Unify the background graphics engine between Cockpit Hangar and Category Cruise into a singular "Deep Space" environment (cosmic starfield, gimbal rings, warp surge transitions).
 2. Refueling Bay Toolbar Telemetry Chip Action:
@@ -443,13 +455,13 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
    - Kinetic Wrist-Flip Camera Gesture: Rapid double-twist / back-and-forth wrist flip kinetic sensor gesture (gyroscope and accelerometer kinetic signature recognition) to wake device and launch camera instantly.
 
 
-[STATUS: EXPLICITLY DEFERRED (THE BACK BURNER)]
+[STATUS: DEFERRED (THE BACK BURNER)]
 1. Orbital Capsule Polish: Micro-telemetry and layout snugness for punch-hole camera cutouts.
 2. Power Button Hardware Remapping: Ignition Override in experimental labs with 7-tap safety interlock.
 3. Emergency Shizuku JITSON: Daemon keep-alive pulses.
 
 --------------------------------------------------------------------------------
-PART 5: CONVERGENCE MILESTONE 1.4.0 — ARCHITECTURAL MODULARIZATION & SBF LABS CLOUD LAUNCH
+PART 5: CONVERGENCE MILESTONE 1.4.0 — ARCHITECTURAL MODULARIZATION & SBF LABS CLOUD LAUNCH [STATUS: SHIPPED & VERIFIED (v1.4.0)]
 --------------------------------------------------------------------------------
 
 [COMPLETED & DEPLOYED MILESTONES (2026-09-16)]

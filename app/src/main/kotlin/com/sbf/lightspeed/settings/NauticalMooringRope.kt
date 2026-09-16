@@ -222,6 +222,41 @@ private fun DrawScope.drawNauticalRope(severFraction: Float) {
     drawRopeSegment(0f, leftRopeEndX)
     drawRopeSegment(rightRopeStartX, width)
 
+    // Draw animated tactical directional arrows along cord
+    val arrowColor = if (severFraction < 0.5f) colorHighlight.copy(alpha = 0.85f) else Color(0xFFFF8A65).copy(alpha = 0.85f)
+    val leftArrowX = (leftRopeEndX * 0.55f).coerceAtLeast(16.dp.toPx())
+    val rightArrowX = (rightRopeStartX + (width - rightRopeStartX) * 0.45f).coerceAtMost(width - 16.dp.toPx())
+    val arrowSize = 5.dp.toPx()
+
+    // Left Arrow: Inward (-->) when knotted, Outward (<--) when severed
+    val leftPointsInward = severFraction < 0.5f
+    val leftArrowPath = Path().apply {
+        if (leftPointsInward) {
+            moveTo(leftArrowX - arrowSize, centerY - arrowSize)
+            lineTo(leftArrowX + arrowSize, centerY)
+            lineTo(leftArrowX - arrowSize, centerY + arrowSize)
+        } else {
+            moveTo(leftArrowX + arrowSize, centerY - arrowSize)
+            lineTo(leftArrowX - arrowSize, centerY)
+            lineTo(leftArrowX + arrowSize, centerY + arrowSize)
+        }
+    }
+    drawPath(path = leftArrowPath, color = arrowColor, style = Stroke(width = 2.dp.toPx()))
+
+    // Right Arrow: Inward (<--) when knotted, Outward (-->) when severed
+    val rightArrowPath = Path().apply {
+        if (leftPointsInward) {
+            moveTo(rightArrowX + arrowSize, centerY - arrowSize)
+            lineTo(rightArrowX - arrowSize, centerY)
+            lineTo(rightArrowX + arrowSize, centerY + arrowSize)
+        } else {
+            moveTo(rightArrowX - arrowSize, centerY - arrowSize)
+            lineTo(rightArrowX + arrowSize, centerY)
+            lineTo(rightArrowX - arrowSize, centerY + arrowSize)
+        }
+    }
+    drawPath(path = rightArrowPath, color = arrowColor, style = Stroke(width = 2.dp.toPx()))
+
     if (severFraction < 0.15f) {
         // --- KNOTTED STATE (Reef Knot / Interlocking Nautical Loops) ---
         val knotAlpha = 1f - (severFraction / 0.15f)

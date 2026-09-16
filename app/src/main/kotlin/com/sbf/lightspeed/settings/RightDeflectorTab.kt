@@ -100,6 +100,7 @@ fun RightDeflectorTabContent(
     var isRightUnifiedGesturesExpanded by isRightUnifiedGesturesExpandedState
     var isRightUnifiedScrubExpanded by isRightUnifiedScrubExpandedState
     var isRightScrubLinked by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isLeft = false)) }
+    val coroutineScope = rememberCoroutineScope()
     var isTopExpanded by isTopExpandedState
     var isTopGeoExpanded by isTopGeoExpandedState
     var isTopGesturesExpanded by isTopGesturesExpandedState
@@ -415,6 +416,11 @@ fun RightDeflectorTabContent(
                                                                                     if (newLinked) {
                                                                                         val topVal = prefs.getString("pref_macro_action_TOP_SCRUBBING", "system:brightness") ?: "system:brightness"
                                                                                         prefs.edit().putString("pref_macro_action_BOTTOM_SCRUBBING", topVal).apply()
+                                                                                    }
+                                                                                    coroutineScope.launch {
+                                                                                        try {
+                                                                                            listState2.animateScrollToItem(index = 2, scrollOffset = 0)
+                                                                                        } catch (_: Exception) {}
                                                                                     }
                                                                                 },
                                                                                 title = "RIGHT FLANK MOORING ROPE",

@@ -102,6 +102,7 @@ fun LeftDeflectorTabContent(
     var isLeftUnifiedGesturesExpanded by isLeftUnifiedGesturesExpandedState
     var isLeftUnifiedScrubExpanded by isLeftUnifiedScrubExpandedState
     var isLeftScrubLinked by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isLeft = true)) }
+    val coroutineScope = rememberCoroutineScope()
     var pinnedSection0 by pinnedSection0State
     var sectionOrder0Str by sectionOrder0StrState
     var showUnifyInfoDialog by showUnifyInfoDialogState
@@ -369,6 +370,11 @@ fun LeftDeflectorTabContent(
                                                                     if (newLinked) {
                                                                         val topVal = prefs.getString("pref_macro_action_LEFT_TOP_SCRUBBING", "system:brightness") ?: "system:brightness"
                                                                         prefs.edit().putString("pref_macro_action_LEFT_BOTTOM_SCRUBBING", topVal).apply()
+                                                                    }
+                                                                    coroutineScope.launch {
+                                                                        try {
+                                                                            listState0.animateScrollToItem(index = 2, scrollOffset = 0)
+                                                                        } catch (_: Exception) {}
                                                                     }
                                                                 },
                                                                 title = "LEFT FLANK MOORING ROPE",

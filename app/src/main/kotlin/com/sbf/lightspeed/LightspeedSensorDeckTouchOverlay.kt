@@ -131,7 +131,7 @@ class LightspeedSensorDeckTouchOverlay(
     }
 
     private fun initScrubStateAndHud(scrubType: String) {
-        val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR_SCRUBBING"
+        val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR"
         val hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, scrubType)
 
         when (scrubType) {
@@ -200,7 +200,7 @@ class LightspeedSensorDeckTouchOverlay(
             val steps = (scrubAccumulator / stepThreshold).toInt()
             scrubAccumulator %= stepThreshold
 
-            val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR_SCRUBBING"
+            val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR"
             val hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, activeScrubType)
 
             when (activeScrubType) {
@@ -454,27 +454,6 @@ class LightspeedSensorDeckTouchOverlay(
                 }
 
                 if (isHorizontalEngaged) {
-                    // Check Long Sweep Scrubbing (continuous swipe past threshold)
-                    val assignedScrub = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "none")
-                    val (effectiveScrub, resolvedKey) = if (assignedScrub != null && assignedScrub != "none" && isScrubAction(assignedScrub)) {
-                        assignedScrub to "pref_macro_action_STATUSBAR_SCRUBBING"
-                    } else {
-                        null to null
-                    }
-                    if (effectiveScrub != null && abs(rawDx) > threshold * 1.8f && !isScrubbing) {
-                        isScrubbing = true
-                        isHoldFired = true
-                        uiHandler.removeCallbacks(holdRunnable)
-                        activeScrubType = normalizeScrubAction(effectiveScrub)
-                        activeScrubActionKey = resolvedKey
-                        lastScrubRawX = event.rawX
-                        lastScrubRawY = event.rawY
-                        scrubAccumulator = 0f
-                        triggerHaptic(35, 180)
-                        initScrubStateAndHud(activeScrubType)
-                        return true
-                    }
-
                     if (currentGesture == "SWIPE_RIGHT" && event.x > furthestX) furthestX = event.x
                     if (currentGesture == "SWIPE_LEFT"  && event.x < furthestX) furthestX = event.x
 

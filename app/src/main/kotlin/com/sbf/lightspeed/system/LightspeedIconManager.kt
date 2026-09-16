@@ -40,6 +40,7 @@ object LightspeedIconManager {
     private val calendarPrefixMap = ConcurrentHashMap<String, String>()
 
     private val bitmapCache = android.util.LruCache<String, Bitmap>(350)
+    val temporaryPickerCache = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
     private val drawableCache = android.util.LruCache<String, Drawable>(350)
 
     private var currentLoadedPack: String? = null
@@ -440,11 +441,12 @@ object LightspeedIconManager {
     fun getIconBitmap(context: Context, tokenOrPkg: String, useCache: Boolean = true): Bitmap? {
         if (tokenOrPkg.isBlank()) return null
         if (useCache) bitmapCache.get(tokenOrPkg)?.let { return it }
+        if (!useCache) temporaryPickerCache[tokenOrPkg]?.let { return it }
 
         val drawable = getIconDrawable(context, tokenOrPkg) ?: return null
         val bitmap = convertDrawableToBitmap(drawable)
         if (bitmap != null) {
-            if (useCache) bitmapCache.put(tokenOrPkg, bitmap)
+            if (useCache) bitmapCache.put(tokenOrPkg, bitmap) else temporaryPickerCache[tokenOrPkg] = bitmap
         }
         return bitmap
     }

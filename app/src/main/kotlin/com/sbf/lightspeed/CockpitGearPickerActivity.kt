@@ -55,6 +55,8 @@ class CockpitGearPickerActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        com.sbf.lightspeed.system.LightspeedIconManager.temporaryPickerCache.clear()
+        com.sbf.lightspeed.system.LightspeedShortcutManager.temporaryPickerCache.clear()
         val setId = intent.getStringExtra("SET_ID")
         val isSingleSelect = !intent.getStringExtra("SINGLE_SELECT_PREF_KEY").isNullOrBlank()
         if (!isSingleSelect && !setId.isNullOrBlank()) {

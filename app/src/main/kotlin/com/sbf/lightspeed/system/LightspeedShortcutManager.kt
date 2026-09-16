@@ -40,6 +40,7 @@ object LightspeedShortcutManager {
     private const val TAG = "LightspeedShortcut"
 
     private val bitmapCache = android.util.LruCache<String, Bitmap>(350)
+    val temporaryPickerCache = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
     private val drawableCache = android.util.LruCache<String, Drawable>(350)
 
     fun clearMemoryCache() {
@@ -432,16 +433,17 @@ object LightspeedShortcutManager {
     fun resolveIconBitmap(context: Context, token: String, useCache: Boolean = true): Bitmap? {
         if (token.isBlank() || token == "none") return null
         if (useCache) bitmapCache.get(token)?.let { return it }
+        if (!useCache) temporaryPickerCache[token]?.let { return it }
 
         val d = resolveIconDrawable(context, token) ?: return null
         if (d is BitmapDrawable && d.bitmap != null) {
             val bmp = d.bitmap
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bmp.config == Bitmap.Config.HARDWARE) {
                 val softwareBmp = bmp.copy(Bitmap.Config.ARGB_8888, false)
-                if (useCache) bitmapCache.put(token, softwareBmp)
+                if (useCache) bitmapCache.put(token, softwareBmp) else temporaryPickerCache[token] = softwareBmp
                 return softwareBmp
             }
-            if (useCache) bitmapCache.put(token, bmp)
+            if (useCache) bitmapCache.put(token, bmp) else temporaryPickerCache[token] = bmp
             return bmp
         }
 
@@ -452,7 +454,7 @@ object LightspeedShortcutManager {
             val canvas = Canvas(bmp)
             d.setBounds(0, 0, w, h)
             d.draw(canvas)
-            if (useCache) bitmapCache.put(token, bmp)
+            if (useCache) bitmapCache.put(token, bmp) else temporaryPickerCache[token] = bmp
             bmp
         } catch (_: Exception) { null }
     }

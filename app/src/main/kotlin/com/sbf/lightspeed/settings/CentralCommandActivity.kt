@@ -72,6 +72,8 @@ class CentralCommandActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        com.sbf.lightspeed.system.LightspeedIconManager.temporaryPickerCache.clear()
+        com.sbf.lightspeed.system.LightspeedShortcutManager.temporaryPickerCache.clear()
         isActive = false
     }
 }

@@ -14,7 +14,13 @@
 - **Nightly Target (Active Development & Iteration)**:
   * Application ID: `com.sbf.lightspeed.nightly` (App Label: "Lightspeed Nightly")
   * ALL day-to-day development, refactoring, feature work, bug fixes, testing, builds (`assembleDebug`), and ADB installs MUST target `com.sbf.lightspeed.nightly` ONLY.
-  * Git Commits: Local commits on branch `nightly-refactor`. Never push to remote without instruction.
+  * Git Commits: Local commits on branch `nightly-refactor`.
+- **Remote Git & Cloud Backup Strategy (SBF Labs)**:
+  * **Private Repository (`origin` -> `git@github.com:SBFlabs/Lightspeed-Nightly.git`)**:
+    - **HABITUAL CLOUD BACKUP**: Whenever a development milestone or refactoring session is committed, pushing to `origin` is authorized and encouraged to safeguard the Founder's work against local hardware loss.
+  * **Public Repository (`public` -> `git@github.com:SBFlabs/Lightspeed.git`) (STRICT IMMUTABILITY RULE)**:
+    - **LOCKED**: NEVER push (`git push public`), publish, or synchronize to the public repository UNLESS the user explicitly gives a direct command (e.g., "Push to public repository", "Publish release to public").
+    - Public releases must strictly originate from the audited, stable `master` branch under the anonymous SBF Labs identity with zero personal identifiers.
 - **Stable Release (STRICT IMMUTABILITY RULE)**:
   * Application ID: `com.sbf.lightspeed` (App Label: "Lightspeed")
   * **LOCKED**: NEVER build (`assembleRelease`), install, modify, or promote to `com.sbf.lightspeed` UNLESS the user explicitly gives a direct command (e.g., "Promote nightly to stable release").
@@ -54,3 +60,11 @@
 - **Visual Design**:
   * Follow Material 3 Expressive and dynamic dark color palettes (`dynamicDarkColorScheme`).
   * Collimators, reticles, telemetry badges, and laser guides must remain crisp, tactical, and responsive.
+
+---
+
+# 6. Communication & Display Guidelines (Mobile Terminal Invariant)
+- **Screen Form Factor**: The Founder interacts with the headless Arch Linux server via SSH/Termux on a 6.4-inch Samsung Android display.
+- **Display Rules**:
+  * NEVER generate wide horizontal ASCII or Mermaid diagrams that overflow mobile screen widths.
+  * Keep all responses, lists, and markdown layouts vertical, compact, concise, and mobile-friendly.

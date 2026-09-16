@@ -151,7 +151,7 @@ object LightspeedActionRegistry {
                     temporaryLabels[appToken] = appLabel
 
                     // Pre-warm icon cache on background worker thread
-                    getIconBitmap(context, pkg)
+                    // getIconBitmap(context, pkg)
 
                     // 1. Exported Activity Deep Links
                     try {

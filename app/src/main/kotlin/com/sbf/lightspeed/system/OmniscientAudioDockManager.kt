@@ -455,7 +455,7 @@ fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.Ima
                             val bmp = remember(app.icon) {
                                 val d = app.icon!!
                                 if (d is android.graphics.drawable.BitmapDrawable && d.bitmap != null) d.bitmap else {
-                                    val b = android.graphics.Bitmap.createBitmap(if (d.intrinsicWidth>0) d.intrinsicWidth else 1, if (d.intrinsicHeight>0) d.intrinsicHeight else 1, android.graphics.Bitmap.Config.ARGB_8888)
+                                    val b = android.graphics.Bitmap.createBitmap(if (d.intrinsicWidth>0) d.intrinsicWidth.coerceAtMost(144) else 1, if (d.intrinsicHeight>0) d.intrinsicHeight.coerceAtMost(144) else 1, android.graphics.Bitmap.Config.ARGB_8888)
                                     val c = android.graphics.Canvas(b)
                                     d.setBounds(0,0,c.width,c.height)
                                     d.draw(c)
@@ -519,8 +519,8 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                         iconDrawable.bitmap
                     } else {
                         val bmp = android.graphics.Bitmap.createBitmap(
-                            if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth else 1,
-                            if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight else 1,
+                            if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth.coerceAtMost(144) else 1,
+                            if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight.coerceAtMost(144) else 1,
                             android.graphics.Bitmap.Config.ARGB_8888
                         )
                         val canvas = android.graphics.Canvas(bmp)

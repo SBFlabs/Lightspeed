@@ -41,7 +41,7 @@ object LightspeedIconManager {
 
     private val bitmapCache = android.util.LruCache<String, Bitmap>(350)
     val temporaryPickerCache = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
-    private val drawableCache = android.util.LruCache<String, Drawable>(350)
+    private val drawableCache = android.util.LruCache<String, Drawable>(50)
 
     private var currentLoadedPack: String? = null
     private var isPackLoaded = false

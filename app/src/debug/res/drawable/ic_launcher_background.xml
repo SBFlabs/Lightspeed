@@ -26,7 +26,7 @@
         </aapt:attr>
     </path>
 
-    <!-- Bottom-Right Ambient Warm Bronze Nebula Atmospheric Glow -->
+    <!-- Bottom-Right Ambient Warm Golden Nebula Atmospheric Glow -->
     <path
         android:pathData="M 80,68 m -36,0 a 36,36 0 1,0 72,0 a 36,36 0 1,0 -72,0">
         <aapt:attr name="android:fillColor">
@@ -35,29 +35,29 @@
                 android:centerX="80"
                 android:centerY="68"
                 android:gradientRadius="36"
-                android:startColor="#B84A3C33"
-                android:centerColor="#552C241F"
+                android:startColor="#B84E3D22"
+                android:centerColor="#55302616"
                 android:endColor="#00191B20" />
         </aapt:attr>
     </path>
 
-    <!-- Top-Right Cosmic Orbital Halo / Arc (Soft Outer Glow) -->
+    <!-- Top-Right Golden Moon Cosmic Orbital Arc (Nightly Exclusive Soft Glow) -->
     <path
-        android:strokeColor="#4042C1B6"
+        android:strokeColor="#40FFB300"
         android:strokeWidth="3.4"
         android:strokeLineCap="round"
         android:pathData="M 82,-16.5 A 32.5,32.5 0 1,0 82.001,-16.5" />
 
-    <!-- Radiant Mint Ring Core -->
+    <!-- Radiant Golden Moon Ring Core -->
     <path
-        android:strokeColor="#DE68E2D5"
+        android:strokeColor="#DEFFD54F"
         android:strokeWidth="1.6"
         android:strokeLineCap="round"
         android:pathData="M 82,-16.5 A 32.5,32.5 0 1,0 82.001,-16.5" />
 
-    <!-- Specular High-Energy Filament Line -->
+    <!-- Specular High-Energy Pale Gold Filament Line -->
     <path
-        android:strokeColor="#EBFDFB"
+        android:strokeColor="#FFF9C4"
         android:strokeWidth="0.7"
         android:strokeLineCap="round"
         android:pathData="M 82,-16.5 A 32.5,32.5 0 1,0 82.001,-16.5" />

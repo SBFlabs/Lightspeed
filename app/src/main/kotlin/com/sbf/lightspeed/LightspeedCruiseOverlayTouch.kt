@@ -1140,7 +1140,6 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
 
     val actionValue = if (isMirroringLeft) {
         val isLeftUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
-        val leftZone = if (isLeftUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
         val leftGesture = when (gesture.name) {
             "SWIPE_LEFT" -> "SWIPE_RIGHT"
             "SWIPE_LEFT_UP" -> "SWIPE_RIGHT_UP"
@@ -1150,9 +1149,12 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
             "SWIPE_DOWN_LEFT" -> "SWIPE_DOWN_RIGHT"
             else -> gesture.name
         }
+        val isLeftGestureUnified = com.sbf.lightspeed.system.LightspeedPreferences.isGestureUnified(context, isLeft = true, leftGesture)
+        val leftZone = if (isLeftUnified && isLeftGestureUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
         prefs.getString("pref_macro_action_${leftZone}_$leftGesture", "none") ?: "none"
     } else {
-        val dynamicZone = if (isFlankUnified) "UNIFIED" else zoneName
+        val isGestureUnified = com.sbf.lightspeed.system.LightspeedPreferences.isGestureUnified(context, isLeft = false, gesture.name)
+        val dynamicZone = if (isFlankUnified && isGestureUnified) "UNIFIED" else zoneName
         val actionKey = "pref_macro_action_${dynamicZone}_${gesture.name}"
         prefs.getString(actionKey, "none") ?: "none"
     }

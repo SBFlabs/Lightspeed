@@ -187,7 +187,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
             val actionKey = if (isMirroringLeft) {
                 val isLeftUnified = prefs.getBoolean("pref_sidebar_left_link_flank_actions", false)
-                val leftZone = if (isLeftUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
                 val leftGesture = when (gestureKey) {
                     "SWIPE_LEFT_HOLD" -> "SWIPE_RIGHT_HOLD"
                     "SWIPE_LEFT_UP_HOLD" -> "SWIPE_RIGHT_UP_HOLD"
@@ -197,9 +196,12 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                     "SWIPE_DOWN_LEFT_HOLD" -> "SWIPE_DOWN_RIGHT_HOLD"
                     else -> gestureKey
                 }
+                val isLeftGestureUnified = com.sbf.lightspeed.system.LightspeedPreferences.isGestureUnified(context, isLeft = true, leftGesture)
+                val leftZone = if (isLeftUnified && isLeftGestureUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
                 "pref_macro_action_${leftZone}_$leftGesture"
             } else {
-                val dynamicZone = if (isFlankUnified) "UNIFIED" else zoneName
+                val isGestureUnified = com.sbf.lightspeed.system.LightspeedPreferences.isGestureUnified(context, isLeft = false, gestureKey)
+                val dynamicZone = if (isFlankUnified && isGestureUnified) "UNIFIED" else zoneName
                 "pref_macro_action_${dynamicZone}_$gestureKey"
             }
             val actionValue = prefs.getString(actionKey, "none") ?: "none"

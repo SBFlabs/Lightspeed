@@ -373,3 +373,166 @@ private fun DrawScope.drawFrayedTassel(
         )
     }
 }
+
+/**
+ * Compact Material 3 Expressive braided cord spanning across the top of any gesture row.
+ * Directly toggles between Unified (Tied/Knotted) and Dual Control (Cut/Severed).
+ */
+@Composable
+fun M3RowMooringRope(
+    context: Context,
+    isTied: Boolean,
+    onToggle: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val severFraction by animateFloatAsState(
+        targetValue = if (isTied) 0f else 1f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "m3RowRopeSever"
+    )
+
+    val colorScheme = MaterialTheme.colorScheme
+    val highlightColor = colorScheme.primary
+    val baseColor = colorScheme.primary.copy(alpha = 0.65f)
+    val shadowColor = colorScheme.primary.copy(alpha = 0.20f)
+    val severedColor = colorScheme.error.copy(alpha = 0.85f)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                LightspeedHapticEngine.tick(context)
+                onToggle(!isTied)
+            }
+            .padding(vertical = 2.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(18.dp)
+        ) {
+            drawM3RowRope(
+                severFraction = severFraction,
+                highlight = highlightColor,
+                base = baseColor,
+                shadow = shadowColor,
+                severedColor = severedColor
+            )
+        }
+
+        // Center status pip
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (isTied) highlightColor.copy(alpha = 0.5f) else severedColor.copy(alpha = 0.6f)
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isTied) "⚓ UNIFIED (TIED)" else "✂️ DUAL (CUT)",
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 9.sp,
+                    color = if (isTied) highlightColor else severedColor
+                )
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawM3RowRope(
+    severFraction: Float,
+    highlight: Color,
+    base: Color,
+    shadow: Color,
+    severedColor: Color
+) {
+    val width = size.width
+    val height = size.height
+    val centerY = height / 2f
+    val centerX = width / 2f
+
+    val ropeThickness = 7.dp.toPx()
+    val gapWidth = severFraction * 70.dp.toPx()
+
+    val leftRopeEndX = (centerX - gapWidth / 2f).coerceAtLeast(0f)
+    val rightRopeStartX = (centerX + gapWidth / 2f).coerceAtMost(width)
+
+    fun drawSegment(startX: Float, endX: Float) {
+        if (startX >= endX) return
+        val brush = Brush.verticalGradient(
+            colors = listOf(highlight, base, shadow),
+            startY = centerY - ropeThickness / 2f,
+            endY = centerY + ropeThickness / 2f
+        )
+        drawLine(
+            brush = brush,
+            start = Offset(startX, centerY),
+            end = Offset(endX, centerY),
+            strokeWidth = ropeThickness
+        )
+
+        // Helical braided strand lines
+        val pitch = 7.dp.toPx()
+        var curX = startX
+        while (curX < endX) {
+            val nextX = (curX + pitch).coerceAtMost(endX)
+            drawLine(
+                color = shadow.copy(alpha = 0.8f),
+                start = Offset(curX, centerY - ropeThickness / 2f),
+                end = Offset(nextX, centerY + ropeThickness / 2f),
+                strokeWidth = 1.2.dp.toPx()
+            )
+            curX += pitch
+        }
+    }
+
+    drawSegment(0f, leftRopeEndX)
+    drawSegment(rightRopeStartX, width)
+
+    // Directional arrows
+    val arrowColor = if (severFraction < 0.5f) highlight.copy(alpha = 0.8f) else severedColor
+    val leftArrowX = (leftRopeEndX * 0.45f).coerceAtLeast(14.dp.toPx())
+    val rightArrowX = (rightRopeStartX + (width - rightRopeStartX) * 0.55f).coerceAtMost(width - 14.dp.toPx())
+    val arrowSize = 4.dp.toPx()
+    val pointsInward = severFraction < 0.5f
+
+    // Left Arrow
+    val leftPath = Path().apply {
+        if (pointsInward) {
+            moveTo(leftArrowX - arrowSize, centerY - arrowSize)
+            lineTo(leftArrowX + arrowSize, centerY)
+            lineTo(leftArrowX - arrowSize, centerY + arrowSize)
+        } else {
+            moveTo(leftArrowX + arrowSize, centerY - arrowSize)
+            lineTo(leftArrowX - arrowSize, centerY)
+            lineTo(leftArrowX + arrowSize, centerY + arrowSize)
+        }
+    }
+    drawPath(leftPath, arrowColor, style = Stroke(width = 1.5.dp.toPx()))
+
+    // Right Arrow
+    val rightPath = Path().apply {
+        if (pointsInward) {
+            moveTo(rightArrowX + arrowSize, centerY - arrowSize)
+            lineTo(rightArrowX - arrowSize, centerY)
+            lineTo(rightArrowX + arrowSize, centerY + arrowSize)
+        } else {
+            moveTo(rightArrowX - arrowSize, centerY - arrowSize)
+            lineTo(rightArrowX + arrowSize, centerY)
+            lineTo(rightArrowX - arrowSize, centerY + arrowSize)
+        }
+    }
+    drawPath(rightPath, arrowColor, style = Stroke(width = 1.5.dp.toPx()))
+}

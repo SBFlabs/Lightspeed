@@ -68,6 +68,23 @@ object LightspeedPreferences {
         prefs.edit().putBoolean(key, linked).apply()
     }
 
+    fun getGestureUnifiedKey(isLeft: Boolean, gestureKey: String): String {
+        val flank = if (isLeft) "left" else "right"
+        return "pref_gesture_unified_${flank}_${gestureKey}"
+    }
+
+    fun isGestureUnified(context: Context, isLeft: Boolean, gestureKey: String): Boolean {
+        val prefs = context.defaultPrefs()
+        val key = getGestureUnifiedKey(isLeft, gestureKey)
+        return prefs.getBoolean(key, true)
+    }
+
+    fun setGestureUnified(context: Context, isLeft: Boolean, gestureKey: String, unified: Boolean) {
+        val prefs = context.defaultPrefs()
+        val key = getGestureUnifiedKey(isLeft, gestureKey)
+        prefs.edit().putBoolean(key, unified).apply()
+    }
+
     // Notch Calibration & Test Beacon Keys
     const val KEY_NOTCH_OFFSET_X = "pref_notch_offset_x"
     const val KEY_NOTCH_OFFSET_Y = "pref_notch_offset_y"

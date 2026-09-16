@@ -99,7 +99,10 @@ fun GestureMappingRow(
     labelCache: Map<String, String>,
     showMediaQuickAccess: Boolean = false,
     badgeText: String? = null,
-    customLeading: (@Composable () -> Unit)? = null
+    customLeading: (@Composable () -> Unit)? = null,
+    showMooringRope: Boolean = false,
+    isMooringTied: Boolean = true,
+    onToggleMooring: ((Boolean) -> Unit)? = null
 ) {
     val key = remember(keyResName) { resKey(context, keyResName) }
     var currentRawValue by remember { mutableStateOf(prefs.getString(key, "none") ?: "none") }
@@ -136,21 +139,36 @@ fun GestureMappingRow(
             .wrapContentHeight()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
-            .clickable {
-                if (direction == ArrowDirection.SCRUB) {
-                    showScrubMenu = true
-                } else {
-                    val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
-                        putExtra("SINGLE_SELECT_PREF_KEY", key)
-                        putExtra("SINGLE_SELECT_TITLE", "$defaultTitle Action")
-                        putExtra("IS_HOLD_GESTURE", isHold || direction == ArrowDirection.SCRUB)
-                    }
-                    pickerLauncher.launch(intent)
-                }
-            }
-            .padding(12.dp)
     ) {
-        // Line 1 & Line 2: Gesture Tracer Icon / Monospace Badge + Full-Width Title & Subtitle
+        if (showMooringRope && onToggleMooring != null) {
+            M3RowMooringRope(
+                context = context,
+                isTied = isMooringTied,
+                onToggle = onToggleMooring,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    if (direction == ArrowDirection.SCRUB) {
+                        showScrubMenu = true
+                    } else {
+                        val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
+                            putExtra("SINGLE_SELECT_PREF_KEY", key)
+                            putExtra("SINGLE_SELECT_TITLE", "$defaultTitle Action")
+                            putExtra("IS_HOLD_GESTURE", isHold || direction == ArrowDirection.SCRUB)
+                        }
+                        pickerLauncher.launch(intent)
+                    }
+                }
+                .padding(12.dp)
+        ) {
+            // Line 1 & Line 2: Gesture Tracer Icon / Monospace Badge + Full-Width Title & Subtitle
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically

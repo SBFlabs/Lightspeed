@@ -280,11 +280,13 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Added toggle to pulse deflector glow upon step-1 gesture recognition ("pref_deflector_glow_on_gesture_step").
   - Added glow duration selector ("800ms", "1500ms", "2200ms") and live "TEST FX" trigger in Central Command.
 ✓ Nautical Mooring Rope & Deflector Linking Engine [STATUS: SHIPPED & VERIFIED]:
-  - Skeuomorphic Naval Mooring Rope Component (`NauticalMooringRope.kt`): Custom high-performance Canvas drawing routine modeling a thick Manila hemp hawser-laid mooring rope with braided helical ridges, drop shadow, and tactile highlights.
-  - Interactive Knot vs Cut States: Tapping toggles between a continuous reef-knotted rope (`⚓ KNOTTED // LINKED`) and severed cord ends with individual frayed fiber tassels (`✂️ CUT // UNLINKED`) with spring animation and tactile haptic pulse.
-  - Sector Linking Contracts (`LightspeedPreferences`): Added `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, and `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`.
-  - Tied State (Default): Upper & Lower deflector scrubbers lock in lockstep, automatically synchronizing preferences and dispatching unified flank-wide scrubbing in `LightspeedCruiseOverlayTouch` and `LightspeedLeftWingOverlay`.
-  - Severed State: Decouples Upper and Lower halves into completely independent scrubber controls (e.g. Upper = Brightness, Lower = Volume).
+  - Skeuomorphic & M3 Braided Mooring Rope Components (`NauticalMooringRope.kt`): Custom high-performance Canvas drawing routines modeling thick naval Manila hemp and Material 3 dynamic color braided cords with helical ridges, directional arrows (`➔ ⚓ ⬅` / `⬅ ✂️ ➔`), and status indicator chips.
+  - Per-Gesture Row Embedding (`GestureComponents.kt`): Embedded `M3RowMooringRope` directly across the top of individual gesture rows in both the Dual Inward Scrubber Controls and Unified Gesture Matrix cards in `RightDeflectorTab` and `LeftDeflectorTab`.
+  - Interactive Knot vs Cut States: Tapping toggles between a continuous tied rope (`⚓ UNIFIED (TIED)`) and cut rope (`✂️ DUAL (CUT)`) with animated spring transitions, tactile haptic pulse, and auto-scroll relocation.
+  - Dynamic Dual vs Unified Expansion:
+    * Tied (Unified): 1 single consolidated row per gesture vector, executing identical mirrored actions across the entire flank.
+    * Cut (Dual Control): Splits the gesture vector into 2 independent rows (`Upper Sector` and `Lower Sector`), allowing separate assignment of actions for each sector.
+  - Preference & Overlay Runtime Synchronization: Added `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`, and `pref_gesture_unified_<flank>_<vectorKey>` to `LightspeedPreferences`. Dynamically resolved in `LightspeedCruiseOverlayTouch`, `LightspeedCruiseOverlay` (hold timer), and `LightspeedLeftWingOverlay`.
 ✓ Synthetic Gravity Engine & Native Auto-Rotation Resolution:
   - Decoupled persistent Master Auto-Rotate baseline from transient hardware system setting writes (`Settings.System.ACCELEROMETER_ROTATION`), eliminating circular setting corruption.
   - Fixed landscape app exit glitch (Brawl Stars 90° lock): ensured unconstrained rotation resets `USER_ROTATION` to `Surface.ROTATION_0` and restores baseline auto-rotate without requiring Home button press.

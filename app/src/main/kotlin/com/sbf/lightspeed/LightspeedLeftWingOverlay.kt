@@ -701,10 +701,15 @@ class LightspeedLeftWingOverlay(
             if (rightZone == "CENTER" && rightGesture == "SWIPE_LEFT") {
                 return "lightspeed:cockpit_hangar" to "lightspeed:cockpit_hangar"
             }
-            val key = if (isHold) "pref_macro_action_${rightZone}_${rightGesture}_HOLD" else "pref_macro_action_${rightZone}_$rightGesture"
+            val rightGestureKey = if (isHold) "${rightGesture}_HOLD" else rightGesture
+            val isRightGestureUnified = com.sbf.lightspeed.system.LightspeedPreferences.isGestureUnified(service, isLeft = false, rightGestureKey)
+            val rightEffectiveZone = if (isRightUnified && isRightGestureUnified && (rightZone == "TOP" || rightZone == "BOTTOM")) "UNIFIED" else rightZone
+            val key = if (isHold) "pref_macro_action_${rightEffectiveZone}_${rightGesture}_HOLD" else "pref_macro_action_${rightEffectiveZone}_$rightGesture"
             return (prefs.getString(key, "none") ?: "none") to key
         } else {
-            val dynamicZone = if (isFlankUnified && (zoneKey == "LEFT_TOP" || zoneKey == "LEFT_BOTTOM")) "LEFT_UNIFIED" else zoneKey
+            val gestureKey = if (isHold) "${gesture}_HOLD" else gesture
+            val isGestureUnified = com.sbf.lightspeed.system.LightspeedPreferences.isGestureUnified(service, isLeft = true, gestureKey)
+            val dynamicZone = if (isFlankUnified && isGestureUnified && (zoneKey == "LEFT_TOP" || zoneKey == "LEFT_BOTTOM")) "LEFT_UNIFIED" else zoneKey
             val key = if (isHold) "pref_macro_action_${dynamicZone}_${gesture}_HOLD" else "pref_macro_action_${dynamicZone}_$gesture"
             return (prefs.getString(key, "none") ?: "none") to key
         }

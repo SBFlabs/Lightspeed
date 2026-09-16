@@ -5,16 +5,14 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 ## [1.4.1] - 2026-09-17
 
 ### ⚓ Nautical Mooring Rope & Deflector Linking Engine
-* **Nautical Mooring Rope Component (`NauticalMooringRope.kt`)**:
-  * High-performance custom Canvas component rendering a thick naval Manila hemp braided cord with helical strand ridges, golden-umber highlights, and shadow crevices.
-  * Interactive Knotting & Severing: Tapping the rope toggles between a continuous reef-knotted mooring rope (Linked) and severed cord ends with frayed fiber tassels (Unlinked / Independent) with spring animation and tactile haptic pulse.
-* **Dynamic Deflector Scrubber Linking (`LightspeedPreferences`)**:
-  * Added `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, and `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`.
-  * **Knotted / Tied (Default)**: Upper & Lower deflector scrubbers lock in lockstep, dispatching a unified scrub action across the entire flank.
-  * **Cut / Severed**: Upper and Lower sectors operate independently (e.g. Upper = Brightness, Lower = Volume).
-* **Overlay Runtime & Settings Integration**:
-  * Wired live touch resolution in `LightspeedCruiseOverlayTouch` and `LightspeedLeftWingOverlay`.
-  * Embedded animated mooring rope cards directly inside the Scrubber subsections of `RightDeflectorTab` and `LeftDeflectorTab`.
+* **Per-Gesture Nautical Mooring Rope Toggle (`NauticalMooringRope.kt`, `GestureComponents.kt`)**:
+  * High-performance custom Canvas component rendering a Material 3 Expressive braided cord spanning across the top edge of each gesture row in both the Dual Inward Scrubber Controls and Unified Gesture Matrix cards.
+  * Interactive Knotting & Severing: Tapping the rope toggles between a unified knotted state (`➔ ⚓ ⬅ UNIFIED (TIED)`) and a decoupled state (`⬅ ✂️ ➔ DUAL (CUT)`) with spring animations, tactile haptic clicks, and smooth auto-scrolling to the active gesture row.
+  * **Tied / Knotted (Unified)**: Consolidates the gesture into 1 unified row, mirroring actions between Upper and Lower deflector sectors across the whole flank.
+  * **Cut / Severed (Dual Control)**: Splits the gesture into 2 independent rows (`Upper Sector` and `Lower Sector`), allowing separate action assignments for each half.
+* **Dynamic Deflector Scrubber & Macro Linking (`LightspeedPreferences`)**:
+  * Added `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`, and `pref_gesture_unified_<flank>_<vectorKey>`.
+  * Live overlay touch resolution across `LightspeedCruiseOverlayTouch`, `LightspeedCruiseOverlay` (hold triggers), and `LightspeedLeftWingOverlay` honors per-gesture unification states dynamically.
 
 ## [1.4.0] - 2026-09-16
 

@@ -184,7 +184,7 @@ fun HudTacticalHardwareSection(
                 var autoRepeatEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_KEY_HOLD_AUTO_REPEAT, false)) }
                 PrefToggleRow(
                     title = "Hardware Key Hold Auto-Repeat",
-                    subtitle = "Repeatedly dispatch action (e.g. volume or cursor step) every 100ms when holding key down.",
+                    subtitle = "Continuous auto-repeat for hold actions while volume buttons remain pressed",
                     isChecked = autoRepeatEnabled,
                     onCheckedChange = {
                         autoRepeatEnabled = it
@@ -193,25 +193,55 @@ fun HudTacticalHardwareSection(
                     }
                 )
 
-                val volCombos = listOf(
-                    Triple(LightspeedKeyEngine.ActionSlot.CHORD_UP_DOWN, "Simultaneous Chord (Vol Up + Down)", "Both"),
-                    Triple(LightspeedKeyEngine.ActionSlot.HOLD_UP, "Hold Volume Up (~400ms)", "Hold"),
-                    Triple(LightspeedKeyEngine.ActionSlot.HOLD_DOWN, "Hold Volume Down (~400ms)", "Hold"),
-                    Triple(LightspeedKeyEngine.ActionSlot.PRESS_THEN_HOLD_UP, "Press-then-Hold Volume Up", "2-Tap Hold"),
-                    Triple(LightspeedKeyEngine.ActionSlot.PRESS_THEN_HOLD_DOWN, "Press-then-Hold Volume Down", "2-Tap Hold"),
-                    Triple(LightspeedKeyEngine.ActionSlot.DOUBLE_CLICK_UP, "Double-Click Volume Up (<300ms)", "Fast 2-Tap"),
-                    Triple(LightspeedKeyEngine.ActionSlot.DOUBLE_CLICK_DOWN, "Double-Click Volume Down (<300ms)", "Fast 2-Tap"),
-                    Triple(LightspeedKeyEngine.ActionSlot.SEQUENCE_UP_THEN_DOWN, "Sequence: Vol Up then Down", "1-2 Step"),
-                    Triple(LightspeedKeyEngine.ActionSlot.SEQUENCE_DOWN_THEN_UP, "Sequence: Vol Down then Up", "1-2 Step")
+                if (autoRepeatEnabled) {
+                    PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_KEY_REPEAT_INTERVAL_MS, "", "Auto-Repeat Interval (ms)", 100, 500, 25, 200)
+                }
+
+                // Rocker Advisory Banner
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Rocker Notice: Devices with a single physical rocker bar may mechanically lever switches when pressing both ends. If chords misfire, Sequential gestures are recommended for 100% reliability.",
+                            fontSize = 11.5.sp,
+                            color = Color.White.copy(alpha = 0.9f),
+                            lineHeight = 15.sp
+                        )
+                    }
+                }
+
+                val volumeGestures = listOf(
+                    Triple(LightspeedPreferences.KEY_VOL_UP_LONG_PRESS, "Volume Up Long Press (~400ms)", "VOL ▲ (HOLD)"),
+                    Triple(LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS, "Volume Down Long Press (~400ms)", "VOL ▼ (HOLD)"),
+                    Triple(LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP, "Hold Vol Down + Tap Vol Up", "VOL ▼ + VOL ▲"),
+                    Triple(LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP, "Hold Vol Up + Tap Vol Down", "VOL ▲ + VOL ▼"),
+                    Triple(LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<300ms)", "VOL ▲ ➔ VOL ▼"),
+                    Triple(LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<300ms)", "VOL ▼ ➔ VOL ▲"),
+                    Triple(LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD, "Tap Vol Down → Hold Vol Up (~400ms)", "VOL ▼ ➔ VOL ▲ (HOLD)"),
+                    Triple(LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD, "Tap Vol Up → Hold Vol Down (~400ms)", "VOL ▲ ➔ VOL ▼ (HOLD)")
                 )
 
-                volCombos.forEach { (slot, title, badge) ->
+                volumeGestures.forEach { (prefKey, title, badge) ->
                     GestureMappingRow(
                         context = context,
                         prefs = prefs,
                         direction = ArrowDirection.TAP,
-                        isHold = false,
-                        keyResName = slot.prefKey,
+                        isHold = badge.contains("HOLD"),
+                        keyResName = prefKey,
                         defaultTitle = title,
                         options = dynamicActionTokens,
                         labelCache = tokenLabelCache,

@@ -141,13 +141,14 @@ fun GestureMappingRow(
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.3f))
     ) {
         if (showMooringRope && onToggleMooring != null) {
+            Spacer(modifier = Modifier.height(5.dp))
             M3RowMooringRope(
                 context = context,
                 isTied = isMooringTied,
                 onToggle = onToggleMooring,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .padding(horizontal = 14.dp)
             )
         }
 
@@ -166,7 +167,12 @@ fun GestureMappingRow(
                         pickerLauncher.launch(intent)
                     }
                 }
-                .padding(12.dp)
+                .padding(
+                    start = 12.dp,
+                    end = 12.dp,
+                    top = if (showMooringRope) 3.dp else 12.dp,
+                    bottom = 12.dp
+                )
         ) {
             // Line 1 & Line 2: Gesture Tracer Icon / Monospace Badge + Full-Width Title & Subtitle
         Row(

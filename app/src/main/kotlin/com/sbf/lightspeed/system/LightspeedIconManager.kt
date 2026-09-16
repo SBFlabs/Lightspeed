@@ -320,16 +320,16 @@ object LightspeedIconManager {
         return null
     }
 
-    fun getIconDrawable(context: Context, tokenOrPkg: String): Drawable? {
+    fun getIconDrawable(context: Context, tokenOrPkg: String, useCache: Boolean = true): Drawable? {
         if (tokenOrPkg.isBlank()) return null
-        drawableCache.get(tokenOrPkg)?.let {
+        if (useCache) drawableCache.get(tokenOrPkg)?.let {
             return it.constantState?.newDrawable()?.mutate() ?: it
         }
 
         // Custom shortcut bitmaps (shortcut:, custom:) and manually overridden app: icons
         loadCustomShortcutBitmap(context, tokenOrPkg)?.let { bmp ->
             val d = BitmapDrawable(context.resources, bmp)
-            drawableCache.put(tokenOrPkg, d)
+            if (useCache) drawableCache.put(tokenOrPkg, d)
             return d
         }
 
@@ -338,7 +338,7 @@ object LightspeedIconManager {
             if (shortcutDrawable != null) {
                 val mutated = shortcutDrawable.constantState?.newDrawable()?.mutate() ?: shortcutDrawable.mutate()
                 mutated.alpha = 255
-                drawableCache.put(tokenOrPkg, mutated)
+                if (useCache) drawableCache.put(tokenOrPkg, mutated)
                 return mutated.constantState?.newDrawable()?.mutate() ?: mutated
             }
         }
@@ -372,7 +372,7 @@ object LightspeedIconManager {
                             if (calDrawable != null) {
                                 val mutated = calDrawable.constantState?.newDrawable()?.mutate() ?: calDrawable.mutate()
                                 mutated.alpha = 255
-                                drawableCache.put(tokenOrPkg, mutated)
+                                if (useCache) drawableCache.put(tokenOrPkg, mutated)
                                 return mutated.constantState?.newDrawable()?.mutate() ?: mutated
                             }
                         }
@@ -388,7 +388,7 @@ object LightspeedIconManager {
                         if (packDrawable != null) {
                             val mutated = packDrawable.constantState?.newDrawable()?.mutate() ?: packDrawable.mutate()
                             mutated.alpha = 255
-                            drawableCache.put(tokenOrPkg, mutated)
+                            if (useCache) drawableCache.put(tokenOrPkg, mutated)
                             return mutated.constantState?.newDrawable()?.mutate() ?: mutated
                         }
                     }
@@ -430,21 +430,21 @@ object LightspeedIconManager {
             val finalDrawable = rawDrawable ?: pm.getApplicationIcon(extractedPkg)
             val mutated = finalDrawable.constantState?.newDrawable()?.mutate() ?: finalDrawable.mutate()
             mutated.alpha = 255
-            drawableCache.put(tokenOrPkg, mutated)
+            if (useCache) drawableCache.put(tokenOrPkg, mutated)
             mutated.constantState?.newDrawable()?.mutate() ?: mutated
         } catch (_: Exception) {
             null
         }
     }
 
-    fun getIconBitmap(context: Context, tokenOrPkg: String): Bitmap? {
+    fun getIconBitmap(context: Context, tokenOrPkg: String, useCache: Boolean = true): Bitmap? {
         if (tokenOrPkg.isBlank()) return null
-        bitmapCache.get(tokenOrPkg)?.let { return it }
+        if (useCache) bitmapCache.get(tokenOrPkg)?.let { return it }
 
         val drawable = getIconDrawable(context, tokenOrPkg) ?: return null
         val bitmap = convertDrawableToBitmap(drawable)
         if (bitmap != null) {
-            bitmapCache.put(tokenOrPkg, bitmap)
+            if (useCache) bitmapCache.put(tokenOrPkg, bitmap)
         }
         return bitmap
     }
@@ -545,7 +545,7 @@ object LightspeedIconManager {
 
         val rawW = workingDrawable.intrinsicWidth
         val rawH = workingDrawable.intrinsicHeight
-        val targetSize = if (rawW > 0 && rawH > 0) maxOf(rawW, rawH).coerceIn(96, 256) else 192
+        val targetSize = if (rawW > 0 && rawH > 0) maxOf(rawW, rawH).coerceIn(96, 144) else 144
 
         return try {
             val bmp = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)

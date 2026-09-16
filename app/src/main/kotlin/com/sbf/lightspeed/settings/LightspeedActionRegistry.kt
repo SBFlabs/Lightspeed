@@ -27,8 +27,8 @@ object LightspeedActionRegistry {
     val labelCache = mutableStateMapOf<String, String>()
     val iconBitmapCache = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
 
-    fun getIconBitmap(context: Context, pkg: String): android.graphics.Bitmap? {
-        return LightspeedIconManager.getIconBitmap(context, pkg)
+    fun getIconBitmap(context: Context, pkg: String, useCache: Boolean = true): android.graphics.Bitmap? {
+        return LightspeedIconManager.getIconBitmap(context, pkg, useCache)
     }
 
     fun getBaseTokens(): List<String> = listOf(

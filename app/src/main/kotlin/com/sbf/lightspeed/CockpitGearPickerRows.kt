@@ -465,7 +465,7 @@ fun PickerAppHeaderRow(
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val iconBmp = LightspeedActionRegistry.getIconBitmap(context, item.packageName)
+            val iconBmp = LightspeedActionRegistry.getIconBitmap(context, item.packageName, useCache = false)
             if (iconBmp != null) {
                 Image(
                     bitmap = iconBmp.asImageBitmap(),
@@ -639,7 +639,7 @@ fun PickerShortcutActionRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         val shortcutBmp = remember(item.token) {
-            LightspeedShortcutManager.resolveIconBitmap(context, item.token)
+            LightspeedShortcutManager.resolveIconBitmap(context, item.token, useCache = false)
         }
         if (shortcutBmp != null) {
             Image(

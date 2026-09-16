@@ -353,15 +353,15 @@ object LightspeedShortcutManager {
         }
     }
 
-    fun resolveIconDrawable(context: Context, token: String): Drawable? {
+    fun resolveIconDrawable(context: Context, token: String, useCache: Boolean = true): Drawable? {
         if (token.isBlank() || token == "none") return null
-        drawableCache.get(token)?.let { return it }
+        if (useCache) drawableCache.get(token)?.let { return it }
 
         // 1. Check custom cached bitmap on disk/memory
         val cachedBmp = loadCachedBitmap(context, token)
         if (cachedBmp != null) {
             val d = BitmapDrawable(context.resources, cachedBmp)
-            drawableCache.put(token, d)
+            if (useCache) drawableCache.put(token, d)
             return d
         }
 
@@ -387,7 +387,7 @@ object LightspeedShortcutManager {
                         val d = launcherApps.getShortcutBadgedIconDrawable(shortcut, context.resources.displayMetrics.densityDpi)
                             ?: launcherApps.getShortcutIconDrawable(shortcut, context.resources.displayMetrics.densityDpi)
                         if (d != null) {
-                            drawableCache.put(token, d)
+                            if (useCache) drawableCache.put(token, d)
                             return d
                         }
                     }
@@ -403,7 +403,7 @@ object LightspeedShortcutManager {
                 val pm = context.packageManager
                 val comp = android.content.ComponentName(parsed.packageName, parsed.activityName)
                 val d = pm.getActivityIcon(comp)
-                drawableCache.put(token, d)
+                if (useCache) drawableCache.put(token, d)
                 return d
             } catch (_: Exception) {}
         }
@@ -412,7 +412,7 @@ object LightspeedShortcutManager {
         if (parsed.packageName.isNotBlank()) {
             val hostDrawable = LightspeedIconManager.getIconDrawable(context, parsed.packageName)
             if (hostDrawable != null) {
-                drawableCache.put(token, hostDrawable)
+                if (useCache) drawableCache.put(token, hostDrawable)
                 return hostDrawable
             }
         }
@@ -422,37 +422,37 @@ object LightspeedShortcutManager {
         val fallbackBmp = createMonogramBitmap(context, label)
         if (fallbackBmp != null) {
             val d = BitmapDrawable(context.resources, fallbackBmp)
-            drawableCache.put(token, d)
+            if (useCache) drawableCache.put(token, d)
             return d
         }
 
         return null
     }
 
-    fun resolveIconBitmap(context: Context, token: String): Bitmap? {
+    fun resolveIconBitmap(context: Context, token: String, useCache: Boolean = true): Bitmap? {
         if (token.isBlank() || token == "none") return null
-        bitmapCache.get(token)?.let { return it }
+        if (useCache) bitmapCache.get(token)?.let { return it }
 
         val d = resolveIconDrawable(context, token) ?: return null
         if (d is BitmapDrawable && d.bitmap != null) {
             val bmp = d.bitmap
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bmp.config == Bitmap.Config.HARDWARE) {
                 val softwareBmp = bmp.copy(Bitmap.Config.ARGB_8888, false)
-                bitmapCache.put(token, softwareBmp)
+                if (useCache) bitmapCache.put(token, softwareBmp)
                 return softwareBmp
             }
-            bitmapCache.put(token, bmp)
+            if (useCache) bitmapCache.put(token, bmp)
             return bmp
         }
 
-        val w = d.intrinsicWidth.coerceIn(48, 192)
-        val h = d.intrinsicHeight.coerceIn(48, 192)
+        val w = d.intrinsicWidth.coerceIn(48, 144)
+        val h = d.intrinsicHeight.coerceIn(48, 144)
         return try {
             val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bmp)
             d.setBounds(0, 0, w, h)
             d.draw(canvas)
-            bitmapCache.put(token, bmp)
+            if (useCache) bitmapCache.put(token, bmp)
             bmp
         } catch (_: Exception) { null }
     }

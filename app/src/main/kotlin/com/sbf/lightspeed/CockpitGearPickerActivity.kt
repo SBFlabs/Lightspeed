@@ -449,7 +449,7 @@ var showHud by remember { mutableStateOf(false) }
                                         val token = selectedTokens[idx]
                                         val label = LightspeedShortcutManager.resolveLabel(this@CockpitGearPickerActivity, token)
                                         val iconBmp = remember(token) {
-                                            LightspeedShortcutManager.resolveIconBitmap(this@CockpitGearPickerActivity, token)
+                                            LightspeedShortcutManager.resolveIconBitmap(this@CockpitGearPickerActivity, token, useCache = false)
                                         }
                                         val isFirst = (idx == 0)
                                         val isLast = (idx == selectedTokens.size - 1)

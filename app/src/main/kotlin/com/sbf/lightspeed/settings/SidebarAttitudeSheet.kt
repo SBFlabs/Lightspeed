@@ -399,7 +399,7 @@ fun AttitudeAppAssignmentSheet(
                         val label = targetItem?.label ?: pkg
                         val iconBmp = remember(pkg) {
                             if (pkg == "keyguard:lockscreen") null
-                            else LightspeedIconManager.getIconBitmap(context, pkg)
+                            else LightspeedIconManager.getIconBitmap(context, pkg, useCache = false)
                         }
 
                         Row(
@@ -762,7 +762,7 @@ private fun AttitudeTargetRow(
                 }
             } else {
                 val iconBmp = remember(item.id) {
-                    LightspeedIconManager.getIconBitmap(context, item.id)
+                    LightspeedIconManager.getIconBitmap(context, item.id, useCache = false)
                 }
                 if (iconBmp != null) {
                     Image(

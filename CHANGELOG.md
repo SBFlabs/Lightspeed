@@ -2,6 +2,37 @@
 
 All notable changes to the Lightspeed Gesture Launcher & Workspace are documented in this file.
 
+## [1.4.0] - 2026-09-16
+
+### 🚀 Major Highlights & Commercial Polish
+* **Android 14 & 15 Modernization (Target SDK 35)**:
+  * Full support for Android 14/15 native zero-duration activity transitions via `Activity.overrideZeroTransition()`, eliminating legacy transition flicker across all 10 system and cockpit activities.
+  * Modern `setShowWhenLocked()` and `setTurnScreenOn()` window APIs with strict backward-compatibility fallbacks.
+  * Edge-to-edge system bar compliance via Material 3 dynamic theming.
+* **Modular Avionics Architecture (Phase 1 & 2)**:
+  * Decomposed monolithic controllers into decoupled domain units: `LightspeedCruiseOverlayTouch` & `LightspeedCruiseOverlayDraw`, `HudStripTab` 4-deck breakdown, `CentralCommandDialogs`, `DeflectorStylingComponents`, `FlightControlDeckComponents`, `SliderCalibrationDialog`, and `CoreCoolingComponents`.
+  * Reduced maximum file sizes across the settings suite by over 60%, drastically reducing re-composition overhead.
+* **Master Flight Deck & Automation Ecosystem**:
+  * Unified Master Flight Control 1-Tap hero pad with active system health telemetry.
+  * Native Quick Settings Tiles (`Lightspeed` Master Toggle and `Deflectors` Flank Toggle).
+  * Direct automation broadcast receiver (`LightspeedAutomationReceiver`) protected by signature permissions for MacroDroid, Tasker, and ADB control.
+  * Persistent interactive flight notification manager with one-touch state controls.
+* **Refueling Bay & Cryo Stasis Overhaul**:
+  * Seamless Android AppWidget host integration with 3D cube smart stacks and carousel layout.
+  * Migrated preference binding to `activity.defaultPrefs()`, restoring 100% backup and restore coverage under `LightspeedBackupEngine`.
+  * Privileged launcher fallback for unexported third-party widget configuration activities.
+* **Sensor Gravity & 360° Attitude Engine**:
+  * Dedicated Sensor Portrait driver (0° and 180° inversion support) for inverted charging and mounted operation.
+  * Fine-grained app attitude buckets with configurable override expiration policies.
+* **Liquid Glass Optics & Custom Shaders**:
+  * Real Liquid Glass engine with live runtime prototype switcher (Liquid Glass, Deep Frost, Tactical Obsidian).
+  * Progressive frosted glass pill styling and dynamic specular rim flaring on flank deflectors.
+* **Commercial Release Packaging & Zero-Telemetry Privacy**:
+  * Hardened ProGuard/R8 shrinking and obfuscation rules with Material Icons extended tree-shaking.
+  * Strict 100% offline invariant: zero internet permissions, zero analytics, zero external network dependencies.
+
+---
+
 ## [1.1.2] - 2026-08-23
 
 ### 🚀 Highlights & Fixes

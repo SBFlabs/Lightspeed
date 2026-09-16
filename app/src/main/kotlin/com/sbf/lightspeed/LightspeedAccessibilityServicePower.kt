@@ -99,6 +99,7 @@ import com.sbf.lightspeed.system.defaultPrefs
     internal fun LightspeedAccessibilityService.launchRefuelingActivity() {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            @Suppress("DEPRECATION")
             val wl = pm?.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
                 "lightspeed:refueling_wake"

@@ -335,7 +335,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     // ── Cached SharedPreferences reference (set once in onAttachedToWindow) ──────
     // Eliminates per-frame file I/O from onDraw() and per-touch I/O from onTouchEvent().
     internal var cachedPrefs: android.content.SharedPreferences? = null
-    internal inline fun prefs() = cachedPrefs ?: context.defaultPrefs().also { cachedPrefs = it }
+    internal fun prefs() = cachedPrefs ?: context.defaultPrefs().also { cachedPrefs = it }
 
     // ── Render-path pref cache (updated by prefChangeListener via updateRenderCache) ─
     internal var renderCacheRightFlankUnified = false

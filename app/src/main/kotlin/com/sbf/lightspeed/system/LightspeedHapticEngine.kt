@@ -20,6 +20,7 @@ object LightspeedHapticEngine {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                @Suppress("DEPRECATION")
                 vm?.defaultVibrator ?: (context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
             } else {
                 @Suppress("DEPRECATION")

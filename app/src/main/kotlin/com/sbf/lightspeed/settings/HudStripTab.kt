@@ -164,11 +164,13 @@ fun HudStripTabContent(
                     var currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
                         list + (defaultOrder1 - list.toSet())
                     }.toMutableList()
-                    if (currentOrder1.lastOrNull() == "system_overrides" && currentOrder1.contains("config_vault")) {
-                        currentOrder1.remove("system_overrides")
-                        currentOrder1.add(currentOrder1.indexOf("config_vault"), "system_overrides")
-                        // Auto-save the corrected order
-                        prefs.edit().putString("pref_tab_order_1", currentOrder1.joinToString(",")).apply()
+                    LaunchedEffect(Unit) {
+                        if (currentOrder1.lastOrNull() == "system_overrides" && currentOrder1.contains("config_vault")) {
+                            currentOrder1.remove("system_overrides")
+                            currentOrder1.add(currentOrder1.indexOf("config_vault"), "system_overrides")
+                            // Auto-save the corrected order safely outside composition
+                            prefs.edit().putString("pref_tab_order_1", currentOrder1.joinToString(",")).apply()
+                        }
                     }
 
 

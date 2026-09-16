@@ -260,7 +260,7 @@ fun LeftDeflectorTabContent(
                                             showUnifyTemplateDialogForLeft = true
                                         } else {
                                             isLeftFlankUnified = false
-                                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", false).commit()
+                                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", false).apply()
                                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                                             onRefreshNeeded()
                                         }

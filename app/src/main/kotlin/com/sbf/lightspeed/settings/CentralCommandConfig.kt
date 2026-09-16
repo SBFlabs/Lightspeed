@@ -1142,7 +1142,7 @@ fun CentralCommandMatrixFields(
                                 cloneFlankActions("LEFT_BOTTOM", "LEFT_UNIFIED")
                             }
                             isLeftFlankUnified = true
-                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", true).commit()
+                            prefs.edit().putBoolean("pref_sidebar_left_link_flank_actions", true).apply()
                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                             showUnifyTemplateDialogForLeft = false
                             onRefreshNeeded()
@@ -1201,7 +1201,7 @@ fun CentralCommandMatrixFields(
                                 cloneFlankActions("BOTTOM", "UNIFIED")
                             }
                             isRightFlankUnified = true
-                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", true).commit()
+                            prefs.edit().putBoolean("pref_sidebar_right_link_flank_actions", true).apply()
                             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
                             showUnifyTemplateDialogForRight = false
                             onRefreshNeeded()

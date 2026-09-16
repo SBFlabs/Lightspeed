@@ -551,3 +551,54 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
         visualWidthPx = visualWidth
     )
 }
+
+internal fun LightspeedCruiseOverlay.drawSpaceshipGimbalRing(
+    canvas: Canvas,
+    cx: Float,
+    cy: Float,
+    trackRadius: Float,
+    trackWidth: Float,
+    teethCount: Int,
+    toothDepth: Float,
+    rotationDeg: Float,
+    isActive: Boolean,
+    m3Primary: Int
+) = deepSpaceRenderer.drawSpaceshipGimbalRing(canvas, cx, cy, trackRadius, trackWidth, teethCount, toothDepth, rotationDeg, isActive, m3Primary)
+
+internal fun LightspeedCruiseOverlay.drawFlightLockReticle(
+    canvas: Canvas,
+    targetCX: Float,
+    targetCY: Float,
+    bracketSize: Float,
+    m3Primary: Int,
+    m3Secondary: Int,
+    appName: String,
+    density: Float,
+    reticleStyle: String = "tactical"
+) = deepSpaceRenderer.drawFlightLockReticle(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle)
+
+internal fun LightspeedCruiseOverlay.drawHolographicReactorCore(
+    canvas: Canvas,
+    cx: Float,
+    cy: Float,
+    coreRadius: Float,
+    isActive: Boolean,
+    m3Primary: Int,
+    density: Float
+) = deepSpaceRenderer.drawHolographicReactorCore(canvas, cx, cy, coreRadius, isActive, m3Primary, density)
+
+internal fun LightspeedCruiseOverlay.drawCosmicStarfield(canvas: Canvas, w: Float, h: Float, density: Float, alphaFactor: Float) =
+    deepSpaceRenderer.drawCosmicStarfield(canvas, w, h, density, alphaFactor)
+
+internal fun LightspeedCruiseOverlay.drawGalacticNebula(
+    canvas: Canvas,
+    cx: Float,
+    cy: Float,
+    radius: Float,
+    m3Primary: Int,
+    alphaFactor: Float
+) = deepSpaceRenderer.drawGalacticNebula(canvas, cx, cy, radius, m3Primary, alphaFactor)
+
+internal fun LightspeedCruiseOverlay.drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) =
+    deepSpaceRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density)
+

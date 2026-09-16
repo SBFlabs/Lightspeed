@@ -39,8 +39,8 @@ object LightspeedShortcutManager {
     private var managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private const val TAG = "LightspeedShortcut"
 
-    private val bitmapCache = android.util.LruCache<String, Bitmap>(150)
-    private val drawableCache = android.util.LruCache<String, Drawable>(150)
+    private val bitmapCache = android.util.LruCache<String, Bitmap>(350)
+    private val drawableCache = android.util.LruCache<String, Drawable>(350)
 
     fun clearMemoryCache() {
         managerScope.cancel()

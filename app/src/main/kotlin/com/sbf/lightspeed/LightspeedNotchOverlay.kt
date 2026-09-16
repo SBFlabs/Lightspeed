@@ -88,7 +88,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     }
 
     internal val iconBitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    internal val circularIconCache = android.util.LruCache<String, Bitmap>(150)
+    internal val circularIconCache = android.util.LruCache<String, Bitmap>(350)
     private val circleClipPath = Path()
 
     // Marquee State Tracking

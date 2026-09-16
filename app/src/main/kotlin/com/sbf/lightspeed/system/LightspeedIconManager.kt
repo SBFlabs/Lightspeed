@@ -39,8 +39,8 @@ object LightspeedIconManager {
     private val packageToDrawableMap = ConcurrentHashMap<String, String>()
     private val calendarPrefixMap = ConcurrentHashMap<String, String>()
 
-    private val bitmapCache = android.util.LruCache<String, Bitmap>(150)
-    private val drawableCache = android.util.LruCache<String, Drawable>(150)
+    private val bitmapCache = android.util.LruCache<String, Bitmap>(350)
+    private val drawableCache = android.util.LruCache<String, Drawable>(350)
 
     private var currentLoadedPack: String? = null
     private var isPackLoaded = false

@@ -22,6 +22,7 @@ PART 0: GENESIS, HUMAN VISION & ARCHITECTURAL CHARTER
 3. Monolithic Meta-Shell: Single unified APK with internal modular domain separation, avoiding external multi-APK fragmentation.
 4. Total Backup Invariance: Every setting, custom icon (Base64 embedded), physics profile, and layout must export and import losslessly via LightspeedBackupEngine.
 5. Nightly-Only Target: All day-to-day work, testing, and deployment targets com.sbf.lightspeed.nightly on branch nightly-refactor. Stable release remains locked and immutable.
+6. Public Version Progression & Promotion Pipeline: Strict 3-tier SemVer (PATCH/MINOR/MAJOR) and audited graduation flow (Nightly -> Refactor Audit -> Version Bump -> Explicit Promotion).
 
 [THE MASTER AVIONICS TAXONOMY (SPATIAL & SEMANTIC MAP)]
 * Horizon Rail: Top edge status bar progress line, battery telemetry curve, and horizontal scrubbers.

@@ -28,6 +28,16 @@
 - **Stable Release (STRICT IMMUTABILITY RULE)**:
   * Application ID: `com.sbf.lightspeed` (App Label: "Lightspeed")
   * **LOCKED**: NEVER build (`assembleRelease`), install, modify, or promote to `com.sbf.lightspeed` UNLESS the user explicitly gives a direct command (e.g., "Promote nightly to stable release").
+- **Public Versioning Progression & 4-Step Promotion Flow**:
+  * **Semantic Versioning Tiers (`MAJOR.MINOR.PATCH`)**:
+    - **PATCH (`v1.0.x`)**: Rapid bug fixes, crash patches, and UI alignment with zero breaking changes.
+    - **MINOR (`v1.x.0`)**: Graduating major feature vectors from the Vault backlog (e.g. System Override Deck, Adaptive Kinetic Scroll).
+    - **MAJOR (`v2.0.0`)**: Architectural paradigm shifts or complete workspace rebirths.
+  * **4-Step Promotion Protocol (Nightly -> Public)**:
+    1. *Nightly Iteration*: Build, test, and verify on `com.sbf.lightspeed.nightly` (pushed to private `origin`).
+    2. *Refactoring & Compliance Audit*: Execute `REFACTORING_AUDIT_PROMPT.md` in a clean session with Gemini Pro / Claude Sonnet; verify on physical phone.
+    3. *Version Bump*: Increment `versionCode` (+1) and `versionName` in `app/build.gradle.kts`, and curate public `CHANGELOG.md`.
+    4. *Explicit Promotion Execution*: Upon user command, compile `assembleRelease` for `com.sbf.lightspeed`, enforce anonymous author `SBF Labs <sflabs@gmail.com>`, push release tag to `public`, and attach APK to GitHub Release.
 
 ---
 

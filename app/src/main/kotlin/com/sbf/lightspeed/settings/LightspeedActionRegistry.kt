@@ -159,7 +159,7 @@ object LightspeedActionRegistry {
                         pkgInfo.activities?.forEach { activityInfo ->
                             if (activityInfo.exported && activityInfo.name != resolveInfo.activityInfo.name) {
                                 val actLabel = activityInfo.loadLabel(pm).toString().takeIf { it.isNotBlank() } ?: activityInfo.name.substringAfterLast(".")
-                                val displayLabel = if (actLabel == appLabel) "$actLabel (${activityInfo.name.substringAfterLast(".")})" else actLabel
+                                val displayLabel = if (actLabel != appLabel) "$appLabel ($actLabel)" else "$appLabel (${activityInfo.name.substringAfterLast(".")})"
                                 val activityToken = "shortcut:label=" + displayLabel + ";pkg=" + pkg + ";type=activity;activity=" + activityInfo.name
                                 baseTokens.add(activityToken)
                                 temporaryLabels[activityToken] = displayLabel
@@ -188,10 +188,11 @@ object LightspeedActionRegistry {
                                 setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST)
                             }
                             launcherApps.getShortcuts(query, Process.myUserHandle())?.forEach { shortcut ->
-                                val label = shortcut.shortLabel?.toString() ?: "Shortcut"
-                                val shortcutToken = "shortcut:label=" + label + ";pkg=" + pkg + ";type=home_shortcut;id=" + shortcut.id
+                                val shortLabel = shortcut.shortLabel?.toString() ?: "Shortcut"
+                                val displayLabel = "$appLabel ($shortLabel)"
+                                val shortcutToken = "shortcut:label=" + displayLabel + ";pkg=" + pkg + ";type=home_shortcut;id=" + shortcut.id
                                 baseTokens.add(shortcutToken)
-                                temporaryLabels[shortcutToken] = label
+                                temporaryLabels[shortcutToken] = displayLabel
                                 foundShortcuts = true
                             }
                         } catch (_: Exception) {}
@@ -199,9 +200,10 @@ object LightspeedActionRegistry {
                         // If not the default launcher, use pre-parsed Shizuku shortcuts for THIS specific package
                         if (!foundShortcuts) {
                             shizukuShortcutsMap[pkg]?.forEach { (shortcutId, label) ->
-                                val shortcutToken = "shortcut:label=$label;pkg=$pkg;type=home_shortcut;id=$shortcutId"
+                                val displayLabel = "$appLabel ($label)"
+                                val shortcutToken = "shortcut:label=$displayLabel;pkg=$pkg;type=home_shortcut;id=$shortcutId"
                                 baseTokens.add(shortcutToken)
-                                temporaryLabels[shortcutToken] = label
+                                temporaryLabels[shortcutToken] = displayLabel
                             }
                         }
                     }

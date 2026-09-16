@@ -316,6 +316,27 @@ object LightspeedShortcutManager {
                 }
                 return token
             }
+            "activity", "home_shortcut", "pinned" -> {
+                val appLabel = if (parsed.packageName.isNotBlank()) {
+                    try {
+                        val pm = context.packageManager
+                        pm.getApplicationLabel(pm.getApplicationInfo(parsed.packageName, 0)).toString()
+                    } catch (_: Exception) { "" }
+                } else ""
+
+                val cleanLabel = decode(parsed.label)
+                if (cleanLabel.isNotBlank() && !cleanLabel.contains("#Intent;")) {
+                    if (cleanLabel.contains("(") && cleanLabel.contains(")")) {
+                        return cleanLabel
+                    }
+                    if (appLabel.isNotBlank() && !cleanLabel.equals(appLabel, ignoreCase = true)) {
+                        return "$appLabel ($cleanLabel)"
+                    }
+                    return cleanLabel
+                }
+                if (appLabel.isNotBlank()) return appLabel
+                return "Shortcut"
+            }
             else -> {
                 val cleanLabel = decode(parsed.label)
                 if (cleanLabel.isNotBlank() && !cleanLabel.contains("#Intent;")) {
@@ -653,10 +674,15 @@ object LightspeedShortcutManager {
             val output = proc.inputStream.bufferedReader().readText()
             proc.waitFor()
 
+            val rawLabel = if (parsed.label.contains("(") && parsed.label.endsWith(")")) {
+                parsed.label.substringAfter("(").substringBeforeLast(")").trim()
+            } else parsed.label
+
             val blocks = output.split("ShortcutInfo {").drop(1)
             val block = blocks.firstOrNull { b ->
                 (parsed.id.isNotBlank() && (b.contains("id=${parsed.id},") || b.contains("id=${parsed.id}\n") || b.contains("id=${parsed.id}\r\n") || b.contains("id=${parsed.id} "))) ||
-                (parsed.label.isNotBlank() && (b.contains("shortLabel=${parsed.label},") || b.contains("shortLabel=${parsed.label}\n") || b.contains("shortLabel=${parsed.label}\r\n")))
+                (rawLabel.isNotBlank() && (b.contains("shortLabel=$rawLabel,") || b.contains("shortLabel=$rawLabel\n") || b.contains("shortLabel=$rawLabel\r\n") || b.contains("shortLabel=\"$rawLabel\""))) ||
+                (parsed.label.isNotBlank() && (b.contains("shortLabel=${parsed.label},") || b.contains("shortLabel=${parsed.label}\n") || b.contains("shortLabel=${parsed.label}\r\n") || b.contains("shortLabel=\"${parsed.label}\"")))
             } ?: return false
 
             Log.i(TAG, "launchElevatedHomeShortcut: matched shortcut block successfully")

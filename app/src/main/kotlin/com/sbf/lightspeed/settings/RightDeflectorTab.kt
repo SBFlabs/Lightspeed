@@ -77,23 +77,11 @@ fun RightDeflectorTabContent(
     isTopScrubExpandedState: MutableState<Boolean>,
     listState2: androidx.compose.foundation.lazy.LazyListState,
     onRefreshNeeded: () -> Unit,
-    pastedJsonTextState: MutableState<String>,
-    pendingBackTapScopeState: MutableState<String>,
     pinnedSection2State: MutableState<String>,
     prefs: android.content.SharedPreferences,
     sectionOrder2StrState: MutableState<String>,
     sectionTitles2: Map<String, String>,
-    selectedTemplateOptionState: MutableIntState,
-    showAmoledWarningDialogState: MutableState<Boolean>,
-    showBatteryWarningDialogState: MutableState<Boolean>,
-    showImportOptionsDialogState: MutableState<Boolean>,
-    showNotificationAccessDialogState: MutableState<Boolean>,
-    showOemShieldDialogState: MutableState<Boolean>,
-    showPasteJsonDialogState: MutableState<Boolean>,
-    showResetConfirmDialogState: MutableState<Boolean>,
-    showSymmetryInfoDialogState: MutableState<Boolean>,
     showUnifyInfoDialogState: MutableState<Boolean>,
-    showUnifyTemplateDialogForLeftState: MutableState<Boolean>,
     showUnifyTemplateDialogForRightState: MutableState<Boolean>,
     toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
     tokenLabelCache: Map<String, String>
@@ -115,21 +103,9 @@ fun RightDeflectorTabContent(
     var isTopGeoExpanded by isTopGeoExpandedState
     var isTopGesturesExpanded by isTopGesturesExpandedState
     var isTopScrubExpanded by isTopScrubExpandedState
-    var pastedJsonText by pastedJsonTextState
-    var pendingBackTapScope by pendingBackTapScopeState
     var pinnedSection2 by pinnedSection2State
     var sectionOrder2Str by sectionOrder2StrState
-    var selectedTemplateOption by selectedTemplateOptionState
-    var showAmoledWarningDialog by showAmoledWarningDialogState
-    var showBatteryWarningDialog by showBatteryWarningDialogState
-    var showImportOptionsDialog by showImportOptionsDialogState
-    var showNotificationAccessDialog by showNotificationAccessDialogState
-    var showOemShieldDialog by showOemShieldDialogState
-    var showPasteJsonDialog by showPasteJsonDialogState
-    var showResetConfirmDialog by showResetConfirmDialogState
-    var showSymmetryInfoDialog by showSymmetryInfoDialogState
     var showUnifyInfoDialog by showUnifyInfoDialogState
-    var showUnifyTemplateDialogForLeft by showUnifyTemplateDialogForLeftState
     var showUnifyTemplateDialogForRight by showUnifyTemplateDialogForRightState
     var subBlueprintTarget by remember { mutableStateOf<String?>(null) }
     val rightCustomVectors = listOf(

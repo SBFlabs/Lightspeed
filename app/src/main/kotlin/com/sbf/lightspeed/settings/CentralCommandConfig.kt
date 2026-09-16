@@ -297,8 +297,6 @@ fun CentralCommandMatrixFields(
     var showPasteJsonDialog by showPasteJsonDialogState
     val pastedJsonTextState = remember { mutableStateOf("") }
     var pastedJsonText by pastedJsonTextState
-    val selectedTemplateOptionState = remember { mutableIntStateOf(0) }
-    var selectedTemplateOption by selectedTemplateOptionState
 
     val showUnifyTemplateDialogForLeftState = remember { mutableStateOf(false) }
     var showUnifyTemplateDialogForLeft by showUnifyTemplateDialogForLeftState
@@ -822,24 +820,12 @@ fun CentralCommandMatrixFields(
         isTopScrubExpandedState = isTopScrubExpandedState,
         listState2 = listState2,
         onRefreshNeeded = onRefreshNeeded,
-        pastedJsonTextState = pastedJsonTextState,
-        pendingBackTapScopeState = pendingBackTapScopeState,
         pinnedSection2State = pinnedSection2State,
         prefs = prefs,
         sectionOrder2StrState = sectionOrder2StrState,
-        selectedTemplateOptionState = selectedTemplateOptionState,
-        showAmoledWarningDialogState = showAmoledWarningDialogState,
-        showBatteryWarningDialogState = showBatteryWarningDialogState,
-        showImportOptionsDialogState = showImportOptionsDialogState,
-        showNotificationAccessDialogState = showNotificationAccessDialogState,
-        showOemShieldDialogState = showOemShieldDialogState,
-        showPasteJsonDialogState = showPasteJsonDialogState,
-        showResetConfirmDialogState = showResetConfirmDialogState,
-        showSymmetryInfoDialogState = showSymmetryInfoDialogState,
-        showUnifyInfoDialogState = showUnifyInfoDialogState,
-        showUnifyTemplateDialogForLeftState = showUnifyTemplateDialogForLeftState,
-        showUnifyTemplateDialogForRightState = showUnifyTemplateDialogForRightState,
         sectionTitles2 = sectionTitles2,
+        showUnifyInfoDialogState = showUnifyInfoDialogState,
+        showUnifyTemplateDialogForRightState = showUnifyTemplateDialogForRightState,
         toggleSection = ::toggleSection,
         tokenLabelCache = tokenLabelCache
                     )

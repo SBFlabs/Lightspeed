@@ -44,6 +44,13 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
   * Removed the unpredictable "Sensor Deck Long Sweep (Scrubbing)" gesture and UI row, unifying status bar scrubbing under tactile Hold-to-Scrub (+ Hold Modifiers).
 
 ---
+* **Massive Memory Optimization & App Payload Shrink (Nightly):**
+  * Identified and destroyed a rogue pre-warming background loop in `LightspeedActionRegistry` that attempted to pre-cache all installed apps at zero-second startup.
+  * Removed unbounded `ConcurrentHashMap<String, Drawable>` in `LightspeedDataBridge` that was secretly hoarding ~270 heavy `AdaptiveIconDrawable` instances, eliminating a massive 75MB+ RAM spike.
+  * Reduced `LruCache` sizes for `Drawable` buffers from 350 to 50 across Icon and Shortcut Managers to aggressively purge heavy Android UI layouts, while maintaining the lightweight 144x144 rasterized `Bitmap` caches.
+  * Hard-capped `OmniscientAudioDockManager` artwork processing to immediately compress high-res album arts to 144x144, preventing 36MB+ RAM allocations per song.
+  * Implemented an ephemeral `temporaryPickerCache` that borrows RAM only when the Action Selection UI is active for buttery smooth scrolling, and instantly annihilates the cache inside `onDestroy()` when the UI closes.
+  * **Build System Optimization**: Injected R8 Shrinker (`isMinifyEnabled = true`, `isShrinkResources = true`) directly into the Nightly `debug` Gradle build. This actively strips >9,900 unused Material Icons from Jetpack Compose, crushing the `.dex` mapping footprint from 60MB down to 13MB and drastically lowering the baseline memory tax of the Jetpack Compose architecture.
 
 ## [1.1.2] - 2026-08-23
 

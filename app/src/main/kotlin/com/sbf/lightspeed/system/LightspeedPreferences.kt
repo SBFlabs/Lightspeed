@@ -52,6 +52,21 @@ object LightspeedPreferences {
     const val KEY_SYMMETRY_GESTURE_MODE = "pref_symmetry_gesture_mode"
     const val KEY_SIDEBAR_RIGHT_LINK_FLANK = "pref_sidebar_right_link_flank_actions"
     const val KEY_SIDEBAR_LEFT_LINK_FLANK = "pref_sidebar_left_link_flank_actions"
+    const val KEY_UNIFIED_SCRUB_REGIONS_LINKED = "pref_unified_scrub_regions_linked"
+    const val KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT = "pref_unified_scrub_regions_linked_right"
+    const val KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT = "pref_unified_scrub_regions_linked_left"
+
+    fun isScrubRegionsLinked(context: Context, isLeft: Boolean): Boolean {
+        val prefs = context.defaultPrefs()
+        val key = if (isLeft) KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT else KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT
+        return prefs.getBoolean(key, prefs.getBoolean(KEY_UNIFIED_SCRUB_REGIONS_LINKED, true))
+    }
+
+    fun setScrubRegionsLinked(context: Context, isLeft: Boolean, linked: Boolean) {
+        val prefs = context.defaultPrefs()
+        val key = if (isLeft) KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT else KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT
+        prefs.edit().putBoolean(key, linked).apply()
+    }
 
     // Notch Calibration & Test Beacon Keys
     const val KEY_NOTCH_OFFSET_X = "pref_notch_offset_x"

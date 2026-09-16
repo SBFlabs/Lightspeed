@@ -288,7 +288,8 @@ class LightspeedLeftWingOverlay(
                     return true
                 }
 
-                val scrubAction = prefs.getString("pref_macro_action_${activeZoneKey}_SCRUBBING", "none") ?: "none"
+                val effectiveScrubZone = if (com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isLeft = true)) "LEFT_TOP" else activeZoneKey
+                val scrubAction = prefs.getString("pref_macro_action_${effectiveScrubZone}_SCRUBBING", "none") ?: "none"
                 scrubType = scrubAction
 
                 uiHandler.removeCallbacks(holdRunnable)
@@ -332,7 +333,8 @@ class LightspeedLeftWingOverlay(
                     if (isHorizontalEngaged && dy > 35f && abs(dy) > abs(dx) * 0.8f) {
                         isTwoStepDownwardScrub = true
                         isScrubbing = true
-                        activeScrubActionKey = "pref_macro_action_${activeZoneKey}_SCRUBBING"
+                        val effectiveScrubZone = if (com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isLeft = true)) "LEFT_TOP" else activeZoneKey
+                        activeScrubActionKey = "pref_macro_action_${effectiveScrubZone}_SCRUBBING"
                         uiHandler.removeCallbacks(holdRunnable)
                         triggerHaptic(30, 180)
 
@@ -544,7 +546,8 @@ class LightspeedLeftWingOverlay(
             else -> true
         }
         if (showHud) {
-            val fallbackKey = activeScrubActionKey ?: "pref_macro_action_${activeZoneKey}_SCRUBBING"
+            val effectiveScrubZone = if (com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isLeft = true)) "LEFT_TOP" else activeZoneKey
+            val fallbackKey = activeScrubActionKey ?: "pref_macro_action_${effectiveScrubZone}_SCRUBBING"
             val hudStyle = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, scrubType)
 
             LightspeedStatusBarOverlay.showActionHud(

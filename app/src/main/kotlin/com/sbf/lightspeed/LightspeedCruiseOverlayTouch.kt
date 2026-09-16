@@ -771,7 +771,8 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(event: MotionEvent, superC
                     when (currentDetectedGesture) {
                         MacroGesture.SWIPE_LEFT -> {
                             val zoneName = if (currentActiveZone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-                            val dynamicZone = if (prefs().getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
+                            val isScrubLinked = com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isOpenedFromLeftFlank)
+                            val dynamicZone = if (isScrubLinked || prefs().getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
                             val assignedScrub = prefs().getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none")
 
                             if (assignedScrub != "none" && assignedScrub != null && abs(deltaX) > thresholdX_Scrub) {
@@ -1052,7 +1053,8 @@ internal fun LightspeedCruiseOverlay.dispatchScrubHud(title: String, value: Stri
 internal fun LightspeedCruiseOverlay.executeLinearScrubTrack(zone: TouchZone, pixelDelta: Float) {
     val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
     val prefs = prefs()
-    val dynamicZone = if (prefs.getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
+    val isScrubLinked = com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isOpenedFromLeftFlank)
+    val dynamicZone = if (isScrubLinked || prefs.getBoolean("pref_sidebar_link_gestures", false)) "TOP" else zoneName
     val assignedScrub = activeHoldScrubAction ?: (prefs.getString("pref_macro_action_${dynamicZone}_SCRUBBING", "none") ?: "none")
 
     if (assignedScrub == "none") return

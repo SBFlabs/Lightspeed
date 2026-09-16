@@ -2,6 +2,20 @@
 
 All notable changes to the Lightspeed Gesture Launcher & Workspace are documented in this file.
 
+## [1.4.1] - 2026-09-17
+
+### ⚓ Nautical Mooring Rope & Deflector Linking Engine
+* **Nautical Mooring Rope Component (`NauticalMooringRope.kt`)**:
+  * High-performance custom Canvas component rendering a thick naval Manila hemp braided cord with helical strand ridges, golden-umber highlights, and shadow crevices.
+  * Interactive Knotting & Severing: Tapping the rope toggles between a continuous reef-knotted mooring rope (Linked) and severed cord ends with frayed fiber tassels (Unlinked / Independent) with spring animation and tactile haptic pulse.
+* **Dynamic Deflector Scrubber Linking (`LightspeedPreferences`)**:
+  * Added `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, and `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`.
+  * **Knotted / Tied (Default)**: Upper & Lower deflector scrubbers lock in lockstep, dispatching a unified scrub action across the entire flank.
+  * **Cut / Severed**: Upper and Lower sectors operate independently (e.g. Upper = Brightness, Lower = Volume).
+* **Overlay Runtime & Settings Integration**:
+  * Wired live touch resolution in `LightspeedCruiseOverlayTouch` and `LightspeedLeftWingOverlay`.
+  * Embedded animated mooring rope cards directly inside the Scrubber subsections of `RightDeflectorTab` and `LeftDeflectorTab`.
+
 ## [1.4.0] - 2026-09-16
 
 ### 🚀 Major Highlights & Commercial Polish

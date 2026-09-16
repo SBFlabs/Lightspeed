@@ -101,6 +101,7 @@ fun LeftDeflectorTabContent(
     var isLeftUnifiedGeoExpanded by isLeftUnifiedGeoExpandedState
     var isLeftUnifiedGesturesExpanded by isLeftUnifiedGesturesExpandedState
     var isLeftUnifiedScrubExpanded by isLeftUnifiedScrubExpandedState
+    var isLeftScrubLinked by remember { mutableStateOf(com.sbf.lightspeed.system.LightspeedPreferences.isScrubRegionsLinked(context, isLeft = true)) }
     var pinnedSection0 by pinnedSection0State
     var sectionOrder0Str by sectionOrder0StrState
     var showUnifyInfoDialog by showUnifyInfoDialogState
@@ -352,15 +353,61 @@ fun LeftDeflectorTabContent(
 
                                                         CollapsibleSubSection(
                                                             title = "Dual Inward Scrubber Controls",
-                                                            subtitle = "Independent upper & lower half scrubbers",
+                                                            subtitle = if (isLeftScrubLinked) "Tied · Upper & lower sectors scrub in lockstep" else "Independent upper & lower half scrubbers",
                                                             isExpanded = isLeftUnifiedScrubExpanded,
                                                             onToggle = {
                                                                 isLeftUnifiedScrubExpanded = !isLeftUnifiedScrubExpanded
                                                                 prefs.edit().putBoolean("pref_sub_scrub_left_unified", isLeftUnifiedScrubExpanded).apply()
                                                             }
                                                         ) {
-                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_TOP_SCRUBBING", "Upper Half Inward Sweep (Scrubbing)", listOf("none", "system:brightness", "system:volume", "system:screen_timeout"), tokenLabelCache)
-                                                            GestureMappingRow(context, prefs, ArrowDirection.SCRUB, false, "pref_macro_action_LEFT_BOTTOM_SCRUBBING", "Lower Half Inward Sweep (Scrubbing)", listOf("none", "system:volume", "system:brightness", "system:screen_timeout"), tokenLabelCache)
+                                                            NauticalMooringRope(
+                                                                context = context,
+                                                                isLinked = isLeftScrubLinked,
+                                                                onToggleLink = { newLinked ->
+                                                                    isLeftScrubLinked = newLinked
+                                                                    com.sbf.lightspeed.system.LightspeedPreferences.setScrubRegionsLinked(context, isLeft = true, newLinked)
+                                                                    if (newLinked) {
+                                                                        val topVal = prefs.getString("pref_macro_action_LEFT_TOP_SCRUBBING", "system:brightness") ?: "system:brightness"
+                                                                        prefs.edit().putString("pref_macro_action_LEFT_BOTTOM_SCRUBBING", topVal).apply()
+                                                                    }
+                                                                },
+                                                                title = "LEFT FLANK MOORING ROPE",
+                                                                linkedSubtitle = "Tied · Upper & lower sectors scrub in lockstep",
+                                                                unlinkedSubtitle = "Severed · Upper & lower scrubbers operate independently"
+                                                            )
+
+                                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                                            GestureMappingRow(
+                                                                context = context,
+                                                                prefs = prefs,
+                                                                direction = ArrowDirection.SCRUB,
+                                                                isHold = false,
+                                                                keyResName = "pref_macro_action_LEFT_TOP_SCRUBBING",
+                                                                defaultTitle = if (isLeftScrubLinked) "Linked Inward Sweep (Scrubbing)" else "Upper Half Inward Sweep (Scrubbing)",
+                                                                options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout"),
+                                                                labelCache = tokenLabelCache
+                                                            )
+
+                                                            if (isLeftScrubLinked) {
+                                                                LaunchedEffect(prefs.getString("pref_macro_action_LEFT_TOP_SCRUBBING", null)) {
+                                                                    val currentTop = prefs.getString("pref_macro_action_LEFT_TOP_SCRUBBING", null)
+                                                                    if (currentTop != null && currentTop != prefs.getString("pref_macro_action_LEFT_BOTTOM_SCRUBBING", null)) {
+                                                                        prefs.edit().putString("pref_macro_action_LEFT_BOTTOM_SCRUBBING", currentTop).apply()
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                GestureMappingRow(
+                                                                    context = context,
+                                                                    prefs = prefs,
+                                                                    direction = ArrowDirection.SCRUB,
+                                                                    isHold = false,
+                                                                    keyResName = "pref_macro_action_LEFT_BOTTOM_SCRUBBING",
+                                                                    defaultTitle = "Lower Half Inward Sweep (Scrubbing)",
+                                                                    options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout"),
+                                                                    labelCache = tokenLabelCache
+                                                                )
+                                                            }
                                                         }
 
                                                         CollapsibleSubSection(

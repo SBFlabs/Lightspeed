@@ -279,6 +279,12 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Implemented 4 aesthetic finishes: Heavy Progressive Frost (glass diffusion), Material Surface Shade (dynamic M3 tone), Crimson Reactor (thermal warning core), and Cyber Plasma (full-spectrum kinetic gradient).
   - Added toggle to pulse deflector glow upon step-1 gesture recognition ("pref_deflector_glow_on_gesture_step").
   - Added glow duration selector ("800ms", "1500ms", "2200ms") and live "TEST FX" trigger in Central Command.
+✓ Nautical Mooring Rope & Deflector Linking Engine [STATUS: SHIPPED & VERIFIED]:
+  - Skeuomorphic Naval Mooring Rope Component (`NauticalMooringRope.kt`): Custom high-performance Canvas drawing routine modeling a thick Manila hemp hawser-laid mooring rope with braided helical ridges, drop shadow, and tactile highlights.
+  - Interactive Knot vs Cut States: Tapping toggles between a continuous reef-knotted rope (`⚓ KNOTTED // LINKED`) and severed cord ends with individual frayed fiber tassels (`✂️ CUT // UNLINKED`) with spring animation and tactile haptic pulse.
+  - Sector Linking Contracts (`LightspeedPreferences`): Added `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, and `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`.
+  - Tied State (Default): Upper & Lower deflector scrubbers lock in lockstep, automatically synchronizing preferences and dispatching unified flank-wide scrubbing in `LightspeedCruiseOverlayTouch` and `LightspeedLeftWingOverlay`.
+  - Severed State: Decouples Upper and Lower halves into completely independent scrubber controls (e.g. Upper = Brightness, Lower = Volume).
 ✓ Synthetic Gravity Engine & Native Auto-Rotation Resolution:
   - Decoupled persistent Master Auto-Rotate baseline from transient hardware system setting writes (`Settings.System.ACCELEROMETER_ROTATION`), eliminating circular setting corruption.
   - Fixed landscape app exit glitch (Brawl Stars 90° lock): ensured unconstrained rotation resets `USER_ROTATION` to `Surface.ROTATION_0` and restores baseline auto-rotate without requiring Home button press.

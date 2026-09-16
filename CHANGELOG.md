@@ -38,6 +38,10 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
   * Added `KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS` toggle in Experimental Labs for pulling down Android notifications via status bar sensor swipe down.
   * Resolved SystemUI panel deadlock/freeze bug caused by continuous `GLOBAL_ACTION_NOTIFICATIONS` IPC spam and touch consumption when notification shade or Quick Settings was already open.
   * Implemented dynamic `isSystemUiActive` detection in `LightspeedAccessibilityOverlays` to cleanly hide the sensor touch window when SystemUI is in the foreground, restoring native touch pass-through for Quick Settings pulls.
+* **Scrub Action Gating Rule & Sensor Deck Architecture Hardening**:
+  * Enforced rule restricting continuous scrub actions (`system:volume`, `system:brightness`, `system:screen_timeout`) exclusively to Hold Modifiers (`_HOLD`) and Long Sweep Scrubbing (`SCRUB`).
+  * Dynamically filtered out scrub actions from picker lists for all momentary gestures (Tap, Double Tap, regular Swipes without Hold).
+  * Cleared legacy momentary fallback logic in `LightspeedSensorDeckTouchOverlay` ensuring only explicit Hold or dedicated Scrub gestures activate scrubber HUDs.
 
 ---
 

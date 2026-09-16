@@ -143,6 +143,7 @@ fun GestureMappingRow(
                     val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                         putExtra("SINGLE_SELECT_PREF_KEY", key)
                         putExtra("SINGLE_SELECT_TITLE", "$defaultTitle Action")
+                        putExtra("IS_HOLD_GESTURE", isHold || direction == ArrowDirection.SCRUB)
                     }
                     pickerLauncher.launch(intent)
                 }

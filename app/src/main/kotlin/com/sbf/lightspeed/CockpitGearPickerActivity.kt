@@ -75,6 +75,9 @@ class CockpitGearPickerActivity : ComponentActivity() {
         val singleSelectPrefKey = intent.getStringExtra("SINGLE_SELECT_PREF_KEY")
         val singleSelectTitle = intent.getStringExtra("SINGLE_SELECT_TITLE") ?: "Select Action"
         val isSingleSelect = !singleSelectPrefKey.isNullOrBlank()
+        val isHoldGesture = intent.getBooleanExtra("IS_HOLD_GESTURE", false) ||
+                singleSelectPrefKey?.contains("_HOLD", ignoreCase = true) == true ||
+                singleSelectPrefKey?.contains("SCRUB", ignoreCase = true) == true
 
         val setId = intent.getStringExtra("SET_ID") ?: "0"
         val ringIndex = intent.getIntExtra("RING_INDEX", 0)
@@ -284,7 +287,8 @@ var showHud by remember { mutableStateOf(false) }
                             expandedSubsections = expandedSubsections,
                             pinnedApps = pinnedApps,
                             prefs = prefs,
-                            singleSelectPrefKey = singleSelectPrefKey
+                            singleSelectPrefKey = singleSelectPrefKey,
+                            isHoldOrScrubGesture = isHoldGesture
                         )
                     }
                 }

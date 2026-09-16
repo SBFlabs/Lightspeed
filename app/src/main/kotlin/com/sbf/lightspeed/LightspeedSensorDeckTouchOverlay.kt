@@ -292,8 +292,7 @@ class LightspeedSensorDeckTouchOverlay(
         val (action, resolvedKey) = if (configuredHold != "none") {
             configuredHold to holdActionKey
         } else {
-            val baseAction = prefs.getString("pref_macro_action_STATUSBAR_$gestureKey", "none") ?: "none"
-            if (isScrubAction(baseAction)) baseAction to "pref_macro_action_STATUSBAR_$gestureKey" else "none" to null
+            "none" to null
         }
 
         if (action != "none") {
@@ -457,11 +456,10 @@ class LightspeedSensorDeckTouchOverlay(
                 if (isHorizontalEngaged) {
                     // Check Long Sweep Scrubbing (continuous swipe past threshold)
                     val assignedScrub = prefs.getString("pref_macro_action_STATUSBAR_SCRUBBING", "none")
-                    val swipeAction = prefs.getString("pref_macro_action_STATUSBAR_$currentGesture", "none")
-                    val (effectiveScrub, resolvedKey) = when {
-                        assignedScrub != null && assignedScrub != "none" && isScrubAction(assignedScrub) -> assignedScrub to "pref_macro_action_STATUSBAR_SCRUBBING"
-                        isScrubAction(swipeAction ?: "") -> (swipeAction ?: "") to "pref_macro_action_STATUSBAR_$currentGesture"
-                        else -> null to null
+                    val (effectiveScrub, resolvedKey) = if (assignedScrub != null && assignedScrub != "none" && isScrubAction(assignedScrub)) {
+                        assignedScrub to "pref_macro_action_STATUSBAR_SCRUBBING"
+                    } else {
+                        null to null
                     }
                     if (effectiveScrub != null && abs(rawDx) > threshold * 1.8f && !isScrubbing) {
                         isScrubbing = true

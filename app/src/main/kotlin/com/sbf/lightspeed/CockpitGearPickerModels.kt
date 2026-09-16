@@ -107,10 +107,14 @@ fun buildFlatItemsList(
     expandedSubsections: Set<String>,
     pinnedApps: Set<String>,
     prefs: SharedPreferences,
-    singleSelectPrefKey: String?
+    singleSelectPrefKey: String?,
+    isHoldOrScrubGesture: Boolean = true
 ): List<PickerRowItem> {
     val list = mutableListOf<PickerRowItem>()
-    val validTokens = allTokens.filter { it != "none" }
+    val scrubTokens = setOf("system:screen_timeout", "system:volume", "system:brightness")
+    val validTokens = allTokens.filter { token ->
+        token != "none" && (isHoldOrScrubGesture || !scrubTokens.contains(token))
+    }
     val filtered = if (searchQuery.isBlank()) {
         validTokens
     } else {

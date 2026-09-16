@@ -85,6 +85,7 @@ fun PowerGestureMappingRow(
                     val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                         putExtra("SINGLE_SELECT_PREF_KEY", prefKey)
                         putExtra("SINGLE_SELECT_TITLE", "$title Action")
+                        putExtra("IS_HOLD_GESTURE", slot == com.sbf.lightspeed.system.PowerTriggerSlot.POWER_HOLD || slot == com.sbf.lightspeed.system.PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
                     }
                     launcher.launch(intent)
                 }

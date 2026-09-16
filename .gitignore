@@ -1,19 +1,74 @@
-*.iml
-.gradle
-/local.properties
-/.idea/
-.DS_Store
-/build
-/app/build
-/captures
-.externalNativeBuild
-.cxx
-*.apk
-*.aab
-# Production signing credentials — never commit
+# ==============================================================================
+# 1. AI WORKFLOW: ANTIGRAVITY, OPENCODE & COPILOT
+# ==============================================================================
+# Antigravity (Gemini & Claude) session cache, rules & scratchpad
+.antigravity/
+.agents/
+scratch/
+brain/
+.system_generated/
+
+# OpenCode workspace, history & session state
+.opencode/
+opencode/
+.opencode_*
+
+# GitHub Copilot local runtime cache & indexing
+.copilot/
+
+# ==============================================================================
+# 2. PERSONAL IDENTITY & PRIVACY (ZERO REAL IDENTITY / PII LEAKS)
+# ==============================================================================
+# Production signing keys & certificates (never commit)
 keystore.properties
 *.jks
 *.keystore
-extract_lightspeed.sh
+*.p12
+*.key
+*.pem
+
+# Local machine paths (hides /home/Sherif/ and host filesystem structure)
+local.properties
+local.properties.*
+*.local
+gradle.properties.local
+.env
+.env.*
+
+# Project source dumps, shell dumps & audit logs (contain host paths)
 lightspeed_source_dump.txt
+audit_summary.txt
+lightspeed_summary.txt
+extract_lightspeed.sh
+*.dump
 *.log
+
+# ==============================================================================
+# 3. ANDROID & GRADLE BUILD SYSTEM
+# ==============================================================================
+*.iml
+.gradle/
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.dex
+*.class
+
+# Kotlin compiler daemon logs & crash state
+.kotlin/
+
+# IDE User Configurations (contains local usernames & recent history)
+/.idea/
+.vscode/
+
+# OS Metadata & Swaps
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.bak
+*.tmp

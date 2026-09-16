@@ -199,6 +199,13 @@ object LightspeedShortcutManager {
 
         val body = token.removePrefix("shortcut:")
 
+        // 0. Handle malformed tokens without proper structure (e.g., "shortcut:knstead")
+        if (!body.contains("=") && !body.contains(";")) {
+            // Case 1: Token is just a label without pkg (e.g., "shortcut:knstead")
+            val label = decode(body)
+            return ParsedShortcut("generic", "", label = label)
+        }
+
         // 1. Structured Token Format: type=...;pkg=...;
         if (body.contains("type=") && body.contains("pkg=")) {
             val type = body.substringAfter("type=").substringBefore(";")
@@ -230,7 +237,16 @@ object LightspeedShortcutManager {
             return ParsedShortcut("pinned", pkg, id = id, label = label)
         }
 
-        // 3. Legacy Intent shortcut: intent:#Intent;...;custom_label=...;
+        // 3. Home shortcut format: ;pkg=...;label=...;type=home_shortcut;id=...;
+        if (body.contains("type=home_shortcut")) {
+            val type = "home_shortcut"
+            val pkg = if (body.contains("pkg=")) decode(body.substringAfter("pkg=").substringBefore(";")) else ""
+            val id = if (body.contains("id=")) decode(body.substringAfter("id=").substringBefore(";")) else ""
+            val label = if (body.contains("label=")) decode(body.substringAfter("label=").substringBefore(";")) else ""
+            return ParsedShortcut(type, pkg, id = id, label = label)
+        }
+
+        // 4. Legacy Intent shortcut: intent:#Intent;...;custom_label=...;
         if (body.contains("#Intent;")) {
             val customLabel = if (body.contains("custom_label=")) decode(body.substringAfter("custom_label=").substringBefore(";"))
                               else if (body.contains("label=")) decode(body.substringAfter("label=").substringBefore(";")) else ""
@@ -263,7 +279,7 @@ object LightspeedShortcutManager {
             return ParsedShortcut("intent", pkg, label = customLabel, intentUri = cleanUri)
         }
 
-        // 4. Fallback legacy tokens
+        // 5. Fallback legacy tokens
         val pkg = when {
             body.contains(";pkg=") -> body.substringAfter(";pkg=").substringBefore(";")
             body.contains("pkg=") -> body.substringAfter("pkg=").substringBefore(";")

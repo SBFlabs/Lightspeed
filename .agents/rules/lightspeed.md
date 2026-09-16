@@ -6,7 +6,7 @@
 - App Type: Ultra-fast offline gesture launcher & cruise overlay workspace for Android.
 - Privacy & Network: 100% Offline. Zero telemetry, zero analytics, zero external network dependencies.
 - Language & Framework: Pure Kotlin, Jetpack Compose with Material 3 / Dynamic Colors, AGSL shaders, custom high-performance Canvas rendering.
-- Operating Mode: Autonomous Lead Developer (User acts as Visionary PM / Product Owner).
+- Operating Mode: Autonomous Lead Developer (User acts as Visionary Founder).
 
 ---
 
@@ -14,28 +14,32 @@
 - **Nightly Target (Active Development & Iteration)**:
   * Application ID: `com.sbf.lightspeed.nightly` (App Label: "Lightspeed Nightly")
   * ALL day-to-day development, refactoring, feature work, bug fixes, testing, builds (`assembleDebug`), and ADB installs MUST target `com.sbf.lightspeed.nightly` ONLY.
-  * Git Commits: Local commits on branch `nightly-refactor`. Never push to remote without instruction.
+  * Git Commits: Local commits on branch `nightly-refactor`.
+- **Remote Git & Cloud Backup Strategy (SBF Labs)**:
+  * **Private Repository (`origin` -> `git@github.com:SBFlabs/Lightspeed-Nightly.git`)**:
+    - **HABITUAL CLOUD BACKUP**: Whenever a development milestone or refactoring session is committed, pushing to `origin` is authorized and encouraged to safeguard the Founder's work against local hardware loss.
+  * **Public Repository (`public` -> `git@github.com:SBFlabs/Lightspeed.git`) (STRICT IMMUTABILITY RULE)**:
+    - **LOCKED**: NEVER push (`git push public`), publish, or synchronize to the public repository UNLESS the user explicitly gives a direct command (e.g., "Push to public repository", "Publish release to public").
+    - Public releases must strictly originate from the audited, stable `master` branch under the anonymous SBF Labs identity with zero personal identifiers.
 - **Stable Release (STRICT IMMUTABILITY RULE)**:
   * Application ID: `com.sbf.lightspeed` (App Label: "Lightspeed")
   * **LOCKED**: NEVER build (`assembleRelease`), install, modify, or promote to `com.sbf.lightspeed` UNLESS the user explicitly gives a direct command (e.g., "Promote nightly to stable release").
 
 ---
 
-# 3. Autonomous Execution Loop (Mandatory After Every Task)
-Whenever any code edit, bug fix, or feature is completed:
-1. **Hardware & Process Hygiene**:
-   * NEVER run multiple Gradle builds or background tasks in parallel. Always build strictly sequentially to prevent CPU throttling, daemon deadlocks, and stale state.
-2. **Compile**:
-   * Run `./gradlew assembleDebug` (targets Nightly).
-3. **Local Git Commit**:
-   * Run `git add -A && git commit -m "<concise descriptive message>"`.
-4. **Wireless ADB Silent Deploy**:
-   * Run `adb -s 192.168.100.10:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
-   * **STRICT SILENT DEPLOY**: NEVER run `am start` to launch activities on device upon installation.
-5. **Physical Device Verification**:
-   * Always run `adb -s 192.168.100.10:5555 shell "dumpsys package com.sbf.lightspeed.nightly | grep lastUpdateTime"` to verify that the phone physically updated.
-6. **Report to User**:
-   * State the commit hash, verified `lastUpdateTime` from device, and concise summary of changes.
+# 3. Build & Deployment Execution Scope (Host Protection & User Overrides)
+- **BUILD & DEPLOY EXECUTION POLICY**:
+  * **Default Mode**: The AI refrains from running background Gradle daemons, build loops, or unsolicited compilations.
+  * **Explicit User Pass / Override**: Whenever the user explicitly instructs or gives a pass (e.g. "run it", "deploy it", "giving you a pass", etc.), the AI is fully authorized to execute `./deploy-nightly.sh` or target debug builds.
+- **Hardware & Host Safety Invariants (Strict 8GB RAM / 4th-Gen i7 Safeguards)**:
+  * Zero Background Process / Timer Stacking: NEVER launch multiple Gradle commands, background tasks, or `schedule` asynchronous timers concurrently.
+  * Process Awareness & Instant Flush: Always execute `killall -9 java aapt2 2>/dev/null || true` immediately after every compilation to purge any transient compiler memory or native AAPT daemons.
+- **AI Core Responsibilities**:
+  * Pure Kotlin / Jetpack Compose code creation, modularization, and refactoring.
+  * Architectural design, data model expansion, and logic implementations.
+  * Git staging and concise local commit messages on branch `nightly-refactor`.
+- **Compilation & Deployment**:
+  * The user can run `./deploy-nightly.sh` directly or explicitly command the AI to execute it when needed.
 
 ---
 
@@ -59,3 +63,11 @@ Whenever any code edit, bug fix, or feature is completed:
 - **Visual Design**:
   * Follow Material 3 Expressive and dynamic dark color palettes (`dynamicDarkColorScheme`).
   * Collimators, reticles, telemetry badges, and laser guides must remain crisp, tactical, and responsive.
+
+---
+
+# 6. Communication & Display Guidelines (Mobile Terminal Invariant)
+- **Screen Form Factor**: The Founder interacts with the headless Arch Linux server via SSH/Termux on a 6.4-inch Samsung Android display.
+- **Display Rules**:
+  * NEVER generate wide horizontal ASCII or Mermaid diagrams that overflow mobile screen widths.
+  * Keep all responses, lists, and markdown layouts vertical, compact, concise, and mobile-friendly.

@@ -31,6 +31,9 @@
 - **BUILD & DEPLOY EXECUTION POLICY**:
   * **Default Mode**: The AI refrains from running background Gradle daemons, build loops, or unsolicited compilations.
   * **Explicit User Pass / Override**: Whenever the user explicitly instructs or gives a pass (e.g. "run it", "deploy it", "giving you a pass", etc.), the AI is fully authorized to execute `./deploy-nightly.sh` or target debug builds.
+- **Hardware & Host Safety Invariants (Strict 8GB RAM / 4th-Gen i7 Safeguards)**:
+  * Zero Background Process / Timer Stacking: NEVER launch multiple Gradle commands, background tasks, or `schedule` asynchronous timers concurrently.
+  * Process Awareness & Instant Flush: Always execute `killall -9 java aapt2 2>/dev/null || true` immediately after every compilation to purge any transient compiler memory or native AAPT daemons.
 - **AI Core Responsibilities**:
   * Pure Kotlin / Jetpack Compose code creation, modularization, and refactoring.
   * Architectural design, data model expansion, and logic implementations.

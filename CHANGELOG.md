@@ -34,6 +34,10 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 * **Commercial Release Packaging & Zero-Telemetry Privacy**:
   * Hardened ProGuard/R8 shrinking and obfuscation rules with Material Icons extended tree-shaking.
   * Strict 100% offline invariant: zero internet permissions, zero analytics, zero external network dependencies.
+* **HUD Strip Sensor Deck Notification Expansion & Freeze Patch**:
+  * Added `KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS` toggle in Experimental Labs for pulling down Android notifications via status bar sensor swipe down.
+  * Resolved SystemUI panel deadlock/freeze bug caused by continuous `GLOBAL_ACTION_NOTIFICATIONS` IPC spam and touch consumption when notification shade or Quick Settings was already open.
+  * Implemented dynamic `isSystemUiActive` detection in `LightspeedAccessibilityOverlays` to cleanly hide the sensor touch window when SystemUI is in the foreground, restoring native touch pass-through for Quick Settings pulls.
 
 ---
 

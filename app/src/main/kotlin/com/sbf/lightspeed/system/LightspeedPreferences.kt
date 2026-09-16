@@ -173,6 +173,7 @@ object LightspeedPreferences {
     const val KEY_INFINIX_STANDBY_DISMISSED = "pref_infinix_standby_dismissed"
     const val KEY_ORBITAL_CAPSULE_ENABLED = "pref_orbital_capsule_enabled"
     const val KEY_OMNISCIENT_AUDIO_DOCK_ENABLED = "pref_omniscient_audio_dock_enabled"
+    const val KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS = "pref_statusbar_swipe_down_notifications"
 
     // Tab Accordion Display Profiles & Blueprint Keys
     const val KEY_TAB_ACCORDION_MODE_0 = "pref_tab_accordion_mode_0" // "all_expanded", "all_collapsed", "solo", "custom_pinned"

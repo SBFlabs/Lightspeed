@@ -335,6 +335,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val isRefueling = LightspeedRefuelingActivity.isActive
     val isInfinixStandby = currentPkg != null && (currentPkg.contains("standby") || currentPkg.contains("aod") || currentPkg == "com.transsion.aod" || currentPkg == "com.infinix.aod" || currentPkg == "com.transsion.aod.app")
     val isDoze = currentPkg == "com.android.systemui" && !effectiveLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
+    val isSystemUiActive = !effectiveLocked && (if (currentPkg != null) currentPkg == "com.android.systemui" else isNotificationShadeActive)
 
     // Top HUD Overlays (Status Bar Rail, Notch Orbital Capsule, and Sensor Deck Touch Target)
     val shouldHideTopHud = (hideOnLockAndDock && effectiveLocked) || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()
@@ -342,7 +343,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
 
     statusBarOverlayView?.visibility = topHudVisibility
     notchOverlayView?.visibility = topHudVisibility
-    sensorTouchOverlayView?.visibility = topHudVisibility
+    sensorTouchOverlayView?.visibility = if (shouldHideTopHud || isSystemUiActive) View.GONE else View.VISIBLE
 
     // Kinetic Deflectors (Left & Right Flank Wings / Edge Gesture Controls)
     val isLeftDeflectorEnabled = LightspeedPreferences.isLeftDeflectorEnabled(this)

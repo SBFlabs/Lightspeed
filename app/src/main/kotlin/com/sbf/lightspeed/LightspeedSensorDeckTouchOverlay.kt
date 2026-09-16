@@ -1,6 +1,7 @@
 package com.sbf.lightspeed
 
 import android.accessibilityservice.AccessibilityService
+import android.app.KeyguardManager
 import android.content.Context
 import android.media.AudioManager
 import android.os.Build
@@ -13,6 +14,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
@@ -47,8 +49,56 @@ class LightspeedSensorDeckTouchOverlay(
     private var isSecondTapInSequence = false
     private var currentGesture = "NONE"
     private var isHorizontalEngaged = false
+    private var isDownwardPullFired = false
     private var lastTapTime = 0L
     private var pendingTapRunnable: Runnable? = null
+
+    private fun isNotificationShadeOrQsActive(): Boolean {
+        val lsService = service as? LightspeedAccessibilityService
+        if (lsService?.isNotificationShadeActive == true) {
+            return true
+        }
+
+        val km = service.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val isLocked = km?.isKeyguardLocked == true
+
+        try {
+            val root = service.rootInActiveWindow
+            if (root != null) {
+                val pkg = root.packageName?.toString()
+                root.recycle()
+                if (pkg == "com.android.systemui" && !isLocked) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {}
+
+        try {
+            val windows = service.windows
+            if (!windows.isNullOrEmpty()) {
+                for (w in windows) {
+                    val title = w.title?.toString() ?: ""
+                    val isShade = title.contains("Notification", ignoreCase = true) ||
+                            title.contains("Shade", ignoreCase = true) ||
+                            title.contains("QuickSettings", ignoreCase = true) ||
+                            title.contains("Quick Settings", ignoreCase = true)
+                    if (isShade && (w.isActive || w.isFocused)) {
+                        return true
+                    }
+                    if (w.type == AccessibilityWindowInfo.TYPE_SYSTEM && (w.isActive || w.isFocused)) {
+                        val root = w.root
+                        val pkg = root?.packageName?.toString()
+                        root?.recycle()
+                        if (pkg == "com.android.systemui" && !isLocked) {
+                            return true
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        return false
+    }
 
     // Scrubbing State (Hold-to-Scrub & Long-Sweep Scrub)
     private var isScrubbing = false
@@ -288,6 +338,7 @@ class LightspeedSensorDeckTouchOverlay(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", true)
         if (!isSensorEnabled) return false
+        if (isNotificationShadeOrQsActive()) return false
 
         val density = resources.displayMetrics.density
         val sensPref = prefs.getInt("pref_statusbar_sensitivity", 40)
@@ -295,6 +346,7 @@ class LightspeedSensorDeckTouchOverlay(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                isDownwardPullFired = false
                 latestRawX = event.rawX
                 latestRawY = event.rawY
                 val nowDown = SystemClock.uptimeMillis()
@@ -367,15 +419,23 @@ class LightspeedSensorDeckTouchOverlay(
                 val rawDy = event.rawY - startRawY
                 val dist = hypot(rawDx, rawDy)
 
-                // Downward Pull: Immediately expand Android notification shade and cancel pending sensor gestures
-                if (rawDy > threshold * 0.5f && rawDy > abs(rawDx) * 0.8f) {
-                    uiHandler.removeCallbacks(holdRunnable)
-                    pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
-                    pendingTapRunnable = null
-                    isHorizontalEngaged = false
-                    currentGesture = "NONE"
-                    service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
-                    return false
+                // Downward Pull: Expand Android notification shade if enabled
+                val isSwipeDownNotificationsEnabled = prefs.getBoolean(
+                    com.sbf.lightspeed.system.LightspeedPreferences.KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS,
+                    true
+                )
+                if (isSwipeDownNotificationsEnabled && !isDownwardPullFired && rawDy > threshold * 0.5f && rawDy > abs(rawDx) * 0.8f) {
+                    if (!isNotificationShadeOrQsActive()) {
+                        isDownwardPullFired = true
+                        uiHandler.removeCallbacks(holdRunnable)
+                        pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
+                        pendingTapRunnable = null
+                        isHorizontalEngaged = false
+                        currentGesture = "SWIPE_DOWN"
+                        triggerHaptic(25, 140)
+                        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+                    }
+                    return true
                 }
 
                 val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
@@ -432,6 +492,7 @@ class LightspeedSensorDeckTouchOverlay(
 
             MotionEvent.ACTION_UP -> {
                 uiHandler.removeCallbacks(holdRunnable)
+                isDownwardPullFired = false
                 if (isScrubbing) {
                     isScrubbing = false
                     activeScrubType = "none"
@@ -441,6 +502,13 @@ class LightspeedSensorDeckTouchOverlay(
                     lastTapTime = 0L
                     currentGesture = "NONE"
                     LightspeedStatusBarOverlay.dismissActionHud(1200L)
+                    return true
+                }
+
+                if (currentGesture == "SWIPE_DOWN") {
+                    currentGesture = "NONE"
+                    isSecondTapInSequence = false
+                    lastTapTime = 0L
                     return true
                 }
 
@@ -476,6 +544,7 @@ class LightspeedSensorDeckTouchOverlay(
                 uiHandler.removeCallbacks(holdRunnable)
                 pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
                 pendingTapRunnable = null
+                isDownwardPullFired = false
                 if (isScrubbing) {
                     isScrubbing = false
                     activeScrubType = "none"

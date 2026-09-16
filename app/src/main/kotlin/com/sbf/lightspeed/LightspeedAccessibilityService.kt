@@ -72,6 +72,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
     // Sensor Deck Touch Overlay (Isolated Touch Target strictly sized to Sensor Area Geometry)
     internal var sensorTouchOverlayView: LightspeedSensorDeckTouchOverlay? = null
     internal lateinit var sensorTouchWindowParams: WindowManager.LayoutParams
+    @Volatile
+    var isNotificationShadeActive: Boolean = false
+        internal set
 
     // Dedicated Notch Pill Overlay
     internal var notchOverlayView: LightspeedNotchOverlay? = null
@@ -333,6 +336,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
             val currentPkg = event.packageName?.toString()
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             val isLocked = keyguardManager?.isKeyguardLocked == true
+
+            isNotificationShadeActive = (currentPkg == "com.android.systemui" && !isLocked)
 
             updateOverlaysVisibility(isLocked, currentPkg)
 

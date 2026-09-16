@@ -353,6 +353,7 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - *Orbital Capsule*: Gated camera cutout rendering behind `KEY_ORBITAL_CAPSULE_ENABLED` (`pref_orbital_capsule_enabled`, default: false). Switched default download telemetry routing to `"top_line"` (Horizon Rail). Cutout alignment, width/snugness sliders, marquee typography, and OEM conflict notices moved to Labs.
   - *Omniscient Audio Dock*: Gated horizontal pull-out gesture on side deflectors and vertical pull-out on Sensor Deck behind `KEY_OMNISCIENT_AUDIO_DOCK_ENABLED` (`pref_omniscient_audio_dock_enabled`, default: false) to eliminate accidental dock triggers during volume scrubbing.
   - *Tactical Hardware Keys*: Pruned confusing, non-functional power button card from the hardware keys deck; power button remapping safely isolated in Experimental Labs.
+  - *HUD Strip Swipe-Down to Notifications*: Gated top sensor deck downward pull gesture behind `KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS` (`pref_statusbar_swipe_down_notifications`, default: true) in Experimental Labs. Fixed SystemUI touch freeze bug caused by duplicate `GLOBAL_ACTION_NOTIFICATIONS` IPC calls and touch hijacking while notification shade or Quick Settings was already open by dynamically hiding the sensor touch window when SystemUI is active and enforcing single-shot execution.
 
 [STATUS: PAUSED / EXPERIMENTAL LABS]
 * Audio Sovereignty & The Omniscient Audio Dock (MultiSound Concurrent Playback & Per-App Volume):

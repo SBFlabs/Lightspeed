@@ -506,7 +506,36 @@ fun HudExperimentalLabsSection(
                 }
             }
 
-            // 3. Power Button Remapping
+            // 3. HUD Strip Swipe-Down to Notifications [Experimental]
+            var isSwipeDownExpanded by rememberSaveable { mutableStateOf(false) }
+            CollapsibleSubSection(
+                title = "HUD Strip Swipe-Down to Notifications",
+                subtitle = "Pull down on the status bar sensor deck to expand Android notifications",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = null,
+                        tint = cautionAmber,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                isExpanded = isSwipeDownExpanded,
+                onToggle = { isSwipeDownExpanded = !isSwipeDownExpanded }
+            ) {
+                PrefToggleRow(
+                    prefs = prefs,
+                    prefKey = LightspeedPreferences.KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS,
+                    defaultVal = true,
+                    title = "Swipe Down to Expand Notifications",
+                    subtitle = "Quickly expand the Android notification shade by pulling downward on the top HUD status bar strip.",
+                    onChanged = {
+                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                        onRefreshNeeded()
+                    }
+                )
+            }
+
+            // 4. Power Button Remapping
             CollapsibleSubSection(
                 title = "Power Button Remapping",
                 subtitle = "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
@@ -603,7 +632,7 @@ fun HudExperimentalLabsSection(
                 }
             }
 
-            // 4. Core Cooling Schedule
+            // 5. Core Cooling Schedule
             var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", true)) }
             CollapsibleSubSection(
                 title = "Core Cooling Schedule",

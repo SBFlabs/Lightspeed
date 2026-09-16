@@ -22,7 +22,7 @@
     - **LOCKED**: NEVER push (`git push public`), publish, or synchronize to the public repository UNLESS the user explicitly gives a direct command (e.g., "Push to public repository", "Publish release to public").
     - **MANDATORY PRIVACY SANITIZATION PASS BEFORE ANY PUBLIC RELEASE**:
       1. Originates strictly from an audited, sanitized `master` branch.
-      2. 100% Anonymous Git Author: Commits must strictly use `SBF Labs <contact@sbflabs.dev>` with zero personal names (no "Sherif") or local hostnames (no "s-arch.local").
+      2. 100% Anonymous Git Author: Commits must strictly use `SBF Labs <sbflabs@users.noreply.github.com>` with zero personal names (no "Sherif") or local hostnames (no "s-arch.local").
       3. Private Documents Excluded: `VAULT.md`, internal dev notes, local deployment scripts (`deploy-nightly.sh` with LAN IPs), and machine dumps are strictly kept on the private repo and NEVER published to public.
       4. Zero Telemetry & Offline Invariance: Confirm zero network permissions before any release.
 - **Stable Release (STRICT IMMUTABILITY RULE)**:

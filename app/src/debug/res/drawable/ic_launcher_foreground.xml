@@ -5,67 +5,50 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Detailed Spaceship Hero Group -->
+    <!-- Detailed Spaceship Hero Group (Scaled and centered for 72dp circular mask safety) -->
     <group
         android:pivotX="0"
         android:pivotY="0"
-        android:translateX="49.5"
+        android:translateX="49.0"
         android:translateY="56.5"
         android:rotation="44.5"
-        android:scaleX="1.16"
-        android:scaleY="1.16">
+        android:scaleX="0.80"
+        android:scaleY="0.80">
 
-        <!-- 1. Left Wing / Aerodynamic Fin -->
+        <!-- 1. Left Wing / Fin -->
         <path
-            android:fillColor="#8AB6F8"
-            android:strokeColor="#16181D"
-            android:strokeWidth="1.1"
-            android:strokeLineJoin="round"
-            android:pathData="M -11.6,2.8 L -21.2,14.0 L -19.0,28.2 L -10.8,20.6 Z" />
+            android:fillColor="#88B2F8"
+            android:pathData="M -12.5,3.0 L -22.5,14.5 L -20.0,29.5 L -12.5,21.0 Z" />
 
-        <!-- 2. Right Wing / Aerodynamic Fin -->
+        <!-- 2. Right Wing / Fin -->
         <path
-            android:fillColor="#8AB6F8"
-            android:strokeColor="#16181D"
-            android:strokeWidth="1.1"
-            android:strokeLineJoin="round"
-            android:pathData="M 11.6,2.8 L 21.2,14.0 L 19.0,28.2 L 10.8,20.6 Z" />
+            android:fillColor="#88B2F8"
+            android:pathData="M 12.5,3.0 L 22.5,14.5 L 20.0,29.5 L 12.5,21.0 Z" />
 
         <!-- 3. Rear Engine Booster Nozzle -->
         <path
-            android:fillColor="#8AB6F8"
-            android:strokeColor="#16181D"
-            android:strokeWidth="1.1"
-            android:strokeLineJoin="round"
-            android:pathData="M -4.2,22.6 L 4.2,22.6 C 4.9,22.6 5.4,23.1 5.4,23.8 L 5.4,26.0 C 5.4,26.7 4.9,27.2 4.2,27.2 L -4.2,27.2 C -4.9,27.2 -5.4,26.7 -5.4,26.0 L -5.4,23.8 C -5.4,23.1 -4.9,22.6 -4.2,22.6 Z" />
+            android:fillColor="#88B2F8"
+            android:pathData="M -4.3,23.2 L 4.3,23.2 C 5.0,23.2 5.5,23.7 5.5,24.4 L 5.5,27.3 C 5.5,28.0 5.0,28.5 4.3,28.5 L -4.3,28.5 C -5.0,28.5 -5.5,28.0 -5.5,27.3 L -5.5,24.4 C -5.5,23.7 -5.0,23.2 -4.3,23.2 Z" />
 
         <!-- 4. Main Fuselage Body -->
         <path
-            android:fillColor="#8AB6F8"
-            android:strokeColor="#16181D"
-            android:strokeWidth="1.1"
-            android:strokeLineJoin="round"
-            android:pathData="M -9.6,-13.6 C -14.4,-4.5 -14.4,10.0 -10.6,20.8 L 10.6,20.8 C 14.4,10.0 14.4,-4.5 9.6,-13.6 Z" />
+            android:fillColor="#88B2F8"
+            android:pathData="M -9.8,-14.2 C -13.8,-5.0 -13.8,10.0 -10.0,21.8 L 10.0,21.8 C 13.8,10.0 13.8,-5.0 9.8,-14.2 Z" />
 
-        <!-- 5. Center Porthole Window -->
+        <!-- 5. Center Porthole Window Base -->
         <path
-            android:fillColor="#E2ABA1"
-            android:strokeColor="#16181D"
-            android:strokeWidth="1.1"
-            android:pathData="M 0,-6 A 6,6 0 1,0 0.001,-6 Z" />
+            android:fillColor="#E2A69A"
+            android:pathData="M 0,-6.2 A 6.2,6.2 0 1,0 0.001,-6.2 Z" />
 
-        <!-- Porthole Inner Top-Rim Recessed Shadow -->
+        <!-- Porthole Inner Top-Right Recessed Shadow -->
         <path
-            android:fillColor="#B97E72"
-            android:fillAlpha="0.9"
-            android:pathData="M -5.5,-1.3 A 6.0,6.0 0 0,1 5.5,-1.3 A 6.0,3.6 0 0,0 -5.5,-1.3 Z" />
+            android:fillColor="#AF7569"
+            android:fillAlpha="0.95"
+            android:pathData="M -5.7,-1.5 A 6.2,6.2 0 0,1 5.7,-1.5 A 6.2,3.8 0 0,0 -5.7,-1.5 Z" />
 
         <!-- 6. Sleek Tapered Nose Cone -->
         <path
-            android:fillColor="#8AB6F8"
-            android:strokeColor="#16181D"
-            android:strokeWidth="1.1"
-            android:strokeLineJoin="round"
-            android:pathData="M -9.4,-15.0 C -8.2,-21.5 -5.0,-28.5 -0.3,-31.4 C -0.1,-31.5 0.1,-31.5 0.3,-31.4 C 5.0,-28.5 8.2,-21.5 9.4,-15.0 Z" />
+            android:fillColor="#88B2F8"
+            android:pathData="M -9.6,-15.8 C -8.4,-23.0 -4.8,-30.5 -0.4,-33.4 C -0.1,-33.5 0.1,-33.5 0.4,-33.4 C 4.8,-30.5 8.4,-23.0 9.6,-15.8 Z" />
     </group>
 </vector>

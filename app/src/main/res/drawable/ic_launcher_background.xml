@@ -13,52 +13,52 @@
 
     <!-- Top-Left Ambient Cyan/Teal Nebula Atmospheric Glow -->
     <path
-        android:pathData="M 24,30 m -34,0 a 34,34 0 1,0 68,0 a 34,34 0 1,0 -68,0">
+        android:pathData="M 24,28 m -34,0 a 34,34 0 1,0 68,0 a 34,34 0 1,0 -68,0">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="radial"
                 android:centerX="24"
-                android:centerY="30"
+                android:centerY="28"
                 android:gradientRadius="34"
                 android:startColor="#B3244E57"
-                android:centerColor="#5518343B"
+                android:centerColor="#55183339"
                 android:endColor="#00191B20" />
         </aapt:attr>
     </path>
 
     <!-- Bottom-Right Ambient Warm Bronze Nebula Atmospheric Glow -->
     <path
-        android:pathData="M 80,66 m -36,0 a 36,36 0 1,0 72,0 a 36,36 0 1,0 -72,0">
+        android:pathData="M 80,68 m -36,0 a 36,36 0 1,0 72,0 a 36,36 0 1,0 -72,0">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="radial"
                 android:centerX="80"
-                android:centerY="66"
+                android:centerY="68"
                 android:gradientRadius="36"
-                android:startColor="#B84B3C33"
-                android:centerColor="#552E2520"
+                android:startColor="#B84A3C33"
+                android:centerColor="#552C241F"
                 android:endColor="#00191B20" />
         </aapt:attr>
     </path>
 
-    <!-- Top-Right Cosmic Orbital Halo / Arc (Outer Glow) -->
+    <!-- Top-Right Cosmic Orbital Halo / Arc (Soft Outer Glow) -->
     <path
         android:strokeColor="#4042C1B6"
-        android:strokeWidth="3.8"
+        android:strokeWidth="3.4"
         android:strokeLineCap="round"
-        android:pathData="M 86,-10.5 A 26.5,26.5 0 1,0 86.001,-10.5" />
+        android:pathData="M 82,-16.5 A 32.5,32.5 0 1,0 82.001,-16.5" />
 
     <!-- Radiant Mint Ring Core -->
     <path
-        android:strokeColor="#DE6BE4D7"
-        android:strokeWidth="1.8"
+        android:strokeColor="#DE68E2D5"
+        android:strokeWidth="1.6"
         android:strokeLineCap="round"
-        android:pathData="M 86,-10.5 A 26.5,26.5 0 1,0 86.001,-10.5" />
+        android:pathData="M 82,-16.5 A 32.5,32.5 0 1,0 82.001,-16.5" />
 
     <!-- Specular High-Energy Filament Line -->
     <path
         android:strokeColor="#EBFDFB"
-        android:strokeWidth="0.75"
+        android:strokeWidth="0.7"
         android:strokeLineCap="round"
-        android:pathData="M 86,-10.5 A 26.5,26.5 0 1,0 86.001,-10.5" />
+        android:pathData="M 82,-16.5 A 32.5,32.5 0 1,0 82.001,-16.5" />
 </vector>

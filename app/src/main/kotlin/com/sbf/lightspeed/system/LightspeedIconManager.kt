@@ -39,8 +39,8 @@ object LightspeedIconManager {
     private val packageToDrawableMap = ConcurrentHashMap<String, String>()
     private val calendarPrefixMap = ConcurrentHashMap<String, String>()
 
-    private val bitmapCache = ConcurrentHashMap<String, Bitmap>()
-    private val drawableCache = ConcurrentHashMap<String, Drawable>()
+    private val bitmapCache = android.util.LruCache<String, Bitmap>(150)
+    private val drawableCache = android.util.LruCache<String, Drawable>(150)
 
     private var currentLoadedPack: String? = null
     private var isPackLoaded = false
@@ -109,8 +109,8 @@ object LightspeedIconManager {
     fun setCockpitRenderMode(context: Context, mode: String) {
         val prefs = context.defaultPrefs()
         prefs.edit().putString(LightspeedPreferences.KEY_COCKPIT_ICON_RENDER_MODE, mode).apply()
-        bitmapCache.clear()
-        drawableCache.clear()
+        bitmapCache.evictAll()
+        drawableCache.evictAll()
     }
 
     fun getCategoryCruiseIconPack(context: Context): String {
@@ -136,8 +136,8 @@ object LightspeedIconManager {
     fun clearCache() {
         managerScope.cancel()
         managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        bitmapCache.clear()
-        drawableCache.clear()
+        bitmapCache.evictAll()
+        drawableCache.evictAll()
         customShortcutBitmaps.clear()
         componentToDrawableMap.clear()
         packageToDrawableMap.clear()
@@ -237,7 +237,7 @@ object LightspeedIconManager {
         }
     }
 
-    private val customShortcutBitmaps = ConcurrentHashMap<String, Bitmap>()
+    private val customShortcutBitmaps = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
 
     /** Saves a manually-chosen icon bitmap for any token (shortcut:, custom:, or app:packageName).
      *  Writes to disk under shortcut_icons/ and records the token in the "manual_icon_overrides"
@@ -245,8 +245,8 @@ object LightspeedIconManager {
     fun saveCustomShortcutBitmap(context: Context, token: String, bitmap: Bitmap) {
         if (token.isBlank()) return
         customShortcutBitmaps[token] = bitmap
-        bitmapCache[token] = bitmap
-        drawableCache[token] = BitmapDrawable(context.resources, bitmap)
+        bitmapCache.put(token, bitmap)
+        drawableCache.put(token, BitmapDrawable(context.resources, bitmap))
 
         // Mark as manually overridden for backup tracking
         markAsManuallyOverridden(context, token)
@@ -322,14 +322,14 @@ object LightspeedIconManager {
 
     fun getIconDrawable(context: Context, tokenOrPkg: String): Drawable? {
         if (tokenOrPkg.isBlank()) return null
-        drawableCache[tokenOrPkg]?.let {
+        drawableCache.get(tokenOrPkg)?.let {
             return it.constantState?.newDrawable()?.mutate() ?: it
         }
 
         // Custom shortcut bitmaps (shortcut:, custom:) and manually overridden app: icons
         loadCustomShortcutBitmap(context, tokenOrPkg)?.let { bmp ->
             val d = BitmapDrawable(context.resources, bmp)
-            drawableCache[tokenOrPkg] = d
+            drawableCache.put(tokenOrPkg, d)
             return d
         }
 
@@ -338,7 +338,7 @@ object LightspeedIconManager {
             if (shortcutDrawable != null) {
                 val mutated = shortcutDrawable.constantState?.newDrawable()?.mutate() ?: shortcutDrawable.mutate()
                 mutated.alpha = 255
-                drawableCache[tokenOrPkg] = mutated
+                drawableCache.put(tokenOrPkg, mutated)
                 return mutated.constantState?.newDrawable()?.mutate() ?: mutated
             }
         }
@@ -372,7 +372,7 @@ object LightspeedIconManager {
                             if (calDrawable != null) {
                                 val mutated = calDrawable.constantState?.newDrawable()?.mutate() ?: calDrawable.mutate()
                                 mutated.alpha = 255
-                                drawableCache[tokenOrPkg] = mutated
+                                drawableCache.put(tokenOrPkg, mutated)
                                 return mutated.constantState?.newDrawable()?.mutate() ?: mutated
                             }
                         }
@@ -388,7 +388,7 @@ object LightspeedIconManager {
                         if (packDrawable != null) {
                             val mutated = packDrawable.constantState?.newDrawable()?.mutate() ?: packDrawable.mutate()
                             mutated.alpha = 255
-                            drawableCache[tokenOrPkg] = mutated
+                            drawableCache.put(tokenOrPkg, mutated)
                             return mutated.constantState?.newDrawable()?.mutate() ?: mutated
                         }
                     }
@@ -430,7 +430,7 @@ object LightspeedIconManager {
             val finalDrawable = rawDrawable ?: pm.getApplicationIcon(extractedPkg)
             val mutated = finalDrawable.constantState?.newDrawable()?.mutate() ?: finalDrawable.mutate()
             mutated.alpha = 255
-            drawableCache[tokenOrPkg] = mutated
+            drawableCache.put(tokenOrPkg, mutated)
             mutated.constantState?.newDrawable()?.mutate() ?: mutated
         } catch (_: Exception) {
             null
@@ -439,12 +439,12 @@ object LightspeedIconManager {
 
     fun getIconBitmap(context: Context, tokenOrPkg: String): Bitmap? {
         if (tokenOrPkg.isBlank()) return null
-        bitmapCache[tokenOrPkg]?.let { return it }
+        bitmapCache.get(tokenOrPkg)?.let { return it }
 
         val drawable = getIconDrawable(context, tokenOrPkg) ?: return null
         val bitmap = convertDrawableToBitmap(drawable)
         if (bitmap != null) {
-            bitmapCache[tokenOrPkg] = bitmap
+            bitmapCache.put(tokenOrPkg, bitmap)
         }
         return bitmap
     }

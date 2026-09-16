@@ -39,14 +39,14 @@ object LightspeedShortcutManager {
     private var managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private const val TAG = "LightspeedShortcut"
 
-    private val bitmapCache = ConcurrentHashMap<String, Bitmap>()
-    private val drawableCache = ConcurrentHashMap<String, Drawable>()
+    private val bitmapCache = android.util.LruCache<String, Bitmap>(150)
+    private val drawableCache = android.util.LruCache<String, Drawable>(150)
 
     fun clearMemoryCache() {
         managerScope.cancel()
         managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-        bitmapCache.clear()
-        drawableCache.clear()
+        bitmapCache.evictAll()
+        drawableCache.evictAll()
     }
 
     private fun safeTokenKey(token: String): String {
@@ -84,8 +84,8 @@ object LightspeedShortcutManager {
 
     fun saveShortcutBitmap(context: Context, token: String, bitmap: Bitmap) {
         if (token.isBlank()) return
-        bitmapCache[token] = bitmap
-        drawableCache[token] = BitmapDrawable(context.resources, bitmap)
+        bitmapCache.put(token, bitmap)
+        drawableCache.put(token, BitmapDrawable(context.resources, bitmap))
 
         managerScope.launch {
             try {
@@ -161,7 +161,7 @@ object LightspeedShortcutManager {
 
     fun loadCachedBitmap(context: Context, token: String): Bitmap? {
         if (!token.startsWith("shortcut:") && !token.startsWith("custom:")) return null
-        bitmapCache[token]?.let {
+        bitmapCache.get(token)?.let {
             if (!isCorruptBitmap(it)) return it
             bitmapCache.remove(token)
         }
@@ -174,7 +174,7 @@ object LightspeedShortcutManager {
                         file.delete()
                         return null
                     }
-                    bitmapCache[token] = bmp
+                    bitmapCache.put(token, bmp)
                     return bmp
                 }
             }
@@ -355,13 +355,13 @@ object LightspeedShortcutManager {
 
     fun resolveIconDrawable(context: Context, token: String): Drawable? {
         if (token.isBlank() || token == "none") return null
-        drawableCache[token]?.let { return it }
+        drawableCache.get(token)?.let { return it }
 
         // 1. Check custom cached bitmap on disk/memory
         val cachedBmp = loadCachedBitmap(context, token)
         if (cachedBmp != null) {
             val d = BitmapDrawable(context.resources, cachedBmp)
-            drawableCache[token] = d
+            drawableCache.put(token, d)
             return d
         }
 
@@ -387,7 +387,7 @@ object LightspeedShortcutManager {
                         val d = launcherApps.getShortcutBadgedIconDrawable(shortcut, context.resources.displayMetrics.densityDpi)
                             ?: launcherApps.getShortcutIconDrawable(shortcut, context.resources.displayMetrics.densityDpi)
                         if (d != null) {
-                            drawableCache[token] = d
+                            drawableCache.put(token, d)
                             return d
                         }
                     }
@@ -403,7 +403,7 @@ object LightspeedShortcutManager {
                 val pm = context.packageManager
                 val comp = android.content.ComponentName(parsed.packageName, parsed.activityName)
                 val d = pm.getActivityIcon(comp)
-                drawableCache[token] = d
+                drawableCache.put(token, d)
                 return d
             } catch (_: Exception) {}
         }
@@ -412,7 +412,7 @@ object LightspeedShortcutManager {
         if (parsed.packageName.isNotBlank()) {
             val hostDrawable = LightspeedIconManager.getIconDrawable(context, parsed.packageName)
             if (hostDrawable != null) {
-                drawableCache[token] = hostDrawable
+                drawableCache.put(token, hostDrawable)
                 return hostDrawable
             }
         }
@@ -422,7 +422,7 @@ object LightspeedShortcutManager {
         val fallbackBmp = createMonogramBitmap(context, label)
         if (fallbackBmp != null) {
             val d = BitmapDrawable(context.resources, fallbackBmp)
-            drawableCache[token] = d
+            drawableCache.put(token, d)
             return d
         }
 
@@ -431,17 +431,17 @@ object LightspeedShortcutManager {
 
     fun resolveIconBitmap(context: Context, token: String): Bitmap? {
         if (token.isBlank() || token == "none") return null
-        bitmapCache[token]?.let { return it }
+        bitmapCache.get(token)?.let { return it }
 
         val d = resolveIconDrawable(context, token) ?: return null
         if (d is BitmapDrawable && d.bitmap != null) {
             val bmp = d.bitmap
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bmp.config == Bitmap.Config.HARDWARE) {
                 val softwareBmp = bmp.copy(Bitmap.Config.ARGB_8888, false)
-                bitmapCache[token] = softwareBmp
+                bitmapCache.put(token, softwareBmp)
                 return softwareBmp
             }
-            bitmapCache[token] = bmp
+            bitmapCache.put(token, bmp)
             return bmp
         }
 
@@ -452,7 +452,7 @@ object LightspeedShortcutManager {
             val canvas = Canvas(bmp)
             d.setBounds(0, 0, w, h)
             d.draw(canvas)
-            bitmapCache[token] = bmp
+            bitmapCache.put(token, bmp)
             bmp
         } catch (_: Exception) { null }
     }

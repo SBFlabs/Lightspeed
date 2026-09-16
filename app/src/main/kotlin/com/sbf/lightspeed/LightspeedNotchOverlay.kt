@@ -88,7 +88,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     }
 
     internal val iconBitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    internal val circularIconCache = ConcurrentHashMap<String, Bitmap>()
+    internal val circularIconCache = android.util.LruCache<String, Bitmap>(150)
     private val circleClipPath = Path()
 
     // Marquee State Tracking
@@ -154,7 +154,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             currentTextKey = ""
             marqueeScrollOffset = 0f
             marqueeCompletedLoops = 0
-            circularIconCache.clear()
+            circularIconCache.evictAll()
             mainHandler.post {
                 updateCapsuleLayout()
             }
@@ -195,7 +195,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         LightspeedNotificationListener.unregisterTelemetryListener(telemetryListener)
         mainHandler.removeCallbacksAndMessages(null)
-        circularIconCache.clear()
+        circularIconCache.evictAll()
     }
 
     fun updateNotchMetrics() {
@@ -335,7 +335,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
     internal fun getCircularAppIcon(packageName: String, sizePx: Int): Bitmap? {
         if (packageName.isBlank() || sizePx <= 0) return null
         val cacheKey = "$packageName:$sizePx"
-        circularIconCache[cacheKey]?.let { return it }
+        circularIconCache.get(cacheKey)?.let { return it }
 
         val rawDrawable = try {
             context.packageManager.getApplicationIcon(packageName)
@@ -353,7 +353,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
             }
             rawDrawable.setBounds(0, 0, sizePx, sizePx)
             rawDrawable.draw(canvas)
-            circularIconCache[cacheKey] = bitmap
+            circularIconCache.put(cacheKey, bitmap)
             bitmap
         } catch (_: Exception) {
             null

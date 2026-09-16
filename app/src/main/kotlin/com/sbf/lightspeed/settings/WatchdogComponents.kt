@@ -29,7 +29,7 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Security
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.Dispatchers

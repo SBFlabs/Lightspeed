@@ -776,7 +776,7 @@ private fun AttitudeTargetRow(
                     val iconVector = when (item.badge) {
                         "LAUNCHER" -> Icons.Default.Home
                         "PHONE" -> Icons.Default.Phone
-                        "SMS" -> Icons.Default.Chat
+                        "SMS" -> Icons.AutoMirrored.Filled.Chat
                         "SETTINGS" -> Icons.Default.Settings
                         else -> Icons.Default.Apps
                     }

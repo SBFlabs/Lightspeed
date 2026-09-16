@@ -772,6 +772,7 @@ object LightspeedShortcutManager {
         return false
     }
 
+    @Suppress("DEPRECATION")
     private fun intentToAmStartCommand(intent: Intent): String {
         val sb = java.lang.StringBuilder("am start ")
         intent.action?.let { sb.append("-a $it ") }

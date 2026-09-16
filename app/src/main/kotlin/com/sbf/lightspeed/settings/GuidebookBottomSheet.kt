@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -190,7 +191,7 @@ fun GuidebookBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.MenuBook,
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
@@ -354,7 +355,7 @@ fun GuidebookBottomSheet(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Icon(
-                                            imageVector = Icons.Default.ArrowForward,
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(12.dp)

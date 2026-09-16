@@ -302,7 +302,13 @@ class LightspeedStatusBarOverlay(
         }
 
         if (node.isScrollable || hasScrollAction) {
-            list.add(AccessibilityNodeInfo.obtain(node))
+            val copy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                AccessibilityNodeInfo(node)
+            } else {
+                @Suppress("DEPRECATION")
+                AccessibilityNodeInfo.obtain(node)
+            }
+            list.add(copy)
         }
 
         for (i in 0 until node.childCount) {

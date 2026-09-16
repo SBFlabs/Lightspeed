@@ -30,7 +30,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
+import com.sbf.lightspeed.system.defaultPrefs
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -527,7 +530,7 @@ fun MultiWidgetContainer(
         // =========================================================================
         // MODE 2: CUSTOM DIMENSIONAL FLOW DASHBOARD (True Freeform X/Y Authority)
         // =========================================================================
-        val prefs = android.preference.PreferenceManager.getDefaultSharedPreferences(activity)
+        val prefs = activity.defaultPrefs()
         val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
         
         Column(
@@ -649,7 +652,7 @@ fun MultiWidgetContainer(
                                                     },
                                                     modifier = Modifier.size(18.dp)
                                                 ) {
-                                                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White, modifier = Modifier.size(11.dp))
                                                 }
                                                 Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
                                                 IconButton(
@@ -660,7 +663,7 @@ fun MultiWidgetContainer(
                                                     },
                                                     modifier = Modifier.size(18.dp)
                                                 ) {
-                                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White, modifier = Modifier.size(11.dp))
                                                 }
                                             }
                                         }
@@ -697,7 +700,7 @@ fun MultiWidgetContainer(
                                                     val newW = (currentWidthPct - 10).coerceAtLeast(20)
                                                     prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
                                                     currentWidthPct = newW
-                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
                                                 
                                                 Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                                 
@@ -705,7 +708,7 @@ fun MultiWidgetContainer(
                                                     val newW = (currentWidthPct + 10).coerceAtMost(100)
                                                     prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
                                                     currentWidthPct = newW
-                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
                                             }
                                         }
                                     }

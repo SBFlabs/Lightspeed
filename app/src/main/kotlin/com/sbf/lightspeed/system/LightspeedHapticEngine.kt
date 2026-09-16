@@ -76,6 +76,7 @@ object LightspeedHapticEngine {
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
                     .build()
+                @Suppress("DEPRECATION")
                 try {
                     vibrator.vibrate(effect, audioAttrs)
                 } catch (_: Exception) {

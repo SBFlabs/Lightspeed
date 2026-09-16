@@ -207,6 +207,7 @@ object LightspeedKeyEngine {
         releasePowerScreenWakeLock()
     }
 
+    @Suppress("DEPRECATION")
     fun isAssistantActiveOrPending(context: Context): Boolean {
         try {
             val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager

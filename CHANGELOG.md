@@ -4,15 +4,25 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 
 ## [1.4.1] - 2026-09-17
 
-### ⚓ Nautical Mooring Rope & Deflector Linking Engine
+### ⚓ Nautical Mooring Rope & Deflector Dynamic Routing Engine
 * **Per-Gesture Nautical Mooring Rope Toggle (`NauticalMooringRope.kt`, `GestureComponents.kt`)**:
-  * High-performance custom Canvas component rendering a Material 3 Expressive braided cord spanning across the top edge of each gesture row in both the Dual Inward Scrubber Controls and Unified Gesture Matrix cards.
-  * Interactive Knotting & Severing: Tapping the rope toggles between a unified knotted state (`➔ ⚓ ⬅ UNIFIED (TIED)`) and a decoupled state (`⬅ ✂️ ➔ DUAL (CUT)`) with spring animations, tactile haptic clicks, and smooth auto-scrolling to the active gesture row.
-  * **Tied / Knotted (Unified)**: Consolidates the gesture into 1 unified row, mirroring actions between Upper and Lower deflector sectors across the whole flank.
-  * **Cut / Severed (Dual Control)**: Splits the gesture into 2 independent rows (`Upper Sector` and `Lower Sector`), allowing separate action assignments for each half.
+  * High-performance custom Canvas component rendering a translucent Material 3 Expressive braided cord spanning across gesture rows in deflector configuration cards.
+  * Interactive Knotting & Severing: Tapping the mooring line toggles between a unified knotted state and a decoupled dual-control state with spring animations and tactile haptic feedback.
+  * **Unified (Tied)**: Consolidates the gesture into 1 unified row, mirroring actions between Upper and Lower deflector sectors across the whole flank.
+  * **Dual Control (Severed)**: Splits the gesture into 2 independent rows (`Upper Sector` and `Lower Sector`), allowing separate action assignments for each half.
+* **Corner-Anchored Flanking Mooring Cords (`SeveredMooringPairCard`)**:
+  * Unlinked Upper & Lower sector row pairs are cradled in natural gravity-hanging cords anchored strictly at the top-left and top-right shoulders via tactical mooring eyelets and hitch knots.
+  * Completely open top header with zero middle spanning, drooping slack cords along both flanks past Row 1 and Row 2 with frayed hemp fiber tips.
+  * Mooring Confirmation Dialog (`MooringConfirmDialog`): Safeguards against accidental severance or re-tying.
+* **Dynamic Accordion Routing & Auto-Scroll Engine**:
+  * "Unified Gesture Matrix" holds only tied full-flank gestures; "Separate Deflector Controls" holds only unlinked dual-sector gestures.
+  * Automatic accordion expansion and smooth animated scrolling shifts the viewport to newly populated rows upon state toggles.
+* **Flank-Aware Inward Sweep & Hardware Maneuvers Typography Streamlining**:
+  * Fixed Inward Sweep icon to flank-accurate inward sweep trajectories (`●──»──>` on Left Deflector, `<──«──●` on Right Deflector) with mid-track scrub chevrons.
+  * Purged bulky monospace T-blocks across Deflectors and HUD Strip "Hull & Ship Maneuvers" volume keys, restoring dedicated `GestureTrailTracer` vector icons and hold halos.
 * **Dynamic Deflector Scrubber & Macro Linking (`LightspeedPreferences`)**:
   * Added `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`, and `pref_gesture_unified_<flank>_<vectorKey>`.
-  * Live overlay touch resolution across `LightspeedCruiseOverlayTouch`, `LightspeedCruiseOverlay` (hold triggers), and `LightspeedLeftWingOverlay` honors per-gesture unification states dynamically.
+  * Live overlay touch resolution across `LightspeedCruiseOverlayTouch`, `LightspeedCruiseOverlay`, and `LightspeedLeftWingOverlay` honors per-gesture unification states dynamically.
 
 ## [1.4.0] - 2026-09-16
 

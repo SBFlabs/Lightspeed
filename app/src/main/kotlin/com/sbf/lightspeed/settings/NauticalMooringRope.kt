@@ -11,9 +11,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -417,7 +419,7 @@ fun M3RowMooringRope(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(14.dp)
+                .height(18.dp)
         ) {
             drawM3RowRope(
                 severFraction = severFraction,
@@ -439,11 +441,12 @@ private fun DrawScope.drawM3RowRope(
 ) {
     val width = size.width
     val height = size.height
-    val centerY = height / 2f
+    val centerY = height * 0.38f
     val centerX = width / 2f
 
     val ropeThickness = 5.dp.toPx()
     val gapWidth = severFraction * 56.dp.toPx()
+    val dangleY = 6.5.dp.toPx() * severFraction
 
     val leftRopeEndX = (centerX - gapWidth / 2f).coerceAtLeast(0f)
     val rightRopeStartX = (centerX + gapWidth / 2f).coerceAtMost(width)
@@ -451,40 +454,96 @@ private fun DrawScope.drawM3RowRope(
     val currentHighlight = if (severFraction < 0.5f) highlight else severedColor.copy(alpha = severedColor.alpha * 1.1f)
     val currentBase = if (severFraction < 0.5f) base else severedColor.copy(alpha = severedColor.alpha * 0.6f)
     val currentShadow = if (severFraction < 0.5f) shadow else severedColor.copy(alpha = 0.06f)
+    val frayColor = severedColor.copy(alpha = severedColor.alpha * severFraction.coerceIn(0f, 1f))
 
-    fun drawSegment(startX: Float, endX: Float) {
-        if (startX >= endX) return
-        val brush = Brush.verticalGradient(
-            colors = listOf(currentHighlight, currentBase, currentShadow),
-            startY = centerY - ropeThickness / 2f,
-            endY = centerY + ropeThickness / 2f
-        )
-        drawLine(
-            brush = brush,
-            start = Offset(startX, centerY),
-            end = Offset(endX, centerY),
-            strokeWidth = ropeThickness
-        )
-
-        // Helical braided strand lines
-        val pitch = 6.dp.toPx()
-        var curX = startX
-        while (curX < endX) {
-            val nextX = (curX + pitch).coerceAtMost(endX)
-            drawLine(
-                color = currentHighlight.copy(alpha = currentHighlight.alpha * 0.6f),
-                start = Offset(curX, centerY - ropeThickness / 2f),
-                end = Offset(nextX, centerY + ropeThickness / 2f),
-                strokeWidth = 1.dp.toPx()
-            )
-            curX += pitch
+    // 1. Draw outer flank dangling tails (on both sides when severed)
+    if (severFraction > 0.05f) {
+        val sideTailLength = 7.dp.toPx() * severFraction
+        // Left flank dangling tail
+        val leftTailPath = Path().apply {
+            moveTo(2.dp.toPx(), centerY)
+            quadraticBezierTo(0.5.dp.toPx(), centerY + sideTailLength * 0.5f, 3.dp.toPx(), centerY + sideTailLength)
         }
+        drawPath(leftTailPath, color = currentBase, style = Stroke(width = ropeThickness * 0.75f))
+        drawLine(frayColor, Offset(3.dp.toPx(), centerY + sideTailLength), Offset(2.dp.toPx(), centerY + sideTailLength + 3.dp.toPx()), strokeWidth = 1.dp.toPx())
+        drawLine(frayColor, Offset(3.dp.toPx(), centerY + sideTailLength), Offset(4.5.dp.toPx(), centerY + sideTailLength + 2.5.dp.toPx()), strokeWidth = 0.8.dp.toPx())
+
+        // Right flank dangling tail
+        val rightTailPath = Path().apply {
+            moveTo(width - 2.dp.toPx(), centerY)
+            quadraticBezierTo(width - 0.5.dp.toPx(), centerY + sideTailLength * 0.5f, width - 3.dp.toPx(), centerY + sideTailLength)
+        }
+        drawPath(rightTailPath, color = currentBase, style = Stroke(width = ropeThickness * 0.75f))
+        drawLine(frayColor, Offset(width - 3.dp.toPx(), centerY + sideTailLength), Offset(width - 2.dp.toPx(), centerY + sideTailLength + 3.dp.toPx()), strokeWidth = 1.dp.toPx())
+        drawLine(frayColor, Offset(width - 3.dp.toPx(), centerY + sideTailLength), Offset(width - 4.5.dp.toPx(), centerY + sideTailLength + 2.5.dp.toPx()), strokeWidth = 0.8.dp.toPx())
     }
 
-    drawSegment(0f, leftRopeEndX)
-    drawSegment(rightRopeStartX, width)
+    // 2. Draw Left and Right Main Rope Segments (Drooping downwards when severed)
+    if (severFraction < 0.05f) {
+        // Taut straight cord
+        fun drawStraightSegment(startX: Float, endX: Float) {
+            if (startX >= endX) return
+            val brush = Brush.verticalGradient(
+                colors = listOf(currentHighlight, currentBase, currentShadow),
+                startY = centerY - ropeThickness / 2f,
+                endY = centerY + ropeThickness / 2f
+            )
+            drawLine(
+                brush = brush,
+                start = Offset(startX, centerY),
+                end = Offset(endX, centerY),
+                strokeWidth = ropeThickness
+            )
 
-    // Central reef knot interlock (when tied)
+            // Helical braided strand lines
+            val pitch = 6.dp.toPx()
+            var curX = startX
+            while (curX < endX) {
+                val nextX = (curX + pitch).coerceAtMost(endX)
+                drawLine(
+                    color = currentHighlight.copy(alpha = currentHighlight.alpha * 0.6f),
+                    start = Offset(curX, centerY - ropeThickness / 2f),
+                    end = Offset(nextX, centerY + ropeThickness / 2f),
+                    strokeWidth = 1.dp.toPx()
+                )
+                curX += pitch
+            }
+        }
+        drawStraightSegment(0f, leftRopeEndX)
+        drawStraightSegment(rightRopeStartX, width)
+    } else {
+        // Drooping / Slack cord with downward catenary curves toward severed tips
+        // Left drooping segment
+        val leftDroopPath = Path().apply {
+            moveTo(0f, centerY)
+            val droopStartX = (leftRopeEndX * 0.5f).coerceAtLeast(0f)
+            lineTo(droopStartX, centerY)
+            cubicTo(
+                droopStartX + (leftRopeEndX - droopStartX) * 0.5f, centerY,
+                leftRopeEndX - 2.dp.toPx(), centerY + dangleY * 0.8f,
+                leftRopeEndX, centerY + dangleY
+            )
+        }
+        drawPath(leftDroopPath, color = currentBase, style = Stroke(width = ropeThickness))
+        // Highlight along curve
+        drawPath(leftDroopPath, color = currentHighlight.copy(alpha = currentHighlight.alpha * 0.4f), style = Stroke(width = 1.2.dp.toPx()))
+
+        // Right drooping segment
+        val rightDroopPath = Path().apply {
+            moveTo(width, centerY)
+            val droopStartX = (width - (width - rightRopeStartX) * 0.5f).coerceAtMost(width)
+            lineTo(droopStartX, centerY)
+            cubicTo(
+                droopStartX - (droopStartX - rightRopeStartX) * 0.5f, centerY,
+                rightRopeStartX + 2.dp.toPx(), centerY + dangleY * 0.8f,
+                rightRopeStartX, centerY + dangleY
+            )
+        }
+        drawPath(rightDroopPath, color = currentBase, style = Stroke(width = ropeThickness))
+        drawPath(rightDroopPath, color = currentHighlight.copy(alpha = currentHighlight.alpha * 0.4f), style = Stroke(width = 1.2.dp.toPx()))
+    }
+
+    // 3. Central reef knot interlock (when tied)
     val knotAlpha = (1f - severFraction * 4f).coerceIn(0f, 1f)
     if (knotAlpha > 0f) {
         val knotWidth = 11.dp.toPx()
@@ -507,27 +566,27 @@ private fun DrawScope.drawM3RowRope(
         )
     }
 
-    // Frayed fibers at severed tips (when cut)
+    // 4. Frayed fibers dangling from severed tips (when cut)
     if (severFraction > 0.08f) {
-        val frayAlpha = severFraction.coerceIn(0f, 1f)
-        val tipColor = severedColor.copy(alpha = severedColor.alpha * frayAlpha * 0.9f)
         val fiberWidth = 1.dp.toPx()
+        val leftTipY = centerY + dangleY
+        val rightTipY = centerY + dangleY
 
-        // Left severed tip
-        drawLine(tipColor, Offset(leftRopeEndX, centerY - 1.5.dp.toPx()), Offset(leftRopeEndX - 4.dp.toPx(), centerY - 3.dp.toPx()), strokeWidth = fiberWidth)
-        drawLine(tipColor, Offset(leftRopeEndX, centerY), Offset(leftRopeEndX - 5.dp.toPx(), centerY), strokeWidth = fiberWidth)
-        drawLine(tipColor, Offset(leftRopeEndX, centerY + 1.5.dp.toPx()), Offset(leftRopeEndX - 4.dp.toPx(), centerY + 3.dp.toPx()), strokeWidth = fiberWidth)
+        // Left severed tip dangling fibers
+        drawLine(frayColor, Offset(leftRopeEndX, leftTipY), Offset(leftRopeEndX - 4.dp.toPx(), leftTipY + 4.dp.toPx()), strokeWidth = fiberWidth)
+        drawLine(frayColor, Offset(leftRopeEndX, leftTipY), Offset(leftRopeEndX - 1.dp.toPx(), leftTipY + 5.5.dp.toPx()), strokeWidth = fiberWidth)
+        drawLine(frayColor, Offset(leftRopeEndX, leftTipY), Offset(leftRopeEndX - 5.dp.toPx(), leftTipY + 2.dp.toPx()), strokeWidth = fiberWidth)
 
-        // Right severed tip
-        drawLine(tipColor, Offset(rightRopeStartX, centerY - 1.5.dp.toPx()), Offset(rightRopeStartX + 4.dp.toPx(), centerY - 3.dp.toPx()), strokeWidth = fiberWidth)
-        drawLine(tipColor, Offset(rightRopeStartX, centerY), Offset(rightRopeStartX + 5.dp.toPx(), centerY), strokeWidth = fiberWidth)
-        drawLine(tipColor, Offset(rightRopeStartX, centerY + 1.5.dp.toPx()), Offset(rightRopeStartX + 4.dp.toPx(), centerY + 3.dp.toPx()), strokeWidth = fiberWidth)
+        // Right severed tip dangling fibers
+        drawLine(frayColor, Offset(rightRopeStartX, rightTipY), Offset(rightRopeStartX + 4.dp.toPx(), rightTipY + 4.dp.toPx()), strokeWidth = fiberWidth)
+        drawLine(frayColor, Offset(rightRopeStartX, rightTipY), Offset(rightRopeStartX + 1.dp.toPx(), rightTipY + 5.5.dp.toPx()), strokeWidth = fiberWidth)
+        drawLine(frayColor, Offset(rightRopeStartX, rightTipY), Offset(rightRopeStartX + 5.dp.toPx(), rightTipY + 2.dp.toPx()), strokeWidth = fiberWidth)
     }
 
-    // Directional arrows
+    // 5. Directional arrows along cord
     val arrowColor = if (severFraction < 0.5f) currentHighlight.copy(alpha = 0.60f) else severedColor.copy(alpha = 0.65f)
-    val leftArrowX = (leftRopeEndX * 0.45f).coerceAtLeast(12.dp.toPx())
-    val rightArrowX = (rightRopeStartX + (width - rightRopeStartX) * 0.55f).coerceAtMost(width - 12.dp.toPx())
+    val leftArrowX = (leftRopeEndX * 0.45f).coerceAtLeast(14.dp.toPx())
+    val rightArrowX = (rightRopeStartX + (width - rightRopeStartX) * 0.55f).coerceAtMost(width - 14.dp.toPx())
     val arrowSize = 3.5.dp.toPx()
     val pointsInward = severFraction < 0.5f
 
@@ -559,3 +618,67 @@ private fun DrawScope.drawM3RowRope(
     }
     drawPath(rightPath, arrowColor, style = Stroke(width = 1.2.dp.toPx()))
 }
+
+/**
+ * Tactical Confirmation Data Model for Mooring Line linking/unlinking operations.
+ */
+data class MooringConfirmData(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+    val isSever: Boolean,
+    val onConfirm: () -> Unit
+)
+
+/**
+ * Compact Tactical Confirmation Micro-Dialog preventing accidental mooring severance or coupling.
+ */
+@Composable
+fun MooringConfirmDialog(
+    confirmData: MooringConfirmData?,
+    onDismiss: () -> Unit
+) {
+    if (confirmData == null) return
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = confirmData.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = Color.White
+            )
+        },
+        text = {
+            Text(
+                text = confirmData.message,
+                fontSize = 12.5.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                lineHeight = 17.sp
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismiss()
+                    confirmData.onConfirm()
+                }
+            ) {
+                Text(
+                    text = confirmData.confirmLabel,
+                    fontWeight = FontWeight.Bold,
+                    color = if (confirmData.isSever) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color.LightGray)
+            }
+        },
+        containerColor = Color(0xF0161922),
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+

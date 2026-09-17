@@ -132,7 +132,8 @@ fun RightDeflectorTabContent(
             }.toMap()
         )
     }
-                    val defaultOrder2 = if (isRightFlankUnified) listOf("center", "unified") else listOf("center", "top", "bottom")
+    var pendingMooringConfirm by remember { mutableStateOf<MooringConfirmData?>(null) }
+    val defaultOrder2 = if (isRightFlankUnified) listOf("center", "unified") else listOf("center", "top", "bottom")
                     val currentOrder2 = sectionOrder2Str.split(",").map { it.trim() }.filter { it in defaultOrder2 }.distinct().let { list ->
                         list + (defaultOrder2 - list.toSet())
                     }
@@ -433,6 +434,27 @@ fun RightDeflectorTabContent(
                                                                             } else {
                                                                                 // 1. Scrubber (if unlinked/cut)
                                                                                 if (!isRightScrubLinked) {
+                                                                                    val onTieScrubber = {
+                                                                                        pendingMooringConfirm = MooringConfirmData(
+                                                                                            title = "Tie Scrubber Line?",
+                                                                                            message = "Unify inward scrubbing to operate across the entire flank in lockstep?",
+                                                                                            confirmLabel = "Tie",
+                                                                                            isSever = false,
+                                                                                            onConfirm = {
+                                                                                                isRightScrubLinked = true
+                                                                                                com.sbf.lightspeed.system.LightspeedPreferences.setScrubRegionsLinked(context, isLeft = false, true)
+                                                                                                if (!isRightUnifiedGesturesExpanded) {
+                                                                                                    isRightUnifiedGesturesExpanded = true
+                                                                                                    prefs.edit().putBoolean("pref_sub_gestures_unified", true).apply()
+                                                                                                }
+                                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                                coroutineScope.launch {
+                                                                                                    kotlinx.coroutines.delay(60)
+                                                                                                    try { listState2.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
+                                                                                                }
+                                                                                            }
+                                                                                        )
+                                                                                    }
                                                                                     GestureMappingRow(
                                                                                         context = context,
                                                                                         prefs = prefs,
@@ -445,21 +467,7 @@ fun RightDeflectorTabContent(
                                                                                         labelCache = tokenLabelCache,
                                                                                         showMooringRope = true,
                                                                                         isMooringTied = false,
-                                                                                        onToggleMooring = { _ ->
-                                                                                            isRightScrubLinked = true
-                                                                                            com.sbf.lightspeed.system.LightspeedPreferences.setScrubRegionsLinked(context, isLeft = false, true)
-                                                                                            val topVal = prefs.getString("pref_macro_action_TOP_SCRUBBING", "system:brightness") ?: "system:brightness"
-                                                                                            prefs.edit().putString("pref_macro_action_BOTTOM_SCRUBBING", topVal).apply()
-                                                                                            if (!isRightUnifiedGesturesExpanded) {
-                                                                                                isRightUnifiedGesturesExpanded = true
-                                                                                                prefs.edit().putBoolean("pref_sub_gestures_unified", true).apply()
-                                                                                            }
-                                                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                            coroutineScope.launch {
-                                                                                                kotlinx.coroutines.delay(60)
-                                                                                                try { listState2.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
-                                                                                            }
-                                                                                        }
+                                                                                        onToggleMooring = { onTieScrubber() }
                                                                                     )
                                                                                     Spacer(modifier = Modifier.height(4.dp))
                                                                                     GestureMappingRow(
@@ -471,7 +479,10 @@ fun RightDeflectorTabContent(
                                                                                         defaultTitle = "Lower Sector · Inward Sweep",
                                                                                         badgeText = "LOWER",
                                                                                         options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout"),
-                                                                                        labelCache = tokenLabelCache
+                                                                                        labelCache = tokenLabelCache,
+                                                                                        showMooringRope = true,
+                                                                                        isMooringTied = false,
+                                                                                        onToggleMooring = { onTieScrubber() }
                                                                                     )
                                                                                     Spacer(modifier = Modifier.height(8.dp))
                                                                                 }
@@ -483,6 +494,31 @@ fun RightDeflectorTabContent(
                                                                                     val isHoldTied = rightGestureTiedState["${vectorKey}_HOLD"] ?: true
 
                                                                                     if (!isStandardTied) {
+                                                                                        val onTieVector = {
+                                                                                            pendingMooringConfirm = MooringConfirmData(
+                                                                                                title = "Tie Mooring Line?",
+                                                                                                message = "Unify \"$vectorTitle\" across the full flank in lockstep?",
+                                                                                                confirmLabel = "Tie",
+                                                                                                isSever = false,
+                                                                                                onConfirm = {
+                                                                                                    rightGestureTiedState = rightGestureTiedState + (vectorKey to true)
+                                                                                                    com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, vectorKey, true)
+                                                                                                    if (!prefs.contains("pref_macro_action_UNIFIED_${vectorKey}")) {
+                                                                                                        val topVal = prefs.getString("pref_macro_action_TOP_${vectorKey}", "none") ?: "none"
+                                                                                                        prefs.edit().putString("pref_macro_action_UNIFIED_${vectorKey}", topVal).apply()
+                                                                                                    }
+                                                                                                    if (!isRightUnifiedGesturesExpanded) {
+                                                                                                        isRightUnifiedGesturesExpanded = true
+                                                                                                        prefs.edit().putBoolean("pref_sub_gestures_unified", true).apply()
+                                                                                                    }
+                                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                                    coroutineScope.launch {
+                                                                                                        kotlinx.coroutines.delay(60)
+                                                                                                        try { listState2.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
+                                                                                                    }
+                                                                                                }
+                                                                                            )
+                                                                                        }
                                                                                         GestureMappingRow(
                                                                                             context = context,
                                                                                             prefs = prefs,
@@ -495,24 +531,7 @@ fun RightDeflectorTabContent(
                                                                                             badgeText = "UPPER",
                                                                                             showMooringRope = true,
                                                                                             isMooringTied = false,
-                                                                                            onToggleMooring = { _ ->
-                                                                                                rightGestureTiedState = rightGestureTiedState + (vectorKey to true)
-                                                                                                com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, vectorKey, true)
-                                                                                                val topVal = prefs.getString("pref_macro_action_TOP_${vectorKey}", "none") ?: "none"
-                                                                                                prefs.edit()
-                                                                                                    .putString("pref_macro_action_UNIFIED_${vectorKey}", topVal)
-                                                                                                    .putString("pref_macro_action_BOTTOM_${vectorKey}", topVal)
-                                                                                                    .apply()
-                                                                                                if (!isRightUnifiedGesturesExpanded) {
-                                                                                                    isRightUnifiedGesturesExpanded = true
-                                                                                                    prefs.edit().putBoolean("pref_sub_gestures_unified", true).apply()
-                                                                                                }
-                                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                                coroutineScope.launch {
-                                                                                                    kotlinx.coroutines.delay(60)
-                                                                                                    try { listState2.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
-                                                                                                }
-                                                                                            }
+                                                                                            onToggleMooring = { onTieVector() }
                                                                                         )
                                                                                         Spacer(modifier = Modifier.height(4.dp))
                                                                                         GestureMappingRow(
@@ -524,12 +543,41 @@ fun RightDeflectorTabContent(
                                                                                             defaultTitle = "Lower Sector · $vectorTitle",
                                                                                             options = dynamicActionTokens,
                                                                                             labelCache = tokenLabelCache,
-                                                                                            badgeText = "LOWER"
+                                                                                            badgeText = "LOWER",
+                                                                                            showMooringRope = true,
+                                                                                            isMooringTied = false,
+                                                                                            onToggleMooring = { onTieVector() }
                                                                                         )
                                                                                         Spacer(modifier = Modifier.height(8.dp))
                                                                                     }
 
                                                                                     if (!isHoldTied) {
+                                                                                        val holdKey = "${vectorKey}_HOLD"
+                                                                                        val onTieHoldVector = {
+                                                                                            pendingMooringConfirm = MooringConfirmData(
+                                                                                                title = "Tie Mooring Line?",
+                                                                                                message = "Unify \"$vectorTitle + Hold\" across the full flank in lockstep?",
+                                                                                                confirmLabel = "Tie",
+                                                                                                isSever = false,
+                                                                                                onConfirm = {
+                                                                                                    rightGestureTiedState = rightGestureTiedState + (holdKey to true)
+                                                                                                    com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, holdKey, true)
+                                                                                                    if (!prefs.contains("pref_macro_action_UNIFIED_${holdKey}")) {
+                                                                                                        val topVal = prefs.getString("pref_macro_action_TOP_${vectorKey}_HOLD", "none") ?: "none"
+                                                                                                        prefs.edit().putString("pref_macro_action_UNIFIED_${holdKey}", topVal).apply()
+                                                                                                    }
+                                                                                                    if (!isRightUnifiedGesturesExpanded) {
+                                                                                                        isRightUnifiedGesturesExpanded = true
+                                                                                                        prefs.edit().putBoolean("pref_sub_gestures_unified", true).apply()
+                                                                                                    }
+                                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                                    coroutineScope.launch {
+                                                                                                        kotlinx.coroutines.delay(60)
+                                                                                                        try { listState2.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
+                                                                                                    }
+                                                                                                }
+                                                                                            )
+                                                                                        }
                                                                                         GestureMappingRow(
                                                                                             context = context,
                                                                                             prefs = prefs,
@@ -542,25 +590,7 @@ fun RightDeflectorTabContent(
                                                                                             badgeText = "UPPER",
                                                                                             showMooringRope = true,
                                                                                             isMooringTied = false,
-                                                                                            onToggleMooring = { _ ->
-                                                                                                val holdKey = "${vectorKey}_HOLD"
-                                                                                                rightGestureTiedState = rightGestureTiedState + (holdKey to true)
-                                                                                                com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, holdKey, true)
-                                                                                                val topVal = prefs.getString("pref_macro_action_TOP_${vectorKey}_HOLD", "none") ?: "none"
-                                                                                                prefs.edit()
-                                                                                                    .putString("pref_macro_action_UNIFIED_${vectorKey}_HOLD", topVal)
-                                                                                                    .putString("pref_macro_action_BOTTOM_${vectorKey}_HOLD", topVal)
-                                                                                                    .apply()
-                                                                                                if (!isRightUnifiedGesturesExpanded) {
-                                                                                                    isRightUnifiedGesturesExpanded = true
-                                                                                                    prefs.edit().putBoolean("pref_sub_gestures_unified", true).apply()
-                                                                                                }
-                                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                                coroutineScope.launch {
-                                                                                                    kotlinx.coroutines.delay(60)
-                                                                                                    try { listState2.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
-                                                                                                }
-                                                                                            }
+                                                                                            onToggleMooring = { onTieHoldVector() }
                                                                                         )
                                                                                         Spacer(modifier = Modifier.height(4.dp))
                                                                                         GestureMappingRow(
@@ -572,7 +602,10 @@ fun RightDeflectorTabContent(
                                                                                             defaultTitle = "Lower Sector · $vectorTitle + Hold",
                                                                                             options = dynamicActionTokens,
                                                                                             labelCache = tokenLabelCache,
-                                                                                            badgeText = "LOWER"
+                                                                                            badgeText = "LOWER",
+                                                                                            showMooringRope = true,
+                                                                                            isMooringTied = false,
+                                                                                            onToggleMooring = { onTieHoldVector() }
                                                                                         )
                                                                                         Spacer(modifier = Modifier.height(8.dp))
                                                                                     }
@@ -619,25 +652,27 @@ fun RightDeflectorTabContent(
                                                                                         showMooringRope = true,
                                                                                         isMooringTied = true,
                                                                                         onToggleMooring = { _ ->
-                                                                                            isRightScrubLinked = false
-                                                                                            com.sbf.lightspeed.system.LightspeedPreferences.setScrubRegionsLinked(context, isLeft = false, false)
-                                                                                            if (!isRightUnifiedScrubExpanded) {
-                                                                                                isRightUnifiedScrubExpanded = true
-                                                                                                prefs.edit().putBoolean("pref_sub_scrub_unified", true).apply()
-                                                                                            }
-                                                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                            coroutineScope.launch {
-                                                                                                kotlinx.coroutines.delay(60)
-                                                                                                try { listState2.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
-                                                                                            }
+                                                                                            pendingMooringConfirm = MooringConfirmData(
+                                                                                                title = "Sever Scrubber Line?",
+                                                                                                message = "Unlink inward scrubbing into independent Upper & Lower sectors?",
+                                                                                                confirmLabel = "Sever",
+                                                                                                isSever = true,
+                                                                                                onConfirm = {
+                                                                                                    isRightScrubLinked = false
+                                                                                                    com.sbf.lightspeed.system.LightspeedPreferences.setScrubRegionsLinked(context, isLeft = false, false)
+                                                                                                    if (!isRightUnifiedScrubExpanded) {
+                                                                                                        isRightUnifiedScrubExpanded = true
+                                                                                                        prefs.edit().putBoolean("pref_sub_scrub_unified", true).apply()
+                                                                                                    }
+                                                                                                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                                    coroutineScope.launch {
+                                                                                                        kotlinx.coroutines.delay(60)
+                                                                                                        try { listState2.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
+                                                                                                    }
+                                                                                                }
+                                                                                            )
                                                                                         }
                                                                                     )
-                                                                                    LaunchedEffect(prefs.getString("pref_macro_action_TOP_SCRUBBING", null)) {
-                                                                                        val currentTop = prefs.getString("pref_macro_action_TOP_SCRUBBING", null)
-                                                                                        if (currentTop != null && currentTop != prefs.getString("pref_macro_action_BOTTOM_SCRUBBING", null)) {
-                                                                                            prefs.edit().putString("pref_macro_action_BOTTOM_SCRUBBING", currentTop).apply()
-                                                                                        }
-                                                                                    }
                                                                                     Spacer(modifier = Modifier.height(8.dp))
                                                                                 }
 
@@ -660,28 +695,45 @@ fun RightDeflectorTabContent(
                                                                                             showMooringRope = true,
                                                                                             isMooringTied = true,
                                                                                             onToggleMooring = { _ ->
-                                                                                                rightGestureTiedState = rightGestureTiedState + (vectorKey to false)
-                                                                                                com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, vectorKey, false)
-                                                                                                val currentVal = prefs.getString("pref_macro_action_UNIFIED_${vectorKey}", "none") ?: "none"
-                                                                                                prefs.edit()
-                                                                                                    .putString("pref_macro_action_TOP_${vectorKey}", currentVal)
-                                                                                                    .putString("pref_macro_action_BOTTOM_${vectorKey}", currentVal)
-                                                                                                    .apply()
-                                                                                                if (!isRightUnifiedScrubExpanded) {
-                                                                                                    isRightUnifiedScrubExpanded = true
-                                                                                                    prefs.edit().putBoolean("pref_sub_scrub_unified", true).apply()
-                                                                                                }
-                                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                                coroutineScope.launch {
-                                                                                                    kotlinx.coroutines.delay(60)
-                                                                                                    try { listState2.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
-                                                                                                }
+                                                                                                pendingMooringConfirm = MooringConfirmData(
+                                                                                                    title = "Sever Mooring Line?",
+                                                                                                    message = "Unlink \"$vectorTitle\" into independent Upper & Lower sector controls?",
+                                                                                                    confirmLabel = "Sever",
+                                                                                                    isSever = true,
+                                                                                                    onConfirm = {
+                                                                                                        rightGestureTiedState = rightGestureTiedState + (vectorKey to false)
+                                                                                                        com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, vectorKey, false)
+                                                                                                        val currentVal = prefs.getString("pref_macro_action_UNIFIED_${vectorKey}", "none") ?: "none"
+                                                                                                        val editor = prefs.edit()
+                                                                                                        var edited = false
+                                                                                                        if (!prefs.contains("pref_macro_action_TOP_${vectorKey}")) {
+                                                                                                            editor.putString("pref_macro_action_TOP_${vectorKey}", currentVal)
+                                                                                                            edited = true
+                                                                                                        }
+                                                                                                        if (!prefs.contains("pref_macro_action_BOTTOM_${vectorKey}")) {
+                                                                                                            editor.putString("pref_macro_action_BOTTOM_${vectorKey}", currentVal)
+                                                                                                            edited = true
+                                                                                                        }
+                                                                                                        if (edited) editor.apply()
+
+                                                                                                        if (!isRightUnifiedScrubExpanded) {
+                                                                                                            isRightUnifiedScrubExpanded = true
+                                                                                                            prefs.edit().putBoolean("pref_sub_scrub_unified", true).apply()
+                                                                                                        }
+                                                                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                                        coroutineScope.launch {
+                                                                                                            kotlinx.coroutines.delay(60)
+                                                                                                            try { listState2.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
+                                                                                                        }
+                                                                                                    }
+                                                                                                )
                                                                                             }
                                                                                         )
                                                                                         Spacer(modifier = Modifier.height(8.dp))
                                                                                     }
 
                                                                                     if (isHoldTied) {
+                                                                                        val holdKey = "${vectorKey}_HOLD"
                                                                                         GestureMappingRow(
                                                                                             context = context,
                                                                                             prefs = prefs,
@@ -694,23 +746,38 @@ fun RightDeflectorTabContent(
                                                                                             showMooringRope = true,
                                                                                             isMooringTied = true,
                                                                                             onToggleMooring = { _ ->
-                                                                                                val holdKey = "${vectorKey}_HOLD"
-                                                                                                rightGestureTiedState = rightGestureTiedState + (holdKey to false)
-                                                                                                com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, holdKey, false)
-                                                                                                val currentVal = prefs.getString("pref_macro_action_UNIFIED_${vectorKey}_HOLD", "none") ?: "none"
-                                                                                                prefs.edit()
-                                                                                                    .putString("pref_macro_action_TOP_${vectorKey}_HOLD", currentVal)
-                                                                                                    .putString("pref_macro_action_BOTTOM_${vectorKey}_HOLD", currentVal)
-                                                                                                    .apply()
-                                                                                                if (!isRightUnifiedScrubExpanded) {
-                                                                                                    isRightUnifiedScrubExpanded = true
-                                                                                                    prefs.edit().putBoolean("pref_sub_scrub_unified", true).apply()
-                                                                                                }
-                                                                                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                                                                                                coroutineScope.launch {
-                                                                                                    kotlinx.coroutines.delay(60)
-                                                                                                    try { listState2.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
-                                                                                                }
+                                                                                                pendingMooringConfirm = MooringConfirmData(
+                                                                                                    title = "Sever Mooring Line?",
+                                                                                                    message = "Unlink \"$vectorTitle + Hold\" into independent Upper & Lower sector controls?",
+                                                                                                    confirmLabel = "Sever",
+                                                                                                    isSever = true,
+                                                                                                    onConfirm = {
+                                                                                                        rightGestureTiedState = rightGestureTiedState + (holdKey to false)
+                                                                                                        com.sbf.lightspeed.system.LightspeedPreferences.setGestureUnified(context, isLeft = false, holdKey, false)
+                                                                                                        val currentVal = prefs.getString("pref_macro_action_UNIFIED_${vectorKey}_HOLD", "none") ?: "none"
+                                                                                                        val editor = prefs.edit()
+                                                                                                        var edited = false
+                                                                                                        if (!prefs.contains("pref_macro_action_TOP_${vectorKey}_HOLD")) {
+                                                                                                            editor.putString("pref_macro_action_TOP_${vectorKey}_HOLD", currentVal)
+                                                                                                            edited = true
+                                                                                                        }
+                                                                                                        if (!prefs.contains("pref_macro_action_BOTTOM_${vectorKey}_HOLD")) {
+                                                                                                            editor.putString("pref_macro_action_BOTTOM_${vectorKey}_HOLD", currentVal)
+                                                                                                            edited = true
+                                                                                                        }
+                                                                                                        if (edited) editor.apply()
+
+                                                                                                        if (!isRightUnifiedScrubExpanded) {
+                                                                                                            isRightUnifiedScrubExpanded = true
+                                                                                                            prefs.edit().putBoolean("pref_sub_scrub_unified", true).apply()
+                                                                                                        }
+                                                                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                                                                        coroutineScope.launch {
+                                                                                                            kotlinx.coroutines.delay(60)
+                                                                                                            try { listState2.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
+                                                                                                        }
+                                                                                                    }
+                                                                                                )
                                                                                             }
                                                                                         )
                                                                                         Spacer(modifier = Modifier.height(8.dp))
@@ -977,4 +1044,8 @@ fun RightDeflectorTabContent(
                             }
                         }
                     }
-                }
+    MooringConfirmDialog(
+        confirmData = pendingMooringConfirm,
+        onDismiss = { pendingMooringConfirm = null }
+    )
+}

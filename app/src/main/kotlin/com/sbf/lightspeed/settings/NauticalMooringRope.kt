@@ -700,16 +700,13 @@ fun SeveredMooringPairCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val highlightColor = MaterialTheme.colorScheme.primary
-    val baseColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f)
-    val frayColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.65f)
+    val baseColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.32f)
+    val frayColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.70f)
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.08f))
+        modifier = modifier.fillMaxWidth()
     ) {
-        // 1. Tactical Canvas drawing the continuous flanking mooring lines
+        // 1. Tactical Canvas drawing the natural drooping severed mooring cords
         Canvas(
             modifier = Modifier
                 .matchParentSize()
@@ -723,87 +720,82 @@ fun SeveredMooringPairCard(
         ) {
             val width = size.width
             val height = size.height
-            val ropeThickness = 3.dp.toPx()
-            val topY = 9.dp.toPx()
+            val ropeThickness = 2.6.dp.toPx()
+            val topY = 7.dp.toPx()
             val centerX = width / 2f
-            val gapHalf = 28.dp.toPx()
+            val gapHalf = 24.dp.toPx()
             val leftRopeCutX = centerX - gapHalf
             val rightRopeCutX = centerX + gapHalf
-            val cornerRadius = 10.dp.toPx()
-            val flankLeftX = 5.dp.toPx()
-            val flankRightX = width - 5.dp.toPx()
-            val bottomY = height - 10.dp.toPx()
+            val cornerRadius = 8.dp.toPx()
+            val flankLeftX = 4.dp.toPx()
+            val flankRightX = width - 4.dp.toPx()
+            val dangleBottomY = height * 0.72f
 
             // Left Severed Mooring Line:
-            // Starts at severed center gap with drooping cut tip, runs to top-left corner,
-            // rounds the corner, dangles down entire left flank, swoops inward at bottom.
+            // Top segment droops down toward center cut with frayed tip;
+            // Curves over top-left corner and hangs vertically down left flank.
             val leftPath = Path().apply {
-                val cutDroopY = topY + 5.dp.toPx()
+                val cutDroopY = topY + 7.dp.toPx()
                 moveTo(leftRopeCutX, cutDroopY)
                 cubicTo(
-                    leftRopeCutX - 12.dp.toPx(), cutDroopY + 1.dp.toPx(),
-                    flankLeftX + cornerRadius + 8.dp.toPx(), topY,
+                    leftRopeCutX - 10.dp.toPx(), cutDroopY + 1.dp.toPx(),
+                    flankLeftX + cornerRadius + 6.dp.toPx(), topY,
                     flankLeftX + cornerRadius, topY
                 )
-                // Curve around top-left corner
+                // Curve around top-left shoulder
                 quadraticTo(flankLeftX, topY, flankLeftX, topY + cornerRadius)
-                // Dangle down the entire left flank
-                lineTo(flankLeftX, bottomY - cornerRadius)
-                // Swoop inward under lower card
-                quadraticTo(flankLeftX, bottomY, flankLeftX + 12.dp.toPx(), bottomY)
+                // Hang down the left flank alongside Row 1 & Row 2
+                lineTo(flankLeftX, dangleBottomY)
             }
             drawPath(leftPath, color = baseColor, style = Stroke(width = ropeThickness))
             drawPath(leftPath, color = highlightColor.copy(alpha = 0.35f), style = Stroke(width = 1.2.dp.toPx()))
 
             // Right Severed Mooring Line:
-            // Starts at severed center gap with drooping cut tip, runs to top-right corner,
-            // rounds the corner, dangles down entire right flank, swoops inward at bottom.
+            // Top segment droops down toward center cut with frayed tip;
+            // Curves over top-right corner and hangs vertically down right flank.
             val rightPath = Path().apply {
-                val cutDroopY = topY + 5.dp.toPx()
+                val cutDroopY = topY + 7.dp.toPx()
                 moveTo(rightRopeCutX, cutDroopY)
                 cubicTo(
-                    rightRopeCutX + 12.dp.toPx(), cutDroopY + 1.dp.toPx(),
-                    flankRightX - cornerRadius - 8.dp.toPx(), topY,
+                    rightRopeCutX + 10.dp.toPx(), cutDroopY + 1.dp.toPx(),
+                    flankRightX - cornerRadius - 6.dp.toPx(), topY,
                     flankRightX - cornerRadius, topY
                 )
-                // Curve around top-right corner
+                // Curve around top-right shoulder
                 quadraticTo(flankRightX, topY, flankRightX, topY + cornerRadius)
-                // Dangle down the entire right flank
-                lineTo(flankRightX, bottomY - cornerRadius)
-                // Swoop inward under lower card
-                quadraticTo(flankRightX, bottomY, flankRightX - 12.dp.toPx(), bottomY)
+                // Hang down the right flank alongside Row 1 & Row 2
+                lineTo(flankRightX, dangleBottomY)
             }
             drawPath(rightPath, color = baseColor, style = Stroke(width = ropeThickness))
             drawPath(rightPath, color = highlightColor.copy(alpha = 0.35f), style = Stroke(width = 1.2.dp.toPx()))
 
-            // Frayed fibers at top cut ends
+            // Frayed fibers at top severed gap
             val fiberWidth = 1.dp.toPx()
-            val cutDroopY = topY + 5.dp.toPx()
+            val cutDroopY = topY + 7.dp.toPx()
             // Left top cut tip
-            drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 4.dp.toPx(), cutDroopY + 4.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 1.dp.toPx(), cutDroopY + 5.5.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 4.dp.toPx(), cutDroopY + 4.5.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 1.dp.toPx(), cutDroopY + 6.dp.toPx()), strokeWidth = fiberWidth)
             drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 5.dp.toPx(), cutDroopY + 2.dp.toPx()), strokeWidth = fiberWidth)
             // Right top cut tip
-            drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 4.dp.toPx(), cutDroopY + 4.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 1.dp.toPx(), cutDroopY + 5.5.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 4.dp.toPx(), cutDroopY + 4.5.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 1.dp.toPx(), cutDroopY + 6.dp.toPx()), strokeWidth = fiberWidth)
             drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 5.dp.toPx(), cutDroopY + 2.dp.toPx()), strokeWidth = fiberWidth)
 
-            // Frayed fibers at bottom dangling ends (covering lower row)
-            val leftBottomEnd = Offset(flankLeftX + 12.dp.toPx(), bottomY)
-            drawLine(frayColor, leftBottomEnd, Offset(leftBottomEnd.x + 4.dp.toPx(), bottomY + 1.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, leftBottomEnd, Offset(leftBottomEnd.x + 3.dp.toPx(), bottomY - 3.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, leftBottomEnd, Offset(leftBottomEnd.x + 5.dp.toPx(), bottomY + 3.dp.toPx()), strokeWidth = fiberWidth)
+            // Frayed fibers dangling freely at bottom tips of the hanging flank lines
+            // Left dangling end
+            drawLine(frayColor, Offset(flankLeftX, dangleBottomY), Offset(flankLeftX - 1.5.dp.toPx(), dangleBottomY + 5.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(flankLeftX, dangleBottomY), Offset(flankLeftX + 0.5.dp.toPx(), dangleBottomY + 6.5.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(flankLeftX, dangleBottomY), Offset(flankLeftX + 2.dp.toPx(), dangleBottomY + 4.dp.toPx()), strokeWidth = fiberWidth)
 
-            val rightBottomEnd = Offset(flankRightX - 12.dp.toPx(), bottomY)
-            drawLine(frayColor, rightBottomEnd, Offset(rightBottomEnd.x - 4.dp.toPx(), bottomY + 1.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, rightBottomEnd, Offset(rightBottomEnd.x - 3.dp.toPx(), bottomY - 3.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, rightBottomEnd, Offset(rightBottomEnd.x - 5.dp.toPx(), bottomY + 3.dp.toPx()), strokeWidth = fiberWidth)
+            // Right dangling end
+            drawLine(frayColor, Offset(flankRightX, dangleBottomY), Offset(flankRightX - 1.5.dp.toPx(), dangleBottomY + 4.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(flankRightX, dangleBottomY), Offset(flankRightX - 0.5.dp.toPx(), dangleBottomY + 6.5.dp.toPx()), strokeWidth = fiberWidth)
+            drawLine(frayColor, Offset(flankRightX, dangleBottomY), Offset(flankRightX + 2.dp.toPx(), dangleBottomY + 5.dp.toPx()), strokeWidth = fiberWidth)
 
-            // Subtle chevron indicators pointing in re-coupling direction
-            val arrowColor = highlightColor.copy(alpha = 0.45f)
+            // Directional chevrons pointing toward center re-tying
+            val arrowColor = highlightColor.copy(alpha = 0.40f)
             val arrowSize = 3.dp.toPx()
-            // Top left arrow (pointing right toward center)
-            val leftArrowX = (leftRopeCutX * 0.5f).coerceAtLeast(flankLeftX + 16.dp.toPx())
+            val leftArrowX = (leftRopeCutX * 0.5f).coerceAtLeast(flankLeftX + 14.dp.toPx())
             val leftArrowPath = Path().apply {
                 moveTo(leftArrowX - arrowSize, topY - arrowSize)
                 lineTo(leftArrowX + arrowSize, topY)
@@ -811,8 +803,7 @@ fun SeveredMooringPairCard(
             }
             drawPath(leftArrowPath, arrowColor, style = Stroke(width = 1.dp.toPx()))
 
-            // Top right arrow (pointing left toward center)
-            val rightArrowX = (rightRopeCutX + (width - rightRopeCutX) * 0.5f).coerceAtMost(flankRightX - 16.dp.toPx())
+            val rightArrowX = (rightRopeCutX + (width - rightRopeCutX) * 0.5f).coerceAtMost(flankRightX - 14.dp.toPx())
             val rightArrowPath = Path().apply {
                 moveTo(rightArrowX + arrowSize, topY - arrowSize)
                 lineTo(rightArrowX - arrowSize, topY)
@@ -825,7 +816,7 @@ fun SeveredMooringPairCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 13.dp, end = 13.dp, top = 16.dp, bottom = 6.dp),
+                .padding(start = 10.dp, end = 10.dp, top = 14.dp, bottom = 2.dp),
             content = content
         )
     }

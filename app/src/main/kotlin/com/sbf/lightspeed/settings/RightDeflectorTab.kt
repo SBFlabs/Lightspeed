@@ -431,7 +431,6 @@ fun RightDeflectorTabContent(
                                                                                         modifier = Modifier.padding(12.dp)
                                                                                     )
                                                                                 }
-                                                                            } else {
                                                                                 // 1. Scrubber (if unlinked/cut)
                                                                                 if (!isRightScrubLinked) {
                                                                                     val onTieScrubber = {
@@ -469,8 +468,7 @@ fun RightDeflectorTabContent(
                                                                                             direction = ArrowDirection.SCRUB,
                                                                                             isHold = false,
                                                                                             keyResName = "pref_macro_action_TOP_SCRUBBING",
-                                                                                            defaultTitle = "Upper Sector · Inward Sweep",
-                                                                                            badgeText = "UPPER",
+                                                                                            defaultTitle = "Upper · Inward Sweep",
                                                                                             options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout"),
                                                                                             labelCache = tokenLabelCache
                                                                                         )
@@ -481,8 +479,7 @@ fun RightDeflectorTabContent(
                                                                                             direction = ArrowDirection.SCRUB,
                                                                                             isHold = false,
                                                                                             keyResName = "pref_macro_action_BOTTOM_SCRUBBING",
-                                                                                            defaultTitle = "Lower Sector · Inward Sweep",
-                                                                                            badgeText = "LOWER",
+                                                                                            defaultTitle = "Lower · Inward Sweep",
                                                                                             options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout"),
                                                                                             labelCache = tokenLabelCache
                                                                                         )
@@ -532,10 +529,9 @@ fun RightDeflectorTabContent(
                                                                                                 direction = arrowEnum,
                                                                                                 isHold = false,
                                                                                                 keyResName = "pref_macro_action_TOP_${vectorKey}",
-                                                                                                defaultTitle = "Upper Sector · $vectorTitle",
+                                                                                                defaultTitle = "Upper · $vectorTitle",
                                                                                                 options = dynamicActionTokens,
-                                                                                                labelCache = tokenLabelCache,
-                                                                                                badgeText = "UPPER"
+                                                                                                labelCache = tokenLabelCache
                                                                                             )
                                                                                             Spacer(modifier = Modifier.height(4.dp))
                                                                                             GestureMappingRow(
@@ -544,10 +540,9 @@ fun RightDeflectorTabContent(
                                                                                                 direction = arrowEnum,
                                                                                                 isHold = false,
                                                                                                 keyResName = "pref_macro_action_BOTTOM_${vectorKey}",
-                                                                                                defaultTitle = "Lower Sector · $vectorTitle",
+                                                                                                defaultTitle = "Lower · $vectorTitle",
                                                                                                 options = dynamicActionTokens,
-                                                                                                labelCache = tokenLabelCache,
-                                                                                                badgeText = "LOWER"
+                                                                                                labelCache = tokenLabelCache
                                                                                             )
                                                                                         }
                                                                                         Spacer(modifier = Modifier.height(8.dp))
@@ -590,10 +585,9 @@ fun RightDeflectorTabContent(
                                                                                                 direction = arrowEnum,
                                                                                                 isHold = true,
                                                                                                 keyResName = "pref_macro_action_TOP_${vectorKey}_HOLD",
-                                                                                                defaultTitle = "Upper Sector · $vectorTitle + Hold",
+                                                                                                defaultTitle = "Upper · $vectorTitle + Hold",
                                                                                                 options = dynamicActionTokens,
-                                                                                                labelCache = tokenLabelCache,
-                                                                                                badgeText = "UPPER"
+                                                                                                labelCache = tokenLabelCache
                                                                                             )
                                                                                             Spacer(modifier = Modifier.height(4.dp))
                                                                                             GestureMappingRow(
@@ -602,10 +596,9 @@ fun RightDeflectorTabContent(
                                                                                                 direction = arrowEnum,
                                                                                                 isHold = true,
                                                                                                 keyResName = "pref_macro_action_BOTTOM_${vectorKey}_HOLD",
-                                                                                                defaultTitle = "Lower Sector · $vectorTitle + Hold",
+                                                                                                defaultTitle = "Lower · $vectorTitle + Hold",
                                                                                                 options = dynamicActionTokens,
-                                                                                                labelCache = tokenLabelCache,
-                                                                                                badgeText = "LOWER"
+                                                                                                labelCache = tokenLabelCache
                                                                                             )
                                                                                         }
                                                                                         Spacer(modifier = Modifier.height(8.dp))

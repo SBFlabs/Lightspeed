@@ -706,7 +706,7 @@ fun SeveredMooringPairCard(
     Box(
         modifier = modifier.fillMaxWidth()
     ) {
-        // 1. Tactical Canvas drawing the natural drooping severed mooring cords
+        // 1. Tactical Canvas drawing the corner-anchored natural hanging severed mooring cords
         Canvas(
             modifier = Modifier
                 .matchParentSize()
@@ -721,102 +721,109 @@ fun SeveredMooringPairCard(
             val width = size.width
             val height = size.height
             val ropeThickness = 2.6.dp.toPx()
-            val topY = 7.dp.toPx()
-            val centerX = width / 2f
-            val gapHalf = 24.dp.toPx()
-            val leftRopeCutX = centerX - gapHalf
-            val rightRopeCutX = centerX + gapHalf
-            val cornerRadius = 8.dp.toPx()
-            val flankLeftX = 4.dp.toPx()
-            val flankRightX = width - 4.dp.toPx()
-            val dangleBottomY = height * 0.72f
-
-            // Left Severed Mooring Line:
-            // Top segment droops down toward center cut with frayed tip;
-            // Curves over top-left corner and hangs vertically down left flank.
-            val leftPath = Path().apply {
-                val cutDroopY = topY + 7.dp.toPx()
-                moveTo(leftRopeCutX, cutDroopY)
-                cubicTo(
-                    leftRopeCutX - 10.dp.toPx(), cutDroopY + 1.dp.toPx(),
-                    flankLeftX + cornerRadius + 6.dp.toPx(), topY,
-                    flankLeftX + cornerRadius, topY
-                )
-                // Curve around top-left shoulder
-                quadraticTo(flankLeftX, topY, flankLeftX, topY + cornerRadius)
-                // Hang down the left flank alongside Row 1 & Row 2
-                lineTo(flankLeftX, dangleBottomY)
-            }
-            drawPath(leftPath, color = baseColor, style = Stroke(width = ropeThickness))
-            drawPath(leftPath, color = highlightColor.copy(alpha = 0.35f), style = Stroke(width = 1.2.dp.toPx()))
-
-            // Right Severed Mooring Line:
-            // Top segment droops down toward center cut with frayed tip;
-            // Curves over top-right corner and hangs vertically down right flank.
-            val rightPath = Path().apply {
-                val cutDroopY = topY + 7.dp.toPx()
-                moveTo(rightRopeCutX, cutDroopY)
-                cubicTo(
-                    rightRopeCutX + 10.dp.toPx(), cutDroopY + 1.dp.toPx(),
-                    flankRightX - cornerRadius - 6.dp.toPx(), topY,
-                    flankRightX - cornerRadius, topY
-                )
-                // Curve around top-right shoulder
-                quadraticTo(flankRightX, topY, flankRightX, topY + cornerRadius)
-                // Hang down the right flank alongside Row 1 & Row 2
-                lineTo(flankRightX, dangleBottomY)
-            }
-            drawPath(rightPath, color = baseColor, style = Stroke(width = ropeThickness))
-            drawPath(rightPath, color = highlightColor.copy(alpha = 0.35f), style = Stroke(width = 1.2.dp.toPx()))
-
-            // Frayed fibers at top severed gap
+            val flankLeftX = 5.dp.toPx()
+            val flankRightX = width - 5.dp.toPx()
+            val anchorY = 8.dp.toPx()
+            val eyeletRadius = 3.2.dp.toPx()
+            val dangleBottomY = (height * 0.72f).coerceAtLeast(anchorY + 40.dp.toPx())
             val fiberWidth = 1.dp.toPx()
-            val cutDroopY = topY + 7.dp.toPx()
-            // Left top cut tip
-            drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 4.dp.toPx(), cutDroopY + 4.5.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 1.dp.toPx(), cutDroopY + 6.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, Offset(leftRopeCutX, cutDroopY), Offset(leftRopeCutX - 5.dp.toPx(), cutDroopY + 2.dp.toPx()), strokeWidth = fiberWidth)
-            // Right top cut tip
-            drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 4.dp.toPx(), cutDroopY + 4.5.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 1.dp.toPx(), cutDroopY + 6.dp.toPx()), strokeWidth = fiberWidth)
-            drawLine(frayColor, Offset(rightRopeCutX, cutDroopY), Offset(rightRopeCutX + 5.dp.toPx(), cutDroopY + 2.dp.toPx()), strokeWidth = fiberWidth)
 
-            // Frayed fibers dangling freely at bottom tips of the hanging flank lines
-            // Left dangling end
+            // --- LEFT FLANK CORNER ANCHOR & HANGING CORD ---
+            // Eyelet ring at top-left corner
+            drawCircle(
+                color = highlightColor.copy(alpha = 0.50f),
+                radius = eyeletRadius,
+                center = Offset(flankLeftX, anchorY),
+                style = Stroke(width = 1.3.dp.toPx())
+            )
+            // Hitch knot loop over the eyelet
+            drawOval(
+                color = baseColor,
+                topLeft = Offset(flankLeftX - eyeletRadius * 1.1f, anchorY - eyeletRadius * 0.6f),
+                size = Size(eyeletRadius * 2.2f, eyeletRadius * 1.2f),
+                style = Stroke(width = ropeThickness)
+            )
+            // Small frayed severed stub pointing inward from left anchor (where line was cut/untied)
+            drawLine(
+                color = frayColor,
+                start = Offset(flankLeftX + eyeletRadius, anchorY),
+                end = Offset(flankLeftX + eyeletRadius + 4.dp.toPx(), anchorY - 1.dp.toPx()),
+                strokeWidth = fiberWidth
+            )
+            drawLine(
+                color = frayColor,
+                start = Offset(flankLeftX + eyeletRadius, anchorY),
+                end = Offset(flankLeftX + eyeletRadius + 3.dp.toPx(), anchorY + 2.dp.toPx()),
+                strokeWidth = fiberWidth
+            )
+
+            // Left hanging cord running down the flank past Row 1 & Row 2
+            val leftCord = Path().apply {
+                moveTo(flankLeftX, anchorY + eyeletRadius)
+                quadraticTo(
+                    flankLeftX - 0.5.dp.toPx(), anchorY + (dangleBottomY - anchorY) * 0.45f,
+                    flankLeftX, dangleBottomY
+                )
+            }
+            drawPath(leftCord, color = baseColor, style = Stroke(width = ropeThickness))
+            drawPath(leftCord, color = highlightColor.copy(alpha = 0.35f), style = Stroke(width = 1.2.dp.toPx()))
+
+            // Frayed fibers at bottom tip of left cord
             drawLine(frayColor, Offset(flankLeftX, dangleBottomY), Offset(flankLeftX - 1.5.dp.toPx(), dangleBottomY + 5.dp.toPx()), strokeWidth = fiberWidth)
             drawLine(frayColor, Offset(flankLeftX, dangleBottomY), Offset(flankLeftX + 0.5.dp.toPx(), dangleBottomY + 6.5.dp.toPx()), strokeWidth = fiberWidth)
             drawLine(frayColor, Offset(flankLeftX, dangleBottomY), Offset(flankLeftX + 2.dp.toPx(), dangleBottomY + 4.dp.toPx()), strokeWidth = fiberWidth)
 
-            // Right dangling end
+            // --- RIGHT FLANK CORNER ANCHOR & HANGING CORD ---
+            // Eyelet ring at top-right corner
+            drawCircle(
+                color = highlightColor.copy(alpha = 0.50f),
+                radius = eyeletRadius,
+                center = Offset(flankRightX, anchorY),
+                style = Stroke(width = 1.3.dp.toPx())
+            )
+            // Hitch knot loop over the eyelet
+            drawOval(
+                color = baseColor,
+                topLeft = Offset(flankRightX - eyeletRadius * 1.1f, anchorY - eyeletRadius * 0.6f),
+                size = Size(eyeletRadius * 2.2f, eyeletRadius * 1.2f),
+                style = Stroke(width = ropeThickness)
+            )
+            // Small frayed severed stub pointing inward from right anchor (where line was cut/untied)
+            drawLine(
+                color = frayColor,
+                start = Offset(flankRightX - eyeletRadius, anchorY),
+                end = Offset(flankRightX - eyeletRadius - 4.dp.toPx(), anchorY - 1.dp.toPx()),
+                strokeWidth = fiberWidth
+            )
+            drawLine(
+                color = frayColor,
+                start = Offset(flankRightX - eyeletRadius, anchorY),
+                end = Offset(flankRightX - eyeletRadius - 3.dp.toPx(), anchorY + 2.dp.toPx()),
+                strokeWidth = fiberWidth
+            )
+
+            // Right hanging cord running down the flank past Row 1 & Row 2
+            val rightCord = Path().apply {
+                moveTo(flankRightX, anchorY + eyeletRadius)
+                quadraticTo(
+                    flankRightX + 0.5.dp.toPx(), anchorY + (dangleBottomY - anchorY) * 0.45f,
+                    flankRightX, dangleBottomY
+                )
+            }
+            drawPath(rightCord, color = baseColor, style = Stroke(width = ropeThickness))
+            drawPath(rightCord, color = highlightColor.copy(alpha = 0.35f), style = Stroke(width = 1.2.dp.toPx()))
+
+            // Frayed fibers at bottom tip of right cord
             drawLine(frayColor, Offset(flankRightX, dangleBottomY), Offset(flankRightX - 1.5.dp.toPx(), dangleBottomY + 4.dp.toPx()), strokeWidth = fiberWidth)
             drawLine(frayColor, Offset(flankRightX, dangleBottomY), Offset(flankRightX - 0.5.dp.toPx(), dangleBottomY + 6.5.dp.toPx()), strokeWidth = fiberWidth)
             drawLine(frayColor, Offset(flankRightX, dangleBottomY), Offset(flankRightX + 2.dp.toPx(), dangleBottomY + 5.dp.toPx()), strokeWidth = fiberWidth)
-
-            // Directional chevrons pointing toward center re-tying
-            val arrowColor = highlightColor.copy(alpha = 0.40f)
-            val arrowSize = 3.dp.toPx()
-            val leftArrowX = (leftRopeCutX * 0.5f).coerceAtLeast(flankLeftX + 14.dp.toPx())
-            val leftArrowPath = Path().apply {
-                moveTo(leftArrowX - arrowSize, topY - arrowSize)
-                lineTo(leftArrowX + arrowSize, topY)
-                lineTo(leftArrowX - arrowSize, topY + arrowSize)
-            }
-            drawPath(leftArrowPath, arrowColor, style = Stroke(width = 1.dp.toPx()))
-
-            val rightArrowX = (rightRopeCutX + (width - rightRopeCutX) * 0.5f).coerceAtMost(flankRightX - 14.dp.toPx())
-            val rightArrowPath = Path().apply {
-                moveTo(rightArrowX + arrowSize, topY - arrowSize)
-                lineTo(rightArrowX - arrowSize, topY)
-                lineTo(rightArrowX + arrowSize, topY + arrowSize)
-            }
-            drawPath(rightArrowPath, arrowColor, style = Stroke(width = 1.dp.toPx()))
         }
 
         // 2. Child Sector Rows with lateral margins for the flanking ropes
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 10.dp, end = 10.dp, top = 14.dp, bottom = 2.dp),
+                .padding(start = 11.dp, end = 11.dp, top = 4.dp, bottom = 2.dp),
             content = content
         )
     }

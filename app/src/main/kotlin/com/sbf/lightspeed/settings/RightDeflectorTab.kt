@@ -431,6 +431,7 @@ fun RightDeflectorTabContent(
                                                                                         modifier = Modifier.padding(12.dp)
                                                                                     )
                                                                                 }
+                                                                            } else {
                                                                                 // 1. Scrubber (if unlinked/cut)
                                                                                 if (!isRightScrubLinked) {
                                                                                     val onTieScrubber = {

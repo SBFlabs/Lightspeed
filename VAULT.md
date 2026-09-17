@@ -280,13 +280,16 @@ PART 4: COCKPIT & REFUELING BAY EVOLUTION (ACTIVE CONVERGENCE LOG)
   - Added toggle to pulse deflector glow upon step-1 gesture recognition ("pref_deflector_glow_on_gesture_step").
   - Added glow duration selector ("800ms", "1500ms", "2200ms") and live "TEST FX" trigger in Central Command.
 ✓ Nautical Mooring Rope & Deflector Dynamic Routing Engine [STATUS: SHIPPED & VERIFIED]:
-  - Skeuomorphic & Translucent M3 Braided Mooring Rope (`NauticalMooringRope.kt`, `GestureComponents.kt`): Custom Canvas drawing routines modeling translucent dynamic color braided cord (alpha 0.22f-0.45f), subtle central reef knot loops (tied) vs frayed fiber tassels (cut), dropped down 5dp inside gesture row cards without emojis or text chips.
+  - Skeuomorphic & Translucent M3 Braided Mooring Rope (`NauticalMooringRope.kt`, `GestureComponents.kt`): Custom Canvas drawing routines modeling translucent dynamic color braided cord (alpha 0.22f-0.45f), subtle central reef knot loops (tied) vs drooping downward catenary curves with frayed fiber tassels (severed), dropped down 5dp inside gesture row cards without emojis or text chips.
+  - Dual-Row Dangling Catenaries in Separate Controls: When unlinked, both Upper and Lower sector rows render the severed drooping mooring line with frayed ends and outer flank tails; tapping either row prompts re-coupling.
+  - Independent Memory Profile Preservation: Linking or unlinking gestures never clobbers assigned actions. Tying restores the saved unified action profile (`pref_macro_action_[LEFT_]UNIFIED_*`), while severing preserves the independent Upper and Lower sector configurations (`pref_macro_action_[LEFT_]TOP_*` and `pref_macro_action_[LEFT_]BOTTOM_*`).
+  - Tactical Confirmation Micro-Dialog (`MooringConfirmDialog`): Sleek Material 3 confirmation safeguard before severing or tying any mooring line to eliminate accidental toggles.
   - Dynamic Two-Card Accordion Migration:
     * "Unified Gesture Matrix" card holds only tied gestures (1 single consolidated row executing full-flank actions).
     * "Separate Deflector Controls" card holds only cut gestures (2 independent rows for Upper & Lower sectors).
-    * Cutting a rope removes the gesture from Unified Matrix and moves it into Separate Controls; tying it moves it back into Unified Matrix.
+    * Cutting a rope moves gesture into Separate Controls; tying it moves it back into Unified Matrix.
   - Accordion Auto-Expansion & Auto-Scroll Engine:
-    * If the destination accordion (Separate Controls or Unified Matrix) is collapsed when a gesture is toggled, it automatically expands (`isExpanded = true`) and persists to preferences.
+    * If destination accordion is collapsed, it automatically expands (`isExpanded = true`) and persists.
     * Smooth animated scrolling immediately shifts the viewport to the newly populated destination card.
   - Preference & Overlay Runtime Synchronization: Maintained `KEY_UNIFIED_SCRUB_REGIONS_LINKED`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT`, `KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT`, and `pref_gesture_unified_<flank>_<vectorKey>` in `LightspeedPreferences`, dynamically resolved in `LightspeedCruiseOverlayTouch`, `LightspeedCruiseOverlay`, and `LightspeedLeftWingOverlay`.
 ✓ Synthetic Gravity Engine & Native Auto-Rotation Resolution:

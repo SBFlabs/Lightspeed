@@ -457,35 +457,34 @@ fun LeftDeflectorTabContent(
                                                                                             }
                                                                                         )
                                                                                     }
-                                                                                    GestureMappingRow(
+                                                                                    SeveredMooringPairCard(
                                                                                         context = context,
-                                                                                        prefs = prefs,
-                                                                                        direction = ArrowDirection.SCRUB,
-                                                                                        isHold = false,
-                                                                                        keyResName = "pref_macro_action_LEFT_TOP_SCRUBBING",
-                                                                                        defaultTitle = "Upper Sector · Inward Sweep",
-                                                                                        badgeText = "UPPER",
-                                                                                        options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout"),
-                                                                                        labelCache = tokenLabelCache,
-                                                                                        showMooringRope = true,
-                                                                                        isMooringTied = false,
-                                                                                        onToggleMooring = { onTieScrubber() }
-                                                                                    )
-                                                                                    Spacer(modifier = Modifier.height(4.dp))
-                                                                                    GestureMappingRow(
-                                                                                        context = context,
-                                                                                        prefs = prefs,
-                                                                                        direction = ArrowDirection.SCRUB,
-                                                                                        isHold = false,
-                                                                                        keyResName = "pref_macro_action_LEFT_BOTTOM_SCRUBBING",
-                                                                                        defaultTitle = "Lower Sector · Inward Sweep",
-                                                                                        badgeText = "LOWER",
-                                                                                        options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout"),
-                                                                                        labelCache = tokenLabelCache,
-                                                                                        showMooringRope = true,
-                                                                                        isMooringTied = false,
-                                                                                        onToggleMooring = { onTieScrubber() }
-                                                                                    )
+                                                                                        onTie = { onTieScrubber() }
+                                                                                    ) {
+                                                                                        GestureMappingRow(
+                                                                                            context = context,
+                                                                                            prefs = prefs,
+                                                                                            direction = ArrowDirection.SCRUB,
+                                                                                            isHold = false,
+                                                                                            keyResName = "pref_macro_action_LEFT_TOP_SCRUBBING",
+                                                                                            defaultTitle = "Upper Sector · Inward Sweep",
+                                                                                            badgeText = "UPPER",
+                                                                                            options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout"),
+                                                                                            labelCache = tokenLabelCache
+                                                                                        )
+                                                                                        Spacer(modifier = Modifier.height(4.dp))
+                                                                                        GestureMappingRow(
+                                                                                            context = context,
+                                                                                            prefs = prefs,
+                                                                                            direction = ArrowDirection.SCRUB,
+                                                                                            isHold = false,
+                                                                                            keyResName = "pref_macro_action_LEFT_BOTTOM_SCRUBBING",
+                                                                                            defaultTitle = "Lower Sector · Inward Sweep",
+                                                                                            badgeText = "LOWER",
+                                                                                            options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout"),
+                                                                                            labelCache = tokenLabelCache
+                                                                                        )
+                                                                                    }
                                                                                     Spacer(modifier = Modifier.height(8.dp))
                                                                                 }
 
@@ -521,35 +520,34 @@ fun LeftDeflectorTabContent(
                                                                                                 }
                                                                                             )
                                                                                         }
-                                                                                        GestureMappingRow(
+                                                                                        SeveredMooringPairCard(
                                                                                             context = context,
-                                                                                            prefs = prefs,
-                                                                                            direction = arrowEnum,
-                                                                                            isHold = false,
-                                                                                            keyResName = "pref_macro_action_LEFT_TOP_${vectorKey}",
-                                                                                            defaultTitle = "Upper Sector · $vectorTitle",
-                                                                                            options = dynamicActionTokens,
-                                                                                            labelCache = tokenLabelCache,
-                                                                                            badgeText = "UPPER",
-                                                                                            showMooringRope = true,
-                                                                                            isMooringTied = false,
-                                                                                            onToggleMooring = { onTieVector() }
-                                                                                        )
-                                                                                        Spacer(modifier = Modifier.height(4.dp))
-                                                                                        GestureMappingRow(
-                                                                                            context = context,
-                                                                                            prefs = prefs,
-                                                                                            direction = arrowEnum,
-                                                                                            isHold = false,
-                                                                                            keyResName = "pref_macro_action_LEFT_BOTTOM_${vectorKey}",
-                                                                                            defaultTitle = "Lower Sector · $vectorTitle",
-                                                                                            options = dynamicActionTokens,
-                                                                                            labelCache = tokenLabelCache,
-                                                                                            badgeText = "LOWER",
-                                                                                            showMooringRope = true,
-                                                                                            isMooringTied = false,
-                                                                                            onToggleMooring = { onTieVector() }
-                                                                                        )
+                                                                                            onTie = { onTieVector() }
+                                                                                        ) {
+                                                                                            GestureMappingRow(
+                                                                                                context = context,
+                                                                                                prefs = prefs,
+                                                                                                direction = arrowEnum,
+                                                                                                isHold = false,
+                                                                                                keyResName = "pref_macro_action_LEFT_TOP_${vectorKey}",
+                                                                                                defaultTitle = "Upper Sector · $vectorTitle",
+                                                                                                options = dynamicActionTokens,
+                                                                                                labelCache = tokenLabelCache,
+                                                                                                badgeText = "UPPER"
+                                                                                            )
+                                                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                                                            GestureMappingRow(
+                                                                                                context = context,
+                                                                                                prefs = prefs,
+                                                                                                direction = arrowEnum,
+                                                                                                isHold = false,
+                                                                                                keyResName = "pref_macro_action_LEFT_BOTTOM_${vectorKey}",
+                                                                                                defaultTitle = "Lower Sector · $vectorTitle",
+                                                                                                options = dynamicActionTokens,
+                                                                                                labelCache = tokenLabelCache,
+                                                                                                badgeText = "LOWER"
+                                                                                            )
+                                                                                        }
                                                                                         Spacer(modifier = Modifier.height(8.dp))
                                                                                     }
 
@@ -580,35 +578,34 @@ fun LeftDeflectorTabContent(
                                                                                                 }
                                                                                             )
                                                                                         }
-                                                                                        GestureMappingRow(
+                                                                                        SeveredMooringPairCard(
                                                                                             context = context,
-                                                                                            prefs = prefs,
-                                                                                            direction = arrowEnum,
-                                                                                            isHold = true,
-                                                                                            keyResName = "pref_macro_action_LEFT_TOP_${vectorKey}_HOLD",
-                                                                                            defaultTitle = "Upper Sector · $vectorTitle + Hold",
-                                                                                            options = dynamicActionTokens,
-                                                                                            labelCache = tokenLabelCache,
-                                                                                            badgeText = "UPPER",
-                                                                                            showMooringRope = true,
-                                                                                            isMooringTied = false,
-                                                                                            onToggleMooring = { onTieHoldVector() }
-                                                                                        )
-                                                                                        Spacer(modifier = Modifier.height(4.dp))
-                                                                                        GestureMappingRow(
-                                                                                            context = context,
-                                                                                            prefs = prefs,
-                                                                                            direction = arrowEnum,
-                                                                                            isHold = true,
-                                                                                            keyResName = "pref_macro_action_LEFT_BOTTOM_${vectorKey}_HOLD",
-                                                                                            defaultTitle = "Lower Sector · $vectorTitle + Hold",
-                                                                                            options = dynamicActionTokens,
-                                                                                            labelCache = tokenLabelCache,
-                                                                                            badgeText = "LOWER",
-                                                                                            showMooringRope = true,
-                                                                                            isMooringTied = false,
-                                                                                            onToggleMooring = { onTieHoldVector() }
-                                                                                        )
+                                                                                            onTie = { onTieHoldVector() }
+                                                                                        ) {
+                                                                                            GestureMappingRow(
+                                                                                                context = context,
+                                                                                                prefs = prefs,
+                                                                                                direction = arrowEnum,
+                                                                                                isHold = true,
+                                                                                                keyResName = "pref_macro_action_LEFT_TOP_${vectorKey}_HOLD",
+                                                                                                defaultTitle = "Upper Sector · $vectorTitle + Hold",
+                                                                                                options = dynamicActionTokens,
+                                                                                                labelCache = tokenLabelCache,
+                                                                                                badgeText = "UPPER"
+                                                                                            )
+                                                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                                                            GestureMappingRow(
+                                                                                                context = context,
+                                                                                                prefs = prefs,
+                                                                                                direction = arrowEnum,
+                                                                                                isHold = true,
+                                                                                                keyResName = "pref_macro_action_LEFT_BOTTOM_${vectorKey}_HOLD",
+                                                                                                defaultTitle = "Lower Sector · $vectorTitle + Hold",
+                                                                                                options = dynamicActionTokens,
+                                                                                                labelCache = tokenLabelCache,
+                                                                                                badgeText = "LOWER"
+                                                                                            )
+                                                                                        }
                                                                                         Spacer(modifier = Modifier.height(8.dp))
                                                                                     }
                                                                                 }

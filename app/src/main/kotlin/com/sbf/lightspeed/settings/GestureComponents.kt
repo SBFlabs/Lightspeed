@@ -152,17 +152,21 @@ fun GestureMappingRow(
             )
         }
 
+        val isScrubAction = direction == ArrowDirection.SCRUB ||
+                direction == ArrowDirection.SCRUB_LEFT ||
+                direction == ArrowDirection.SCRUB_RIGHT
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    if (direction == ArrowDirection.SCRUB) {
+                    if (isScrubAction) {
                         showScrubMenu = true
                     } else {
                         val intent = Intent(context, CockpitGearPickerActivity::class.java).apply {
                             putExtra("SINGLE_SELECT_PREF_KEY", key)
                             putExtra("SINGLE_SELECT_TITLE", "$defaultTitle Action")
-                            putExtra("IS_HOLD_GESTURE", isHold || direction == ArrowDirection.SCRUB)
+                            putExtra("IS_HOLD_GESTURE", isHold || isScrubAction)
                         }
                         pickerLauncher.launch(intent)
                     }
@@ -204,7 +208,12 @@ fun GestureMappingRow(
                 }
                 Spacer(modifier = Modifier.width(10.dp))
             } else {
-                GestureTrailTracer(direction, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
+                val resolvedDirection = if (direction == ArrowDirection.SCRUB) {
+                    if (keyResName.contains("LEFT", ignoreCase = true)) ArrowDirection.SCRUB_RIGHT else ArrowDirection.SCRUB_LEFT
+                } else {
+                    direction
+                }
+                GestureTrailTracer(resolvedDirection, isHold, MaterialTheme.colorScheme.primary, Modifier.size(32.dp))
                 Spacer(modifier = Modifier.width(10.dp))
             }
             Column(
@@ -722,7 +731,7 @@ fun GestureMappingRow(
             }
         }
 
-        if (direction == ArrowDirection.SCRUB) {
+        if (isScrubAction) {
             Box {
                 DropdownMenu(
                     expanded = showScrubMenu,

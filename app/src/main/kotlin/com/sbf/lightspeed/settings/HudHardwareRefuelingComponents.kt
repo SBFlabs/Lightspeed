@@ -225,27 +225,27 @@ fun HudTacticalHardwareSection(
                 }
 
                 val volumeGestures = listOf(
-                    Triple(LightspeedPreferences.KEY_VOL_UP_LONG_PRESS, "Volume Up Long Press (~400ms)", "VOL ▲ (HOLD)"),
-                    Triple(LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS, "Volume Down Long Press (~400ms)", "VOL ▼ (HOLD)"),
-                    Triple(LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP, "Hold Vol Down + Tap Vol Up", "VOL ▼ + VOL ▲"),
-                    Triple(LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP, "Hold Vol Up + Tap Vol Down", "VOL ▲ + VOL ▼"),
-                    Triple(LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<300ms)", "VOL ▲ ➔ VOL ▼"),
-                    Triple(LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<300ms)", "VOL ▼ ➔ VOL ▲"),
-                    Triple(LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD, "Tap Vol Down → Hold Vol Up (~400ms)", "VOL ▼ ➔ VOL ▲ (HOLD)"),
-                    Triple(LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD, "Tap Vol Up → Hold Vol Down (~400ms)", "VOL ▲ ➔ VOL ▼ (HOLD)")
+                    Triple(LightspeedPreferences.KEY_VOL_UP_LONG_PRESS, "Volume Up Long Press (~400ms)", ArrowDirection.SWIPE_UP to true),
+                    Triple(LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS, "Volume Down Long Press (~400ms)", ArrowDirection.SWIPE_DOWN to true),
+                    Triple(LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP, "Hold Vol Down + Tap Vol Up", ArrowDirection.SWIPE_DOWN_UP to true),
+                    Triple(LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP, "Hold Vol Up + Tap Vol Down", ArrowDirection.SWIPE_UP_DOWN to true),
+                    Triple(LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN, "Sequence: Vol Up → Vol Down (<300ms)", ArrowDirection.SWIPE_UP_DOWN to false),
+                    Triple(LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP, "Sequence: Vol Down → Vol Up (<300ms)", ArrowDirection.SWIPE_DOWN_UP to false),
+                    Triple(LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD, "Tap Vol Down → Hold Vol Up (~400ms)", ArrowDirection.SWIPE_DOWN_UP to true),
+                    Triple(LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD, "Tap Vol Up → Hold Vol Down (~400ms)", ArrowDirection.SWIPE_UP_DOWN to true)
                 )
 
-                volumeGestures.forEach { (prefKey, title, badge) ->
+                volumeGestures.forEach { (prefKey, title, motion) ->
+                    val (dir, hold) = motion
                     GestureMappingRow(
                         context = context,
                         prefs = prefs,
-                        direction = ArrowDirection.TAP,
-                        isHold = badge.contains("HOLD"),
+                        direction = dir,
+                        isHold = hold,
                         keyResName = prefKey,
                         defaultTitle = title,
                         options = dynamicActionTokens,
                         labelCache = tokenLabelCache,
-                        badgeText = badge,
                         showMediaQuickAccess = true
                     )
                 }

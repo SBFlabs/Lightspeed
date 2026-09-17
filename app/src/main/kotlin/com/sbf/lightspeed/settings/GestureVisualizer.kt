@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 enum class ArrowDirection {
     SWIPE_UP, SWIPE_DOWN, SWIPE_LEFT, SWIPE_UP_DOWN, SWIPE_DOWN_UP,
     SWIPE_UP_LEFT, SWIPE_DOWN_LEFT, SWIPE_UP_RIGHT, SWIPE_DOWN_RIGHT,
-    LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, TAP, DOUBLE_TAP,
+    LEFT_BACK, LEFT_UP, LEFT_DOWN, SCRUB, SCRUB_LEFT, SCRUB_RIGHT, TAP, DOUBLE_TAP,
     SWIPE_RIGHT, SWIPE_RIGHT_BACK, RIGHT_BACK, RIGHT_UP, RIGHT_DOWN
 }
 
@@ -156,11 +156,19 @@ fun GestureTrailTracer(
                 startNode = Offset(w * 0.4f, h * 0.5f)
                 endNode = Offset(w * 0.6f, h * 0.5f)
             }
-            ArrowDirection.SCRUB -> {
-                startNode = Offset(w * 0.2f, h * 0.5f)
-                endNode = Offset(w * 0.8f, h * 0.5f)
-                path.moveTo(w * 0.2f, h * 0.5f)
-                path.lineTo(w * 0.8f, h * 0.5f)
+            ArrowDirection.SCRUB, ArrowDirection.SCRUB_RIGHT -> {
+                // Inward sweep from left flank inward to right
+                startNode = Offset(w * 0.18f, h * 0.5f)
+                endNode = Offset(w * 0.82f, h * 0.5f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(endNode.x, endNode.y)
+            }
+            ArrowDirection.SCRUB_LEFT -> {
+                // Inward sweep from right flank inward to left
+                startNode = Offset(w * 0.82f, h * 0.5f)
+                endNode = Offset(w * 0.18f, h * 0.5f)
+                path.moveTo(startNode.x, startNode.y)
+                path.lineTo(endNode.x, endNode.y)
             }
         }
 
@@ -231,13 +239,29 @@ fun GestureTrailTracer(
                 arrowheadPath.lineTo(endNode.x, endNode.y)
                 arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
             }
-            ArrowDirection.SCRUB -> {
-                arrowheadPath.moveTo(w * 0.2f + arrowSize, h * 0.5f - arrowSize)
-                arrowheadPath.lineTo(w * 0.2f, h * 0.5f)
-                arrowheadPath.lineTo(w * 0.2f + arrowSize, h * 0.5f + arrowSize)
-                arrowheadPath.moveTo(w * 0.8f - arrowSize, h * 0.5f - arrowSize)
-                arrowheadPath.lineTo(w * 0.8f, h * 0.5f)
-                arrowheadPath.lineTo(w * 0.8f - arrowSize, h * 0.5f + arrowSize)
+            ArrowDirection.SCRUB, ArrowDirection.SCRUB_RIGHT -> {
+                // Inward arrowhead pointing right (>)
+                arrowheadPath.moveTo(endNode.x - arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x - arrowSize, endNode.y + arrowSize)
+                // Mid-track scrub sweep chevron (»)
+                val midX = w * 0.52f
+                val chevSize = arrowSize * 0.75f
+                arrowheadPath.moveTo(midX - chevSize, endNode.y - chevSize)
+                arrowheadPath.lineTo(midX, endNode.y)
+                arrowheadPath.lineTo(midX - chevSize, endNode.y + chevSize)
+            }
+            ArrowDirection.SCRUB_LEFT -> {
+                // Inward arrowhead pointing left (<)
+                arrowheadPath.moveTo(endNode.x + arrowSize, endNode.y - arrowSize)
+                arrowheadPath.lineTo(endNode.x, endNode.y)
+                arrowheadPath.lineTo(endNode.x + arrowSize, endNode.y + arrowSize)
+                // Mid-track scrub sweep chevron («)
+                val midX = w * 0.48f
+                val chevSize = arrowSize * 0.75f
+                arrowheadPath.moveTo(midX + chevSize, endNode.y - chevSize)
+                arrowheadPath.lineTo(midX, endNode.y)
+                arrowheadPath.lineTo(midX + chevSize, endNode.y + chevSize)
             }
             else -> {
                 drawArrow = false

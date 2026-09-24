@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Deflector Core Shield -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2 L4,5.5 V11.5 C4,16.5 7.4,21.2 12,22.5 C16.6,21.2 20,16.5 20,11.5 V5.5 Z"/>
+
+    <!-- Inner Active Wing Channels (Cutout / Inverted) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,5 L6,7.5 V11.5 C6,15.2 8.6,18.7 12,19.8 C15.4,18.7 18,15.2 18,11.5 V7.5 Z"/>
+
+    <!-- High-Energy Bilateral Flank Wings -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,7 L8,9 V11.5 C8,14.0 9.7,16.5 12,17.5 C14.3,16.5 16,14.0 16,11.5 V9 Z"/>
+</vector>

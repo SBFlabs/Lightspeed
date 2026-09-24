@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- M3 Light Primary Container -->
+    <color name="m3_icon_background">#D3E3FD</color>
+    <!-- M3 Deep Primary / onPrimaryContainer -->
+    <color name="m3_icon_foreground">#041E49</color>
+</resources>

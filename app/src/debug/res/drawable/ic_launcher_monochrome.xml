@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Top-Right Cosmic Orbital Halo / Arc (Themed Monochromatic Accent) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.35"
+        android:strokeWidth="3.6"
+        android:strokeLineCap="round"
+        android:pathData="M 86,-10.5 A 26.5,26.5 0 1,0 86.001,-10.5" />
+
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M 86,-10.5 A 26.5,26.5 0 1,0 86.001,-10.5" />
+
+    <!-- Spaceship Silhouette Group (Scaled and centered for 72dp circular mask safety) -->
+    <group
+        android:pivotX="0"
+        android:pivotY="0"
+        android:translateX="58.5"
+        android:translateY="49.5"
+        android:rotation="44.5"
+        android:scaleX="0.80"
+        android:scaleY="0.80">
+
+        <!-- Left Wing / Fin -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M -11.6,3.6 L -21.2,14.5 L -19.0,28.2 L -11.0,20.8 Z" />
+
+        <!-- Right Wing / Fin -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 11.6,3.6 L 21.2,14.5 L 19.0,28.2 L 10.8,20.8 Z" />
+
+        <!-- Engine Nozzle -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M -4.2,23.2 L 4.2,23.2 C 4.9,23.2 5.4,23.7 5.4,24.4 L 5.4,26.2 C 5.4,26.9 4.9,27.4 4.2,27.4 L -4.2,27.4 C -4.9,27.4 -5.4,26.9 -5.4,26.2 L -5.4,24.4 C -5.4,23.7 -4.9,23.2 -4.2,23.2 Z" />
+
+        <!-- Fuselage with Porthole Cutout (evenOdd) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="
+                M -9.6,-13.6
+                C -14.4,-4.5 -14.4,10.0 -10.6,20.8
+                L 10.6,20.8
+                C 14.4,10.0 14.4,-4.5 9.6,-13.6
+                Z
+                M 0,-6
+                A 6,6 0 1,0 0.001,-6
+                Z" />
+
+        <!-- Sleek Tapered Nose Cone -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M -9.4,-15.2 C -8.2,-21.5 -5.0,-28.5 -0.3,-31.4 C -0.1,-31.5 0.1,-31.5 0.3,-31.4 C 5.0,-28.5 8.2,-21.5 9.4,-15.2 Z" />
+    </group>
+</vector>

@@ -1,0 +1,5 @@
+Lightspeed v1.0.0 — Inaugural Flight
+• Fluid accessibility cruise overlay with tactile edge deflectors
+• Dual-ring Cockpit Hangar and instant category cruise drawer
+• Guided accessibility ignition and instant Shizuku auto-arming
+• 100% offline, zero network permissions, zero telemetry

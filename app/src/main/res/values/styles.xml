@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Animation.Lightspeed.None" parent="@android:style/Animation">
+        <item name="android:activityOpenEnterAnimation">@android:color/transparent</item>
+        <item name="android:activityOpenExitAnimation">@android:color/transparent</item>
+        <item name="android:activityCloseEnterAnimation">@android:color/transparent</item>
+        <item name="android:activityCloseExitAnimation">@android:color/transparent</item>
+        <item name="android:taskOpenEnterAnimation">@android:color/transparent</item>
+        <item name="android:taskOpenExitAnimation">@android:color/transparent</item>
+        <item name="android:taskCloseEnterAnimation">@android:color/transparent</item>
+        <item name="android:taskCloseExitAnimation">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.Lightspeed.Translucent" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@style/Animation.Lightspeed.None</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+</resources>

@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
+    <!-- Signature-level permission: only apps signed with the same key can send automation intents -->
+    <permission
+        android:name="${applicationId}.permission.AUTOMATION"
+        android:protectionLevel="signature" />
+
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+        <package android:name="io.github.shevery" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".LightspeedApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="${appName}"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Lightspeed.Floating">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:theme="@style/Theme.Lightspeed.Floating">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".LightspeedAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <activity
+            android:name=".CockpitSettingsActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".CockpitDialogActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".CockpitGearPickerActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".settings.CentralCommandActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        
+
+        <activity
+            android:name=".system.TacticalFlyoutActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".system.LightspeedPerimeterActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".system.LightspeedCoreWatchdogActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".system.LightspeedBatteryExemptionActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".system.LightspeedPowerGestureActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showForAllUsers="true"
+            android:launchMode="singleInstance"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
+                <action android:name="android.media.action.STILL_IMAGE_CAMERA_SECURE" />
+                <action android:name="android.media.action.IMAGE_CAPTURE" />
+                <action android:name="android.media.action.IMAGE_CAPTURE_SECURE" />
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".settings.SidebarTileService"
+            android:icon="@drawable/ic_qs_flight_armed"
+            android:label="${appName}"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".system.LightspeedNotificationListener"
+            android:label="${appName} Media Listener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".LightspeedRefuelingActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showForAllUsers="true"
+            android:screenOrientation="sensor"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <service
+            android:name=".system.LightspeedDreamService"
+            android:icon="@mipmap/ic_launcher"
+            android:label="${appName} Refueling Bay"
+            android:permission="android.permission.BIND_DREAM_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/dream_info" />
+        </service>
+
+        <receiver
+            android:name=".system.LightspeedRevivalReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.sbf.lightspeed.action.REVIVE_SENTINEL" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Dedicated Flank Deflectors QS Tile -->
+        <service
+            android:name=".settings.DeflectorTileService"
+            android:icon="@drawable/ic_qs_deflectors_active"
+            android:label="${appName} Deflectors"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Automation Receiver for MacroDroid, Tasker, ADB, and internal quick actions -->
+        <receiver
+            android:name=".system.LightspeedAutomationReceiver"
+            android:exported="true"
+            android:permission="${applicationId}.permission.AUTOMATION">
+            <intent-filter>
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_FLIGHT_MODE" />
+                <action android:name="com.sbf.lightspeed.action.SET_FLIGHT_MODE" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_DEFLECTORS" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_LEFT_DEFLECTOR" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_RIGHT_DEFLECTOR" />
+                <action android:name="com.sbf.lightspeed.action.SET_DEFLECTOR" />
+                <action android:name="com.sbf.lightspeed.action.GRAVITY_OVERRIDE_360" />
+                <action android:name="com.sbf.lightspeed.action.TOGGLE_AUTO_ROTATE" />
+                <action android:name="com.sbf.lightspeed.action.RESET_GRAVITY" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 1-Tap Shortcut Trampoline Activity for Home Screen and Launcher shortcuts -->
+        <activity
+            android:name=".LightspeedToggleActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
+    </application>
+
+</manifest>

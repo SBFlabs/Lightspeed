@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Stable App Icon Background — Material 3 Dynamic Color (FLIPPED)
+    Now uses m3_icon_foreground (deep accent tone 800) as the canvas.
+    Gives a dark, rich background so the light rocket hull pops.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/m3_icon_foreground" />
+</shape>

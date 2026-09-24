@@ -1,0 +1,35 @@
+uniform shader inputTexture;
+uniform float2 viewSize;
+uniform float topBlurHeight;
+uniform float bottomBlurHeight;
+uniform float headerBlurActive;
+
+half4 main(float2 fragCoord) {
+    if (headerBlurActive > 0.5) {
+        float blurAlpha = 0.0;
+        if (fragCoord.y < topBlurHeight) {
+            blurAlpha = 1.0 - (fragCoord.y / topBlurHeight);
+        } else if (fragCoord.y > viewSize.y - bottomBlurHeight) {
+            blurAlpha = (fragCoord.y - (viewSize.y - bottomBlurHeight)) / bottomBlurHeight;
+        }
+        if (blurAlpha > 0.0) {
+            blurAlpha = clamp(blurAlpha, 0.0, 1.0);
+            float fadeProgress = pow(blurAlpha, 1.3);
+            float radius = blurAlpha * 24.0;
+            half4 color = half4(0.0);
+            color += inputTexture.eval(fragCoord) * 0.22;
+            color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * 0.13;
+            color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * 0.13;
+            color += inputTexture.eval(fragCoord + float2(radius * 0.55, 0.0)) * 0.13;
+            color += inputTexture.eval(fragCoord - float2(radius * 0.55, 0.0)) * 0.13;
+            color += inputTexture.eval(fragCoord + float2(radius * 0.38, radius * 0.38)) * 0.065;
+            color += inputTexture.eval(fragCoord - float2(radius * 0.38, radius * 0.38)) * 0.065;
+            color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * 0.065;
+            color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * 0.065;
+            half4 deepSpaceVoid = half4(0.022, 0.018, 0.035, 1.0);
+            return mix(color, deepSpaceVoid, fadeProgress * 0.88);
+        }
+    }
+
+    return inputTexture.eval(fragCoord);
+}

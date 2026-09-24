@@ -1,0 +1,9 @@
+Lightspeed is an ultra-fast offline gesture launcher and cruise overlay workspace for Android.
+
+Key Features:
+• Zero-Latency Cruise Overlay: Fluid accessibility overlay with tactile edge deflectors, dynamic telemetry HUD, and rapid app launching.
+• First-Launch Ignition Flow: Guided accessibility ignition and instant Shizuku auto-arming for zero-friction setup.
+• Cockpit Hangar: Dual-gear app selector with dynamic collimator reticles and tactile physics.
+• Tactical App Drawer: Velocity-based cruise flyout and instant category navigation.
+• 100% Offline & Private: Zero network permissions, zero telemetry, zero analytics, zero external network dependencies.
+• Rule of Two & Infinity License: Core dual sets, themes, and reticles free forever. Founder Infinity tier unlockable offline via cryptographic license key.

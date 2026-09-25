@@ -157,7 +157,7 @@ GitHub Issues are open and available for help, but are primarily focused on:
 - Catching **regressions** across Android OS updates.
 - Ideas for **polishing** existing features, gestures, and tactile interactions.
 
-Feature suggestions are always welcome! However, they will be logged into the development backlog for future milestone deployment rather than immediate or recent implementation.
+Feature suggestions are always welcome! However, they will be logged into the development backlog for future milestone deployment rather than immediate or near-term implementation.
 
 ---
 

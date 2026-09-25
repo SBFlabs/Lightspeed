@@ -1,5 +1,5 @@
 Lightspeed Source-Available Personal Use License
-Version 1.0 - 2026-09-22
+Version 1.0 - 2026-09-25
 
 Copyright (c) 2026 SBF Labs
 
@@ -13,27 +13,35 @@ You may view, download, and inspect the Software to understand its
 implementation, evaluate its privacy properties, conduct a security or privacy
 audit, and report issues to the project.
 
-2. Permission for personal builds
+2. Permission for personal builds and contributions
 
 You may compile and run an unmodified copy of the Software for your own
 personal, non-commercial use on devices that you own or are authorized to
 administer. You may make private local changes solely for that personal use.
-You may not share those changes or resulting binaries with another person.
+
+You may submit suggested changes, bug fixes, or improvements back to the
+official upstream repository via GitHub Pull Requests. By submitting a Pull
+Request, you agree that SBF Labs may incorporate, modify, and license your
+contributions under these same terms or any future license adopted by SBF Labs.
+Except for upstream Pull Requests, you may not share your changes or resulting
+binaries with any third party.
 
 3. Restrictions
 
 Unless you receive separate written permission from SBF Labs, you may not:
 
-* redistribute, mirror, sublicense, publish, or publicly host the Software;
+* redistribute, mirror, sublicense, publish, or publicly host the Software
+  outside of GitHub's native platform fork functionality;
 * distribute or publish binaries built from the Software;
 * distribute, publish, or offer modified versions or derivative works;
 * use the Software or any build of it for commercial purposes;
 * sell, rent, license, bundle, or provide the Software as a service; or
 * remove copyright, license, attribution, or other notices.
 
-Creating a public fork, repackaging the Software for an app store, and
-uploading an APK or source archive for others are forms of redistribution and
-are not permitted by this license.
+Creating independent mirrors, repackaging the Software for an app store,
+offering hosted builds, or uploading APKs and source archives to third-party
+services or repositories are forms of redistribution and are strictly
+prohibited by this license.
 
 4. Trademarks
 

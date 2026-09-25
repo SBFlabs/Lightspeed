@@ -5,6 +5,12 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-09-25
+
+### Fixed
+* **Task Eviction & Graceful Close Fix**: Fixed an issue where closing an app gracefully (`system:close_app`) dispatched a synthetic Back event into underlying applications upon task eviction.
+* **Hold Gesture Mutual Exclusion**: Hardened edge deflector touch tracking with explicit hold-fired state guarantees, ensuring simple swipe actions on finger release never collide or double-fire after hold actions.
+
 ## [1.0.0] - 2026-09-24 — Inaugural First Flight
 
 ### Added

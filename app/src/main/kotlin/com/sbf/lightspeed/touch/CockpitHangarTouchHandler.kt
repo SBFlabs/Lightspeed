@@ -692,6 +692,7 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
         }
 
         if (actionValue == "system:volume" || actionValue == "system:brightness" || actionValue == "system:screen_timeout" || actionValue == "scrub:volume" || actionValue == "scrub:brightness") {
+            isHoldFired = true
             currentDetectedGesture = MacroGesture.SCRUBBING
             activeHoldScrubAction = actionValue
             activeHoldScrubActionKey = actionKey
@@ -728,6 +729,7 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
             }
             invalidate()
         } else if (actionValue != "none") {
+            isHoldFired = true
             if (holdEquivalent != hostGesture) {
                 currentDetectedGesture = holdEquivalent
             }

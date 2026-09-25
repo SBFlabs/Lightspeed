@@ -161,6 +161,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var activeScrubBrightness: Int = -1
     internal var scrubHudTitle = ""
     internal var scrubHudValue = ""
+    internal var isHoldFired = false
 
     internal val holdTimerRunnable = Runnable {
         resolveAndDispatchHoldGesture(currentActiveZone)

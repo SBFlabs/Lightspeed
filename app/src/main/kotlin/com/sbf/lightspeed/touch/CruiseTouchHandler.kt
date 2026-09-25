@@ -38,6 +38,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
             categoryScrubbingEngaged = false
             maxVerticalDisplacement = 0f
             isCurrentlyTouched = true; invalidate()
+            isHoldFired = false
             initialLeftSweepDistance = 0f
             lowestXReached = rawX
             highestYReached = rawY
@@ -109,6 +110,9 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                 lastTouchRawY = rawY
                 invalidate()
             } else if (macroTrackingActive) {
+                if (isHoldFired && currentDetectedGesture != MacroGesture.SCRUBBING) {
+                    return true
+                }
                 val previousGesture = currentDetectedGesture
                 val deltaX = rawX - gestureStartX
                 val deltaY = rawY - gestureStartY
@@ -368,9 +372,9 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                 maxVerticalDisplacement = 0f
             } else if (macroTrackingActive) {
                 macroTrackingActive = false
-                if (currentDetectedGesture != MacroGesture.NONE && currentDetectedGesture != MacroGesture.SCRUBBING) {
+                if (!isHoldFired && currentDetectedGesture != MacroGesture.NONE && currentDetectedGesture != MacroGesture.SCRUBBING) {
                     executeMacroAction(currentActiveZone, currentDetectedGesture)
-                } else if (currentDetectedGesture == MacroGesture.NONE) {
+                } else if (!isHoldFired && currentDetectedGesture == MacroGesture.NONE) {
                     val duration = System.currentTimeMillis() - touchDownTime
                     val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
                     if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
@@ -379,6 +383,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                     }
                 }
             }
+            isHoldFired = false
             if (currentDetectedGesture == MacroGesture.SCRUBBING) {
                 LightspeedStatusBarOverlay.dismissActionHud(1200L)
             }

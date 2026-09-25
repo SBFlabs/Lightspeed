@@ -104,14 +104,6 @@ object ElevatedTaskCloser {
     private fun closeViaShizuku(context: Context): Boolean {
         return try {
             val myPkg = context.packageName
-            val a11y = com.sbf.lightspeed.LightspeedAccessibilityService.instance
-
-            // 1. Instant graceful BACK via AccessibilityService (0ms) or async fallback
-            if (a11y != null) {
-                a11y.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-            } else {
-                try { execShizuku("input keyevent 4") } catch (_: Exception) {}
-            }
 
             var targetTaskId: Int? = null
             var targetPkg: String? = null
@@ -236,12 +228,6 @@ object ElevatedTaskCloser {
     private fun closeViaRoot(context: Context): Boolean {
         return try {
             val myPkg = context.packageName
-            val a11y = com.sbf.lightspeed.LightspeedAccessibilityService.instance
-            if (a11y != null) {
-                a11y.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
-            } else {
-                try { Runtime.getRuntime().exec(arrayOf("su", "-c", "input keyevent 4")) } catch (_: Exception) {}
-            }
             val cmd = "taskId=\$(dumpsys activity top | grep -oE 'id=[0-9]+' | head -1 | cut -d'=' -f2); if [ -n \"\$taskId\" ]; then am task remove \"\$taskId\" 2>/dev/null || am stack remove \"\$taskId\"; else dumpsys activity top | grep -oE 'ACTIVITY [^/]+/' | head -1 | cut -d' ' -f2 | tr -d '/' | xargs -r am force-stop; fi"
             Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)).waitFor() == 0
         } catch (_: Exception) { false }

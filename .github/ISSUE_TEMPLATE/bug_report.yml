@@ -1,0 +1,69 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behaviour in Lightspeed
+labels: ["bug"]
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill in the fields below — device info is critical for reproduction since behaviour varies significantly across OEMs and chipsets.
+
+  - type: input
+    id: app_version
+    attributes:
+      label: Lightspeed Version
+      description: Found in Android Settings → Apps → Lightspeed → App Info, or in Central Command.
+      placeholder: "e.g. v1.0.2"
+    validations:
+      required: true
+
+  - type: input
+    id: device_model
+    attributes:
+      label: Device Model
+      description: Full model name as shown in Settings → About Phone.
+      placeholder: "e.g. Samsung Galaxy S24, Pixel 9 Pro, Nothing Phone (3)"
+    validations:
+      required: true
+
+  - type: input
+    id: android_version
+    attributes:
+      label: Android Version & OEM Skin
+      description: Android version and OEM overlay name (XOS, One UI, OxygenOS, MIUI, stock, etc.)
+      placeholder: "e.g. Android 15 — One UI 7.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: chipset
+    attributes:
+      label: Chipset
+      description: The processor in your device.
+      options:
+        - Snapdragon (Qualcomm)
+        - MediaTek (Dimensity / Helio)
+        - Google Tensor
+        - Exynos (Samsung)
+        - Other / Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly. What did you do, what did you expect, and what actually happened?
+      placeholder: "e.g. After enabling Lightspeed in Accessibility Settings, the entire screen blurred..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: crash_log
+    attributes:
+      label: Crash Log (if available)
+      description: Paste a crash log from Central Command → Crash Logger, or from logcat. Leave empty if no crash occurred.
+      render: text
+      placeholder: "Paste crash log here..."
+    validations:
+      required: false

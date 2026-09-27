@@ -235,8 +235,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                blurBehindRadius = 45
+                // Blur is disabled at rest — enabled dynamically via updateWindowLayoutInternal(expand=true)
+                // to avoid blurring the screen the moment the accessibility service is enabled.
+                blurBehindRadius = 0
             }
         }
 
@@ -259,8 +260,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                blurBehindRadius = 45
+                // Blur disabled at rest — enabled dynamically when deflector activates
+                blurBehindRadius = 0
             }
         }
 

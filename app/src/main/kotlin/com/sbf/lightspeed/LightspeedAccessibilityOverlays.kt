@@ -294,8 +294,8 @@ internal fun LightspeedAccessibilityService.updateWindowLayoutInternal(expand: B
         windowManager?.updateViewLayout(overlayView, windowParams)
     } else {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            windowParams.flags = windowParams.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-            windowParams.blurBehindRadius = 45
+            windowParams.flags = windowParams.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+            windowParams.blurBehindRadius = 0
         }
         overlayView?.updateMetricsDimensions()
     }

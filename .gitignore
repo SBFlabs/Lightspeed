@@ -19,3 +19,6 @@ keystore.properties
 *.pem
 /app/build
 *.jpg
+
+# Repository screenshots (README assets)
+!screenshot_*.jpg

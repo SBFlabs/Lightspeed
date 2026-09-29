@@ -12,6 +12,12 @@ Lightspeed's Central Command provides a polished portal for configuring navigati
 
 ---
 
+## 📥 Download
+
+- **Orion Store users:** [open Lightspeed in Orion](https://rookieenough.github.io/Orion-Data/redirect.html?id=lightspeed). This link opens inside the Orion Store app, so the app must be installed.
+- **Obtainium users:** add `https://github.com/SBFlabs/Lightspeed` as a source in [Obtainium](https://github.com/ImranR98/Obtainium) to install and receive updates straight from GitHub Releases.
+- **Everyone else:** download the APK from [GitHub Releases](https://github.com/SBFlabs/Lightspeed/releases).
+
 # 🚀 One Launch Pad, Three Workstations
 
 ## 🛰️ The Launch Pad
@@ -78,12 +84,11 @@ For customizing the **Central Command theme**, tap the Central Command title. Fo
 
 The **Flight Control Deck** is organized into three cards. The first card contains the aforementioned **theme engine** for Central Command and different ways of toggling Lightspeed as a whole or in part.
 
-The second card contains the **Core Watchdog**. It keeps Lightspeed alive through three possible methods and includes the **Black Box**:
+The second card contains the **Core Watchdog**. It keeps Lightspeed alive through two possible methods and includes the **Black Box**:
 
 1. **Auto Revival** — when Lightspeed crashes, it triggers an auto-revival message utilizing Shizuku. **Enabled by default.**
 2. **Periodic Check** — every 20 seconds, it checks whether Lightspeed is still alive and operational.
-3. **Deep Sleep Prevention** — prevents Android from entering deep sleep, helping keep Lightspeed continuously active. *(Dev note: add a toggle for this that's off by default and protected by a seven-tap first-time warning.)*
-4. **Black Box** — keeps a lightweight record of the latest Lightspeed crash or action failure, which can be copied and pasted into GitHub issues for easier troubleshooting.
+3. **Black Box** — keeps a lightweight record of the latest Lightspeed crash or action failure, which can be copied and pasted into GitHub issues for easier troubleshooting.
 
 The **Core Watchdog** also contains a **Material 3 mini-card/button labeled “Services.”** Pressing it opens the **Perimeter Watchdog**, where the accessibility services of your apps can be toggled more conveniently than through Android's built-in settings page. Each service can also be **shielded** and have its battery exemption whitelisted or revoked using two dedicated buttons directly beneath it.
 
@@ -125,23 +130,25 @@ The **Sensor Area** is the status-bar gesture area described above. Its gestures
 
 ### 2. Info Beacons
 
-**Info Beacons** contains the **Horizon Rail** and the **Central Capsule**.
+**Info Beacons** lets you route telemetry to the **Horizon Rail**, the **Orbital Capsule**, or both.
 
-The **Horizon Rail** is a progress line for downloads and currently playing media. It is limited to one line by default, but can be expanded to up to three lines. It can also display the name of the currently playing media, which can be particularly useful on tablets and other larger displays where the center of the status bar provides additional space. **Horizon Rail is disabled by default.**
+The **Horizon Rail** is a progress line for downloads and currently playing media. It shows two lines by default and can be set to anywhere from one to three lines. It can also display the name of the currently playing media, which can be particularly useful on tablets and other larger displays where the center of the status bar provides additional space. **Horizon Rail is disabled by default.**
 
-The **Central Capsule** is a lightweight implementation of an interactive capsule around the camera punch-hole. It offers several interactive features, but development has been deliberately deprioritized as many Android devices now provide their own implementations. It remains available for experimentation and may receive further development in the future. **Central Capsule is disabled by default and has been moved to Experimental Labs.**
+The **Orbital Capsule** is a lightweight implementation of an interactive capsule around the camera punch-hole. It offers several interactive features, but development has been deliberately deprioritized as many Android devices now provide their own implementations. It remains available for experimentation and may receive further development in the future. **Orbital Capsule is disabled by default, and its own settings live in Experimental Labs.**
 
 ### 3. Hull & Ship Maneuvers
 
-**Hull & Ship Maneuvers** provides the **Volume Key Matrix** and **Back-Tap Gesture** mappings.
+**Hull & Ship Maneuvers** provides the **Volume Key Matrix** and **Hull Tap Sensors** (back-tap) mappings.
 
 It also includes safeguards intended to preserve Android's native volume- and power-button functions, including OEM-specific gestures such as screenshots and accessibility-service shortcuts. These behaviors vary between manufacturers and Android skins—for example, Samsung and Infinix XOS implement their accessibility shortcuts differently.
+
+**Back-Tap battery behavior:** Back-Tap only holds a CPU wake lock when its scope is set to *Screen Off* or *Always* (both labeled High Drain). With *Screen On Only* (the default) no wake lock is used. The wake lock has a safety time cap and is automatically disabled at 20% battery or in battery saver.
 
 ### 4. System Overrides
 
 **System Overrides** contains **Native Edge Gesture Sovereignty**, which can neutralize Android's native edge gestures so that the **DEFLECTORS** have full control over those gesture areas.
 
-It also provides controls for **Animation Speed**, **Display Metrics (DPI)**, and **Font Scale**.
+It also provides controls for **Animation Speed**, **Display Metrics (DPI)**, and **Font Scale**. These three sliders require Shizuku. Without it they are disabled and Lightspeed shows a "Shizuku offline" banner.
 
 Because these are native Android system settings commonly associated with Developer Options, Lightspeed treats their sliders cautiously. Tapping directly on a slider track to jump to a value is disabled by default. Long-press the value box to reveal the **Precision Control & Presets** mini window, which contains the **Tap to Jump on Track** toggle. This can then be enabled when desired.
 
@@ -157,7 +164,7 @@ Tapping the value box itself restores that setting to its default value.
 
 **Experimental Labs** contains features that are **disabled by default** and should be used at the user's own discretion.
 
-This includes experimental features such as the **Central Capsule**, **Refueling Bay**, **Power Button Remapping**, **Core Coding Schedule**, and **Omniscient Audio Deck**.
+This includes experimental features such as the **Orbital Capsule**, **Refueling Bay**, **Power Button Remapping**, **Core Cooling Schedule**, and **Omniscient Audio Dock**.
 
 The **Refueling Bay** is a functional charging-dock screen designed to show charging speed while giving you a dedicated space for your favorite widgets. It also displays the clock and supports two widget orientations, each with its own widget arrangement. It can be particularly useful as a manually launched charging display—for example, showing charging speed alongside a calendar and task widgets.
 
@@ -193,9 +200,7 @@ Among other things, Shizuku enables:
 - **Graceful Task Closer** — Close the active application through a graceful task-removal mechanism rather than relying on the OEM's recent-apps gesture. This distinction matters on heavily customized Android systems where swiping an application away from the recent apps menu may be interpreted as a **force stop**. Graceful Task Closer is intended to avoid that behavior where possible, which can be particularly useful for applications such as Termux that may otherwise be disrupted by aggressive OEM task-management behavior. The implementation is still **not 100% bulletproof against OEM task killing or other system-level process management**.
 - **Split Screen, Freeform & OEM-Specific Pop-Up Windows** — Launch supported applications into split-screen, freeform, or OEM-specific pop-up windows, where supported by your device and its Android/OEM implementation.
 - **Lightspeed First-Time Onboarding** — Assist with enabling Lightspeed's Accessibility Service and completing its initial setup without requiring the user to manually navigate through multiple Android settings screens.
-- **Action Selection Menu App Discovery** — Lightspeed uses Shizuku to populate the app accordions with the launchable entries it exposes, including **app shortcuts, home-screen launcher shortcuts, and deep activities**.
-  
-  *(Dev note: Verify exactly which discovery mechanisms require Shizuku. In particular, determine whether Shizuku is required for app shortcuts, home-screen launcher shortcuts, deep activities, or only specific portions of this discovery process. The README should reflect the actual implementation rather than assuming Shizuku is inherently required for all of them.)*
+- **Action Selection Menu App Discovery** — Deep activities and "create shortcut" entries are discovered without Shizuku. Home-screen launcher shortcuts and dynamic app shortcuts are normally only exposed by Android to the default launcher, so Lightspeed asks Android directly first and uses Shizuku to fill the gap.
 
 ### User-Granted Permissions
 
@@ -203,17 +208,20 @@ Most of Lightspeed's permissions do not require additional interaction from the 
 
 - **Modify System Settings** — Required when using Lightspeed to modify settings such as **screen brightness** or **screen timeout**.
 - **Notification Listener** — Required when enabling **Info Beacons** features that depend on notification access, such as media playback or download-progress information.
+- **Ignore Battery Optimizations** — Used for Lightspeed's battery-management and watchdog functionality where supported.
+- **Post Notifications** — Used for notification-based status and controls, including the ability to toggle the **DEFLECTORS** and Lightspeed as a whole.
 
 ### Other Permissions
 
 The following permissions are declared by Lightspeed but do not require a separate user-granted permission prompt under normal Android permission handling:
 
 - **Query All Packages** — Allows Lightspeed to discover installed applications for **Category Cruise**, the **Action Selection Menu**, and related app-launching functionality.
-- **Ignore Battery Optimizations** — Used for Lightspeed's battery-management and watchdog functionality where supported.
 - **Vibrate** — Provides haptic feedback throughout the interface.
-- **Post Notifications** — Used for notification-based status and controls, including the ability to toggle the **DEFLECTORS** and Lightspeed as a whole.
 - **Call Phone** — Declared for using the **Home Screen Launcher App Shortcut** for direct contact calling, at least on supported devices such as Infinix devices.
 - **Internet** — **Not declared.** Lightspeed has no `android.permission.INTERNET` permission and therefore has no network access through the standard Android networking APIs.
+- **Write Secure Settings** — Used for camera auto-rotate. It's a protected permission, so it must be granted through Shizuku or ADB.
+- **Wake Lock** — Used by Back-Tap (only in Screen Off or Always scope) and for brief 3-second screen wake-ups by Power Button Remapping and the Refueling Bay.
+- **Foreground Service** — Declared for launching foreground services that some app shortcuts point to.
 
 ---
 
@@ -264,7 +272,7 @@ Feature suggestions will be cataloged into the development backlog for future mi
 
 The vast majority of Lightspeed is and will remain free forever. Core gesture navigation, app launching, deflectors, system overrides, and backup reliability have zero paywalls.
 
-The **Lightspeed Infinity** tier is designed not as a restrictive constraint, but as a voluntary thank-you incentive for supporters who want to fuel ongoing development and longevity through [Buy Me a Coffee](https://buymeacoffee.com/sbflabs/e/579114). Supporter contributions unlock cosmetic perks, specialized cockpit themes, custom reticle collimators, and unlimited Cockpit Gear sets.
+The **Lightspeed Infinity** tier is designed not as a restrictive constraint, but as a voluntary thank-you incentive for supporters who want to fuel ongoing development and longevity through [Buy Me a Coffee](https://buymeacoffee.com/sbflabs/e/579114). Supporter contributions unlock cosmetic perks, specialized cockpit themes, custom reticle collimators, and unlimited Cockpit Gear sets (free users get 2).
 
 ---
 

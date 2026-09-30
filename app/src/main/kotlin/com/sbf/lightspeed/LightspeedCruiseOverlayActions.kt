@@ -69,8 +69,7 @@ internal fun LightspeedCruiseOverlay.dismissOverlay() {
     categoryHeightCache.clear()
     lastLoadedCategoryId = null
     placedAppsList.clear(); cachedApps = emptyList(); cachedCategories = emptyList()
-    val cPrefs = prefs()
-    if (cPrefs.getString("cockpit_launch_behavior", "default") != "last") {
+    if (getFlankLaunchBehavior(isOpenedFromLeftFlank) != "last") {
         activeGearSetIndex = 0
     }
     service?.updateWindowLayout(false)

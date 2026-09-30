@@ -66,7 +66,7 @@ fun HorizonRailGeometrySection(
             defaultVal = 1080
         )
 
-        val currentRailAlign = prefs.getString("pref_horizon_rail_align", "center") ?: "center"
+        val currentRailAlign = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_ALIGN, "center") ?: "center"
         val railAlignOptions = listOf(
             "center" to "Center Aligned",
             "left" to "Left Aligned",
@@ -77,7 +77,7 @@ fun HorizonRailGeometrySection(
             currentKey = currentRailAlign,
             options = railAlignOptions,
             onSelected = { key ->
-                prefs.edit().putString("pref_horizon_rail_align", key).apply()
+                prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_ALIGN, key).apply()
                 safeReloadPreferences()
                 onRefreshNeeded()
             }

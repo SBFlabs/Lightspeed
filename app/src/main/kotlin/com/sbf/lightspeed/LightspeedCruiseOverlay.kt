@@ -81,6 +81,17 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             refreshActiveRenderEffect()
         }
     internal var currentActiveZone = TouchZone.NONE
+    internal var isLockscreenPillOnly = false
+
+    fun setLockscreenPillOnlyMode(enabled: Boolean) {
+        if (isLockscreenPillOnly != enabled) {
+            isLockscreenPillOnly = enabled
+            post {
+                updateMetricsDimensions()
+                invalidate()
+            }
+        }
+    }
 
     internal var centerHeightPx = 400f
     internal var centerVisualWidthPx = 12f

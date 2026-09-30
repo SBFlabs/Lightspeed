@@ -5,10 +5,22 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.2] - 2026-09-27 — Blur Patch
+## [1.0.3] - 2026-09-29 — Lockscreen Controls, Synthetic Gravity & Power Optimization
+
+### Added & Improved
+* **Granular Lockscreen Visibility Controls**: Choose exactly what displays on your lockscreen (Deflectors, Horizon Rail, or Top Sensor Deck) so you can launch actions directly over keyguard.
+* **Automatic Native Gesture Restoration**: Hiding Deflectors on the lockscreen automatically restores Android's native back gestures while locked, reverting to Lightspeed edge controls seamlessly upon unlocking.
+* **Synthetic Gravity Subaccordion & Quick-Tuning Chips**: Overhauled the Synthetic Gravity subaccordion in the Action Selection Menu with inline gesture chips for instant orientation tuning (Strict Portrait, Sensor Portrait, Landscape, and 360° Gyro).
+* **Power Management & Battery Optimization**: Background listeners and CPU wake locks are now released immediately when Power button shortcuts or Shizuku options are turned off.
 
 ### Fixed
-* **Startup Screen Blur (Issue #1)**: Removing `FLAG_BLUR_BEHIND` from the overlay window params at service creation time. The blur effect was activating the moment the accessibility service was enabled — before any gesture was made — blurring the entire screen. Blur is now applied only while a gesture is live and cleared immediately on dismiss. Affects Snapdragon devices running Android 12+.
+* **Deflector Flank Isolation**: Resolved a bug where swipe gestures on the right deflector accidentally executed left deflector actions under symmetry settings.
+* **Orbital Capsule Live Preview**: Cutout calibration and preview overlays no longer show up when the Orbital Capsule is turned off.
+* **Perimeter Watchdog Recovery**: Fixed edge cases where external accessibility services failed to re-bind cleanly after system restarts or service interruptions.
+
+### Refactored
+* **StatusBarOverlayDraw Modularization**: Split the status bar rendering engine into 4 focused extension modules (`StreamCollector`, `RailDraw`, `TickerDraw`, `OverlayDraw`) for maximum stability and agent navigability.
+* **Subtle Visual & Code Polish**: Restyled settings cards with cleaner Material 3 typography, improved badge alignment, and replaced raw string literals with type-safe preference constants.
 
 ## [1.0.0] - 2026-09-24 — Inaugural First Flight
 

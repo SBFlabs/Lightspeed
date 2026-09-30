@@ -2,8 +2,11 @@ package com.sbf.lightspeed.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
 
@@ -16,10 +19,22 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 fun HardwareCutoutCalibrationSection(
     context: Context,
     prefs: SharedPreferences,
+    isCapsuleEnabled: Boolean,
     onRefreshNeeded: () -> Unit
 ) {
+    if (!isCapsuleEnabled) {
+        // Orbital Capsule is disabled — beacon test requires it to be enabled
+        androidx.compose.material3.Text(
+            text = "ℹ Live Alignment Beacon requires Orbital Capsule to be enabled in Experimental Labs.",
+            fontSize = 11.sp,
+            color = androidx.compose.ui.graphics.Color.Gray,
+            modifier = androidx.compose.ui.Modifier.padding(vertical = 6.dp)
+        )
+        return
+    }
+
     var isCutoutCalibExpanded by rememberSaveable {
-        mutableStateOf(prefs.getBoolean("pref_sub_cutout_calib", false))
+        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_CUTOUT_CALIB, false))
     }
 
     CollapsibleSubSection(
@@ -29,7 +44,7 @@ fun HardwareCutoutCalibrationSection(
         onToggle = {
             isCutoutCalibExpanded = !isCutoutCalibExpanded
             prefs.edit()
-                .putBoolean("pref_sub_cutout_calib", isCutoutCalibExpanded)
+                .putBoolean(LightspeedPreferences.KEY_SUB_CUTOUT_CALIB, isCutoutCalibExpanded)
                 .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isCutoutCalibExpanded)
                 .apply()
             try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}

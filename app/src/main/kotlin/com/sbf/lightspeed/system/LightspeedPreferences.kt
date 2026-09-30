@@ -143,6 +143,8 @@ object LightspeedPreferences {
     const val KEY_NOTCH_PADDING_SNUGNESS = "pref_notch_padding_snugness"
     const val KEY_NOTCH_CAPSULE_LAYOUT = "pref_notch_capsule_layout" // "unified_right", "dual_wing", "unified_left"
     const val KEY_NOTCH_TEST_BEACON = "pref_notch_test_beacon"
+    const val KEY_SUB_CUTOUT_CALIB = "pref_sub_cutout_calib"
+    const val KEY_SUB_NOTCH_CALIB = "pref_sub_notch_calib"
 
     // Hardware Volume Button Gesture Keys
     const val KEY_VOL_GESTURES_ENABLED = "pref_key_vol_gestures_enabled"
@@ -173,6 +175,7 @@ object LightspeedPreferences {
     const val KEY_POWER_HOLD = "pref_key_power_hold"
     const val KEY_POWER_PRESS_THEN_HOLD = "pref_key_power_press_then_hold"
     const val KEY_POWER_LONG_PRESS_ACTION = "pref_power_long_press_action" // Legacy compatibility alias
+    const val KEY_SUB_POWER_EXPANDED = "pref_sub_power_expanded"
 
     // Action Tokens
     const val ACTION_TACTICAL_FLYOUT = "system:tactical_flyout"
@@ -265,6 +268,7 @@ object LightspeedPreferences {
     const val KEY_CORE_COOLING_DAY_OF_WEEK = "pref_core_cooling_day_of_week"
     const val KEY_CORE_COOLING_HOUR = "pref_core_cooling_hour"
     const val KEY_CORE_COOLING_LAST_TRIGGER = "pref_core_cooling_last_trigger"
+    const val KEY_SUB_CORE_COOLING_LABS = "pref_sub_core_cooling_labs"
     const val KEY_INFINIX_STANDBY_DISMISSED = "pref_infinix_standby_dismissed"
     const val KEY_INFINIX_STANDBY_WARNING_DEMOTED = "pref_infinix_standby_warning_demoted"
     const val KEY_ORBITAL_CAPSULE_ENABLED = "pref_orbital_capsule_enabled"
@@ -385,6 +389,11 @@ object LightspeedPreferences {
     const val ORIENTATION_OVERRIDE_EXPIRATION_DISABLED = "disabled"
     const val DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION = ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT
     const val KEY_HIDE_ON_LOCKSCREEN_AND_DOCK = "pref_hide_on_lockscreen_and_dock"
+    const val KEY_LOCKSCREEN_DEFLECTOR_MODE = "pref_lockscreen_deflector_mode" // "keep_active", "hide_deflectors", "full_lockdown"
+    const val KEY_LOCKSCREEN_HORIZON_RAIL_MODE = "pref_lockscreen_horizon_rail_mode" // "hide", "keep_active"
+    const val KEY_LOCKSCREEN_SENSOR_DECK_MODE = "pref_lockscreen_sensor_deck_mode" // "hide", "keep_active"
+    const val KEY_LOCKSCREEN_ORBITAL_CAPSULE_MODE = "pref_lockscreen_orbital_capsule_mode" // "disabled"
+    const val KEY_ACTION_BEHAVIOR_PREFIX = "pref_action_behavior_"
     const val KEY_ORIENTATION_CONTEXT_GUARD_ENABLED = "pref_orientation_context_guard_enabled"
     const val KEY_SAVED_ACCEL_ROTATION = "pref_saved_accel_rotation"
     const val KEY_SAVED_USER_ROTATION = "pref_saved_user_rotation"
@@ -537,6 +546,14 @@ object LightspeedPreferences {
 
     fun setLeftDeflectorEnabled(context: Context, enabled: Boolean) {
         context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_LEFT_ENABLED, enabled).apply()
+    }
+
+    fun getActionBehavior(context: Context, token: String, default: String = "toggle"): String {
+        return context.defaultPrefs().getString("${KEY_ACTION_BEHAVIOR_PREFIX}${token}", default) ?: default
+    }
+
+    fun setActionBehavior(context: Context, token: String, behavior: String) {
+        context.defaultPrefs().edit().putString("${KEY_ACTION_BEHAVIOR_PREFIX}${token}", behavior).apply()
     }
 
     fun isRightDeflectorEnabled(context: Context): Boolean =
@@ -843,7 +860,7 @@ object LightspeedPreferences {
         editor.putBoolean("pref_section_tactical_hardware_expanded", false)
         editor.putBoolean("pref_sub_hulltap_expanded", false)
         editor.putBoolean("pref_sub_volume_expanded", false)
-        editor.putBoolean("pref_sub_power_expanded", false)
+        editor.putBoolean(KEY_SUB_POWER_EXPANDED, false)
         editor.putBoolean(KEY_VOL_GESTURES_ENABLED, false)
         editor.putString(KEY_VOLUME_SUPPRESSION_PROFILE, DEFAULT_VOLUME_SUPPRESSION_PROFILE)
         editor.putBoolean(KEY_POWER_GESTURES_ENABLED, false)

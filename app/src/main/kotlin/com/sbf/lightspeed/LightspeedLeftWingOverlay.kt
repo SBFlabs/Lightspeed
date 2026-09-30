@@ -62,6 +62,18 @@ class LightspeedLeftWingOverlay(
         glowDelegate.triggerGlow(context, durationMs)
     }
 
+    internal var isLockscreenPillOnly = false
+
+    fun setLockscreenPillOnlyMode(enabled: Boolean) {
+        if (isLockscreenPillOnly != enabled) {
+            isLockscreenPillOnly = enabled
+            post {
+                updateMetricsDimensions()
+                invalidate()
+            }
+        }
+    }
+
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && (key.startsWith("pref_sidebar_") || key.startsWith("pref_section_") || key.startsWith("pref_macro_action_") || key.startsWith("pref_symmetry_") || key.startsWith("pref_deflector_") || key.startsWith("pref_cockpit_"))) {
             post {
@@ -155,6 +167,29 @@ class LightspeedLeftWingOverlay(
         val centerY = (screenH / 2f) + centerYOffsetPx
         val centerTop = centerY - (centerHeightPx / 2f)
         val centerBottom = centerY + (centerHeightPx / 2f)
+
+        if (isLockscreenPillOnly) {
+            val winHeight = centerHeightPx.toInt().coerceAtLeast(1)
+            val winWidth = centerTouchWidthPx.toInt().coerceAtLeast(1)
+            val winY = centerTop.toInt()
+
+            topTouchBounds.setEmpty()
+            bottomTouchBounds.setEmpty()
+            centerTouchBounds.set(0f, 0f, centerTouchWidthPx, centerHeightPx)
+
+            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.gravity != (Gravity.TOP or Gravity.START)) {
+                lp.gravity = Gravity.TOP or Gravity.START
+                lp.x = 0
+                lp.y = winY
+                lp.width = winWidth
+                lp.height = winHeight
+                try {
+                    wm.updateViewLayout(this, lp)
+                } catch (_: Exception) {}
+            }
+            invalidate()
+            return
+        }
 
         val topLimit = (centerTop - topHeightPx).coerceAtLeast(0f)
         val bottomLimit = (centerBottom + bottomHeightPx).coerceAtMost(screenH)
@@ -252,9 +287,15 @@ class LightspeedLeftWingOverlay(
                 currentGesture = "NONE"
 
                 activeZoneKey = when {
-                    topTouchBounds.contains(x, y) -> "LEFT_TOP"
-                    bottomTouchBounds.contains(x, y) -> "LEFT_BOTTOM"
+                    !isLockscreenPillOnly && topTouchBounds.contains(x, y) -> "LEFT_TOP"
+                    !isLockscreenPillOnly && bottomTouchBounds.contains(x, y) -> "LEFT_BOTTOM"
                     else -> "LEFT_CENTER"
+                }
+
+                if (isLockscreenPillOnly && !centerTouchBounds.contains(x, y)) {
+                    isCurrentlyTouched = false
+                    invalidate()
+                    return false
                 }
 
                 if (activeZoneKey == "LEFT_CENTER") {

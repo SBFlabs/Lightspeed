@@ -138,7 +138,7 @@ fun PickerSystemCategoryHeaderRow(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "• Why Transient Override?\nActions under Synthetic Gravity (such as 'Force Transient Sensor Portrait', 'Force Transient 360° Gyro', etc.) are manual overrides that yield automatically back to the Synthetic Gravity automation rules upon app switch or screen off.",
+                        text = "• Why Transient Override?\nActions under Synthetic Gravity (such as 'Transient Sensor Portrait', 'Transient 360° Gyro', etc.) are manual overrides that yield automatically back to the Synthetic Gravity automation rules upon app switch or screen off.",
                         fontSize = 12.5.sp,
                         color = Color.LightGray.copy(alpha = 0.9f),
                         lineHeight = 17.sp

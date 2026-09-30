@@ -546,6 +546,17 @@ var showHud by remember { mutableStateOf(false) }
                                                     dynamicSecondary = dynamicSecondary,
                                                     onClick = {
                                                         when {
+                                                            item.optionKey.startsWith("action_behavior:") -> {
+                                                                val parts = item.optionKey.split(":")
+                                                                if (parts.size >= 4) {
+                                                                    val parentToken = "${parts[1]}:${parts[2]}"
+                                                                    val behavior = parts[3]
+                                                                    LightspeedPreferences.setActionBehavior(this@CockpitGearPickerActivity, parentToken, behavior)
+                                                                    LightspeedActionRegistry.labelCache[parentToken] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, parentToken)
+                                                                    safeReloadPreferences()
+                                                                    hudStyleVersion++
+                                                                }
+                                                            }
                                                             item.optionKey.startsWith("gravity_bucket_assign:") -> {
                                                                 val bucketName = item.optionKey.removePrefix("gravity_bucket_assign:")
                                                                 val isGravityEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)

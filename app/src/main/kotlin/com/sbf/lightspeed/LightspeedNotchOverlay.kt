@@ -258,7 +258,8 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         val isTestBeacon = renderCache.isTestBeacon
         val showDlPill = (dlRouting == "notch_pill" || dlRouting == "both") && primaryDl != null
         val showMediaPill = (mediaRouting == "notch_pill" || mediaRouting == "both") && media != null && media.isPlaying
-        val isPillActive = isTestBeacon || showDlPill || showMediaPill
+        val isCapsuleEnabled = renderCache.isCapsuleEnabled
+        val isPillActive = isCapsuleEnabled && (isTestBeacon || showDlPill || showMediaPill)
         val isAllowedByOrientation = when (capsuleOrientMode) {
             "portrait_only" -> !isLandscape
             "landscape_only" -> isLandscape

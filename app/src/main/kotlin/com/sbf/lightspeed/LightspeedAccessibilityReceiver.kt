@@ -57,13 +57,13 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
 
             when (action) {
                 Intent.ACTION_DREAMING_STARTED -> {
-                    if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
+                    if (!LightspeedRefuelingActivity.isActive) {
                         updateOverlaysVisibility(isLocked = true, currentPkg = null)
                     }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     com.sbf.lightspeed.system.LightspeedOrientationManager.onScreenOff(this@registerSystemStateReceiver)
-                    if (hideOnLockAndDock && !LightspeedRefuelingActivity.isActive) {
+                    if (!LightspeedRefuelingActivity.isActive) {
                         updateOverlaysVisibility(isLocked = true, currentPkg = null)
                     }
                     checkScreenOffRefuelingTrigger(prefs)

@@ -351,11 +351,11 @@ fun HudStripTabContent(
                                     safeReloadPreferences()
                                     onRefreshNeeded()
                                 },
-                                isNotchCalibExpanded = isNotchCalibExpanded,
+                                 isNotchCalibExpanded = isNotchCalibExpanded,
                                 onToggleNotchCalib = {
                                     isNotchCalibExpanded = !isNotchCalibExpanded
                                     prefs.edit()
-                                        .putBoolean("pref_sub_notch_calib", isNotchCalibExpanded)
+                                        .putBoolean(LightspeedPreferences.KEY_SUB_NOTCH_CALIB, isNotchCalibExpanded)
                                         .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isNotchCalibExpanded)
                                         .apply()
                                     safeReloadPreferences()
@@ -375,7 +375,7 @@ fun HudStripTabContent(
                                 isSubPowerExpanded = isSubPowerExpanded,
                                 onToggleSubPower = {
                                     isSubPowerExpanded = !isSubPowerExpanded
-                                    prefs.edit().putBoolean("pref_sub_power_expanded", isSubPowerExpanded).apply()
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_POWER_EXPANDED, isSubPowerExpanded).apply()
                                 },
                                 isSinglePressUnlocked = isSinglePressUnlocked,
                                 onSinglePressUnlockedChange = { isSinglePressUnlocked = it },

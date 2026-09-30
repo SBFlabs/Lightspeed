@@ -289,7 +289,7 @@ fun HudSyntheticGravitySection(
                     },
                     text = {
                         Text(
-                            text = "• Transient Actions: Actions from the Action Selection Menu (such as 'Force Transient Sensor Portrait', 'Force Landscape', 'Force Portrait', and '360° Gyro') operate completely independently from this toggle.\n\n• Yields to Automation: They act as transient manual overrides that yield automatically back to the Synthetic Gravity Engine rules upon switching apps or screen-off, preventing hard-locks.\n\n• Toggle Scope: Turning this Synthetic Gravity Engine toggle OFF disables per-app automation buckets only. Manual gestures and action menu triggers will STILL work on demand at all times.",
+                            text = "• Transient Actions: Actions from the Action Selection Menu (such as 'Transient Sensor Portrait', 'Transient Landscape', 'Transient Portrait', and '360° Gyro') operate completely independently from this toggle.\n\n• Yields to Automation: They act as transient manual overrides that yield automatically back to the Synthetic Gravity Engine rules upon switching apps or screen-off, preventing hard-locks.\n\n• Toggle Scope: Turning this Synthetic Gravity Engine toggle OFF disables per-app automation buckets only. Manual gestures and action menu triggers will STILL work on demand at all times.",
                             fontSize = 12.5.sp,
                             color = Color.LightGray.copy(alpha = 0.9f),
                             lineHeight = 18.sp,

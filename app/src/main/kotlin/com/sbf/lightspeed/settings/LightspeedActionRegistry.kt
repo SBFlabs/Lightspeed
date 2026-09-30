@@ -273,7 +273,7 @@ object LightspeedActionRegistry {
         "action_enter_gearset_nav", "ACTION_ENTER_GEARSET_NAV" -> "system:gearset_nav"
         "ACTION_PREVIOUS_APP", "previous_app"                  -> "system:previous_app"
         "ACTION_SPLIT_SCREEN", "split_screen"                  -> "system:split_screen"
-        "popup_window", "system:freeform"                      -> "system:freeform"
+        "popup_window", "system:popup_window", "system:freeform" -> "system:freeform"
         "ACTION_FLASHLIGHT", "flashlight", "system:torch"      -> "system:flashlight"
         "ACTION_SCREENSHOT", "screenshot"                      -> "system:screenshot"
         "ACTION_LOCK_SCREEN", "lock_screen"                    -> "system:lock_screen"
@@ -390,12 +390,27 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
-        token == "system:auto_rotate_toggle" || token == "system:toggle_auto_rotate" || token == "system:gravity_toggle_master" || token == "ACTION_GRAVITY_TOGGLE_MASTER" || token == "system:orientation_toggle" || token == "ACTION_TOGGLE_ROTATION" -> "Toggle Native Auto-Rotate"
+        token == "system:auto_rotate_toggle" || token == "system:toggle_auto_rotate" || token == "system:gravity_toggle_master" || token == "ACTION_GRAVITY_TOGGLE_MASTER" || token == "system:orientation_toggle" || token == "ACTION_TOGGLE_ROTATION" -> {
+            val behavior = LightspeedPreferences.getActionBehavior(context, "system:auto_rotate_toggle")
+            when (behavior) {
+                "button" -> "Native Auto-Rotate (One-Way ON)"
+                "button_off" -> "Native Auto-Rotate (One-Way OFF)"
+                else -> "Toggle Native Auto-Rotate"
+            }
+        }
         token == "system:gravity_reset" || token == "ACTION_GRAVITY_RESET" -> "Restore Default Gravity"
-        token == "system:gravity_override_360" || token == "ACTION_GRAVITY_OVERRIDE_360" || token == "system:orientation_sensor_360" -> "Force Transient 360° Gyro"
-        token == "system:gravity_override_landscape" || token == "ACTION_GRAVITY_OVERRIDE_LANDSCAPE" -> "Force Transient Landscape"
-        token == "system:gravity_override_portrait" || token == "ACTION_GRAVITY_OVERRIDE_PORTRAIT" || token == "system:orientation_portrait" -> "Force Transient Portrait"
-        token == "system:gravity_override_sensor_portrait" || token == "ACTION_GRAVITY_OVERRIDE_SENSOR_PORTRAIT" || token == "system:orientation_sensor_portrait" -> "Force Transient Sensor Portrait"
+        token == "system:gravity_override_360" || token == "ACTION_GRAVITY_OVERRIDE_360" || token == "system:orientation_sensor_360" -> {
+            if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_360") == "button") "Transient 360° Gyro (One-Way Button)" else "Transient 360° Gyro"
+        }
+        token == "system:gravity_override_landscape" || token == "ACTION_GRAVITY_OVERRIDE_LANDSCAPE" -> {
+            if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_landscape") == "button") "Transient Landscape (One-Way Button)" else "Transient Landscape"
+        }
+        token == "system:gravity_override_portrait" || token == "ACTION_GRAVITY_OVERRIDE_PORTRAIT" || token == "system:orientation_portrait" -> {
+            if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_portrait") == "button") "Transient Portrait 0° (One-Way Button)" else "Transient Portrait"
+        }
+        token == "system:gravity_override_sensor_portrait" || token == "ACTION_GRAVITY_OVERRIDE_SENSOR_PORTRAIT" || token == "system:orientation_sensor_portrait" -> {
+            if (LightspeedPreferences.getActionBehavior(context, "system:gravity_override_sensor_portrait") == "button") "Transient Sensor Portrait (One-Way Button)" else "Transient Sensor Portrait"
+        }
 
         token == "system:screen_timeout" -> "Ship Goes Dark"
         token == "system:volume" -> "Media Volume"

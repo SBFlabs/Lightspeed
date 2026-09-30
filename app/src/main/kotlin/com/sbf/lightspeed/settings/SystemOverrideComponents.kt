@@ -8,6 +8,7 @@ import androidx.compose.foundation.combinedClickable
 import android.content.SharedPreferences
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -245,6 +247,225 @@ fun SystemOverrideDeckContents(
                 }
             }
         )
+
+        // Lock Screen Behavior Selector in System Override
+        // Granular Lock Screen Behavior Selectors in System Override
+        var currentLockscreenMode by remember {
+            mutableStateOf(prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_DEFLECTOR_MODE, "hide_deflectors") ?: "hide_deflectors")
+        }
+        var currentSensorMode by remember {
+            mutableStateOf(prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_SENSOR_DECK_MODE, "hide") ?: "hide")
+        }
+        var currentRailMode by remember {
+            mutableStateOf(prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_HORIZON_RAIL_MODE, "hide") ?: "hide")
+        }
+
+        var isLockscreenDropdownOpen by remember { mutableStateOf(false) }
+        var isSensorDropdownOpen by remember { mutableStateOf(false) }
+        var isRailDropdownOpen by remember { mutableStateOf(false) }
+
+        val lockscreenOptions = listOf(
+            "hide_deflectors" to "🙈 Hide Deflectors Only (Astrogation Core Active)",
+            "keep_active" to "🛡️ Keep Deflectors Active on Lock Screen",
+            "full_lockdown" to "🔒 Full Lockdown (Hide All Overlays)"
+        )
+        val binaryOptions = listOf(
+            "hide" to "🙈 Hide on Lock Screen (Recommended)",
+            "keep_active" to "🛡️ Keep Active on Lock Screen"
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Text(
+                    text = "LOCK SCREEN OVERLAY BEHAVIOR",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 0.8.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Granularly configure which overlay workspace components remain active while on the lock screen.",
+                    fontSize = 11.sp,
+                    color = Color.LightGray.copy(alpha = 0.85f)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "ℹ️ Note: Astrogation Core pill remains active in Hide Deflectors mode so you can launch tools or gears from the lock screen.",
+                    fontSize = 10.5.sp,
+                    color = Color(0xFF81D4FA)
+                )
+
+                // 1. Kinetic Deflectors Dropdown
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Kinetic Deflectors", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Spacer(modifier = Modifier.height(2.dp))
+                Box {
+                    OutlinedButton(
+                        onClick = { isLockscreenDropdownOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = lockscreenOptions.firstOrNull { it.first == currentLockscreenMode }?.second ?: "🙈 Hide Deflectors Only (Astrogation Core Active)",
+                                color = Color.White,
+                                fontSize = 11.5.sp
+                            )
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = isLockscreenDropdownOpen,
+                        onDismissRequest = { isLockscreenDropdownOpen = false },
+                        modifier = Modifier
+                            .background(Color(0xF012141A))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color(0xF012141A)
+                    ) {
+                        lockscreenOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                modifier = Modifier.heightIn(min = 44.dp),
+                                text = { Text(label, fontSize = 12.5.sp) },
+                                onClick = {
+                                    isLockscreenDropdownOpen = false
+                                    currentLockscreenMode = key
+                                    prefs.edit().putString(LightspeedPreferences.KEY_LOCKSCREEN_DEFLECTOR_MODE, key).apply()
+                                    com.sbf.lightspeed.system.safeReloadPreferences()
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // 2. Sensor Touch Area Dropdown
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Hot-Strip Sensor Touch Deck", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Spacer(modifier = Modifier.height(2.dp))
+                Box {
+                    OutlinedButton(
+                        onClick = { isSensorDropdownOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = binaryOptions.firstOrNull { it.first == currentSensorMode }?.second ?: "🙈 Hide on Lock Screen (Recommended)",
+                                color = Color.White,
+                                fontSize = 11.5.sp
+                            )
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = isSensorDropdownOpen,
+                        onDismissRequest = { isSensorDropdownOpen = false },
+                        modifier = Modifier
+                            .background(Color(0xF012141A))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color(0xF012141A)
+                    ) {
+                        binaryOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                modifier = Modifier.heightIn(min = 44.dp),
+                                text = { Text(label, fontSize = 12.5.sp) },
+                                onClick = {
+                                    isSensorDropdownOpen = false
+                                    currentSensorMode = key
+                                    prefs.edit().putString(LightspeedPreferences.KEY_LOCKSCREEN_SENSOR_DECK_MODE, key).apply()
+                                    com.sbf.lightspeed.system.safeReloadPreferences()
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // 3. Horizon Rail Dropdown
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Horizon Status Rail", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Spacer(modifier = Modifier.height(2.dp))
+                Box {
+                    OutlinedButton(
+                        onClick = { isRailDropdownOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = binaryOptions.firstOrNull { it.first == currentRailMode }?.second ?: "🙈 Hide on Lock Screen (Recommended)",
+                                color = Color.White,
+                                fontSize = 11.5.sp
+                            )
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = isRailDropdownOpen,
+                        onDismissRequest = { isRailDropdownOpen = false },
+                        modifier = Modifier
+                            .background(Color(0xF012141A))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color(0xF012141A)
+                    ) {
+                        binaryOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                modifier = Modifier.heightIn(min = 44.dp),
+                                text = { Text(label, fontSize = 12.5.sp) },
+                                onClick = {
+                                    isRailDropdownOpen = false
+                                    currentRailMode = key
+                                    prefs.edit().putString(LightspeedPreferences.KEY_LOCKSCREEN_HORIZON_RAIL_MODE, key).apply()
+                                    com.sbf.lightspeed.system.safeReloadPreferences()
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // 4. Orbital Capsule Dropdown (Disabled / Grayed Out)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "Orbital Capsule (Camera Cutout Widget)", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                Spacer(modifier = Modifier.height(2.dp))
+                OutlinedButton(
+                    onClick = { },
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🚫 Disabled in Experimental Labs",
+                            color = Color.Gray,
+                            fontSize = 11.5.sp
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
+                    }
+                }
+            }
+        }
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 

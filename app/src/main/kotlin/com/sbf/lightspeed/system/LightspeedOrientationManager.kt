@@ -147,6 +147,39 @@ object LightspeedOrientationManager {
             return
         }
 
+        val behavior = LightspeedPreferences.getActionBehavior(context, "system:auto_rotate_toggle", "toggle")
+        if (behavior == "button") {
+            LightspeedOrientationEngine.setMasterAutoRotateBaseline(context, true)
+            manualGestureOverride = null
+            LightspeedOrientationEngine.setAutoRotateEnabled(context, true)
+            val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "AUTO-ROTATE",
+                value = "AUTO-ROTATE ON (FORCED)",
+                stepIndex = 1,
+                totalSteps = 2,
+                durationMs = 1800L
+            )
+            if (!shown) {
+                android.widget.Toast.makeText(context, "Auto-Rotate: AUTO-ROTATE ON (FORCED)", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            return
+        } else if (behavior == "button_off") {
+            LightspeedOrientationEngine.setMasterAutoRotateBaseline(context, false)
+            manualGestureOverride = null
+            LightspeedOrientationEngine.setAutoRotateEnabled(context, false)
+            val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
+                title = "AUTO-ROTATE",
+                value = "AUTO-ROTATE OFF (FORCED)",
+                stepIndex = 0,
+                totalSteps = 2,
+                durationMs = 1800L
+            )
+            if (!shown) {
+                android.widget.Toast.makeText(context, "Auto-Rotate: AUTO-ROTATE OFF (FORCED)", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
         val currentBaseline = LightspeedOrientationEngine.getMasterAutoRotateBaseline(context)
         val newBaseline = !currentBaseline
         Log.i(TAG, "Toggling native auto-rotate baseline: $currentBaseline -> $newBaseline")
@@ -195,7 +228,8 @@ object LightspeedOrientationManager {
             )
             return
         }
-        if (manualGestureOverride == GravityOverrideMode.FORCE_360) {
+        val behavior = LightspeedPreferences.getActionBehavior(context, "system:gravity_override_360", "toggle")
+        if (behavior == "toggle" && manualGestureOverride == GravityOverrideMode.FORCE_360) {
             Log.i(TAG, "Disengaging transient 360° Gyro override")
             manualGestureOverride = null
             evaluateGravityCascade(context)
@@ -231,7 +265,8 @@ object LightspeedOrientationManager {
             )
             return
         }
-        if (manualGestureOverride == GravityOverrideMode.FORCE_LANDSCAPE) {
+        val behavior = LightspeedPreferences.getActionBehavior(context, "system:gravity_override_landscape", "toggle")
+        if (behavior == "toggle" && manualGestureOverride == GravityOverrideMode.FORCE_LANDSCAPE) {
             Log.i(TAG, "Disengaging transient Landscape override")
             manualGestureOverride = null
             evaluateGravityCascade(context)
@@ -267,7 +302,8 @@ object LightspeedOrientationManager {
             )
             return
         }
-        if (manualGestureOverride == GravityOverrideMode.FORCE_PORTRAIT) {
+        val behavior = LightspeedPreferences.getActionBehavior(context, "system:gravity_override_portrait", "toggle")
+        if (behavior == "toggle" && manualGestureOverride == GravityOverrideMode.FORCE_PORTRAIT) {
             Log.i(TAG, "Disengaging transient Portrait override")
             manualGestureOverride = null
             evaluateGravityCascade(context)
@@ -303,7 +339,8 @@ object LightspeedOrientationManager {
             )
             return
         }
-        if (manualGestureOverride == GravityOverrideMode.FORCE_SENSOR_PORTRAIT) {
+        val behavior = LightspeedPreferences.getActionBehavior(context, "system:gravity_override_sensor_portrait", "toggle")
+        if (behavior == "toggle" && manualGestureOverride == GravityOverrideMode.FORCE_SENSOR_PORTRAIT) {
             Log.i(TAG, "Disengaging transient Sensor Portrait override")
             manualGestureOverride = null
             stopActiveSensorPortraitDriver()

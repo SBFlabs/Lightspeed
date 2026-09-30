@@ -211,17 +211,66 @@ fun buildFlatItemsList(
                                 else -> null
                             }
 
+                            val isOrientationAction = token == "system:auto_rotate_toggle" ||
+                                    token == "system:gravity_override_360" ||
+                                    token == "system:gravity_override_portrait" ||
+                                    token == "system:gravity_override_sensor_portrait" ||
+                                    token == "system:gravity_override_landscape"
+
                             val isCustomizable = token == "system:screen_timeout" ||
                                     token == "system:volume" ||
                                     token == "system:brightness" ||
                                     token == "system:media_skip_forward" ||
                                     token == "system:media_skip_backward" ||
+                                    isOrientationAction ||
                                     gravityBucket != null
                             val customKey = "customization:$token"
                             val isCustomExpanded = expandedSubsections.contains(customKey)
                             list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded))
 
                             if (isCustomizable && isCustomExpanded) {
+                                if (isOrientationAction) {
+                                    val currentBehavior = prefs.getString("${LightspeedPreferences.KEY_ACTION_BEHAVIOR_PREFIX}${token}", "toggle") ?: "toggle"
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "action_behavior:${token}:toggle",
+                                            title = "Mode: Interactive Toggle",
+                                            subtitle = "Tap once to engage; tap again while active to disengage back to default",
+                                            isSelected = currentBehavior == "toggle"
+                                        )
+                                    )
+
+                                    val buttonSubtitle = if (token == "system:auto_rotate_toggle") {
+                                        "Always turns Auto-Rotate ON; never turns OFF"
+                                    } else {
+                                        "Always forces this orientation; repeated taps reaffirm and never disengage"
+                                    }
+
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "action_behavior:${token}:button",
+                                            title = if (token == "system:auto_rotate_toggle") "Mode: One-Way ON" else "Mode: One-Way Button",
+                                            subtitle = buttonSubtitle,
+                                            isSelected = currentBehavior == "button"
+                                        )
+                                    )
+
+                                    if (token == "system:auto_rotate_toggle") {
+                                        list.add(
+                                            PickerRowItem.SystemCustomizationOption(
+                                                parentToken = token,
+                                                optionKey = "action_behavior:${token}:button_off",
+                                                title = "Mode: One-Way OFF",
+                                                subtitle = "Always turns Auto-Rotate OFF; never turns ON",
+                                                isSelected = currentBehavior == "button_off"
+                                            )
+                                        )
+                                    }
+                                }
+
                                 if (gravityBucket != null) {
                                     val isGravityEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)
                                     val assignedCount = prefs.getStringSet(gravityBucket.prefKey, emptySet())?.size ?: 0

@@ -307,6 +307,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
         statusBarOverlayView?.postInvalidate()
         com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
+        if (!com.sbf.lightspeed.system.LightspeedKeyEngine.isPowerEnabled(this))
+            com.sbf.lightspeed.system.LightspeedPowerKeyEngine.resetPowerState()
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
         com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateGravityCascade(this)
         updateOverlaysVisibility()

@@ -29,9 +29,7 @@ object ElevatedTaskCloser {
         } catch (_: Exception) { false }
 
     val isRootActive: Boolean
-        get() = try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", "id")).waitFor() == 0
-        } catch (_: Exception) { false }
+        get() = false
 
     fun requestPermission(activity: Activity) {
         if (Shizuku.pingBinder() && !isShizukuActive) {
@@ -351,39 +349,232 @@ object ElevatedTaskCloser {
         }
     }
 
-    fun launchInFreeform(context: Context) {
-        Log.i(TAG, "launchInFreeform() invoked")
-        exemptHiddenApis()
+    private fun getTopForegroundTaskInfo(context: Context): Pair<Int?, String?> {
+        val myPkg = context.packageName
+        var targetTaskId: Int? = null
+        var targetPkg: String? = null
 
         if (isShizukuActive) {
             try {
-                val process = execShizuku("dumpsys window displays | grep -E 'mFocusedApp|mCurrentFocus'")
-                val reader = BufferedReader(InputStreamReader(process?.inputStream ?: return))
-                val focusedAppRegex = Regex("""ActivityRecord\{[^\}]*\s([a-zA-Z0-9_.]+)/([^\s\}]+)\s+t(\d+)""", RegexOption.IGNORE_CASE)
-                var targetComponent: String? = null
-                val myPkg = context.packageName
-
-                reader.useLines { lines ->
-                    for (line in lines) {
-                        val fam = focusedAppRegex.find(line)
-                        if (fam != null) {
-                            val (pkg, act, _) = fam.destructured
-                            if (pkg != myPkg && !isSystem(pkg)) {
-                                targetComponent = "$pkg/$act"
-                                break
+                val rawBinder = SystemServiceHelper.getSystemService("activity_task")
+                    ?: SystemServiceHelper.getSystemService(Context.ACTIVITY_SERVICE)
+                if (rawBinder != null) {
+                    val wrapped = ShizukuBinderWrapper(rawBinder)
+                    val stubClass = Class.forName("android.app.IActivityTaskManager\$Stub")
+                    val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+                    val atm = asInterface.invoke(null, wrapped)
+                    if (atm != null) {
+                        val getRecentTasksMethod = atm.javaClass.methods.firstOrNull { it.name == "getRecentTasks" }
+                        if (getRecentTasksMethod != null) {
+                            val paramsCount = getRecentTasksMethod.parameterTypes.size
+                            val rawResult = when (paramsCount) {
+                                2 -> getRecentTasksMethod.invoke(atm, 5, 0x0002)
+                                3 -> getRecentTasksMethod.invoke(atm, 5, 0x0002, 0)
+                                else -> null
+                            }
+                            if (rawResult != null) {
+                                val getListMethod = rawResult.javaClass.getMethod("getList")
+                                val recentTasksList = getListMethod.invoke(rawResult) as? List<*>
+                                if (!recentTasksList.isNullOrEmpty()) {
+                                    for (item in recentTasksList) {
+                                        if (item == null) continue
+                                        val tId = item.javaClass.getField("taskId").getInt(item)
+                                        val baseIntentField = try { item.javaClass.getField("baseIntent") } catch (_: Exception) { null }
+                                        val intent = baseIntentField?.get(item) as? Intent
+                                        val pkg = intent?.component?.packageName ?: intent?.`package`
+                                        if (pkg != null && !isSystem(pkg) && pkg != myPkg && tId > 0) {
+                                            targetTaskId = tId
+                                            targetPkg = pkg
+                                            break
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                process?.waitFor()
+            } catch (e: Exception) {
+                Log.d(TAG, "Fast binder task lookup failed", e)
+            }
+        }
 
-                if (targetComponent != null) {
-                    val launchProc = execShizuku("am start -n $targetComponent --windowingMode 5")
-                    launchProc?.waitFor()
-                    Log.i(TAG, "Launched $targetComponent in Freeform Pop-up view")
+        if (targetTaskId == null && (isShizukuActive || isRootActive)) {
+            try {
+                val process = if (isShizukuActive) {
+                    execShizuku("dumpsys activity top | grep -E 'TASK|ACTIVITY|mResumedActivity|topResumedActivity'")
+                } else {
+                    Runtime.getRuntime().exec(arrayOf("su", "-c", "dumpsys activity top | grep -E 'TASK|ACTIVITY|mResumedActivity|topResumedActivity'"))
+                }
+                process?.let { p ->
+                    val reader = BufferedReader(InputStreamReader(p.inputStream))
+                    reader.useLines { lines ->
+                        for (line in lines) {
+                            val tm = Regex("""TASK\s+.*?id=(\d+)""", RegexOption.IGNORE_CASE).find(line)
+                            if (tm != null && targetTaskId == null) {
+                                targetTaskId = tm.groupValues[1].toIntOrNull()
+                            }
+                            val am = Regex("""(ACTIVITY|mResumedActivity|topResumedActivity)\s+([a-zA-Z0-9_.]+)/""").find(line)
+                            if (am != null && targetPkg == null) {
+                                val pkg = am.groupValues[2]
+                                if (pkg != myPkg && !isSystem(pkg)) {
+                                    targetPkg = pkg
+                                }
+                            }
+                        }
+                    }
+                    p.waitFor()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "launchInFreeform error", e)
+                Log.d(TAG, "dumpsys activity top lookup failed", e)
+            }
+        }
+
+        return Pair(targetTaskId, targetPkg)
+    }
+
+    fun toggleSplitScreen(context: Context) {
+        Log.i(TAG, "toggleSplitScreen() invoked")
+        exemptHiddenApis()
+
+        val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+        var success = false
+
+        val (targetTaskId, targetPkg) = getTopForegroundTaskInfo(context)
+
+        // Strategy 1: Direct IActivityTaskManager setTaskWindowingMode(taskId, 3, true) via Shizuku
+        if (targetTaskId != null && targetTaskId > 0 && isShizukuActive) {
+            try {
+                val rawBinder = SystemServiceHelper.getSystemService("activity_task")
+                    ?: SystemServiceHelper.getSystemService(Context.ACTIVITY_SERVICE)
+                if (rawBinder != null) {
+                    val wrapped = ShizukuBinderWrapper(rawBinder)
+                    val stubClass = Class.forName("android.app.IActivityTaskManager\$Stub")
+                    val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+                    val atm = asInterface.invoke(null, wrapped)
+                    if (atm != null) {
+                        val setTaskWindowingModeMethod = atm.javaClass.methods.firstOrNull { 
+                            it.name == "setTaskWindowingMode" && it.parameterTypes.size == 3 
+                        }
+                        if (setTaskWindowingModeMethod != null) {
+                            // 3 = WINDOWING_MODE_SPLIT_SCREEN_PRIMARY
+                            setTaskWindowingModeMethod.invoke(atm, targetTaskId, 3, true)
+                            Log.i(TAG, "Task $targetTaskId set to Split Screen mode via IActivityTaskManager")
+                            success = true
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "setTaskWindowingMode split_screen binder failed", e)
+            }
+        }
+
+        // Strategy 2: AccessibilityService GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN
+        if (!success && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && service != null) {
+            success = service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
+            if (success) {
+                Log.i(TAG, "Split Screen toggled via AccessibilityService")
+            }
+        }
+
+        // Strategy 3: Shizuku / Root CLI `am task set-windowing-mode` or `am stack`
+        if (!success && targetTaskId != null && targetTaskId > 0) {
+            try {
+                val cmd = "am task set-windowing-mode $targetTaskId 3 2>/dev/null || am stack set-windowing-mode $targetTaskId 3 2>/dev/null"
+                if (isShizukuActive) {
+                    execShizuku(cmd)?.waitFor()
+                    success = true
+                } else if (isRootActive) {
+                    Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)).waitFor()
+                    success = true
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Strategy 4: Fallback notice or Recents toggle
+        if (!success) {
+            if (service != null) {
+                service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
+            } else {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Accessibility or Shizuku required for Split Screen", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun launchInFreeform(context: Context) {
+        Log.i(TAG, "launchInFreeform() invoked")
+        exemptHiddenApis()
+
+        val (targetTaskId, targetPkg) = getTopForegroundTaskInfo(context)
+        var success = false
+
+        // Strategy 1: Direct IActivityTaskManager setTaskWindowingMode(taskId, 5, true) via Shizuku
+        if (targetTaskId != null && targetTaskId > 0 && isShizukuActive) {
+            try {
+                val rawBinder = SystemServiceHelper.getSystemService("activity_task")
+                    ?: SystemServiceHelper.getSystemService(Context.ACTIVITY_SERVICE)
+                if (rawBinder != null) {
+                    val wrapped = ShizukuBinderWrapper(rawBinder)
+                    val stubClass = Class.forName("android.app.IActivityTaskManager\$Stub")
+                    val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+                    val atm = asInterface.invoke(null, wrapped)
+                    if (atm != null) {
+                        val setTaskWindowingModeMethod = atm.javaClass.methods.firstOrNull { 
+                            it.name == "setTaskWindowingMode" && it.parameterTypes.size == 3 
+                        }
+                        if (setTaskWindowingModeMethod != null) {
+                            // 5 = WINDOWING_MODE_FREEFORM
+                            setTaskWindowingModeMethod.invoke(atm, targetTaskId, 5, true)
+                            Log.i(TAG, "Task $targetTaskId set to Freeform mode via IActivityTaskManager")
+                            success = true
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "setTaskWindowingMode freeform binder failed", e)
+            }
+        }
+
+        // Strategy 2: Shizuku / Root CLI `am task set-windowing-mode` or `am stack`
+        if (!success && targetTaskId != null && targetTaskId > 0) {
+            try {
+                val cmd = "am task set-windowing-mode $targetTaskId 5 2>/dev/null || am stack set-windowing-mode $targetTaskId 5 2>/dev/null"
+                if (isShizukuActive) {
+                    execShizuku(cmd)?.waitFor()
+                    success = true
+                } else if (isRootActive) {
+                    Runtime.getRuntime().exec(arrayOf("su", "-c", cmd)).waitFor()
+                    success = true
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Strategy 3: Launch target package with ActivityOptions setLaunchWindowingMode(5)
+        if (!success && targetPkg != null) {
+            try {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPkg)
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                    val options = android.app.ActivityOptions.makeBasic()
+                    try {
+                        val setLaunchWindowingModeMethod = options.javaClass.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
+                        setLaunchWindowingModeMethod.invoke(options, 5) // 5 = WINDOWING_MODE_FREEFORM
+                    } catch (_: Exception) {}
+                    context.startActivity(launchIntent, options.toBundle())
+                    Log.i(TAG, "Launched $targetPkg in Freeform mode via ActivityOptions")
+                    success = true
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "ActivityOptions freeform launch failed", e)
+            }
+        }
+
+        // Strategy 4: Fallback notice if unable to trigger
+        if (!success) {
+            Handler(Looper.getMainLooper()).post {
+                val msg = if (!isShizukuActive && !isRootActive) "Shizuku/Root required for Pop-up view" else "No active app found for Pop-up view"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             }
         }
     }

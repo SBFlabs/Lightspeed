@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
 
 /**
@@ -166,6 +167,7 @@ fun HudTelemetryIndicatorsSection(
             HardwareCutoutCalibrationSection(
                 context = context,
                 prefs = prefs,
+                isCapsuleEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ORBITAL_CAPSULE_ENABLED, false),
                 onRefreshNeeded = onRefreshNeeded
             )
         }

@@ -290,9 +290,18 @@ object LightspeedWatchdogEngine {
     /**
      * Pulses and ensures all protected third-party accessibility sentinels are running.
      * Re-injects any missing services and triggers Android AccessibilityManagerService re-binding.
+     * Strategy: tries Settings.Secure.putString() directly first (works if WRITE_SECURE_SETTINGS was
+     * granted via ADB), then falls back to Shizuku shell if that fails.
      */
     fun pulsePerimeterServices(context: Context): Int {
-        if (!ElevatedTaskCloser.isShizukuActive && !ElevatedTaskCloser.isRootActive) {
+        val hasElevated = ElevatedTaskCloser.isShizukuActive || ElevatedTaskCloser.isRootActive
+        // Check if direct WRITE_SECURE_SETTINGS is available (granted via ADB without Shizuku)
+        val hasDirectWritePermission = context.checkCallingOrSelfPermission(
+            android.Manifest.permission.WRITE_SECURE_SETTINGS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (!hasElevated && !hasDirectWritePermission) {
+            Log.w(TAG, "pulsePerimeterServices: no elevated access (Shizuku or WRITE_SECURE_SETTINGS)")
             return 0
         }
 
@@ -317,16 +326,30 @@ object LightspeedWatchdogEngine {
         val newServices = entries.joinToString(":")
         val accessibilityEnabled = if (entries.isNotEmpty()) 1 else 0
 
-        val cmd = "settings put secure enabled_accessibility_services \"$newServices\" && settings put secure accessibility_enabled $accessibilityEnabled"
+        // Strategy 1: Direct Settings.Secure write (WRITE_SECURE_SETTINGS granted via ADB)
+        if (hasDirectWritePermission) {
+            try {
+                Settings.Secure.putString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, newServices)
+                Settings.Secure.putInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, accessibilityEnabled)
+                Log.i(TAG, "pulsePerimeterServices: direct write succeeded, revived $revivedCount services")
+                return entries.size
+            } catch (e: Exception) {
+                Log.w(TAG, "pulsePerimeterServices: direct write failed, falling back to Shizuku", e)
+            }
+        }
 
+        // Strategy 2: Shizuku shell (settings put secure ...)
+        val cmd = "settings put secure enabled_accessibility_services \"$newServices\" && settings put secure accessibility_enabled $accessibilityEnabled"
         execPrivileged(cmd)
 
-        Log.i(TAG, "pulsePerimeterServices: revived $revivedCount missing services. Total active: ${entries.size}")
+        Log.i(TAG, "pulsePerimeterServices: Shizuku write done, revived $revivedCount services. Total: ${entries.size}")
         return entries.size
     }
 
     /**
      * Starts background watchdog sentinel polling.
+     * Skips cycles when the screen is off to avoid unnecessary CPU wakeups
+     * and allow Android to enter deep sleep uninterrupted.
      */
     fun initSentinel(context: Context) {
         val prefs = context.defaultPrefs()
@@ -340,10 +363,14 @@ object LightspeedWatchdogEngine {
 
         sentinelJob = watchdogScope.launch {
             while (isActive) {
-                delay(20_000L) // Poll every 20 seconds
+                delay(30_000L) // Poll every 30 seconds
                 try {
                     val sentinelActive = context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_ACCESSIBILITY_SENTINEL_ENABLED, false)
                     if (!sentinelActive) break
+
+                    // Skip entire cycle when screen is off — let Android enter deep sleep
+                    val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                    if (pm?.isInteractive == false) continue
 
                     // 1. Core Watchdog: Lightspeed's own service
                     if (LightspeedAccessibilityService.instance == null) {

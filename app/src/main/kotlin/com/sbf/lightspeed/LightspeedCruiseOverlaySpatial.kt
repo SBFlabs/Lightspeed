@@ -94,6 +94,37 @@ fun LightspeedCruiseOverlay.updateMetricsDimensions() {
         val centerTop = centerY - (centerHeightPx / 2f)
         val centerBottom = centerY + (centerHeightPx / 2f)
 
+        if (isLockscreenPillOnly) {
+            val winHeight = centerHeightPx.toInt().coerceAtLeast(1)
+            val winWidth = centerTouchWidthPx.toInt().coerceAtLeast(1)
+            val winY = centerTop.toInt()
+            val w = winWidth.toFloat()
+
+            topTouchBounds.setEmpty()
+            bottomTouchBounds.setEmpty()
+            centerTouchBounds.set(w - centerTouchWidthPx, 0f, w, centerHeightPx)
+
+            topVisualBounds.setEmpty()
+            bottomVisualBounds.setEmpty()
+            centerVisualBounds.set(w - centerVisualWidthPx, 0f, w, centerHeightPx)
+
+            launchpadPillBounds.set(centerVisualBounds)
+
+            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.gravity != (Gravity.TOP or Gravity.END)) {
+                lp.gravity = Gravity.TOP or Gravity.END
+                lp.x = 0; lp.y = winY
+                lp.width = winWidth; lp.height = winHeight
+                wm.updateViewLayout(this, lp)
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                systemGestureExclusionRects = listOf(android.graphics.Rect(0, 0, winWidth, winHeight))
+            }
+            refreshActiveRenderEffect()
+            invalidate()
+            return
+        }
+
         val topLimit = (centerTop - topHeightPx).coerceAtLeast(0f)
         val bottomLimit = (centerBottom + bottomHeightPx).coerceAtMost(screenH)
 

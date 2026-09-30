@@ -660,7 +660,7 @@ fun HudExperimentalLabsSection(
             }
 
             // 5. Core Cooling Schedule
-            var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_core_cooling_labs", false)) }
+            var isCoreCoolingExpanded by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_CORE_COOLING_LABS, false)) }
             CollapsibleSubSection(
                 title = "Core Cooling Schedule",
                 subtitle = "Configurable weekly maintenance reminder",
@@ -675,7 +675,7 @@ fun HudExperimentalLabsSection(
                 isExpanded = isCoreCoolingExpanded,
                 onToggle = {
                     isCoreCoolingExpanded = !isCoreCoolingExpanded
-                    prefs.edit().putBoolean("pref_sub_core_cooling_labs", isCoreCoolingExpanded).apply()
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_CORE_COOLING_LABS, isCoreCoolingExpanded).apply()
                 }
             ) {
                 var coreCoolingEnabled by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CORE_COOLING_ENABLED, false)) }

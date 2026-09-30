@@ -346,21 +346,53 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val isDoze = currentPkg == "com.android.systemui" && !effectiveLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
     val isSystemUiActive = !effectiveLocked && (if (currentPkg != null) currentPkg == "com.android.systemui" else isNotificationShadeActive)
 
-    // Top HUD Overlays (Status Bar Rail, Notch Orbital Capsule, and Sensor Deck Touch Target)
-    val shouldHideTopHud = (hideOnLockAndDock && effectiveLocked) || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()
-    val topHudVisibility = if (shouldHideTopHud) View.GONE else View.VISIBLE
+    val lockscreenMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_DEFLECTOR_MODE, "hide_deflectors") ?: "hide_deflectors"
+    val lockscreenRailMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_HORIZON_RAIL_MODE, "hide") ?: "hide"
+    val lockscreenSensorMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_SENSOR_DECK_MODE, "hide") ?: "hide"
 
-    statusBarOverlayView?.visibility = topHudVisibility
-    notchOverlayView?.visibility = topHudVisibility
-    sensorTouchOverlayView?.visibility = if (shouldHideTopHud || isSystemUiActive) View.GONE else View.VISIBLE
+    val hideDeflectorsOnLock = effectiveLocked && lockscreenMode != "keep_active"
+    val hideTopHudOnLock = effectiveLocked && lockscreenMode == "full_lockdown"
+
+    val hideRailOnLock = effectiveLocked && (lockscreenMode == "full_lockdown" || lockscreenRailMode == "hide")
+    val hideSensorOnLock = effectiveLocked && (lockscreenMode == "full_lockdown" || lockscreenSensorMode == "hide")
+
+    // Dynamic Native Back Gesture Restoration on Lockscreen
+    if (hideDeflectorsOnLock) {
+        if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
+            val userScale = prefs.getFloat("sys_override_edge_gesture", 0.0f)
+            if (userScale == 0.0f) {
+                com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left 1.0 && settings put secure back_gesture_inset_scale_right 1.0")
+            }
+        }
+    } else {
+        if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
+            val userScale = prefs.getFloat("sys_override_edge_gesture", 0.0f)
+            if (userScale == 0.0f) {
+                com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left 0 && settings put secure back_gesture_inset_scale_right 0")
+            }
+        }
+    }
+
+    // Top HUD Overlays (Status Bar Rail, Notch Orbital Capsule, and Sensor Deck Touch Target)
+    val shouldHideTopHud = hideTopHudOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()
+
+    statusBarOverlayView?.visibility = if (hideRailOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()) View.GONE else View.VISIBLE
+    notchOverlayView?.visibility = if (shouldHideTopHud) View.GONE else View.VISIBLE
+    sensorTouchOverlayView?.visibility = if (shouldHideTopHud || hideSensorOnLock || isSystemUiActive) View.GONE else View.VISIBLE
+
+    val isPillOnlyLock = effectiveLocked && lockscreenMode == "hide_deflectors"
+    val isFullLockdown = effectiveLocked && lockscreenMode == "full_lockdown"
+
+    overlayView?.setLockscreenPillOnlyMode(isPillOnlyLock)
+    leftWingOverlayView?.setLockscreenPillOnlyMode(isPillOnlyLock)
 
     // Kinetic Deflectors (Left & Right Flank Wings / Edge Gesture Controls)
     val isLeftDeflectorEnabled = LightspeedPreferences.isLeftDeflectorEnabled(this)
     val isRightDeflectorEnabled = LightspeedPreferences.isRightDeflectorEnabled(this)
     val isOrientationSuppressed = isSuppressedByOrientation()
 
-    val leftVisibility = if (isLeftDeflectorEnabled && !isOrientationSuppressed) View.VISIBLE else View.GONE
-    val rightVisibility = if (isRightDeflectorEnabled && !isOrientationSuppressed) View.VISIBLE else View.GONE
+    val leftVisibility = if (isLeftDeflectorEnabled && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
+    val rightVisibility = if (isRightDeflectorEnabled && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
 
     overlayView?.visibility = rightVisibility
     leftWingOverlayView?.visibility = leftVisibility

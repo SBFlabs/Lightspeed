@@ -1,6 +1,7 @@
 package com.sbf.lightspeed
 
 import android.view.MotionEvent
+import com.sbf.lightspeed.system.defaultPrefs
 
 /**
  * Main touch event dispatcher for [LightspeedCruiseOverlay].

@@ -141,8 +141,15 @@ fun GestureMappingRow(
             else -> null
         }
 
+        val isOrientationAction = currentRawValue == "system:auto_rotate_toggle" ||
+                currentRawValue == "system:gravity_override_360" ||
+                currentRawValue == "system:gravity_override_portrait" ||
+                currentRawValue == "system:gravity_override_sensor_portrait" ||
+                currentRawValue == "system:gravity_override_landscape"
+
         val hasControls = showMediaQuickAccess ||
                 isHold ||
+                isOrientationAction ||
                 (gravityBucket != null) ||
                 (currentRawValue == "system:screen_timeout") ||
                 (currentRawValue == "system:brightness") ||
@@ -248,7 +255,7 @@ fun GestureMappingRow(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Active Map: $activeLabel",
+                    text = activeLabel,
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -298,7 +305,7 @@ fun GestureMappingRow(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Hold: ${currentHoldMs}ms ▾",
+                                text = "${currentHoldMs}ms ▾",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -450,6 +457,87 @@ fun GestureMappingRow(
                                     prefs.edit().putBoolean("pref_slider_tap_to_jump_$perGestureHoldKey", enabled).apply()
                                 }
                             )
+                        }
+                    }
+                }
+
+                // 0.4. Synthetic Gravity Mode Sub-Chip (when assigned to an orientation action)
+                if (isOrientationAction) {
+                    var currentBehavior by remember(currentRawValue) {
+                        mutableStateOf(com.sbf.lightspeed.system.LightspeedPreferences.getActionBehavior(context, currentRawValue, "toggle"))
+                    }
+                    var showModeMenu by remember { mutableStateOf(false) }
+
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                            modifier = Modifier.clickable { showModeMenu = true }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = "Action Behavior Mode",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                val modeLabel = when (currentBehavior) {
+                                    "button" -> if (currentRawValue == "system:auto_rotate_toggle") "One-Way ON ▾" else "One-Way ▾"
+                                    "button_off" -> "One-Way OFF ▾"
+                                    else -> "Toggle ▾"
+                                }
+                                Text(
+                                    text = modeLabel,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showModeMenu,
+                            onDismissRequest = { showModeMenu = false },
+                            modifier = Modifier
+                                .background(Color(0xF012141A))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color(0xF012141A)
+                        ) {
+                            val options = mutableListOf(
+                                "toggle" to "Interactive Toggle (Tap to engage/disengage)"
+                            )
+                            if (currentRawValue == "system:auto_rotate_toggle") {
+                                options.add("button" to "One-Way ON (Always turns ON)")
+                                options.add("button_off" to "One-Way OFF (Always turns OFF)")
+                            } else {
+                                options.add("button" to "One-Way Button (Reaffirm & never disengage)")
+                            }
+
+                            options.forEach { (modeKey, modeTitle) ->
+                                val isSelected = currentBehavior == modeKey
+                                DropdownMenuItem(
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                    text = {
+                                        Text(
+                                            text = if (isSelected) "✓ $modeTitle" else modeTitle,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Unspecified
+                                        )
+                                    },
+                                    onClick = {
+                                        currentBehavior = modeKey
+                                        com.sbf.lightspeed.system.LightspeedPreferences.setActionBehavior(context, currentRawValue, modeKey)
+                                        com.sbf.lightspeed.settings.LightspeedActionRegistry.labelCache[currentRawValue] = resolveDynamicTokenLabel(context, currentRawValue)
+                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        showModeMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -981,21 +1069,32 @@ fun GestureMappingRow(
                                 showHudMenu = true
                             }
                         ) {
-                            val hudName = when (hudStyle) {
-                                "canopy_droppod" -> "Drop-Pod"
-                                "cockpit_reticle" -> "Reticle"
-                                "edge_blade" -> "Blade"
-                                "quantum_horizon" -> "Horizon"
-                                "tachyon_dial" -> "Radar"
-                                else -> "Drop-Pod"
-                            }
-                            Text(
-                                text = "Style: $hudName ▾",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
-                            )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = "HUD Visual Style",
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                val hudName = when (hudStyle) {
+                                    "canopy_droppod" -> "Drop-Pod"
+                                    "cockpit_reticle" -> "Reticle"
+                                    "edge_blade" -> "Blade"
+                                    "quantum_horizon" -> "Horizon"
+                                    "tachyon_dial" -> "Radar"
+                                    else -> "Drop-Pod"
+                                }
+                                Text(
+                                    text = "$hudName ▾",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
                         }
                         DropdownMenu(
                             expanded = showHudMenu,

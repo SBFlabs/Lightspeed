@@ -276,6 +276,7 @@ object LightspeedPowerKeyEngine {
     fun startShizukuPowerMonitor(context: Context) {
         if (!isPowerEnabled(context) || !ElevatedTaskCloser.isShizukuActive) {
             stopShizukuPowerMonitor()
+            resetPowerState()
             return
         }
         if (shizukuMonitorJob?.isActive == true) return

@@ -25,7 +25,11 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
     val prefs = prefs()
     val isFlankUnified = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_LINK_FLANK_ACTIONS, true)
     val gestMode = prefs.getString("pref_symmetry_gesture_mode", "independent") ?: "independent"
-    val isFromLeft = isOpenedFromLeftFlank || gestMode == "left"
+    val isFromLeft = when (gestMode) {
+        "left" -> true
+        "right" -> false
+        else -> isOpenedFromLeftFlank
+    }
 
     val actionValue = if (isFromLeft) {
         val isLeftUnified = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_LINK_FLANK_ACTIONS, true)

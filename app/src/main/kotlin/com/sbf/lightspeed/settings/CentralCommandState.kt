@@ -96,7 +96,7 @@ fun rememberCentralCommandState(
     val singlePressTapCountState = rememberSaveable { mutableIntStateOf(0) }
     val isSinglePressUnlockedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_POWER_SINGLE_PRESS_UNLOCKED, false)) }
     val isSubVolumeExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_volume_expanded", false)) }
-    val isSubPowerExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_power_expanded", true)) }
+    val isSubPowerExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_POWER_EXPANDED, true)) }
     val isSubHullTapExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_hulltap_expanded", false)) }
     val isSubHullTapExpanded by isSubHullTapExpandedState
 
@@ -116,7 +116,7 @@ fun rememberCentralCommandState(
     val isHorizonRailColorExpanded by isHorizonRailColorExpandedState
     val isHorizonRailTextExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_horizon_rail_text", false)) }
     val isHorizonRailTextExpanded by isHorizonRailTextExpandedState
-    val isNotchCalibExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_calib", false)) }
+    val isNotchCalibExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_NOTCH_CALIB, false)) }
     val isNotchCalibExpanded by isNotchCalibExpandedState
     val isMarqueeSubSectionExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_notch_marquee", false)) }
     val isOemNoticeDemotedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_oem_notch_notice_demoted", false)) }

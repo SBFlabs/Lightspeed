@@ -181,6 +181,13 @@ object LightspeedBackTapEngine : SensorEventListener {
         val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, false)
         val scope = prefs.getString(LightspeedPreferences.KEY_BACK_TAP_SCOPE, "screen_on") ?: "screen_on"
 
+        // Unconditionally release wake lock if disabled or scope doesn't require it.
+        // This guards against stale wake locks from previous scope settings (e.g. "always" -> "screen_on").
+        val scopeRequiresWakeLock = scope == "screen_off" || scope == "always"
+        if (!isEnabled || !scopeRequiresWakeLock) {
+            releaseWakeLock()
+        }
+
         if (!isEnabled || linearAccelSensor == null) {
             stopMonitoring()
             return
@@ -194,7 +201,8 @@ object LightspeedBackTapEngine : SensorEventListener {
         }
 
         if (shouldMonitor) {
-            startMonitoring(allowWakeLock = (!isScreenOn && (scope == "screen_off" || scope == "always") && !isBatteryLowOrPowerSave))
+            // Only acquire wake lock for screen-off scopes, cap at 30 min (not 2 hours)
+            startMonitoring(allowWakeLock = (!isScreenOn && scopeRequiresWakeLock && !isBatteryLowOrPowerSave))
         } else {
             stopMonitoring()
         }
@@ -219,8 +227,8 @@ object LightspeedBackTapEngine : SensorEventListener {
         if (allowWakeLock) {
             try {
                 if (wakeLock?.isHeld != true) {
-                    wakeLock?.acquire(2 * 60 * 60 * 1000L) // Safety timeout 2 hours
-                    Log.d(TAG, "Acquired partial wakelock for screen-off back tap")
+                    wakeLock?.acquire(30 * 60 * 1000L) // 30-minute safety cap (was 2 hours)
+                    Log.d(TAG, "Acquired partial wakelock for screen-off back tap (30m cap)")
                 }
             } catch (_: Exception) {}
         } else {

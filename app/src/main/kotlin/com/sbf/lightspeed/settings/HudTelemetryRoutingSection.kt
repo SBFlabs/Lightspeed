@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -82,14 +84,7 @@ fun HudTelemetryRoutingSection(
         }
     }
 
-    PrefToggleRow(
-        prefs = prefs,
-        prefKey = LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK,
-        defaultVal = true,
-        title = "Suppress on Lock Screen & OEM Screensavers",
-        subtitle = "Automatically hides Orbital Capsule and HUD Strip when device is locked or running OEM ambient dock.",
-        onChanged = { onRefreshNeeded() }
-    )
+
 
     if (!isNotifAccessGranted) {
         Card(

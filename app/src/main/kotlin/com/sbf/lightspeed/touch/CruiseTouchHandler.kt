@@ -51,9 +51,14 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
 
             currentActiveZone = when {
                 centerTouchBounds.contains(x, y) -> TouchZone.CENTER_CRUISE
-                topTouchBounds.contains(x, y) -> TouchZone.TOP_EDGE
-                bottomTouchBounds.contains(x, y) -> TouchZone.BOTTOM_EDGE
+                !isLockscreenPillOnly && topTouchBounds.contains(x, y) -> TouchZone.TOP_EDGE
+                !isLockscreenPillOnly && bottomTouchBounds.contains(x, y) -> TouchZone.BOTTOM_EDGE
                 else -> TouchZone.NONE
+            }
+
+            if (isLockscreenPillOnly && currentActiveZone != TouchZone.CENTER_CRUISE) {
+                isCurrentlyTouched = false; invalidate()
+                return false
             }
 
             if (currentActiveZone == TouchZone.CENTER_CRUISE) {

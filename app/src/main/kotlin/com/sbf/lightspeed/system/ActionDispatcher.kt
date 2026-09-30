@@ -40,11 +40,9 @@ object ActionDispatcher {
                 ElevatedTaskCloser.switchToPreviousApp(context)
             }
             token == "system:split_screen" -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
-                }
+                ElevatedTaskCloser.toggleSplitScreen(context)
             }
-            token == "system:freeform" -> {
+            token == "system:freeform" || token == "system:popup_window" -> {
                 ElevatedTaskCloser.launchInFreeform(context)
             }
             token == "system:flashlight" -> {

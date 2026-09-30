@@ -130,7 +130,27 @@ object OmniscientAudioDockManager {
             }
         }
 
-        windowManager?.addView(composeView, params)
+        var added = false
+        try {
+            windowManager?.addView(composeView, params)
+            added = true
+        } catch (e: WindowManager.BadTokenException) {
+            android.util.Log.w("OmniscientAudioDock", "TYPE_ACCESSIBILITY_OVERLAY failed with BadTokenException; attempting TYPE_APPLICATION_OVERLAY fallback", e)
+            try {
+                params.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                windowManager?.addView(composeView, params)
+                added = true
+            } catch (e2: Exception) {
+                android.util.Log.e("OmniscientAudioDock", "Failed to add window with TYPE_APPLICATION_OVERLAY fallback", e2)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("OmniscientAudioDock", "Failed to add window", e)
+        }
+
+        if (!added) {
+            dismiss()
+            return
+        }
 
         // Register Volume Receiver
         val audioManager = service.getSystemService(Context.AUDIO_SERVICE) as AudioManager

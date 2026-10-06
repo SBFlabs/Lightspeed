@@ -9,13 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 * **External Automation Suite (Tasker, MacroDroid, ADB)**: Opt-in external broadcast receiver (off by default) supporting 9 system/flight actions, with a security confirmation dialog and multi-mode command builder tabs (ADB shell, Termux/root shell, Intent broadcast) with 1-tap copy.
-* **Glass Chromatic Customization**: Choose Dynamic Material You colors or a Custom Palette, with a Tint Infusion Depth slider (5%–100%), 9 preset swatches, and a custom hex dialog with live preview. The tint now flows through the glass body, GPU caustics, rim dispersion and shimmer.
-* **Power Menu Action & Tile**: New `system:power_menu` action (Ship Maintenance) and a Power Menu tile in the Tactical Flyout.
-* **Experimental Power Button Engine (Shizuku, opt-in)**: Native `lsinputd` helper for power-button handling, automatic power-device discovery, double-press and hold passthrough, "Block Assistant on Power Hold" toggle, stuck-key safety release, and safety restore on app start.
-* **Out-of-Process Core Guard & Griffin Recovery**: Shizuku shell guard monitors for crashed accessibility services and attempts recovery out of process, with 60 s per-package debounce and atomic settings cycling.
-* **Watchdog Fast Triggers**: Perimeter checks now fire on accessibility-setting changes and screen/unlock events.
+* **Glass Chromatic Customization**: Choose Dynamic Material You colors or a Custom Palette, with a Tint Infusion Depth slider (5%–100%), 9 preset swatches, and a custom hex dialog with live preview. The tint now flows through the glass body, GPU caustics (AGSL shader, Android 13+), rim dispersion and shimmer.
+* **Power Menu Action, Tile & Experimental Power Button Engine (Shizuku, opt-in)**: New `system:power_menu` action (Ship Maintenance), a Power Menu tile in the Tactical Flyout, native `lsinputd` helper for power-button handling, automatic power-device discovery, double-press and hold passthrough, "Block Assistant on Power Hold" toggle, stuck-key safety release, and safety restore on app start (all in Experimental Labs).
+* **Watchdogs**: A separate Shizuku-based guard process watches for Lightspeed's own accessibility service crashing and recovers it (60 s per-package debounce, atomic settings cycling; the guard checks every 30 s, was 10 s, and exits on uninstall). The Perimeter Watchdog covers other protected services and now also checks on accessibility-setting changes and on screen/unlock events. Services you turn off manually are no longer revived. Crash recovery needs Shizuku.
 * **Battery Exemption Control**: 1-tap access to battery optimization settings from Ship Maintenance.
-* **Sonic Deck / Universal Audio Control**: New vocabulary entries in Space Lore and Clear Comms, with backward compatibility.
 * **Back-Tap Compatibility Notice**: Inline "Not supported on this device" notice when the sensor is missing.
 * **Picker Test Launch**: Long-press a picker shortcut row to test-launch it.
 * **Android 13+ Restricted Settings Hint**: Guidance toast when opening accessibility settings.
@@ -25,26 +22,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **Synthetic Gravity** graduated to a permanent top-level accordion in the HUD Strip tab.
 * **Swipe-Down to Notifications** moved from Experimental Labs into the Sensor Area.
 * **Shizuku setup instructions** adapt to Android version (SDK 29 vs 30+).
-* **Manual service disable is honored**: Lightspeed no longer revives services you turned off intentionally.
-* **Guard helper** checks every 30 s (was 10 s) and exits on uninstall.
 * **Root (`su`) support removed**; all privileged actions use Shizuku.
 
 ### Fixed
-* **Null-safety crashes** in app icon handling (Sonic Deck) and backup URI decoding.
-* **Perimeter watchdog race conditions** hardened.
+* **Null-safety crashes** (missing values) in app icon handling (Sonic Deck) and backup URI decoding.
+* **Perimeter watchdog race conditions** (two checks running at once and clashing) hardened.
 * **Duplicate Central Command windows** from notification taps (`singleTop`).
-* **Audio dock** volume memory restored; scrim now covers cutout and status bar.
-* **Power gesture caller verification** so third-party apps cannot trigger it.
-* **Toggle trampoline** no longer exported.
+* **Power gesture caller verification** (checking which app is asking) so identifiable third-party apps cannot trigger it.
+* **Toggle trampoline** no longer exported (an internal shortcut component can no longer be reached by other apps).
+* **Sonic Deck (experimental)** volume memory restored; scrim now covers cutout and status bar.
 
 ### Security & Privacy
 * Still **100% offline**: no network permissions, no telemetry.
 * External automation is opt-in with a confirmation dialog; automation and crash-diagnostic preferences are excluded from backups.
 * Release builds refuse unsigned or debug-signed packaging.
-* Dynamic receivers explicitly use `RECEIVER_NOT_EXPORTED`.
+* Dynamic receivers explicitly use `RECEIVER_NOT_EXPORTED` (internal listeners cannot be reached by other apps).
 
 ### Refactored & Optimized
-* **Zero-allocation render loops** (no per-frame `RectF`) across deflectors, capsule, HUD gauges and deep-space canvas.
+* **Zero-allocation render loops** (no per-frame `RectF`, so less memory churn) across deflectors, capsule, HUD gauges and deep-space canvas.
 * **ProGuard tightened**, ~90 KB smaller release APK.
 * **Modules extracted** from `ElevatedTaskCloser` (`TaskInspector`, `PopupLauncher`); timeout-safe privileged process execution (`PrivilegedWait`).
 * **Structured exception logging** (`logSwallowed`) replaced silent empty catch blocks across the app.

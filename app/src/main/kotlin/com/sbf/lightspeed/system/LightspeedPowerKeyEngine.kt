@@ -410,7 +410,18 @@ object LightspeedPowerKeyEngine {
                 }
                 shizukuProcess = null
 
-                val proc = ElevatedTaskCloser.execShizuku("getevent -l 2>&1")
+                val devicePath = PowerGrabHelper.findPowerDevice()
+                val isPowerKeyOnly = true
+                val isNarrowPath = devicePath != null && devicePath.matches(Regex("^/dev/input/event[0-9]+$"))
+                val cmd = if (isPowerKeyOnly && isNarrowPath) {
+                    Log.i("LightspeedPowerKeyEngine", "startShizukuPowerMonitor: using narrowed command getevent -l $devicePath")
+                    "getevent -l $devicePath 2>&1"
+                } else {
+                    Log.i("LightspeedPowerKeyEngine", "startShizukuPowerMonitor: using full command getevent -l")
+                    "getevent -l 2>&1"
+                }
+
+                val proc = ElevatedTaskCloser.execShizuku(cmd)
                 if (proc == null) {
                     if (!isActive || !isPowerEnabled(context) || !ElevatedTaskCloser.isShizukuActive) break
                     withContext(Dispatchers.Main) { resetPowerState() }

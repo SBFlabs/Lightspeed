@@ -107,6 +107,21 @@ object ElevatedTaskCloser {
         }
     }
 
+    fun execShizukuArgv(vararg args: String): Process? {
+        return try {
+            val m = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            ).apply { isAccessible = true }
+            m.invoke(null, args, null, null) as? Process
+        } catch (e: Exception) {
+            Log.e(TAG, "execShizukuArgv error", e)
+            null
+        }
+    }
+
     fun closeTopApp(context: Context) {
         Log.i(TAG, "closeTopApp() invoked")
         exemptHiddenApis()
@@ -377,370 +392,96 @@ object ElevatedTaskCloser {
         exemptHiddenApis()
 
         executor.execute {
+            // Delay call ~150ms after gesture ends so Lightspeed's touch overlay isn't the focused window
             try {
-                // Delay call ~150ms after gesture ends so Lightspeed's touch overlay isn't the focused window
-                try {
-                    Thread.sleep(150)
-                } catch (e: InterruptedException) { logSwallowed("ElevatedTaskCloser", "toggleSplitScreen:550", e) }
+                Thread.sleep(150)
+            } catch (e: InterruptedException) { logSwallowed("ElevatedTaskCloser", "toggleSplitScreen:550", e) }
 
-                val taskInfo = getTopForegroundTaskInfo(context)
-                val targetTaskId = taskInfo.taskId
-                val targetPkg = taskInfo.packageName
+            val taskInfo = getTopForegroundTaskInfo(context)
+            val targetTaskId = taskInfo.taskId
+            val targetPkg = taskInfo.packageName
 
-                if (targetTaskId != null && targetTaskId > 0 && isTaskInSplit(targetTaskId)) {
-                    Log.w(TAG, "Already in split mode for targetTaskId=$targetTaskId, targetPkg=$targetPkg")
+            if (targetTaskId != null && targetTaskId > 0 && isTaskInSplit(targetTaskId)) {
+                Log.w(TAG, "Already in split mode for targetTaskId=$targetTaskId, targetPkg=$targetPkg")
 
-                    var component: String? = null
-                    var componentSource = "none"
+                var component: String? = null
+                var componentSource = "none"
 
-                    val taskLines = getTaskLinesFromDumpsys()
-                    val matchedLine = taskLines.firstOrNull {
-                        it.contains("#$targetTaskId ") || it.contains("#$targetTaskId}") || Regex("""(?<![A-Za-z0-9])id=$targetTaskId""").containsMatchIn(it)
+                val taskLines = getTaskLinesFromDumpsys()
+                val matchedLine = taskLines.firstOrNull {
+                    it.contains("#$targetTaskId ") || it.contains("#$targetTaskId}") || Regex("""(?<![A-Za-z0-9])id=$targetTaskId""").containsMatchIn(it)
+                }
+                if (matchedLine != null) {
+                    val matchComp = Regex("""I=([a-zA-Z0-9_.]+/[a-zA-Z0-9_.]+)""").find(matchedLine)
+                        ?: Regex("""realActivity=([a-zA-Z0-9_.]+/[a-zA-Z0-9_.]+)""").find(matchedLine)
+                        ?: Regex("""topActivity=([a-zA-Z0-9_.]+/[a-zA-Z0-9_.]+)""").find(matchedLine)
+                    if (matchComp != null) {
+                        component = matchComp.groupValues[1]
+                        componentSource = "dumpsys task line"
                     }
-                    if (matchedLine != null) {
-                        val matchComp = Regex("""I=([a-zA-Z0-9_.]+/[a-zA-Z0-9_.]+)""").find(matchedLine)
-                            ?: Regex("""realActivity=([a-zA-Z0-9_.]+/[a-zA-Z0-9_.]+)""").find(matchedLine)
-                            ?: Regex("""topActivity=([a-zA-Z0-9_.]+/[a-zA-Z0-9_.]+)""").find(matchedLine)
-                        if (matchComp != null) {
-                            component = matchComp.groupValues[1]
-                            componentSource = "dumpsys task line"
-                        }
-                    }
-
-                    if (component.isNullOrBlank() && !targetPkg.isNullOrBlank()) {
-                        try {
-                            val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPkg)
-                            component = launchIntent?.component?.flattenToShortString()
-                            if (!component.isNullOrBlank()) {
-                                componentSource = "packageManager launch intent"
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Failed to resolve launch intent for $targetPkg", e)
-                        }
-                    }
-
-                    Log.w(TAG, "Resolved component for fullscreen: $component (source: $componentSource)")
-
-                    var splitDissolved = false
-                    if (!component.isNullOrBlank()) {
-                        val amCmd = "am start -n $component -f 0x10020000"
-                        val p = execShizuku("$amCmd 2>&1")
-                        val textOutput = p.readTextOrKill(3000L).orEmpty()
-                        val exitCode = p.waitForOrKill(1000L)
-                        Log.w(TAG, "Executed am start command: '$amCmd' -> exitCode=$exitCode, output=$textOutput")
-
-                        val start = SystemClock.uptimeMillis()
-                        while (SystemClock.uptimeMillis() - start < 1200L) {
-                            if (!isTaskInSplit(targetTaskId)) {
-                                splitDissolved = true
-                                break
-                            }
-                            try { Thread.sleep(150L) } catch (_: InterruptedException) {}
-                        }
-                        if (!splitDissolved) {
-                            splitDissolved = !isTaskInSplit(targetTaskId)
-                        }
-                    } else {
-                        Log.w(TAG, "Cannot launch fullscreen: component is null or blank")
-                    }
-
-                    Log.w(TAG, "Verification result: splitDissolved=$splitDissolved for targetTaskId=$targetTaskId")
-
-                    Handler(Looper.getMainLooper()).post {
-                        val msg = if (splitDissolved) "Fullscreen" else "Could not exit split"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                    }
-                    return@execute
                 }
 
-                if (!isSplittableTask(context, targetTaskId, targetPkg)) {
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Open an app first to use split", Toast.LENGTH_SHORT).show()
+                if (component.isNullOrBlank() && !targetPkg.isNullOrBlank()) {
+                    try {
+                        val launchIntent = context.packageManager.getLaunchIntentForPackage(targetPkg)
+                        component = launchIntent?.component?.flattenToShortString()
+                        if (!component.isNullOrBlank()) {
+                            componentSource = "packageManager launch intent"
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to resolve launch intent for $targetPkg", e)
                     }
-                    return@execute
                 }
 
-                var service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
-                var splitSuccess = false
-                var lastFailureReason = "unknown"
+                Log.w(TAG, "Resolved component for fullscreen: $component (source: $componentSource)")
 
-                // 1. FIRST try Shizuku WMShell moveToSideStage (proven on Android 12+ / WMShell / Transsion)
-                if (isShizukuActive && targetTaskId != null && targetTaskId > 0) {
-                    for (pos in intArrayOf(1, 0)) {
-                        val wmCmd = "cmd statusbar wmshell-passthrough splitscreen moveToSideStage $targetTaskId $pos 2>&1"
-                        val pWm = execShizuku(wmCmd)
-                        val textWm = pWm.readTextOrKill(3000L).orEmpty()
-                        val codeWm = pWm.waitForOrKill(1000L)
-                        val returnedText = textWm.trim()
+                var splitDissolved = false
+                if (!component.isNullOrBlank() && ShellArgGuard.isComponent(component)) {
+                    val amCmd = "am start -n '$component' -f 0x10020000"
+                    val p = execShizuku("$amCmd 2>&1")
+                    val textOutput = p.readTextOrKill(3000L).orEmpty()
+                    val exitCode = p.waitForOrKill(1000L)
+                    Log.w(TAG, "Executed am start command: '$amCmd' -> exitCode=$exitCode, output=$textOutput")
 
-                        PopupDiagnostics.recordStep(
-                            "split",
-                            "wmshell_moveToSideStage",
-                            ran = true,
-                            returned = returnedText,
-                            verified = false
-                        )
-                        Log.w(TAG, "wmshell moveToSideStage executed (pos $pos): code=$codeWm text=$returnedText for taskId=$targetTaskId")
-
-                        val failed = codeWm != 0 ||
-                            textWm.contains("Invalid", ignoreCase = true) ||
-                            textWm.contains("Error", ignoreCase = true)
-
-                        if (!failed) {
-                            val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split", maxWaitMs = 1200L, stepMs = 200L)
-                            PopupDiagnostics.updateStepVerification("split", "wmshell_moveToSideStage", verified)
-                            if (verified) {
-                                splitSuccess = true
-                                Log.w(TAG, "Split Screen verified via wmshell moveToSideStage: $line")
-                            } else {
-                                Log.w(TAG, "wmshell moveToSideStage executed but unverified in dumpsys; launching single-app split picker")
-                                showSplitAppPicker(context)
-                                return@execute
-                            }
+                    val start = SystemClock.uptimeMillis()
+                    while (SystemClock.uptimeMillis() - start < 1200L) {
+                        if (!isTaskInSplit(targetTaskId)) {
+                            splitDissolved = true
                             break
                         }
+                        try { Thread.sleep(150L) } catch (_: InterruptedException) {}
                     }
-                }
-
-                // 2. Try service.performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
-                if (!splitSuccess && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && service != null) {
-                    val globalResult = service.performGlobalAction(
-                        android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN
-                    )
-                    Log.w(
-                        TAG,
-                        "performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN) returned $globalResult, foreground package: $targetPkg (taskId=$targetTaskId)"
-                    )
-                    PopupDiagnostics.recordSplitAttempt(globalResult, targetPkg)
-                    PopupDiagnostics.recordStep(
-                        "split",
-                        "performGlobalAction",
-                        ran = true,
-                        returned = globalResult.toString(),
-                        verified = false
-                    )
-
-                    if (globalResult) {
-                        val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
-                        if (verified) {
-                            splitSuccess = true
-                            PopupDiagnostics.updateStepVerification("split", "performGlobalAction", true)
-                            Log.w(TAG, "Split Screen verified via performGlobalAction: $line")
-                        } else {
-                            Log.w(TAG, "performGlobalAction returned true but split mode unverified: $line")
-                            lastFailureReason = "global action unverified in dumpsys"
-                        }
-                    } else {
-                        lastFailureReason = "performGlobalAction returned false"
+                    if (!splitDissolved) {
+                        splitDissolved = !isTaskInSplit(targetTaskId)
                     }
-                } else if (!splitSuccess) {
-                    lastFailureReason = if (service == null) "AccessibilityService not connected" else "SDK < N"
-                    PopupDiagnostics.recordSplitAttempt(false, targetPkg)
-                    PopupDiagnostics.recordStep(
-                        "split",
-                        "performGlobalAction",
-                        ran = false,
-                        returned = lastFailureReason,
-                        verified = false
-                    )
-                }
-
-                // 3. Only then try Shizuku setTaskWindowingMode and the CLI.
-                if (!splitSuccess && targetTaskId != null && targetTaskId > 0) {
-                    val atm = getActivityTaskManager()
-                    if (atm != null) {
-                        try {
-                            val setTaskWindowingModeMethod = atm.javaClass.methods.firstOrNull {
-                                it.name == "setTaskWindowingMode" && it.parameterTypes.size == 3
-                            }
-                            if (setTaskWindowingModeMethod != null) {
-                                setTaskWindowingModeMethod.invoke(atm, targetTaskId, 3, true)
-                                PopupDiagnostics.recordStep(
-                                    "split",
-                                    "shizuku_binder_setTaskWindowingMode",
-                                    ran = true,
-                                    returned = "invoked",
-                                    verified = false
-                                )
-                                val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
-                                if (verified) {
-                                    splitSuccess = true
-                                    PopupDiagnostics.updateStepVerification(
-                                        "split",
-                                        "shizuku_binder_setTaskWindowingMode",
-                                        true
-                                    )
-                                    Log.w(TAG, "Split Screen verified via IActivityTaskManager.setTaskWindowingMode: $line")
-                                } else {
-                                    Log.w(TAG, "IActivityTaskManager.setTaskWindowingMode unverified: $line")
-                                    lastFailureReason = "binder mode unverified"
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.w(TAG, "setTaskWindowingMode split_screen binder failed", e)
-                            PopupDiagnostics.recordStep(
-                                "split",
-                                "shizuku_binder_setTaskWindowingMode",
-                                ran = true,
-                                returned = "error: ${e.message}",
-                                verified = false
-                            )
-                            lastFailureReason = "binder error: ${e.message}"
-                        }
-                    }
-
-                    if (!splitSuccess) {
-                        val cmdTask = "am task set-windowing-mode $targetTaskId 3"
-                        val cmdStack = "am stack set-windowing-mode $targetTaskId 3"
-                        if (isShizukuActive) {
-                            val p1 = execShizuku(cmdTask)
-                            val code1 = p1.waitForOrKill()
-                            PopupDiagnostics.recordStep(
-                                "split",
-                                "shizuku_cli_am_task",
-                                ran = true,
-                                returned = "exit $code1",
-                                verified = false
-                            )
-                            if (code1 == 0) {
-                                val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
-                                if (verified) {
-                                    splitSuccess = true
-                                    PopupDiagnostics.updateStepVerification("split", "shizuku_cli_am_task", true)
-                                    Log.w(TAG, "Split screen verified via Shizuku $cmdTask: $line")
-                                }
-                            }
-                            if (!splitSuccess) {
-                                val p2 = execShizuku(cmdStack)
-                                val code2 = p2.waitForOrKill()
-                                PopupDiagnostics.recordStep(
-                                    "split",
-                                    "shizuku_cli_am_stack",
-                                    ran = true,
-                                    returned = "exit $code2",
-                                    verified = false
-                                )
-                                if (code2 == 0) {
-                                    val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
-                                    if (verified) {
-                                        splitSuccess = true
-                                        PopupDiagnostics.updateStepVerification("split", "shizuku_cli_am_stack", true)
-                                        Log.w(TAG, "Split screen verified via Shizuku $cmdStack: $line")
-                                    }
-                                }
-                                if (!splitSuccess) {
-                                    lastFailureReason = "CLI commands failed ($code1, $code2)"
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 4. User feedback: Truthful Toast, do NOT fall back to Recents!
-                Handler(Looper.getMainLooper()).post {
-                    if (splitSuccess) {
-                        Toast.makeText(context, "Split: OK", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Split failed: $lastFailureReason", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (t: Throwable) {
-                Log.e(TAG, "toggleSplitScreen error", t)
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Split failed: unexpected error", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    fun splitWithApp(context: Context, component: String) {
-        Log.w(TAG, "splitWithApp() invoked for component=$component")
-        exemptHiddenApis()
-
-        executor.execute {
-            try {
-                val targetBPackageName = if (component.contains("/")) {
-                    component.substringBefore("/")
                 } else {
-                    component
+                    Log.w(TAG, "Cannot launch fullscreen: component is invalid or blank")
                 }
 
-                // a) read current top task via getTopForegroundTaskInfo(context) and remember its taskId (taskA)
-                val taskInfoA = getTopForegroundTaskInfo(context)
-                val taskA = taskInfoA.taskId
-                val pkgA = taskInfoA.packageName
-                Log.w(TAG, "splitWithApp step a: taskA=$taskA pkg=$pkgA")
+                Log.w(TAG, "Verification result: splitDissolved=$splitDissolved for targetTaskId=$targetTaskId")
 
-                if (!isSplittableTask(context, taskA, pkgA)) {
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Open an app first to use split", Toast.LENGTH_SHORT).show()
-                    }
-                    return@execute
+                Handler(Looper.getMainLooper()).post {
+                    val msg = if (splitDissolved) "Fullscreen" else "Could not exit split"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                 }
+                return@execute
+            }
 
-                // b) launch B with execShizuku("am start -n <component> -f 0x10000000") and wait for it with waitForOrKill
-                val startCmd = "am start -n $component -f 0x10000000"
-                Log.w(TAG, "splitWithApp step b: launching B via $startCmd")
-                val pB = execShizuku(startCmd)
-                val startCode = pB.waitForOrKill(5000L)
-                Log.w(TAG, "splitWithApp step b: am start exitCode=$startCode")
-
-                // c) poll getTopForegroundTaskInfo every 150ms for up to 2000ms until packageName equals B's package and taskId != taskA
-                val startPoll = SystemClock.uptimeMillis()
-                var taskInfoB: ForegroundTaskInfo? = null
-                while (SystemClock.uptimeMillis() - startPoll < 2000L) {
-                    val info = getTopForegroundTaskInfo(context)
-                    if (info.packageName == targetBPackageName && info.taskId != null && info.taskId != taskA) {
-                        taskInfoB = info
-                        break
-                    }
-                    try {
-                        Thread.sleep(150L)
-                    } catch (e: InterruptedException) {
-                        logSwallowed(TAG, "splitWithApp:pollInterrupted", e)
-                    }
+            if (!isSplittableTask(context, targetTaskId, targetPkg)) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Open an app first to use split", Toast.LENGTH_SHORT).show()
                 }
+                return@execute
+            }
 
-                if (taskInfoB == null || taskInfoB.taskId == null) {
-                    Log.w(TAG, "splitWithApp step c failed: app B ($targetBPackageName) did not open or taskId equals taskA ($taskA)")
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Split failed: app did not open", Toast.LENGTH_SHORT).show()
-                    }
-                    return@execute
-                }
+            val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+            var splitSuccess = false
+            var lastFailureReason = "unknown"
 
-                val bTaskId = taskInfoB.taskId!!
-                val bPkg = taskInfoB.packageName ?: targetBPackageName
-                Log.w(TAG, "splitWithApp step c: B opened with bTaskId=$bTaskId bPkg=$bPkg")
-
-                if (!isSplittableTask(context, bTaskId, bPkg)) {
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Open an app first to use split", Toast.LENGTH_SHORT).show()
-                    }
-                    return@execute
-                }
-
-                // d) & e) wait 300ms, run moveToSideStage, verify with verifyWindowModePolling, retry steps d and e ONCE if unverified
-                var lastReason = "unknown"
-                var verifiedOk = false
-
-                for (attempt in 1..2) {
-                    if (attempt == 2) {
-                        Log.w(TAG, "splitWithApp step e: attempt 1 failed ($lastReason), waiting 500ms before retry")
-                        try {
-                            Thread.sleep(500L)
-                        } catch (e: InterruptedException) {
-                            logSwallowed(TAG, "splitWithApp:retry500", e)
-                        }
-                    }
-
-                    try {
-                        Thread.sleep(300L)
-                    } catch (e: InterruptedException) {
-                        logSwallowed(TAG, "splitWithApp:wait300", e)
-                    }
-
-                    val wmCmd = "cmd statusbar wmshell-passthrough splitscreen moveToSideStage $bTaskId 1 2>&1"
+            // 1. FIRST try Shizuku WMShell moveToSideStage (proven on Android 12+ / WMShell / Transsion)
+            if (isShizukuActive && targetTaskId != null && targetTaskId > 0) {
+                for (pos in intArrayOf(1, 0)) {
+                    val wmCmd = "cmd statusbar wmshell-passthrough splitscreen moveToSideStage $targetTaskId $pos 2>&1"
                     val pWm = execShizuku(wmCmd)
                     val textWm = pWm.readTextOrKill(3000L).orEmpty()
                     val codeWm = pWm.waitForOrKill(1000L)
@@ -753,42 +494,306 @@ object ElevatedTaskCloser {
                         returned = returnedText,
                         verified = false
                     )
-                    Log.w(TAG, "splitWithApp step d (attempt $attempt): wmshell moveToSideStage code=$codeWm text=$returnedText for bTaskId=$bTaskId")
+                    Log.w(TAG, "wmshell moveToSideStage executed (pos $pos): code=$codeWm text=$returnedText for taskId=$targetTaskId")
 
-                    val cmdFailed = codeWm != 0 ||
+                    val failed = codeWm != 0 ||
                         textWm.contains("Invalid", ignoreCase = true) ||
                         textWm.contains("Error", ignoreCase = true)
 
-                    if (cmdFailed) {
-                        lastReason = if (returnedText.isNotBlank()) returnedText else "cmd exit code $codeWm"
-                        continue
-                    }
-
-                    val (verified, line) = verifyWindowModePolling(bTaskId, bPkg, "split")
-                    PopupDiagnostics.updateStepVerification("split", "wmshell_moveToSideStage", verified)
-
-                    if (verified) {
-                        verifiedOk = true
-                        Log.w(TAG, "splitWithApp step e (attempt $attempt): Split verified: $line")
+                    if (!failed) {
+                        val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split", maxWaitMs = 1200L, stepMs = 200L)
+                        PopupDiagnostics.updateStepVerification("split", "wmshell_moveToSideStage", verified)
+                        if (verified) {
+                            splitSuccess = true
+                            Log.w(TAG, "Split Screen verified via wmshell moveToSideStage: $line")
+                        } else {
+                            Log.w(TAG, "wmshell moveToSideStage executed but unverified in dumpsys; launching single-app split picker")
+                            showSplitAppPicker(context)
+                            return@execute
+                        }
                         break
+                    }
+                }
+            }
+
+            // 2. Try service.performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
+            if (!splitSuccess && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && service != null) {
+                val globalResult = service.performGlobalAction(
+                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN
+                )
+                Log.w(
+                    TAG,
+                    "performGlobalAction(GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN) returned $globalResult, foreground package: $targetPkg (taskId=$targetTaskId)"
+                )
+                PopupDiagnostics.recordSplitAttempt(globalResult, targetPkg)
+                PopupDiagnostics.recordStep(
+                    "split",
+                    "performGlobalAction",
+                    ran = true,
+                    returned = globalResult.toString(),
+                    verified = false
+                )
+
+                if (globalResult) {
+                    val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
+                    if (verified) {
+                        splitSuccess = true
+                        PopupDiagnostics.updateStepVerification("split", "performGlobalAction", true)
+                        Log.w(TAG, "Split Screen verified via performGlobalAction: $line")
                     } else {
-                        lastReason = line ?: "unverified mode in dumpsys"
-                        Log.w(TAG, "splitWithApp step e (attempt $attempt): Split unverified: $line")
+                        Log.w(TAG, "performGlobalAction returned true but split mode unverified: $line")
+                        lastFailureReason = "global action unverified in dumpsys"
+                    }
+                } else {
+                    lastFailureReason = "performGlobalAction returned false"
+                }
+            } else if (!splitSuccess) {
+                lastFailureReason = if (service == null) "AccessibilityService not connected" else "SDK < N"
+                PopupDiagnostics.recordSplitAttempt(false, targetPkg)
+                PopupDiagnostics.recordStep(
+                    "split",
+                    "performGlobalAction",
+                    ran = false,
+                    returned = lastFailureReason,
+                    verified = false
+                )
+            }
+
+            // 3. Only then try Shizuku setTaskWindowingMode and the CLI.
+            if (!splitSuccess && targetTaskId != null && targetTaskId > 0) {
+                val atm = getActivityTaskManager()
+                if (atm != null) {
+                    try {
+                        val setTaskWindowingModeMethod = atm.javaClass.methods.firstOrNull {
+                            it.name == "setTaskWindowingMode" && it.parameterTypes.size == 3
+                        }
+                        if (setTaskWindowingModeMethod != null) {
+                            setTaskWindowingModeMethod.invoke(atm, targetTaskId, 3, true)
+                            PopupDiagnostics.recordStep(
+                                "split",
+                                "shizuku_binder_setTaskWindowingMode",
+                                ran = true,
+                                returned = "invoked",
+                                verified = false
+                            )
+                            val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
+                            if (verified) {
+                                splitSuccess = true
+                                PopupDiagnostics.updateStepVerification(
+                                    "split",
+                                    "shizuku_binder_setTaskWindowingMode",
+                                    true
+                                )
+                                Log.w(TAG, "Split Screen verified via IActivityTaskManager.setTaskWindowingMode: $line")
+                            } else {
+                                Log.w(TAG, "IActivityTaskManager.setTaskWindowingMode unverified: $line")
+                                lastFailureReason = "binder mode unverified"
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "setTaskWindowingMode split_screen binder failed", e)
+                        PopupDiagnostics.recordStep(
+                            "split",
+                            "shizuku_binder_setTaskWindowingMode",
+                            ran = true,
+                            returned = "error: ${e.message}",
+                            verified = false
+                        )
+                        lastFailureReason = "binder error: ${e.message}"
                     }
                 }
 
-                // f) toast "Split: OK" only if verified, otherwise "Split failed: <reason>"
-                Handler(Looper.getMainLooper()).post {
-                    if (verifiedOk) {
-                        Toast.makeText(context, "Split: OK", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Split failed: $lastReason", Toast.LENGTH_SHORT).show()
+                if (!splitSuccess) {
+                    val cmdTask = "am task set-windowing-mode $targetTaskId 3"
+                    val cmdStack = "am stack set-windowing-mode $targetTaskId 3"
+                    if (isShizukuActive) {
+                        val p1 = execShizuku(cmdTask)
+                        val code1 = p1.waitForOrKill()
+                        PopupDiagnostics.recordStep(
+                            "split",
+                            "shizuku_cli_am_task",
+                            ran = true,
+                            returned = "exit $code1",
+                            verified = false
+                        )
+                        if (code1 == 0) {
+                            val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
+                            if (verified) {
+                                splitSuccess = true
+                                PopupDiagnostics.updateStepVerification("split", "shizuku_cli_am_task", true)
+                                Log.w(TAG, "Split screen verified via Shizuku $cmdTask: $line")
+                            }
+                        }
+                        if (!splitSuccess) {
+                            val p2 = execShizuku(cmdStack)
+                            val code2 = p2.waitForOrKill()
+                            PopupDiagnostics.recordStep(
+                                "split",
+                                "shizuku_cli_am_stack",
+                                ran = true,
+                                returned = "exit $code2",
+                                verified = false
+                            )
+                            if (code2 == 0) {
+                                val (verified, line) = verifyWindowModePolling(targetTaskId, targetPkg, "split")
+                                if (verified) {
+                                    splitSuccess = true
+                                    PopupDiagnostics.updateStepVerification("split", "shizuku_cli_am_stack", true)
+                                    Log.w(TAG, "Split screen verified via Shizuku $cmdStack: $line")
+                                }
+                            }
+                            if (!splitSuccess) {
+                                lastFailureReason = "CLI commands failed ($code1, $code2)"
+                            }
+                        }
                     }
                 }
-            } catch (t: Throwable) {
-                Log.e(TAG, "splitWithApp error", t)
+            }
+
+            // 4. User feedback: Truthful Toast, do NOT fall back to Recents!
+            Handler(Looper.getMainLooper()).post {
+                if (splitSuccess) {
+                    Toast.makeText(context, "Split: OK", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Split failed: $lastFailureReason", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun splitWithApp(context: Context, component: String) {
+        Log.w(TAG, "splitWithApp() invoked for component=$component")
+        exemptHiddenApis()
+
+        executor.execute {
+            val targetBPackageName = if (component.contains("/")) {
+                component.substringBefore("/")
+            } else {
+                component
+            }
+
+            // a) read current top task via getTopForegroundTaskInfo(context) and remember its taskId (taskA)
+            val taskInfoA = getTopForegroundTaskInfo(context)
+            val taskA = taskInfoA.taskId
+            val pkgA = taskInfoA.packageName
+            Log.w(TAG, "splitWithApp step a: taskA=$taskA pkg=$pkgA")
+
+            if (!isSplittableTask(context, taskA, pkgA)) {
                 Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Split failed: unexpected error", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Open an app first to use split", Toast.LENGTH_SHORT).show()
+                }
+                return@execute
+            }
+
+            // b) launch B with execShizuku("am start -n <component> -f 0x10000000") and wait for it with waitForOrKill
+            if (ShellArgGuard.isComponent(component)) {
+                val startCmd = "am start -n '$component' -f 0x10000000"
+                Log.w(TAG, "splitWithApp step b: launching B via $startCmd")
+                val pB = execShizuku(startCmd)
+                val startCode = pB.waitForOrKill(5000L)
+                Log.w(TAG, "splitWithApp step b: am start exitCode=$startCode")
+            } else {
+                Log.w(TAG, "splitWithApp step b: invalid component name, skipping launch")
+            }
+
+            // c) poll getTopForegroundTaskInfo every 150ms for up to 2000ms until packageName equals B's package and taskId != taskA
+            val startPoll = SystemClock.uptimeMillis()
+            var taskInfoB: ForegroundTaskInfo? = null
+            while (SystemClock.uptimeMillis() - startPoll < 2000L) {
+                val info = getTopForegroundTaskInfo(context)
+                if (info.packageName == targetBPackageName && info.taskId != null && info.taskId != taskA) {
+                    taskInfoB = info
+                    break
+                }
+                try {
+                    Thread.sleep(150L)
+                } catch (e: InterruptedException) {
+                    logSwallowed(TAG, "splitWithApp:pollInterrupted", e)
+                }
+            }
+
+            if (taskInfoB == null || taskInfoB.taskId == null) {
+                Log.w(TAG, "splitWithApp step c failed: app B ($targetBPackageName) did not open or taskId equals taskA ($taskA)")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Split failed: app did not open", Toast.LENGTH_SHORT).show()
+                }
+                return@execute
+            }
+
+            val bTaskId = taskInfoB.taskId!!
+            val bPkg = taskInfoB.packageName ?: targetBPackageName
+            Log.w(TAG, "splitWithApp step c: B opened with bTaskId=$bTaskId bPkg=$bPkg")
+
+            if (!isSplittableTask(context, bTaskId, bPkg)) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Open an app first to use split", Toast.LENGTH_SHORT).show()
+                }
+                return@execute
+            }
+
+            // d) & e) wait 300ms, run moveToSideStage, verify with verifyWindowModePolling, retry steps d and e ONCE if unverified
+            var lastReason = "unknown"
+            var verifiedOk = false
+
+            for (attempt in 1..2) {
+                if (attempt == 2) {
+                    Log.w(TAG, "splitWithApp step e: attempt 1 failed ($lastReason), waiting 500ms before retry")
+                    try {
+                        Thread.sleep(500L)
+                    } catch (e: InterruptedException) {
+                        logSwallowed(TAG, "splitWithApp:retry500", e)
+                    }
+                }
+
+                try {
+                    Thread.sleep(300L)
+                } catch (e: InterruptedException) {
+                    logSwallowed(TAG, "splitWithApp:wait300", e)
+                }
+
+                val wmCmd = "cmd statusbar wmshell-passthrough splitscreen moveToSideStage $bTaskId 1 2>&1"
+                val pWm = execShizuku(wmCmd)
+                val textWm = pWm.readTextOrKill(3000L).orEmpty()
+                val codeWm = pWm.waitForOrKill(1000L)
+                val returnedText = textWm.trim()
+
+                PopupDiagnostics.recordStep(
+                    "split",
+                    "wmshell_moveToSideStage",
+                    ran = true,
+                    returned = returnedText,
+                    verified = false
+                )
+                Log.w(TAG, "splitWithApp step d (attempt $attempt): wmshell moveToSideStage code=$codeWm text=$returnedText for bTaskId=$bTaskId")
+
+                val cmdFailed = codeWm != 0 ||
+                    textWm.contains("Invalid", ignoreCase = true) ||
+                    textWm.contains("Error", ignoreCase = true)
+
+                if (cmdFailed) {
+                    lastReason = if (returnedText.isNotBlank()) returnedText else "cmd exit code $codeWm"
+                    continue
+                }
+
+                val (verified, line) = verifyWindowModePolling(bTaskId, bPkg, "split")
+                PopupDiagnostics.updateStepVerification("split", "wmshell_moveToSideStage", verified)
+
+                if (verified) {
+                    verifiedOk = true
+                    Log.w(TAG, "splitWithApp step e (attempt $attempt): Split verified: $line")
+                    break
+                } else {
+                    lastReason = line ?: "unverified mode in dumpsys"
+                    Log.w(TAG, "splitWithApp step e (attempt $attempt): Split unverified: $line")
+                }
+            }
+
+            // f) toast "Split: OK" only if verified, otherwise "Split failed: <reason>"
+            Handler(Looper.getMainLooper()).post {
+                if (verifiedOk) {
+                    Toast.makeText(context, "Split: OK", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Split failed: $lastReason", Toast.LENGTH_SHORT).show()
                 }
             }
         }

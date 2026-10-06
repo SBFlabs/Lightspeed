@@ -15,8 +15,13 @@ internal object ShizukuShortcutLauncher {
         Log.i(TAG, "launchElevatedHomeShortcut: pkg=${parsed.packageName}, id='${parsed.id}', label='${parsed.label}', shizuku=${ElevatedTaskCloser.isShizukuActive}")
         if (parsed.packageName.isBlank()) return false
 
+        if (!ShellArgGuard.isPackage(parsed.packageName)) {
+            Log.w(TAG, "launchElevatedHomeShortcut aborting: invalid package ${parsed.packageName}")
+            return false
+        }
+
         try {
-            val proc = ElevatedTaskCloser.execShizuku("cmd shortcut get-shortcuts ${parsed.packageName}")
+            val proc = ElevatedTaskCloser.execShizukuArgv("/system/bin/cmd", "shortcut", "get-shortcuts", parsed.packageName)
             val output = proc.readTextOrKill() ?: return false
 
             val rawLabel = if (parsed.label.contains("(") && parsed.label.endsWith(")")) {
@@ -39,8 +44,8 @@ internal object ShizukuShortcutLauncher {
 
             if (contactId.isNotBlank() && contactId.all { it.isDigit() }) {
                 Log.i(TAG, "launchElevatedHomeShortcut: contactId=$contactId")
-                val phoneProc = ElevatedTaskCloser.execShizuku(
-                    "content query --uri content://com.android.contacts/data/phones --projection data1 --where 'contact_id=$contactId'"
+                val phoneProc = ElevatedTaskCloser.execShizukuArgv(
+                    "/system/bin/content", "query", "--uri", "content://com.android.contacts/data/phones", "--projection", "data1", "--where", "contact_id=$contactId"
                 )
                 val phoneOutput = phoneProc.readTextOrKill().orEmpty()
 
@@ -50,6 +55,10 @@ internal object ShizukuShortcutLauncher {
 
                 if (rawNumber.isNotBlank()) {
                     val cleanNumber = rawNumber.replace(" ", "")
+                    if (!ShellArgGuard.isPhone(cleanNumber)) {
+                        Log.w(TAG, "launchElevatedHomeShortcut aborting: invalid phone number $cleanNumber")
+                        return false
+                    }
                     Log.i(TAG, "launchElevatedHomeShortcut: dialing $cleanNumber")
                     try {
                         val callIntent = Intent(Intent.ACTION_CALL, android.net.Uri.parse("tel:$cleanNumber")).apply {
@@ -58,7 +67,7 @@ internal object ShizukuShortcutLauncher {
                         context.startActivity(callIntent)
                         return true
                     } catch (e: Exception) {
-                        val amProc = ElevatedTaskCloser.execShizuku("am start -a android.intent.action.CALL -d 'tel:$cleanNumber'")
+                        val amProc = ElevatedTaskCloser.execShizukuArgv("/system/bin/am", "start", "-a", "android.intent.action.CALL", "-d", "tel:$cleanNumber")
                         return amProc.waitForOrKill() == 0
                     }
                 }
@@ -81,11 +90,41 @@ internal object ShizukuShortcutLauncher {
                 val dat = extractField("dat")
                 val flg = extractField("flg")
 
-                val cmd = StringBuilder("am start ")
-                if (act.isNotBlank()) cmd.append("-a $act ")
-                if (cmp.isNotBlank()) cmd.append("-n $cmp ")
-                if (dat.isNotBlank() && dat != "null" && !dat.endsWith("/...")) cmd.append("-d '$dat' ")
-                if (flg.isNotBlank()) cmd.append("-f $flg ")
+                val args = mutableListOf("/system/bin/am", "start")
+
+                if (act.isNotBlank()) {
+                    if (ShellArgGuard.isAction(act)) {
+                        args.add("-a")
+                        args.add(act)
+                    } else {
+                        Log.w(TAG, "launchElevatedHomeShortcut skipping invalid action: $act")
+                    }
+                }
+
+                if (cmp.isNotBlank()) {
+                    val parts = cmp.split("/")
+                    if (parts.size == 2 && ShellArgGuard.isPackage(parts[0]) && ShellArgGuard.isClassName(parts[1])) {
+                        args.add("-n")
+                        args.add(cmp)
+                    } else {
+                        Log.w(TAG, "launchElevatedHomeShortcut aborting: invalid component: $cmp")
+                        return false
+                    }
+                }
+
+                if (dat.isNotBlank() && dat != "null" && !dat.endsWith("/...")) {
+                    args.add("-d")
+                    args.add(dat)
+                }
+
+                if (flg.isNotBlank()) {
+                    if (ShellArgGuard.isFlags(flg)) {
+                        args.add("-f")
+                        args.add(flg)
+                    } else {
+                        Log.w(TAG, "launchElevatedHomeShortcut skipping invalid flags: $flg")
+                    }
+                }
 
                 if (bundleBody.isNotBlank()) {
                     val entries = bundleBody.split(", ")
@@ -93,19 +132,29 @@ internal object ShizukuShortcutLauncher {
                         val key = entry.substringBefore("=").trim()
                         val value = entry.substringAfter("=").trim()
                         if (key.isNotEmpty() && value.isNotEmpty() && value != "null") {
+                            if (!ShellArgGuard.isExtraKey(key)) {
+                                Log.w(TAG, "launchElevatedHomeShortcut skipping extra with invalid key: $key")
+                                continue
+                            }
                             if (value.toLongOrNull() != null) {
-                                cmd.append("--el '$key' $value ")
+                                args.add("--el")
+                                args.add(key)
+                                args.add(value)
                             } else if (value.equals("true", ignoreCase = true) || value.equals("false", ignoreCase = true)) {
-                                cmd.append("--ez '$key' $value ")
+                                args.add("--ez")
+                                args.add(key)
+                                args.add(value)
                             } else {
-                                cmd.append("--es '$key' '${value.replace("'", "'\\''")}' ")
+                                args.add("--es")
+                                args.add(key)
+                                args.add(value)
                             }
                         }
                     }
                 }
 
-                Log.i(TAG, "launchElevatedHomeShortcut: running: $cmd")
-                val startProc = ElevatedTaskCloser.execShizuku(cmd.toString().trim())
+                Log.i(TAG, "launchElevatedHomeShortcut: running argv: $args")
+                val startProc = ElevatedTaskCloser.execShizukuArgv(*args.toTypedArray())
                 val exitCode = startProc.waitForOrKill()
                 Log.i(TAG, "launchElevatedHomeShortcut: am start exited with $exitCode")
                 return exitCode == 0
@@ -117,21 +166,67 @@ internal object ShizukuShortcutLauncher {
     }
 
     @Suppress("DEPRECATION")
-    fun intentToAmStartCommand(intent: Intent): String {
-        val sb = StringBuilder("am start ")
-        intent.action?.let { sb.append("-a $it ") }
-        intent.dataString?.let { sb.append("-d '$it' ") }
-        intent.type?.let { sb.append("-t '$it' ") }
-        intent.component?.let { sb.append("-n ${it.flattenToShortString()} ") }
-        intent.extras?.keySet()?.forEach { key ->
-            when (val value = intent.extras?.get(key)) {
-                is String -> sb.append("--es '$key' '${value.replace("'", "'\\''")}' ")
-                is Boolean -> sb.append("--ez '$key' $value ")
-                is Int -> sb.append("--ei '$key' $value ")
-                is Long -> sb.append("--el '$key' $value ")
-                is Float -> sb.append("--ef '$key' $value ")
+    fun intentToAmStartArgs(intent: Intent): List<String> {
+        val args = mutableListOf("/system/bin/am", "start")
+        intent.action?.let { action ->
+            if (ShellArgGuard.isAction(action)) {
+                args.add("-a")
+                args.add(action)
+            } else {
+                Log.w(TAG, "intentToAmStartArgs skipping invalid action: $action")
             }
         }
-        return sb.toString().trim()
+        intent.dataString?.let { data ->
+            args.add("-d")
+            args.add(data)
+        }
+        intent.type?.let { type ->
+            args.add("-t")
+            args.add(type)
+        }
+        intent.component?.let { comp ->
+            val pkg = comp.packageName
+            val cls = comp.className
+            if (ShellArgGuard.isPackage(pkg) && ShellArgGuard.isClassName(cls)) {
+                args.add("-n")
+                args.add(comp.flattenToShortString())
+            } else {
+                Log.w(TAG, "intentToAmStartArgs invalid component package/class: $pkg / $cls")
+            }
+        }
+        intent.extras?.keySet()?.forEach { key ->
+            if (!ShellArgGuard.isExtraKey(key)) {
+                Log.w(TAG, "intentToAmStartArgs skipping extra with invalid key: $key")
+                return@forEach
+            }
+            when (val value = intent.extras?.get(key)) {
+                is String -> {
+                    args.add("--es")
+                    args.add(key)
+                    args.add(value)
+                }
+                is Boolean -> {
+                    args.add("--ez")
+                    args.add(key)
+                    args.add(value.toString())
+                }
+                is Int -> {
+                    args.add("--ei")
+                    args.add(key)
+                    args.add(value.toString())
+                }
+                is Long -> {
+                    args.add("--el")
+                    args.add(key)
+                    args.add(value.toString())
+                }
+                is Float -> {
+                    args.add("--ef")
+                    args.add(key)
+                    args.add(value.toString())
+                }
+            }
+        }
+        return args
     }
 }

@@ -5,6 +5,22 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.1.1] - 2026-10-06 — Security Hardening, Backup Validation, Native Monotonic Clock & Countdown Guard
+
+### Added & Hardened
+* **Shell Command Validation (`ShellArgGuard`)**: Added `ShellArgGuard` to validate package names, component names, actions, flags, extra keys, and phone numbers before executing privileged commands. Updated `ShizukuShortcutLauncher` and `ElevatedTaskCloser` to use `execShizukuArgv` array arguments, eliminating shell string injection vectors.
+* **Backup Import Validation (`LightspeedBackupEngine`)**: Excluded internal system state keys (`RESTRICTED_SYSTEM_STATE_KEYS`) from JSON backup restoration. Added strict action token validation (`isValidActionTokenValue`, `isValidSingleActionToken`) to sanitize package/class names, block command substitution syntax (`$()`, `` ` ``), and enforce 2000-character string bounds.
+* **Display DPI & Font Scale Countdown Guard (`SystemOverrideComponents`)**: Integrated a 15-second interactive confirm-or-revert countdown dialog when changing display DPI density or system font scale. Spawned a background `nohup` shell fallback script (`ls_dpi_revert` / `ls_font_revert`) to automatically restore original display density if the application process is terminated or the screen becomes unreadable.
+
+### Changed & Refactored
+* **Native Monotonic Clock & Virtual Device Exclusion (`lsinputd.c`)**: Upgraded native input daemon `lsinputd` safety timers and deadline calculations from wall-clock time (`time(NULL)`) to `CLOCK_MONOTONIC`, eliminating freeze conditions caused by system time synchronization jumps. Added explicit check to reject auto-selecting its own `lsinputd` virtual uinput device node.
+* **Out-of-Process Guard Helper Isolation (`LightspeedGuardHelper`)**: Updated `LightspeedGuardHelper` to generate package-isolated daemon paths (`/data/local/tmp/ls_guard_<pkg>.sh`) and validate process state via `/proc/<pid>/cmdline`, preventing process collisions across co-existing builds and ensuring automatic daemon cleanup upon package uninstallation.
+
+### Fixed & Security
+* **Caller Identity Verification (`LightspeedPowerGestureActivity`)**: Stripped fakeable `Intent.EXTRA_REFERRER` and `Intent.EXTRA_REFERRER_NAME` intent extras before checking caller package identity, preventing referrer spoofing by external applications.
+
 ## [1.1.0] - 2026-10-06 — External Automation, Power Menu, Glass Colors & Reliability Hardening
 
 ### Added

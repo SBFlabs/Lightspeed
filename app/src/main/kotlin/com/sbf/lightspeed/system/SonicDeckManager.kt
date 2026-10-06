@@ -66,7 +66,6 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
@@ -523,16 +522,6 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
     var isMuted by remember { mutableStateOf(false) }
     var stateLoaded by remember { mutableStateOf(false) }
 
-    val volumeChannel = remember(pkg) { Channel<Float>(Channel.CONFLATED) }
-
-    LaunchedEffect(pkg) {
-        for (newVol in volumeChannel) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                LightspeedAppSovereigntyEngine.setAppVolume(pkg, newVol, context)
-            }
-        }
-    }
-
     LaunchedEffect(pkg) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             focusLocked = LightspeedAppSovereigntyEngine.isAudioFocusLocked(pkg)
@@ -637,13 +626,8 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                     onValueChange = { newVol ->
                         vol = newVol
                         isMuted = newVol <= 0.05f
-                        volumeChannel.trySend(newVol)
-                    },
-                    onValueChangeFinished = {
-                        volumeChannel.trySend(vol)
                         coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            LightspeedAppSovereigntyEngine.setAppVolume(pkg, vol, context)
-                            LightspeedAppSovereigntyEngine.syncTranssionZeroSound(pkg, vol <= 0.05f)
+                            LightspeedAppSovereigntyEngine.setAppVolume(pkg, newVol, context)
                         }
                     },
                     valueRange = 0f..1f,

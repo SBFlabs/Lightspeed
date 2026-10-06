@@ -137,7 +137,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
         if (key == "pref_service_intentionally_stopped") {
             val isStopped = prefs.getBoolean("pref_service_intentionally_stopped", false)
-            com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(isStopped)
+            com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(this, isStopped)
         }
     }
 
@@ -171,7 +171,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         val initPrefs = defaultPrefs()
         initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()
-        com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(false)
+        com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(this, false)
         if (initPrefs.getBoolean("key_has_unreported_crash", false)) {
             initPrefs.edit().putBoolean("key_has_unreported_crash", false).apply()
             val crashMsg = initPrefs.getString("key_last_crash_message", "Core anomaly") ?: "Core anomaly"
@@ -412,7 +412,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
             }
             if (!isStillEnabled) {
                 defaultPrefs().edit().putBoolean("pref_service_intentionally_stopped", true).apply()
-                com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(true)
+                com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(this, true)
                 Log.i(TAG, "onDestroy: Lightspeed service removed from enabled_accessibility_services. Marked pref_service_intentionally_stopped = true")
             }
 

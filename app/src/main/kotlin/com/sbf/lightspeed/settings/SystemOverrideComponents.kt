@@ -26,7 +26,10 @@ import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.system.readTextOrKill
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -65,6 +68,84 @@ fun SystemOverrideDeckContents(
     var displayDpi by remember { mutableFloatStateOf(context.resources.configuration.densityDpi.toFloat()) }
     var fontScale by remember { mutableFloatStateOf(1.0f) }
     var longPressDelay by remember { mutableFloatStateOf(400f) }
+
+    // State for DPI confirm-or-revert dialog & countdown
+    var showDpiDialog by remember { mutableStateOf(false) }
+    var dpiCountdownSeconds by remember { mutableIntStateOf(15) }
+    var originalDpiOverride by remember { mutableStateOf<String?>(null) }
+    var savedPhysicalDpi by remember { mutableStateOf<Float?>(null) }
+    var dpiCountdownJob by remember { mutableStateOf<Job?>(null) }
+
+    // State for Font Scale confirm-or-revert dialog & countdown
+    var showFontDialog by remember { mutableStateOf(false) }
+    var fontCountdownSeconds by remember { mutableIntStateOf(15) }
+    var originalFontScaleOverride by remember { mutableStateOf<Float?>(null) }
+    var fontCountdownJob by remember { mutableStateOf<Job?>(null) }
+
+    val revertDpi: () -> Unit = {
+        val targetToRestore = originalDpiOverride
+        if (targetToRestore != null) {
+            originalDpiOverride = null
+            showDpiDialog = false
+            dpiCountdownJob?.cancel()
+            dpiCountdownJob = null
+
+            val phys = savedPhysicalDpi ?: android.util.DisplayMetrics.DENSITY_DEVICE_STABLE.toFloat()
+
+            scope.launch(Dispatchers.IO) {
+                ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_dpi_reve[r]t' || pkill -f 'ls_dpi_reve[r]t'")
+                if (targetToRestore == "none") {
+                    ElevatedTaskCloser.execShizuku("wm density reset")
+                    withContext(Dispatchers.Main) {
+                        displayDpi = phys
+                    }
+                } else {
+                    ElevatedTaskCloser.execShizuku("wm density $targetToRestore")
+                    withContext(Dispatchers.Main) {
+                        displayDpi = targetToRestore.toFloatOrNull() ?: phys
+                    }
+                }
+            }
+        }
+    }
+
+    val keepDpi: () -> Unit = {
+        originalDpiOverride = null
+        showDpiDialog = false
+        dpiCountdownJob?.cancel()
+        dpiCountdownJob = null
+        scope.launch(Dispatchers.IO) {
+            ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_dpi_reve[r]t' || pkill -f 'ls_dpi_reve[r]t'")
+        }
+    }
+
+    val revertFontScale: () -> Unit = {
+        val targetToRestore = originalFontScaleOverride
+        if (targetToRestore != null) {
+            originalFontScaleOverride = null
+            showFontDialog = false
+            fontCountdownJob?.cancel()
+            fontCountdownJob = null
+
+            scope.launch(Dispatchers.IO) {
+                ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_font_reve[r]t' || pkill -f 'ls_font_reve[r]t'")
+                ElevatedTaskCloser.execShizuku("settings put system font_scale $targetToRestore")
+                withContext(Dispatchers.Main) {
+                    fontScale = targetToRestore
+                }
+            }
+        }
+    }
+
+    val keepFontScale: () -> Unit = {
+        originalFontScaleOverride = null
+        showFontDialog = false
+        fontCountdownJob?.cancel()
+        fontCountdownJob = null
+        scope.launch(Dispatchers.IO) {
+            ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_font_reve[r]t' || pkill -f 'ls_font_reve[r]t'")
+        }
+    }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -514,8 +595,50 @@ fun SystemOverrideDeckContents(
             onValueChangeFinished = {
                 if (!isShizukuActive) return@OverrideSliderRow
                 LightspeedHapticEngine.tick(context)
+                val targetDpiInt = displayDpi.toInt()
                 scope.launch(Dispatchers.IO) {
-                    ElevatedTaskCloser.execShizuku("wm density ${displayDpi.toInt()}")
+                    var currentOriginal = originalDpiOverride
+                    if (currentOriginal == null) {
+                        val proc = ElevatedTaskCloser.execShizuku("wm density")
+                        val output = proc.readTextOrKill(2000L)
+                        val overrideMatch = Regex("""Override density:\s*(\d+)""", RegexOption.IGNORE_CASE).find(output ?: "")
+                        val physicalMatch = Regex("""Physical density:\s*(\d+)""", RegexOption.IGNORE_CASE).find(output ?: "")
+
+                        val rememberedOverride = overrideMatch?.groupValues?.get(1) ?: "none"
+                        val physDpi = physicalMatch?.groupValues?.get(1)?.toFloatOrNull() ?: android.util.DisplayMetrics.DENSITY_DEVICE_STABLE.toFloat()
+
+                        currentOriginal = rememberedOverride
+                        withContext(Dispatchers.Main) {
+                            originalDpiOverride = rememberedOverride
+                            savedPhysicalDpi = physDpi
+                        }
+                    }
+
+                    ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_dpi_reve[r]t' || pkill -f 'ls_dpi_reve[r]t'")
+                    ElevatedTaskCloser.execShizuku("wm density $targetDpiInt")
+
+                    val backupValue = when {
+                        currentOriginal == "none" -> "reset"
+                        currentOriginal?.toIntOrNull() != null -> currentOriginal?.toIntOrNull()?.toString()
+                        else -> null
+                    }
+                    if (backupValue != null) {
+                        ElevatedTaskCloser.execShizuku("nohup sh -c \"sleep 20; wm density $backupValue # ls_dpi_revert\" >/dev/null 2>&1 &")
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        dpiCountdownJob?.cancel()
+                        dpiCountdownSeconds = 15
+                        showDpiDialog = true
+
+                        dpiCountdownJob = scope.launch(Dispatchers.Main) {
+                            while (dpiCountdownSeconds > 0) {
+                                delay(1000L)
+                                dpiCountdownSeconds--
+                            }
+                            revertDpi()
+                        }
+                    }
                 }
             }
         )
@@ -540,7 +663,39 @@ fun SystemOverrideDeckContents(
                 if (!isShizukuActive) return@OverrideSliderRow
                 LightspeedHapticEngine.tick(context)
                 scope.launch(Dispatchers.IO) {
+                    var currentOriginal = originalFontScaleOverride
+                    if (currentOriginal == null) {
+                        val proc = ElevatedTaskCloser.execShizuku("settings get system font_scale")
+                        val output = proc.readTextOrKill(2000L)?.trim()
+                        val remembered = output?.toFloatOrNull() ?: 1.0f
+                        currentOriginal = remembered
+                        withContext(Dispatchers.Main) {
+                            originalFontScaleOverride = remembered
+                        }
+                    }
+
+                    ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_font_reve[r]t' || pkill -f 'ls_font_reve[r]t'")
                     ElevatedTaskCloser.execShizuku("settings put system font_scale ${fontScale}")
+
+                    val backupValFloat = currentOriginal.toFloat()
+                    if (backupValFloat.isFinite() && backupValFloat in 0.5f..3.0f) {
+                        val backupValueStr = String.format(java.util.Locale.US, "%.2f", backupValFloat)
+                        ElevatedTaskCloser.execShizuku("nohup sh -c \"sleep 20; settings put system font_scale $backupValueStr # ls_font_revert\" >/dev/null 2>&1 &")
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        fontCountdownJob?.cancel()
+                        fontCountdownSeconds = 15
+                        showFontDialog = true
+
+                        fontCountdownJob = scope.launch(Dispatchers.Main) {
+                            while (fontCountdownSeconds > 0) {
+                                delay(1000L)
+                                fontCountdownSeconds--
+                            }
+                            revertFontScale()
+                        }
+                    }
                 }
             }
         )
@@ -572,6 +727,80 @@ fun SystemOverrideDeckContents(
         )
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+        if (showDpiDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    revertDpi()
+                },
+                title = {
+                    Text(
+                        text = "Keep this setting?",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Reverting in $dpiCountdownSeconds second${if (dpiCountdownSeconds == 1) "" else "s"}..."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            keepDpi()
+                        }
+                    ) {
+                        Text("Keep")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            revertDpi()
+                        }
+                    ) {
+                        Text("Revert")
+                    }
+                }
+            )
+        }
+
+        if (showFontDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    revertFontScale()
+                },
+                title = {
+                    Text(
+                        text = "Keep this setting?",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Reverting in $fontCountdownSeconds second${if (fontCountdownSeconds == 1) "" else "s"}..."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            keepFontScale()
+                        }
+                    ) {
+                        Text("Keep")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            revertFontScale()
+                        }
+                    ) {
+                        Text("Revert")
+                    }
+                }
+            )
+        }
     }
 }
 

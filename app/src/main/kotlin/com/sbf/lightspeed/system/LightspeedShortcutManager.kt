@@ -552,8 +552,14 @@ object LightspeedShortcutManager {
                             return true
                         } catch (e: Exception) {
                             if (ElevatedTaskCloser.isShizukuActive) {
-                                ElevatedTaskCloser.execShizuku("am start -n ${parsed.packageName}/${parsed.activityName}")
-                                return true
+                                val pkg = parsed.packageName
+                                val activity = parsed.activityName
+                                if (ShellArgGuard.isPackage(pkg) && ShellArgGuard.isClassName(activity)) {
+                                    ElevatedTaskCloser.execShizukuArgv("/system/bin/am", "start", "-n", "$pkg/$activity")
+                                    return true
+                                } else {
+                                    Log.w(TAG, "Activity launch via Shizuku aborted: invalid package ($pkg) or activity ($activity)")
+                                }
                             }
                         }
                     }
@@ -632,7 +638,8 @@ object LightspeedShortcutManager {
                         // 4. Elevated Shizuku fallback
                         if (ElevatedTaskCloser.isShizukuActive) {
                             try {
-                                ElevatedTaskCloser.execShizuku(ShizukuShortcutLauncher.intentToAmStartCommand(launchIntent))
+                                val args = ShizukuShortcutLauncher.intentToAmStartArgs(launchIntent)
+                                ElevatedTaskCloser.execShizukuArgv(*args.toTypedArray())
                                 return true
                             } catch (e: Exception) { logSwallowed(TAG, "launch:637", e) }
                         }

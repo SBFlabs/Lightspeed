@@ -119,6 +119,8 @@ class LightspeedPowerGestureActivity : Activity() {
     }
 
     private fun isAuthorizedCaller(): Boolean {
+        intent.removeExtra(Intent.EXTRA_REFERRER)
+        intent.removeExtra(Intent.EXTRA_REFERRER_NAME)
         val callerPackage = callingPackage ?: referrer?.host ?: referrer?.authority ?: return true
         if (callerPackage == packageName) return true
         if (callerPackage == "android" || callerPackage == "com.android.systemui") return true

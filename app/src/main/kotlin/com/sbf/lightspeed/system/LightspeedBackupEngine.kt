@@ -29,6 +29,15 @@ object LightspeedBackupEngine {
         "pref_active_infinity_code",
     )
 
+    private val RESTRICTED_SYSTEM_STATE_KEYS = setOf(
+        LightspeedPreferences.KEY_POWER_TAKEOVER_SAVED_VALUE,
+        "pref_power_takeover_saved_value",
+        LightspeedPreferences.KEY_POWER_TAKEOVER_ACTIVE,
+        LightspeedPreferences.KEY_SAVED_ACCEL_ROTATION,
+        LightspeedPreferences.KEY_SAVED_USER_ROTATION,
+        "stealth_locked_audio_apps",
+    )
+
     private fun isExcludedKey(key: String): Boolean =
         key.startsWith("pending_") ||
         key in TRANSIENT_KEYS ||
@@ -187,11 +196,23 @@ object LightspeedBackupEngine {
                     continue
                 }
 
+                if (key in RESTRICTED_SYSTEM_STATE_KEYS) {
+                    Log.w(TAG, "Skipping restricted system state key during import: $key")
+                    continue
+                }
+
                 if (settingsObject.isNull(key)) {
                     continue
                 }
 
                 val value = settingsObject.get(key)
+                if (isActionTokenKey(key)) {
+                    val valueStr = value.toString()
+                    if (!isValidActionTokenValue(key, valueStr)) {
+                        Log.w(TAG, "Rejecting invalid action token value for key: $key")
+                        continue
+                    }
+                }
                 val declaredType = typesObject?.optString(key)
 
                 if (!declaredType.isNullOrEmpty()) {
@@ -303,7 +324,7 @@ object LightspeedBackupEngine {
                     if (manualOverridesArr != null) {
                         for (i in 0 until manualOverridesArr.length()) {
                             val token = manualOverridesArr.optString(i, "")
-                            if (token.isNotBlank()) {
+                            if (token.isNotBlank() && isValidSingleActionToken(token)) {
                                 LightspeedIconManager.markAsManuallyOverridden(context, token)
                             }
                         }
@@ -406,5 +427,82 @@ object LightspeedBackupEngine {
         val prefs = context.defaultPrefs()
         prefs.edit().clear().apply()
         Log.i(TAG, "All preferences reset to default values")
+    }
+
+    private fun isActionTokenKey(key: String): Boolean {
+        return key.startsWith("pref_macro_action_") ||
+                key == "pref_central_command_long_press_action" ||
+                key == LightspeedPreferences.KEY_POWER_SINGLE_PRESS ||
+                key == LightspeedPreferences.KEY_POWER_DOUBLE_PRESS ||
+                key == LightspeedPreferences.KEY_POWER_HOLD ||
+                key == LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD ||
+                key == LightspeedPreferences.KEY_POWER_LONG_PRESS_ACTION ||
+                key == LightspeedPreferences.KEY_VOL_UP_LONG_PRESS ||
+                key == LightspeedPreferences.KEY_VOL_DOWN_LONG_PRESS ||
+                key == LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_TAP ||
+                key == LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_TAP ||
+                key == LightspeedPreferences.KEY_CHORD_DOWN_HOLD_UP_HOLD ||
+                key == LightspeedPreferences.KEY_CHORD_UP_HOLD_DOWN_HOLD ||
+                key == LightspeedPreferences.KEY_SEQ_UP_THEN_DOWN ||
+                key == LightspeedPreferences.KEY_SEQ_DOWN_THEN_UP ||
+                key == LightspeedPreferences.KEY_SEQ_DOWN_TAP_THEN_UP_HOLD ||
+                key == LightspeedPreferences.KEY_SEQ_UP_TAP_THEN_DOWN_HOLD ||
+                key == LightspeedPreferences.KEY_BACK_TAP_DOUBLE ||
+                key == LightspeedPreferences.KEY_BACK_TAP_TRIPLE ||
+                key == LightspeedPreferences.KEY_SPLIT_WITH_APP_TARGET ||
+                key == LightspeedPreferences.KEY_PICKER_PINNED_APPS ||
+                (key.startsWith("gear_set_") && (key.contains("ring") || key.contains("_packages")))
+    }
+
+    private fun isCsvActionTokenKey(key: String): Boolean {
+        return key == LightspeedPreferences.KEY_PICKER_PINNED_APPS ||
+                (key.startsWith("gear_set_") && (key.contains("ring") || key.contains("_packages")))
+    }
+
+    private fun isValidSingleActionToken(token: String): Boolean {
+        val trimmed = token.trim()
+        if (trimmed.isEmpty() || trimmed == "none") return true
+
+        if (trimmed.startsWith("app:")) {
+            val pkg = trimmed.removePrefix("app:")
+            if (!ShellArgGuard.isPackage(pkg)) return false
+        } else if (trimmed.startsWith("shortcut:") || trimmed.startsWith("custom:")) {
+            val body = trimmed.substringAfter(":")
+            val pkg = if (body.contains("pkg=")) {
+                body.substringAfter("pkg=").substringBefore(";")
+            } else if (body.contains("package=")) {
+                body.substringAfter("package=").substringBefore(";")
+            } else ""
+
+            if (pkg.isNotEmpty() && !ShellArgGuard.isPackage(pkg)) return false
+
+            val act = if (body.contains("act=")) {
+                body.substringAfter("act=").substringBefore(";")
+            } else if (body.contains("activity=")) {
+                body.substringAfter("activity=").substringBefore(";")
+            } else ""
+
+            if (act.isNotEmpty() && !ShellArgGuard.isClassName(act)) return false
+        } else if (!trimmed.startsWith("system:") && !trimmed.startsWith("#Intent;") && !trimmed.startsWith("intent:")) {
+            if (!ShellArgGuard.isPackage(trimmed)) return false
+        }
+        return true
+    }
+
+    private fun isValidActionTokenValue(key: String, valueStr: String): Boolean {
+        if (valueStr.any { it.code < 32 && it != '\t' }) return false
+        if (valueStr.length > 2000) return false
+        if (valueStr.contains('`') || valueStr.contains("\$(")) return false
+
+        if (isCsvActionTokenKey(key)) {
+            val tokens = valueStr.split(",")
+            for (token in tokens) {
+                if (!isValidSingleActionToken(token)) return false
+            }
+        } else {
+            if (!isValidSingleActionToken(valueStr)) return false
+        }
+
+        return true
     }
 }

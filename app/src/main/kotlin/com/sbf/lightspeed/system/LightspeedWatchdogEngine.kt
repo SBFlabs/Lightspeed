@@ -514,7 +514,7 @@ object LightspeedWatchdogEngine {
 
         LightspeedGuardHelper.start(context)
         val isStopped = prefs.getBoolean("pref_service_intentionally_stopped", false)
-        LightspeedGuardHelper.setPaused(isStopped)
+        LightspeedGuardHelper.setPaused(context, isStopped)
 
         sentinelJob = watchdogScope.launch {
             while (isActive) {

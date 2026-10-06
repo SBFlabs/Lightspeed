@@ -36,6 +36,12 @@ static long get_ms_since_start(void) {
     return sec * 1000 + nsec / 1000000;
 }
 
+static time_t get_monotonic_sec(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec;
+}
+
 static void send_power_down(int uinput_fd) {
     struct input_event ev_down, ev_syn;
     struct timeval tv;
@@ -207,7 +213,8 @@ int main(int argc, char **argv) {
             }
             lower_name[nlen < sizeof(lower_name) - 1 ? nlen : sizeof(lower_name) - 1] = '\0';
 
-            if (strstr(lower_name, "touch") || strstr(lower_name, "goodix") ||
+            if (strncmp(lower_name, "lsinputd", 8) == 0 ||
+                strstr(lower_name, "touch") || strstr(lower_name, "goodix") ||
                 strstr(lower_name, "fts") || strstr(lower_name, "tpd")) {
                 close(fd);
                 continue;
@@ -367,7 +374,7 @@ int main(int argc, char **argv) {
     }
 
     enum ForwardMode mode = MODE_FORWARD;
-    time_t start_time = time(NULL);
+    time_t start_time = get_monotonic_sec();
     int power_held = 0;
     time_t power_press_time = 0;
     const char *exit_reason = NULL;
@@ -384,7 +391,7 @@ int main(int argc, char **argv) {
     fds[1].events = POLLIN;
 
     while (!g_stop_requested) {
-        time_t now = time(NULL);
+        time_t now = get_monotonic_sec();
         if (max_seconds > 0 && (now - start_time) >= max_seconds) {
             exit_reason = "max seconds elapsed";
             break;
@@ -493,7 +500,7 @@ int main(int argc, char **argv) {
                     if (ev->value == 1) {
                         if (!power_held) {
                             power_held = 1;
-                            power_press_time = time(NULL);
+                            power_press_time = get_monotonic_sec();
                         }
                         printf("P DOWN %ld\n", get_ms_since_start());
                         fflush(stdout);

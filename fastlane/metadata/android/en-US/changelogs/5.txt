@@ -1,0 +1,4 @@
+• Hardened privileged command and action token validation to prevent shell injection.
+• Enforced backup payload verification to sanitize imported tokens and system settings.
+• Added a 15-second confirm-or-revert countdown when changing display DPI or font scale.
+• Upgraded background native timers to monotonic clock for improved reliability.

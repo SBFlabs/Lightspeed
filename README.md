@@ -1,3 +1,5 @@
+▶️ **[Watch the Lightspeed showcase on YouTube](https://youtube.com/playlist?list=PLR50weqNuCd4)**
+
 # 🚀 Lightspeed
 
 **A control layer, launcher, and workstation for Android.**
@@ -14,13 +16,14 @@ Lightspeed's Central Command provides a polished portal for configuring navigati
 
 ## 📥 Download
 
+arm64 phones only (32-bit-only phones cannot install this build)
+
 [![Download Latest APK](https://img.shields.io/github/downloads/SBFlabs/Lightspeed/total?style=for-the-badge&logo=github&logoColor=white&label=Download%20APK&color=238636)](https://github.com/SBFlabs/Lightspeed/releases/latest)
-[![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
+[![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
 
 > [!TIP]
 > **Obtainium users:** Tapping **Add to Obtainium** on your device automatically imports Lightspeed pre-configured with **pre-releases disabled** (stable releases only). Every release published includes an official SHA-256 checksum in the release notes for cryptographic verification.
 
-> **Also available on:** [ShizuStore](https://shizustore.com/apps/lightspeed) · [Orion Store](https://rookieenough.github.io/Orion-Data/redirect.html?id=lightspeed) (the Orion link opens inside the Orion Store app, so the app must be installed).
 
 # 🚀 One Launch Pad, Three Workstations
 
@@ -41,26 +44,10 @@ To cancel the gesture at any point, swipe your finger back to the **Astrogation 
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_Category_Cruise_1st_jump.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_drawer.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
 </p>
 
 <p align="center"><sub>🌠 <em>Category Cruise — kinetic app browsing with live icon grid</em></sub></p>
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_Category_Cruise_2nd_jump.jpg" alt="Category Cruise — 2nd jump browsing" width="320" />
-</p>
-
-<p align="center"><sub>🌠 <em>Category Cruise — 2nd jump browsing</em></sub></p>
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_Category_Cruise_app_launching.jpg" alt="Category Cruise — app launching" width="320" />
-</p>
-
-<p align="center"><sub>🌠 <em>Category Cruise — app launching</em></sub></p>
 
 ### 2. ⚙️ Cockpit
 
@@ -81,26 +68,10 @@ The Action Selection Menu also features Lightspeed's distinctive take on an inde
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04_Cockpit_Gear_Sets.jpg" alt="Cockpit Gear Sets (favorite items)" width="320" />
-</p>
-
-<p align="center"><sub>⚙️ <em>Cockpit Gear Sets (favorite items)</em></sub></p>
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_Cockpit_Hangar_main.jpg" alt="Cockpit Hangar — dual orbital gear rings with tactile controls" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_cockpit.jpg" alt="Cockpit Hangar — dual orbital gear rings with tactile controls" width="320" />
 </p>
 
 <p align="center"><sub>⚙️ <em>Cockpit Hangar — dual orbital gear rings with full tactile eject, rotate &amp; edit controls</em></sub></p>
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06_Cockpit_Hangar_edit_item.jpg" alt="Cockpit Hangar — editing hangar items" width="320" />
-</p>
-
-<p align="center"><sub>⚙️ <em>Cockpit Hangar — editing hangar items</em></sub></p>
 
 ### 3. 🛰️ Central Command
 
@@ -109,40 +80,16 @@ Central Command can be accessed directly by tapping the **Lightspeed app icon**,
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07_Central_Command_HUD_STRIP.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_command.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
 </p>
 
 <p align="center"><sub>🛰️ <em>Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault</em></sub></p>
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/08_Central_Command_lang.jpg" alt="Central Command — language settings" width="320" />
-</p>
-
-<p align="center"><sub>🛰️ <em>Central Command — language settings</em></sub></p>
 
 The **Central Command floating window's header area** is interactive in three ways. You can swipe down on the header area to dismiss the floating window. The **Central Command title** can be single-tapped or long-tapped: a long tap quickly toggles the entire Lightspeed system on or off. The **Guidebook icon** can likewise be single-tapped or long-tapped. There is also the plain old **Expand/Collapse All** button for expanding or collapsing the accordions in the current tab.
 
 For customizing the **Central Command theme**, tap the Central Command title. For organizing or changing how the accordions are arranged within a specific tab, tap the **tab title while it is in focus** — whether it is the **HUD STRIP, Left DEFLECTOR, or Right DEFLECTOR**.
 
 The **Flight Control Deck** is organized into three cards. The first card contains the aforementioned **theme engine** for Central Command and different ways of toggling Lightspeed as a whole or in part.
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/09_Flight_Control_Deck_main.jpg" alt="Flight Control Deck — main overview" width="320" />
-</p>
-
-<p align="center"><sub>🛰️ <em>Flight Control Deck — main overview</em></sub></p>
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/10_Flight_Control_Deck_theme.jpg" alt="Flight Control Deck — theme selection" width="320" />
-</p>
-
-<p align="center"><sub>🛰️ <em>Flight Control Deck — theme selection</em></sub></p>
 
 The second card contains the **Core Watchdog**. It keeps Lightspeed alive through two possible methods and includes the **Black Box**:
 
@@ -152,23 +99,7 @@ The second card contains the **Core Watchdog**. It keeps Lightspeed alive throug
 
 The **Core Watchdog** also contains a **Material 3 mini-card/button labeled “Services.”** Pressing it opens the **Perimeter Watchdog**, where the accessibility services of your apps can be toggled more conveniently than through Android's built-in settings page. Each service can also be **shielded** and have its battery exemption whitelisted or revoked using two dedicated buttons directly beneath it.
 
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/11_Perimeter_watch.jpg" alt="Perimeter Watchdog — accessibility service monitoring" width="320" />
-</p>
-
-<p align="center"><sub>🛰️ <em>Perimeter Watchdog — accessibility service monitoring</em></sub></p>
-
 The **Perimeter Watchdog** also contains a **light-blue Material 3 mini-card/button labeled “Exempt More Apps.”** Pressing it opens the **Exempt More Apps floating window**, providing a more accessible way to whitelist or revoke apps from Android's native battery-management exemption system.
-
-<br>
-
-<p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/12_Battery_exemption_control.jpg" alt="Exempt More Apps — battery exemption control" width="320" />
-</p>
-
-<p align="center"><sub>🛰️ <em>Exempt More Apps — battery exemption control</em></sub></p>
 
 **Both the Core Watchdog and Perimeter Watchdog are not 100% bulletproof and should be treated accordingly.**
 
@@ -240,7 +171,7 @@ Tapping the value box itself restores that setting to its default value.
 
 **Experimental Labs** contains features that are **disabled by default** and should be used at the user's own discretion.
 
-This includes experimental features such as the **Orbital Capsule**, **Refueling Bay**, **Power Button Remapping**, **Core Cooling Schedule**, and **Sonic Deck**.
+This includes experimental features such as the **Orbital Capsule**, **Refueling Bay**, **Power Button Remapping**, **Core Cooling Schedule**, and **Omniscient Audio Dock**.
 
 The **Refueling Bay** is a functional charging-dock screen designed to show charging speed while giving you a dedicated space for your favorite widgets. It also displays the clock and supports two widget orientations, each with its own widget arrangement. It can be particularly useful as a manually launched charging display—for example, showing charging speed alongside a calendar and task widgets.
 
@@ -274,7 +205,7 @@ Among other things, Shizuku enables:
 
 - **Previous App Switching** — Switch directly between recent applications without passing through the launcher's **recent apps menu**.
 - **Graceful Task Closer** — Close the active application through a graceful task-removal mechanism rather than relying on the OEM's recent-apps gesture. This distinction matters on heavily customized Android systems where swiping an application away from the recent apps menu may be interpreted as a **force stop**. Graceful Task Closer is intended to avoid that behavior where possible, which can be particularly useful for applications such as Termux that may otherwise be disrupted by aggressive OEM task-management behavior. The implementation is still **not 100% bulletproof against OEM task killing or other system-level process management**.
-- **Split Screen, Freeform & OEM-Specific Pop-Up Windows** — Launch supported applications into split-screen, freeform, or OEM-specific pop-up windows, where supported by your device and its Android/OEM implementation. Split screen is still experimental and may behave differently across devices and Android versions.
+- **Split Screen & Pop-Up Windows** — Launch supported applications into split-screen or floating pop-up windows. Split screen and pop-up features are tested on Infinix XOS 16 and behavior may vary by device; OEM-specific pop-ups are not supported.
 - **Lightspeed First-Time Onboarding** — Assist with enabling Lightspeed's Accessibility Service and completing its initial setup without requiring the user to manually navigate through multiple Android settings screens.
 - **Action Selection Menu App Discovery** — Deep activities and "create shortcut" entries are discovered without Shizuku. Home-screen launcher shortcuts and dynamic app shortcuts are normally only exposed by Android to the default launcher, so Lightspeed asks Android directly first and uses Shizuku to fill the gap.
 
@@ -286,6 +217,7 @@ Most of Lightspeed's permissions do not require additional interaction from the 
 - **Notification Listener** — Required when enabling **Info Beacons** features that depend on notification access, such as media playback or download-progress information.
 - **Ignore Battery Optimizations** — Used for Lightspeed's battery-management and watchdog functionality where supported.
 - **Post Notifications** — Used for notification-based status and controls, including the ability to toggle the **DEFLECTORS** and Lightspeed as a whole.
+- **Call Phone** — Requested for direct contact calling via Home Screen launcher shortcuts; if not granted, Lightspeed dials through the Shizuku shell instead.
 
 ### Other Permissions
 
@@ -293,17 +225,15 @@ The following permissions are declared by Lightspeed but do not require a separa
 
 - **Query All Packages** — Allows Lightspeed to discover installed applications for **Category Cruise**, the **Action Selection Menu**, and related app-launching functionality.
 - **Vibrate** — Provides haptic feedback throughout the interface.
-- **Call Phone** — Declared for using the **Home Screen Launcher App Shortcut** for direct contact calling, at least on supported devices such as Infinix devices.
 - **Internet** — **Not declared.** Lightspeed has no `android.permission.INTERNET` permission and therefore has no network access through the standard Android networking APIs.
 - **Write Secure Settings** — Used for camera auto-rotate. It's a protected permission, so it must be granted through Shizuku or ADB.
 - **Wake Lock** — Used by Back-Tap (only in Screen Off or Always scope) and for brief 3-second screen wake-ups by Power Button Remapping and the Refueling Bay.
-- **Foreground Service** — Declared for launching foreground services that some app shortcuts point to.
 
 ---
 
 ## ⚡ External Automation
 
-Lightspeed supports external automation via broadcast intents (Tasker, MacroDroid, ADB, etc.).
+Lightspeed supports external automation via broadcast intents (Tasker, MacroDroid and similar apps, via broadcast intents).
 
 ### Opt-In Setting
 External automation is disabled by default. To allow external apps and ADB to send commands, enable the toggle:
@@ -319,6 +249,94 @@ External automation is disabled by default. To allow external apps and ADB to se
 - `com.sbf.lightspeed.action.GRAVITY_OVERRIDE_360`
 - `com.sbf.lightspeed.action.TOGGLE_AUTO_ROTATE`
 - `com.sbf.lightspeed.action.RESET_GRAVITY`
+
+---
+
+## 🆘 If your phone is left in a bad state
+
+Only run the commands for settings you changed. The wm density and font_scale ones are the most common fix.
+
+These commands can be run from a computer with adb, or from Shizuku's terminal if the screen is still usable.
+
+If Lightspeed crashes or is uninstalled while active system overrides remain in effect, use the corresponding ADB command below to restore your Android device to default operation:
+
+### Display & Visual Metrics
+- **Display Density (DPI)**:
+  ```bash
+  adb shell wm density reset
+  ```
+- **Font Scale**:
+  ```bash
+  adb shell settings put system font_scale 1.0
+  ```
+- **Global Animation Scales**:
+  ```bash
+  adb shell settings put global window_animation_scale 1.0
+  adb shell settings put global transition_animation_scale 1.0
+  adb shell settings put global animator_duration_scale 1.0
+  ```
+- **Hardware Display Blanking (Display Panel Power)**:
+  ```bash
+  adb shell cmd display power-on 0
+  ```
+
+### Gestures & Input Touch Latency
+- **Power Button Long-Press Takeover**:
+  ```bash
+  adb shell settings delete global power_button_long_press
+  ```
+- **Native Edge Back Gesture Insets**:
+  ```bash
+  adb shell settings put secure back_gesture_inset_scale_left 1.0
+  adb shell settings put secure back_gesture_inset_scale_right 1.0
+  ```
+- **System Touch Long-Press Timeout** (typical default, your phone's original value may differ):
+  ```bash
+  adb shell settings put secure long_press_timeout 400
+  ```
+
+### System Orientation & Auto-Rotation
+- **Master Auto-Rotate**:
+  ```bash
+  adb shell settings put system accelerometer_rotation 1
+  ```
+- **User Fixed Rotation Angle**:
+  ```bash
+  adb shell settings put system user_rotation 0
+  ```
+- **Face-Oriented Auto-Rotate**:
+  ```bash
+  adb shell settings put secure camera_autorotate 0
+  ```
+
+### Screen Timeout, Brightness & Freeform Windows
+- **Screen Off Timeout** (typical default, your phone's original value may differ):
+  ```bash
+  adb shell settings put system screen_off_timeout 60000
+  ```
+- **Screen Brightness & Automatic Mode** (typical default, your phone's original value may differ):
+  ```bash
+  adb shell settings put system screen_brightness 128
+  adb shell settings put system screen_brightness_mode 1
+  ```
+- **Freeform Window Support** (typical default, your phone's original value may differ):
+  ```bash
+  adb shell settings put global enable_freeform_support 0
+  adb shell settings put global force_resizable_activities 0
+  ```
+
+### Accessibility & App Focus Sovereignty
+- **Transsion Hardware Zero-Sound App List**:
+  ```bash
+  adb shell settings delete global audio.zerosound.applist
+  ```
+- **Non-Ducking Audio AppOps (per-package `<pkg>`)**:
+  ```bash
+  adb shell cmd appops set <pkg> TAKE_AUDIO_FOCUS default
+  adb shell cmd appops set <pkg> CONTROL_AUDIO default
+  adb shell cmd appops set <pkg> CONTROL_AUDIO_PARTIAL default
+  adb shell dumpsys deviceidle whitelist -<pkg>
+  ```
 
 ---
 

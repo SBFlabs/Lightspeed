@@ -1,7 +1,9 @@
 package com.sbf.lightspeed.system
 
+import android.content.ComponentName
 import android.content.Context
 import android.util.Log
+import com.sbf.lightspeed.LightspeedAccessibilityService
 
 /**
  * Out-of-process guard helper for Lightspeed core accessibility service.
@@ -10,12 +12,10 @@ import android.util.Log
  */
 object LightspeedGuardHelper {
     private const val TAG = "LightspeedGuardHelper"
-    private const val SCRIPT_PATH = "/data/local/tmp/ls_guard.sh"
-    private const val PID_PATH = "/data/local/tmp/ls_guard.pid"
-    private const val PAUSE_PATH = "/data/local/tmp/ls_guard_pause"
-    private const val TARGET_PKG = "com.sbf.lightspeed.nightly"
-    private const val TARGET_CMP = "com.sbf.lightspeed.nightly/com.sbf.lightspeed.LightspeedAccessibilityService"
-    private const val TARGET_CMP_SHORT = "com.sbf.lightspeed.nightly/.LightspeedAccessibilityService"
+
+    private fun getScriptPath(pkg: String): String = "/data/local/tmp/ls_guard_${pkg.replace('.', '_')}.sh"
+    private fun getPidPath(pkg: String): String = "/data/local/tmp/ls_guard_${pkg.replace('.', '_')}.pid"
+    private fun getPausePath(pkg: String): String = "/data/local/tmp/ls_guard_${pkg.replace('.', '_')}_pause"
 
     fun start(context: Context) {
         if (!ElevatedTaskCloser.isShizukuActive) {
@@ -23,8 +23,22 @@ object LightspeedGuardHelper {
             return
         }
 
+        val pkg = context.packageName
+        if (!ShellArgGuard.isPackage(pkg)) {
+            Log.w(TAG, "ShellArgGuard rejected package name: $pkg")
+            return
+        }
+
+        val scriptPath = getScriptPath(pkg)
+        val pidPath = getPidPath(pkg)
+        val pausePath = getPausePath(pkg)
+
+        val cn = ComponentName(context, LightspeedAccessibilityService::class.java)
+        val cmpLong = cn.flattenToString()
+        val cmpShort = cn.flattenToShortString()
+
         try {
-            val checkCmd = "if [ -f $PID_PATH ]; then PID=\$(cat $PID_PATH | tr -d '[:space:]'); if [ -n \"\$PID\" ] && [ -f \"/proc/\$PID/cmdline\" ] && grep -q \"ls_guard\" \"/proc/\$PID/cmdline\" 2>/dev/null; then echo \"running\"; fi; fi"
+            val checkCmd = "if [ -f $pidPath ]; then PID=\$(cat $pidPath | tr -d '[:space:]'); if [ -n \"\$PID\" ] && [ -f \"/proc/\$PID/cmdline\" ] && grep -q \"ls_guard\" \"/proc/\$PID/cmdline\" 2>/dev/null; then echo \"running\"; fi; fi"
             val checkProc = ElevatedTaskCloser.execShizuku(checkCmd)
             val output = checkProc?.inputStream?.bufferedReader()?.readLine()?.trim()
             checkProc?.waitForOrKill()
@@ -35,11 +49,11 @@ object LightspeedGuardHelper {
 
             val scriptContent = """
                 #!/system/bin/sh
-                PIDFILE="$PID_PATH"
-                PAUSEFILE="$PAUSE_PATH"
-                PKG="$TARGET_PKG"
-                CMP="$TARGET_CMP"
-                CMP_SHORT="$TARGET_CMP_SHORT"
+                PIDFILE="$pidPath"
+                PAUSEFILE="$pausePath"
+                PKG="$pkg"
+                CMP="$cmpLong"
+                CMP_SHORT="$cmpShort"
 
                 echo ${'$'}${'$'} > "${'$'}PIDFILE"
                 LAST_RECOVERY=0
@@ -87,11 +101,11 @@ object LightspeedGuardHelper {
                 done
             """.trimIndent()
 
-            val writeCmd = "cat << 'EOF' > $SCRIPT_PATH\n$scriptContent\nEOF\nchmod 755 $SCRIPT_PATH"
+            val writeCmd = "cat << 'EOF' > $scriptPath\n$scriptContent\nEOF\nchmod 755 $scriptPath"
             val writeProc = ElevatedTaskCloser.execShizuku(writeCmd)
             writeProc?.waitForOrKill()
 
-            val startCmd = "setsid nohup sh $SCRIPT_PATH >/dev/null 2>&1 &"
+            val startCmd = "setsid nohup sh $scriptPath >/dev/null 2>&1 &"
             val startProc = ElevatedTaskCloser.execShizuku(startCmd)
             startProc?.waitForOrKill()
 
@@ -101,14 +115,24 @@ object LightspeedGuardHelper {
         }
     }
 
-    fun stop() {
+    fun stop(context: Context) {
         if (!ElevatedTaskCloser.isShizukuActive) {
             Log.w(TAG, "Shizuku is unavailable; cannot stop guard helper daemon")
             return
         }
 
+        val pkg = context.packageName
+        if (!ShellArgGuard.isPackage(pkg)) {
+            Log.w(TAG, "ShellArgGuard rejected package name: $pkg")
+            return
+        }
+
+        val scriptPath = getScriptPath(pkg)
+        val pidPath = getPidPath(pkg)
+        val pausePath = getPausePath(pkg)
+
         try {
-            val stopCmd = "pkill -f $SCRIPT_PATH 2>/dev/null; rm -f $PID_PATH $PAUSE_PATH $SCRIPT_PATH 2>/dev/null"
+            val stopCmd = "pkill -f $scriptPath 2>/dev/null; rm -f $pidPath $pausePath $scriptPath /data/local/tmp/ls_guard.sh /data/local/tmp/ls_guard.pid /data/local/tmp/ls_guard_pause 2>/dev/null"
             val proc = ElevatedTaskCloser.execShizuku(stopCmd)
             proc?.waitForOrKill()
             Log.i(TAG, "Guard helper daemon stopped successfully")
@@ -117,14 +141,22 @@ object LightspeedGuardHelper {
         }
     }
 
-    fun setPaused(paused: Boolean) {
+    fun setPaused(context: Context, paused: Boolean) {
         if (!ElevatedTaskCloser.isShizukuActive) {
             Log.w(TAG, "Shizuku is unavailable; cannot setPaused($paused)")
             return
         }
 
+        val pkg = context.packageName
+        if (!ShellArgGuard.isPackage(pkg)) {
+            Log.w(TAG, "ShellArgGuard rejected package name: $pkg")
+            return
+        }
+
+        val pausePath = getPausePath(pkg)
+
         try {
-            val cmd = if (paused) "touch $PAUSE_PATH" else "rm -f $PAUSE_PATH"
+            val cmd = if (paused) "touch $pausePath" else "rm -f $pausePath"
             val proc = ElevatedTaskCloser.execShizuku(cmd)
             proc?.waitForOrKill()
             Log.i(TAG, "Guard helper pause state set to: $paused")

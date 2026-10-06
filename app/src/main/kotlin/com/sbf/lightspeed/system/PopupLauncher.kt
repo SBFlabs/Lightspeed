@@ -31,43 +31,32 @@ internal object PopupLauncher {
 
         // Run all Shizuku/shell work off the main thread
         ElevatedTaskCloser.executor.execute {
-            try {
-                val taskInfo = ElevatedTaskCloser.getTopForegroundTaskInfo(context)
-                val targetTaskId = taskInfo.taskId
-                val targetPkg = taskInfo.packageName
-                val topComponent = taskInfo.componentName
+            val taskInfo = ElevatedTaskCloser.getTopForegroundTaskInfo(context)
+            val targetTaskId = taskInfo.taskId
+            val targetPkg = taskInfo.packageName
+            val topComponent = taskInfo.componentName
 
-                if (targetTaskId == null && targetPkg == null && topComponent == null) {
-                    Log.w(TAG, "No foreground task found to launch in Pop-up view")
-                    PopupDiagnostics.recordLastResult("launchInPopup", "No foreground task detected")
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Pop-up failed: no active app found", Toast.LENGTH_SHORT).show()
-                    }
-                    return@execute
+            if (targetTaskId == null && targetPkg == null && topComponent == null) {
+                Log.w(TAG, "No foreground task found to launch in Pop-up view")
+                PopupDiagnostics.recordLastResult("launchInPopup", "No foreground task detected")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Pop-up failed: no active app found", Toast.LENGTH_SHORT).show()
                 }
+                return@execute
+            }
 
-                if (style == LightspeedPreferences.POPUP_STYLE_OEM) {
-                    val oemResult = executeOemPopup(context, targetTaskId, targetPkg, topComponent)
-                    if (oemResult.success) {
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        Log.w(TAG, "OEM Pop-up failed or unverified (${oemResult.step}); falling back to Native")
-                        PopupDiagnostics.recordLastResult(
-                            "launchInPopup:oem",
-                            "OEM unverified (${oemResult.step}), falling back to native"
-                        )
-                        val nativeResult = executeNativePopup(context, targetTaskId, targetPkg, topComponent)
-                        Handler(Looper.getMainLooper()).post {
-                            if (nativeResult.success) {
-                                Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Pop-up failed: ${nativeResult.step}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
+            if (style == LightspeedPreferences.POPUP_STYLE_OEM) {
+                val oemResult = executeOemPopup(context, targetTaskId, targetPkg, topComponent)
+                if (oemResult.success) {
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
                     }
                 } else {
+                    Log.w(TAG, "OEM Pop-up failed or unverified (${oemResult.step}); falling back to Native")
+                    PopupDiagnostics.recordLastResult(
+                        "launchInPopup:oem",
+                        "OEM unverified (${oemResult.step}), falling back to native"
+                    )
                     val nativeResult = executeNativePopup(context, targetTaskId, targetPkg, topComponent)
                     Handler(Looper.getMainLooper()).post {
                         if (nativeResult.success) {
@@ -77,10 +66,14 @@ internal object PopupLauncher {
                         }
                     }
                 }
-            } catch (t: Throwable) {
-                Log.e(TAG, "launchInPopup error", t)
+            } else {
+                val nativeResult = executeNativePopup(context, targetTaskId, targetPkg, topComponent)
                 Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Pop-up failed: unexpected error", Toast.LENGTH_SHORT).show()
+                    if (nativeResult.success) {
+                        Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Pop-up failed: ${nativeResult.step}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
@@ -94,28 +87,32 @@ internal object PopupLauncher {
     ): PopupLaunchResult {
         // a. Shizuku shell: "am start --windowingMode 5 --activity-reuse-task -n <topComponent>"
         if (topComponent != null && ElevatedTaskCloser.isShizukuActive) {
-            val cmd = "am start --windowingMode 5 --activity-reuse-task -n $topComponent"
-            val process = ElevatedTaskCloser.execShizuku(cmd)
-            val exitCode = process.waitForOrKill()
-            PopupDiagnostics.recordStep(
-                "popup",
-                "native:shizuku_am_start",
-                ran = true,
-                returned = "exit $exitCode",
-                verified = false
-            )
-            if (exitCode == 0) {
-                Log.i(TAG, "Native freeform started via Shizuku shell: $cmd, waiting ~500ms to verify...")
-                val (verified, line) = ElevatedTaskCloser.verifyWindowModePolling(targetTaskId, targetPkg, "freeform")
-                if (verified) {
-                    PopupDiagnostics.updateStepVerification("popup", "native:shizuku_am_start", true)
-                    Log.w(TAG, "Native freeform verified via Shizuku shell: $line")
-                    return PopupLaunchResult(success = true, step = "shizuku_am_start")
+            if (ShellArgGuard.isComponent(topComponent)) {
+                val cmd = "am start --windowingMode 5 --activity-reuse-task -n '$topComponent'"
+                val process = ElevatedTaskCloser.execShizuku(cmd)
+                val exitCode = process.waitForOrKill()
+                PopupDiagnostics.recordStep(
+                    "popup",
+                    "native:shizuku_am_start",
+                    ran = true,
+                    returned = "exit $exitCode",
+                    verified = false
+                )
+                if (exitCode == 0) {
+                    Log.i(TAG, "Native freeform started via Shizuku shell: $cmd, waiting ~500ms to verify...")
+                    val (verified, line) = ElevatedTaskCloser.verifyWindowModePolling(targetTaskId, targetPkg, "freeform")
+                    if (verified) {
+                        PopupDiagnostics.updateStepVerification("popup", "native:shizuku_am_start", true)
+                        Log.w(TAG, "Native freeform verified via Shizuku shell: $line")
+                        return PopupLaunchResult(success = true, step = "shizuku_am_start")
+                    } else {
+                        Log.w(TAG, "Native freeform unverified after Shizuku shell: $line")
+                    }
                 } else {
-                    Log.w(TAG, "Native freeform unverified after Shizuku shell: $line")
+                    Log.w(TAG, "Shizuku am start failed with exit code $exitCode: $cmd")
                 }
             } else {
-                Log.w(TAG, "Shizuku am start failed with exit code $exitCode: $cmd")
+                Log.w(TAG, "Native freeform Shizuku am start skipped: invalid topComponent")
             }
         }
 
@@ -368,28 +365,32 @@ internal object PopupLauncher {
         // 2. Also try the same launch through Shizuku (am start --windowingMode 5 -n <component>)
         //    since non-system apps have windowing-mode options ignored
         if (topComponent != null && ElevatedTaskCloser.isShizukuActive) {
-            val cmd = "am start --windowingMode 5 -n $topComponent"
-            val process = ElevatedTaskCloser.execShizuku(cmd)
-            val exitCode = process.waitForOrKill()
-            PopupDiagnostics.recordStep(
-                "popup",
-                "oem:shizuku_am_start",
-                ran = true,
-                returned = "exit $exitCode",
-                verified = false
-            )
-            if (exitCode == 0) {
-                Log.i(TAG, "OEM pop-up started via Shizuku shell: $cmd, waiting ~500ms to verify...")
-                val (verified, line) = ElevatedTaskCloser.verifyWindowModePolling(targetTaskId, targetPkg, "freeform")
-                if (verified) {
-                    PopupDiagnostics.updateStepVerification("popup", "oem:shizuku_am_start", true)
-                    Log.w(TAG, "OEM pop-up verified via Shizuku shell: $line")
-                    return PopupLaunchResult(success = true, step = "oem_shizuku_am_start")
+            if (ShellArgGuard.isComponent(topComponent)) {
+                val cmd = "am start --windowingMode 5 -n '$topComponent'"
+                val process = ElevatedTaskCloser.execShizuku(cmd)
+                val exitCode = process.waitForOrKill()
+                PopupDiagnostics.recordStep(
+                    "popup",
+                    "oem:shizuku_am_start",
+                    ran = true,
+                    returned = "exit $exitCode",
+                    verified = false
+                )
+                if (exitCode == 0) {
+                    Log.i(TAG, "OEM pop-up started via Shizuku shell: $cmd, waiting ~500ms to verify...")
+                    val (verified, line) = ElevatedTaskCloser.verifyWindowModePolling(targetTaskId, targetPkg, "freeform")
+                    if (verified) {
+                        PopupDiagnostics.updateStepVerification("popup", "oem:shizuku_am_start", true)
+                        Log.w(TAG, "OEM pop-up verified via Shizuku shell: $line")
+                        return PopupLaunchResult(success = true, step = "oem_shizuku_am_start")
+                    } else {
+                        Log.w(TAG, "OEM pop-up unverified after Shizuku shell: $line")
+                    }
                 } else {
-                    Log.w(TAG, "OEM pop-up unverified after Shizuku shell: $line")
+                    Log.w(TAG, "OEM Shizuku am start failed with exit code $exitCode: $cmd")
                 }
             } else {
-                Log.w(TAG, "OEM Shizuku am start failed with exit code $exitCode: $cmd")
+                Log.w(TAG, "OEM Shizuku am start skipped: invalid topComponent")
             }
         }
 

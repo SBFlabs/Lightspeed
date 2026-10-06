@@ -24,6 +24,8 @@ arm64 phones only (32-bit-only phones cannot install this build)
 > [!TIP]
 > **Obtainium users:** Tapping **Add to Obtainium** on your device automatically imports Lightspeed pre-configured with **pre-releases disabled** (stable releases only). Every release published includes an official SHA-256 checksum in the release notes for cryptographic verification.
 
+> **Also available on:** [ShizuStore](https://shizustore.com/apps/lightspeed) · [Orion Store](https://rookieenough.github.io/Orion-Data/redirect.html?id=lightspeed) (the Orion link opens inside the Orion Store app, so the app must be installed).
+
 
 # 🚀 One Launch Pad, Three Workstations
 

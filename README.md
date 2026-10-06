@@ -46,7 +46,7 @@ To cancel the gesture at any point, swipe your finger back to the **Astrogation 
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_drawer.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_Category_Cruise_app_launching.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
 </p>
 
 <p align="center"><sub>🌠 <em>Category Cruise — kinetic app browsing with live icon grid</em></sub></p>
@@ -70,7 +70,7 @@ The Action Selection Menu also features Lightspeed's distinctive take on an inde
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_cockpit.jpg" alt="Cockpit Hangar — dual orbital gear rings with tactile controls" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_Cockpit_Hangar_main.jpg" alt="Cockpit Hangar — dual orbital gear rings with tactile controls" width="320" />
 </p>
 
 <p align="center"><sub>⚙️ <em>Cockpit Hangar — dual orbital gear rings with full tactile eject, rotate &amp; edit controls</em></sub></p>
@@ -82,7 +82,7 @@ Central Command can be accessed directly by tapping the **Lightspeed app icon**,
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_command.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/09_Flight_Control_Deck_main.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
 </p>
 
 <p align="center"><sub>🛰️ <em>Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault</em></sub></p>

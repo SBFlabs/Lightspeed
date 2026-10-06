@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,25 +71,24 @@ fun SystemOverrideDeckContents(
     var longPressDelay by remember { mutableFloatStateOf(400f) }
 
     // State for DPI confirm-or-revert dialog & countdown
-    var showDpiDialog by remember { mutableStateOf(false) }
-    var dpiCountdownSeconds by remember { mutableIntStateOf(15) }
-    var originalDpiOverride by remember { mutableStateOf<String?>(null) }
-    var savedPhysicalDpi by remember { mutableStateOf<Float?>(null) }
-    var dpiCountdownJob by remember { mutableStateOf<Job?>(null) }
+    var showDpiDialog by rememberSaveable { mutableStateOf(false) }
+    var dpiDeadlineMillis by rememberSaveable { mutableStateOf<Long?>(null) }
+    var dpiRemainingSeconds by remember { mutableIntStateOf(15) }
+    var originalDpiOverride by rememberSaveable { mutableStateOf<String?>(null) }
+    var savedPhysicalDpi by rememberSaveable { mutableStateOf<Float?>(null) }
 
     // State for Font Scale confirm-or-revert dialog & countdown
-    var showFontDialog by remember { mutableStateOf(false) }
-    var fontCountdownSeconds by remember { mutableIntStateOf(15) }
-    var originalFontScaleOverride by remember { mutableStateOf<Float?>(null) }
-    var fontCountdownJob by remember { mutableStateOf<Job?>(null) }
+    var showFontDialog by rememberSaveable { mutableStateOf(false) }
+    var fontDeadlineMillis by rememberSaveable { mutableStateOf<Long?>(null) }
+    var fontRemainingSeconds by remember { mutableIntStateOf(15) }
+    var originalFontScaleOverride by rememberSaveable { mutableStateOf<Float?>(null) }
 
     val revertDpi: () -> Unit = {
         val targetToRestore = originalDpiOverride
         if (targetToRestore != null) {
             originalDpiOverride = null
             showDpiDialog = false
-            dpiCountdownJob?.cancel()
-            dpiCountdownJob = null
+            dpiDeadlineMillis = null
 
             val phys = savedPhysicalDpi ?: android.util.DisplayMetrics.DENSITY_DEVICE_STABLE.toFloat()
 
@@ -112,8 +112,7 @@ fun SystemOverrideDeckContents(
     val keepDpi: () -> Unit = {
         originalDpiOverride = null
         showDpiDialog = false
-        dpiCountdownJob?.cancel()
-        dpiCountdownJob = null
+        dpiDeadlineMillis = null
         scope.launch(Dispatchers.IO) {
             ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_dpi_reve[r]t' || pkill -f 'ls_dpi_reve[r]t'")
         }
@@ -124,8 +123,7 @@ fun SystemOverrideDeckContents(
         if (targetToRestore != null) {
             originalFontScaleOverride = null
             showFontDialog = false
-            fontCountdownJob?.cancel()
-            fontCountdownJob = null
+            fontDeadlineMillis = null
 
             scope.launch(Dispatchers.IO) {
                 ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_font_reve[r]t' || pkill -f 'ls_font_reve[r]t'")
@@ -140,10 +138,35 @@ fun SystemOverrideDeckContents(
     val keepFontScale: () -> Unit = {
         originalFontScaleOverride = null
         showFontDialog = false
-        fontCountdownJob?.cancel()
-        fontCountdownJob = null
+        fontDeadlineMillis = null
         scope.launch(Dispatchers.IO) {
             ElevatedTaskCloser.execShizuku("pkill -9 -f 'ls_font_reve[r]t' || pkill -f 'ls_font_reve[r]t'")
+        }
+    }
+
+    LaunchedEffect(dpiDeadlineMillis) {
+        val deadline = dpiDeadlineMillis ?: return@LaunchedEffect
+        while (true) {
+            val remaining = (kotlin.math.max(0L, deadline - System.currentTimeMillis() + 999L) / 1000L).toInt()
+            dpiRemainingSeconds = remaining
+            if (remaining <= 0) {
+                revertDpi()
+                break
+            }
+            delay(200L)
+        }
+    }
+
+    LaunchedEffect(fontDeadlineMillis) {
+        val deadline = fontDeadlineMillis ?: return@LaunchedEffect
+        while (true) {
+            val remaining = (kotlin.math.max(0L, deadline - System.currentTimeMillis() + 999L) / 1000L).toInt()
+            fontRemainingSeconds = remaining
+            if (remaining <= 0) {
+                revertFontScale()
+                break
+            }
+            delay(200L)
         }
     }
 
@@ -430,7 +453,7 @@ fun SystemOverrideDeckContents(
 
                 // 2. Sensor Touch Area Dropdown
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Hot-Strip Sensor Touch Deck", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text(text = "HUD Strip Sensor Area", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 Spacer(modifier = Modifier.height(2.dp))
                 Box {
                     OutlinedButton(
@@ -627,17 +650,8 @@ fun SystemOverrideDeckContents(
                     }
 
                     withContext(Dispatchers.Main) {
-                        dpiCountdownJob?.cancel()
-                        dpiCountdownSeconds = 15
+                        dpiDeadlineMillis = System.currentTimeMillis() + 15000L
                         showDpiDialog = true
-
-                        dpiCountdownJob = scope.launch(Dispatchers.Main) {
-                            while (dpiCountdownSeconds > 0) {
-                                delay(1000L)
-                                dpiCountdownSeconds--
-                            }
-                            revertDpi()
-                        }
                     }
                 }
             }
@@ -684,17 +698,8 @@ fun SystemOverrideDeckContents(
                     }
 
                     withContext(Dispatchers.Main) {
-                        fontCountdownJob?.cancel()
-                        fontCountdownSeconds = 15
+                        fontDeadlineMillis = System.currentTimeMillis() + 15000L
                         showFontDialog = true
-
-                        fontCountdownJob = scope.launch(Dispatchers.Main) {
-                            while (fontCountdownSeconds > 0) {
-                                delay(1000L)
-                                fontCountdownSeconds--
-                            }
-                            revertFontScale()
-                        }
                     }
                 }
             }
@@ -741,7 +746,7 @@ fun SystemOverrideDeckContents(
                 },
                 text = {
                     Text(
-                        text = "Reverting in $dpiCountdownSeconds second${if (dpiCountdownSeconds == 1) "" else "s"}..."
+                        text = "Reverting in $dpiRemainingSeconds second${if (dpiRemainingSeconds == 1) "" else "s"}..."
                     )
                 },
                 confirmButton = {
@@ -778,7 +783,7 @@ fun SystemOverrideDeckContents(
                 },
                 text = {
                     Text(
-                        text = "Reverting in $fontCountdownSeconds second${if (fontCountdownSeconds == 1) "" else "s"}..."
+                        text = "Reverting in $fontRemainingSeconds second${if (fontRemainingSeconds == 1) "" else "s"}..."
                     )
                 },
                 confirmButton = {

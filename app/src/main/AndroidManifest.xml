@@ -36,6 +36,7 @@
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:autoRemoveFromRecents="true"
+            android:configChanges="density|fontScale|uiMode|orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.Lightspeed.Floating">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -92,6 +93,7 @@
             android:autoRemoveFromRecents="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
+            android:configChanges="density|fontScale|uiMode|orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         
@@ -127,6 +129,7 @@
             android:noHistory="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
+            android:configChanges="density|fontScale|uiMode|orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity

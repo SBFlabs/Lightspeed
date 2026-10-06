@@ -129,7 +129,7 @@ class LightspeedAutomationReceiver : BroadcastReceiver() {
                         context,
                         ComponentName(context, "com.sbf.lightspeed.settings.DeflectorTileService")
                     )
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("LightspeedAutomationReceiver", "onReceive:132", e) }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.content.pm.PackageManager
@@ -56,7 +57,7 @@ class MainActivity : ComponentActivity() {
         try {
             Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
             Shizuku.addRequestPermissionResultListener(permissionResultListener)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("MainActivity", "onCreate:59", e) }
 
         checkAndRequest()
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
@@ -68,10 +69,17 @@ class MainActivity : ComponentActivity() {
             val backdrop = rememberDeckBackdropVisuals(this)
             SideEffect {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                    val lp = window.attributes
-                    lp.blurBehindRadius = backdrop.blurBehindRadius
-                    window.attributes = lp
+                    if (windowManager.isCrossWindowBlurEnabled) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                        val lp = window.attributes
+                        lp.blurBehindRadius = backdrop.blurBehindRadius
+                        window.attributes = lp
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                        val lp = window.attributes
+                        lp.blurBehindRadius = 0
+                        window.attributes = lp
+                    }
                 }
                 window.setDimAmount(backdrop.dimAmount)
             }
@@ -106,7 +114,7 @@ class MainActivity : ComponentActivity() {
                     autoReviveServiceIfShizukuAvailable()
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("MainActivity", "checkAndRequest:116", e) }
     }
 
     private fun autoReviveServiceIfShizukuAvailable() {
@@ -128,6 +136,6 @@ class MainActivity : ComponentActivity() {
         try {
             Shizuku.removeBinderReceivedListener(binderReceivedListener)
             Shizuku.removeRequestPermissionResultListener(permissionResultListener)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("MainActivity", "onDestroy:138", e) }
     }
 }

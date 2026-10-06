@@ -41,6 +41,14 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         var isActive: Boolean = false
             private set
 
+        /**
+         * True while the panel was blanked via Shizuku `cmd display power-off 0`. In that state
+         * PowerManager still believes the device is interactive, so the first power-button press
+         * performs a real goToSleep (ACTION_SCREEN_OFF) instead of waking the panel.
+         */
+        @Volatile
+        var shizukuPanelOff: Boolean = false
+
         @Volatile
         var isChargingSessionDismissed: Boolean = false
 
@@ -146,6 +154,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         isActive = true
+        isChargingSessionDismissed = false
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -503,12 +512,16 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         appWidgetHost?.stopListening()
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
         if (!isChangingConfigurations && !isWaitingForResult) {
+            isChargingSessionDismissed = true
             finish()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        if (!isChangingConfigurations && !isWaitingForResult) {
+            isChargingSessionDismissed = true
+        }
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.show(WindowInsetsCompat.Type.systemBars())
         val lp = window.attributes

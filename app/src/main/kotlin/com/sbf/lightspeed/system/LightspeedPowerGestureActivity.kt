@@ -3,11 +3,15 @@ package com.sbf.lightspeed.system
 import android.accessibilityservice.AccessibilityService
 import android.app.Activity
 import android.app.KeyguardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
+import android.os.Process
 import android.provider.MediaStore
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.overrideZeroTransition
 import com.sbf.lightspeed.system.PowerTriggerSlot
 
 /**
@@ -19,9 +23,15 @@ class LightspeedPowerGestureActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        if (!isAuthorizedCaller()) {
+            finish()
+            return
+        }
+
         val wasScreenOn = LightspeedKeyEngine.wasScreenInteractiveAtDown
 
         try {
+            val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             LightspeedKeyEngine.onPowerGestureHandled()
             val boundAction = LightspeedKeyEngine.getBoundPowerAction(this, PowerTriggerSlot.POWER_DOUBLE_PRESS)
 
@@ -29,11 +39,10 @@ class LightspeedPowerGestureActivity : Activity() {
                 LightspeedHapticEngine.click(this)
                 ActionDispatcher.dispatch(boundAction, this)
 
-                if (ElevatedTaskCloser.isShizukuActive) {
+                if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
                     ElevatedTaskCloser.execShizuku("input keyevent 82")
                 }
 
-                val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                 if (km?.isKeyguardLocked == true) {
                     km.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                         override fun onDismissSucceeded() {
@@ -75,17 +84,51 @@ class LightspeedPowerGestureActivity : Activity() {
             val secureIntent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA_SECURE).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
+            val normalIntent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            val target = if (secureIntent.resolveActivity(pm) != null) secureIntent else intent
-            startActivity(target)
-        } catch (_: Exception) {}
+
+            val secureMatch = pm.queryIntentActivities(secureIntent, 0)
+                .firstOrNull { it.activityInfo.packageName != packageName }
+            if (secureMatch != null) {
+                secureIntent.component = ComponentName(
+                    secureMatch.activityInfo.packageName,
+                    secureMatch.activityInfo.name
+                )
+                startActivity(secureIntent)
+                return
+            }
+
+            val normalMatch = pm.queryIntentActivities(normalIntent, 0)
+                .firstOrNull { it.activityInfo.packageName != packageName }
+            if (normalMatch != null) {
+                normalIntent.component = ComponentName(
+                    normalMatch.activityInfo.packageName,
+                    normalMatch.activityInfo.name
+                )
+                startActivity(normalIntent)
+                return
+            }
+        } catch (e: Exception) { logSwallowed("LightspeedPowerGestureActivity", "launchDefaultCamera", e) }
     }
 
     override fun finish() {
         finishAndRemoveTask()
         super.finish()
         overrideZeroTransition()
+    }
+
+    private fun isAuthorizedCaller(): Boolean {
+        val callerPackage = callingPackage ?: referrer?.host ?: referrer?.authority ?: return true
+        if (callerPackage == packageName) return true
+        if (callerPackage == "android" || callerPackage == "com.android.systemui") return true
+        return try {
+            val info = packageManager.getApplicationInfo(callerPackage, 0)
+            (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
+            (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0 ||
+            info.uid == Process.SYSTEM_UID
+        } catch (_: Exception) {
+            false
+        }
     }
 }

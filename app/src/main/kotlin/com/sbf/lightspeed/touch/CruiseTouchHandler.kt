@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.media.AudioManager
 import android.provider.Settings
 import android.view.MotionEvent
@@ -7,7 +8,7 @@ import android.view.ViewConfiguration
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
-import com.sbf.lightspeed.system.OmniscientAudioDockManager
+import com.sbf.lightspeed.system.SonicDeckManager
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -224,7 +225,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                         
                         val isVolume = activeHoldScrubAction == "scrub:volume" || activeHoldScrubAction == "system:volume"
                         val isBrightness = activeHoldScrubAction == "scrub:brightness" || activeHoldScrubAction == "system:brightness"
-                        val isAudioDockEnabled = prefs().getBoolean(LightspeedPreferences.KEY_OMNISCIENT_AUDIO_DOCK_ENABLED, false)
+                        val isAudioDockEnabled = prefs().getBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, false)
 
                         val horizontalPull = kotlin.math.abs(rawX - scrubStartX)
                         if (horizontalPull > 80f * density && ((isVolume && isAudioDockEnabled) || isBrightness)) {
@@ -233,14 +234,14 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                             isCruising = false
                             LightspeedStatusBarOverlay.dismissActionHud(0L)
                             if (isVolume) {
-                                service?.let { OmniscientAudioDockManager.show(it) }
+                                service?.let { SonicDeckManager.show(it) }
                             } else {
                                 val actionStr = "com.sbf.lightspeed.OMNISCIENT_DISPLAY"
                                 val intent = android.content.Intent(actionStr).apply {
                                     setPackage(context.packageName)
                                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                                 }
-                                try { context.startActivity(intent) } catch (_: Exception) {}
+                                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed("CruiseTouchHandler", "handleCruiseTouch:243", e) }
                             }
                             return true
                         }

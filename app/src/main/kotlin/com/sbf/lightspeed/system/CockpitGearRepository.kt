@@ -104,7 +104,7 @@ object CockpitGearRepository {
                 if (!pkg.isNullOrBlank() && pkg != "android") {
                     innerList.add(pkg)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:107", e) }
 
             // 2. Messages / SMS
             try {
@@ -114,7 +114,7 @@ object CockpitGearRepository {
                 if (!pkg.isNullOrBlank() && pkg != "android") {
                     innerList.add(pkg)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:117", e) }
 
             // 3. Primary Chat Apps (WhatsApp, Telegram, Signal, etc.)
             val chatCandidates = listOf(
@@ -129,7 +129,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:132", e) }
             }
 
             // 4. Default Browser
@@ -140,7 +140,7 @@ object CockpitGearRepository {
                 if (!pkg.isNullOrBlank() && pkg != "android") {
                     innerList.add(pkg)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:143", e) }
 
             // 5. File Managers (MiXplorer, Material Files, Total Commander, etc.)
             val fileCandidates = listOf(
@@ -161,7 +161,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:164", e) }
             }
 
             // 6. Camera
@@ -172,7 +172,7 @@ object CockpitGearRepository {
                 if (!pkg.isNullOrBlank() && pkg != "android") {
                     innerList.add(pkg)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:175", e) }
 
             // 7. Email Apps (Gmail, K-9, FairEmail, Outlook)
             val emailCandidates = listOf(
@@ -186,7 +186,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:189", e) }
             }
 
             val distinct = innerList.distinct()
@@ -207,7 +207,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         outerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:210", e) }
             }
 
             // 2. Aurora Store / Obtainium / ObtainX / Orion
@@ -222,7 +222,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         outerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:225", e) }
             }
 
             // 3. Google Play Store
@@ -232,7 +232,7 @@ object CockpitGearRepository {
                     // 4. Play Store "My apps" shortcut if Play Store is present
                     outerList.add("shortcut:intent:intent:#Intent;action=shortcutmaker.intent.action.LAUNCH_SHORTCUT;extendedLaunchFlags=0x4;B.extra_auth=false;B.extra_file=false;S.extra_name=My%20apps;S.extra_intent=intent%3A%23Intent%3Baction%3Dcom.google.android.finsky.VIEW_MY_DOWNLOADS%3BlaunchFlags%3D0x10000000%3Bpackage%3Dcom.android.vending%3Bend;end;custom_label=My apps;")
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultRingPackages:235", e) }
 
             // 5. Central Command
             outerList.add(context.packageName)
@@ -258,7 +258,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:261", e) }
             }
 
             // 2. GitHub / Git Clients
@@ -268,7 +268,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:271", e) }
             }
 
             // 3. Shizuku & Privileged API Forks (Shizuku, Sui, Shevery, Stellar, IceBox)
@@ -289,7 +289,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:292", e) }
             }
 
             // 4. AnkiDroid (Medical Study & Spaced Repetition)
@@ -299,7 +299,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:302", e) }
             }
 
             // 5. Document & Book Readers (WPS, ReadEra, LibreOffice, FaDocx, Moon+, Acrobat)
@@ -322,7 +322,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         innerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:325", e) }
             }
 
             // 6. Notes (Obsidian)
@@ -330,7 +330,7 @@ object CockpitGearRepository {
                 if (pm.getLaunchIntentForPackage("md.obsidian") != null) {
                     innerList.add("md.obsidian")
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:333", e) }
 
             val distinct = innerList.distinct()
             return if (distinct.isNotEmpty()) distinct else DEFAULT_GEAR_PACKAGES_RING_1
@@ -349,7 +349,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         outerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:352", e) }
             }
 
             // 2. System Maintenance & Cleanup (SD Maid 2 / SE, SD Maid)
@@ -359,7 +359,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         outerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:362", e) }
             }
 
             // 3. App Inspectors & Kernel Tools (App Manager, SmartPack, System UI Tuner)
@@ -373,7 +373,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         outerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:376", e) }
             }
 
             // 4. Advanced Power-User File Explorers (X-plore, MiXplorer, Total Commander)
@@ -389,7 +389,7 @@ object CockpitGearRepository {
                     if (pm.getLaunchIntentForPackage(pkg) != null) {
                         outerList.add(pkg)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearRepository", "resolveDefaultDevDeckPackages:392", e) }
             }
 
             // 5. System Security & Controls

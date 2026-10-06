@@ -1,8 +1,10 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -26,6 +28,7 @@ import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import kotlin.math.roundToInt
 
 class LightspeedAccessibilityService : AccessibilityService() {
 
@@ -63,7 +66,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     // Edge Sidebar Overlay
     internal var overlayView: LightspeedCruiseOverlay? = null
     internal lateinit var windowParams: WindowManager.LayoutParams
-    internal val edgeWidthPx = 45
+    internal val edgeWidthPx: Int by lazy { (17f * resources.displayMetrics.density).roundToInt() }
 
     // Status Bar Overlay (Full-Width 100% Pass-Through Visual Canvas for Horizon Rails & Guides)
     internal var statusBarOverlayView: LightspeedStatusBarOverlay? = null
@@ -132,6 +135,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
         if (key == LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY) {
             handleDisplayOrientationChange()
         }
+        if (key == "pref_service_intentionally_stopped") {
+            val isStopped = prefs.getBoolean("pref_service_intentionally_stopped", false)
+            com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(isStopped)
+        }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
@@ -156,11 +163,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
+        com.sbf.lightspeed.system.PowerLongPressTakeover.sync(this)
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
+        com.sbf.lightspeed.system.LightspeedWatchdogEngine.registerFastTriggers(this)
         com.sbf.lightspeed.system.LightspeedOrientationManager.killConflictingTools(this)
+        com.sbf.lightspeed.system.LightspeedGuardHelper.start(this)
 
         val initPrefs = defaultPrefs()
         initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()
+        com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(false)
         if (initPrefs.getBoolean("key_has_unreported_crash", false)) {
             initPrefs.edit().putBoolean("key_has_unreported_crash", false).apply()
             val crashMsg = initPrefs.getString("key_last_crash_message", "Core anomaly") ?: "Core anomaly"
@@ -187,7 +198,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
                             android.widget.Toast.LENGTH_LONG
                         ).show()
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "onServiceConnected:192", e) }
             }, 3500L)
         }
 
@@ -245,7 +256,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
             overlayView = LightspeedCruiseOverlay(this)
             windowManager?.addView(overlayView, windowParams)
             overlayView?.post { overlayView?.updateMetricsDimensions() }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "onServiceConnected:250", e) }
 
         // 2. Initialize Left Deflector Wing Overlay Window
         leftWingWindowParams = WindowManager.LayoutParams(
@@ -269,7 +280,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
             leftWingOverlayView = LightspeedLeftWingOverlay(this, this)
             windowManager?.addView(leftWingOverlayView, leftWingWindowParams)
             leftWingOverlayView?.post { leftWingOverlayView?.updateMetricsDimensions() }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "onServiceConnected:274", e) }
 
         // 3. Initialize Status Bar Overlay Window
         val prefs = defaultPrefs()
@@ -307,6 +318,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         statusBarOverlayView?.postInvalidate()
         com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
+        com.sbf.lightspeed.system.PowerLongPressTakeover.sync(this)
         if (!com.sbf.lightspeed.system.LightspeedKeyEngine.isPowerEnabled(this))
             com.sbf.lightspeed.system.LightspeedPowerKeyEngine.resetPowerState()
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
@@ -335,12 +347,6 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    fun openCockpitFromRight() {
-        overlayView?.post {
-            overlayView?.openHangarFromFlank(isLeftFlank = false)
-        }
-    }
-
     fun triggerDeflectorsGlow(durationMs: Long = -1L) = triggerDeflectorsGlowInternal(durationMs)
     fun triggerDeflectorGlow(isLeft: Boolean, durationMs: Long = -1L) = triggerDeflectorGlowInternal(isLeft, durationMs)
     fun updateOverlaysVisibility(isLocked: Boolean? = null, currentPkg: String? = null) = updateOverlaysVisibilityInternal(isLocked, currentPkg)
@@ -363,7 +369,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             val isLocked = keyguardManager?.isKeyguardLocked == true
 
-            isNotificationShadeActive = (currentPkg == "com.android.systemui" && !isLocked)
+            val isSysUi = currentPkg != null && currentPkg == "com.android.systemui"
+            isNotificationShadeActive = (isSysUi && !isLocked)
 
             updateOverlaysVisibility(isLocked, currentPkg)
 
@@ -377,7 +384,14 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
-    override fun onInterrupt() { teardown() }
+    override fun onInterrupt() {
+        Log.d(TAG, "onInterrupt: Accessibility feedback interrupted by framework")
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        teardown()
+        return super.onUnbind(intent)
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -386,11 +400,29 @@ class LightspeedAccessibilityService : AccessibilityService() {
             instanceRef = null
         }
         try {
+            val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: ""
+            val expectedLong = ComponentName(this, LightspeedAccessibilityService::class.java).flattenToString()
+            val expectedShort = ComponentName(this, LightspeedAccessibilityService::class.java).flattenToShortString()
+            val isStillEnabled = enabledServices.split(":").map { it.trim() }.any { entry ->
+                entry.equals(expectedLong, ignoreCase = true) ||
+                entry.equals(expectedShort, ignoreCase = true) ||
+                ComponentName.unflattenFromString(entry)?.let { cn ->
+                    cn.packageName == packageName && cn.className == LightspeedAccessibilityService::class.java.name
+                } == true
+            }
+            if (!isStillEnabled) {
+                defaultPrefs().edit().putBoolean("pref_service_intentionally_stopped", true).apply()
+                com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(true)
+                Log.i(TAG, "onDestroy: Lightspeed service removed from enabled_accessibility_services. Marked pref_service_intentionally_stopped = true")
+            }
+
             val prefs = defaultPrefs()
             prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
             com.sbf.lightspeed.system.LightspeedKeyEngine.stopShizukuPowerMonitor()
+            com.sbf.lightspeed.system.PowerLongPressTakeover.release(this)
             com.sbf.lightspeed.system.LightspeedWatchdogEngine.stopSentinel()
-            com.sbf.lightspeed.system.OmniscientAudioDockManager.dismiss(this)
+            com.sbf.lightspeed.system.LightspeedWatchdogEngine.unregisterFastTriggers(this)
+            com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
             teardown()
         } catch (e: Exception) {
             Log.e(TAG, "Exception during service onDestroy: ${e.message}", e)

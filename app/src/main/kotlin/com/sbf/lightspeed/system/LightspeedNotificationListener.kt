@@ -95,11 +95,6 @@ class LightspeedNotificationListener : NotificationListenerService() {
         fun getActiveDownloadsList(): List<DownloadTelemetry> {
             return activeDownloads.values.sortedByDescending { it.lastUpdated }
         }
-
-        fun updateMediaTelemetry(telemetry: MediaTelemetry?) {
-            activeMediaTelemetry = telemetry
-            notifyTelemetryChanged()
-        }
     }
 
     private var mediaSessionManager: MediaSessionManager? = null
@@ -134,10 +129,10 @@ class LightspeedNotificationListener : NotificationListenerService() {
         try {
             mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionsChangedListener)
             activeControllers.forEach { (controller, callback) ->
-                try { controller.unregisterCallback(callback) } catch (_: Exception) {}
+                try { controller.unregisterCallback(callback) } catch (e: Exception) { logSwallowed("LightspeedNotificationListener", "onListenerDisconnected:132", e) }
             }
             activeControllers.clear()
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "onListenerDisconnected:135", e) }
 
         activeDownloads.clear()
         notifyTelemetryChanged()
@@ -145,7 +140,7 @@ class LightspeedNotificationListener : NotificationListenerService() {
 
     private fun updateMediaControllers(controllers: List<MediaController>?) {
         activeControllers.forEach { (controller, callback) ->
-            try { controller.unregisterCallback(callback) } catch (_: Exception) {}
+            try { controller.unregisterCallback(callback) } catch (e: Exception) { logSwallowed("LightspeedNotificationListener", "updateMediaControllers:143", e) }
         }
         activeControllers.clear()
 
@@ -166,7 +161,7 @@ class LightspeedNotificationListener : NotificationListenerService() {
             try {
                 controller.registerCallback(callback)
                 activeControllers[controller] = callback
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "onSessionDestroyed:164", e) }
         }
 
         refreshMediaTelemetry()
@@ -188,7 +183,7 @@ class LightspeedNotificationListener : NotificationListenerService() {
                 album = info.album
             )
             notifyTelemetryChanged()
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "refreshMediaTelemetry:186", e) }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -264,10 +259,10 @@ class LightspeedNotificationListener : NotificationListenerService() {
         try {
             mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionsChangedListener)
             activeControllers.forEach { (controller, callback) ->
-                try { controller.unregisterCallback(callback) } catch (_: Exception) {}
+                try { controller.unregisterCallback(callback) } catch (e: Exception) { logSwallowed("LightspeedNotificationListener", "onDestroy:262", e) }
             }
             activeControllers.clear()
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "onDestroy:265", e) }
     }
 }
 

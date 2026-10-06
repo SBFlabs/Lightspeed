@@ -62,7 +62,7 @@ object TacticalFlyoutLauncher {
                 context.startActivity(directIntent)
                 LightspeedHapticEngine.click(context)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("TacticalFlyoutLauncher", "launchChatGPT:65", e) }
         }
 
         try {
@@ -85,7 +85,7 @@ object TacticalFlyoutLauncher {
                 context.startActivity(directIntent)
                 LightspeedHapticEngine.click(context)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("TacticalFlyoutLauncher", "launchClaude:88", e) }
         }
 
         try {
@@ -108,7 +108,7 @@ object TacticalFlyoutLauncher {
                 context.startActivity(geminiPkgIntent)
                 LightspeedHapticEngine.click(context)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("TacticalFlyoutLauncher", "launchGemini:111", e) }
         }
 
         val assistIntents = listOf(
@@ -120,7 +120,7 @@ object TacticalFlyoutLauncher {
                 context.startActivity(intent)
                 LightspeedHapticEngine.click(context)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("TacticalFlyoutLauncher", "launchGemini:123", e) }
         }
 
         try {
@@ -154,7 +154,7 @@ object TacticalFlyoutLauncher {
                     context.startActivity(intent)
                     LightspeedHapticEngine.click(context)
                     return
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("TacticalFlyoutLauncher", "launchLens:157", e) }
             }
         }
 
@@ -180,7 +180,7 @@ object TacticalFlyoutLauncher {
                 context.startActivity(intent)
                 LightspeedHapticEngine.click(context)
                 return
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("TacticalFlyoutLauncher", "launchQrScanner:183", e) }
         }
 
         Toast.makeText(context, "QR Scanner not found", Toast.LENGTH_SHORT).show()

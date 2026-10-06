@@ -1,6 +1,7 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
+import com.sbf.lightspeed.system.logSwallowed
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
@@ -48,10 +49,15 @@ fun HudTacticalHardwareSection(
     tokenLabelCache: Map<String, String>,
     onShowOemShieldDialog: () -> Unit,
     onSelectHighDrainScope: (String) -> Unit,
+    installedTools: List<com.sbf.lightspeed.system.TacticalToolItem> = emptyList(),
     onRefreshNeeded: () -> Unit
 ) {
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+    val (tacticalTitle, tacticalSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.TACTICAL_HARDWARE, currentLanguageMode)
+
     CompactAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TACTICAL_HARDWARE),
+        title = tacticalTitle,
+        subtitle = tacticalSub,
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Tune,
@@ -266,6 +272,35 @@ fun HudTacticalHardwareSection(
                 isExpanded = isSubHullTapExpanded,
                 onToggle = onToggleSubHullTap
             ) {
+                val isBackTapSupported = remember { LightspeedBackTapEngine.isSupported(context) }
+                if (!isBackTapSupported) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Not supported on this device",
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.error,
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                }
+
                 var isBackTapActive by rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_BACK_TAP_ENABLED, false)) }
                 PrefToggleRow(
                     title = "Enable Back Tap Gestures",
@@ -473,7 +508,9 @@ fun HudTacticalHardwareSection(
                     defaultTitle = "Double Back Tap (250-450ms)",
                     options = dynamicActionTokens,
                     labelCache = tokenLabelCache,
-                    showMediaQuickAccess = true
+                    showMediaQuickAccess = false,
+                    showToolsQuickAccess = true,
+                    installedTools = installedTools
                 )
 
                 GestureMappingRow(
@@ -485,7 +522,9 @@ fun HudTacticalHardwareSection(
                     defaultTitle = "Triple Back Tap (≤ 700ms)",
                     options = dynamicActionTokens,
                     labelCache = tokenLabelCache,
-                    showMediaQuickAccess = true
+                    showMediaQuickAccess = false,
+                    showToolsQuickAccess = true,
+                    installedTools = installedTools
                 )
             }
         }
@@ -501,16 +540,18 @@ fun HudRefuelingBaySection(
     onShowAmoledWarning: () -> Unit,
     onRefreshNeeded: () -> Unit
 ) {
-    val cautionAmber = Color(0xFFFFB300)
-    CollapsibleSubSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.REFUELING_BAY),
-        subtitle = "Cryo charging stasis, smart stack 3D widget carousel & ambient nightstand",
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+    val (refuelingTitle, refuelingSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.REFUELING_BAY, currentLanguageMode)
+
+    CompactAccordionSection(
+        title = refuelingTitle,
+        subtitle = refuelingSub,
         icon = {
             Icon(
                 imageVector = Icons.Outlined.BatteryChargingFull,
                 contentDescription = null,
-                tint = cautionAmber,
-                modifier = Modifier.size(16.dp)
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
             )
         },
         isExpanded = isExpanded,
@@ -623,7 +664,7 @@ fun HudRefuelingBaySection(
                                         context.startActivity(Intent(Settings.ACTION_SETTINGS).apply {
                                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         })
-                                    } catch (_: Exception) {}
+                                    } catch (e: Exception) { logSwallowed("HudHardwareRefuelingComponents", "HudRefuelingBaySection:666", e) }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -838,7 +879,7 @@ fun HudRefuelingBaySection(
                                         context.startActivity(Intent(Settings.ACTION_SETTINGS).apply {
                                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         })
-                                    } catch (_: Exception) {}
+                                    } catch (e: Exception) { logSwallowed("HudHardwareRefuelingComponents", "HudRefuelingBaySection:881", e) }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

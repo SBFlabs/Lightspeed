@@ -61,10 +61,6 @@ object LightspeedShortcutManager {
         return "shortcut:type=pinned;pkg=$pkg;id=${encode(id)};label=${encode(label)};"
     }
 
-    fun createActivityShortcutToken(pkg: String, act: String, label: String): String {
-        return "shortcut:type=activity;pkg=$pkg;act=$act;label=${encode(label)};"
-    }
-
     fun createCustomShortcutToken(
         context: Context,
         pkg: String,
@@ -156,7 +152,7 @@ object LightspeedShortcutManager {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "purgeCorruptedIcons:155", e) }
         }
     }
 
@@ -179,7 +175,7 @@ object LightspeedShortcutManager {
                     return bmp
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "loadCachedBitmap:178", e) }
         return null
     }
 
@@ -222,7 +218,7 @@ object LightspeedShortcutManager {
                     val b64 = body.substringAfter("b64uri=").substringBefore(";")
                     val bytes = Base64.decode(b64, Base64.NO_WRAP or Base64.URL_SAFE)
                     intentUri = String(bytes, Charsets.UTF_8)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed(TAG, "parseToken:221", e) }
             } else if (body.contains("uri=")) {
                 intentUri = decode(body.substringAfter("uri=").substringBefore(";"))
             }
@@ -275,7 +271,7 @@ object LightspeedShortcutManager {
                         else -> ""
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "parseToken:274", e) }
 
             return ParsedShortcut("intent", pkg, label = customLabel, intentUri = cleanUri)
         }
@@ -311,7 +307,7 @@ object LightspeedShortcutManager {
             val custom = context.defaultPrefs()
                 .getString("custom_label_${safeTokenKey(token)}", null)
             if (!custom.isNullOrBlank()) return custom
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "resolveLabelInternal:310", e) }
 
         val parsed = parseToken(token)
 
@@ -415,7 +411,7 @@ object LightspeedShortcutManager {
                 val d = pm.getActivityIcon(comp)
                 if (useCache) drawableCache.put(token, d)
                 return d
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "resolveIconDrawable:414", e) }
         }
 
         // 4. Host App / Icon Pack Fallback via LightspeedIconManager
@@ -531,7 +527,7 @@ object LightspeedShortcutManager {
                 if (!launched) {
                     context.packageManager.getLaunchIntentForPackage(parsed.packageName)?.let {
                         it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        try { context.startActivity(it); launched = true } catch (_: Exception) {}
+                        try { context.startActivity(it); launched = true } catch (e: Exception) { logSwallowed(TAG, "launch:530", e) }
                     }
                 }
                 return launched
@@ -602,7 +598,7 @@ object LightspeedShortcutManager {
                                 }
                                 context.startActivity(innerIntent)
                                 return true
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) { logSwallowed(TAG, "launch:601", e) }
                         }
 
                         // 1. Try starting as Activity
@@ -638,7 +634,7 @@ object LightspeedShortcutManager {
                             try {
                                 ElevatedTaskCloser.execShizuku(ShizukuShortcutLauncher.intentToAmStartCommand(launchIntent))
                                 return true
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) { logSwallowed(TAG, "launch:637", e) }
                         }
                     }
                 }
@@ -650,28 +646,10 @@ object LightspeedShortcutManager {
                 if (parsed.packageName.isNotBlank()) {
                     context.packageManager.getLaunchIntentForPackage(parsed.packageName)?.let {
                         it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        try { context.startActivity(it); return true } catch (_: Exception) {}
+                        try { context.startActivity(it); return true } catch (e: Exception) { logSwallowed(TAG, "launch:649", e) }
                     }
                 }
                 return false
-            }
-        }
-    }
-    private fun handleLaunchException(context: Context, e: Exception) {
-        if (e is SecurityException && e.message?.contains("Permission Denial") == true) {
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                android.widget.Toast.makeText(context, "Permission Required: Please grant in App Settings", android.widget.Toast.LENGTH_LONG).show()
-            }
-            try {
-                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = android.net.Uri.fromParts("package", context.packageName, null)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
-            } catch (_: Exception) {}
-        } else if (e is android.content.ActivityNotFoundException) {
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                android.widget.Toast.makeText(context, "Activity Not Found: Target app might be restricted or missing", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }

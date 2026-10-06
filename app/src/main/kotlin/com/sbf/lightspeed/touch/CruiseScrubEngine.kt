@@ -104,7 +104,7 @@ object CruiseScrubEngine {
                 Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
             } catch (_: Exception) { 128 }
         } else currentBrightness
-        val targetBrightness = (curBright + (steps * brightStep * stepMultiplier).toInt()).coerceIn(0, 255)
+        val targetBrightness = (curBright + (steps * brightStep * stepMultiplier).toInt()).coerceIn(1, 255)
         try {
             Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
             val curSysBright = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)

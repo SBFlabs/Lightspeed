@@ -463,6 +463,7 @@ fun CentralCommandFooter(
 @Composable
 fun CompactAccordionSection(
     title: String,
+    subtitle: String? = null,
     isExpanded: Boolean,
     onToggle: () -> Unit,
     onLongToggle: (() -> Unit)? = null,
@@ -491,13 +492,21 @@ fun CompactAccordionSection(
                     icon()
                     Spacer(modifier = Modifier.width(10.dp))
                 }
-                Text(
-                    text = title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f).padding(end = 8.dp)
-                )
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color.White
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
                 if (headerTrailing != null) {
                     headerTrailing()
                     Spacer(modifier = Modifier.width(6.dp))

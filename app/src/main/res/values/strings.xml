@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">Lightspeed</string>
     <string name="accessibility_service_description">Lightspeed high-performance edge gesture and category cruise overlay.</string>
+    <string name="restricted_settings_hint">If the switch is greyed out: open this app\'s info page, tap the three dots, then \'Allow restricted settings\'.</string>
 </resources>
+

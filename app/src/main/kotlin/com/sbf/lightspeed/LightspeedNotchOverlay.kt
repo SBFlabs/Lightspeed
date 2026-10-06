@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
@@ -427,7 +428,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                     context.startActivity(intent)
                     return
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedNotchOverlay", "performLongPressAction:430", e) }
         }
 
         if (primaryDl != null) {
@@ -437,7 +438,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedNotchOverlay", "performLongPressAction:440", e) }
         }
     }
 

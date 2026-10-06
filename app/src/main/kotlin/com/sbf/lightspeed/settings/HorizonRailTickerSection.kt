@@ -7,6 +7,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.DeviceFontScanner
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.logSwallowed
 
 /**
  * Sub-Component: Horizon Rail Micro-Text Ticker & Typography.
@@ -38,7 +39,7 @@ fun HorizonRailTickerSection(
             onCheckedChange = {
                 isRailTextEnabled = it
                 prefs.edit().putBoolean("pref_horizon_rail_text_enabled", it).apply()
-                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:42", e) }
                 onRefreshNeeded()
             }
         )
@@ -56,7 +57,7 @@ fun HorizonRailTickerSection(
                 options = textOrientOptions,
                 onSelected = { key ->
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ORIENTATION_MODE, key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:60", e) }
                     onRefreshNeeded()
                 }
             )
@@ -73,7 +74,7 @@ fun HorizonRailTickerSection(
                 options = metadataOptions,
                 onSelected = { key ->
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_METADATA_MODE, key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:77", e) }
                     onRefreshNeeded()
                 }
             )
@@ -99,7 +100,7 @@ fun HorizonRailTickerSection(
                 options = casingOptions,
                 onSelected = { key ->
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_CASING, key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:103", e) }
                     onRefreshNeeded()
                 }
             )
@@ -112,7 +113,7 @@ fun HorizonRailTickerSection(
                 options = availableFonts,
                 onSelected = { key ->
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_FONT, key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:116", e) }
                     onRefreshNeeded()
                 }
             )
@@ -132,7 +133,7 @@ fun HorizonRailTickerSection(
                 options = textPosOptions,
                 onSelected = { key ->
                     prefs.edit().putString("pref_horizon_rail_text_position", key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:136", e) }
                     onRefreshNeeded()
                 }
             )
@@ -152,7 +153,7 @@ fun HorizonRailTickerSection(
                 options = marqueeScopeOptions,
                 onSelected = { key ->
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_SCOPE, key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:156", e) }
                     onRefreshNeeded()
                 }
             )
@@ -168,7 +169,7 @@ fun HorizonRailTickerSection(
                 options = marqueeAnimOptions,
                 onSelected = { key ->
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_ANIM_MODE, key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:173", e) }
                     onRefreshNeeded()
                 }
             )
@@ -184,7 +185,7 @@ fun HorizonRailTickerSection(
                 options = marqueeDirOptions,
                 onSelected = { key ->
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_DIRECTION, key).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:188", e) }
                     onRefreshNeeded()
                 }
             )
@@ -199,7 +200,7 @@ fun HorizonRailTickerSection(
                 onCheckedChange = {
                     isAvoidCutout = it
                     prefs.edit().putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_AVOID_CUTOUT, it).apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:203", e) }
                     onRefreshNeeded()
                 }
             )

@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.defaultPrefs
 import android.content.Context
 import android.graphics.Canvas
@@ -57,6 +58,14 @@ internal class DeepSpaceRenderer(
 
     private val diamondPath = Path()
     private val gearPath = Path()
+    private val transferRect = RectF()
+    private val exitBtnRect = RectF()
+    private val reticleArcRect = RectF()
+    private val flightBadgeRect = RectF()
+    private val shiftLeftRect = RectF()
+    private val shiftRightRect = RectF()
+    private val targetBadgeRect = RectF()
+    private val singleTargetRect = RectF()
 
     // Modular sub-renderers
     val cosmicRenderer = LightspeedCosmicBackdropRenderer()
@@ -478,7 +487,7 @@ internal class DeepSpaceRenderer(
                         // Stream full icon in background without dropping any frame
                         com.sbf.lightspeed.system.LightspeedIconManager.loadIconAsync(context, itemToken, onIconResolved)
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("DeepSpaceRenderer", "drawPill:489", e) }
 
                 if (isEjectArmedHere) {
                     elementPaint.style = Paint.Style.STROKE
@@ -513,9 +522,9 @@ internal class DeepSpaceRenderer(
         val effectiveReticle = if (!isInfinityUnlocked && (reticleStyle == "cross" || reticleStyle == "diamond")) "tactical" else reticleStyle
         when (effectiveReticle) {
             "cyber" -> {
-                val arcRect = RectF(reticleX - half, reticleY - half, reticleX + half, reticleY + half)
-                canvas.drawArc(arcRect, 35f, 110f, false, elementPaint)
-                canvas.drawArc(arcRect, 215f, 110f, false, elementPaint)
+                reticleArcRect.set(reticleX - half, reticleY - half, reticleX + half, reticleY + half)
+                canvas.drawArc(reticleArcRect, 35f, 110f, false, elementPaint)
+                canvas.drawArc(reticleArcRect, 215f, 110f, false, elementPaint)
                 elementPaint.strokeWidth = 1.4f * d
                 canvas.drawLine(reticleX, reticleY - half - 4f * d, reticleX, reticleY - half + 4f * d, elementPaint)
                 canvas.drawLine(reticleX, reticleY + half - 4f * d, reticleX, reticleY + half + 4f * d, elementPaint)
@@ -587,8 +596,8 @@ internal class DeepSpaceRenderer(
 
         if (focusedAppLabel != null) {
             if (activeAppsList.size > 1) {
-                val shiftLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
-                val shiftRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
+                shiftLeftRect.set(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
+                shiftRightRect.set(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
 
                 highlightPaint.style = Paint.Style.FILL
                 highlightPaint.color = Color.argb(160, 18, 24, 40)
@@ -602,7 +611,7 @@ internal class DeepSpaceRenderer(
                 textPaint.color = activeRingColor
                 canvas.drawText("◀ SHIFT COG", shiftLeftRect.centerX(), shiftLeftRect.centerY() + 3.5f * d, textPaint)
 
-                val targetBadgeRect = RectF(cx - 56f * d, shiftBarY - 14f * d, cx + 56f * d, shiftBarY + 14f * d)
+                targetBadgeRect.set(cx - 56f * d, shiftBarY - 14f * d, cx + 56f * d, shiftBarY + 14f * d)
                 if (isHangarEjectArmed) {
                     highlightPaint.style = Paint.Style.FILL
                     highlightPaint.color = Color.argb(230, 220, 38, 38)
@@ -639,7 +648,7 @@ internal class DeepSpaceRenderer(
                 textPaint.color = activeRingColor
                 canvas.drawText("SHIFT COG ▶", shiftRightRect.centerX(), shiftRightRect.centerY() + 3.5f * d, textPaint)
             } else {
-                val singleTargetRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
+                singleTargetRect.set(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
                 if (isHangarEjectArmed) {
                     highlightPaint.style = Paint.Style.FILL
                     highlightPaint.color = Color.argb(230, 220, 38, 38)
@@ -668,7 +677,7 @@ internal class DeepSpaceRenderer(
             }
 
             val destRingName = if (activeHangarRing == 0) "INNER RING 02" else "OUTER RING 01"
-            val transferRect = RectF(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
+            transferRect.set(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb(160, 20, 26, 46)
             canvas.drawRoundRect(transferRect, 9f * d, 9f * d, highlightPaint)
@@ -693,7 +702,7 @@ internal class DeepSpaceRenderer(
         }
 
         // Bottom Exit Capsule
-        val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 58f * d, cx + (deckW * 0.42f), screenH - 18f * d)
+        exitBtnRect.set(cx - (deckW * 0.42f), screenH - 58f * d, cx + (deckW * 0.42f), screenH - 18f * d)
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = Color.argb(140, 24, 28, 40)
         canvas.drawRoundRect(exitBtnRect, 14f * d, 14f * d, highlightPaint)
@@ -861,9 +870,9 @@ internal class DeepSpaceRenderer(
 
         when (reticleStyle) {
             "cyber" -> {
-                val arcRect = RectF(targetCX - half, targetCY - half, targetCX + half, targetCY + half)
-                canvas.drawArc(arcRect, 35f, 110f, false, elementPaint)
-                canvas.drawArc(arcRect, 215f, 110f, false, elementPaint)
+                reticleArcRect.set(targetCX - half, targetCY - half, targetCX + half, targetCY + half)
+                canvas.drawArc(reticleArcRect, 35f, 110f, false, elementPaint)
+                canvas.drawArc(reticleArcRect, 215f, 110f, false, elementPaint)
                 elementPaint.strokeWidth = 1.6f * density
                 canvas.drawLine(targetCX, targetCY - half - 4f * density, targetCX, targetCY - half + 4f * density, elementPaint)
                 canvas.drawLine(targetCX, targetCY + half - 4f * density, targetCX, targetCY + half + 4f * density, elementPaint)
@@ -942,12 +951,12 @@ internal class DeepSpaceRenderer(
 
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = Color.argb(190, 16, 20, 32)
-        val badgeRect = RectF(badgeX - 8f * density, badgeY - 14f * density, badgeX + finalBadgeWidth + 12f * density, badgeY + 18f * density)
-        canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
+        flightBadgeRect.set(badgeX - 8f * density, badgeY - 14f * density, badgeX + finalBadgeWidth + 12f * density, badgeY + 18f * density)
+        canvas.drawRoundRect(flightBadgeRect, 8f * density, 8f * density, highlightPaint)
         highlightPaint.style = Paint.Style.STROKE
         highlightPaint.strokeWidth = 1.2f * density
         highlightPaint.color = m3Primary
-        canvas.drawRoundRect(badgeRect, 8f * density, 8f * density, highlightPaint)
+        canvas.drawRoundRect(flightBadgeRect, 8f * density, 8f * density, highlightPaint)
 
         textPaint.textSize = 12f * density
         textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD

@@ -6,6 +6,7 @@ import com.sbf.lightspeed.system.LightspeedCrashSentinel
 class LightspeedApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        com.sbf.lightspeed.system.ElevatedTaskCloser.exemptHiddenApis()
         com.sbf.lightspeed.system.LightspeedPreferences.initializeDefaults(this)
         com.sbf.lightspeed.system.LightspeedLanguageEngine.init(this)
         LightspeedCrashSentinel.init(this)

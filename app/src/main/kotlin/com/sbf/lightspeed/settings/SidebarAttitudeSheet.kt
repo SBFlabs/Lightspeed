@@ -42,6 +42,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
+import com.sbf.lightspeed.system.logSwallowed
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -112,7 +113,7 @@ fun AttitudeAppAssignmentSheet(
                             badge = "LAUNCHER"
                         )
                     )
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("SidebarAttitudeSheet", "AttitudeAppAssignmentSheet:115", e) }
             }
         }
 
@@ -179,7 +180,7 @@ fun AttitudeAppAssignmentSheet(
                             )
                         )
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("SidebarAttitudeSheet", "AttitudeAppAssignmentSheet:182", e) }
             }
         }
 
@@ -200,7 +201,7 @@ fun AttitudeAppAssignmentSheet(
                     )
                 )
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("SidebarAttitudeSheet", "AttitudeAppAssignmentSheet:203", e) }
 
         // 7. All other installed launcher apps (standard user apps)
         val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }

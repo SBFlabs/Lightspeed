@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.content.Intent
 import android.view.MotionEvent
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -12,7 +13,7 @@ internal fun LightspeedCruiseOverlay.executeLaunch(target: LightspeedDataBridge.
     val launchIntent = context.packageManager.getLaunchIntentForPackage(target.packageName)
     if (launchIntent != null) {
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try { context.startActivity(launchIntent) } catch (e: Exception) {}
+        try { context.startActivity(launchIntent) } catch (e: Exception) { logSwallowed("LightspeedCruiseOverlayActions", "executeLaunch:15", e) }
     }
 }
 

@@ -14,6 +14,7 @@ import android.view.View
 import android.view.WindowManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.logSwallowed
 
 internal fun LightspeedAccessibilityService.setupNotchOverlay() {
     val d = resources.displayMetrics.density
@@ -43,7 +44,7 @@ internal fun LightspeedAccessibilityService.setupNotchOverlay() {
     notchOverlayView = LightspeedNotchOverlay(this)
     try {
         windowManager?.addView(notchOverlayView, notchWindowParams)
-    } catch (_: Exception) {}
+    } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "setupNotchOverlay:47", e) }
 }
 
 internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedPreferences) {
@@ -105,7 +106,7 @@ internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedP
     statusBarOverlayView = LightspeedStatusBarOverlay(this, this)
     try {
         windowManager?.addView(statusBarOverlayView, statusBarWindowParams)
-    } catch (_: Exception) {}
+    } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "setupStatusBarOverlay:109", e) }
 
     setupSensorTouchOverlay(prefs)
 }
@@ -152,14 +153,14 @@ internal fun LightspeedAccessibilityService.setupSensorTouchOverlay(prefs: Share
     sensorTouchOverlayView = LightspeedSensorDeckTouchOverlay(this, this)
     try {
         windowManager?.addView(sensorTouchOverlayView, sensorTouchWindowParams)
-    } catch (_: Exception) {}
+    } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "setupSensorTouchOverlay:156", e) }
 }
 
 internal fun LightspeedAccessibilityService.updateSensorTouchOverlayFromPrefs(prefs: SharedPreferences) {
     val enabled = prefs.getBoolean("pref_statusbar_enabled", false)
     if (!enabled) {
         sensorTouchOverlayView?.let {
-            try { windowManager?.removeView(it) } catch (_: Exception) {}
+            try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateSensorTouchOverlayFromPrefs:163", e) }
             sensorTouchOverlayView = null
         }
         return
@@ -187,7 +188,7 @@ internal fun LightspeedAccessibilityService.updateSensorTouchOverlayFromPrefs(pr
         sensorTouchWindowParams.y = sensorTop.toInt()
         try {
             windowManager?.updateViewLayout(sensorTouchOverlayView, sensorTouchWindowParams)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateSensorTouchOverlayFromPrefs:191", e) }
     }
 }
 
@@ -200,7 +201,7 @@ internal fun LightspeedAccessibilityService.updateStatusBarOverlayFromPrefs(pref
 
     if (!enabled && !isRailRoutingActive && !isRailPreview) {
         statusBarOverlayView?.let {
-            try { windowManager?.removeView(it) } catch (_: Exception) {}
+            try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateStatusBarOverlayFromPrefs:204", e) }
             statusBarOverlayView = null
         }
         return
@@ -246,7 +247,7 @@ internal fun LightspeedAccessibilityService.updateStatusBarOverlayFromPrefs(pref
         statusBarOverlayView?.invalidate()
         try {
             windowManager?.updateViewLayout(statusBarOverlayView, statusBarWindowParams)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateStatusBarOverlayFromPrefs:250", e) }
     }
 }
 
@@ -288,8 +289,14 @@ internal fun LightspeedAccessibilityService.updateWindowLayoutInternal(expand: B
         windowParams.width = WindowManager.LayoutParams.MATCH_PARENT
         windowParams.height = WindowManager.LayoutParams.MATCH_PARENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            windowParams.flags = windowParams.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-            windowParams.blurBehindRadius = 75
+            val isBlurEnabled = windowManager?.isCrossWindowBlurEnabled == true
+            if (isBlurEnabled) {
+                windowParams.flags = windowParams.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                windowParams.blurBehindRadius = 75
+            } else {
+                windowParams.flags = windowParams.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                windowParams.blurBehindRadius = 0
+            }
         }
         windowManager?.updateViewLayout(overlayView, windowParams)
     } else {
@@ -342,9 +349,10 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
     val effectiveLocked = isLocked ?: (keyguardManager?.isKeyguardLocked == true)
     val isRefueling = LightspeedRefuelingActivity.isActive
+    val isTranssionSysUi = currentPkg != null && (currentPkg == "com.android.systemui" || currentPkg == "com.transsion.systemui" || currentPkg == "com.infinix.systemui")
     val isInfinixStandby = currentPkg != null && (currentPkg.contains("standby") || currentPkg.contains("aod") || currentPkg == "com.transsion.aod" || currentPkg == "com.infinix.aod" || currentPkg == "com.transsion.aod.app")
-    val isDoze = currentPkg == "com.android.systemui" && !effectiveLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
-    val isSystemUiActive = !effectiveLocked && (if (currentPkg != null) currentPkg == "com.android.systemui" else isNotificationShadeActive)
+    val isDoze = isTranssionSysUi && !effectiveLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
+    val isSystemUiActive = !effectiveLocked && (if (currentPkg != null) isTranssionSysUi else isNotificationShadeActive)
 
     val lockscreenMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_DEFLECTOR_MODE, "hide_deflectors") ?: "hide_deflectors"
     val lockscreenRailMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_HORIZON_RAIL_MODE, "hide") ?: "hide"
@@ -378,7 +386,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
 
     statusBarOverlayView?.visibility = if (hideRailOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()) View.GONE else View.VISIBLE
     notchOverlayView?.visibility = if (shouldHideTopHud) View.GONE else View.VISIBLE
-    sensorTouchOverlayView?.visibility = if (shouldHideTopHud || hideSensorOnLock || isSystemUiActive) View.GONE else View.VISIBLE
+    sensorTouchOverlayView?.visibility = if (shouldHideTopHud || hideSensorOnLock) View.GONE else View.VISIBLE
 
     val isPillOnlyLock = effectiveLocked && lockscreenMode == "hide_deflectors"
     val isFullLockdown = effectiveLocked && lockscreenMode == "full_lockdown"
@@ -393,6 +401,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
 
     val leftVisibility = if (isLeftDeflectorEnabled && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
     val rightVisibility = if (isRightDeflectorEnabled && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
+
 
     overlayView?.visibility = rightVisibility
     leftWingOverlayView?.visibility = leftVisibility
@@ -441,7 +450,7 @@ internal fun LightspeedAccessibilityService.updateNotchWindowBoundsInternal(isEx
     }
     try {
         windowManager?.updateViewLayout(notchOverlayView, notchWindowParams)
-    } catch (_: Exception) {}
+    } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateNotchWindowBoundsInternal:453", e) }
 }
 
 internal fun LightspeedAccessibilityService.setupOrientationAnchor() {

@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.app.Activity
@@ -19,6 +20,7 @@ import androidx.core.content.IntentCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,16 +39,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.AttitudeAppAssignmentSheet
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.settings.resolveDynamicTokenLabel
+import com.sbf.lightspeed.system.ActionDispatcher
+import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedShortcutManager
+import com.sbf.lightspeed.system.PopupDiagnostics
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +79,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
             if (setIndex >= 0) {
                 try {
                     LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("CockpitGearPickerActivity", "onDestroy:81", e) }
             }
         }
     }
@@ -85,6 +92,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
         val singleSelectPrefKey = intent.getStringExtra("SINGLE_SELECT_PREF_KEY")
         val singleSelectTitle = intent.getStringExtra("SINGLE_SELECT_TITLE") ?: "Select Action"
         val isSingleSelect = !singleSelectPrefKey.isNullOrBlank()
+        val isSplitMode = intent.getBooleanExtra("SPLIT_MODE", false)
         val isHoldGesture = intent.getBooleanExtra("IS_HOLD_GESTURE", false) ||
                 singleSelectPrefKey?.contains("_HOLD", ignoreCase = true) == true ||
                 singleSelectPrefKey?.contains("SCRUB", ignoreCase = true) == true
@@ -200,9 +208,9 @@ var showHud by remember { mutableStateOf(false) }
                 }
 
                 // Build hierarchical items list
-                val flatItemsList by remember(allTokens.size, labelCache.size, searchQuery, expandedSubsections, hudStyleVersion) {
+                val flatItemsList by remember(allTokens.size, labelCache.size, searchQuery, expandedSubsections, hudStyleVersion, isSplitMode) {
                     derivedStateOf {
-                        buildFlatItemsList(
+                        val rawList = buildFlatItemsList(
                             allTokens = allTokens,
                             labelCache = labelCache,
                             searchQuery = searchQuery,
@@ -212,6 +220,11 @@ var showHud by remember { mutableStateOf(false) }
                             singleSelectPrefKey = singleSelectPrefKey,
                             isHoldOrScrubGesture = isHoldGesture
                         )
+                        if (isSplitMode) {
+                            filterForSplitMode(rawList)
+                        } else {
+                            rawList
+                        }
                     }
                 }
 
@@ -267,7 +280,9 @@ var showHud by remember { mutableStateOf(false) }
                                         color = Color.White
                                     )
                                     Text(
-                                        text = if (isSingleSelect) "Tap any app, deep shortcut or system action to assign" else "Profile: $sName (${selectedTokens.size} selected)",
+                                        text = if (isSingleSelect) {
+                                            if (isSplitMode) "Tap any app or shortcut" else "Tap any app, deep shortcut or system action to assign"
+                                        } else "Profile: $sName (${selectedTokens.size} selected)",
                                         fontSize = 12.sp,
                                         color = dynamicSecondary
                                     )
@@ -308,7 +323,7 @@ var showHud by remember { mutableStateOf(false) }
                             )
 
                             // None / Clear action row (single-select only)
-                            if (isSingleSelect && searchQuery.isBlank()) {
+                            if (isSingleSelect && searchQuery.isBlank() && !isSplitMode) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -541,87 +556,111 @@ var showHud by remember { mutableStateOf(false) }
                                                         }
                                                     }
                                                 )
-                                                is PickerRowItem.SystemCustomizationOption -> PickerCustomizationOptionRow(
-                                                    item = item,
-                                                    dynamicSecondary = dynamicSecondary,
-                                                    onClick = {
-                                                        when {
-                                                            item.optionKey.startsWith("action_behavior:") -> {
-                                                                val parts = item.optionKey.split(":")
-                                                                if (parts.size >= 4) {
-                                                                    val parentToken = "${parts[1]}:${parts[2]}"
-                                                                    val behavior = parts[3]
-                                                                    LightspeedPreferences.setActionBehavior(this@CockpitGearPickerActivity, parentToken, behavior)
-                                                                    LightspeedActionRegistry.labelCache[parentToken] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, parentToken)
-                                                                    safeReloadPreferences()
-                                                                    hudStyleVersion++
-                                                                }
+                                                is PickerRowItem.SystemCustomizationOption -> {
+                                                    if (item.optionKey.startsWith("popup_style:")) {
+                                                        PickerPopupStyleOptionRow(
+                                                            item = item,
+                                                            dynamicSecondary = dynamicSecondary,
+                                                            onClick = {
+                                                                val style = item.optionKey.removePrefix("popup_style:")
+                                                                prefs.edit().putString(LightspeedPreferences.KEY_POPUP_STYLE, style).apply()
+                                                                safeReloadPreferences()
+                                                                hudStyleVersion++
+                                                            },
+                                                            onLongClick = {
+                                                                PopupDiagnostics.copyToClipboard(this@CockpitGearPickerActivity)
                                                             }
-                                                            item.optionKey.startsWith("gravity_bucket_assign:") -> {
-                                                                val bucketName = item.optionKey.removePrefix("gravity_bucket_assign:")
-                                                                val isGravityEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)
-                                                                if (!isGravityEnabled) {
-                                                                    android.widget.Toast.makeText(this@CockpitGearPickerActivity, "Synthetic Gravity is disabled in Experimental Labs", android.widget.Toast.LENGTH_SHORT).show()
-                                                                } else {
-                                                                    val bucket = runCatching { LightspeedOrientationEngine.AttitudeBucket.valueOf(bucketName) }.getOrNull()
-                                                                    if (bucket != null) {
-                                                                        selectedAttitudeBucketForAppPicker = bucket
+                                                        )
+                                                    } else {
+                                                        PickerCustomizationOptionRow(
+                                                            item = item,
+                                                            dynamicSecondary = dynamicSecondary,
+                                                            onClick = {
+                                                                when {
+                                                                    item.optionKey.startsWith("action_behavior:") -> {
+                                                                        val parts = item.optionKey.split(":")
+                                                                        if (parts.size >= 4) {
+                                                                            val parentToken = "${parts[1]}:${parts[2]}"
+                                                                            val behavior = parts[3]
+                                                                            LightspeedPreferences.setActionBehavior(this@CockpitGearPickerActivity, parentToken, behavior)
+                                                                            LightspeedActionRegistry.labelCache[parentToken] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, parentToken)
+                                                                            safeReloadPreferences()
+                                                                            hudStyleVersion++
+                                                                        }
+                                                                    }
+                                                                    item.optionKey.startsWith("gravity_bucket_assign:") -> {
+                                                                        val bucketName = item.optionKey.removePrefix("gravity_bucket_assign:")
+                                                                        val isGravityEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)
+                                                                        if (!isGravityEnabled) {
+                                                                            android.widget.Toast.makeText(this@CockpitGearPickerActivity, "Synthetic Gravity Engine is disabled", android.widget.Toast.LENGTH_SHORT).show()
+                                                                        } else {
+                                                                            val bucket = runCatching { LightspeedOrientationEngine.AttitudeBucket.valueOf(bucketName) }.getOrNull()
+                                                                            if (bucket != null) {
+                                                                                selectedAttitudeBucketForAppPicker = bucket
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                    item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward" -> {
+                                                                        val sec = item.optionKey.toIntOrNull() ?: 10
+                                                                        prefs.edit().putInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
+                                                                        LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_forward")
+                                                                        LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_backward")
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    item.optionKey.startsWith("brightness_hud_toggle:") -> {
+                                                                        val enabled = item.optionKey.endsWith(":on")
+                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, enabled).apply()
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    item.optionKey.startsWith("volume_hud_toggle:") -> {
+                                                                        val enabled = item.optionKey.endsWith(":on")
+                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, enabled).apply()
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    item.optionKey.startsWith("volume_native_slider:") -> {
+                                                                        val enabled = item.optionKey.endsWith(":on")
+                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, enabled).apply()
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    item.optionKey.startsWith("popup_style:") -> {
+                                                                        val style = item.optionKey.removePrefix("popup_style:")
+                                                                        prefs.edit().putString(LightspeedPreferences.KEY_POPUP_STYLE, style).apply()
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    item.optionKey.startsWith("brightness_step:") -> {
+                                                                        val step = item.optionKey.removePrefix("brightness_step:").toIntOrNull() ?: 8
+                                                                        prefs.edit().putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, step).apply()
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    item.optionKey.startsWith("volume_step:") -> {
+                                                                        val step = item.optionKey.removePrefix("volume_step:").toIntOrNull() ?: 1
+                                                                        prefs.edit().putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, step).apply()
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    item.optionKey.startsWith("hud_style:") -> {
+                                                                        val style = item.optionKey.removePrefix("hud_style:")
+                                                                        LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
+                                                                    }
+                                                                    else -> {
+                                                                        val style = item.optionKey
+                                                                        LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
+                                                                        safeReloadPreferences()
+                                                                        hudStyleVersion++
                                                                     }
                                                                 }
                                                             }
-                                                            item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward" -> {
-                                                                val sec = item.optionKey.toIntOrNull() ?: 10
-                                                                prefs.edit().putInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
-                                                                LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_forward")
-                                                                LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_backward")
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            item.optionKey.startsWith("brightness_hud_toggle:") -> {
-                                                                val enabled = item.optionKey.endsWith(":on")
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, enabled).apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            item.optionKey.startsWith("volume_hud_toggle:") -> {
-                                                                val enabled = item.optionKey.endsWith(":on")
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, enabled).apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            item.optionKey.startsWith("volume_native_slider:") -> {
-                                                                val enabled = item.optionKey.endsWith(":on")
-                                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, enabled).apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            item.optionKey.startsWith("brightness_step:") -> {
-                                                                val step = item.optionKey.removePrefix("brightness_step:").toIntOrNull() ?: 8
-                                                                prefs.edit().putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, step).apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            item.optionKey.startsWith("volume_step:") -> {
-                                                                val step = item.optionKey.removePrefix("volume_step:").toIntOrNull() ?: 1
-                                                                prefs.edit().putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, step).apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            item.optionKey.startsWith("hud_style:") -> {
-                                                                val style = item.optionKey.removePrefix("hud_style:")
-                                                                LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            else -> {
-                                                                val style = item.optionKey
-                                                                LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                        }
+                                                        )
                                                     }
-                                                )
+                                                }
                                                 is PickerRowItem.AppHeader -> PickerAppHeaderRow(
                                                     item = item,
                                                     isAppSelected = selectedTokens.contains(item.appToken),
@@ -664,6 +703,12 @@ var showHud by remember { mutableStateOf(false) }
                                                             setClassName(pkg, act)
                                                         }
                                                         shortcutConfigLauncher.launch(intent)
+                                                    },
+                                                    onLongClick = {
+                                                        if (!item.isPlugin) {
+                                                            LightspeedHapticEngine.click(this@CockpitGearPickerActivity)
+                                                            ActionDispatcher.execute(applicationContext, item.token)
+                                                        }
                                                     }
                                                 )
                                             }
@@ -968,7 +1013,7 @@ var showHud by remember { mutableStateOf(false) }
             } catch (_: Exception) { null }
 
             if (pinRequest != null && pinRequest.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
-                try { pinRequest.accept() } catch (_: Exception) {}
+                try { pinRequest.accept() } catch (e: Exception) { logSwallowed("CockpitGearPickerActivity", "extractShortcutToken:1007", e) }
                 val info = pinRequest.shortcutInfo
                 if (info != null) {
                     val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: "Shortcut"
@@ -979,4 +1024,149 @@ var showHud by remember { mutableStateOf(false) }
 
         return generatedToken
     }
+
+    private fun filterForSplitMode(list: List<PickerRowItem>): List<PickerRowItem> {
+        val allowedSystemTokens = setOf(
+            "system:refueling_bay",
+            "system:perimeter_watchdog",
+            "system:core_watchdog",
+            "system:battery_exemption",
+            "system:central_command"
+        )
+
+        val allowedActions = list.filterIsInstance<PickerRowItem.SystemAction>()
+            .filter { allowedSystemTokens.contains(it.token) }
+
+        if (allowedActions.isEmpty()) {
+            return list.filter { item ->
+                item !is PickerRowItem.SystemHeader &&
+                item !is PickerRowItem.SystemCategoryHeader &&
+                item !is PickerRowItem.SystemAction &&
+                item !is PickerRowItem.SystemCustomizationOption &&
+                item !is PickerRowItem.SystemCustomizationSlider
+            }
+        }
+
+        val result = mutableListOf<PickerRowItem>()
+        var currentCatHeader: PickerRowItem.SystemCategoryHeader? = null
+        val currentCatActions = mutableListOf<PickerRowItem>()
+
+        fun flushCategory() {
+            val catHeader = currentCatHeader ?: return
+            val validInCat = currentCatActions.filter {
+                (it is PickerRowItem.SystemAction && allowedSystemTokens.contains(it.token)) ||
+                (it is PickerRowItem.SystemCustomizationOption && allowedSystemTokens.contains(it.parentToken)) ||
+                (it is PickerRowItem.SystemCustomizationSlider && allowedSystemTokens.contains(it.parentToken))
+            }
+            val actionCount = validInCat.count { it is PickerRowItem.SystemAction }
+            if (actionCount > 0) {
+                result.add(catHeader.copy(count = actionCount))
+                result.addAll(validInCat)
+            }
+            currentCatHeader = null
+            currentCatActions.clear()
+        }
+
+        for (item in list) {
+            when (item) {
+                is PickerRowItem.SystemHeader -> {
+                    result.add(item.copy(count = allowedActions.size))
+                }
+                is PickerRowItem.SystemCategoryHeader -> {
+                    flushCategory()
+                    currentCatHeader = item
+                }
+                is PickerRowItem.SystemAction,
+                is PickerRowItem.SystemCustomizationOption,
+                is PickerRowItem.SystemCustomizationSlider -> {
+                    if (currentCatHeader != null) {
+                        currentCatActions.add(item)
+                    } else {
+                        if (item is PickerRowItem.SystemAction && allowedSystemTokens.contains(item.token)) {
+                            result.add(item)
+                        }
+                    }
+                }
+                else -> {
+                    flushCategory()
+                    result.add(item)
+                }
+            }
+        }
+        flushCategory()
+
+        return result
+    }
 }
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun PickerPopupStyleOptionRow(
+    item: PickerRowItem.SystemCustomizationOption,
+    dynamicSecondary: Color,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 2.dp, top = 2.dp, bottom = 2.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (item.isSelected) dynamicSecondary.copy(alpha = 0.22f)
+                else Color.White.copy(alpha = 0.04f)
+            )
+            .border(
+                width = 1.dp,
+                color = if (item.isSelected) dynamicSecondary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.06f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
+        ) {
+            Text(
+                text = item.title,
+                color = if (item.isSelected) dynamicSecondary else Color.White,
+                fontSize = 12.5.sp,
+                fontWeight = if (item.isSelected) FontWeight.Bold else FontWeight.Medium,
+                style = TextStyle(
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    lineHeight = 15.sp
+                )
+            )
+            Text(
+                text = item.subtitle,
+                color = Color.LightGray.copy(alpha = 0.55f),
+                fontSize = 10.sp,
+                style = TextStyle(
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    lineHeight = 12.sp
+                )
+            )
+        }
+        if (item.isSelected) {
+            Box(
+                modifier = Modifier
+                    .background(dynamicSecondary, CircleShape)
+                    .padding(horizontal = 7.dp, vertical = 2.5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "ACTIVE",
+                    color = Color.Black,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
+    }
+}
+

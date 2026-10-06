@@ -34,6 +34,8 @@ object LightspeedDeflectorRenderer {
     }
 
     private val bladePath = Path()
+    private val pillRect = RectF()
+    private val auraRect = RectF()
 
     // Cached Shaders — rebuilt only when geometry/color inputs change
     private var bladeGlowKey: Long = Long.MIN_VALUE
@@ -119,13 +121,13 @@ object LightspeedDeflectorRenderer {
                         val pillW = baseW
                         val cornerR = (pillW * 0.5f).coerceAtMost(pillH / 2f)
                         if (isLeft) {
-                            val rect = RectF(0f, pillTop, pillW, pillBottom)
+                            pillRect.set(0f, pillTop, pillW, pillBottom)
                             val radii = floatArrayOf(0f, 0f, cornerR, cornerR, cornerR, cornerR, 0f, 0f)
-                            bladePath.addRoundRect(rect, radii, Path.Direction.CW)
+                            bladePath.addRoundRect(pillRect, radii, Path.Direction.CW)
                         } else {
-                            val rect = RectF(w - pillW, pillTop, w, pillBottom)
+                            pillRect.set(w - pillW, pillTop, w, pillBottom)
                             val radii = floatArrayOf(cornerR, cornerR, 0f, 0f, 0f, 0f, cornerR, cornerR)
-                            bladePath.addRoundRect(rect, radii, Path.Direction.CW)
+                            bladePath.addRoundRect(pillRect, radii, Path.Direction.CW)
                         }
                         applyPillShading(isLeft, w, pillW, effectiveAlpha, m3Primary, glowStyle, useM3Color)
                         canvas.drawPath(bladePath, bladeFillPaint)
@@ -136,17 +138,17 @@ object LightspeedDeflectorRenderer {
                         val floatGap = 3f * d
                         val cornerR = pillW / 2f
                         
-                        val rect = if (isLeft) {
-                            RectF(floatGap, pillTop, floatGap + pillW, pillBottom)
+                        if (isLeft) {
+                            pillRect.set(floatGap, pillTop, floatGap + pillW, pillBottom)
                         } else {
-                            RectF(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
+                            pillRect.set(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
                         }
                         
                         // Solid semi-transparent fill
                         bladeFillPaint.shader = null
                         val fillAlpha = (effectiveAlpha * 0.45f).toInt().coerceIn(0, 255)
                         bladeFillPaint.color = Color.argb(fillAlpha, baseR, baseG, baseB)
-                        canvas.drawRoundRect(rect, cornerR, cornerR, bladeFillPaint)
+                        canvas.drawRoundRect(pillRect, cornerR, cornerR, bladeFillPaint)
                     }
                     
                     "neon_core" -> {
@@ -155,19 +157,16 @@ object LightspeedDeflectorRenderer {
                         val coreTop = pillTop + pillH * 0.1f
                         val coreBottom = pillBottom - pillH * 0.1f
                         
-                        val rect = if (isLeft) {
-                            RectF(floatGap, coreTop, floatGap + coreW, coreBottom)
+                        if (isLeft) {
+                            pillRect.set(floatGap, coreTop, floatGap + coreW, coreBottom)
+                            auraRect.set(0f, pillTop, 8f * d, pillBottom)
                         } else {
-                            RectF(w - floatGap - coreW, coreTop, w - floatGap, coreBottom)
+                            pillRect.set(w - floatGap - coreW, coreTop, w - floatGap, coreBottom)
+                            auraRect.set(w - 8f * d, pillTop, w, pillBottom)
                         }
                         
                         // Aura
                         val auraW = 8f * d
-                        val auraRect = if (isLeft) {
-                            RectF(0f, pillTop, auraW, pillBottom)
-                        } else {
-                            RectF(w - auraW, pillTop, w, pillBottom)
-                        }
                         applyPillShading(isLeft, w, auraW, (effectiveAlpha * 0.5f).toInt(), m3Primary, glowStyle, useM3Color)
                         
                         // Draw Aura
@@ -183,7 +182,7 @@ object LightspeedDeflectorRenderer {
                         // Draw Solid Core
                         bladeFillPaint.shader = null
                         bladeFillPaint.color = Color.WHITE
-                        canvas.drawRoundRect(rect, coreW/2f, coreW/2f, bladeFillPaint)
+                        canvas.drawRoundRect(pillRect, coreW/2f, coreW/2f, bladeFillPaint)
                     }
                     
                     "razor_edge" -> {
@@ -191,16 +190,16 @@ object LightspeedDeflectorRenderer {
                         val floatGap = 1.5f * d
                         val cornerR = pillW / 2f
                         
-                        val rect = if (isLeft) {
-                            RectF(floatGap, pillTop, floatGap + pillW, pillBottom)
+                        if (isLeft) {
+                            pillRect.set(floatGap, pillTop, floatGap + pillW, pillBottom)
                         } else {
-                            RectF(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
+                            pillRect.set(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
                         }
                         
                         bladeFillPaint.shader = null
                         val fillAlpha = (effectiveAlpha * 0.85f).toInt().coerceIn(0, 255)
                         bladeFillPaint.color = Color.argb(fillAlpha, baseR, baseG, baseB)
-                        canvas.drawRoundRect(rect, cornerR, cornerR, bladeFillPaint)
+                        canvas.drawRoundRect(pillRect, cornerR, cornerR, bladeFillPaint)
                     }
                     
                     "kinetic_elastic" -> {
@@ -208,10 +207,10 @@ object LightspeedDeflectorRenderer {
                         val floatGap = 3f * d
                         val cornerR = pillW / 2f
                         
-                        val rect = if (isLeft) {
-                            RectF(floatGap, pillTop, floatGap + pillW, pillBottom)
+                        if (isLeft) {
+                            pillRect.set(floatGap, pillTop, floatGap + pillW, pillBottom)
                         } else {
-                            RectF(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
+                            pillRect.set(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
                         }
                         
                         bladeFillPaint.shader = null
@@ -250,7 +249,7 @@ object LightspeedDeflectorRenderer {
                             }
                             canvas.drawPath(bladePath, bladeFillPaint)
                         } else {
-                            canvas.drawRoundRect(rect, cornerR, cornerR, bladeFillPaint)
+                            canvas.drawRoundRect(pillRect, cornerR, cornerR, bladeFillPaint)
                         }
                     }
                     
@@ -259,15 +258,15 @@ object LightspeedDeflectorRenderer {
                         val floatGap = 3f * d
                         val cornerR = pillW / 2f
                         
-                        val rect = if (isLeft) {
-                            RectF(floatGap, pillTop, floatGap + pillW, pillBottom)
+                        if (isLeft) {
+                            pillRect.set(floatGap, pillTop, floatGap + pillW, pillBottom)
                         } else {
-                            RectF(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
+                            pillRect.set(w - floatGap - pillW, pillTop, w - floatGap, pillBottom)
                         }
                         
                         reviewStrokePaint.color = Color.argb(effectiveAlpha, baseR, baseG, baseB)
                         reviewStrokePaint.strokeWidth = 1.2f * d
-                        canvas.drawRoundRect(rect, cornerR, cornerR, reviewStrokePaint)
+                        canvas.drawRoundRect(pillRect, cornerR, cornerR, reviewStrokePaint)
                         reviewStrokePaint.color = Color.WHITE // reset
                     }
                 }

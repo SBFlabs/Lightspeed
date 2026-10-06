@@ -51,9 +51,9 @@ class LightspeedRevivalReceiver : BroadcastReceiver() {
             return
         }
 
-        // 3. Attempt revival via Shizuku / Root privileged interface
+        // 3. Attempt revival via Shizuku privileged interface
         var revived = false
-        if (ElevatedTaskCloser.isShizukuActive || ElevatedTaskCloser.isRootActive) {
+        if (ElevatedTaskCloser.isShizukuActive) {
             revived = LightspeedWatchdogEngine.reviveAccessibilityService(context)
             Log.i(TAG, "Autonomous revival command dispatched: $revived")
         }

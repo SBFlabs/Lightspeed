@@ -27,6 +27,21 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.hypot
 
+private val notchCloseIconBounds = RectF()
+private val notchBadgeIconBounds = RectF()
+private val notchProgRect = RectF()
+private val notchFillRect = RectF()
+private val notchPrevIconBounds = RectF()
+private val notchPlayPauseBounds = RectF()
+private val notchNextIconBounds = RectF()
+private val notchRemoteIconBounds = RectF()
+private val notchLeftWingBounds = RectF()
+private val notchRightWingBounds = RectF()
+private val notchPillBounds = RectF()
+private val notchIconSlotBounds = RectF()
+private val notchRingBounds = RectF()
+private val notchInnerBounds = RectF()
+
 internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> Unit) {
         superCall()
 
@@ -74,8 +89,8 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
             btnCloseBounds.set(w - closeSize - 12f * d, 10f * d, w - 12f * d, 10f * d + closeSize)
             buttonBgPaint.color = Color.argb(80, 255, 255, 255)
             canvas.drawCircle(btnCloseBounds.centerX(), btnCloseBounds.centerY(), closeSize / 2f, buttonBgPaint)
-            val closeIconBounds = RectF(btnCloseBounds.centerX() - 5.5f * d, btnCloseBounds.centerY() - 5.5f * d, btnCloseBounds.centerX() + 5.5f * d, btnCloseBounds.centerY() + 5.5f * d)
-            drawVector(canvas, R.drawable.ic_close, closeIconBounds, Color.WHITE)
+            notchCloseIconBounds.set(btnCloseBounds.centerX() - 5.5f * d, btnCloseBounds.centerY() - 5.5f * d, btnCloseBounds.centerX() + 5.5f * d, btnCloseBounds.centerY() + 5.5f * d)
+            drawVector(canvas, R.drawable.ic_close, notchCloseIconBounds, Color.WHITE)
 
             // Bottom Page Indicator Dots
             val dotY = h - 10f * d
@@ -102,8 +117,8 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
                     val artist = med?.artist ?: "Now Playing"
                     val isPlaying = med?.isPlaying ?: true
 
-                    val badgeIconBounds = RectF(16f * d, 13f * d, 25f * d, 22f * d)
-                    drawVector(canvas, R.drawable.ic_music_note, badgeIconBounds, m3Primary)
+                    notchBadgeIconBounds.set(16f * d, 13f * d, 25f * d, 22f * d)
+                    drawVector(canvas, R.drawable.ic_music_note, notchBadgeIconBounds, m3Primary)
                     hudTextPaint.textSize = 9.5f * d
                     hudTextPaint.color = m3Primary
                     canvas.drawText("NOW PLAYING", 28f * d, 21f * d, hudTextPaint)
@@ -121,16 +136,16 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
 
                     val progY = 65f * d
                     val progW = w - 32f * d
-                    val progRect = RectF(16f * d, progY, 16f * d + progW, progY + 3.5f * d)
-                    canvas.drawRoundRect(progRect, 2f * d, 2f * d, progressBarBgPaint)
+                    notchProgRect.set(16f * d, progY, 16f * d + progW, progY + 3.5f * d)
+                    canvas.drawRoundRect(notchProgRect, 2f * d, 2f * d, progressBarBgPaint)
 
                     val fraction = if ((med?.durationMs ?: 0L) > 0L) {
                         (med!!.positionMs.toFloat() / med.durationMs.toFloat()).coerceIn(0f, 1f)
                     } else 0.4f
 
-                    val fillRect = RectF(progRect.left, progRect.top, progRect.left + progW * fraction, progRect.bottom)
+                    notchFillRect.set(notchProgRect.left, notchProgRect.top, notchProgRect.left + progW * fraction, notchProgRect.bottom)
                     progressBarFillPaint.color = m3Primary
-                    canvas.drawRoundRect(fillRect, 2f * d, 2f * d, progressBarFillPaint)
+                    canvas.drawRoundRect(notchFillRect, 2f * d, 2f * d, progressBarFillPaint)
 
                     val btnY = 86f * d
                     val btnR = 13f * d
@@ -145,18 +160,18 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
                     canvas.drawCircle(btnPlayPauseBounds.centerX(), btnPlayPauseBounds.centerY(), btnR + 2f * d, buttonBgPaint)
                     canvas.drawCircle(btnNextBounds.centerX(), btnNextBounds.centerY(), btnR, buttonBgPaint)
 
-                    val prevIconBounds = RectF(btnPrevBounds.centerX() - 6f * d, btnPrevBounds.centerY() - 6f * d, btnPrevBounds.centerX() + 6f * d, btnPrevBounds.centerY() + 6f * d)
-                    drawVector(canvas, R.drawable.ic_skip_previous, prevIconBounds, Color.WHITE)
+                    notchPrevIconBounds.set(btnPrevBounds.centerX() - 6f * d, btnPrevBounds.centerY() - 6f * d, btnPrevBounds.centerX() + 6f * d, btnPrevBounds.centerY() + 6f * d)
+                    drawVector(canvas, R.drawable.ic_skip_previous, notchPrevIconBounds, Color.WHITE)
 
                     val playPauseR = 6.5f * d
-                    val playPauseBounds = RectF(btnPlayPauseBounds.centerX() - playPauseR, btnPlayPauseBounds.centerY() - playPauseR, btnPlayPauseBounds.centerX() + playPauseR, btnPlayPauseBounds.centerY() + playPauseR)
-                    drawVector(canvas, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow, playPauseBounds, Color.WHITE)
+                    notchPlayPauseBounds.set(btnPlayPauseBounds.centerX() - playPauseR, btnPlayPauseBounds.centerY() - playPauseR, btnPlayPauseBounds.centerX() + playPauseR, btnPlayPauseBounds.centerY() + playPauseR)
+                    drawVector(canvas, if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play_arrow, notchPlayPauseBounds, Color.WHITE)
 
-                    val nextIconBounds = RectF(btnNextBounds.centerX() - 6f * d, btnNextBounds.centerY() - 6f * d, btnNextBounds.centerX() + 6f * d, btnNextBounds.centerY() + 6f * d)
-                    drawVector(canvas, R.drawable.ic_skip_next, nextIconBounds, Color.WHITE)
+                    notchNextIconBounds.set(btnNextBounds.centerX() - 6f * d, btnNextBounds.centerY() - 6f * d, btnNextBounds.centerX() + 6f * d, btnNextBounds.centerY() + 6f * d)
+                    drawVector(canvas, R.drawable.ic_skip_next, notchNextIconBounds, Color.WHITE)
                 } else if (showDlPill) {
-                    val badgeIconBounds = RectF(16f * d, 14f * d, 25f * d, 23f * d)
-                    drawVector(canvas, R.drawable.ic_arrow_downward, badgeIconBounds, m3Primary)
+                    notchBadgeIconBounds.set(16f * d, 14f * d, 25f * d, 23f * d)
+                    drawVector(canvas, R.drawable.ic_arrow_downward, notchBadgeIconBounds, m3Primary)
                     hudTextPaint.textSize = 9.5f * d
                     hudTextPaint.color = m3Primary
                     canvas.drawText("DOWNLOADING", 28f * d, 22f * d, hudTextPaint)
@@ -174,19 +189,19 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
 
                     val progY = 76f * d
                     val progW = w - 32f * d
-                    val progRect = RectF(16f * d, progY, 16f * d + progW, progY + 4f * d)
-                    canvas.drawRoundRect(progRect, 2f * d, 2f * d, progressBarBgPaint)
+                    notchProgRect.set(16f * d, progY, 16f * d + progW, progY + 4f * d)
+                    canvas.drawRoundRect(notchProgRect, 2f * d, 2f * d, progressBarBgPaint)
 
                     val fraction = if (primaryDl.isIndeterminate) {
                         ((SystemClock.uptimeMillis() % 1500L) / 1500f)
                     } else primaryDl.progressFraction.coerceIn(0f, 1f)
 
-                    val fillRect = RectF(progRect.left, progRect.top, progRect.left + progW * fraction, progRect.bottom)
+                    notchFillRect.set(notchProgRect.left, notchProgRect.top, notchProgRect.left + progW * fraction, notchProgRect.bottom)
                     progressBarFillPaint.color = m3Primary
-                    canvas.drawRoundRect(fillRect, 2f * d, 2f * d, progressBarFillPaint)
+                    canvas.drawRoundRect(notchFillRect, 2f * d, 2f * d, progressBarFillPaint)
                 } else {
-                    val badgeIconBounds = RectF(16f * d, 14f * d, 25f * d, 23f * d)
-                    drawVector(canvas, R.drawable.ic_beacon_sparkle, badgeIconBounds, m3Primary)
+                    notchBadgeIconBounds.set(16f * d, 14f * d, 25f * d, 23f * d)
+                    drawVector(canvas, R.drawable.ic_beacon_sparkle, notchBadgeIconBounds, m3Primary)
                     hudTextPaint.textSize = 9.5f * d
                     hudTextPaint.color = m3Primary
                     canvas.drawText("ORBITAL CAPSULE", 28f * d, 22f * d, hudTextPaint)
@@ -201,8 +216,8 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
                 }
             } else {
                 // PAGE 2: Quick Remote
-                val badgeIconBounds = RectF(16f * d, 13f * d, 26f * d, 23f * d)
-                drawVector(canvas, R.drawable.ic_widgets, badgeIconBounds, m3Primary)
+                notchBadgeIconBounds.set(16f * d, 13f * d, 26f * d, 23f * d)
+                drawVector(canvas, R.drawable.ic_widgets, notchBadgeIconBounds, m3Primary)
                 hudTextPaint.textSize = 9.5f * d
                 hudTextPaint.color = m3Primary
                 canvas.drawText("ORBITAL REMOTE & MICRO-SLOT", 30f * d, 21f * d, hudTextPaint)
@@ -242,8 +257,8 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
                     buttonBgPaint.color = Color.argb(80, 255, 255, 255)
                     canvas.drawCircle(bounds.centerX(), bounds.centerY(), btnR, buttonBgPaint)
                     val iconR = 6.5f * d
-                    val iconBounds = RectF(bounds.centerX() - iconR, bounds.centerY() - iconR, bounds.centerX() + iconR, bounds.centerY() + iconR)
-                    drawVector(canvas, iconAndLabel.first, iconBounds, Color.WHITE)
+                    notchRemoteIconBounds.set(bounds.centerX() - iconR, bounds.centerY() - iconR, bounds.centerX() + iconR, bounds.centerY() + iconR)
+                    drawVector(canvas, iconAndLabel.first, notchRemoteIconBounds, Color.WHITE)
 
                     hudTextPaint.textSize = 7.5f * d
                     hudTextPaint.color = Color.argb(190, 255, 255, 255)
@@ -347,29 +362,29 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
                 val rightWingW = (rightWingBaseW + expansionW).coerceIn(60f * d, 240f * d)
 
                 // Left Wing
-                val leftWingBounds = RectF(0f, 0f, leftWingW, h)
+                notchLeftWingBounds.set(0f, 0f, leftWingW, h)
                 telemetryPillFillPaint.color = Color.argb(235, 14, 18, 28)
-                canvas.drawRoundRect(leftWingBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
+                canvas.drawRoundRect(notchLeftWingBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
                 telemetryPillRimPaint.strokeWidth = 1.3f * d
                 telemetryPillRimPaint.color = Color.argb(160, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                canvas.drawRoundRect(leftWingBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
+                canvas.drawRoundRect(notchLeftWingBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
 
                 // Right Wing
-                val rightWingBounds = RectF(w - rightWingW, 0f, w, h)
-                canvas.drawRoundRect(rightWingBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
-                canvas.drawRoundRect(rightWingBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
+                notchRightWingBounds.set(w - rightWingW, 0f, w, h)
+                canvas.drawRoundRect(notchRightWingBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
+                canvas.drawRoundRect(notchRightWingBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
 
                 iconCenterX = leftWingW / 2f
                 textLeft = w - rightWingW + iconPad + 2f * d
                 textRight = w - iconPad
             }
             "unified_left" -> {
-                val pillBounds = RectF(0f, 0f, w, h)
+                notchPillBounds.set(0f, 0f, w, h)
                 telemetryPillFillPaint.color = Color.argb(235, 14, 18, 28)
-                canvas.drawRoundRect(pillBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
+                canvas.drawRoundRect(notchPillBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
                 telemetryPillRimPaint.strokeWidth = 1.3f * d
                 telemetryPillRimPaint.color = Color.argb(160, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                canvas.drawRoundRect(pillBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
+                canvas.drawRoundRect(notchPillBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
 
                 iconCenterX = iconPad + iconSize / 2f
                 textLeft = iconPad + iconSize + textMargin
@@ -377,12 +392,12 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
             }
             else -> {
                 // "unified_right"
-                val pillBounds = RectF(0f, 0f, w, h)
+                notchPillBounds.set(0f, 0f, w, h)
                 telemetryPillFillPaint.color = Color.argb(235, 14, 18, 28)
-                canvas.drawRoundRect(pillBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
+                canvas.drawRoundRect(notchPillBounds, cornerRadius, cornerRadius, telemetryPillFillPaint)
                 telemetryPillRimPaint.strokeWidth = 1.3f * d
                 telemetryPillRimPaint.color = Color.argb(160, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-                canvas.drawRoundRect(pillBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
+                canvas.drawRoundRect(notchPillBounds, cornerRadius, cornerRadius, telemetryPillRimPaint)
 
                 iconCenterX = iconPad + iconSize / 2f
                 textLeft = iconPad + iconSize + textMargin
@@ -391,46 +406,46 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
         }
 
         // Draw Icon
-        val iconSlotBounds = RectF(iconCenterX - iconSize / 2f, iconCenterY - iconSize / 2f, iconCenterX + iconSize / 2f, iconCenterY + iconSize / 2f)
+        notchIconSlotBounds.set(iconCenterX - iconSize / 2f, iconCenterY - iconSize / 2f, iconCenterX + iconSize / 2f, iconCenterY + iconSize / 2f)
 
         if (showMediaPill || (media != null && media.isPlaying)) {
             val pkg = media?.packageName ?: LightspeedMediaManager.getActiveTrackInfo(context).packageName
             val appIconBmp = if (!pkg.isNullOrBlank()) getCircularAppIcon(pkg, iconSize.toInt()) else null
             if (appIconBmp != null) {
-                canvas.drawBitmap(appIconBmp, null, iconSlotBounds, iconBitmapPaint)
+                canvas.drawBitmap(appIconBmp, null, notchIconSlotBounds, iconBitmapPaint)
             } else {
-                drawVector(canvas, R.drawable.ic_music_note, iconSlotBounds, m3Primary)
+                drawVector(canvas, R.drawable.ic_music_note, notchIconSlotBounds, m3Primary)
             }
         } else if (showDlPill) {
             val pkg = primaryDl.packageName
             val appIconBmp = if (!pkg.isNullOrBlank()) getCircularAppIcon(pkg, (iconSize - 3f * d).toInt()) else null
 
             val ringPadding = 1f * d
-            val ringBounds = RectF(iconSlotBounds.left - ringPadding, iconSlotBounds.top - ringPadding, iconSlotBounds.right + ringPadding, iconSlotBounds.bottom + ringPadding)
+            notchRingBounds.set(notchIconSlotBounds.left - ringPadding, notchIconSlotBounds.top - ringPadding, notchIconSlotBounds.right + ringPadding, notchIconSlotBounds.bottom + ringPadding)
             progressRingBgPaint.strokeWidth = 1.6f * d
             progressRingFillPaint.strokeWidth = 1.6f * d
             progressRingFillPaint.color = m3Primary
-            canvas.drawOval(ringBounds, progressRingBgPaint)
+            canvas.drawOval(notchRingBounds, progressRingBgPaint)
 
             if (primaryDl.isIndeterminate) {
                 val sweepAngle = 90f
                 val startAngle = ((SystemClock.uptimeMillis() % 1200L) / 1200f) * 360f
-                canvas.drawArc(ringBounds, startAngle, sweepAngle, false, progressRingFillPaint)
+                canvas.drawArc(notchRingBounds, startAngle, sweepAngle, false, progressRingFillPaint)
                 postInvalidateOnAnimation()
             } else {
                 val sweepAngle = (primaryDl.progressFraction.coerceIn(0f, 1f)) * 360f
-                canvas.drawArc(ringBounds, -90f, sweepAngle, false, progressRingFillPaint)
+                canvas.drawArc(notchRingBounds, -90f, sweepAngle, false, progressRingFillPaint)
             }
 
             if (appIconBmp != null) {
-                val innerBounds = RectF(iconSlotBounds.left + 1.5f * d, iconSlotBounds.top + 1.5f * d, iconSlotBounds.right - 1.5f * d, iconSlotBounds.bottom - 1.5f * d)
-                canvas.drawBitmap(appIconBmp, null, innerBounds, iconBitmapPaint)
+                notchInnerBounds.set(notchIconSlotBounds.left + 1.5f * d, notchIconSlotBounds.top + 1.5f * d, notchIconSlotBounds.right - 1.5f * d, notchIconSlotBounds.bottom - 1.5f * d)
+                canvas.drawBitmap(appIconBmp, null, notchInnerBounds, iconBitmapPaint)
             } else {
-                val innerBounds = RectF(iconSlotBounds.left + 2f * d, iconSlotBounds.top + 2f * d, iconSlotBounds.right - 2f * d, iconSlotBounds.bottom - 2f * d)
-                drawVector(canvas, R.drawable.ic_arrow_downward, innerBounds, m3Primary)
+                notchInnerBounds.set(notchIconSlotBounds.left + 2f * d, notchIconSlotBounds.top + 2f * d, notchIconSlotBounds.right - 2f * d, notchIconSlotBounds.bottom - 2f * d)
+                drawVector(canvas, R.drawable.ic_arrow_downward, notchInnerBounds, m3Primary)
             }
         } else {
-            drawVector(canvas, R.drawable.ic_beacon_sparkle, iconSlotBounds, m3Primary)
+            drawVector(canvas, R.drawable.ic_beacon_sparkle, notchIconSlotBounds, m3Primary)
         }
 
         // Draw Text / Marquee

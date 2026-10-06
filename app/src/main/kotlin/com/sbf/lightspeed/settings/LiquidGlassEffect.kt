@@ -21,6 +21,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,70 +46,83 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedDeckStyleManager.LiquidGlassConfig
 
 // ---------------------------------------------------------------------------
-// AGSL shader for fluid caustic distortion — executed on GPU.
-// Modulates luminance with dynamic fluid fractal Brownian motion (fbm).
-// 100% neutral luminance (no hardcoded hue) to respect Material dynamic colors.
-// Requires API 33+ (RuntimeShader). Gracefully absent on older devices.
+// AGSL caustic light shader — a GENERATIVE backdrop layer (does not sample or
+// distort the content above it, so text/buttons stay crisp).
+// Draws animated caustic light-web lines (domain-crossed fbm fields) tinted by
+// the Material 3 dynamic primary color. Premultiplied alpha output.
+// All literals are strict floats (MediaTek Mali / ARM drivers reject int->float).
+// Requires API 33+ (RuntimeShader).
 // ---------------------------------------------------------------------------
-private val LIQUID_CAUSTIC_AGSL = """
-uniform float uTime;
+private const val LIQUID_CAUSTIC_AGSL = """
 uniform float2 uResolution;
-uniform shader uContents;
+uniform float uTime;
+uniform float uIntensity;
+uniform float3 uTint;
 
 float hash(float2 p) {
-    p = fract(p * float2(234.34, 435.345));
-    p += dot(p, p + 34.23);
-    return fract(p.x * p.y);
+    float3 p3 = fract(float3(p.x, p.y, p.x) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
 }
 
 float noise(float2 p) {
     float2 i = floor(p);
     float2 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
-    return mix(
-        mix(hash(i + float2(0,0)), hash(i + float2(1,0)), f.x),
-        mix(hash(i + float2(0,1)), hash(i + float2(1,1)), f.x),
-        f.y
-    );
+    float a = hash(i);
+    float b = hash(i + float2(1.0, 0.0));
+    float c = hash(i + float2(0.0, 1.0));
+    float d = hash(i + float2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
 float fbm(float2 p) {
     float v = 0.0;
     float a = 0.5;
-    float2 shift = float2(100.0);
     for (int i = 0; i < 4; i++) {
         v += a * noise(p);
-        p  = p * 2.0 + shift;
+        p = p * 2.03 + float2(17.0, 9.0);
         a *= 0.5;
     }
     return v;
 }
 
 half4 main(float2 coord) {
-    float2 uv = coord / uResolution;
-    float t = uTime * 0.35;
-    float2 q = float2(
-        fbm(uv + float2(0.0, 0.0)),
-        fbm(uv + float2(5.2, 1.3))
-    );
-    float2 r = float2(
-        fbm(uv + 4.0 * q + float2(1.7 + t * 0.15, 9.2)),
-        fbm(uv + 4.0 * q + float2(8.3 + t * 0.126, 2.8))
-    );
+    float scale = max(uResolution.x, 1.0);
+    float2 uv = coord / scale;
+    float2 p = uv * 5.0;
+    float t = uTime;
 
-    float displacement = 0.005;
-    float2 warpedUV = uv + displacement * (r - 0.5);
-    half4 col = uContents.eval(warpedUV * uResolution);
+    float n1 = fbm(p + float2(t * 0.30, t * 0.18));
+    float n2 = fbm(p * 1.15 + float2(-t * 0.22, t * 0.27) + float2(7.3, 2.1));
 
-    // Pure neutral luminance caustic shimmer
-    float caustic = fbm(uv * 3.5 + float2(t * 0.4, t * 0.2));
-    caustic = pow(caustic, 2.2) * 0.05;
+    // Bright web where the two moving fields cross.
+    float d = abs(n1 - n2);
+    float web = pow(1.0 - clamp(d * 5.0, 0.0, 1.0), 3.0);
+    float pool = smoothstep(0.35, 0.75, n1) * 0.35;
 
-    col.rgb += half3(caustic);
-    col.a = min(col.a, 1.0);
-    return col;
+    float a = clamp((web * 0.85 + pool) * uIntensity * 0.55, 0.0, 0.85);
+    float3 lightColor = mix(float3(1.0, 1.0, 1.0), uTint, 0.40);
+    return half4(half3(lightColor * a), half(a));
 }
-""".trimIndent()
+"""
+
+/** Process-wide check: does this device's driver compile the caustic shader? (cached) */
+internal object LiquidGlassAgsl {
+    val isAvailable: Boolean by lazy {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            false
+        } else {
+            try {
+                android.graphics.RuntimeShader(LIQUID_CAUSTIC_AGSL)
+                true
+            } catch (e: Exception) {
+                android.util.Log.e("LightspeedShader", "Caustic AGSL failed to compile on this GPU driver", e)
+                false
+            }
+        }
+    }
+}
 
 const val LIQUID_GLASS_BLUR_RADIUS = 75
 
@@ -114,60 +133,6 @@ const val LIQUID_GLASS_BLUR_RADIUS = 75
 fun rememberLiquidGlassConfig(context: Context = LocalContext.current): LiquidGlassConfig {
     val configFlow by LightspeedPreferences.liquidGlassConfigFlow.collectAsState()
     return configFlow ?: remember { LightspeedPreferences.getLiquidGlassConfig(context) }
-}
-
-/**
- * Modifier: applies a true backdrop blur + AGSL caustic warp to decorative background layers.
- * Falls back gracefully on API < 31 (blur) and API < 33 (AGSL).
- */
-@Composable
-fun Modifier.liquidGlassLayer(
-    blurRadius: Float = 22f,
-    cornerRadius: Dp = 28.dp
-): Modifier {
-    val infiniteTransition = rememberInfiniteTransition(label = "liquid_glass")
-    val time by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 18_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "liquid_time"
-    )
-
-    val runtimeShaderPair = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        remember {
-            try {
-                android.graphics.RuntimeShader(LIQUID_CAUSTIC_AGSL) to true
-            } catch (_: Exception) {
-                null to false
-            }
-        }
-    } else {
-        remember { null to false }
-    }
-
-    return this then Modifier.graphicsLayer {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val blur = RenderEffect.createBlurEffect(
-                blurRadius, blurRadius,
-                Shader.TileMode.CLAMP
-            )
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                runtimeShaderPair.second && runtimeShaderPair.first != null
-            ) {
-                val shader = runtimeShaderPair.first!!
-                shader.setFloatUniform("uTime", time)
-                val warp = RenderEffect.createRuntimeShaderEffect(shader, "uContents")
-                renderEffect = RenderEffect.createChainEffect(warp, blur).asComposeRenderEffect()
-            } else {
-                renderEffect = blur.asComposeRenderEffect()
-            }
-        }
-        clip = true
-        shape = RoundedCornerShape(cornerRadius)
-    }
 }
 
 /**
@@ -204,6 +169,53 @@ fun LiquidGlassPanel(
         label = "flare_pulse"
     )
 
+    val activeTint = if (config.useCustomColor) Color(config.customColor) else colorScheme.primary
+
+    // Harmonized chromatic palette for custom tint or dynamic Material 3 Monet
+    val effectiveColorScheme = remember(config.useCustomColor, config.customColor, colorScheme) {
+        if (config.useCustomColor) {
+            val hsv = FloatArray(3)
+            val argb = (config.customColor.toLong() and 0xFFFFFFFFL).toInt()
+            android.graphics.Color.colorToHSV(argb, hsv)
+            val secHsv = floatArrayOf((hsv[0] + 30f) % 360f, (hsv[1] * 0.70f).coerceIn(0f, 1f), hsv[2])
+            val terHsv = floatArrayOf((hsv[0] + 60f) % 360f, (hsv[1] * 0.85f).coerceIn(0f, 1f), hsv[2])
+            val secColor = Color(android.graphics.Color.HSVToColor(secHsv))
+            val terColor = Color(android.graphics.Color.HSVToColor(terHsv))
+            colorScheme.copy(
+                primary = activeTint,
+                surfaceTint = activeTint,
+                secondary = secColor,
+                tertiary = terColor
+            )
+        } else {
+            colorScheme
+        }
+    }
+
+    // ── AGSL caustic setup (API 33+, driver-verified, user-toggleable) ──
+    val agslActive = config.agslEnabled && config.agslIntensity > 0.01f &&
+        LiquidGlassAgsl.isAvailable
+    val agslShader: android.graphics.RuntimeShader? = if (agslActive) {
+        remember { android.graphics.RuntimeShader(LIQUID_CAUSTIC_AGSL) }
+    } else null
+    val agslBrush: ShaderBrush? = remember(agslShader) { agslShader?.let { ShaderBrush(it) } }
+    val currentSpeed by rememberUpdatedState(config.agslSpeed)
+    var agslPhase by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(agslActive) {
+        if (agslActive) {
+            var last = 0L
+            while (true) {
+                withFrameNanos { now ->
+                    if (last != 0L) agslPhase += (now - last) / 1_000_000_000f * currentSpeed
+                    last = now
+                }
+            }
+        }
+    }
+    val tintR = effectiveColorScheme.primary.red
+    val tintG = effectiveColorScheme.primary.green
+    val tintB = effectiveColorScheme.primary.blue
+
     Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
@@ -214,9 +226,9 @@ fun LiquidGlassPanel(
             // Progressive blur ramp: luminous translucent meniscus at apex -> deep resting base
             drawRoundRect(
                 brush = Brush.verticalGradient(
-                    0.0f to colorScheme.surfaceVariant.copy(alpha = (config.opacity * 0.70f).coerceIn(0.20f, 0.96f)),
-                    0.28f to colorScheme.surface.copy(alpha = (config.opacity * 0.85f).coerceIn(0.25f, 0.97f)),
-                    1.0f to colorScheme.surface.copy(alpha = (config.opacity * 0.98f).coerceIn(0.30f, 0.99f))
+                    0.0f to effectiveColorScheme.surfaceVariant.copy(alpha = (config.opacity * 0.70f).coerceIn(0.20f, 0.96f)),
+                    0.28f to effectiveColorScheme.surface.copy(alpha = (config.opacity * 0.85f).coerceIn(0.25f, 0.97f)),
+                    1.0f to effectiveColorScheme.surface.copy(alpha = (config.opacity * 0.98f).coerceIn(0.30f, 0.99f))
                 ),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(cr),
                 size = size
@@ -225,8 +237,8 @@ fun LiquidGlassPanel(
             drawRoundRect(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        colorScheme.surfaceVariant.copy(alpha = (config.opacity * 0.80f).coerceIn(0.20f, 0.96f)),
-                        colorScheme.surface.copy(alpha = config.opacity.coerceIn(0.25f, 0.98f))
+                        effectiveColorScheme.surfaceVariant.copy(alpha = (config.opacity * 0.80f).coerceIn(0.20f, 0.96f)),
+                        effectiveColorScheme.surface.copy(alpha = config.opacity.coerceIn(0.25f, 0.98f))
                     ),
                     center = Offset(w * 0.4f, h * 0.15f),
                     radius = w * 1.1f
@@ -236,18 +248,32 @@ fun LiquidGlassPanel(
             )
         }
 
-        // Volumetric optical core (subtle Material surfaceTint pool)
-        val coreAlpha = (config.opacity * 0.22f).coerceAtMost(0.35f)
+        // Chromatic volumetric optical core & tint infusion pool (Material 3 or Custom)
+        val coreAlpha = (config.opacity * config.tintIntensity * 0.45f).coerceIn(0f, 0.65f)
         if (coreAlpha > 0.01f) {
             drawRoundRect(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        colorScheme.surfaceTint.copy(alpha = coreAlpha),
+                        effectiveColorScheme.primary.copy(alpha = coreAlpha),
+                        effectiveColorScheme.primary.copy(alpha = coreAlpha * 0.35f),
                         Color.Transparent
                     ),
-                    center = Offset(w * 0.35f, h * 0.08f),
-                    radius = w * 0.85f
+                    center = Offset(w * 0.35f, h * 0.12f),
+                    radius = w * 0.95f
                 ),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(cr),
+                size = size
+            )
+        }
+
+        // ── Layer A2: AGSL Caustic Light (GPU, API 33+) ─────────────────
+        if (agslShader != null) {
+            agslShader.setFloatUniform("uResolution", w.coerceAtLeast(1f), h.coerceAtLeast(1f))
+            agslShader.setFloatUniform("uTime", agslPhase)
+            agslShader.setFloatUniform("uIntensity", config.agslIntensity)
+            agslShader.setFloatUniform("uTint", tintR, tintG, tintB)
+            drawRoundRect(
+                brush = agslBrush!!,
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(cr),
                 size = size
             )
@@ -258,8 +284,8 @@ fun LiquidGlassPanel(
             drawRoundRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.20f * config.glareIntensity),
-                        colorScheme.onSurface.copy(alpha = 0.06f * config.glareIntensity),
+                        effectiveColorScheme.onSurface.copy(alpha = 0.20f * config.glareIntensity),
+                        effectiveColorScheme.onSurface.copy(alpha = 0.06f * config.glareIntensity),
                         Color.Transparent
                     ),
                     startY = 0f,
@@ -278,7 +304,7 @@ fun LiquidGlassPanel(
                 brush = Brush.radialGradient(
                     colors = listOf(
                         Color.White.copy(alpha = 0.36f * config.glareIntensity),
-                        colorScheme.primary.copy(alpha = 0.16f * config.glareIntensity),
+                        effectiveColorScheme.primary.copy(alpha = 0.16f * config.glareIntensity),
                         Color.Transparent
                     ),
                     center = Offset(hotspotX, h * 0.02f),
@@ -295,9 +321,9 @@ fun LiquidGlassPanel(
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         Color.Transparent,
-                        colorScheme.primary.copy(alpha = 0.04f * config.rimIntensity),
-                        colorScheme.surfaceTint.copy(alpha = 0.08f * config.rimIntensity),
-                        colorScheme.onSurface.copy(alpha = 0.07f * config.rimIntensity)
+                        effectiveColorScheme.primary.copy(alpha = 0.04f * config.rimIntensity),
+                        effectiveColorScheme.surfaceTint.copy(alpha = 0.08f * config.rimIntensity),
+                        effectiveColorScheme.onSurface.copy(alpha = 0.07f * config.rimIntensity)
                     ),
                     startY = h * 0.80f,
                     endY = h
@@ -314,10 +340,10 @@ fun LiquidGlassPanel(
                 brush = Brush.linearGradient(
                     colors = listOf(
                         Color.White.copy(alpha = 0.85f * config.rimIntensity),
-                        colorScheme.primary.copy(alpha = 0.70f * config.rimIntensity),
+                        effectiveColorScheme.primary.copy(alpha = 0.70f * config.rimIntensity),
                         Color.White.copy(alpha = 0.40f * config.rimIntensity),
-                        colorScheme.tertiary.copy(alpha = 0.65f * config.rimIntensity),
-                        colorScheme.secondary.copy(alpha = 0.45f * config.rimIntensity),
+                        effectiveColorScheme.tertiary.copy(alpha = 0.65f * config.rimIntensity),
+                        effectiveColorScheme.secondary.copy(alpha = 0.45f * config.rimIntensity),
                         Color.White.copy(alpha = 0.80f * config.rimIntensity)
                     ),
                     start = Offset(0f, 0f),
@@ -335,8 +361,8 @@ fun LiquidGlassPanel(
             drawRoundRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.35f * config.rimIntensity),
-                        colorScheme.onSurface.copy(alpha = 0.06f * config.rimIntensity),
+                        effectiveColorScheme.onSurface.copy(alpha = 0.35f * config.rimIntensity),
+                        effectiveColorScheme.onSurface.copy(alpha = 0.06f * config.rimIntensity),
                         Color.Transparent
                     ),
                     startY = 0f,
@@ -354,9 +380,9 @@ fun LiquidGlassPanel(
             drawRoundRect(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        colorScheme.primary.copy(alpha = 0.35f * config.rimIntensity),
+                        effectiveColorScheme.primary.copy(alpha = 0.35f * config.rimIntensity),
                         Color.Transparent,
-                        colorScheme.tertiary.copy(alpha = 0.25f * config.rimIntensity)
+                        effectiveColorScheme.tertiary.copy(alpha = 0.25f * config.rimIntensity)
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(w, h)
@@ -379,7 +405,7 @@ fun LiquidGlassPanel(
                 brush = Brush.radialGradient(
                     colors = listOf(
                         Color.White.copy(alpha = flareAlpha),
-                        colorScheme.primary.copy(alpha = flareAlpha * 0.5f),
+                        effectiveColorScheme.primary.copy(alpha = flareAlpha * 0.5f),
                         Color.Transparent
                     ),
                     center = Offset(w * 0.16f, cr * 0.65f),
@@ -394,7 +420,7 @@ fun LiquidGlassPanel(
                 brush = Brush.radialGradient(
                     colors = listOf(
                         Color.White.copy(alpha = flareAlpha * 0.85f),
-                        colorScheme.tertiary.copy(alpha = flareAlpha * 0.45f),
+                        effectiveColorScheme.tertiary.copy(alpha = flareAlpha * 0.45f),
                         Color.Transparent
                     ),
                     center = Offset(w * 0.84f, h - cr * 0.70f),
@@ -416,15 +442,15 @@ fun LiquidGlassPanel(
             }
             val primaryArgb = android.graphics.Color.argb(
                 (0.20f * config.rimIntensity * 255).toInt(),
-                (colorScheme.primary.red * 255).toInt(),
-                (colorScheme.primary.green * 255).toInt(),
-                (colorScheme.primary.blue * 255).toInt()
+                (effectiveColorScheme.primary.red * 255).toInt(),
+                (effectiveColorScheme.primary.green * 255).toInt(),
+                (effectiveColorScheme.primary.blue * 255).toInt()
             )
             val onSurfaceArgb = android.graphics.Color.argb(
                 (0.18f * config.rimIntensity * 255).toInt(),
-                (colorScheme.onSurface.red * 255).toInt(),
-                (colorScheme.onSurface.green * 255).toInt(),
-                (colorScheme.onSurface.blue * 255).toInt()
+                (effectiveColorScheme.onSurface.red * 255).toInt(),
+                (effectiveColorScheme.onSurface.green * 255).toInt(),
+                (effectiveColorScheme.onSurface.blue * 255).toInt()
             )
 
             drawIntoCanvas { canvas ->

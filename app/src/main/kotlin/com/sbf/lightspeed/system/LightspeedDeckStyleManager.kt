@@ -63,7 +63,13 @@ object LightspeedDeckStyleManager {
         val glareIntensity: Float = 0.65f,
         val rimIntensity: Float = 0.70f,
         val causticShimmer: Boolean = true,
-        val progressiveDepth: Boolean = true
+        val progressiveDepth: Boolean = true,
+        val agslEnabled: Boolean = true,
+        val agslIntensity: Float = 0.60f,
+        val agslSpeed: Float = 1.0f,
+        val useCustomColor: Boolean = false,
+        val customColor: Long = 0xFF00E5FFL,
+        val tintIntensity: Float = 0.40f
     ) {
         companion object {
             val PRESET_DEFAULT = LiquidGlassConfig(
@@ -73,7 +79,13 @@ object LightspeedDeckStyleManager {
                 glareIntensity = 0.65f,
                 rimIntensity = 0.70f,
                 causticShimmer = true,
-                progressiveDepth = true
+                progressiveDepth = true,
+                agslEnabled = true,
+                agslIntensity = 0.60f,
+                agslSpeed = 1.0f,
+                useCustomColor = false,
+                customColor = 0xFF00E5FFL,
+                tintIntensity = 0.40f
             )
             val PRESET_CRYSTAL = LiquidGlassConfig(
                 blurRadius = 95,
@@ -82,7 +94,13 @@ object LightspeedDeckStyleManager {
                 glareIntensity = 0.85f,
                 rimIntensity = 0.80f,
                 causticShimmer = true,
-                progressiveDepth = true
+                progressiveDepth = true,
+                agslEnabled = true,
+                agslIntensity = 0.75f,
+                agslSpeed = 1.2f,
+                useCustomColor = false,
+                customColor = 0xFF00E5FFL,
+                tintIntensity = 0.25f
             )
             val PRESET_FROSTED = LiquidGlassConfig(
                 blurRadius = 60,
@@ -91,7 +109,13 @@ object LightspeedDeckStyleManager {
                 glareIntensity = 0.40f,
                 rimIntensity = 0.45f,
                 causticShimmer = false,
-                progressiveDepth = true
+                progressiveDepth = true,
+                agslEnabled = true,
+                agslIntensity = 0.30f,
+                agslSpeed = 0.7f,
+                useCustomColor = false,
+                customColor = 0xFF00E5FFL,
+                tintIntensity = 0.35f
             )
             val PRESET_OBSIDIAN = LiquidGlassConfig(
                 blurRadius = 45,
@@ -100,7 +124,11 @@ object LightspeedDeckStyleManager {
                 glareIntensity = 0.30f,
                 rimIntensity = 0.35f,
                 causticShimmer = false,
-                progressiveDepth = false
+                progressiveDepth = false,
+                agslEnabled = false,
+                useCustomColor = false,
+                customColor = 0xFF607D8BL,
+                tintIntensity = 0.15f
             )
         }
     }
@@ -119,7 +147,13 @@ object LightspeedDeckStyleManager {
             glareIntensity = prefs.getFloat(LightspeedPreferences.KEY_LIQUID_GLASS_GLARE, 0.65f),
             rimIntensity = prefs.getFloat(LightspeedPreferences.KEY_LIQUID_GLASS_RIM, 0.70f),
             causticShimmer = prefs.getBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_CAUSTIC, true),
-            progressiveDepth = prefs.getBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_PROGRESSIVE, true)
+            progressiveDepth = prefs.getBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_PROGRESSIVE, true),
+            agslEnabled = prefs.getBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_AGSL_ENABLED, true),
+            agslIntensity = prefs.getFloat(LightspeedPreferences.KEY_LIQUID_GLASS_AGSL_INTENSITY, 0.60f),
+            agslSpeed = prefs.getFloat(LightspeedPreferences.KEY_LIQUID_GLASS_AGSL_SPEED, 1.0f),
+            useCustomColor = prefs.getBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_USE_CUSTOM_COLOR, false),
+            customColor = prefs.getLong(LightspeedPreferences.KEY_LIQUID_GLASS_CUSTOM_COLOR, 0xFF00E5FFL),
+            tintIntensity = prefs.getFloat(LightspeedPreferences.KEY_LIQUID_GLASS_TINT_INTENSITY, 0.40f)
         )
         _liquidGlassConfigFlow.value = config
         return config
@@ -134,12 +168,14 @@ object LightspeedDeckStyleManager {
             .putFloat(LightspeedPreferences.KEY_LIQUID_GLASS_RIM, config.rimIntensity)
             .putBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_CAUSTIC, config.causticShimmer)
             .putBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_PROGRESSIVE, config.progressiveDepth)
+            .putBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_AGSL_ENABLED, config.agslEnabled)
+            .putFloat(LightspeedPreferences.KEY_LIQUID_GLASS_AGSL_INTENSITY, config.agslIntensity)
+            .putFloat(LightspeedPreferences.KEY_LIQUID_GLASS_AGSL_SPEED, config.agslSpeed)
+            .putBoolean(LightspeedPreferences.KEY_LIQUID_GLASS_USE_CUSTOM_COLOR, config.useCustomColor)
+            .putLong(LightspeedPreferences.KEY_LIQUID_GLASS_CUSTOM_COLOR, config.customColor)
+            .putFloat(LightspeedPreferences.KEY_LIQUID_GLASS_TINT_INTENSITY, config.tintIntensity)
             .apply()
         _liquidGlassConfigFlow.value = config
-    }
-
-    fun resetLiquidGlassConfig(context: Context) {
-        setLiquidGlassConfig(context, LiquidGlassConfig.PRESET_DEFAULT)
     }
 
     fun refreshLiquidGlassConfig(context: Context) {

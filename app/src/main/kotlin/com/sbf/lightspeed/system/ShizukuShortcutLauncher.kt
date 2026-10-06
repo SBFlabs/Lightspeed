@@ -16,9 +16,8 @@ internal object ShizukuShortcutLauncher {
         if (parsed.packageName.isBlank()) return false
 
         try {
-            val proc = ElevatedTaskCloser.execShizuku("cmd shortcut get-shortcuts ${parsed.packageName}") ?: return false
-            val output = proc.inputStream.bufferedReader().readText()
-            proc.waitFor()
+            val proc = ElevatedTaskCloser.execShizuku("cmd shortcut get-shortcuts ${parsed.packageName}")
+            val output = proc.readTextOrKill() ?: return false
 
             val rawLabel = if (parsed.label.contains("(") && parsed.label.endsWith(")")) {
                 parsed.label.substringAfter("(").substringBeforeLast(")").trim()
@@ -43,8 +42,7 @@ internal object ShizukuShortcutLauncher {
                 val phoneProc = ElevatedTaskCloser.execShizuku(
                     "content query --uri content://com.android.contacts/data/phones --projection data1 --where 'contact_id=$contactId'"
                 )
-                val phoneOutput = phoneProc?.inputStream?.bufferedReader()?.readText().orEmpty()
-                phoneProc?.waitFor()
+                val phoneOutput = phoneProc.readTextOrKill().orEmpty()
 
                 val rawNumber = if (phoneOutput.contains("data1=")) {
                     phoneOutput.substringAfter("data1=").substringBefore("\n").substringBefore("\r").substringBefore(",").trim()
@@ -61,7 +59,7 @@ internal object ShizukuShortcutLauncher {
                         return true
                     } catch (e: Exception) {
                         val amProc = ElevatedTaskCloser.execShizuku("am start -a android.intent.action.CALL -d 'tel:$cleanNumber'")
-                        return amProc?.waitFor() == 0
+                        return amProc.waitForOrKill() == 0
                     }
                 }
             }
@@ -108,7 +106,7 @@ internal object ShizukuShortcutLauncher {
 
                 Log.i(TAG, "launchElevatedHomeShortcut: running: $cmd")
                 val startProc = ElevatedTaskCloser.execShizuku(cmd.toString().trim())
-                val exitCode = startProc?.waitFor() ?: -1
+                val exitCode = startProc.waitForOrKill()
                 Log.i(TAG, "launchElevatedHomeShortcut: am start exited with $exitCode")
                 return exitCode == 0
             }

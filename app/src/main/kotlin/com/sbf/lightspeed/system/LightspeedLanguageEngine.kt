@@ -97,7 +97,7 @@ object LightspeedLanguageEngine {
      * Returns null in other modes so callers can conditionally render it.
      */
     fun resolveSubtitle(key: LightspeedVocabulary.Key, mode: LanguageMode = _mode.value): String? =
-        if (mode == LanguageMode.CO_PILOT) LightspeedVocabulary.clear(key) else null
+        if (mode == LanguageMode.CO_PILOT) LightspeedVocabulary.copilotSubtitle(key) else null
 
     /**
      * Resolve both the primary label and optional subtitle in one call.

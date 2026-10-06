@@ -179,6 +179,9 @@ class LightspeedMediaScrubberOverlay(
         }
 
         private val chamferedPath = Path()
+        private val cardRect = RectF()
+        private val trackRect = RectF()
+        private val progressRect = RectF()
 
         private var mediaGlassKey: Long = Long.MIN_VALUE
         private var mediaGlassShader: LinearGradient? = null
@@ -259,7 +262,8 @@ class LightspeedMediaScrubberOverlay(
             val cardW = 330f * d
             val cardH = 96f * d
             val chamfer = 12f * d
-            val rect = RectF(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
+            cardRect.set(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
+            val rect = cardRect
 
             val r = Color.red(primaryColor)
             val g = Color.green(primaryColor)
@@ -373,14 +377,14 @@ class LightspeedMediaScrubberOverlay(
             }
 
             // Track Background
-            val trackRect = RectF(barLeft, barY, barRight, barY + barH)
+            trackRect.set(barLeft, barY, barRight, barY + barH)
             gaugeEmptyPaint.color = Color.argb(45, 255, 255, 255)
             canvas.drawRoundRect(trackRect, barH / 2f, barH / 2f, gaugeEmptyPaint)
 
             // Track Progress — cached shader (key encodes fillW + color)
             val progressW = barW * fraction
             if (progressW > 0f) {
-                val progressRect = RectF(barLeft, barY, barLeft + progressW, barY + barH)
+                progressRect.set(barLeft, barY, barLeft + progressW, barY + barH)
                 val fillKey = gradKey4f(barLeft, barY, barLeft + progressW, barY, primaryColor)
                 if (fillKey != mediaFillKey) {
                     mediaFillShader = LinearGradient(

@@ -2,7 +2,6 @@ package com.sbf.lightspeed.settings
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.combinedClickable
 
 import android.content.SharedPreferences
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.logSwallowed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,13 +47,13 @@ fun SystemOverrideDeckContents(
         try {
             rikka.shizuku.Shizuku.addBinderReceivedListenerSticky(listener)
             rikka.shizuku.Shizuku.addBinderDeadListener(deadListener)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("SystemOverrideComponents", "SystemOverrideDeckContents:49", e) }
         
         onDispose {
             try {
                 rikka.shizuku.Shizuku.removeBinderReceivedListener(listener)
                 rikka.shizuku.Shizuku.removeBinderDeadListener(deadListener)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("SystemOverrideComponents", "SystemOverrideDeckContents:55", e) }
         }
     }
     val scope = rememberCoroutineScope()
@@ -79,7 +79,7 @@ fun SystemOverrideDeckContents(
                 val lpDelay = Settings.Secure.getInt(context.contentResolver, "long_press_timeout", 400).toFloat()
                 longPressDelay = lpDelay
             } catch (e: Exception) {
-                // Ignore exception, defaults are set
+                logSwallowed("SystemOverrideComponents", "SystemOverrideDeckContents:80", e)
             }
         }
     }
@@ -572,98 +572,6 @@ fun SystemOverrideDeckContents(
         )
 
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-    }
-}
-
-@Composable
-fun OverrideToggleRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    isChecked: Boolean,
-    isEnabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = isEnabled) { onCheckedChange(!isChecked) }
-            .padding(vertical = 6.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (isEnabled) MaterialTheme.colorScheme.error.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.2f),
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isEnabled) Color.White else Color.White.copy(alpha = 0.4f)
-            )
-            Text(
-                text = subtitle,
-                fontSize = 11.sp,
-                color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.2f)
-            )
-        }
-        Switch(
-            checked = isChecked,
-            onCheckedChange = onCheckedChange,
-            enabled = isEnabled,
-            modifier = Modifier.scale(0.85f),
-            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.error)
-        )
-    }
-}
-
-@Composable
-fun OverrideSettingRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    isEnabled: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = isEnabled) { onClick() }
-            .padding(vertical = 6.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (isEnabled) MaterialTheme.colorScheme.error.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.2f),
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isEnabled) Color.White else Color.White.copy(alpha = 0.4f)
-            )
-            Text(
-                text = subtitle,
-                fontSize = 11.sp,
-                color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.2f)
-            )
-        }
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = if (isEnabled) Color.White.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f),
-            modifier = Modifier.size(20.dp)
-        )
     }
 }
 

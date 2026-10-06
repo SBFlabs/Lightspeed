@@ -3,6 +3,8 @@ package com.sbf.lightspeed.settings
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -138,8 +140,12 @@ fun HudSystemOverridesSection(
     isExpanded: Boolean,
     onToggle: () -> Unit
 ) {
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+    val (overrideTitle, overrideSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SYSTEM_OVERRIDES, currentLanguageMode)
+
     CompactAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SYSTEM_OVERRIDES),
+        title = overrideTitle,
+        subtitle = overrideSub,
         icon = {
             Icon(
                 imageVector = Icons.Default.Warning,
@@ -164,8 +170,6 @@ fun HudExperimentalLabsSection(
     prefs: SharedPreferences,
     isExpanded: Boolean,
     onToggle: () -> Unit,
-    isSyntheticGravityExpanded: Boolean,
-    onToggleSyntheticGravity: () -> Unit,
     isNotchCalibExpanded: Boolean,
     onToggleNotchCalib: () -> Unit,
     isOemNoticeDemoted: Boolean,
@@ -188,8 +192,9 @@ fun HudExperimentalLabsSection(
     onRefreshNeeded: () -> Unit
 ) {
     val cautionAmber = Color(0xFFFFB300)
+    val currentLanguageMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
     HazardAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.EXPERIMENTAL_LABS),
+        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.EXPERIMENTAL_LABS, currentLanguageMode),
         subtitle = "Features in this deck are unstable and/or not well tested yet. Use at your own discretion.",
         isExpanded = isExpanded,
         onToggle = onToggle
@@ -217,20 +222,13 @@ fun HudExperimentalLabsSection(
                 }
             }
 
-            // 1. Synthetic Gravity Engine (Experimental)
-            HudSyntheticGravitySection(
-                context = context,
-                prefs = prefs,
-                isExpanded = isSyntheticGravityExpanded,
-                onToggle = onToggleSyntheticGravity,
-                onRefreshNeeded = onRefreshNeeded
-            )
-
-            // 2. Omniscient Audio Dock (Experimental)
-            var isOmniscientDockExpanded by rememberSaveable { mutableStateOf(false) }
+            // 1. Sonic Deck / Universal Audio Control (Experimental)
+            var isSonicDeckExpanded by rememberSaveable { mutableStateOf(false) }
+            val (sonicDeckTitle, sonicDeckSub) = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SONIC_DECK, currentLanguageMode)
+            val sonicSubtitle = if (sonicDeckSub != null) "$sonicDeckSub • Per-app volume mixer" else "Per-app volume mixer & sovereign audio controls"
             CollapsibleSubSection(
-                title = "Omniscient Audio Dock (Per-App Volume HUD)",
-                subtitle = "Full-screen per-app volume mixer & sovereign stealth focus manager",
+                title = sonicDeckTitle,
+                subtitle = sonicSubtitle,
                 icon = {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.VolumeUp,
@@ -239,23 +237,25 @@ fun HudExperimentalLabsSection(
                         modifier = Modifier.size(16.dp)
                     )
                 },
-                isExpanded = isOmniscientDockExpanded,
-                onToggle = { isOmniscientDockExpanded = !isOmniscientDockExpanded }
+                isExpanded = isSonicDeckExpanded,
+                onToggle = { isSonicDeckExpanded = !isSonicDeckExpanded }
             ) {
                 PrefToggleRow(
                     prefs = prefs,
-                    prefKey = LightspeedPreferences.KEY_OMNISCIENT_AUDIO_DOCK_ENABLED,
+                    prefKey = LightspeedPreferences.KEY_SONIC_DECK_ENABLED,
                     defaultVal = false,
-                    title = "Enable Omniscient Audio Dock",
-                    subtitle = "Pull outward (horizontally from deflectors or vertically from top status bar) while scrubbing volume to open per-app mixer.",
+                    title = "Enable $sonicDeckTitle",
+                    subtitle = "Pull outward (horizontally from deflectors or vertically from top progress rail) while scrubbing volume to open per-app mixer.",
                     onChanged = { onRefreshNeeded() }
                 )
             }
 
-            // 3. Orbital Capsule (Camera Cutout HUD) [Experimental]
+            // 2. Orbital Capsule (Camera Cutout HUD) [Experimental]
+            val (capsuleTitle, capsuleSub) = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.ORBITAL_CAPSULE, currentLanguageMode)
+            val capsuleSubtitle = if (capsuleSub != null) "$capsuleSub • Dynamic punch-hole cutout" else "Dynamic punch-hole cutout HUD for download progress and media telemetry"
             CollapsibleSubSection(
-                title = "Orbital Capsule (Camera Cutout HUD)",
-                subtitle = "Dynamic punch-hole cutout HUD for download progress and media telemetry",
+                title = capsuleTitle,
+                subtitle = capsuleSubtitle,
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.Emergency,
@@ -274,11 +274,11 @@ fun HudExperimentalLabsSection(
                     prefs = prefs,
                     prefKey = LightspeedPreferences.KEY_ORBITAL_CAPSULE_ENABLED,
                     defaultVal = false,
-                    title = "Enable Orbital Capsule",
+                    title = "Enable $capsuleTitle",
                     subtitle = "Renders floating dynamic punch-hole capsule around camera cutout for downloads and media telemetry.",
                     onChanged = {
                         isCapsuleMasterEnabled = prefs.getBoolean(LightspeedPreferences.KEY_ORBITAL_CAPSULE_ENABLED, false)
-                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HudVaultExperimentalComponents.kt", "HudExperimentalLabsSection:281", e) }
                         onRefreshNeeded()
                     }
                 )
@@ -383,7 +383,7 @@ fun HudExperimentalLabsSection(
                                         onClick = {
                                             isCapsuleOrientDropdownOpen = false
                                             prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_ORIENTATION_MODE, key).apply()
-                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HudVaultExperimentalComponents.kt", "HudExperimentalLabsSection:386", e) }
                                             onRefreshNeeded()
                                         }
                                     )
@@ -434,7 +434,7 @@ fun HudExperimentalLabsSection(
                                         onClick = {
                                             isCapsuleDropdownOpen = false
                                             prefs.edit().putString(LightspeedPreferences.KEY_NOTCH_CAPSULE_LAYOUT, key).apply()
-                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HudVaultExperimentalComponents.kt", "HudExperimentalLabsSection:437", e) }
                                             onRefreshNeeded()
                                         }
                                     )
@@ -523,49 +523,12 @@ fun HudExperimentalLabsSection(
                 }
             }
 
-            // 4. Refueling Bay & Cryo Stasis (Experimental)
-            HudRefuelingBaySection(
-                context = context,
-                prefs = prefs,
-                isExpanded = isRefuelingExpanded,
-                onToggle = onToggleRefueling,
-                onShowAmoledWarning = onShowAmoledWarning,
-                onRefreshNeeded = onRefreshNeeded
-            )
 
-            // 5. HUD Strip Swipe-Down to Notifications [Experimental]
-            var isSwipeDownExpanded by rememberSaveable { mutableStateOf(false) }
+            // 4. Power Button Remapping / Ignition Override
+            val (powerTitle, powerSub) = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.IGNITION_OVERRIDE, currentLanguageMode)
             CollapsibleSubSection(
-                title = "HUD Strip Swipe-Down to Notifications",
-                subtitle = "Dual-Action Right Side Pull for split Notifications & Quick Settings",
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDownward,
-                        contentDescription = null,
-                        tint = cautionAmber,
-                        modifier = Modifier.size(16.dp)
-                    )
-                },
-                isExpanded = isSwipeDownExpanded,
-                onToggle = { isSwipeDownExpanded = !isSwipeDownExpanded }
-            ) {
-                PrefToggleRow(
-                    prefs = prefs,
-                    prefKey = LightspeedPreferences.KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS,
-                    defaultVal = false,
-                    title = "Swipe Down to Expand Notifications",
-                    subtitle = "Dual-Action Right Side Pull: If your system status bar opens Quick Settings on the right side, this sensor zone lets you access Notifications from the same side:\n• Short Swipe: Pull down within the thickness of the sensor strip to expand Notifications.\n• Deep Swipe / Adjacent Gap: Pull further down or swipe the exposed native bar beside the strip to open Quick Settings.",
-                    onChanged = {
-                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
-                        onRefreshNeeded()
-                    }
-                )
-            }
-
-            // 5. Power Button Remapping
-            CollapsibleSubSection(
-                title = "Power Button Remapping",
-                subtitle = "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
+                title = powerTitle,
+                subtitle = if (powerSub != null) "$powerSub • Single, Double, Hold & Press-then-Hold" else "Single, Double, Hold (~400ms) & Press-then-Hold triggers",
                 icon = {
                     Icon(
                         imageVector = Icons.Outlined.PowerSettingsNew,
@@ -610,7 +573,31 @@ fun HudExperimentalLabsSection(
                     defaultVal = false,
                     title = "Enable Power Button Gestures",
                     subtitle = "Low-latency physical power button gesture interception",
-                    onChanged = { onRefreshNeeded() }
+                    onChanged = { onRefreshNeeded(); com.sbf.lightspeed.system.PowerLongPressTakeover.sync(context) }
+                )
+
+                PrefToggleRow(
+                    prefs = prefs,
+                    prefKey = LightspeedPreferences.KEY_POWER_HOLD_TAKEOVER,
+                    defaultVal = false,
+                    title = "Block Assistant on Power Hold",
+                    subtitle = "Sets the system power-hold action to nothing while Lightspeed is active, so only your Hold action runs. Original setting is restored when you turn this off. Requires Shizuku. Emergency: hold power ~4 s for the power menu.",
+                    onChanged = { com.sbf.lightspeed.system.PowerLongPressTakeover.sync(context); onRefreshNeeded() }
+                )
+
+                PrefToggleRow(
+                    prefs = prefs,
+                    prefKey = LightspeedPreferences.KEY_POWER_GRAB_HELPER,
+                    defaultVal = false,
+                    title = "Power Button Grab (Experimental)",
+                    subtitle = "Takes over the power button input so Android's assistant and camera shortcuts never see your gestures. Requires Shizuku. Emergency: hold power 10 s to release.",
+                    onChanged = {
+                        LightspeedPowerKeyEngine.stopShizukuPowerMonitor()
+                        if (LightspeedPowerKeyEngine.isPowerEnabled(context)) {
+                            LightspeedPowerKeyEngine.startShizukuPowerMonitor(context)
+                        }
+                        onRefreshNeeded()
+                    }
                 )
 
                 val powerGestures = listOf(
@@ -647,7 +634,7 @@ fun HudExperimentalLabsSection(
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 LightspeedHapticEngine.heavyClick(context)
-                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HudVaultExperimentalComponents.kt", "HudExperimentalLabsSection:637", e) }
                                 onRefreshNeeded()
                             }
                         },

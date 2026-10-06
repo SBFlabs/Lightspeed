@@ -54,6 +54,9 @@ object LightspeedHudHorizonRenderer {
     }
 
     private val chamferedPath = Path()
+    private val cardRect = RectF()
+    private val trackRect = RectF()
+    private val fillRect = RectF()
 
     // Quantum Horizon — cached shaders
     private var horizonGlassKey: Long = Long.MIN_VALUE
@@ -116,7 +119,8 @@ object LightspeedHudHorizonRenderer {
         val cardW = 324f * d
         val cardH = 88f * d
         val chamfer = 12f * d
-        val rect = RectF(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
+        cardRect.set(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
+        val rect = cardRect
         resetSharedPaints()
 
         val r = Color.red(primaryColor)
@@ -228,14 +232,14 @@ object LightspeedHudHorizonRenderer {
             val fraction = (stepIndex.toFloat() / (totalSteps - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
 
             // Track background
-            val trackRect = RectF(barLeft, barY, barRight, barY + barH)
+            trackRect.set(barLeft, barY, barRight, barY + barH)
             gaugeEmptyPaint.color = Color.argb(35, 255, 255, 255)
             canvas.drawRoundRect(trackRect, barH / 2f, barH / 2f, gaugeEmptyPaint)
 
             // Progress Fill — cached shader
             val fillW = barW * fraction
             if (fillW > 0f) {
-                val fillRect = RectF(barLeft, barY, barLeft + fillW, barY + barH)
+                fillRect.set(barLeft, barY, barLeft + fillW, barY + barH)
                 val fillKey = gradKey4f(barLeft, barY, barLeft + fillW, barY, primaryColor)
                 if (fillKey != horizonFillKey) {
                     horizonFillShader = LinearGradient(

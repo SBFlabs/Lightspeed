@@ -1,6 +1,7 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
+import com.sbf.lightspeed.system.logSwallowed
 import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,8 +43,12 @@ fun HudSensorDeckSection(
     tokenLabelCache: Map<String, String>,
     onRefreshNeeded: () -> Unit
 ) {
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+    val (sensorTitle, sensorSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.SENSOR_AREA, currentLanguageMode)
+
     CompactAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SENSOR_AREA),
+        title = sensorTitle,
+        subtitle = sensorSub,
         icon = {
             Icon(
                 imageVector = Icons.Outlined.TouchApp,
@@ -141,6 +147,40 @@ fun HudSensorDeckSection(
                     GestureMappingRow(context, prefs, arrowEnum, true, "pref_macro_action_STATUSBAR_${vectorKey}_HOLD", "$vectorTitle + Hold Modifier", dynamicActionTokens, tokenLabelCache)
                 }
             }
+
+            // 3. HUD Strip Swipe-Down to Notifications
+            var isSwipeDownExpanded by rememberSaveable {
+                mutableStateOf(prefs.getBoolean("pref_sub_swipe_down_statusbar", false))
+            }
+            CollapsibleSubSection(
+                title = "HUD Strip Swipe-Down to Notifications",
+                subtitle = "Dual-Action Right Side Pull for split Notifications & Quick Settings",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                isExpanded = isSwipeDownExpanded,
+                onToggle = {
+                    isSwipeDownExpanded = !isSwipeDownExpanded
+                    prefs.edit().putBoolean("pref_sub_swipe_down_statusbar", isSwipeDownExpanded).apply()
+                }
+            ) {
+                PrefToggleRow(
+                    prefs = prefs,
+                    prefKey = LightspeedPreferences.KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS,
+                    defaultVal = false,
+                    title = "Swipe Down to Expand Notifications",
+                    subtitle = "Dual-Action Right Side Pull: If your system status bar opens Quick Settings on the right side, this sensor zone lets you access Notifications from the same side:\n• Short Swipe: Pull down within the thickness of the sensor strip to expand Notifications.\n• Deep Swipe / Adjacent Gap: Pull further down or swipe the exposed native bar beside the strip to open Quick Settings.",
+                    onChanged = {
+                        safeReloadPreferences()
+                        onRefreshNeeded()
+                    }
+                )
+            }
         }
     }
 }
@@ -164,7 +204,7 @@ fun HudSyntheticGravitySection(
             onFaceRotateChanged = { isFaceRotateActive = it }
         )
         onDispose {
-            try { context.contentResolver.unregisterContentObserver(observer) } catch (_: Exception) {}
+            try { context.contentResolver.unregisterContentObserver(observer) } catch (e: Exception) { logSwallowed("HudSensorGravityComponents", "HudSyntheticGravitySection:206", e) }
         }
     }
 
@@ -177,8 +217,12 @@ fun HudSyntheticGravitySection(
         )
     }
 
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+    val (gravityTitle, gravitySub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.GRAVITY_ENGINE, currentLanguageMode)
+
     CompactAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.GRAVITY_ENGINE),
+        title = gravityTitle,
+        subtitle = gravitySub,
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Rotate90DegreesCw,
@@ -390,7 +434,7 @@ fun HudSyntheticGravitySection(
                         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "Enable Synthetic Gravity Engine",
+                                    "Synthetic Gravity Engine",
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 14.5.sp,
                                     color = Color.White

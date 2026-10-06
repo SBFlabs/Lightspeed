@@ -19,6 +19,7 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.system.logSwallowed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -208,10 +209,10 @@ fun DeflectorUnifiedSection(
                                                             onGesturesToggle()
                                                             prefs.edit().putBoolean("pref_sub_gestures_${secUnifiedKey}", true).apply()
                                                         }
-                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:212", e) }
                                                         coroutineScope.launch {
                                                             delay(60)
-                                                            try { listState.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
+                                                            try { listState.animateScrollToItem(index = 2, scrollOffset = 0) } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:215", e) }
                                                         }
                                                     }
                                                 )
@@ -277,10 +278,10 @@ fun DeflectorUnifiedSection(
                                                                 onGesturesToggle()
                                                                 prefs.edit().putBoolean("pref_sub_gestures_${secUnifiedKey}", true).apply()
                                                             }
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:281", e) }
                                                             coroutineScope.launch {
                                                                 delay(60)
-                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
+                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 0) } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:284", e) }
                                                             }
                                                         }
                                                     )
@@ -338,10 +339,10 @@ fun DeflectorUnifiedSection(
                                                                 onGesturesToggle()
                                                                 prefs.edit().putBoolean("pref_sub_gestures_${secUnifiedKey}", true).apply()
                                                             }
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:342", e) }
                                                             coroutineScope.launch {
                                                                 delay(60)
-                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 0) } catch (_: Exception) {}
+                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 0) } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:345", e) }
                                                             }
                                                         }
                                                     )
@@ -423,10 +424,10 @@ fun DeflectorUnifiedSection(
                                                             onScrubToggle()
                                                             prefs.edit().putBoolean("pref_sub_scrub_${secUnifiedKey}", true).apply()
                                                         }
-                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:427", e) }
                                                         coroutineScope.launch {
                                                             delay(60)
-                                                            try { listState.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
+                                                            try { listState.animateScrollToItem(index = 2, scrollOffset = 250) } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:430", e) }
                                                         }
                                                     }
                                                 )
@@ -484,10 +485,10 @@ fun DeflectorUnifiedSection(
                                                                 onScrubToggle()
                                                                 prefs.edit().putBoolean("pref_sub_scrub_${secUnifiedKey}", true).apply()
                                                             }
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:488", e) }
                                                             coroutineScope.launch {
                                                                 delay(60)
-                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
+                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 250) } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:491", e) }
                                                             }
                                                         }
                                                     )
@@ -537,10 +538,10 @@ fun DeflectorUnifiedSection(
                                                                 onScrubToggle()
                                                                 prefs.edit().putBoolean("pref_sub_scrub_${secUnifiedKey}", true).apply()
                                                             }
-                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                                            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:541", e) }
                                                             coroutineScope.launch {
                                                                 delay(60)
-                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 250) } catch (_: Exception) {}
+                                                                try { listState.animateScrollToItem(index = 2, scrollOffset = 250) } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "DeflectorUnifiedSection:544", e) }
                                                             }
                                                         }
                                                     )
@@ -642,7 +643,7 @@ private fun mirrorGestureToOppositeFlank(
     editor.apply()
     try {
         LightspeedAccessibilityService.instance?.reloadPreferences()
-    } catch (_: Exception) {}
+    } catch (e: Exception) { logSwallowed("DeflectorUnifiedSection.kt", "mirrorGestureToOppositeFlank:646", e) }
 
     val targetFlankName = if (targetIsLeft) "Left Deflector" else "Right Deflector"
     val stateText = if (isCurrentlyTied) "Unified" else "Split"

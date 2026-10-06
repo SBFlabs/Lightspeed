@@ -33,7 +33,7 @@ Seeing developers dedicate that level of craft, independence, and open collabora
 
 This project incorporates libraries and APIs governed by permissive open-source licenses:
 
-#### Shizuku API
+#### Shizuku API & Provider
 Copyright (c) 2021 RikkaW  
 Licensed under the MIT License:
 

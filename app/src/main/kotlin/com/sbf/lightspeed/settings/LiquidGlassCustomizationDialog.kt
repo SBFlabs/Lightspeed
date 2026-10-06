@@ -6,9 +6,12 @@ import android.view.WindowManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -49,6 +53,7 @@ import kotlin.math.roundToInt
  * Offers live interactive parameter tuning for blur depth, opacity, frost diffusion,
  * specular glare, and prismatic Material edge dispersion with immediate preview.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LiquidGlassCustomizationDialog(
     context: Context,
@@ -58,10 +63,21 @@ fun LiquidGlassCustomizationDialog(
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
     val colorScheme = MaterialTheme.colorScheme
+    val scrollState = rememberScrollState()
 
     val thresholdPx = with(density) { 90.dp.toPx() }
     val dragOffsetY = remember { Animatable(0f) }
     var hasCrossedThreshold by remember { mutableStateOf(false) }
+
+    var showCustomHexDialog by remember { mutableStateOf(false) }
+    var pulseHighlight by remember { mutableStateOf(false) }
+
+    LaunchedEffect(pulseHighlight) {
+        if (pulseHighlight) {
+            kotlinx.coroutines.delay(1800)
+            pulseHighlight = false
+        }
+    }
 
     // Live reactive config
     val configFlow by LightspeedPreferences.liquidGlassConfigFlow.collectAsState()
@@ -83,7 +99,6 @@ fun LiquidGlassCustomizationDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        val backdropVisuals = rememberDeckBackdropVisuals(context)
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
 
         SideEffect {
@@ -95,7 +110,7 @@ fun LiquidGlassCustomizationDialog(
                     dialogWindow.attributes = lp
                 }
             }
-            dialogWindow?.setDimAmount(backdropVisuals.dimAmount)
+            dialogWindow?.setDimAmount(0.25f)
         }
 
         Box(
@@ -211,13 +226,13 @@ fun LiquidGlassCustomizationDialog(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Text(
-                                        "LIQUID GLASS CALIBRATION",
-                                        fontSize = 15.sp,
+                                        "GLASS OPTICAL CALIBRATION",
+                                        fontSize = 14.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
                                     Text(
-                                        "Material glassmorphism, progressive blur & optics",
+                                        "Material glassmorphism, progressive blur & AGSL optics",
                                         fontSize = 10.sp,
                                         color = colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                     )
@@ -238,77 +253,205 @@ fun LiquidGlassCustomizationDialog(
                         }
                     }
 
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(bottom = 10.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(bottom = 8.dp))
+
+                    // ── FIXED STICKY LIVE PREVIEW HEADER ────────────────────────
+                    // Pinned permanently at top so it remains visible while scrolling sliders
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(105.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                        colorScheme.secondaryContainer.copy(alpha = 0.35f),
+                                        colorScheme.tertiaryContainer.copy(alpha = 0.55f)
+                                    )
+                                )
+                            )
+                            .border(1.dp, colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                    ) {
+                        // High-contrast background elements underneath glass
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "⚡ GLASS OPTICS",
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorScheme.primary
+                                )
+                                Text(
+                                    if (LiquidGlassAgsl.isAvailable && currentConfig.agslEnabled && currentConfig.agslIntensity > 0.01f) "AGSL ON" else "AGSL OFF",
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorScheme.tertiary
+                                )
+                            }
+                            val activeTint = if (currentConfig.useCustomColor) Color(currentConfig.customColor) else colorScheme.primary
+                            val isM3Mode = !currentConfig.useCustomColor
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isM3Mode) {
+                                                Brush.sweepGradient(
+                                                    listOf(
+                                                        colorScheme.primary,
+                                                        colorScheme.secondary,
+                                                        colorScheme.tertiary,
+                                                        colorScheme.primary
+                                                    )
+                                                )
+                                            } else {
+                                                Brush.radialGradient(
+                                                    listOf(
+                                                        activeTint,
+                                                        activeTint.copy(alpha = 0.80f)
+                                                    )
+                                                )
+                                            }
+                                        )
+                                        .border(
+                                            width = 1.6.dp,
+                                            color = Color.White.copy(alpha = 0.85f),
+                                            shape = CircleShape
+                                        )
+                                        .combinedClickable(
+                                            onClick = {
+                                                LightspeedHapticEngine.tick(context)
+                                                val newUseCustom = !currentConfig.useCustomColor
+                                                updateConfig(currentConfig.copy(useCustomColor = newUseCustom))
+                                            },
+                                            onLongClick = {
+                                                LightspeedHapticEngine.heavyClick(context)
+                                                if (!currentConfig.useCustomColor) {
+                                                    updateConfig(currentConfig.copy(useCustomColor = true))
+                                                }
+                                                pulseHighlight = true
+                                                coroutineScope.launch {
+                                                    scrollState.animateScrollTo(280)
+                                                }
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isM3Mode) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = "Material 3 Dynamic Mode (Tap to toggle, hold to customize)",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    } else {
+                                        val isLight = (activeTint.red * 0.299f + activeTint.green * 0.587f + activeTint.blue * 0.114f) > 0.6f
+                                        Icon(
+                                            imageVector = Icons.Default.Palette,
+                                            contentDescription = "Custom Tint Mode (Tap to toggle, hold to customize)",
+                                            tint = if (isLight) Color.Black else Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable {
+                                            LightspeedHapticEngine.tick(context)
+                                            val newUseCustom = !currentConfig.useCustomColor
+                                            updateConfig(currentConfig.copy(useCustomColor = newUseCustom))
+                                        }
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            if (isM3Mode) "Dynamic Material 3 Optics" else "Custom Chromatic Tint",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = (if (isM3Mode) colorScheme.primary else activeTint).copy(alpha = 0.25f),
+                                            border = BorderStroke(
+                                                0.6.dp,
+                                                (if (isM3Mode) colorScheme.primary else activeTint).copy(alpha = 0.6f)
+                                            )
+                                        ) {
+                                            Text(
+                                                if (isM3Mode) "M3 MONET" else "#%06X".format(currentConfig.customColor.toInt() and 0xFFFFFF),
+                                                fontSize = 8.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isM3Mode) colorScheme.primary else activeTint,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        if (isM3Mode) "Tap circle to toggle custom • Hold to customize"
+                                        else "Tap circle to revert to M3 • Hold to pick color",
+                                        fontSize = 9.sp,
+                                        color = Color.White.copy(alpha = 0.85f)
+                                    )
+                                }
+
+                                Switch(
+                                    checked = isM3Mode,
+                                    onCheckedChange = { checked ->
+                                        LightspeedHapticEngine.tick(context)
+                                        updateConfig(currentConfig.copy(useCustomColor = !checked))
+                                    },
+                                    modifier = Modifier.scale(0.85f),
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = colorScheme.primary,
+                                        uncheckedThumbColor = Color.White,
+                                        uncheckedTrackColor = activeTint
+                                    )
+                                )
+                            }
+                        }
+
+                        // Active Liquid Glass surface overlaid on top
+                        LiquidGlassPanel(
+                            cornerRadius = 18.dp,
+                            config = currentConfig,
+                            colorScheme = colorScheme,
+                            modifier = Modifier.matchParentSize()
+                        )
+                    }
+
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
 
                     // ── Scrollable Body ────────────────────────────────────
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .verticalScroll(rememberScrollState()),
+                            .verticalScroll(scrollState),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // ── Section 1: Live Interactive Glass Preview Card ──
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(100.dp),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF10141D))
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize()) {
-                                // Simulated background texture behind the glass
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(12.dp),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            "LIGHTSPEED AVIONICS",
-                                            fontSize = 9.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colorScheme.primary.copy(alpha = 0.7f)
-                                        )
-                                        Text(
-                                            "ORBITAL DECK // 120Hz",
-                                            fontSize = 9.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            color = colorScheme.tertiary.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(24.dp)
-                                                .clip(CircleShape)
-                                                .background(colorScheme.primary.copy(alpha = 0.35f))
-                                        )
-                                        Column {
-                                            Text("Cruising at Mach 9.4", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                            Text("Dynamic Material 3 Color Optics", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.8f))
-                                        }
-                                    }
-                                }
-
-                                // Active Liquid Glass surface overlaid on top
-                                LiquidGlassPanel(
-                                    cornerRadius = 18.dp,
-                                    config = currentConfig,
-                                    colorScheme = colorScheme,
-                                    modifier = Modifier.matchParentSize()
-                                )
-                            }
-                        }
-
                         // ── Section 2: Preset Quick-Pill Selectors ───────────
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
@@ -357,6 +500,233 @@ fun LiquidGlassCustomizationDialog(
                                                 color = if (isMatch) colorScheme.primary else Color.White.copy(alpha = 0.8f)
                                             )
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+
+                        // ── Section 2.5: Chromatic Engine & Optical Tint ───────
+                        val activeTint = if (currentConfig.useCustomColor) Color(currentConfig.customColor) else colorScheme.primary
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (pulseHighlight) activeTint.copy(alpha = 0.14f)
+                                    else Color.White.copy(alpha = 0.03f)
+                                )
+                                .border(
+                                    1.dp,
+                                    if (pulseHighlight) activeTint.copy(alpha = 0.75f)
+                                    else Color.White.copy(alpha = 0.08f),
+                                    RoundedCornerShape(14.dp)
+                                )
+                                .padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "CHROMATIC ENGINE & OPTICAL TINT",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (currentConfig.useCustomColor) activeTint else colorScheme.primary,
+                                    letterSpacing = 0.8.sp
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = (if (currentConfig.useCustomColor) activeTint else colorScheme.primary).copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        if (currentConfig.useCustomColor) "CUSTOM TINT" else "DYNAMIC M3",
+                                        fontSize = 8.5.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (currentConfig.useCustomColor) activeTint else colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            // Two-Pill Segmented Selector
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val isM3Selected = !currentConfig.useCustomColor
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable {
+                                            LightspeedHapticEngine.tick(context)
+                                            updateConfig(currentConfig.copy(useCustomColor = false))
+                                        },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isM3Selected) colorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.04f),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isM3Selected) colorScheme.primary.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.10f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 7.dp, horizontal = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = if (isM3Selected) colorScheme.primary else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            "Dynamic Material 3",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isM3Selected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isM3Selected) colorScheme.primary else Color.White.copy(alpha = 0.75f)
+                                        )
+                                    }
+                                }
+
+                                val isCustomSelected = currentConfig.useCustomColor
+                                Surface(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable {
+                                            LightspeedHapticEngine.tick(context)
+                                            updateConfig(currentConfig.copy(useCustomColor = true))
+                                        },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isCustomSelected) activeTint.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.04f),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isCustomSelected) activeTint.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.10f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 7.dp, horizontal = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(Icons.Default.Palette, contentDescription = null, tint = if (isCustomSelected) activeTint else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            "Custom Palette",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isCustomSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isCustomSelected) activeTint else Color.White.copy(alpha = 0.75f)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Tint Infusion Depth Slider
+                            CalibrationSliderRow(
+                                title = "Tint Infusion Depth",
+                                subtitle = "Volume of color infused into glass substrate & apex glow",
+                                displayValue = "${(currentConfig.tintIntensity * 100).roundToInt()}%",
+                                value = currentConfig.tintIntensity,
+                                valueRange = 0.05f..1.00f,
+                                steps = 18,
+                                onValueChange = { newTint ->
+                                    updateConfig(currentConfig.copy(tintIntensity = newTint))
+                                }
+                            )
+
+                            // Palette Presets Swatches
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "CUSTOM PALETTE PRESETS",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.LightGray.copy(alpha = 0.8f)
+                                    )
+                                    Text(
+                                        "#%06X".format(currentConfig.customColor.toInt() and 0xFFFFFF),
+                                        fontSize = 9.5.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (currentConfig.useCustomColor) activeTint else Color.Gray
+                                    )
+                                }
+
+                                val palettePresets = listOf(
+                                    0xFF00E5FFL to "Cyan",
+                                    0xFF00E676L to "Emerald",
+                                    0xFFFFD600L to "Amber",
+                                    0xFFFF6D00L to "Orange",
+                                    0xFFFF1744L to "Crimson",
+                                    0xFFFF007FL to "Pink",
+                                    0xFFD500F9L to "Purple",
+                                    0xFF607D8BL to "Obsidian",
+                                    0xFFFFFFFFL to "White"
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    palettePresets.forEach { (colorVal, _) ->
+                                        val col = Color(colorVal)
+                                        val isSelected = currentConfig.useCustomColor && (currentConfig.customColor == colorVal)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape)
+                                                .background(col)
+                                                .border(
+                                                    width = if (isSelected) 2.2.dp else 0.8.dp,
+                                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.25f),
+                                                    shape = CircleShape
+                                                )
+                                                .clickable {
+                                                    LightspeedHapticEngine.tick(context)
+                                                    updateConfig(currentConfig.copy(useCustomColor = true, customColor = colorVal))
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) {
+                                                val isLight = (col.red * 0.299f + col.green * 0.587f + col.blue * 0.114f) > 0.6f
+                                                Icon(
+                                                    Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = if (isLight) Color.Black else Color.White,
+                                                    modifier = Modifier.size(15.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Custom Hex Button
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White.copy(alpha = 0.08f))
+                                            .border(
+                                                width = 1.dp,
+                                                color = Color.White.copy(alpha = 0.35f),
+                                                shape = CircleShape
+                                            )
+                                            .clickable {
+                                                LightspeedHapticEngine.tick(context)
+                                                showCustomHexDialog = true
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Custom Hex Code",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
                                     }
                                 }
                             }
@@ -470,7 +840,7 @@ fun LiquidGlassCustomizationDialog(
                             )
                         }
 
-                        // ── Toggle 2: Dynamic Caustic Shimmer ───────────────
+                        // ── Toggle 2: Light Shimmer (Canvas highlight drift + rim flares) ──
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -485,13 +855,13 @@ fun LiquidGlassCustomizationDialog(
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                                 Text(
-                                    "Fluid Caustic Shimmer",
+                                    "Light Shimmer",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                                 Text(
-                                    "Subtle moving light pool and catch-light flares across glass",
+                                    "Drifting highlight and rim flares (works on every Android version)",
                                     fontSize = 10.5.sp,
                                     color = colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                 )
@@ -506,6 +876,79 @@ fun LiquidGlassCustomizationDialog(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = colorScheme.primary
                                 )
+                            )
+                        }
+
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+
+                        // ── AGSL Caustic Light (real GPU shader) ────────────
+                        val agslAvailable = LiquidGlassAgsl.isAvailable
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable(enabled = agslAvailable) {
+                                    LightspeedHapticEngine.tick(context)
+                                    updateConfig(currentConfig.copy(agslEnabled = !currentConfig.agslEnabled))
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                                Text(
+                                    "AGSL Caustic Light (GPU)",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    if (agslAvailable)
+                                        "Animated light-web caustics rendered by a GPU shader behind the glass"
+                                    else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+                                        "Unavailable: needs Android 13+ (API 33)"
+                                    else
+                                        "Unavailable: this GPU driver rejected the shader",
+                                    fontSize = 10.5.sp,
+                                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                )
+                            }
+                            Switch(
+                                checked = currentConfig.agslEnabled && agslAvailable,
+                                enabled = agslAvailable,
+                                onCheckedChange = { checked ->
+                                    LightspeedHapticEngine.tick(context)
+                                    updateConfig(currentConfig.copy(agslEnabled = checked))
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = colorScheme.primary
+                                )
+                            )
+                        }
+
+                        if (agslAvailable && currentConfig.agslEnabled) {
+                            CalibrationSliderRow(
+                                title = "AGSL Intensity",
+                                subtitle = "Brightness and visibility of the caustic light web",
+                                displayValue = "${(currentConfig.agslIntensity * 100).roundToInt()}%",
+                                value = currentConfig.agslIntensity,
+                                valueRange = 0.05f..1.00f,
+                                steps = 18,
+                                onValueChange = { v ->
+                                    updateConfig(currentConfig.copy(agslIntensity = v))
+                                }
+                            )
+                            CalibrationSliderRow(
+                                title = "AGSL Speed",
+                                subtitle = "How fast the caustic light flows",
+                                displayValue = "${"%.2f".format(currentConfig.agslSpeed)}x",
+                                value = currentConfig.agslSpeed,
+                                valueRange = 0.25f..3.00f,
+                                steps = 10,
+                                onValueChange = { v ->
+                                    updateConfig(currentConfig.copy(agslSpeed = v))
+                                }
                             )
                         }
                     }
@@ -542,6 +985,89 @@ fun LiquidGlassCustomizationDialog(
                     }
                 }
             }
+        }
+
+        if (showCustomHexDialog) {
+            var hexInput by remember {
+                mutableStateOf("%06X".format(currentConfig.customColor.toInt() and 0xFFFFFF))
+            }
+            var parseError by remember { mutableStateOf(false) }
+
+            AlertDialog(
+                onDismissRequest = { showCustomHexDialog = false },
+                title = {
+                    Text("CUSTOM CHROMATIC TINT", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "Enter a 6-digit hex color code for glass refraction & caustics:",
+                            fontSize = 11.sp,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = hexInput,
+                            onValueChange = { raw ->
+                                val cleaned = raw.trimStart('#').take(6).uppercase()
+                                hexInput = cleaned
+                                parseError = false
+                            },
+                            prefix = { Text("#", fontWeight = FontWeight.Bold) },
+                            singleLine = true,
+                            isError = parseError,
+                            supportingText = if (parseError) {
+                                { Text("Invalid hex color (use 6 digits)", color = MaterialTheme.colorScheme.error) }
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        val parsedColor = try {
+                            if (hexInput.length == 6) {
+                                Color(android.graphics.Color.parseColor("#$hexInput"))
+                            } else null
+                        } catch (_: Exception) { null }
+
+                        if (parsedColor != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(parsedColor)
+                                        .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+                                )
+                                Text("Preview Swatch", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            try {
+                                val parsed = android.graphics.Color.parseColor("#$hexInput")
+                                val longColor = (parsed.toLong() and 0xFFFFFFFFL)
+                                LightspeedHapticEngine.click(context)
+                                updateConfig(currentConfig.copy(useCustomColor = true, customColor = longColor))
+                                showCustomHexDialog = false
+                            } catch (_: Exception) {
+                                parseError = true
+                                LightspeedHapticEngine.triggerWarning(context)
+                            }
+                        }
+                    ) {
+                        Text("Apply")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCustomHexDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

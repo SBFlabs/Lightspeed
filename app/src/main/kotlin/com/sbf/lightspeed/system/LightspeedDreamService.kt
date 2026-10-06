@@ -19,7 +19,7 @@ class LightspeedDreamService : DreamService() {
         }
         try {
             startActivity(intent)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedDreamService", "onAttachedToWindow:22", e) }
         finish()
     }
 }

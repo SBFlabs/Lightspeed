@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.system.logSwallowed
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Spring
@@ -110,7 +111,7 @@ fun PrefToggleRow(
             prefs.edit().putBoolean(prefKey, newValue).apply()
             try {
                 com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences()
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("SettingsSliderComponents", "PrefToggleRow:113", e) }
             onChanged?.invoke(newValue)
         }
     )
@@ -754,14 +755,6 @@ fun <T> RotaryWheelColumn(
             }
         }
     }
-}
-
-@Composable
-fun Material3ExpressiveLoader() {
-    CircularProgressIndicator(
-        modifier = Modifier.size(72.dp),
-        color = MaterialTheme.colorScheme.primary
-    )
 }
 
 /**

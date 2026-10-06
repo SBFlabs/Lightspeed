@@ -31,7 +31,7 @@ object OemNotchDetector {
         try {
             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             cm?.setPrimaryClip(ClipData.newPlainText("OEM Feature Name", featureName))
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("OemNotchDetector", "openSearch:34", e) }
 
         val searchIntent = Intent("android.settings.APP_SEARCH_SETTINGS").apply {
             putExtra("query", featureName)
@@ -48,7 +48,7 @@ object OemNotchDetector {
         } catch (_: Exception) {
             try {
                 context.startActivity(fallbackIntent)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("OemNotchDetector", "openSearch:51", e) }
         }
     }
 }

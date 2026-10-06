@@ -5,18 +5,12 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
-
-    <!-- Signature-level permission: only apps signed with the same key can send automation intents -->
-    <permission
-        android:name="${applicationId}.permission.AUTOMATION"
-        android:protectionLevel="signature" />
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
@@ -70,14 +64,6 @@
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <activity
-            android:name=".CockpitSettingsActivity"
-            android:exported="false"
-            android:taskAffinity=""
-            android:excludeFromRecents="true"
-            android:autoRemoveFromRecents="true"
-            android:theme="@style/Theme.Lightspeed.Floating" />
-
-        <activity
             android:name=".CockpitDialogActivity"
             android:exported="false"
             android:taskAffinity=""
@@ -100,6 +86,7 @@
         <activity
             android:name=".settings.CentralCommandActivity"
             android:exported="false"
+            android:launchMode="singleTop"
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:autoRemoveFromRecents="true"
@@ -245,11 +232,15 @@
             </intent-filter>
         </service>
 
-        <!-- Automation Receiver for MacroDroid, Tasker, ADB, and internal quick actions -->
+        <!-- Internal Automation Receiver for notification actions and 1-tap shortcuts -->
         <receiver
             android:name=".system.LightspeedAutomationReceiver"
-            android:exported="true"
-            android:permission="${applicationId}.permission.AUTOMATION">
+            android:exported="false" />
+
+        <!-- External Automation Receiver for MacroDroid, Tasker, and ADB (opt-in via settings) -->
+        <receiver
+            android:name=".system.LightspeedExternalAutomationReceiver"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.sbf.lightspeed.action.TOGGLE_FLIGHT_MODE" />
                 <action android:name="com.sbf.lightspeed.action.SET_FLIGHT_MODE" />
@@ -266,7 +257,7 @@
         <!-- 1-Tap Shortcut Trampoline Activity for Home Screen and Launcher shortcuts -->
         <activity
             android:name=".LightspeedToggleActivity"
-            android:exported="true"
+            android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true"
             android:noHistory="true"

@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -190,6 +191,8 @@ object LightspeedKeyHudNav {
         volDownHoldJob = null
         hudNavInactivityJob?.cancel()
         hudNavInactivityJob = null
+        hudScope.cancel()
+        hudScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         isHudNavActive = false
         currentNavState = null
     }

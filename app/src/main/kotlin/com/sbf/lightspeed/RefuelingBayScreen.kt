@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.app.Activity
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
@@ -13,23 +14,30 @@ import android.view.WindowManager
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalConfiguration
@@ -63,7 +71,7 @@ private fun Modifier.refuelingBayUnlockSwipe(
                 try {
                     val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
                     km?.requestDismissKeyguard(activity, null)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("RefuelingBayScreen", "refuelingBayUnlockSwipe:73", e) }
                 val window = activity.window
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
@@ -125,9 +133,18 @@ fun RefuelingBayScreen(
     var timeRemainingMinutes by remember { mutableLongStateOf(-1L) }
     var chargeTypeLabel by remember { mutableStateOf("Standard Charge") }
 
-    // Style & Sleep Settings
-    val batteryStyle = prefs.getString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, "halo") ?: "halo"
-    val sleepTimeoutSetting = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "30s") ?: "30s"
+    // Style, Sleep & Resizable Split Settings
+    var batteryStyle by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, "halo") ?: "halo") }
+    var sleepTimeoutSetting by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "30s") ?: "30s") }
+    var sleepAction by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_ACTION, "overlay") ?: "overlay") }
+    var splitRatioPortrait by remember { mutableFloatStateOf(prefs.getFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_PORTRAIT, 0.52f).coerceIn(0.3f, 0.7f)) }
+    var splitRatioLandscape by remember { mutableFloatStateOf(prefs.getFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_LANDSCAPE, 0.44f).coerceIn(0.3f, 0.7f)) }
+    var clockFormat by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_CLOCK_FORMAT, "24h_sec") ?: "24h_sec") }
+    var dateFormat by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_DATE_FORMAT, "full") ?: "full") }
+    var clockFont by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_CLOCK_FONT, "mono") ?: "mono") }
+    var showAlarm by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_SHOW_ALARM, true)) }
+    var showCustomizationModal by remember { mutableStateOf(false) }
+
     val sleepTimeoutMs = when (sleepTimeoutSetting) {
         "5s" -> 5_000L
         "15s" -> 15_000L
@@ -191,7 +208,7 @@ fun RefuelingBayScreen(
                     wattage = if (rawWattage > 0.05f) rawWattage else 0f
 
                     chargeTypeLabel = when {
-                        !isCharging -> "Discharging (Auxiliary Power)"
+                        !isCharging -> "Auxiliary Power"
                         wattage >= 45f -> "⚡ Cryo-Hyper Turbo Charge"
                         wattage >= 20f -> "⚡ Super Fast Warp Charge"
                         wattage >= 10f -> "⚡ Fast Refueling"
@@ -207,10 +224,10 @@ fun RefuelingBayScreen(
         }
 
         val filter = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)
-        context.registerReceiver(receiver, filter)
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
         onDispose {
-            try { context.unregisterReceiver(receiver) } catch (_: Exception) {}
+            try { context.unregisterReceiver(receiver) } catch (e: Exception) { logSwallowed("RefuelingBayScreen", "RefuelingBayContent:229", e) }
         }
     }
 
@@ -230,22 +247,41 @@ fun RefuelingBayScreen(
     }
 
     // Ticking Clock, Sleep Shield Timer & Burn-In Drift Loop
-    LaunchedEffect(Unit) {
-        val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-        val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
+    LaunchedEffect(clockFormat, dateFormat, showAlarm) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
 
         var driftCounter = 0
 
         while (true) {
             val now = Date()
-            currentTimeStr = timeFormat.format(now)
-            currentDateStr = dateFormat.format(now)
+            currentTimeStr = when (clockFormat) {
+                "24h" -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
+                "12h_sec" -> SimpleDateFormat("hh:mm:ss a", Locale.getDefault()).format(now)
+                "12h" -> SimpleDateFormat("hh:mm a", Locale.getDefault()).format(now)
+                "orbital", "stardate" -> {
+                    val cal = java.util.Calendar.getInstance()
+                    val day = cal.get(java.util.Calendar.DAY_OF_YEAR)
+                    String.format(Locale.US, "D%03d · %02d:%02d", day, cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
+                }
+                else -> SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(now)
+            }
 
-            val nextAlarm = alarmManager?.nextAlarmClock
-            if (nextAlarm != null) {
-                val alarmTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(nextAlarm.triggerTime))
-                nextAlarmStr = "Next Alarm: $alarmTime"
+            currentDateStr = when (dateFormat) {
+                "short" -> SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault()).format(now)
+                "iso" -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now)
+                "compact" -> SimpleDateFormat("MMM d", Locale.getDefault()).format(now)
+                "hidden" -> ""
+                else -> SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(now)
+            }
+
+            if (showAlarm) {
+                val nextAlarm = alarmManager?.nextAlarmClock
+                if (nextAlarm != null) {
+                    val alarmTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(nextAlarm.triggerTime))
+                    nextAlarmStr = "Next Alarm: $alarmTime"
+                } else {
+                    nextAlarmStr = null
+                }
             } else {
                 nextAlarmStr = null
             }
@@ -253,15 +289,25 @@ fun RefuelingBayScreen(
             // Check auto-sleep timeout
             val idleDuration = System.currentTimeMillis() - lastInteractionTimestamp
             if (sleepTimeoutMs < Long.MAX_VALUE && idleDuration >= sleepTimeoutMs && !isSleeping) {
-                isSleeping = true
-                val window = activity.window
-                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                val lp = window.attributes
-                lp.screenBrightness = 0.01f
-                window.attributes = lp
+                if (sleepAction == "screen_off") {
+                    lastInteractionTimestamp = System.currentTimeMillis()
+                    val window = activity.window
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
+                        LightspeedRefuelingActivity.shizukuPanelOff = true
+                        com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("cmd display power-off 0")
+                    } else {
+                        com.sbf.lightspeed.system.ActionDispatcher.execute(context, "system:lock_screen")
+                    }
+                } else {
+                    isSleeping = true
+                    val window = activity.window
+                    val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                    insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                }
             }
+
 
             // Drift every 60 iterations (60 seconds)
             driftCounter++
@@ -290,8 +336,12 @@ fun RefuelingBayScreen(
 
     // Function to wake up from sleep shield
     fun wakeShield(durationMs: Long = 15_000L) {
-        isSleeping = false
         val window = activity.window
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (sleepAction == "screen_off" && com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
+            com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("cmd display power-on 0")
+        }
+        isSleeping = false
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.show(WindowInsetsCompat.Type.systemBars())
         val lp = window.attributes
@@ -354,11 +404,18 @@ fun RefuelingBayScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left Column: Cryo Clock & Battery Arc Telemetry (Swipe-Up to Unlock Zone)
+                    // Left Column: Cryo Clock & Battery Arc Telemetry (Long-Press to Customize, Swipe-Up to Unlock Zone)
                     Column(
                         modifier = Modifier
-                            .weight(0.44f)
+                            .weight(splitRatioLandscape)
                             .fillMaxHeight()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        showCustomizationModal = true
+                                    }
+                                )
+                            }
                             .refuelingBayUnlockSwipe(context, activity, onDismiss) {
                                 lastInteractionTimestamp = System.currentTimeMillis()
                             },
@@ -420,7 +477,7 @@ fun RefuelingBayScreen(
                     // Right Column: Multi-Widget Engine Container
                     Column(
                         modifier = Modifier
-                            .weight(0.56f)
+                            .weight(1f - splitRatioLandscape)
                             .fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -473,38 +530,59 @@ fun RefuelingBayScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Top Interactive Region: Cryo Clock & Battery Arc (Swipe-Up to Unlock Zone)
+                    // Top Interactive Region: Cryo Clock & Battery Arc (Long-Press to Customize, Swipe-Up to Unlock Zone)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f)
+                            .weight(splitRatioPortrait)
                             .refuelingBayUnlockSwipe(context, activity, onDismiss) {
                                 lastInteractionTimestamp = System.currentTimeMillis()
                             },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        // Header: Minimalist Cryo Clock
+                        // Header: Customizable Cryo Clock (Long-Press to Customize)
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(top = 4.dp)
+                            modifier = Modifier
+                                .padding(top = 4.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            showCustomizationModal = true
+                                        }
+                                    )
+                                }
                         ) {
+                            val clockFontFamily = when (clockFont) {
+                                "sans" -> FontFamily.SansSerif
+                                "serif" -> FontFamily.Serif
+                                else -> FontFamily.Monospace
+                            }
+                            val clockLetterSpacing = if (clockFont == "cyber") 3.5.sp else 2.sp
+                            val clockFontSize = when {
+                                clockFormat == "orbital" || clockFormat == "stardate" -> 36.sp
+                                currentTimeStr.length > 8 -> 34.sp
+                                else -> 44.sp
+                            }
                             Text(
                                 text = currentTimeStr,
-                                fontSize = 44.sp,
-                                fontWeight = FontWeight.Light,
-                                fontFamily = FontFamily.Monospace,
-                                letterSpacing = 2.sp,
+                                fontSize = clockFontSize,
+                                fontWeight = if (clockFont == "cyber") FontWeight.Bold else FontWeight.Light,
+                                fontFamily = clockFontFamily,
+                                letterSpacing = clockLetterSpacing,
                                 color = Color.White.copy(alpha = 0.95f)
                             )
-                            Text(
-                                text = currentDateStr.uppercase(Locale.US),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 1.4.sp,
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
-                            )
-                            if (nextAlarmStr != null) {
+                            if (currentDateStr.isNotEmpty()) {
+                                Text(
+                                    text = currentDateStr.uppercase(Locale.US),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = 1.4.sp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                                )
+                            }
+                            if (showAlarm && nextAlarmStr != null) {
                                 Spacer(modifier = Modifier.height(3.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     androidx.compose.material3.Icon(
@@ -525,26 +603,37 @@ fun RefuelingBayScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Center Battery Telemetry Arc (Selectable Style)
-                        BatteryTelemetryCircle(
-                            batteryPct = batteryPct,
-                            wattage = wattage,
-                            batteryTempC = batteryTempC,
-                            chargeTypeLabel = chargeTypeLabel,
-                            timeRemainingMinutes = timeRemainingMinutes,
-                            isCharging = isCharging,
-                            isFull = isFull,
-                            batteryStyle = batteryStyle,
-                            dynamicArcColor = dynamicArcColor,
-                            thermalBadgeColor = thermalBadgeColor,
-                            sizeDp = 184.dp
-                        )
+                        // Center Battery Telemetry Arc (Long-Press to Customize)
+                        Box(
+                            modifier = Modifier.pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        showCustomizationModal = true
+                                    }
+                                )
+                            }
+                        ) {
+                            BatteryTelemetryCircle(
+                                batteryPct = batteryPct,
+                                wattage = wattage,
+                                batteryTempC = batteryTempC,
+                                chargeTypeLabel = chargeTypeLabel,
+                                timeRemainingMinutes = timeRemainingMinutes,
+                                isCharging = isCharging,
+                                isFull = isFull,
+                                batteryStyle = batteryStyle,
+                                dynamicArcColor = dynamicArcColor,
+                                thermalBadgeColor = thermalBadgeColor,
+                                sizeDp = 184.dp
+                            )
+                        }
                     }
 
                     // Middle Section: Multi-Widget Section & Toolbar (Pure widget touch area - no drag stealing)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth(0.96f)
+                            .weight(1f - splitRatioPortrait)
                             .padding(bottom = 6.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -567,7 +656,7 @@ fun RefuelingBayScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 160.dp, max = 240.dp)
+                                .weight(1f)
                         ) {
                             MultiWidgetContainer(
                                 activity = activity,
@@ -590,7 +679,7 @@ fun RefuelingBayScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 52.dp)
+                            .defaultMinSize(minHeight = 44.dp)
                             .refuelingBayUnlockSwipe(context, activity, onDismiss) {
                                 lastInteractionTimestamp = System.currentTimeMillis()
                             },
@@ -610,8 +699,6 @@ fun RefuelingBayScreen(
     }
 
         // 2. Full-Screen Sleep Shield Layer (TOPMOST)
-        // When sleeping, this completely covers the entire screen, blocks ALL touches from reaching widgets,
-        // and instantly wakes the shield on ANY single tap or touch down anywhere on the screen!
         if (isSleeping) {
             Box(
                 modifier = Modifier
@@ -621,12 +708,8 @@ fun RefuelingBayScreen(
                     .refuelingBayUnlockSwipe(context, activity, onDismiss)
                     .pointerInput(Unit) {
                         detectTapGestures(
-                            onPress = {
-                                wakeShield(15_000L)
-                            },
-                            onTap = {
-                                wakeShield(15_000L)
-                            },
+                            onPress = { wakeShield(15_000L) },
+                            onTap = { wakeShield(15_000L) },
                             onDoubleTap = {
                                 val window = activity.window
                                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -641,7 +724,7 @@ fun RefuelingBayScreen(
             )
         }
 
-        // 3. Tactical In-App Widget Picker Modal (Spaceship Cockpit Catalog)
+        // 3. Tactical In-App Widget Picker Modal
         if (showTacticalWidgetPicker) {
             TacticalWidgetPickerModal(
                 onDismiss = { showTacticalWidgetPicker = false },
@@ -651,5 +734,489 @@ fun RefuelingBayScreen(
                 }
             )
         }
+
+        // 4. Refueling HUD Customization Modal (Triggered by Long-Press on Clock/Gauge)
+        if (showCustomizationModal) {
+            RefuelingCustomizationModal(
+                isLandscape = isLandscape,
+                batteryStyle = batteryStyle,
+                sleepTimeout = sleepTimeoutSetting,
+                sleepAction = sleepAction,
+                splitRatio = if (isLandscape) splitRatioLandscape else splitRatioPortrait,
+                clockFormat = clockFormat,
+                dateFormat = dateFormat,
+                clockFont = clockFont,
+                showAlarm = showAlarm,
+                onBatteryStyleChange = { newStyle ->
+                    batteryStyle = newStyle
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, newStyle).apply()
+                },
+                onSleepTimeoutChange = { newTimeout ->
+                    sleepTimeoutSetting = newTimeout
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, newTimeout).apply()
+                },
+                onSleepActionChange = { newAction ->
+                    sleepAction = newAction
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_ACTION, newAction).apply()
+                },
+                onSplitRatioChange = { newRatio ->
+                    if (isLandscape) {
+                        splitRatioLandscape = newRatio
+                        prefs.edit().putFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_LANDSCAPE, newRatio).apply()
+                    } else {
+                        splitRatioPortrait = newRatio
+                        prefs.edit().putFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_PORTRAIT, newRatio).apply()
+                    }
+                },
+                onClockFormatChange = { newFmt ->
+                    clockFormat = newFmt
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_CLOCK_FORMAT, newFmt).apply()
+                },
+                onDateFormatChange = { newFmt ->
+                    dateFormat = newFmt
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_DATE_FORMAT, newFmt).apply()
+                },
+                onClockFontChange = { newFont ->
+                    clockFont = newFont
+                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_CLOCK_FONT, newFont).apply()
+                },
+                onShowAlarmChange = { newShow ->
+                    showAlarm = newShow
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_SHOW_ALARM, newShow).apply()
+                },
+                onDismiss = { showCustomizationModal = false }
+            )
+        }
     }
 }
+
+/**
+ * Tactical Refueling Bay Customization Modal triggered by long-pressing clock or telemetry gauge.
+ */
+@Composable
+fun RefuelingCustomizationModal(
+    isLandscape: Boolean,
+    batteryStyle: String,
+    sleepTimeout: String,
+    sleepAction: String,
+    splitRatio: Float,
+    clockFormat: String,
+    dateFormat: String,
+    clockFont: String,
+    showAlarm: Boolean,
+    onBatteryStyleChange: (String) -> Unit,
+    onSleepTimeoutChange: (String) -> Unit,
+    onSleepActionChange: (String) -> Unit,
+    onSplitRatioChange: (Float) -> Unit,
+    onClockFormatChange: (String) -> Unit,
+    onDateFormatChange: (String) -> Unit,
+    onClockFontChange: (String) -> Unit,
+    onShowAlarmChange: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    LaunchedEffect(Unit) {
+        scrollState.scrollTo(0)
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.85f))
+            .clickable { onDismiss() }
+            .zIndex(10005f),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .wrapContentHeight()
+                .heightIn(max = 640.dp)
+                .clickable { /* consume tap inside card */ },
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF090D14)),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "⚙ HUD & DISPLAY CUSTOMIZATION",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.2.sp
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.12f))
+
+                // 1. Chrono Clock Format
+                var showOrbitalInfo by remember { mutableStateOf(false) }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "CHRONO CLOCK FORMAT",
+                            fontSize = 10.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.PriorityHigh,
+                            contentDescription = "About Orbital time",
+                            tint = if (showOrbitalInfo) MaterialTheme.colorScheme.primary else Color(0xFFFFB300),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showOrbitalInfo = !showOrbitalInfo }
+                        )
+                    }
+                    if (showOrbitalInfo) {
+                        Text(
+                            text = "ORBITAL shows the clock as a mission-style day count: D<day of year> · <24h time>. " +
+                                "Example: D276 · 23:51 means day 276 of the year, at 23:51.",
+                            fontSize = 9.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White.copy(alpha = 0.7f),
+                            lineHeight = 13.sp
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val formats = listOf(
+                            "24h_sec" to "24H + SEC",
+                            "24h" to "24H",
+                            "12h_sec" to "12H + SEC",
+                            "12h" to "12H",
+                            "orbital" to "ORBITAL"
+                        )
+                        formats.forEach { (key, label) ->
+                            val isSelected = clockFormat == key || (key == "orbital" && clockFormat == "stardate")
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF121824))
+                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .clickable { onClockFormatChange(key) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 8.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2. Date Format
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "DATE DISPLAY FORMAT",
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val dateFormats = listOf(
+                            "full" to "FULL",
+                            "short" to "SHORT",
+                            "iso" to "ISO",
+                            "compact" to "COMPACT",
+                            "hidden" to "HIDE"
+                        )
+                        dateFormats.forEach { (key, label) ->
+                            val isSelected = dateFormat == key
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF121824))
+                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .clickable { onDateFormatChange(key) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 8.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 3. Clock Font Style & Alarm Toggle
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "TYPOGRAPHY & ALARM BADGE",
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val fonts = listOf(
+                            "mono" to "Tactical",
+                            "sans" to "Clean",
+                            "serif" to "Classic",
+                            "cyber" to "Cyber"
+                        )
+                        fonts.forEach { (key, label) ->
+                            val isSelected = clockFont == key
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF121824))
+                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .clickable { onClockFontChange(key) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label.uppercase(),
+                                    fontSize = 8.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (showAlarm) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF121824))
+                                .border(1.dp, if (showAlarm) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                .clickable { onShowAlarmChange(!showAlarm) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (showAlarm) "ALARM: ON" else "ALARM: OFF",
+                                fontSize = 8.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = if (showAlarm) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+
+                // 4. Layout Split Ratio Slider
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val firstLabel = if (isLandscape) "LEFT" else "TOP"
+                    val secondLabel = if (isLandscape) "RIGHT" else "BOTTOM"
+                    val firstPct = (splitRatio * 100).roundToInt()
+                    val secondPct = 100 - firstPct
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "$firstLabel / $secondLabel LAYOUT RATIO",
+                            fontSize = 10.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "$firstPct% / $secondPct%",
+                            fontSize = 10.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Slider(
+                        value = splitRatio,
+                        onValueChange = onSplitRatioChange,
+                        valueRange = 0.30f..0.70f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                }
+
+                // 5. Battery Telemetry Style
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "GAUGE TELEMETRY STYLE",
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val styles = listOf("halo" to "Halo", "reactor_ticks" to "Reactor", "dual_wings" to "Wings", "tachometer" to "Tacho")
+                        styles.forEach { (key, label) ->
+                            val isSelected = batteryStyle == key
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(30.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF121824))
+                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .clickable { onBatteryStyleChange(key) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 6. Inactivity Action (Physical Screen Off vs OLED Shield)
+                var showHardwareLockInfo by remember { mutableStateOf(false) }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "INACTIVITY SLEEP ACTION",
+                            fontSize = 10.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.PriorityHigh,
+                            contentDescription = "About Hardware Lock",
+                            tint = if (showHardwareLockInfo) MaterialTheme.colorScheme.primary else Color(0xFFFFB300),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { showHardwareLockInfo = !showHardwareLockInfo }
+                        )
+                    }
+                    if (showHardwareLockInfo) {
+                        Text(
+                            text = "HARDWARE LOCK: Uses Shizuku ADB power commands to blank the physical display panel. Note: System security automatically locks the device; waking requires pressing the physical power button twice and unlocking.",
+                            fontSize = 9.5.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White.copy(alpha = 0.7f),
+                            lineHeight = 13.sp
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val actions = listOf("overlay" to "OLED Shield (Overlay)", "screen_off" to "Hardware Lock (Screen Off)")
+                        actions.forEach { (key, label) ->
+                            val isSelected = sleepAction == key
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(32.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF121824))
+                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .clickable { onSleepActionChange(key) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 9.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 7. Inactivity Timeout
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "INACTIVITY TIMEOUT",
+                        fontSize = 10.5.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val timeouts = listOf("5s", "15s", "30s", "1m", "2m", "5m", "never")
+                        timeouts.forEach { timeout ->
+                            val isSelected = sleepTimeout == timeout
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(28.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF121824))
+                                    .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                                    .clickable { onSleepTimeoutChange(timeout) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = timeout.uppercase(),
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+

@@ -67,6 +67,8 @@ object LightspeedVocabulary {
         CORE_WATCHDOG,             // Flight Deck Watchdogs & System Immunity
         GRAVITY_ENGINE,            // Synthetic gravity / physics profiles
         CORE_COOLING,              // Thermal schedule
+        BATTERY_EXEMPTION,         // Universal battery exemption control deck
+        SONIC_DECK,                // Multi-app sound mixer & sovereign focus manager
 
         // Flight control
         MASTER_FLIGHT,
@@ -123,6 +125,8 @@ object LightspeedVocabulary {
         Key.CORE_WATCHDOG           to "Core Watchdog",
         Key.GRAVITY_ENGINE          to "Synthetic Gravity Engine",
         Key.CORE_COOLING            to "System Reboot",
+        Key.BATTERY_EXEMPTION       to "Battery Exemption Control",
+        Key.SONIC_DECK              to "Sonic Deck",
 
         Key.SYSTEM_OVERRIDES        to "System Override",
 
@@ -149,7 +153,7 @@ object LightspeedVocabulary {
         Key.DEFLECTORS              to "Left & Right Gesture Sidebars",
         Key.LEFT_DEFLECTOR          to "Left Gesture Sidebar",
         Key.RIGHT_DEFLECTOR         to "Right Gesture Sidebar",
-        Key.SENSOR_AREA             to "Touch Strip",
+        Key.SENSOR_AREA             to "Gesture Area",
         Key.UNIFIED_DEFLECTORS      to "Unified Gesture Sidebars",
         Key.CORE_ZONE               to "Central Trigger Area",
         Key.UPPER_FLANK             to "Upper Trigger Zone",
@@ -176,7 +180,9 @@ object LightspeedVocabulary {
         Key.PERIMETER_DEFENSE       to "Accessibility Service Manager (Shizuku)",
         Key.CORE_WATCHDOG           to "System Immunity & Watchdogs",
         Key.GRAVITY_ENGINE          to "Orientation Preferences",
-        Key.SYSTEM_OVERRIDES        to "System Override",
+        Key.SYSTEM_OVERRIDES        to "Developer Options",
+        Key.BATTERY_EXEMPTION       to "Battery Exemption Control",
+        Key.SONIC_DECK              to "Universal Audio Control",
 
         Key.CORE_COOLING            to "System Reboot",
 
@@ -185,8 +191,15 @@ object LightspeedVocabulary {
         Key.EXPERIMENTAL_LABS       to "Experimental Features",
 
         Key.GUIDEBOOK               to "Feature Dictionary",
-        Key.TELEMETRY_AND_INDICATORS to "Telemetry & Indicators",
-        Key.TACTICAL_HARDWARE       to "Hardware & Kinetic Gestures",
+        Key.TELEMETRY_AND_INDICATORS to "Telemetry",
+        Key.TACTICAL_HARDWARE       to "Hardware Gestures",
+    )
+
+    // ─── Co-Pilot (Bilingual) Subtitle dictionary ────────────────────────────
+
+    private val copilotSubtitleMap: Map<Key, String> = mapOf(
+        Key.TELEMETRY_AND_INDICATORS to "Status bar telemetry",
+        Key.REFUELING_BAY           to "Charging Dashboard",
     )
 
     // ─── Lookup functions ───────────────────────────────────────────────────
@@ -202,4 +215,9 @@ object LightspeedVocabulary {
      * Falls back to [vessel] if not found.
      */
     fun clear(key: Key): String = clearMap[key] ?: vessel(key)
+
+    /**
+     * Returns the plain-English subtitle label for [key] in Co-Pilot mode.
+     */
+    fun copilotSubtitle(key: Key): String = copilotSubtitleMap[key] ?: clear(key)
 }

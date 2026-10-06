@@ -1,6 +1,7 @@
 package com.sbf.lightspeed.settings
 
 import com.sbf.lightspeed.system.safeReloadPreferences
+import com.sbf.lightspeed.system.logSwallowed
 
 import android.app.Activity
 import android.content.Context
@@ -545,7 +546,7 @@ fun NotificationAccessDialog(
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                             context.startActivity(intent)
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) { logSwallowed("CentralCommandDialogs", "NotificationAccessDialog:548", e) }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)

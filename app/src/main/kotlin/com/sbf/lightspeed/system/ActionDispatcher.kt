@@ -43,7 +43,11 @@ object ActionDispatcher {
                 ElevatedTaskCloser.toggleSplitScreen(context)
             }
             token == "system:freeform" || token == "system:popup_window" -> {
-                ElevatedTaskCloser.launchInFreeform(context)
+                val style = context.defaultPrefs().getString(
+                    LightspeedPreferences.KEY_POPUP_STYLE,
+                    LightspeedPreferences.POPUP_STYLE_NATIVE
+                ) ?: LightspeedPreferences.POPUP_STYLE_NATIVE
+                ElevatedTaskCloser.launchInPopup(context, style)
             }
             token == "system:flashlight" -> {
                 toggleFlashlight(context)
@@ -62,29 +66,32 @@ object ActionDispatcher {
                     ElevatedTaskCloser.execShizuku("input keyevent KEYCODE_POWER")
                 }
             }
+            token == "system:power_menu" -> {
+                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)
+            }
             token == "system:perimeter_watchdog" -> {
                 val intent = Intent(context, LightspeedPerimeterActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (_: Exception) {}
+                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:73", e) }
             }
             token == "system:core_watchdog" -> {
                 val intent = Intent(context, LightspeedCoreWatchdogActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (_: Exception) {}
+                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:79", e) }
             }
             token == "system:central_command" -> {
                 val intent = Intent(context, com.sbf.lightspeed.MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (_: Exception) {}
+                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:85", e) }
             }
             token == "system:battery_exemption" -> {
                 val intent = Intent(context, LightspeedBatteryExemptionActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (_: Exception) {}
+                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:91", e) }
             }
             token == "system:close_app" -> {
                 ElevatedTaskCloser.closeTopApp(context)
@@ -114,7 +121,7 @@ object ActionDispatcher {
                         addCategory(Intent.CATEGORY_HOME)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    try { context.startActivity(homeIntent) } catch (_: Exception) {}
+                    try { context.startActivity(homeIntent) } catch (e: Exception) { logSwallowed(TAG, "execute:121", e) }
                 }
             }
             token == "system:back" -> {
@@ -157,14 +164,14 @@ object ActionDispatcher {
                 val intent = Intent(context, com.sbf.lightspeed.LightspeedRefuelingActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                 }
-                try { context.startActivity(intent) } catch (_: Exception) {}
+                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:164", e) }
             }
             token == "system:glow_deflectors" -> {
                 com.sbf.lightspeed.LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
             }
-            token == "system:omniscient_audio" -> {
+            token == "system:omniscient_audio" || token == "system:sonic_deck" || token == "system:audio_dock" -> {
                 val svc = service ?: com.sbf.lightspeed.LightspeedAccessibilityService.instance
-                svc?.let { OmniscientAudioDockManager.show(it) }
+                svc?.let { SonicDeckManager.show(it) }
             }
             token == "system:tactical_flyout" -> {
                 TacticalFlyoutLauncher.launch(context)
@@ -201,7 +208,7 @@ object ActionDispatcher {
                         }
                     }
                     context.startActivity(targetIntent)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed(TAG, "execute:208", e) }
             }
             token == "system:camera_video" -> {
                 try {
@@ -219,7 +226,7 @@ object ActionDispatcher {
                         }
                     }
                     context.startActivity(targetIntent)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed(TAG, "execute:226", e) }
             }
             token == "system:core_cooling" -> {
                 LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
@@ -251,7 +258,7 @@ object ActionDispatcher {
                     val current = try {
                         android.provider.Settings.System.getInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS)
                     } catch (_: Exception) { 128 }
-                    val steps = listOf(0, 51, 102, 153, 204, 255)
+                    val steps = listOf(1, 51, 102, 153, 204, 255)
                     val next = steps.firstOrNull { it > current + 10 } ?: steps.first()
                     try {
                         android.provider.Settings.System.putInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, next)
@@ -263,7 +270,7 @@ object ActionDispatcher {
                                 totalSteps = 10
                             )
                         }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { logSwallowed(TAG, "execute:270", e) }
                 } else {
                     LightspeedTimeoutEngine.requestWriteSettingsPermission(context)
                 }
@@ -276,7 +283,7 @@ object ActionDispatcher {
                     if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
                         ElevatedTaskCloser.execShizuku("input keyevent 82")
                     }
-                    try { context.startActivity(intent) } catch (_: Exception) {}
+                    try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:283", e) }
                 }
             }
             token.startsWith("shortcut:") -> {
@@ -294,7 +301,7 @@ object ActionDispatcher {
                     if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
                         ElevatedTaskCloser.execShizuku("input keyevent 82")
                     }
-                    try { context.startActivity(launchIntent) } catch (_: Exception) {}
+                    try { context.startActivity(launchIntent) } catch (e: Exception) { logSwallowed(TAG, "execute:301", e) }
                 } else {
                     Log.w(TAG, "Unhandled action token: $token")
                 }
@@ -325,11 +332,11 @@ object ActionDispatcher {
         // 3. Tertiary: Shizuku Shell KEYCODE_APP_SWITCH (187)
         try {
             if (ElevatedTaskCloser.isShizukuActive) {
-                ElevatedTaskCloser.execShizuku("input keyevent 187")?.waitFor()
+                ElevatedTaskCloser.execShizuku("input keyevent 187").waitForOrKill()
                 Log.i(TAG, "Recents overview triggered via Shizuku KEYCODE_APP_SWITCH")
                 return
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "openRecents:336", e) }
 
         // 4. Quaternary: Asynchronous retry on Main Looper (in case WindowManager focus was transitioning)
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -345,7 +352,7 @@ object ActionDispatcher {
             val method = statusBarManagerClass.getMethod("expandNotificationsPanel")
             method.invoke(statusBarService)
             return
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "expandNotifications:352", e) }
         service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
     }
 
@@ -356,7 +363,7 @@ object ActionDispatcher {
             val method = statusBarManagerClass.getMethod("expandSettingsPanel")
             method.invoke(statusBarService)
             return
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "expandQuickSettings:363", e) }
         service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
     }
 
@@ -373,7 +380,7 @@ object ActionDispatcher {
                     }
                 }, null)
                 torchCallbackRegistered = true
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "onTorchModeChanged:380", e) }
         }
     }
 

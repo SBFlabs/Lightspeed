@@ -12,6 +12,7 @@ object LightspeedPreferences {
     const val PREFS_FILE = "default"
 
     // Master Flight Deck & Deflector Keys
+    const val KEY_ALLOW_EXTERNAL_AUTOMATION = "key_allow_external_automation"
     const val KEY_MASTER_FLIGHT_ARMED = "pref_master_flight_armed"
     const val KEY_FLIGHT_NOTIFICATION_ENABLED = "pref_flight_notification_enabled"
     const val KEY_DEFLECTOR_LEFT_ENABLED = "pref_deflector_left_enabled"
@@ -49,6 +50,14 @@ object LightspeedPreferences {
     const val KEY_LAST_ACTIVE_SET_INDEX = "last_active_set_index"
     const val KEY_LAST_ACTIVE_SET_INDEX_LEFT = "last_active_set_index_left"
     const val KEY_LAST_ACTIVE_SET_INDEX_RIGHT = "last_active_set_index_right"
+
+    // Pop-up Window Style Keys
+    const val KEY_POPUP_STYLE = "pref_popup_style"
+    const val POPUP_STYLE_NATIVE = "native"
+    const val POPUP_STYLE_OEM = "oem"
+
+    // Split Screen App Picker Keys
+    const val KEY_SPLIT_WITH_APP_TARGET = "split_with_app_target"
 
     // Icon Pack & Pipeline Keys
     const val KEY_ACTIVE_ICON_PACK = "pref_active_icon_pack" // Legacy key for backward compatibility
@@ -170,6 +179,10 @@ object LightspeedPreferences {
 
     // Power Button Engine Keys (4 Hardware Trigger States)
     const val KEY_POWER_GESTURES_ENABLED = "pref_key_power_gestures_enabled"
+    const val KEY_POWER_GRAB_HELPER = "pref_power_grab_helper"
+    const val KEY_POWER_HOLD_TAKEOVER = "pref_key_power_hold_takeover"            // user toggle, default false
+    const val KEY_POWER_TAKEOVER_ACTIVE = "pref_key_power_takeover_active"        // internal flag, default false
+    const val KEY_POWER_TAKEOVER_SAVED_VALUE = "pref_key_power_takeover_saved"    // internal, original value string
     const val KEY_POWER_SINGLE_PRESS = "pref_key_power_single_press"
     const val KEY_POWER_DOUBLE_PRESS = "pref_key_power_double_press"
     const val KEY_POWER_HOLD = "pref_key_power_hold"
@@ -188,6 +201,7 @@ object LightspeedPreferences {
     const val ACTION_CAMERA_VIDEO = "system:camera_video"
     const val ACTION_FOLAX = "system:folax"
     const val ACTION_CORE_COOLING = "system:core_cooling"
+    const val ACTION_BATTERY_EXEMPTION = "system:battery_exemption"
     const val ACTION_TORCH = "system:torch"
 
     // Avionics & HUD Scrubber Controls (Brightness & Volume)
@@ -253,8 +267,6 @@ object LightspeedPreferences {
     const val KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED = "pref_section_experimental_labs_expanded"
     const val KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED = "pref_section_synthetic_gravity_expanded"
     const val KEY_SYNTHETIC_GRAVITY_ENABLED = "pref_synthetic_gravity_enabled"
-    fun isSyntheticGravityEnabled(context: Context): Boolean =
-        context.defaultPrefs().getBoolean(KEY_SYNTHETIC_GRAVITY_ENABLED, false)
     const val KEY_SECTION_SENSOR_DECK_EXPANDED = "pref_section_statusbar_expanded"
     const val KEY_SECTION_STATUSBAR_EXPANDED = KEY_SECTION_SENSOR_DECK_EXPANDED
     const val KEY_SECTION_LEFT_UNIFIED_EXPANDED = "pref_section_left_unified_expanded"
@@ -272,7 +284,7 @@ object LightspeedPreferences {
     const val KEY_INFINIX_STANDBY_DISMISSED = "pref_infinix_standby_dismissed"
     const val KEY_INFINIX_STANDBY_WARNING_DEMOTED = "pref_infinix_standby_warning_demoted"
     const val KEY_ORBITAL_CAPSULE_ENABLED = "pref_orbital_capsule_enabled"
-    const val KEY_OMNISCIENT_AUDIO_DOCK_ENABLED = "pref_omniscient_audio_dock_enabled"
+    const val KEY_SONIC_DECK_ENABLED = "pref_omniscient_audio_dock_enabled"
     const val KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS = "pref_statusbar_swipe_down_notifications"
 
     // Tab Accordion Display Profiles & Blueprint Keys
@@ -350,13 +362,6 @@ object LightspeedPreferences {
     const val KEY_HARDWARE_CUTOUT_OFFSET_X = "pref_hardware_cutout_offset_x" // shared horizontal alignment (-30 to +30dp)
     const val KEY_HARDWARE_CUTOUT_OFFSET_Y = "pref_hardware_cutout_offset_y" // shared vertical alignment (-30 to +30dp)
 
-    fun getEffectiveCutoutWidth(prefs: android.content.SharedPreferences, defaultDp: Int): Int {
-        if (prefs.contains(KEY_HARDWARE_CUTOUT_WIDTH)) {
-            return prefs.getInt(KEY_HARDWARE_CUTOUT_WIDTH, defaultDp)
-        }
-        return prefs.getInt(KEY_HORIZON_RAIL_CUTOUT_WIDTH, defaultDp)
-    }
-
     fun getEffectiveCutoutOffsetX(prefs: android.content.SharedPreferences): Int {
         if (prefs.contains(KEY_HARDWARE_CUTOUT_OFFSET_X)) {
             return prefs.getInt(KEY_HARDWARE_CUTOUT_OFFSET_X, 0)
@@ -415,12 +420,21 @@ object LightspeedPreferences {
     const val KEY_LIQUID_GLASS_RIM = "pref_liquid_glass_rim" // Float: 0.00f..1.00f
     const val KEY_LIQUID_GLASS_CAUSTIC = "pref_liquid_glass_caustic" // Boolean
     const val KEY_LIQUID_GLASS_PROGRESSIVE = "pref_liquid_glass_progressive" // Boolean
+    const val KEY_LIQUID_GLASS_AGSL_ENABLED = "pref_liquid_glass_agsl_enabled" // Boolean: GPU caustic shader (API 33+)
+    const val KEY_LIQUID_GLASS_AGSL_INTENSITY = "pref_liquid_glass_agsl_intensity" // Float: 0.00f..1.00f
+    const val KEY_LIQUID_GLASS_AGSL_SPEED = "pref_liquid_glass_agsl_speed" // Float: 0.25f..3.00f
+    const val KEY_LIQUID_GLASS_USE_CUSTOM_COLOR = "pref_liquid_glass_use_custom_color" // Boolean: false = Dynamic M3 Monet, true = Custom
+    const val KEY_LIQUID_GLASS_CUSTOM_COLOR = "pref_liquid_glass_custom_color" // Long: ARGB color
+    const val KEY_LIQUID_GLASS_TINT_INTENSITY = "pref_liquid_glass_tint_intensity" // Float: 0.05f..1.00f
     const val KEY_SECTION_WATCHDOGS_EXPANDED = "pref_section_watchdogs_expanded"
 
     // Refueling Bay Keys
     const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screen_timeout", "screensaver_only"
     const val KEY_REFUELING_BATTERY_STYLE = "pref_refueling_battery_style" // "halo", "reactor_ticks", "dual_wings", "tachometer"
     const val KEY_REFUELING_SLEEP_TIMEOUT = "pref_refueling_sleep_timeout" // "5s", "15s", "30s", "60s", "120s", "300s", "never"
+    const val KEY_REFUELING_SLEEP_ACTION = "pref_refueling_sleep_action" // "overlay", "screen_off"
+    const val KEY_REFUELING_SPLIT_RATIO_PORTRAIT = "pref_refueling_split_ratio_portrait" // Float 0.3f to 0.7f
+    const val KEY_REFUELING_SPLIT_RATIO_LANDSCAPE = "pref_refueling_split_ratio_landscape" // Float 0.3f to 0.7f
     const val KEY_REFUELING_PIXEL_SHIFT = "pref_refueling_pixel_shift"
     const val KEY_REFUELING_AS_LOCKSCREEN = "pref_refueling_as_lockscreen" // Boolean
     const val KEY_REFUELING_WIDGET_ID = "pref_refueling_widget_id" // Legacy single ID
@@ -432,22 +446,17 @@ object LightspeedPreferences {
     const val KEY_REFUELING_WIDGET_LAYOUT = "pref_refueling_widget_layout" // "smart_stack", "adaptive_grid"
     const val KEY_REFUELING_STACK_REMEMBER_PAGE = "pref_refueling_stack_remember_page" // Boolean, defaults to false
     const val KEY_REFUELING_STACK_LAST_PAGE = "refueling_stack_memory" // Int page index
+    const val KEY_REFUELING_CLOCK_FORMAT = "pref_refueling_clock_format" // "24h_sec", "24h", "12h_sec", "12h", "stardate"
+    const val KEY_REFUELING_DATE_FORMAT = "pref_refueling_date_format" // "full", "short", "iso", "compact", "hidden"
+    const val KEY_REFUELING_CLOCK_FONT = "pref_refueling_clock_font" // "mono", "sans", "serif", "cyber"
+    const val KEY_REFUELING_SHOW_ALARM = "pref_refueling_show_alarm" // Boolean, default true
+
 
     // Notch Orbital Capsule Keys
     const val KEY_CAPSULE_WIDGET_ID = "pref_capsule_widget_id"
 
     // Media Actions Keys
     const val KEY_MEDIA_SKIP_SECONDS = "pref_media_skip_seconds"
-
-    fun getRefuelingWidgetIds(context: Context): List<Int> {
-        val prefs = context.defaultPrefs()
-        val mode = prefs.getString(KEY_REFUELING_WIDGET_LAYOUT, "smart_stack") ?: "smart_stack"
-        return if (mode == "smart_stack") {
-            getRefuelingStackWidgetIds(context)
-        } else {
-            getRefuelingGridWidgetIds(context)
-        }
-    }
 
     fun getRefuelingStackWidgetIds(context: Context): List<Int> {
         val prefs = context.defaultPrefs()
@@ -464,7 +473,7 @@ object LightspeedPreferences {
                     }
                 }
                 return list
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedPreferences", "getRefuelingStackWidgetIds:469", e) }
         }
         val legacyId = prefs.getInt(KEY_REFUELING_WIDGET_ID, -1)
         return if (legacyId != -1) listOf(legacyId) else emptyList()
@@ -498,7 +507,7 @@ object LightspeedPreferences {
                     }
                 }
                 if (list.isNotEmpty()) return list
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedPreferences", "getRefuelingGridWidgetIds:503", e) }
         }
         val legacyId = prefs.getInt(KEY_REFUELING_WIDGET_ID, -1)
         return if (legacyId != -1) listOf(legacyId) else emptyList()
@@ -515,16 +524,6 @@ object LightspeedPreferences {
             .putString(KEY_REFUELING_WIDGET_IDS, jsonArray.toString())
             .putInt(KEY_REFUELING_WIDGET_ID, ids.firstOrNull() ?: -1)
             .apply()
-    }
-
-    fun saveRefuelingWidgetIds(context: Context, ids: List<Int>) {
-        val prefs = context.defaultPrefs()
-        val mode = prefs.getString(KEY_REFUELING_WIDGET_LAYOUT, "smart_stack") ?: "smart_stack"
-        if (mode == "smart_stack") {
-            saveRefuelingStackWidgetIds(context, ids)
-        } else {
-            saveRefuelingGridWidgetIds(context, ids)
-        }
     }
 
     fun isRefuelingStackMemoryEnabled(context: Context): Boolean =
@@ -561,13 +560,6 @@ object LightspeedPreferences {
 
     fun setRightDeflectorEnabled(context: Context, enabled: Boolean) {
         context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_RIGHT_ENABLED, enabled).apply()
-    }
-
-    fun isDeflectorGlowEnabled(context: Context): Boolean =
-        context.defaultPrefs().getBoolean(KEY_DEFLECTOR_GLOW_ENABLED, true)
-
-    fun setDeflectorGlowEnabled(context: Context, enabled: Boolean) {
-        context.defaultPrefs().edit().putBoolean(KEY_DEFLECTOR_GLOW_ENABLED, enabled).apply()
     }
 
     fun isLeftDeflectorGlowEnabled(context: Context): Boolean =
@@ -646,16 +638,6 @@ object LightspeedPreferences {
         context.defaultPrefs().edit().putStringSet(KEY_PERIMETER_PROTECTED_SERVICES, services).apply()
     }
 
-    fun togglePerimeterProtectedService(context: Context, componentId: String, protect: Boolean) {
-        val current = getPerimeterProtectedServices(context).toMutableSet()
-        if (protect) {
-            current.add(componentId)
-        } else {
-            current.remove(componentId)
-        }
-        setPerimeterProtectedServices(context, current)
-    }
-
     fun togglePerimeterProtectedService(context: Context, componentId: String): Boolean {
         val current = getPerimeterProtectedServices(context).toMutableSet()
         val isNowProtected = if (current.contains(componentId)) {
@@ -722,7 +704,6 @@ object LightspeedPreferences {
     val liquidGlassConfigFlow get() = LightspeedDeckStyleManager.liquidGlassConfigFlow
     fun getLiquidGlassConfig(context: Context) = LightspeedDeckStyleManager.getLiquidGlassConfig(context)
     fun setLiquidGlassConfig(context: Context, config: LiquidGlassConfig) = LightspeedDeckStyleManager.setLiquidGlassConfig(context, config)
-    fun resetLiquidGlassConfig(context: Context) = LightspeedDeckStyleManager.resetLiquidGlassConfig(context)
     fun refreshLiquidGlassConfig(context: Context) = LightspeedDeckStyleManager.refreshLiquidGlassConfig(context)
 
     fun isHudBrightnessEnabled(context: Context): Boolean =
@@ -734,38 +715,8 @@ object LightspeedPreferences {
     fun isVolumeShowNativeSlider(context: Context): Boolean =
         context.defaultPrefs().getBoolean(KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
 
-    fun getBrightnessScrubStep(context: Context): Int =
-        context.defaultPrefs().getInt(KEY_BRIGHTNESS_SCRUB_STEP, 8)
-
-    fun getVolumeScrubStep(context: Context): Int =
-        context.defaultPrefs().getInt(KEY_VOLUME_SCRUB_STEP, 1)
-
     fun getVolumeScrubResolution(context: Context): Int =
         context.defaultPrefs().getInt(KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
-
-    fun getMediaSkipSeconds(context: Context): Int =
-        context.defaultPrefs().getInt(KEY_MEDIA_SKIP_SECONDS, 10)
-
-    fun getCockpitReticleOrientation(context: Context): String =
-        context.defaultPrefs().getString(KEY_COCKPIT_RETICLE_ORIENTATION, RETICLE_ORIENTATION_CLASSIC_180) ?: RETICLE_ORIENTATION_CLASSIC_180
-
-    fun setCockpitReticleOrientation(context: Context, orientation: String) {
-        context.defaultPrefs().edit().putString(KEY_COCKPIT_RETICLE_ORIENTATION, orientation).apply()
-    }
-
-    fun getDeflectorLandscapeMode(context: Context): String =
-        context.defaultPrefs().getString(KEY_DEFLECTOR_LANDSCAPE_MODE, DEFLECTOR_LANDSCAPE_MODE_CUSTOM) ?: DEFLECTOR_LANDSCAPE_MODE_CUSTOM
-
-    fun setDeflectorLandscapeMode(context: Context, mode: String) {
-        context.defaultPrefs().edit().putString(KEY_DEFLECTOR_LANDSCAPE_MODE, mode).apply()
-    }
-
-    fun getDeflectorLandscapeScale(context: Context): Int =
-        context.defaultPrefs().getInt(KEY_DEFLECTOR_LANDSCAPE_SCALE, 45)
-
-    fun setDeflectorLandscapeScale(context: Context, scale: Int) {
-        context.defaultPrefs().edit().putInt(KEY_DEFLECTOR_LANDSCAPE_SCALE, scale).apply()
-    }
 
     const val KEY_GESTURE_HOLD_DURATION_MS = "pref_gesture_hold_duration_ms"
     const val DEFAULT_GESTURE_HOLD_DURATION_MS = 300
@@ -788,24 +739,7 @@ object LightspeedPreferences {
     fun getGravityEnforcementEngine(context: Context): String =
         context.defaultPrefs().getString(KEY_GRAVITY_ENFORCEMENT_ENGINE, GRAVITY_ENGINE_DUAL_HYBRID) ?: GRAVITY_ENGINE_DUAL_HYBRID
 
-    fun getDeflectorLandscapeYScale(context: Context): Int =
-        context.defaultPrefs().getInt(KEY_DEFLECTOR_LANDSCAPE_Y_SCALE, 50)
-
-    fun setDeflectorLandscapeYScale(context: Context, scale: Int) {
-        context.defaultPrefs().edit().putInt(KEY_DEFLECTOR_LANDSCAPE_Y_SCALE, scale).apply()
-    }
-
     const val KEY_DEFAULTS_INITIALIZED = "pref_defaults_initialized_v3"
-
-    fun isFlankUnified(context: Context, isLeft: Boolean): Boolean {
-        val key = if (isLeft) KEY_SIDEBAR_LEFT_LINK_FLANK else KEY_SIDEBAR_RIGHT_LINK_FLANK
-        return context.defaultPrefs().getBoolean(key, true)
-    }
-
-    fun setFlankUnified(context: Context, isLeft: Boolean, unified: Boolean) {
-        val key = if (isLeft) KEY_SIDEBAR_LEFT_LINK_FLANK else KEY_SIDEBAR_RIGHT_LINK_FLANK
-        context.defaultPrefs().edit().putBoolean(key, unified).apply()
-    }
 
     fun initializeDefaults(context: Context) {
         val prefs = context.defaultPrefs()
@@ -949,6 +883,7 @@ object LightspeedPreferences {
         editor.putBoolean(KEY_HUD_VOLUME_ENABLED, true)
         editor.putBoolean(KEY_VOLUME_SHOW_NATIVE_SLIDER, false)
         editor.putString(KEY_HUD_STYLE_DEFAULT, "canopy_droppod")
+        editor.putString(KEY_POPUP_STYLE, POPUP_STYLE_NATIVE)
 
         // 5. Pre-assigned Default Actions (Unified Right)
         editor.putString("pref_macro_action_UNIFIED_SWIPE_LEFT", "system:back")

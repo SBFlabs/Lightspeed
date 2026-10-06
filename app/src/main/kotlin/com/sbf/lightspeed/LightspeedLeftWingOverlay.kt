@@ -1,4 +1,5 @@
 package com.sbf.lightspeed
+import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.OverlayGlowDelegate
 
@@ -185,7 +186,7 @@ class LightspeedLeftWingOverlay(
                 lp.height = winHeight
                 try {
                     wm.updateViewLayout(this, lp)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("LightspeedLeftWingOverlay", "updateMetricsDimensions:188", e) }
             }
             invalidate()
             return
@@ -211,7 +212,7 @@ class LightspeedLeftWingOverlay(
             lp.height = winHeight
             try {
                 wm.updateViewLayout(this, lp)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedLeftWingOverlay", "updateMetricsDimensions:214", e) }
         }
     }
 
@@ -712,7 +713,7 @@ class LightspeedLeftWingOverlay(
                         passes++
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedLeftWingOverlay", "scrollToTop:715", e) }
         }
     }
 

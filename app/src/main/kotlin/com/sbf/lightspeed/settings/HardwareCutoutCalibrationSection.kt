@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.logSwallowed
 
 /**
  * Sub-Component: Hardware Cutout & Punch-Hole Calibration.
@@ -47,7 +48,7 @@ fun HardwareCutoutCalibrationSection(
                 .putBoolean(LightspeedPreferences.KEY_SUB_CUTOUT_CALIB, isCutoutCalibExpanded)
                 .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isCutoutCalibExpanded)
                 .apply()
-            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+            try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HardwareCutoutCalibrationSection", "HardwareCutoutCalibrationSection:50", e) }
             onRefreshNeeded()
         }
     ) {

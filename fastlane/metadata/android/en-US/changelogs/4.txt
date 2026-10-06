@@ -1,0 +1,6 @@
+Lightspeed v1.1.0
+• Opt-in Tasker/MacroDroid/ADB automation
+• Glass color customization
+• New Power Menu action
+• Reliability and battery fixes
+• Still 100% offline, zero telemetry

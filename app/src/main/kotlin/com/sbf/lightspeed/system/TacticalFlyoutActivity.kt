@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.overrideZeroTransition
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class TacticalFlyoutActivity : ComponentActivity() {
@@ -271,6 +274,31 @@ fun TacticalFlyoutContent(
                                 if (!ok) {
                                     Toast.makeText(context, "Shizuku required for reboot", Toast.LENGTH_SHORT).show()
                                 }
+                            }
+                        )
+                    }
+
+                    // Section 4: System
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "SYSTEM",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White.copy(alpha = 0.6f),
+                            letterSpacing = 1.sp
+                        )
+
+                        TacticalFlyoutTile(
+                            modifier = Modifier.fillMaxWidth(),
+                            title = "Power Menu",
+                            subtitle = "Shutdown / Restart",
+                            icon = Icons.Default.PowerSettingsNew,
+                            accentColor = Color(0xFF94A3B8),
+                            onClick = {
+                                onDismiss()
+                                Handler(Looper.getMainLooper()).postDelayed(
+                                    { ActionDispatcher.execute(context.applicationContext, "system:power_menu") }, 200)
                             }
                         )
                     }

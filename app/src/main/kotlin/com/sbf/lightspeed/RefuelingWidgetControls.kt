@@ -37,78 +37,16 @@ fun WidgetEngineToolbar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left Cockpit Telemetry Chip
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xFF070A10).copy(alpha = 0.85f))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-                val modeLabel = if (widgetLayoutMode == "smart_stack") {
-                    "STACK // ${widgetCount.toString().padStart(2, '0')}"
-                } else {
-                    val orientTag = if (isLandscape) "LAND" else "PORT"
-                    "GRID [$orientTag] // ${widgetCount.toString().padStart(2, '0')}"
-                }
-                Text(
-                    text = modeLabel,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        // Right Cockpit Action Modules (NO [X] EXIT BUTTON)
+        // Cockpit Action Modules (Laid out Left-to-Right in code so Right-to-Left on screen is: 1. GRID/STACK, 2. CONFIG, 3. MODULE, 4. MEMORY)
         Row(
             modifier = Modifier.wrapContentSize(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Mode Switcher (Stack vs Grid)
-            Row(
-                modifier = Modifier
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF0E131C).copy(alpha = 0.85f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                    .clickable { onToggleLayoutMode() }
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
-                    contentDescription = "Switch Layout",
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(13.dp)
-                )
-                Text(
-                    text = if (widgetLayoutMode == "smart_stack") "GRID" else "STACK",
-                    fontSize = 9.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-            }
-
-            // Smart Stack Page Memory Toggle [MEM: ON / OFF]
+            // 4th from Right (Leftmost): Smart Stack Page Memory Toggle [MEM: ON / OFF]
             if (widgetLayoutMode == "smart_stack") {
                 Row(
                     modifier = Modifier
@@ -145,7 +83,7 @@ fun WidgetEngineToolbar(
                 }
             }
 
-            // Edit / Configure Mode Toggle
+            // 3rd from Right: Edit / Configure Mode Toggle [CONFIG / LOCK]
             Row(
                 modifier = Modifier
                     .height(30.dp)
@@ -180,7 +118,7 @@ fun WidgetEngineToolbar(
                 )
             }
 
-            // Add Widget Module [+ MODULE]
+            // 2nd from Right: Add Widget Module [+ MODULE]
             Row(
                 modifier = Modifier
                     .height(30.dp)
@@ -204,6 +142,33 @@ fun WidgetEngineToolbar(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // 1st from Right (Rightmost): Mode Switcher [GRID / STACK]
+            Row(
+                modifier = Modifier
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF0E131C).copy(alpha = 0.85f))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                    .clickable { onToggleLayoutMode() }
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
+                    contentDescription = "Switch Layout",
+                    tint = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = if (widgetLayoutMode == "smart_stack") "GRID" else "STACK",
+                    fontSize = 9.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.85f)
                 )
             }
         }
@@ -320,85 +285,6 @@ internal fun TacticalWidgetEditControls(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFFF453A)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun InfinixStandbyWarningBanner(
-    onDismiss: () -> Unit
-) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.75f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.5f))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.WarningAmber,
-                contentDescription = null,
-                tint = Color(0xFFFFB300),
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "OEM Standby Conflict",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "Infinix XOS Standby Style may conflict with Refueling Bay. Disable in System Settings -> Special Function -> Standby Style.",
-                    fontSize = 10.5.sp,
-                    color = Color.LightGray.copy(alpha = 0.85f),
-                    lineHeight = 13.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "OPEN SETTINGS",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .clickable {
-                            try {
-                                val intent = android.content.Intent("com.transsion.specialfunction.ACTION_STANDBY").apply {
-                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                try {
-                                    context.startActivity(android.content.Intent(android.provider.Settings.ACTION_SETTINGS).apply {
-                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    })
-                                } catch (_: Exception) {}
-                            }
-                        }
-                        .padding(vertical = 2.dp, horizontal = 4.dp)
-                )
-            }
-            IconButton(
-                onClick = onDismiss,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.size(14.dp)
                 )
             }
         }

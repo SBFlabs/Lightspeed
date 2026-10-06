@@ -48,7 +48,7 @@ object DeviceFontScanner {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("DeviceFontScanner", "getInstalledFonts:51", e) }
 
         cachedList = list
         return list

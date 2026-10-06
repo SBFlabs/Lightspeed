@@ -79,7 +79,7 @@ object LightspeedOrientationEngine {
     }
 
     fun hasPermission(context: Context): Boolean {
-        return canWriteSettings(context) || ElevatedTaskCloser.isShizukuActive || ElevatedTaskCloser.isRootActive
+        return canWriteSettings(context) || ElevatedTaskCloser.isShizukuActive
     }
 
     fun requestWriteSettingsPermission(context: Context) {
@@ -132,11 +132,6 @@ object LightspeedOrientationEngine {
         return writeSystemSetting(context, Settings.System.ACCELEROMETER_ROTATION, target)
     }
 
-    fun toggleAutoRotate(context: Context): Boolean {
-        val current = getMasterAutoRotateBaseline(context)
-        return setAutoRotateEnabled(context, !current)
-    }
-
     fun isFaceRotateSupported(context: Context): Boolean {
         // Supported on Android 12 (API 31)+ if camera_autorotate exists or is queryable
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
@@ -175,22 +170,12 @@ object LightspeedOrientationEngine {
             }
         }
 
-        if (ElevatedTaskCloser.isShizukuActive || ElevatedTaskCloser.isRootActive) {
+        if (ElevatedTaskCloser.isShizukuActive) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                if (ElevatedTaskCloser.isShizukuActive) {
-                    try {
-                        ElevatedTaskCloser.execShizuku("settings put secure camera_autorotate $target")
-                        return@launch
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed writing camera_autorotate via Shizuku: ${e.message}")
-                    }
-                }
-                if (ElevatedTaskCloser.isRootActive) {
-                    try {
-                        Runtime.getRuntime().exec(arrayOf("su", "-c", "settings put secure camera_autorotate $target")).waitFor()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed writing camera_autorotate via Root: ${e.message}")
-                    }
+                try {
+                    ElevatedTaskCloser.execShizuku("settings put secure camera_autorotate $target")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed writing camera_autorotate via Shizuku: ${e.message}")
                 }
             }
             return true
@@ -216,15 +201,7 @@ object LightspeedOrientationEngine {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun getUserRotation(context: Context): Int {
-        return try {
-            Settings.System.getInt(context.contentResolver, Settings.System.USER_ROTATION, Surface.ROTATION_0)
-        } catch (_: Exception) {
-            Surface.ROTATION_0
+            } catch (e: Exception) { logSwallowed(TAG, "openAutoRotateSettings:214", e) }
         }
     }
 
@@ -298,22 +275,12 @@ object LightspeedOrientationEngine {
                 Log.w(TAG, "Failed writing setting $name=$value via Settings.System: ${e.message}")
             }
         }
-        if (ElevatedTaskCloser.isShizukuActive || ElevatedTaskCloser.isRootActive) {
+        if (ElevatedTaskCloser.isShizukuActive) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                if (ElevatedTaskCloser.isShizukuActive) {
-                    try {
-                        ElevatedTaskCloser.execShizuku("settings put system $name $value")
-                        return@launch
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed writing setting $name=$value via Shizuku: ${e.message}")
-                    }
-                }
-                if (ElevatedTaskCloser.isRootActive) {
-                    try {
-                        Runtime.getRuntime().exec(arrayOf("su", "-c", "settings put system $name $value")).waitFor()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed writing setting $name=$value via Root: ${e.message}")
-                    }
+                try {
+                    ElevatedTaskCloser.execShizuku("settings put system $name $value")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed writing setting $name=$value via Shizuku: ${e.message}")
                 }
             }
             return true
@@ -356,14 +323,14 @@ object LightspeedOrientationEngine {
                     pkgs.add(p)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "getLauncherPackages:346", e) }
 
         // Guarantee detection for known OEM launchers (e.g. Infinix / Transsion XOS / HiOS)
         for (oemPkg in KNOWN_TRANSSION_LAUNCHERS) {
             try {
                 context.packageManager.getPackageInfo(oemPkg, 0)
                 pkgs.add(oemPkg)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "getLauncherPackages:353", e) }
         }
 
         if (pkgs.isNotEmpty()) {

@@ -119,12 +119,10 @@ object LightspeedOrientationManager {
         try {
             sensorPortraitListener?.disable()
             Log.i(TAG, "Disabled Active Sensor Portrait Driver")
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "stopActiveSensorPortraitDriver:122", e) }
     }
 
     fun canWriteSettings(context: Context): Boolean = LightspeedOrientationEngine.canWriteSettings(context)
-    fun getAccelerometerRotation(context: Context): Int = if (LightspeedOrientationEngine.isAutoRotateEnabled(context)) 1 else 0
-    fun getUserRotation(context: Context): Int = LightspeedOrientationEngine.getUserRotation(context)
 
     fun resetGravity(context: Context) {
         Log.i(TAG, "Restoring Default Gravity baseline")
@@ -207,10 +205,6 @@ object LightspeedOrientationManager {
         if (!shown) {
             android.widget.Toast.makeText(context, "Auto-Rotate: $label", android.widget.Toast.LENGTH_SHORT).show()
         }
-    }
-
-    fun toggleMasterAutoRotate(context: Context) {
-        toggleNativeAutoRotate(context)
     }
 
     fun isActionOverrideAllowed(context: Context): Boolean {
@@ -369,7 +363,6 @@ object LightspeedOrientationManager {
     }
 
     // Aliases for backward compatibility
-    fun toggleRotation(context: Context) = toggleNativeAutoRotate(context)
     fun forcePortrait(context: Context) = overrideTransientPortrait(context)
     fun forceSensor360(context: Context) = overrideTransient360(context)
     fun setSensorPortrait(context: Context) = overrideTransientSensorPortrait(context)
@@ -382,8 +375,9 @@ object LightspeedOrientationManager {
     fun onForegroundPackageChanged(context: Context, newPackage: String?, isLocked: Boolean) {
         var targetPkg = newPackage
         val isLauncher = LightspeedOrientationEngine.isLauncherPackage(context, targetPkg)
-        if (!isLauncher && (targetPkg == null || (targetPkg == "com.android.systemui" && !isLocked))) {
-            targetPkg = if (!lastForegroundPackage.isNullOrBlank() && lastForegroundPackage != "com.android.systemui" && lastForegroundPackage != "android") {
+        val isSysUi = targetPkg == "com.android.systemui" || targetPkg == "com.transsion.systemui" || targetPkg == "com.infinix.systemui"
+        if (!isLauncher && (targetPkg == null || (isSysUi && !isLocked))) {
+            targetPkg = if (!lastForegroundPackage.isNullOrBlank() && lastForegroundPackage != "com.android.systemui" && lastForegroundPackage != "com.transsion.systemui" && lastForegroundPackage != "com.infinix.systemui" && lastForegroundPackage != "android") {
                 lastForegroundPackage
             } else {
                 LightspeedOrientationEngine.getDefaultLauncherPackage(context)
@@ -439,12 +433,7 @@ object LightspeedOrientationManager {
         if (ElevatedTaskCloser.isShizukuActive) {
             try {
                 ElevatedTaskCloser.execShizuku("am force-stop com.arlosoft.macrodroid")
-            } catch (_: Exception) {}
-        }
-        if (ElevatedTaskCloser.isRootActive) {
-            try {
-                Runtime.getRuntime().exec(arrayOf("su", "-c", "am force-stop com.arlosoft.macrodroid")).waitFor()
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "killConflictingTools:436", e) }
         }
     }
 
@@ -513,7 +502,8 @@ object LightspeedOrientationManager {
 
         // Priority 3: Per-App Launch Rules (Enforced on foreground switch)
         val isTargetLauncher = LightspeedOrientationEngine.isLauncherPackage(context, targetPackage)
-        val resolvedPackage = if (!locked && !isTargetLauncher && (targetPackage.isNullOrBlank() || targetPackage == "com.android.systemui" || targetPackage == "android")) {
+        val isTargetSysUi = targetPackage == "com.android.systemui" || targetPackage == "com.transsion.systemui" || targetPackage == "com.infinix.systemui"
+        val resolvedPackage = if (!locked && !isTargetLauncher && (targetPackage.isNullOrBlank() || isTargetSysUi || targetPackage == "android")) {
             LightspeedOrientationEngine.getDefaultLauncherPackage(context)
         } else {
             targetPackage

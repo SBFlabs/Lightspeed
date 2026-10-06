@@ -6,10 +6,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.PowerManager
+import androidx.core.content.ContextCompat
 import android.view.Surface
 import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.logSwallowed
 
 internal fun LightspeedAccessibilityService.handleDisplayOrientationChange() {
     val prefs = defaultPrefs()
@@ -26,7 +28,7 @@ internal fun LightspeedAccessibilityService.handleDisplayOrientationChange() {
 
     // Check if landscape dock charging trigger activates upon rotating to landscape
     val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
-    if ((trigger == "charging_dock_landscape" || trigger == "landscape_charging") && isLandscape && isDeviceCharging() && !LightspeedRefuelingActivity.isActive) {
+    if ((trigger == "charging_dock_landscape" || trigger == "landscape_charging") && isLandscape && isDeviceCharging() && !LightspeedRefuelingActivity.isActive && !LightspeedRefuelingActivity.isChargingSessionDismissed) {
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val isScreenOff = powerManager?.isInteractive == false
@@ -63,6 +65,21 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     com.sbf.lightspeed.system.LightspeedOrientationManager.onScreenOff(this@registerSystemStateReceiver)
+                    if (LightspeedRefuelingActivity.shizukuPanelOff) {
+                        // The panel was blanked by Shizuku without a real sleep, so this broadcast is the
+                        // user's first power press. Wait for the sleep transition to finish, then wake immediately
+                        // and re-show Refueling Bay so one press resumes instead of two.
+                        LightspeedRefuelingActivity.shizukuPanelOff = false
+                        handler.postDelayed({
+                            if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
+                                com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku(
+                                    "cmd display power-on 0; input keyevent KEYCODE_WAKEUP"
+                                )
+                            }
+                            launchRefuelingActivity()
+                        }, 250L)
+                        return
+                    }
                     if (!LightspeedRefuelingActivity.isActive) {
                         updateOverlaysVisibility(isLocked = true, currentPkg = null)
                     }
@@ -115,8 +132,8 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
         }
     }
     try {
-        registerReceiver(systemStateReceiver, filter)
-    } catch (_: Exception) {}
+        ContextCompat.registerReceiver(this, systemStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+    } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "registerSystemStateReceiver:136", e) }
 }
 
 internal fun LightspeedAccessibilityService.teardown() {
@@ -125,41 +142,41 @@ internal fun LightspeedAccessibilityService.teardown() {
     com.sbf.lightspeed.system.LightspeedOrientationManager.stopActiveSensorPortraitDriver()
     displayManager?.unregisterDisplayListener(displayListener)
     rotationContentObserver?.let {
-        try { contentResolver.unregisterContentObserver(it) } catch (_: Exception) {}
+        try { contentResolver.unregisterContentObserver(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:145", e) }
         rotationContentObserver = null
     }
     systemStateReceiver?.let {
-        try { unregisterReceiver(it) } catch (_: Exception) {}
+        try { unregisterReceiver(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:149", e) }
         systemStateReceiver = null
     }
     mediaScrubberOverlayView?.let {
-        try { windowManager?.removeView(it) } catch (_: Exception) {}
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:153", e) }
         mediaScrubberOverlayView = null
     }
     overlayView?.let {
-        try { windowManager?.removeView(it) } catch (_: Exception) {}
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:157", e) }
         overlayView = null
     }
     leftWingOverlayView?.let {
-        try { windowManager?.removeView(it) } catch (_: Exception) {}
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:161", e) }
         leftWingOverlayView = null
     }
     statusBarOverlayView?.let {
-        try { windowManager?.removeView(it) } catch (_: Exception) {}
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:165", e) }
         statusBarOverlayView = null
     }
     sensorTouchOverlayView?.let {
-        try { windowManager?.removeView(it) } catch (_: Exception) {}
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:169", e) }
         sensorTouchOverlayView = null
     }
     notchOverlayView?.let {
-        try { windowManager?.removeView(it) } catch (_: Exception) {}
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:173", e) }
         notchOverlayView = null
     }
     orientationAnchorView?.let {
-        try { windowManager?.removeView(it) } catch (_: Exception) {}
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:177", e) }
         orientationAnchorView = null
     }
     orientationAnchorParams = null
-    com.sbf.lightspeed.system.OmniscientAudioDockManager.dismiss(this)
+    com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
 }

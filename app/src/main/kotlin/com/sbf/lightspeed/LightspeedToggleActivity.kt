@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -128,7 +129,7 @@ class LightspeedToggleActivity : Activity() {
                     .build()
 
                 ShortcutManagerCompat.setDynamicShortcuts(context, listOf(s1, s2, s3))
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedToggleActivity", "updateDynamicShortcuts:131", e) }
         }
     }
 }

@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -22,6 +23,7 @@ object LightspeedPowerKeyEngine {
     const val LONG_PRESS_TIMEOUT_MS = 400L
     const val POWER_SEQUENCE_TIMEOUT_MS = 450L
 
+    @Volatile
     private var powerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Live Key Press & Trigger States (Power Button Engine)
@@ -30,6 +32,11 @@ object LightspeedPowerKeyEngine {
     private var isPowerPressHoldFired = false
     private var lastPowerReleaseTime = 0L
     var wasScreenInteractiveAtDown = true
+    var onPassthroughPress: (() -> Unit)? = null
+    var onPassthroughDoubleTap: (() -> Unit)? = null
+    var onPassthroughHoldStart: (() -> Unit)? = null
+    var onPassthroughHoldEnd: (() -> Unit)? = null
+    private var powerPressDownTime = 0L
 
     private var powerHoldJob: Job? = null
     private var powerPressHoldJob: Job? = null
@@ -52,7 +59,7 @@ object LightspeedPowerKeyEngine {
                 powerWakeLock?.setReferenceCounted(false)
             }
             powerWakeLock?.acquire(durationMs)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "acquirePowerScreenWakeLock:57", e) }
     }
 
     private fun releasePowerScreenWakeLock() {
@@ -60,8 +67,10 @@ object LightspeedPowerKeyEngine {
             if (powerWakeLock?.isHeld == true) {
                 powerWakeLock?.release()
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "releasePowerScreenWakeLock:65", e) }
     }
+
+    private fun isLockAction(action: String?): Boolean = action == "system:lock_screen"
 
     fun onPowerGestureHandled() {
         powerSinglePressJob?.cancel()
@@ -74,6 +83,7 @@ object LightspeedPowerKeyEngine {
         releasePowerScreenWakeLock()
     }
 
+    // Detects an active assistant window via the accessibility root only.
     fun isAssistantActiveOrPending(context: Context): Boolean {
         try {
             // Check active accessibility window root first (zero-deprecation, 100% reliable)
@@ -82,18 +92,7 @@ object LightspeedPowerKeyEngine {
             if (activePkg != null && (activePkg.contains("assistant") || activePkg.contains("googlequicksearchbox") || activePkg.contains("gemini"))) {
                 return true
             }
-
-            val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-            if (km?.isKeyguardLocked == true) {
-                val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
-                @Suppress("DEPRECATION")
-                val topTasks = am?.getRunningTasks(1)
-                val topPkg = topTasks?.firstOrNull()?.topActivity?.packageName?.lowercase()
-                if (topPkg != null && (topPkg.contains("assistant") || topPkg.contains("googlequicksearchbox") || topPkg.contains("gemini"))) {
-                    return true
-                }
-            }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "isAssistantActiveOrPending:98", e) }
         return false
     }
 
@@ -141,6 +140,7 @@ object LightspeedPowerKeyEngine {
             val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
             if (!isPowerPressed) {
                 wasScreenInteractiveAtDown = pm?.isInteractive == true
+                powerPressDownTime = now
             }
             isPowerPressed = true
             isPowerHoldFired = false
@@ -152,38 +152,47 @@ object LightspeedPowerKeyEngine {
                 powerSinglePressJob?.cancel()
                 powerSinglePressJob = null
                 acquirePowerScreenWakeLock(context, 3500L)
-                if (pressHoldAction != null) {
-                    powerPressHoldJob?.cancel()
-                    powerPressHoldJob = powerScope.launch {
-                        delay(LONG_PRESS_TIMEOUT_MS)
-                        if (isAssistantActiveOrPending(context)) {
-                            resetPowerState()
-                            return@launch
-                        }
-                        isPowerPressHoldFired = true
-                        lastPowerReleaseTime = 0L
-                        acquirePowerScreenWakeLock(context, 3500L)
-                        LightspeedHapticEngine.heavyClick(context)
-                        ActionDispatcher.dispatch(pressHoldAction, context)
-                    }
-                    return true
-                }
-                return true
-            }
-
-            // 2. Standard Power Hold Trigger (First press hold)
-            if (holdAction != null) {
-                powerHoldJob?.cancel()
-                powerHoldJob = powerScope.launch {
+                powerPressHoldJob?.cancel()
+                powerPressHoldJob = powerScope.launch {
                     delay(LONG_PRESS_TIMEOUT_MS)
                     if (isAssistantActiveOrPending(context)) {
                         resetPowerState()
                         return@launch
                     }
-                    isPowerHoldFired = true
+                    isPowerPressHoldFired = true
+                    lastPowerReleaseTime = 0L
                     acquirePowerScreenWakeLock(context, 3500L)
+                    if (pressHoldAction != null) {
+                        LightspeedHapticEngine.heavyClick(context)
+                        ActionDispatcher.dispatch(pressHoldAction, context)
+                        if (isLockAction(pressHoldAction)) {
+                            releasePowerScreenWakeLock()
+                        }
+                    } else {
+                        onPassthroughHoldStart?.invoke()
+                    }
+                }
+                return true
+            }
+
+            // 2. Standard Power Hold Trigger (First press hold)
+            powerHoldJob?.cancel()
+            powerHoldJob = powerScope.launch {
+                delay(LONG_PRESS_TIMEOUT_MS)
+                if (isAssistantActiveOrPending(context)) {
+                    resetPowerState()
+                    return@launch
+                }
+                isPowerHoldFired = true
+                acquirePowerScreenWakeLock(context, 3500L)
+                if (holdAction != null) {
                     LightspeedHapticEngine.heavyClick(context)
                     ActionDispatcher.dispatch(holdAction, context)
+                    if (isLockAction(holdAction)) {
+                        releasePowerScreenWakeLock()
+                    }
+                } else {
+                    onPassthroughHoldStart?.invoke()
                 }
             }
 
@@ -203,12 +212,24 @@ object LightspeedPowerKeyEngine {
             if (isPowerPressHoldFired) {
                 isPowerPressHoldFired = false
                 releasePowerScreenWakeLock()
+                if (pressHoldAction == null) {
+                    powerScope.launch {
+                        delay(LONG_PRESS_TIMEOUT_MS)
+                        onPassthroughHoldEnd?.invoke()
+                    }
+                }
                 return true
             }
 
             if (isPowerHoldFired) {
                 isPowerHoldFired = false
                 releasePowerScreenWakeLock()
+                if (holdAction == null) {
+                    powerScope.launch {
+                        delay(LONG_PRESS_TIMEOUT_MS)
+                        onPassthroughHoldEnd?.invoke()
+                    }
+                }
                 return true
             }
 
@@ -222,8 +243,12 @@ object LightspeedPowerKeyEngine {
                     acquirePowerScreenWakeLock(context, 3500L)
                     LightspeedHapticEngine.click(context)
                     ActionDispatcher.dispatch(doubleAction, context)
+                    if (isLockAction(doubleAction)) {
+                        releasePowerScreenWakeLock()
+                    }
                     return true
                 } else {
+                    onPassthroughDoubleTap?.invoke()
                     releasePowerScreenWakeLock()
                     return true
                 }
@@ -245,7 +270,11 @@ object LightspeedPowerKeyEngine {
                         acquirePowerScreenWakeLock(context, 3500L)
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(singleAction, context)
+                        if (isLockAction(singleAction)) {
+                            releasePowerScreenWakeLock()
+                        }
                     } else {
+                        onPassthroughPress?.invoke()
                         releasePowerScreenWakeLock()
                     }
                 }
@@ -281,28 +310,154 @@ object LightspeedPowerKeyEngine {
         }
         if (shizukuMonitorJob?.isActive == true) return
 
+        val prefs = context.defaultPrefs()
+        val isGrabHelperEnabled = prefs.getBoolean(LightspeedPreferences.KEY_POWER_GRAB_HELPER, false)
+
+        if (isGrabHelperEnabled) {
+            shizukuMonitorJob = powerScope.launch(Dispatchers.IO) {
+                var backoffMs = 1000L
+                try {
+                    while (isActive && isPowerEnabled(context) && ElevatedTaskCloser.isShizukuActive) {
+                        try {
+                            shizukuProcess?.destroy()
+                        } catch (e: Exception) {
+                            logSwallowed("LightspeedPowerKeyEngine", "startShizukuPowerMonitor:destroy", e)
+                        }
+                        shizukuProcess = null
+
+                        val proc = PowerGrabHelper.start(context)
+                        if (proc == null) {
+                            if (!isActive || !isPowerEnabled(context) || !ElevatedTaskCloser.isShizukuActive) break
+                            withContext(Dispatchers.Main) { resetPowerState() }
+                            delay(backoffMs)
+                            backoffMs = (backoffMs * 2).coerceAtMost(10000L)
+                            continue
+                        }
+
+                        shizukuProcess = proc
+                        PowerGrabHelper.sendCommand(proc, "MODE swallow")
+                        onPassthroughPress = { PowerGrabHelper.sendCommand(proc, "TAP") }
+                        onPassthroughDoubleTap = {
+                            powerScope.launch(Dispatchers.IO) {
+                                PowerGrabHelper.sendCommand(proc, "TAP")
+                                delay(80L)
+                                PowerGrabHelper.sendCommand(proc, "TAP")
+                            }
+                        }
+                        onPassthroughHoldStart = { PowerGrabHelper.sendDown(proc) }
+                        onPassthroughHoldEnd = { PowerGrabHelper.sendUp(proc) }
+
+                        try {
+                            val reader = proc.inputStream.bufferedReader()
+                            while (isActive && isPowerEnabled(context) && ElevatedTaskCloser.isShizukuActive) {
+                                val line = reader.readLine() ?: break
+                                backoffMs = 1000L
+                                val trimmed = line.trim()
+                                if (!trimmed.startsWith("P ")) continue
+
+                                val isDown = trimmed.contains("DOWN")
+                                val isUp = trimmed.contains("UP")
+                                if (isDown || isUp) {
+                                    withContext(Dispatchers.Main) {
+                                        if (isDown) {
+                                            LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_POWER))
+                                        } else if (isUp) {
+                                            val consumed = LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_POWER))
+                                            if (!consumed) {
+                                                PowerGrabHelper.sendCommand(proc, "TAP")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.d("LightspeedKeyEngine", "Shizuku power grab monitor read error: ${e.message}")
+                        } finally {
+                            PowerGrabHelper.sendCommand(proc, "QUIT")
+                            try {
+                                proc.destroy()
+                            } catch (e: Exception) {
+                                logSwallowed("LightspeedPowerKeyEngine", "startShizukuPowerMonitor:procDestroy", e)
+                            }
+                            if (shizukuProcess == proc) {
+                                shizukuProcess = null
+                            }
+                        }
+
+                        if (!isActive || !isPowerEnabled(context) || !ElevatedTaskCloser.isShizukuActive) break
+
+                        withContext(Dispatchers.Main) { resetPowerState() }
+                        delay(backoffMs)
+                        backoffMs = (backoffMs * 2).coerceAtMost(10000L)
+                    }
+                } finally {
+                    onPassthroughPress = null
+                    onPassthroughDoubleTap = null
+                    onPassthroughHoldStart = null
+                    onPassthroughHoldEnd = null
+                }
+            }
+            return
+        }
+
         shizukuMonitorJob = powerScope.launch(Dispatchers.IO) {
-            try {
-                val proc = ElevatedTaskCloser.execShizuku("getevent -l") ?: return@launch
+            var backoffMs = 1000L
+            while (isActive && isPowerEnabled(context) && ElevatedTaskCloser.isShizukuActive) {
+                try {
+                    shizukuProcess?.destroy()
+                } catch (e: Exception) {
+                    logSwallowed("LightspeedPowerKeyEngine", "startShizukuPowerMonitor:destroy", e)
+                }
+                shizukuProcess = null
+
+                val proc = ElevatedTaskCloser.execShizuku("getevent -l 2>&1")
+                if (proc == null) {
+                    if (!isActive || !isPowerEnabled(context) || !ElevatedTaskCloser.isShizukuActive) break
+                    withContext(Dispatchers.Main) { resetPowerState() }
+                    delay(backoffMs)
+                    backoffMs = (backoffMs * 2).coerceAtMost(10000L)
+                    continue
+                }
+
                 shizukuProcess = proc
-                val reader = proc.inputStream.bufferedReader()
-                while (isActive) {
-                    val line = reader.readLine() ?: break
-                    val lower = line.lowercase()
-                    if (lower.contains("key_power") || lower.contains(" 0074 ") || lower.contains("key_wakeup")) {
-                        val isDown = lower.contains("down") || lower.contains(" 00000001") || lower.contains(" 1")
-                        val isUp = lower.contains("up") || lower.contains(" 00000000") || lower.contains(" 0")
-                        withContext(Dispatchers.Main) {
-                            if (isDown) {
-                                LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_POWER))
-                            } else if (isUp) {
-                                LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_POWER))
+                try {
+                    val reader = proc.inputStream.bufferedReader()
+                    while (isActive && isPowerEnabled(context) && ElevatedTaskCloser.isShizukuActive) {
+                        val line = reader.readLine() ?: break
+                        backoffMs = 1000L
+                        if (line.contains("KEY_POWER", ignoreCase = true)) {
+                            val trimmed = line.trim()
+                            val isDown = trimmed.endsWith("DOWN", ignoreCase = true)
+                            val isUp = trimmed.endsWith("UP", ignoreCase = true)
+                            if (isDown || isUp) {
+                                withContext(Dispatchers.Main) {
+                                    if (isDown) {
+                                        LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_POWER))
+                                    } else if (isUp) {
+                                        LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_POWER))
+                                    }
+                                }
                             }
                         }
                     }
+                } catch (e: Exception) {
+                    Log.d("LightspeedKeyEngine", "Shizuku power monitor read error: ${e.message}")
+                } finally {
+                    try {
+                        proc.destroy()
+                    } catch (e: Exception) {
+                        logSwallowed("LightspeedPowerKeyEngine", "startShizukuPowerMonitor:procDestroy", e)
+                    }
+                    if (shizukuProcess == proc) {
+                        shizukuProcess = null
+                    }
                 }
-            } catch (e: Exception) {
-                Log.d("LightspeedKeyEngine", "Shizuku power monitor stopped: ${e.message}")
+
+                if (!isActive || !isPowerEnabled(context) || !ElevatedTaskCloser.isShizukuActive) break
+
+                withContext(Dispatchers.Main) { resetPowerState() }
+                delay(backoffMs)
+                backoffMs = (backoffMs * 2).coerceAtMost(10000L)
             }
         }
     }
@@ -310,9 +465,15 @@ object LightspeedPowerKeyEngine {
     fun stopShizukuPowerMonitor() {
         shizukuMonitorJob?.cancel()
         shizukuMonitorJob = null
+        onPassthroughPress = null
+        onPassthroughDoubleTap = null
+        onPassthroughHoldStart = null
+        onPassthroughHoldEnd = null
         try {
             shizukuProcess?.destroy()
             shizukuProcess = null
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "stopShizukuPowerMonitor:318", e) }
+        powerScope.cancel()
+        powerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     }
 }

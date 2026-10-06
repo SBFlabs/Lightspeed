@@ -29,13 +29,15 @@ object LightspeedBackupEngine {
         "pref_active_infinity_code",
     )
 
+    private fun isExcludedKey(key: String): Boolean =
+        key.startsWith("pending_") ||
+        key in TRANSIENT_KEYS ||
+        key.startsWith("key_last_crash") ||
+        key == "key_has_unreported_crash" ||
+        key == "key_allow_external_automation"
+
     private fun migrateFromV1(editor: android.content.SharedPreferences.Editor) {
         // Schema migration hooks for v1 -> v2 backups
-    }
-
-    fun generateDefaultFileName(): String {
-        val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        return "lightspeed_backup_$dateStr.json"
     }
 
     fun exportToJson(context: Context): String {
@@ -53,7 +55,7 @@ object LightspeedBackupEngine {
             val settingsObject = JSONObject()
             val typesObject = JSONObject()
             for ((key, value) in allEntries) {
-                if (key.startsWith("pending_") || key in TRANSIENT_KEYS) continue // Skip transient state
+                if (isExcludedKey(key)) continue // Skip transient state
                 when (value) {
                     is Boolean -> {
                         settingsObject.put(key, value)
@@ -103,7 +105,7 @@ object LightspeedBackupEngine {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "exportToJson:108", e) }
             if (iconsObject.length() > 0) {
                 put("shortcut_icons", iconsObject)
             }
@@ -130,7 +132,7 @@ object LightspeedBackupEngine {
                     java.io.FileOutputStream(pfd.fileDescriptor).use { fos ->
                         fos.write(bytes)
                         fos.flush()
-                        try { pfd.fileDescriptor.sync() } catch (_: Exception) {}
+                        try { pfd.fileDescriptor.sync() } catch (e: Exception) { logSwallowed(TAG, "exportToFile:135", e) }
                     }
                 }
                 true
@@ -181,7 +183,7 @@ object LightspeedBackupEngine {
             val keys = settingsObject.keys()
             while (keys.hasNext()) {
                 val key = keys.next()
-                if (key == "app" || key == "packageName" || key == "backupVersion" || key == "exportedAt" || key == "exportedAtFormatted" || key == "device" || key == "types" || key in TRANSIENT_KEYS || key.startsWith("pending_")) {
+                if (key == "app" || key == "packageName" || key == "backupVersion" || key == "exportedAt" || key == "exportedAtFormatted" || key == "device" || key == "types" || isExcludedKey(key)) {
                     continue
                 }
 
@@ -306,7 +308,7 @@ object LightspeedBackupEngine {
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed(TAG, "importFromJson:311", e) }
             }
 
             // Always flush all in-memory caches and hot reload live overlay
@@ -316,8 +318,9 @@ object LightspeedBackupEngine {
                 LightspeedIconManager.clearCache()
                 LightspeedPreferences.refreshDeckGlassStyle(context)
                 LightspeedPreferences.refreshDeckBackdropStyle(context)
+                LightspeedPreferences.refreshLiquidGlassConfig(context)
                 safeReloadPreferences()
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "importFromJson:323", e) }
             Log.i(TAG, "Imported and committed $importedCount settings entries successfully")
             Result.success(importedCount)
         } catch (e: Exception) {
@@ -328,15 +331,19 @@ object LightspeedBackupEngine {
 
     private fun readStringFromUri(context: Context, uri: Uri): String {
         // Tier 1: Direct File check
-        if (uri.scheme == "file" || uri.path?.startsWith("/storage/") == true) {
+        val uriPath = uri.path
+        if (uri.scheme == "file" || uriPath?.startsWith("/storage/") == true) {
             try {
-                val path = if (uri.scheme == "file") (uri.path ?: "") else uri.path!!
-                val directFile = java.io.File(path)
+                if (uriPath.isNullOrBlank()) {
+                    Log.w(TAG, "readStringFromUri: URI path is null or blank for URI $uri")
+                    return ""
+                }
+                val directFile = java.io.File(uriPath)
                 if (directFile.exists() && directFile.length() > 0) {
                     val content = directFile.readText(Charsets.UTF_8)
                     if (content.isNotBlank()) return content
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "readStringFromUri:342", e) }
         }
 
         // Tier 2: Raw byte read from ContentResolver openInputStream
@@ -378,7 +385,7 @@ object LightspeedBackupEngine {
                     if (content.isNotBlank()) return content
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "readStringFromUri:384", e) }
 
         throw IllegalStateException("Selected file returned 0 bytes (payload empty). Please try picking the file directly from Internal Storage or Downloads.")
     }

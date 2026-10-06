@@ -3,8 +3,6 @@
 # ==============================================================================
 
 # ── Kotlin ─────────────────────────────────────────────────────────────────────
--keep class kotlin.reflect.** { *; }
--keep class kotlin.jvm.internal.** { *; }
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
 -keepclassmembers class **$WhenMappings { <fields>; }
@@ -44,8 +42,8 @@
 -keep class com.sbf.lightspeed.LightspeedAccessibilityService$* { *; }
 
 # ── Lightspeed Activities & Services ────────────────────────────────────────────
--keep class com.sbf.lightspeed.** extends android.app.Activity { *; }
--keep class com.sbf.lightspeed.** extends android.app.Service { *; }
+-keep class com.sbf.lightspeed.** extends android.app.Activity { void <init>(...); }
+-keep class com.sbf.lightspeed.** extends android.app.Service { void <init>(...); }
 
 # ── Shizuku IPC ─────────────────────────────────────────────────────────────────
 -keep class rikka.shizuku.** { *; }
@@ -54,9 +52,6 @@
 -dontwarn dev.rikka.shizuku.**
 -keepclassmembers class * implements android.os.IInterface { *; }
 
-# ── JSON (org.json — LightspeedBackupEngine) ────────────────────────────────────
--keep class org.json.** { *; }
--dontwarn org.json.**
 
 # ── Data/value classes used in token parsing ─────────────────────────────────────
 -keep class com.sbf.lightspeed.system.ParsedShortcut { *; }
@@ -83,9 +78,6 @@
     public static int v(...);
     public static int d(...);
     public static int i(...);
-    public static int w(...);
-    public static int e(...);
-    public static int wtf(...);
     public static java.lang.String getStackTraceString(...);
     public static boolean isLoggable(...);
     public static int println(...);
@@ -101,7 +93,3 @@
 -keepclassmembers class * implements android.os.Parcelable {
     public static final android.os.Parcelable$Creator CREATOR;
 }
-
-# ── Suppress optional-dependency warnings ───────────────────────────────────────
--dontwarn com.google.**
--dontwarn javax.**

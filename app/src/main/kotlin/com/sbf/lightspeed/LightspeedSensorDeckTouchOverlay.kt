@@ -19,6 +19,7 @@ import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.logSwallowed
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -70,11 +71,12 @@ class LightspeedSensorDeckTouchOverlay(
                     @Suppress("DEPRECATION")
                     root.recycle()
                 }
-                if (pkg == "com.android.systemui" && !isLocked) {
+                val isSysUi = pkg == "com.android.systemui"
+                if (isSysUi && !isLocked) {
                     return true
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedSensorDeckTouchOverlay", "isNotificationShadeOrQsActive:79", e) }
 
         try {
             val windows = service.windows
@@ -95,13 +97,14 @@ class LightspeedSensorDeckTouchOverlay(
                             @Suppress("DEPRECATION")
                             root?.recycle()
                         }
-                        if (pkg == "com.android.systemui" && !isLocked) {
+                        val isSysUi = pkg == "com.android.systemui"
+                        if (isSysUi && !isLocked) {
                             return true
                         }
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedSensorDeckTouchOverlay", "isNotificationShadeOrQsActive:107", e) }
 
         return false
     }
@@ -322,7 +325,7 @@ class LightspeedSensorDeckTouchOverlay(
                     
                     val isVolume = activeScrubType == "system:volume"
                     val isBrightness = activeScrubType == "system:brightness"
-                    val isAudioDockEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_OMNISCIENT_AUDIO_DOCK_ENABLED, false)
+                    val isAudioDockEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SONIC_DECK_ENABLED, false)
                     val verticalPull = kotlin.math.abs(event.rawY - startY)
                     
                     if (verticalPull > 80f * density && ((isVolume && isAudioDockEnabled) || isBrightness)) {
@@ -331,13 +334,13 @@ class LightspeedSensorDeckTouchOverlay(
                         activeScrubActionKey = null
                         com.sbf.lightspeed.LightspeedStatusBarOverlay.dismissActionHud(0L)
                         if (isVolume) {
-                            com.sbf.lightspeed.system.OmniscientAudioDockManager.show(service)
+                            com.sbf.lightspeed.system.SonicDeckManager.show(service)
                         } else {
                             val intent = android.content.Intent("com.sbf.lightspeed.OMNISCIENT_DISPLAY").apply {
                                 setPackage(context.packageName)
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                             }
-                            try { context.startActivity(intent) } catch (e: Exception) {}
+                            try { context.startActivity(intent) } catch (e: Exception) { logSwallowed("LightspeedSensorDeckTouchOverlay", "onTouchEvent:343", e) }
                         }
                         return true
                     }
@@ -568,7 +571,7 @@ class LightspeedSensorDeckTouchOverlay(
                         passes++
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedSensorDeckTouchOverlay", "scrollToTop:574", e) }
         }
     }
 

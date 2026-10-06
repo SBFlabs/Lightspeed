@@ -10,6 +10,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuBinderWrapper
 import rikka.shizuku.SystemServiceHelper
@@ -20,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Sovereign Audio & App Sovereignty Engine
  *
  * Provides:
- * 1. Non-Ducking / MultiSound Playback: allows selected apps to keep playing continuously
+ * 1. Non-Ducking MultiSound Playback: allows selected apps to keep playing continuously
  *    without pausing or reducing volume when other applications play audio at the same time
  *    (parity with mpv-android "Ignore audio focus" setting) via Shizuku & setMultiAudioFocusEnabled(true)
  * 2. Smart Phone Call Ducking: gracefully ducks non-ducking media to 20% during voice/phone calls
@@ -31,9 +33,11 @@ object LightspeedAppSovereigntyEngine {
 
     private const val TAG = "AppSovereignty"
     private const val PREF_STEALTH_LOCKED_APPS = "stealth_locked_audio_apps"
+    private const val PREF_APP_VOLUME_MAP = "app_volume_map"
 
     private val appVolumeMap = ConcurrentHashMap<String, Float>()
     private val stealthLockedApps = ConcurrentHashMap.newKeySet<String>()
+    private val zeroSoundMutex = Mutex()
 
     @Volatile
     private var playbackCallbackRegistered = false
@@ -96,6 +100,7 @@ object LightspeedAppSovereigntyEngine {
     fun initAudioEngine(context: Context?) {
         try {
             val ctx = context ?: return
+            restoreAppVolumes(ctx)
             val locked = getStealthLockedApps(ctx)
             stealthLockedApps.clear()
             stealthLockedApps.addAll(locked)
@@ -222,7 +227,7 @@ object LightspeedAppSovereigntyEngine {
                     }
                     applyVolumeToConfig(config, effectiveVol)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "reapplyVolumes:225", e) }
         }
     }
 
@@ -237,7 +242,7 @@ object LightspeedAppSovereigntyEngine {
                 setVolume.invoke(proxy, clamped)
                 return true
             }
-        } catch (_: Throwable) {}
+        } catch (e: Throwable) { logSwallowed(TAG, "applyVolumeToConfig:240", e) }
 
         // Pipeline 2: Legacy / Direct IPlayer binder stub fallback
         return try {
@@ -262,6 +267,8 @@ object LightspeedAppSovereigntyEngine {
         Log.i(TAG, "setAppVolume($pkg, $clamped)")
 
         val ctx = context ?: return
+        persistAppVolumes(ctx)
+
         val pm = ctx.packageManager
         var appliedCount = 0
 
@@ -295,21 +302,10 @@ object LightspeedAppSovereigntyEngine {
             Log.e(TAG, "Error applying volume to active tracks", e)
         }
 
-        // Also ensure Transsion zerosound setting is synced for full hardware silence when muted
-        if (clamped <= 0.05f) {
-            runTranssionZeroSound(pkg, true)
-        } else {
-            runTranssionZeroSound(pkg, false)
-        }
-
         Log.i(TAG, "Volume $clamped applied to $appliedCount active track(s) for $pkg")
     }
 
-    fun getAppVolume(pkg: String): Float {
-        return appVolumeMap[pkg] ?: 1.0f
-    }
-
-    fun setAppMuted(pkg: String, isMuted: Boolean, context: Context? = null) {
+    suspend fun setAppMuted(pkg: String, isMuted: Boolean, context: Context? = null) {
         if (isMuted) {
             val current = appVolumeMap[pkg] ?: 1.0f
             if (current > 0.05f) {
@@ -322,12 +318,15 @@ object LightspeedAppSovereigntyEngine {
             setAppVolume(pkg, prev, context)
             context?.showToast("${pkg.label()}: 🔊 Unmuted")
         }
+        syncTranssionZeroSound(pkg, isMuted)
     }
 
     fun isAppMuted(pkg: String): Boolean {
         val vol = appVolumeMap[pkg] ?: return false
         return vol <= 0.05f
     }
+
+    fun getAppVolume(pkg: String): Float = appVolumeMap[pkg] ?: 1.0f
 
     // ────────────────────────────────────────────────
     // NON-DUCKING / CONTINUOUS AUDIO PLAYBACK
@@ -394,24 +393,61 @@ object LightspeedAppSovereigntyEngine {
 
     // Backward compatibility aliases for UI callsites
     fun isAudioFocusLocked(pkg: String): Boolean = isAppStealthLocked(pkg)
-    fun setAudioFocusLocked(pkg: String, isLocked: Boolean, context: Context? = null) =
-        setAppStealthLocked(pkg, isLocked, context)
 
-    private fun runTranssionZeroSound(pkg: String, enable: Boolean) {
+    private fun isTranssionVendor(): Boolean {
+        val m = Build.MANUFACTURER ?: return false
+        val lower = m.lowercase()
+        return lower.contains("transsion") || lower.contains("infinix") || lower.contains("tecno") || lower.contains("itel")
+    }
+
+    suspend fun syncTranssionZeroSound(pkg: String, enable: Boolean) {
+        if (!isTranssionVendor()) return
+        zeroSoundMutex.withLock {
+            try {
+                val process = ElevatedTaskCloser.execShizuku("settings get global audio.zerosound.applist")
+                val current = process.readTextOrKill()?.trim() ?: ""
+
+                val list = current.split(",").map { it.trim() }.filter { it.isNotEmpty() && it != "null" }.toMutableSet()
+                val changed = if (enable) {
+                    list.add(pkg)
+                } else {
+                    list.remove(pkg)
+                }
+                if (changed) {
+                    val updated = list.joinToString(",")
+                    ElevatedTaskCloser.execShizuku("settings put global audio.zerosound.applist '$updated'").waitForOrKill()
+                }
+            } catch (e: Exception) { logSwallowed(TAG, "syncTranssionZeroSound", e) }
+        }
+    }
+
+    private fun persistAppVolumes(context: Context) {
         try {
-            val process = ElevatedTaskCloser.execShizuku("settings get global audio.zerosound.applist") ?: return
-            val current = process.inputStream.bufferedReader().readText().trim()
-            process.waitFor()
-
-            val list = current.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
-            if (enable) {
-                list.add(pkg)
-            } else {
-                list.remove(pkg)
+            val json = org.json.JSONObject()
+            for ((key, vol) in appVolumeMap) {
+                if (!key.endsWith("_prev")) {
+                    json.put(key, vol.toDouble())
+                }
             }
-            val updated = list.joinToString(",")
-            ElevatedTaskCloser.execShizuku("settings put global audio.zerosound.applist '$updated'")?.waitFor()
-        } catch (_: Exception) {}
+            context.defaultPrefs().edit().putString(PREF_APP_VOLUME_MAP, json.toString()).apply()
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to persist app volumes", e)
+        }
+    }
+
+    private fun restoreAppVolumes(context: Context) {
+        try {
+            val raw = context.defaultPrefs().getString(PREF_APP_VOLUME_MAP, null) ?: return
+            val json = org.json.JSONObject(raw)
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val vol = json.optDouble(key, 1.0).toFloat()
+                appVolumeMap[key] = vol
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to restore app volumes", e)
+        }
     }
 
     private fun String.label() = substringAfterLast('.')
@@ -423,3 +459,4 @@ object LightspeedAppSovereigntyEngine {
         }
     }
 }
+

@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.BroadcastReceiver
@@ -66,7 +67,7 @@ import com.sbf.lightspeed.system.defaultPrefs
             mediaScrubberOverlayView = overlay
             try {
                 windowManager?.addView(overlay, params)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedAccessibilityServiceMedia", "showMediaScrubber:69", e) }
         }
     }
 
@@ -75,7 +76,7 @@ import com.sbf.lightspeed.system.defaultPrefs
             mediaScrubberOverlayView?.let {
                 try {
                     windowManager?.removeView(it)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("LightspeedAccessibilityServiceMedia", "hideMediaScrubber:78", e) }
                 mediaScrubberOverlayView = null
             }
         }

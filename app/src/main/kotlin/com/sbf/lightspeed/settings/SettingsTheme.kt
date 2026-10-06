@@ -146,7 +146,9 @@ object DeckGlassTheme {
                 noiseAlpha = 0.08f,
                 showRefractiveRim = false,
                 showBottomCaustic = false,
-                shapeCornerRadius = 28.dp
+                shapeCornerRadius = 28.dp,
+                showLiquidGlass = false,
+                liquidGlassBlurRadius = 0f
             )
             "obsidian" -> DeckGlassVisuals(
                 styleKey = "obsidian",
@@ -178,6 +180,15 @@ object DeckGlassTheme {
             else -> {
                 val glassConfig = rememberLiquidGlassConfig()
                 val baseOpacity = (0.55f + glassConfig.opacity * 0.40f).coerceIn(0.65f, 0.98f)
+                val activePrimary = if (glassConfig.useCustomColor) Color(glassConfig.customColor) else colorScheme.primary
+                val activeSecondary = if (glassConfig.useCustomColor) {
+                    val hsv = FloatArray(3)
+                    val argb = (glassConfig.customColor.toLong() and 0xFFFFFFFFL).toInt()
+                    android.graphics.Color.colorToHSV(argb, hsv)
+                    val secHsv = floatArrayOf((hsv[0] + 30f) % 360f, (hsv[1] * 0.70f).coerceIn(0f, 1f), hsv[2])
+                    Color(android.graphics.Color.HSVToColor(secHsv))
+                } else colorScheme.secondary
+
                 DeckGlassVisuals( // "liquid" — Dynamic liquid glass (RenderEffect + AGSL + Canvas layers)
                     styleKey = "liquid",
                     backgroundBrush = Brush.radialGradient(
@@ -190,9 +201,9 @@ object DeckGlassTheme {
                     ),
                     borderBrush = Brush.linearGradient(
                         colors = listOf(
-                            colorScheme.primary.copy(alpha = 0.65f),
+                            activePrimary.copy(alpha = 0.65f),
                             Color.White.copy(alpha = 0.30f),
-                            colorScheme.secondary.copy(alpha = 0.40f),
+                            activeSecondary.copy(alpha = 0.40f),
                             Color.Transparent
                         )
                     ),

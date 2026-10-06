@@ -1,24 +1,32 @@
-*.iml
-.gradle
-/local.properties
-/.idea/
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Gradle / Android build
+.gradle/
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
 *.apk
 *.aab
 *.dex
 *.class
-.kotlin
+*.iml
+*.log
+
+# Local configuration and signing (never commit)
+local.properties
 keystore.properties
 *.jks
 *.keystore
-*.key
-*.pem
-/app/build
-*.jpg
 
-# Repository screenshots (README assets)
-!screenshot_*.jpg
+# IDE
+/.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.bak
+*.tmp

@@ -13,6 +13,7 @@ import com.sbf.lightspeed.system.LightspeedBackTapEngine
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.system.logSwallowed
 
 @Composable
 fun rememberCentralCommandState(
@@ -34,12 +35,11 @@ fun rememberCentralCommandState(
     var tabMode1 by tabMode1State
     val pinnedSection1State = rememberSaveable {
         mutableStateOf(
-            (prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, "config_vault") ?: "config_vault")
-                .let { if (it == "synthetic_gravity") "experimental_labs" else it }
+            prefs.getString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, "config_vault") ?: "config_vault"
         )
     }
     val pinnedSection1 by pinnedSection1State
-    val sectionOrder1StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,system_overrides,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,system_overrides,config_vault,experimental_labs") }
+    val sectionOrder1StrState = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,synthetic_gravity,refueling_bay,system_overrides,config_vault,experimental_labs") ?: "sensor_deck,telemetry_indicators,tactical_hardware,synthetic_gravity,refueling_bay,system_overrides,config_vault,experimental_labs") }
 
     val tabMode2State = rememberSaveable { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_TAB_ACCORDION_MODE_2, "custom_pinned") ?: "custom_pinned") }
     var tabMode2 by tabMode2State
@@ -77,7 +77,7 @@ fun rememberCentralCommandState(
     // HUD Strip Accordion States
     val isSensorDeckExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean("pref_section_statusbar_expanded", false)) }
     var isSensorDeckExpanded by isSensorDeckExpandedState
-    val isSyntheticGravityExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, false)) }
+    val isSyntheticGravityExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "synthetic_gravity" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, false)) }
     var isSyntheticGravityExpanded by isSyntheticGravityExpandedState
     val isTelemetryExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean("pref_section_telemetry_expanded", false)) }
     var isTelemetryExpanded by isTelemetryExpandedState
@@ -225,6 +225,8 @@ fun rememberCentralCommandState(
             "sensor_deck" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SENSOR_AREA),
             "telemetry_indicators" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS),
             "tactical_hardware" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TACTICAL_HARDWARE),
+            "synthetic_gravity" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.GRAVITY_ENGINE),
+            "refueling_bay" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.REFUELING_BAY),
             "system_overrides" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SYSTEM_OVERRIDES),
             "config_vault" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SHIP_DATA_VAULT),
             "experimental_labs" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.EXPERIMENTAL_LABS)
@@ -365,7 +367,7 @@ fun rememberCentralCommandState(
                         .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
                         .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
                         .apply()
-                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                    try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("CentralCommandState", "rememberCentralCommandState:369", e) }
                 }
                 2 -> {
                     isCenterExpanded = allExpandedState

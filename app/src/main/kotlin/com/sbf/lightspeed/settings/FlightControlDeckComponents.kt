@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
@@ -12,12 +14,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -25,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.logSwallowed
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -35,7 +41,6 @@ fun FlightControlDeckCard(
 ) {
     var isArmed by remember { mutableStateOf(LightspeedPreferences.isMasterFlightArmed(context)) }
     var isNotifEnabled by remember { mutableStateOf(LightspeedPreferences.isFlightNotificationEnabled(context)) }
-    var isAutomationDocsExpanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -121,6 +126,10 @@ fun FlightControlDeckCard(
                 }
             }
 
+            // Live Glass Material Prototype Selector
+            val styleFlow by LightspeedPreferences.deckGlassStyleFlow.collectAsState()
+            val currentGlassStyle = styleFlow ?: remember { LightspeedPreferences.getDeckGlassStyle(context) }
+
             var showLiquidGlassDialog by remember { mutableStateOf(false) }
             var showInfinityDialog by remember { mutableStateOf(false) }
             if (showLiquidGlassDialog) {
@@ -139,10 +148,6 @@ fun FlightControlDeckCard(
 
             HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-            // Live Glass Material Prototype Selector
-            val styleFlow by LightspeedPreferences.deckGlassStyleFlow.collectAsState()
-            val currentGlassStyle = styleFlow ?: remember { LightspeedPreferences.getDeckGlassStyle(context) }
-
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -160,7 +165,7 @@ fun FlightControlDeckCard(
                         when (currentGlassStyle) {
                             "frost" -> "Deep Frosted Matte"
                             "obsidian" -> "Tactical Stealth"
-                            else -> "\"Refractive Liquid Glass\""
+                            else -> "\"Refractive Glass\""
                         },
                         fontSize = 10.sp,
                         color = Color.LightGray.copy(alpha = 0.75f)
@@ -173,7 +178,7 @@ fun FlightControlDeckCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     listOf(
-                        "liquid" to "\"Liquid Glass\"",
+                        "liquid" to "\"Glass\"",
                         "frost" to "Deep Frost",
                         "obsidian" to "Obsidian"
                     ).forEach { (styleKey, title) ->
@@ -447,94 +452,169 @@ fun FlightControlDeckCard(
                 )
             }
 
-            // Row 5: Automation & Tasker / MacroDroid Accordion
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.25f)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+            // External Automation Opt-In (Tasker, MacroDroid, ADB)
+            var isAutomationExpanded by rememberSaveable { mutableStateOf(false) }
+            CollapsibleSubSection(
+                title = "External Automation",
+                subtitle = "Tasker, MacroDroid, ADB triggers",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Code,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                isExpanded = isAutomationExpanded,
+                onToggle = { isAutomationExpanded = !isAutomationExpanded }
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isAutomationDocsExpanded = !isAutomationDocsExpanded },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.Code,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "MacroDroid / Tasker / Termux API",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                var isAutomationAllowed by remember(prefs) {
+                    mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION, false))
+                }
+                var showAutomationWarningDialog by remember { mutableStateOf(false) }
+
+                DisposableEffect(prefs) {
+                    val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                        if (key == LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION) {
+                            isAutomationAllowed = prefs.getBoolean(LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION, false)
                         }
-                        Icon(
-                            if (isAutomationDocsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
                     }
+                    prefs.registerOnSharedPreferenceChangeListener(listener)
+                    onDispose {
+                        prefs.unregisterOnSharedPreferenceChangeListener(listener)
+                    }
+                }
 
-                    if (isAutomationDocsExpanded) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            "Send Broadcast Intents from Tasker, MacroDroid, or ADB shell to control Lightspeed programmatically:",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-
-                        listOf(
-                            Triple("Toggle Master Flight Mode", "com.sbf.lightspeed.action.TOGGLE_FLIGHT_MODE", "am broadcast -a com.sbf.lightspeed.action.TOGGLE_FLIGHT_MODE"),
-                            Triple("Toggle All Deflectors", "com.sbf.lightspeed.action.TOGGLE_DEFLECTORS", "am broadcast -a com.sbf.lightspeed.action.TOGGLE_DEFLECTORS"),
-                            Triple("Toggle Left Deflector", "com.sbf.lightspeed.action.TOGGLE_LEFT_DEFLECTOR", "am broadcast -a com.sbf.lightspeed.action.TOGGLE_LEFT_DEFLECTOR"),
-                            Triple("Toggle Right Deflector", "com.sbf.lightspeed.action.TOGGLE_RIGHT_DEFLECTOR", "am broadcast -a com.sbf.lightspeed.action.TOGGLE_RIGHT_DEFLECTOR")
-                        ).forEach { (label, actionStr, adbCmd) ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.White.copy(alpha = 0.05f))
-                                    .padding(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                    IconButton(
-                                        onClick = {
-                                            clipboardManager?.setPrimaryClip(android.content.ClipData.newPlainText("Intent Action", actionStr))
-                                            Toast.makeText(context, "Action copied to clipboard", Toast.LENGTH_SHORT).show()
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
-                                    }
+                if (showAutomationWarningDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showAutomationWarningDialog = false },
+                        title = {
+                            Text(
+                                "Security warning",
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        text = {
+                            Text(
+                                "External automation lets any app on this device trigger Lightspeed actions. You probably don't need it, and it is a security risk. It is here to give you the ultimate choice. Enable it anyway?"
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION, true).apply()
+                                    try {
+                                        com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences()
+                                    } catch (e: Exception) { logSwallowed("FlightControlDeckComponents", "FlightControlDeckCard:507", e) }
+                                    showAutomationWarningDialog = false
                                 }
-                                Text(
-                                    actionStr,
-                                    fontSize = 10.sp,
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                    color = Color.White.copy(alpha = 0.9f)
-                                )
+                            ) {
+                                Text("Enable anyway")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = {
+                                    showAutomationWarningDialog = false
+                                }
+                            ) {
+                                Text("Cancel")
                             }
                         }
+                    )
+                }
+
+                PrefToggleRow(
+                    title = "Allow external automation (Tasker, MacroDroid, ADB)",
+                    subtitle = "Lets any app on this device trigger flight mode, deflectors, auto-rotate and gravity override. Off by default.",
+                    isChecked = isAutomationAllowed,
+                    onCheckedChange = { newValue ->
+                        if (newValue) {
+                            showAutomationWarningDialog = true
+                        } else {
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION, false).apply()
+                            try {
+                                com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences()
+                            } catch (e: Exception) { logSwallowed("FlightControlDeckComponents", "FlightControlDeckCard:537", e) }
+                        }
                     }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val pkg = context.packageName
+                val actions = listOf(
+                    "TOGGLE_DEFLECTORS", "ENABLE_DEFLECTORS", "DISABLE_DEFLECTORS",
+                    "TOGGLE_FLIGHT_MODE", "ENABLE_FLIGHT_MODE", "DISABLE_FLIGHT_MODE",
+                    "TOGGLE_LEFT_DEFLECTOR", "TOGGLE_RIGHT_DEFLECTOR",
+                    "TOGGLE_AUTO_ROTATE", "TOGGLE_SYNTHETIC_GRAVITY", "TRIGGER_WATCHDOG_REVIVAL"
+                )
+                var expandedDropdown by remember { mutableStateOf(false) }
+                var selectedAction by remember { mutableStateOf(actions[0]) }
+                var selectedTab by remember { mutableIntStateOf(0) }
+
+                val fullAction = "com.sbf.lightspeed.action.$selectedAction"
+                val commandText = when (selectedTab) {
+                    0 -> "adb shell am broadcast -a $fullAction -p$pkg"
+                    1 -> "am broadcast -a $fullAction -p$pkg"
+                    else -> "Action: $fullAction\nPackage:$pkg\nTarget: Broadcast Receiver"
+                }
+
+                // Action Dropdown
+                OutlinedButton(onClick = { expandedDropdown = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Action: $selectedAction", fontSize = 12.sp)
+                }
+                DropdownMenu(expanded = expandedDropdown, onDismissRequest = { expandedDropdown = false }) {
+                    actions.forEach { action ->
+                        DropdownMenuItem(text = { Text(action, fontSize = 12.sp) }, onClick = { 
+                            selectedAction = action
+                            expandedDropdown = false 
+                        })
+                    }
+                }
+
+                // Tabs
+                val tabs = listOf("ADB (PC)", "Shizuku/Shell", "Tasker")
+                TabRow(selectedTabIndex = selectedTab, containerColor = Color.Transparent) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title, fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                // Command Box & Copy
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
+                        Text(text = commandText, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Command", commandText))
+                            Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+
+                if (selectedTab == 1) {
+                    val shizukuInstructionText = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        "Shizuku can be started with Wireless debugging (needs Wi-Fi), no PC needed after pairing, and again after every reboot."
+                    } else {
+                        "Wireless debugging is not available. Shizuku must be started from a PC with ADB, and again after every reboot."
+                    }
+                    Text(
+                        text = shizukuInstructionText,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
                 }
             }
         }

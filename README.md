@@ -14,9 +14,13 @@ Lightspeed's Central Command provides a polished portal for configuring navigati
 
 ## 📥 Download
 
-- **Orion Store users:** [open Lightspeed in Orion](https://rookieenough.github.io/Orion-Data/redirect.html?id=lightspeed). This link opens inside the Orion Store app, so the app must be installed.
-- **Obtainium users:** add `https://github.com/SBFlabs/Lightspeed` as a source in [Obtainium](https://github.com/ImranR98/Obtainium) to install and receive updates straight from GitHub Releases.
-- **Everyone else:** download the APK from [GitHub Releases](https://github.com/SBFlabs/Lightspeed/releases).
+[![Download Latest APK](https://img.shields.io/github/downloads/SBFlabs/Lightspeed/total?style=for-the-badge&logo=github&logoColor=white&label=Download%20APK&color=238636)](https://github.com/SBFlabs/Lightspeed/releases/latest)
+[![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
+
+> [!TIP]
+> **Obtainium users:** Tapping **Add to Obtainium** on your device automatically imports Lightspeed pre-configured with **pre-releases disabled** (stable releases only). Every release published includes an official SHA-256 checksum in the release notes for cryptographic verification. If the button doesn't open Obtainium, add https://github.com/SBFlabs/Lightspeed manually under Add App.
+
+> **Also available on:** [ShizuStore](https://shizustore.com/apps/lightspeed) · [Orion Store](https://rookieenough.github.io/Orion-Data/redirect.html?id=lightspeed) (the Orion link opens inside the Orion Store app, so the app must be installed).
 
 # 🚀 One Launch Pad, Three Workstations
 
@@ -37,7 +41,7 @@ To cancel the gesture at any point, swipe your finger back to the **Astrogation 
 <br>
 
 <p align="center">
-  <img src="screenshot_2.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_drawer.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
 </p>
 
 <p align="center"><sub>🌠 <em>Category Cruise — kinetic app browsing with live icon grid</em></sub></p>
@@ -61,7 +65,7 @@ The Action Selection Menu also features Lightspeed's distinctive take on an inde
 <br>
 
 <p align="center">
-  <img src="screenshot_1.jpg" alt="Cockpit Hangar — dual orbital gear rings with tactile controls" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_cockpit.jpg" alt="Cockpit Hangar — dual orbital gear rings with tactile controls" width="320" />
 </p>
 
 <p align="center"><sub>⚙️ <em>Cockpit Hangar — dual orbital gear rings with full tactile eject, rotate &amp; edit controls</em></sub></p>
@@ -73,7 +77,7 @@ Central Command can be accessed directly by tapping the **Lightspeed app icon**,
 <br>
 
 <p align="center">
-  <img src="screenshot_3.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_command.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
 </p>
 
 <p align="center"><sub>🛰️ <em>Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault</em></sub></p>
@@ -198,7 +202,7 @@ Among other things, Shizuku enables:
 
 - **Previous App Switching** — Switch directly between recent applications without passing through the launcher's **recent apps menu**.
 - **Graceful Task Closer** — Close the active application through a graceful task-removal mechanism rather than relying on the OEM's recent-apps gesture. This distinction matters on heavily customized Android systems where swiping an application away from the recent apps menu may be interpreted as a **force stop**. Graceful Task Closer is intended to avoid that behavior where possible, which can be particularly useful for applications such as Termux that may otherwise be disrupted by aggressive OEM task-management behavior. The implementation is still **not 100% bulletproof against OEM task killing or other system-level process management**.
-- **Split Screen, Freeform & OEM-Specific Pop-Up Windows** — Launch supported applications into split-screen, freeform, or OEM-specific pop-up windows, where supported by your device and its Android/OEM implementation.
+- **Split Screen, Freeform & OEM-Specific Pop-Up Windows** — Launch supported applications into split-screen, freeform, or OEM-specific pop-up windows, where supported by your device and its Android/OEM implementation. Split screen is still experimental and may behave differently across devices and Android versions.
 - **Lightspeed First-Time Onboarding** — Assist with enabling Lightspeed's Accessibility Service and completing its initial setup without requiring the user to manually navigate through multiple Android settings screens.
 - **Action Selection Menu App Discovery** — Deep activities and "create shortcut" entries are discovered without Shizuku. Home-screen launcher shortcuts and dynamic app shortcuts are normally only exposed by Android to the default launcher, so Lightspeed asks Android directly first and uses Shizuku to fill the gap.
 
@@ -225,6 +229,27 @@ The following permissions are declared by Lightspeed but do not require a separa
 
 ---
 
+## ⚡ External Automation
+
+Lightspeed supports external automation via broadcast intents (Tasker, MacroDroid, ADB, etc.).
+
+### Opt-In Setting
+External automation is disabled by default. To allow external apps and ADB to send commands, enable the toggle:
+- **Central Command → Experimental Labs → Allow external automation (Tasker, MacroDroid, ADB)**
+
+### Supported Broadcast Actions
+- `com.sbf.lightspeed.action.TOGGLE_FLIGHT_MODE`
+- `com.sbf.lightspeed.action.SET_FLIGHT_MODE`
+- `com.sbf.lightspeed.action.TOGGLE_DEFLECTORS`
+- `com.sbf.lightspeed.action.TOGGLE_LEFT_DEFLECTOR`
+- `com.sbf.lightspeed.action.TOGGLE_RIGHT_DEFLECTOR`
+- `com.sbf.lightspeed.action.SET_DEFLECTOR`
+- `com.sbf.lightspeed.action.GRAVITY_OVERRIDE_360`
+- `com.sbf.lightspeed.action.TOGGLE_AUTO_ROTATE`
+- `com.sbf.lightspeed.action.RESET_GRAVITY`
+
+---
+
 ## 🛠️ Architecture & AI Development Notice
 
 Lightspeed is built as a modular Android application, with its gesture system, configuration interface, action mapping, watchdogs, and experimental features separated into distinct components.
@@ -239,7 +264,7 @@ Lightspeed has been developed with substantial assistance from modern AI tools. 
 
 Different models are used for different parts of the development process:
 
-- **Claude 4.6** — primarily used for **refactoring plans, feature planning, and architectural planning**, helping analyze the structure of the project and determine how larger changes should be approached.
+- **Claude Sonnet 4.6 and Claude Sonnet 5.5** — primarily used for **refactoring plans, feature planning, and architectural planning**, helping analyze the structure of the project and determine how larger changes should be approached.
 - **Gemini Flash 3.6 through 3.8** — primarily used for **execution**, including implementing planned features, modifying code, and carrying out development tasks based on the architectural direction. It is also frequently used on its own for **small bug fixes and straightforward feature implementations** that do not require the larger planning models.
 - **Gemini Pro 3.1** — used occasionally, and generally as a fallback, for **feature planning, refactoring plans, and architectural planning** when the primary planning-model quota is unavailable or exhausted.
 

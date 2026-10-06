@@ -14,6 +14,7 @@ import android.os.HandlerThread
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,26 @@ object LightspeedBackTapEngine : SensorEventListener {
     private var isScreenOn = true
     private var isBatteryLowOrPowerSave = false
     private var currentBatteryLevel = 100
+
+    /**
+     * Read-only property returning whether the device supports TYPE_LINEAR_ACCELERATION sensor.
+     */
+    val isSupported: Boolean
+        get() {
+            if (linearAccelSensor != null) return true
+            val ctx = appContext ?: return false
+            val sm = sensorManager ?: (ctx.getSystemService(Context.SENSOR_SERVICE) as? SensorManager)
+            return sm?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null
+        }
+
+    fun isSupported(context: Context): Boolean {
+        if (appContext == null) {
+            appContext = context.applicationContext
+            sensorManager = appContext?.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+            linearAccelSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+        }
+        return isSupported
+    }
 
     private val tapTimestamps = mutableListOf<Long>()
     private var pendingDoubleTapJob: Job? = null
@@ -101,7 +122,7 @@ object LightspeedBackTapEngine : SensorEventListener {
         try {
             wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Lightspeed:BackTapWakeLock")
             wakeLock?.setReferenceCounted(false)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "init:104", e) }
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
@@ -110,8 +131,8 @@ object LightspeedBackTapEngine : SensorEventListener {
             addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
         }
         try {
-            appContext?.registerReceiver(stateReceiver, filter)
-        } catch (_: Exception) {}
+            appContext?.let { ContextCompat.registerReceiver(it, stateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED) }
+        } catch (e: Exception) { logSwallowed(TAG, "registerReceiver", e) }
 
         isScreenOn = powerManager?.isInteractive ?: true
         checkFailsafeStatus()
@@ -230,7 +251,7 @@ object LightspeedBackTapEngine : SensorEventListener {
                     wakeLock?.acquire(30 * 60 * 1000L) // 30-minute safety cap (was 2 hours)
                     Log.d(TAG, "Acquired partial wakelock for screen-off back tap (30m cap)")
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "startMonitoring:233", e) }
         } else {
             releaseWakeLock()
         }
@@ -240,7 +261,7 @@ object LightspeedBackTapEngine : SensorEventListener {
         if (isSensorRegistered) {
             try {
                 sensorManager?.unregisterListener(this)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedBackTapEngine", "stopMonitoring:264", e) }
             isSensorRegistered = false
             Log.d(TAG, "Back Tap sensor unregistered")
         }
@@ -259,7 +280,7 @@ object LightspeedBackTapEngine : SensorEventListener {
                 wakeLock?.release()
                 Log.d(TAG, "Released partial wakelock")
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "releaseWakeLock:262", e) }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -367,7 +388,7 @@ object LightspeedBackTapEngine : SensorEventListener {
         stopMonitoring()
         try {
             appContext?.unregisterReceiver(stateReceiver)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedBackTapEngine", "destroy:391", e) }
         appContext = null
         sensorManager = null
         linearAccelSensor = null

@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import com.sbf.lightspeed.system.defaultPrefs
@@ -74,7 +75,7 @@ class CockpitDialogActivity : ComponentActivity() {
         if (setIndex >= 0) {
             try {
                 LightspeedAccessibilityService.instance?.reopenCockpitHangar(setIndex)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("CockpitDialogActivity", "onDestroy:77", e) }
         }
     }
 
@@ -872,7 +873,7 @@ fun DeepActivityWarningContent(
                     }
                     try {
                         com.sbf.lightspeed.system.ActionDispatcher.executeDirect(context, token)
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { logSwallowed("CockpitDialogActivity", "DeepActivityWarningContent:875", e) }
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(

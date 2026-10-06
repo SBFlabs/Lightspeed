@@ -34,58 +34,10 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextOverflow
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.logSwallowed
 import kotlin.math.roundToInt
 
 
-
-@Composable
-fun ThreeWayTacticalSelector(
-    title: String,
-    subtitle: String,
-    selectedMode: String,
-    onSelect: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
-        Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.9f))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(alpha = 0.06f))
-                .padding(3.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            val options = listOf(
-                "left" to "◂ CLONE LEFT",
-                "independent" to "◈ INDEPENDENT",
-                "right" to "CLONE RIGHT ▸"
-            )
-
-            options.forEach { (modeKey, modeTitle) ->
-                val isSelected = selectedMode == modeKey
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
-                        .clickable { onSelect(modeKey) }
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = modeTitle,
-                        fontSize = 10.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.7f),
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun GestureMappingRow(
@@ -98,6 +50,8 @@ fun GestureMappingRow(
     options: List<String>,
     labelCache: Map<String, String>,
     showMediaQuickAccess: Boolean = false,
+    showToolsQuickAccess: Boolean = false,
+    installedTools: List<com.sbf.lightspeed.system.TacticalToolItem> = emptyList(),
     badgeText: String? = null,
     customLeading: (@Composable () -> Unit)? = null,
     showMooringRope: Boolean = false,
@@ -148,6 +102,7 @@ fun GestureMappingRow(
                 currentRawValue == "system:gravity_override_landscape"
 
         val hasControls = showMediaQuickAccess ||
+                showToolsQuickAccess ||
                 isHold ||
                 isOrientationAction ||
                 (gravityBucket != null) ||
@@ -415,7 +370,7 @@ fun GestureMappingRow(
                                             editor.putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_GESTURE_HOLD_DURATION_MS, finalVal)
                                         }
                                         editor.apply()
-                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:373", e) }
                                         showHoldDialog = false
                                     }
                                 ) {
@@ -533,7 +488,7 @@ fun GestureMappingRow(
                                         currentBehavior = modeKey
                                         com.sbf.lightspeed.system.LightspeedPreferences.setActionBehavior(context, currentRawValue, modeKey)
                                         com.sbf.lightspeed.settings.LightspeedActionRegistry.labelCache[currentRawValue] = resolveDynamicTokenLabel(context, currentRawValue)
-                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:491", e) }
                                         showModeMenu = false
                                     }
                                 )
@@ -568,7 +523,7 @@ fun GestureMappingRow(
                             .alpha(if (isGravityEnabled) 1f else 0.45f)
                             .clickable {
                                 if (!isGravityEnabled) {
-                                    Toast.makeText(context, "Synthetic Gravity is disabled in Experimental Labs", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Synthetic Gravity Engine is disabled", Toast.LENGTH_SHORT).show()
                                 } else {
                                     showAttitudeSheet = true
                                 }
@@ -606,7 +561,7 @@ fun GestureMappingRow(
                             onDismiss = { showAttitudeSheet = false },
                             onUpdated = {
                                 assignedAppsCount = prefs.getStringSet(gravityBucket.prefKey, emptySet())?.size ?: 0
-                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:564", e) }
                             }
                         )
                     }
@@ -680,8 +635,114 @@ fun GestureMappingRow(
                                     onClick = {
                                         currentRawValue = token
                                         prefs.edit().putString(key, token).apply()
-                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:638", e) }
                                         showMediaQuickMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 1.5. Quick Actions Dropdown Menu (Tactical Tools / Shortcuts)
+                if (showToolsQuickAccess && installedTools.isNotEmpty()) {
+                    var showToolsQuickMenu by remember { mutableStateOf(false) }
+
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (currentRawValue.startsWith("system:") || currentRawValue.startsWith("app:") || currentRawValue.startsWith("shortcut:")) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                            },
+                            modifier = Modifier.clickable { showToolsQuickMenu = true }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Bolt,
+                                    contentDescription = "Actions Menu",
+                                    tint = if (currentRawValue.startsWith("system:") || currentRawValue.startsWith("app:") || currentRawValue.startsWith("shortcut:")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Actions ▾",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (currentRawValue.startsWith("system:") || currentRawValue.startsWith("app:") || currentRawValue.startsWith("shortcut:")) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showToolsQuickMenu,
+                            onDismissRequest = { showToolsQuickMenu = false },
+                            modifier = Modifier
+                                .background(Color(0xF012141A))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color(0xF012141A)
+                        ) {
+                            var currentCategory = ""
+                            installedTools.forEach { tool ->
+                                if (tool.category != currentCategory) {
+                                    currentCategory = tool.category
+                                    DropdownMenuItem(
+                                        modifier = Modifier.heightIn(min = 36.dp),
+                                        text = {
+                                            Text(
+                                                text = currentCategory.uppercase(java.util.Locale.US),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        },
+                                        onClick = {},
+                                        enabled = false
+                                    )
+                                }
+                                val isSelected = (currentRawValue == tool.token)
+                                DropdownMenuItem(
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                    leadingIcon = {
+                                        val icon = when (tool.token) {
+                                            "system:torch", "system:flashlight" -> Icons.Default.FlashlightOn
+                                            "system:tactical_flyout" -> Icons.Default.Dashboard
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_CHATGPT -> Icons.Default.AutoAwesome
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_CLAUDE -> Icons.Default.Psychology
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_GEMINI -> Icons.Default.Stars
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_FOLAX -> Icons.Default.Assistant
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_LENS -> Icons.Default.CenterFocusStrong
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_QR_SCANNER -> Icons.Default.QrCodeScanner
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_CAMERA_PHOTO -> Icons.Default.CameraAlt
+                                            com.sbf.lightspeed.system.LightspeedPreferences.ACTION_CAMERA_VIDEO -> Icons.Default.Videocam
+                                            else -> Icons.Default.Widgets
+                                        }
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    text = {
+                                        Text(
+                                            text = tool.label,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White
+                                        )
+                                    },
+                                    onClick = {
+                                        showToolsQuickMenu = false
+                                        currentRawValue = tool.token
+                                        prefs.edit().putString(key, tool.token).apply()
+                                        com.sbf.lightspeed.system.LightspeedHapticEngine.tick(context)
+                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:745", e) }
                                     }
                                 )
                             }
@@ -711,7 +772,7 @@ fun GestureMappingRow(
                             modifier = Modifier.clickable {
                                 hudEnabled = !hudEnabled
                                 prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, hudEnabled).apply()
-                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:775", e) }
                             }
                         ) {
                             Text(
@@ -821,7 +882,7 @@ fun GestureMappingRow(
                                                 .putInt(brightKey, finalRes)
                                                 .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, derivedStep)
                                                 .apply()
-                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:885", e) }
                                             showBrightSliderDialog = false
                                         }
                                     ) {
@@ -885,7 +946,7 @@ fun GestureMappingRow(
                             modifier = Modifier.clickable {
                                 hudEnabled = !hudEnabled
                                 prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, hudEnabled).apply()
-                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:949", e) }
                             }
                         ) {
                             Text(
@@ -903,7 +964,7 @@ fun GestureMappingRow(
                             modifier = Modifier.clickable {
                                 nativeSliderEnabled = !nativeSliderEnabled
                                 prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, nativeSliderEnabled).apply()
-                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:967", e) }
                             }
                         ) {
                             Text(
@@ -1014,7 +1075,7 @@ fun GestureMappingRow(
                                                 .putInt(volKey, finalRes)
                                                 .putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, derivedStep)
                                                 .apply()
-                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:1078", e) }
                                             showVolSliderDialog = false
                                         }
                                     ) {
@@ -1123,7 +1184,7 @@ fun GestureMappingRow(
                                     onClick = {
                                         hudStyle = styleKey
                                         com.sbf.lightspeed.system.LightspeedPreferences.saveHudStyle(prefs, key, currentRawValue, styleKey)
-                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:1187", e) }
                                         showHudMenu = false
                                     }
                                 )
@@ -1174,7 +1235,7 @@ fun GestureMappingRow(
                                     onClick = {
                                         currentSkipSec = sec
                                         prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
-                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                        try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:1238", e) }
                                         showSkipMenu = false
                                     }
                                 )
@@ -1211,7 +1272,7 @@ fun GestureMappingRow(
                             onClick = {
                                 currentRawValue = opt
                                 prefs.edit().putString(key, opt).apply()
-                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (_: Exception) {}
+                                try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:1275", e) }
                                 showScrubMenu = false
                             }
                         )

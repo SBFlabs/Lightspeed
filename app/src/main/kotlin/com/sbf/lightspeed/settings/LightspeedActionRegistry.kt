@@ -15,6 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedIconManager
+import com.sbf.lightspeed.system.readTextOrKill
+import com.sbf.lightspeed.system.logSwallowed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -48,6 +50,7 @@ object LightspeedActionRegistry {
         "system:flashlight",
         "system:screenshot",
         "system:lock_screen",
+        "system:power_menu",
         "system:notifications",
         "system:quick_settings",
         "system:scroll_to_top",
@@ -77,6 +80,7 @@ object LightspeedActionRegistry {
         "system:core_cooling",
         "system:perimeter_watchdog",
         "system:core_watchdog",
+        "system:battery_exemption",
         "system:central_command",
         "system:omniscient_audio"
     )
@@ -101,7 +105,7 @@ object LightspeedActionRegistry {
                     labelCache[appToken] = appLabel
                 }
                 allTokens.addAll(appTokens.distinct())
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedActionRegistry.kt", "initializeSync:108", e) }
         }
     }
 
@@ -120,8 +124,7 @@ object LightspeedActionRegistry {
                 try {
                     val proc = ElevatedTaskCloser.execShizuku("dumpsys shortcut")
                     if (proc != null) {
-                        val output = proc.inputStream.bufferedReader().readText()
-                        proc.waitFor()
+                        val output = proc.readTextOrKill(10000L).orEmpty()
 
                         val packageSections = output.split(Regex("""(?m)^\s*Package:\s*""")).drop(1)
                         val idRegex = Regex("""id=([^,\r\n]+)""")
@@ -145,7 +148,7 @@ object LightspeedActionRegistry {
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed("LightspeedActionRegistry.kt", "ensureIndexed:151", e) }
             }
 
             try {
@@ -175,7 +178,7 @@ object LightspeedActionRegistry {
                                 temporaryLabels[activityToken] = displayLabel
                             }
                         }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { logSwallowed("LightspeedActionRegistry.kt", "ensureIndexed:181", e) }
 
                     // 2. ACTION_CREATE_SHORTCUT Plugins
                     try {
@@ -186,7 +189,7 @@ object LightspeedActionRegistry {
                             baseTokens.add(pluginToken)
                             temporaryLabels[pluginToken] = pluginLabel
                         }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { logSwallowed("LightspeedActionRegistry.kt", "ensureIndexed:192", e) }
 
                     // 3. LauncherApps & Shizuku Dynamic / Home Shortcuts (Android 7.1+)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
@@ -205,7 +208,7 @@ object LightspeedActionRegistry {
                                 temporaryLabels[shortcutToken] = displayLabel
                                 existingIds.add(shortcut.id)
                             }
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) { logSwallowed("LightspeedActionRegistry.kt", "ensureIndexed:211", e) }
 
                         // Add pre-parsed Shizuku shortcuts for THIS specific package that were not already found
                         shizukuShortcutsMap[pkg]?.forEach { (shortcutId, label) ->
@@ -252,7 +255,7 @@ object LightspeedActionRegistry {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedActionRegistry.kt", "ensureIndexed:258", e) }
 
             val distinctTokens = baseTokens.distinct()
             withContext(Dispatchers.Main) {
@@ -277,7 +280,8 @@ object LightspeedActionRegistry {
         "ACTION_FLASHLIGHT", "flashlight", "system:torch"      -> "system:flashlight"
         "ACTION_SCREENSHOT", "screenshot"                      -> "system:screenshot"
         "ACTION_LOCK_SCREEN", "lock_screen"                    -> "system:lock_screen"
-        "system:battery_whitelist"                             -> "system:battery_exemption"
+        "ACTION_POWER_MENU", "power_menu"                      -> "system:power_menu"
+        "system:battery_whitelist", "system:battery_exemption", "battery_exemption", "ACTION_BATTERY_EXEMPTION" -> "system:battery_exemption"
         "ACTION_CLOSE_APP", "close_app"                        -> "system:close_app"
         "ACTION_SCROLL_TO_TOP", "scroll_to_top"                -> "system:scroll_to_top"
         "ACTION_HOME", "home"                                  -> "system:home"
@@ -295,7 +299,7 @@ object LightspeedActionRegistry {
         "ACTION_MEDIA_STOP", "media_stop"                      -> "system:media_stop"
         "ACTION_REFUELING_BAY", "refueling_bay"                -> "system:refueling_bay"
         "ACTION_GLOW_DEFLECTORS", "glow_deflectors"            -> "system:glow_deflectors"
-        "system:audio_dock"                                    -> "system:omniscient_audio"
+        "system:audio_dock", "system:sonic_deck"               -> "system:omniscient_audio"
         "ACTION_TACTICAL_FLYOUT", "action_quick_flyout", "system:quick_flyout" -> "system:tactical_flyout"
         "ACTION_LENS", "google_lens"                           -> "system:lens"
         "ACTION_QR_SCANNER", "qr_scanner"                      -> "system:qr_scanner"
@@ -387,6 +391,7 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:flashlight" -> "External Torch"
         token == "system:screenshot" -> "Take Screenshot"
         token == "system:lock_screen" -> "Lock Ship"
+        token == "system:power_menu" -> "Power Menu"
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
@@ -433,8 +438,9 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:core_cooling" || token == "ACTION_CORE_COOLING" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CORE_COOLING)
         token == "system:perimeter_watchdog" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.PERIMETER_DEFENSE)
         token == "system:core_watchdog" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CORE_WATCHDOG)
+        token == "system:battery_exemption" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.BATTERY_EXEMPTION)
         token == "system:central_command" -> "Central Command (Cockpit Deck)"
-        token == "system:omniscient_audio" || token == "system:audio_dock" -> "Omniscient Audio (Multi-App Sound Deck)"
+        token == "system:omniscient_audio" || token == "system:audio_dock" || token == "system:sonic_deck" -> com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SONIC_DECK)
         token.startsWith("app:") -> {
             val pkg = token.removePrefix("app:")
             try {

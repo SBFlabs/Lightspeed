@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.BroadcastReceiver
@@ -45,6 +46,7 @@ import com.sbf.lightspeed.system.defaultPrefs
     internal fun LightspeedAccessibilityService.checkPowerConnectedRefuelingTrigger(prefs: SharedPreferences) {
         val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
         if (trigger == "disabled" || trigger == "screensaver_only") return
+        if (LightspeedRefuelingActivity.isChargingSessionDismissed) return
 
         val rotation = getScreenRotation()
         val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
@@ -72,6 +74,7 @@ import com.sbf.lightspeed.system.defaultPrefs
     internal fun LightspeedAccessibilityService.checkScreenOffRefuelingTrigger(prefs: SharedPreferences) {
         val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
         if (trigger == "disabled" || trigger == "screensaver_only") return
+        if (LightspeedRefuelingActivity.isChargingSessionDismissed) return
 
         val rotation = getScreenRotation()
         val isLandscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270
@@ -105,13 +108,13 @@ import com.sbf.lightspeed.system.defaultPrefs
                 "lightspeed:refueling_wake"
             )
             wl?.acquire(3000L)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityServicePower", "launchRefuelingActivity:110", e) }
 
         val intent = Intent(this, LightspeedRefuelingActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
         }
         try {
             startActivity(intent)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityServicePower", "launchRefuelingActivity:117", e) }
     }
 

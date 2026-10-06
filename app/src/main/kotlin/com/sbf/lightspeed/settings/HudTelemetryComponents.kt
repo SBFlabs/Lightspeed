@@ -114,8 +114,12 @@ fun HudTelemetryIndicatorsSection(
     onShowNotificationAccessDialog: () -> Unit,
     onRefreshNeeded: () -> Unit
 ) {
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+    val (telemetryTitle, telemetrySub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS, currentLanguageMode)
+
     CompactAccordionSection(
-        title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TELEMETRY_AND_INDICATORS),
+        title = telemetryTitle,
+        subtitle = telemetrySub,
         icon = {
             Icon(
                 imageVector = Icons.Outlined.Speed,

@@ -20,15 +20,33 @@ if (hasReleaseKeystore) {
 
 android {
     namespace = "com.sbf.lightspeed"
-    compileSdk = 35
+    compileSdk = 36
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         applicationId = "com.sbf.lightspeed"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.3"
+        versionCode = 4
+        versionName = "1.1.0"
         manifestPlaceholders["appName"] = "Lightspeed"
+
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     if (hasReleaseKeystore) {
@@ -54,12 +72,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
-            // Use production keystore when available; falls back to debug key
-            // so nightly/CI builds don't break before a keystore is provisioned.
-            signingConfig = if (hasReleaseKeystore)
-                signingConfigs.getByName("release")
-            else
-                signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else null
             manifestPlaceholders["appName"] = "Lightspeed"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -76,8 +89,16 @@ android {
     }
 }
 
+tasks.matching { it.name.startsWith("assembleRelease") || it.name.startsWith("bundleRelease") }
+    .configureEach {
+        doFirst {
+            if (!hasReleaseKeystore) throw GradleException(
+                "keystore.properties missing: refusing to build an unsigned/debug-signed release.")
+        }
+    }
+
 dependencies {
-    // Elevated system IPC (Shizuku & compatible forks) - Apache License 2.0 (Zero copyleft)
+    // Elevated system IPC (Shizuku & compatible forks) - MIT License (Zero copyleft)
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
 

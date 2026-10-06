@@ -152,17 +152,20 @@ fun buildFlatItemsList(
                         "system:media_skip_forward",
                         "system:media_skip_backward",
                         "system:media_scrubber",
-                        "system:media_stop"
+                        "system:media_stop",
+                        "system:omniscient_audio"
                     )
                 ),
                 Triple(
                     "sys_tactical",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SHIP_MAINTENANCE),
                     listOf(
+                        "system:power_menu",
                         "system:refueling_bay",
                         "system:core_cooling",
                         "system:perimeter_watchdog",
-                        "system:core_watchdog"
+                        "system:core_watchdog",
+                        "system:battery_exemption"
                     )
                 ),
                 Triple(
@@ -222,6 +225,8 @@ fun buildFlatItemsList(
                                     token == "system:brightness" ||
                                     token == "system:media_skip_forward" ||
                                     token == "system:media_skip_backward" ||
+                                    token == "system:popup_window" ||
+                                    token == "system:freeform" ||
                                     isOrientationAction ||
                                     gravityBucket != null
                             val customKey = "customization:$token"
@@ -275,7 +280,7 @@ fun buildFlatItemsList(
                                     val isGravityEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)
                                     val assignedCount = prefs.getStringSet(gravityBucket.prefKey, emptySet())?.size ?: 0
                                     val subText = if (!isGravityEnabled) {
-                                        "Synthetic Gravity is disabled in Experimental Labs • Actions still trigger on demand"
+                                        "Synthetic Gravity Engine is disabled • Actions still trigger on demand"
                                     } else if (assignedCount == 0) {
                                         "No apps assigned • Tap to choose apps for this orientation bucket"
                                     } else {
@@ -353,7 +358,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive \"liquid glass\" gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive \"glass\" gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )
@@ -455,7 +460,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive \"liquid glass\" gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive \"glass\" gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )
@@ -503,7 +508,7 @@ fun buildFlatItemsList(
                                             parentToken = token,
                                             optionKey = "hud_style:canopy_droppod",
                                             title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive \"liquid glass\" gauge",
+                                            subtitle = "Chamfered visor below status bar with adaptive \"glass\" gauge",
                                             isSelected = currentStyle == "canopy_droppod"
                                         )
                                     )
@@ -541,6 +546,16 @@ fun buildFlatItemsList(
                                             title = "Style: Tachyon Orbital Radar",
                                             subtitle = "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair",
                                             isSelected = currentStyle == "tachyon_dial"
+                                        )
+                                    )
+                                } else if (token == "system:popup_window" || token == "system:freeform") {
+                                    list.add(
+                                        PickerRowItem.SystemCustomizationOption(
+                                            parentToken = token,
+                                            optionKey = "popup_style:native",
+                                            title = "Pop-up: Native Android freeform",
+                                            subtitle = "Standard resizable floating window (long-press for diagnostics)",
+                                            isSelected = true
                                         )
                                     )
                                 }

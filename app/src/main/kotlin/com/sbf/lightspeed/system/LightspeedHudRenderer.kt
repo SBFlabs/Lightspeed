@@ -68,6 +68,13 @@ object LightspeedHudRenderer {
     }
 
     private val chamferedPath = Path()
+    private val canopyCardRect = RectF()
+    private val segRect = RectF()
+    private val trackRect = RectF()
+    private val fillRect = RectF()
+    private val arcRect = RectF()
+    private val ladderCardRect = RectF()
+    private val rungRect = RectF()
 
     /**
      * Executes drawing lambda with a temporary shader, guaranteeing atomic restoration
@@ -284,7 +291,8 @@ object LightspeedHudRenderer {
         val cardW = 316f * d
         val cardH = if (hasGauge) 86f * d else 64f * d
         val chamfer = 10f * d
-        val rect = RectF(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
+        canopyCardRect.set(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
+        val rect = canopyCardRect
         resetSharedPaints()
         drawGlassCard(canvas, rect, chamfer, primaryColor, d, withSpecularShimmer = true)
 
@@ -332,7 +340,7 @@ object LightspeedHudRenderer {
 
                 for (i in 0 until totalSteps) {
                     val segLeft = startX + (i * (segW + segGap))
-                    val segRect = RectF(segLeft, gaugeY, segLeft + segW, gaugeY + segH)
+                    segRect.set(segLeft, gaugeY, segLeft + segW, gaugeY + segH)
                     if (i <= stepIndex) {
                         val isPeak = (i == stepIndex)
                         gaugeFillPaint.color = if (isPeak) primaryColor else Color.argb(195, r, g, b)
@@ -352,7 +360,7 @@ object LightspeedHudRenderer {
                 val trackH = 5.5f * d
                 val trackLeft = cx - (maxGaugeW / 2f)
                 val trackRight = cx + (maxGaugeW / 2f)
-                val trackRect = RectF(trackLeft, gaugeY, trackRight, gaugeY + trackH)
+                trackRect.set(trackLeft, gaugeY, trackRight, gaugeY + trackH)
 
                 gaugeEmptyPaint.color = Color.argb(35, 255, 255, 255)
                 canvas.drawRoundRect(trackRect, 2.5f * d, 2.5f * d, gaugeEmptyPaint)
@@ -360,7 +368,7 @@ object LightspeedHudRenderer {
                 val progress = (stepIndex.toFloat() / (totalSteps - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
                 val fillW = maxGaugeW * progress
                 if (fillW > 0f) {
-                    val fillRect = RectF(trackLeft, gaugeY, trackLeft + fillW, gaugeY + trackH)
+                    fillRect.set(trackLeft, gaugeY, trackLeft + fillW, gaugeY + trackH)
                     // Cached fill gradient — key encodes fillW + color
                     val fillKey = gradKey4f(trackLeft, gaugeY, trackLeft + fillW, gaugeY, primaryColor)
                     if (fillKey != canopyFillKey) {
@@ -441,7 +449,7 @@ object LightspeedHudRenderer {
         if (hasGauge && totalSteps > 1) {
             val startAngle = 140.0
             val sweep = 260.0
-            val arcRect = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+            arcRect.set(cx - radius, cy - radius, cx + radius, cy + radius)
             glassRimPaint.strokeWidth = 1.5f * d
             glassRimPaint.color = Color.argb(60, 255, 255, 255)
             canvas.drawArc(arcRect, 140f, 260f, false, glassRimPaint)
@@ -544,7 +552,8 @@ object LightspeedHudRenderer {
         val cardH = 78f * d
         val chamfer = 8f * d
         val cardX = if (isLeftFlank) (18f * d) else (cx * 2f - cardW - (18f * d))
-        val rect = RectF(cardX, cy - cardH / 2f, cardX + cardW, cy + cardH / 2f)
+        ladderCardRect.set(cardX, cy - cardH / 2f, cardX + cardW, cy + cardH / 2f)
+        val rect = ladderCardRect
         resetSharedPaints()
         drawGlassCard(canvas, rect, chamfer, primaryColor, d, withSpecularShimmer = false, rimWidth = 1.3f)
 
@@ -564,7 +573,7 @@ object LightspeedHudRenderer {
 
                 for (i in 0 until totalSteps) {
                     val rY = startY + (totalSteps - 1 - i) * (rungH + rungGap)
-                    val rungRect = RectF(ladderX, rY, ladderX + rungW, rY + rungH)
+                    rungRect.set(ladderX, rY, ladderX + rungW, rY + rungH)
                     if (i <= stepIndex) {
                         gaugeFillPaint.color = if (i == stepIndex) primaryColor else Color.argb(195, r, g, b)
                         canvas.drawRoundRect(rungRect, 1.5f * d, 1.5f * d, gaugeFillPaint)
@@ -576,7 +585,7 @@ object LightspeedHudRenderer {
             } else {
                 val trackH = cardH - (24f * d)
                 val trackY = cy - (trackH / 2f)
-                val trackRect = RectF(ladderX, trackY, ladderX + rungW, trackY + trackH)
+                trackRect.set(ladderX, trackY, ladderX + rungW, trackY + trackH)
                 gaugeEmptyPaint.color = Color.argb(35, 255, 255, 255)
                 canvas.drawRoundRect(trackRect, rungW / 2f, rungW / 2f, gaugeEmptyPaint)
 
@@ -584,7 +593,7 @@ object LightspeedHudRenderer {
                 val fillH = trackH * fraction
                 if (fillH > 0f) {
                     val fillTop = trackY + trackH - fillH
-                    val fillRect = RectF(ladderX, fillTop, ladderX + rungW, trackY + trackH)
+                    fillRect.set(ladderX, fillTop, ladderX + rungW, trackY + trackH)
                     gaugeFillPaint.color = primaryColor
                     canvas.drawRoundRect(fillRect, rungW / 2f, rungW / 2f, gaugeFillPaint)
 

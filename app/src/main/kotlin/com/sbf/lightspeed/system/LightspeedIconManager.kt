@@ -107,38 +107,6 @@ object LightspeedIconManager {
         loadIconPackAsync(context, iconPackPkg)
     }
 
-    fun getCockpitRenderMode(context: Context): String {
-        val prefs = context.defaultPrefs()
-        return prefs.getString(LightspeedPreferences.KEY_COCKPIT_ICON_RENDER_MODE, "pack_native") ?: "pack_native"
-    }
-
-    fun setCockpitRenderMode(context: Context, mode: String) {
-        val prefs = context.defaultPrefs()
-        prefs.edit().putString(LightspeedPreferences.KEY_COCKPIT_ICON_RENDER_MODE, mode).apply()
-        bitmapCache.evictAll()
-        drawableCache.evictAll()
-    }
-
-    fun getCategoryCruiseIconPack(context: Context): String {
-        val prefs = context.defaultPrefs()
-        return prefs.getString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_PACK, "system") ?: "system"
-    }
-
-    fun setCategoryCruiseIconPack(context: Context, iconPackPkg: String) {
-        val prefs = context.defaultPrefs()
-        prefs.edit().putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_PACK, iconPackPkg).apply()
-    }
-
-    fun getCategoryCruiseIconStyle(context: Context): String {
-        val prefs = context.defaultPrefs()
-        return prefs.getString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_STYLE, "default") ?: "default"
-    }
-
-    fun setCategoryCruiseIconStyle(context: Context, style: String) {
-        val prefs = context.defaultPrefs()
-        prefs.edit().putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_STYLE, style).apply()
-    }
-
     fun clearCache() {
         managerScope.cancel()
         managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -192,14 +160,14 @@ object LightspeedIconManager {
                     isPackLoaded = true
                     return
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "loadIconPackSync:163", e) }
 
             try {
                 inputStream = iconPackRes.assets.open("appfilter.xml")
             } catch (_: Exception) {
                 try {
                     inputStream = iconPackRes.assets.open("appfilter_full.xml")
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed(TAG, "loadIconPackSync:170", e) }
             }
 
             if (inputStream != null) {
@@ -297,7 +265,7 @@ object LightspeedIconManager {
         drawableCache.remove(token)
         try {
             File(context.filesDir, "shortcut_icons/${token.hashCode()}.png").delete()
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "clearManualOverride:268", e) }
     }
 
     private fun loadCustomShortcutBitmap(context: Context, token: String): Bitmap? {
@@ -323,7 +291,7 @@ object LightspeedIconManager {
                     return bmp
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed(TAG, "loadCustomShortcutBitmap:294", e) }
         return null
     }
 
@@ -357,8 +325,7 @@ object LightspeedIconManager {
                         onLoaded()
                     }
                 }
-            } catch (_: Exception) {
-            } finally {
+            } catch (e: Exception) { logSwallowed(TAG, "loadIconAsync:328", e) } finally {
                 pendingLoads.remove(tokenOrPkg)
             }
         }
@@ -396,11 +363,13 @@ object LightspeedIconManager {
                 "system:flashlight" -> com.sbf.lightspeed.R.drawable.ic_flashlight
                 "system:screenshot" -> com.sbf.lightspeed.R.drawable.ic_screenshot
                 "system:lock_screen" -> com.sbf.lightspeed.R.drawable.ic_lock
+                "system:power_menu" -> com.sbf.lightspeed.R.drawable.ic_lock
                 "system:media_play_pause" -> com.sbf.lightspeed.R.drawable.ic_play_arrow
                 "system:media_next" -> com.sbf.lightspeed.R.drawable.ic_skip_next
                 "system:media_prev" -> com.sbf.lightspeed.R.drawable.ic_skip_previous
                 "system:core_cooling" -> com.sbf.lightspeed.R.drawable.ic_power
                 "system:refueling_bay" -> com.sbf.lightspeed.R.drawable.ic_beacon_sparkle
+                "system:battery_exemption" -> com.sbf.lightspeed.R.drawable.ic_power
                 else -> null
             }
             if (resId != null) {
@@ -486,7 +455,7 @@ object LightspeedIconManager {
                 if (resolveInfo != null) {
                     rawDrawable = resolveInfo.loadIcon(pm)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "getIconDrawable:458", e) }
 
             // B. Secondary: getLaunchIntentForPackage (covers apps with no CATEGORY_LAUNCHER alias)
             if (rawDrawable == null) {
@@ -494,7 +463,7 @@ object LightspeedIconManager {
                 if (launchIntent?.component != null) {
                     try {
                         rawDrawable = pm.getActivityIcon(launchIntent.component!!)
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { logSwallowed(TAG, "getIconDrawable:466", e) }
                 }
             }
 
@@ -548,7 +517,7 @@ object LightspeedIconManager {
                         eventType = parser.next()
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed(TAG, "getIconPackDrawableNames:520", e) }
 
             // 2. Try reading appfilter.xml
             if (drawables.isEmpty()) {
@@ -566,7 +535,7 @@ object LightspeedIconManager {
                             eventType = parser.next()
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) { logSwallowed(TAG, "getIconPackDrawableNames:538", e) }
 
                 if (drawables.isEmpty()) {
                     try {
@@ -574,7 +543,7 @@ object LightspeedIconManager {
                     } catch (_: Exception) {
                         try {
                             inputStream = iconPackRes.assets.open("appfilter_full.xml")
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) { logSwallowed(TAG, "getIconPackDrawableNames:546", e) }
                     }
                     if (inputStream != null) {
                         val factory = XmlPullParserFactory.newInstance()

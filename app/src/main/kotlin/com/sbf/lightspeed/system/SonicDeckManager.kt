@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.graphics.PixelFormat
 import android.media.AudioManager
 import android.os.Build
@@ -65,12 +66,13 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
 
-object OmniscientAudioDockManager {
+object SonicDeckManager {
     private var serviceRef: WeakReference<AccessibilityService>? = null
     private var composeView: ComposeView? = null
     private var windowManager: WindowManager? = null
@@ -79,8 +81,6 @@ object OmniscientAudioDockManager {
 
     // State flows
     private val masterVolumeState = mutableFloatStateOf(0f)
-
-    fun isShowing(): Boolean = composeView != null
 
     fun show(service: AccessibilityService) {
         if (composeView != null) return
@@ -96,7 +96,7 @@ object OmniscientAudioDockManager {
                     isVisible = true
                 }
                 
-                OmniscientAudioDockContent(
+                SonicDeckContent(
                     service = service,
                     isVisible = isVisible,
                     onDismiss = {
@@ -113,17 +113,27 @@ object OmniscientAudioDockManager {
         lifecycleOwner?.onStart()
         lifecycleOwner?.onResume()
 
+        @Suppress("DEPRECATION")
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or 
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
             WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+            WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.CENTER
+            dimAmount = 0.5f
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
                 blurBehindRadius = 120
@@ -170,14 +180,14 @@ object OmniscientAudioDockManager {
                 }
             }
         }
-        service.registerReceiver(volumeReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"))
+        ContextCompat.registerReceiver(service, volumeReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     fun dismiss(context: Context? = null) {
         val ctx = context ?: serviceRef?.get()
         // Unregister the volume receiver first
         volumeReceiver?.let {
-            try { ctx?.unregisterReceiver(it) } catch (e: Exception) {}
+            try { ctx?.unregisterReceiver(it) } catch (e: Exception) { logSwallowed("OmniscientAudioDockManager", "dismiss:189", e) }
             volumeReceiver = null
         }
         composeView?.let { view ->
@@ -188,18 +198,12 @@ object OmniscientAudioDockManager {
             lifecycleOwner = null
             // Clear content to dispose the composition and release all Composable-held state
             view.setContent {}
-            try { windowManager?.removeView(view) } catch (e: Exception) {}
+            try { windowManager?.removeView(view) } catch (e: Exception) { logSwallowed("OmniscientAudioDockManager", "dismiss:199", e) }
             composeView = null
         }
         windowManager = null
         serviceRef?.clear()
         serviceRef = null
-    }
-
-    
-
-    private fun triggerHaptic(context: Context) {
-        LightspeedHapticEngine.vibrate(context, 18, 120)
     }
 
     private fun getPinnedApps(context: Context): Set<String> {
@@ -246,15 +250,13 @@ object OmniscientAudioDockManager {
                         pkgs.addAll(packages)
                     }
                 }
-            } catch (e: Exception) {
-                // Ignore
-            }
+            } catch (e: Exception) { logSwallowed("OmniscientAudioDockManager", "getRawActiveAudioPackages:251", e) }
         }
         return pkgs.distinct()
     }
 
     @Composable
-    private fun OmniscientAudioDockContent(service: Context, isVisible: Boolean, onDismiss: () -> Unit) {
+    private fun SonicDeckContent(service: Context, isVisible: Boolean, onDismiss: () -> Unit) {
         val audioManager = service.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val pm = service.packageManager
         val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat() }
@@ -306,7 +308,7 @@ object OmniscientAudioDockManager {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.3f))
+                .background(Color.Transparent)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -344,13 +346,12 @@ object OmniscientAudioDockManager {
                     ) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "OMNISCIENT AUDIO",
+                                text = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SONIC_DECK).uppercase(),
                                 color = Color.White,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
                                 letterSpacing = 4.sp
                             )
-
                         }
                         
                         Spacer(modifier = Modifier.height(36.dp))
@@ -405,7 +406,7 @@ object OmniscientAudioDockManager {
                                 val pinnedSet = remember(refreshTrigger) { getPinnedApps(service) }
                                 activeAppsList.forEach { app ->
                                     androidx.compose.runtime.key(app.pkg) {
-                                        AppVolumeRow(service, app.pkg, app.name, app.icon, 0.8f, app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
+                                        AppVolumeRow(service, app.pkg, app.name, app.icon, LightspeedAppSovereigntyEngine.getAppVolume(app.pkg), app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
                                             if (isPinned) addPinnedApp(service, app.pkg) else removePinnedApp(service, app.pkg)
                                             refreshTrigger++
                                         }
@@ -490,9 +491,10 @@ fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.Ima
                 androidx.compose.foundation.lazy.LazyColumn {
                     items(installedApps.size) { i ->
                         val app = installedApps[i]
+                        val context = androidx.compose.ui.platform.LocalContext.current
                         Row(modifier = Modifier.fillMaxWidth().clickable { onAppSelected(app.pkg) }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             val bmp = remember(app.icon) {
-                                val d = app.icon!!
+                                val d = app.icon ?: context.packageManager.defaultActivityIcon
                                 if (d is android.graphics.drawable.BitmapDrawable && d.bitmap != null) d.bitmap else {
                                     val b = android.graphics.Bitmap.createBitmap(if (d.intrinsicWidth>0) d.intrinsicWidth.coerceAtMost(144) else 1, if (d.intrinsicHeight>0) d.intrinsicHeight.coerceAtMost(144) else 1, android.graphics.Bitmap.Config.ARGB_8888)
                                     val c = android.graphics.Canvas(b)
@@ -521,12 +523,23 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
     var isMuted by remember { mutableStateOf(false) }
     var stateLoaded by remember { mutableStateOf(false) }
 
+    val volumeChannel = remember(pkg) { Channel<Float>(Channel.CONFLATED) }
+
+    LaunchedEffect(pkg) {
+        for (newVol in volumeChannel) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                LightspeedAppSovereigntyEngine.setAppVolume(pkg, newVol, context)
+            }
+        }
+    }
+
     LaunchedEffect(pkg) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             focusLocked = LightspeedAppSovereigntyEngine.isAudioFocusLocked(pkg)
             val muted = LightspeedAppSovereigntyEngine.isAppMuted(pkg)
+            val currentVol = LightspeedAppSovereigntyEngine.getAppVolume(pkg)
             isMuted = muted
-            vol = if (muted) 0f else 1f
+            vol = if (muted) 0f else currentVol
             stateLoaded = true
         }
     }
@@ -624,8 +637,13 @@ fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: andr
                     onValueChange = { newVol ->
                         vol = newVol
                         isMuted = newVol <= 0.05f
+                        volumeChannel.trySend(newVol)
+                    },
+                    onValueChangeFinished = {
+                        volumeChannel.trySend(vol)
                         coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            LightspeedAppSovereigntyEngine.setAppVolume(pkg, newVol, context)
+                            LightspeedAppSovereigntyEngine.setAppVolume(pkg, vol, context)
+                            LightspeedAppSovereigntyEngine.syncTranssionZeroSound(pkg, vol <= 0.05f)
                         }
                     },
                     valueRange = 0f..1f,

@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
 import android.os.Build
+import androidx.core.content.ContextCompat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -40,6 +41,9 @@ class LightspeedDataBridge(private val context: Context) {
     private val appCache = ConcurrentHashMap<String, List<LaunchTarget>>()
     
     private val executor = Executors.newSingleThreadExecutor()
+
+    @Volatile
+    private var packageReceiver: BroadcastReceiver? = null
 
     init {
         // Pre-populate with default categories immediately so cold start has zero delay
@@ -91,17 +95,20 @@ class LightspeedDataBridge(private val context: Context) {
     }
 
     private fun registerPackageReceiver() {
+        if (packageReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                refreshCacheAsync()
+            }
+        }
+        packageReceiver = receiver
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
             addAction(Intent.ACTION_PACKAGE_REMOVED)
             addAction(Intent.ACTION_PACKAGE_REPLACED)
             addDataScheme("package")
         }
-        context.registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                refreshCacheAsync()
-            }
-        }, filter)
+        ContextCompat.registerReceiver(context.applicationContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     private fun classifyApp(appInfo: ApplicationInfo, pkg: String, label: String): String {

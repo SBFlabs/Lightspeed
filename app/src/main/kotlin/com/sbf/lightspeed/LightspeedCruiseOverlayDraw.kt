@@ -1,4 +1,5 @@
 package com.sbf.lightspeed
+import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.LightspeedPreferences
 import android.accessibilityservice.AccessibilityService
 import android.animation.Animator
@@ -295,7 +296,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                                 postInvalidate()
                             }
                         }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { logSwallowed("LightspeedCruiseOverlayDraw", "handleDraw:298", e) }
                 }
             }
 

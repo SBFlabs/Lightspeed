@@ -1,7 +1,9 @@
 package com.sbf.lightspeed.settings
 
 import com.sbf.lightspeed.system.safeReloadPreferences
+import com.sbf.lightspeed.system.logSwallowed
 
+import android.content.Intent
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
@@ -46,7 +48,7 @@ class CentralCommandActivity : ComponentActivity() {
         try {
             Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
             Shizuku.addRequestPermissionResultListener(permissionResultListener)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("CentralCommandActivity", "onCreate:50", e) }
 
         checkAndRequestShizuku()
 
@@ -81,6 +83,11 @@ class CentralCommandActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
     override fun onResume() {
         super.onResume()
         isActive = true
@@ -111,7 +118,7 @@ class CentralCommandActivity : ComponentActivity() {
         try {
             Shizuku.removeBinderReceivedListener(binderReceivedListener)
             Shizuku.removeRequestPermissionResultListener(permissionResultListener)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("CentralCommandActivity", "onDestroy:120", e) }
         com.sbf.lightspeed.system.LightspeedIconManager.temporaryPickerCache.clear()
         com.sbf.lightspeed.system.LightspeedShortcutManager.temporaryPickerCache.clear()
         isActive = false
@@ -126,7 +133,7 @@ class CentralCommandActivity : ComponentActivity() {
                     autoReviveServiceIfShizukuAvailable()
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { logSwallowed("CentralCommandActivity", "checkAndRequestShizuku:135", e) }
     }
 
     private fun autoReviveServiceIfShizukuAvailable() {

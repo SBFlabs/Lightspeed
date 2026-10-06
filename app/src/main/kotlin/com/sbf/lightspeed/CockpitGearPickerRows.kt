@@ -782,6 +782,7 @@ fun PickerSubHeaderRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PickerShortcutActionRow(
     item: PickerRowItem.ShortcutAction,
@@ -789,7 +790,8 @@ fun PickerShortcutActionRow(
     context: Context,
     dynamicPrimary: Color,
     onSelect: () -> Unit,
-    onLaunchWizard: () -> Unit
+    onLaunchWizard: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -805,9 +807,12 @@ fun PickerShortcutActionRow(
                 color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.05f),
                 shape = RoundedCornerShape(10.dp)
             )
-            .clickable {
-                if (item.isPlugin && !isChecked) onLaunchWizard() else onSelect()
-            }
+            .combinedClickable(
+                onClick = {
+                    if (item.isPlugin && !isChecked) onLaunchWizard() else onSelect()
+                },
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

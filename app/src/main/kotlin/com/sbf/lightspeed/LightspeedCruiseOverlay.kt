@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.accessibilityservice.AccessibilityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -408,7 +409,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
                 if (loadedCount > 0) {
                     postInvalidate()
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedCruiseOverlay", "preloadActiveCategoryIconsAsync:411", e) }
         }
     }
 
@@ -435,27 +436,30 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             half4 main(float2 fragCoord) {
                 if (headerBlurActive > 0.5) {
                     float blurAlpha = 0.0;
-                    if (fragCoord.y < topBlurHeight) {
-                        blurAlpha = 1.0 - (fragCoord.y / topBlurHeight);
-                    } else if (fragCoord.y > viewSize.y - bottomBlurHeight) {
-                        blurAlpha = (fragCoord.y - (viewSize.y - bottomBlurHeight)) / bottomBlurHeight;
+                    float safeTop = max(topBlurHeight, 1.0);
+                    float safeBottom = max(bottomBlurHeight, 1.0);
+                    float safeViewH = max(viewSize.y, 1.0);
+                    if (fragCoord.y < safeTop) {
+                        blurAlpha = 1.0 - (fragCoord.y / safeTop);
+                    } else if (fragCoord.y > safeViewH - safeBottom) {
+                        blurAlpha = (fragCoord.y - (safeViewH - safeBottom)) / safeBottom;
                     }
                     if (blurAlpha > 0.0) {
                         blurAlpha = clamp(blurAlpha, 0.0, 1.0);
-                        float fadeProgress = pow(blurAlpha, 1.3);
+                        float fadeProgress = pow(max(blurAlpha, 0.0001), 1.3);
                         float radius = blurAlpha * 24.0;
-                        half4 color = half4(0.0);
-                        color += inputTexture.eval(fragCoord) * 0.22;
-                        color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * 0.13;
-                        color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * 0.13;
-                        color += inputTexture.eval(fragCoord + float2(radius * 0.55, 0.0)) * 0.13;
-                        color += inputTexture.eval(fragCoord - float2(radius * 0.55, 0.0)) * 0.13;
-                        color += inputTexture.eval(fragCoord + float2(radius * 0.38, radius * 0.38)) * 0.065;
-                        color += inputTexture.eval(fragCoord - float2(radius * 0.38, radius * 0.38)) * 0.065;
-                        color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * 0.065;
-                        color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * 0.065;
+                        half4 color = half4(0.0, 0.0, 0.0, 0.0);
+                        color += inputTexture.eval(fragCoord) * half(0.22);
+                        color += inputTexture.eval(fragCoord + float2(0.0, radius * 0.55)) * half(0.13);
+                        color += inputTexture.eval(fragCoord - float2(0.0, radius * 0.55)) * half(0.13);
+                        color += inputTexture.eval(fragCoord + float2(radius * 0.55, 0.0)) * half(0.13);
+                        color += inputTexture.eval(fragCoord - float2(radius * 0.55, 0.0)) * half(0.13);
+                        color += inputTexture.eval(fragCoord + float2(radius * 0.38, radius * 0.38)) * half(0.065);
+                        color += inputTexture.eval(fragCoord - float2(radius * 0.38, radius * 0.38)) * half(0.065);
+                        color += inputTexture.eval(fragCoord + float2(-radius * 0.38, radius * 0.38)) * half(0.065);
+                        color += inputTexture.eval(fragCoord + float2(radius * 0.38, -radius * 0.38)) * half(0.065);
                         half4 deepSpaceVoid = half4(0.022, 0.018, 0.035, 1.0);
-                        return mix(color, deepSpaceVoid, fadeProgress * 0.88);
+                        return mix(color, deepSpaceVoid, half(fadeProgress * 0.88));
                     }
                 }
 
@@ -465,17 +469,32 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
         internal var agslSource: String = agslFallbackSource
 
-        fun getProgressiveShader(context: Context): android.graphics.RuntimeShader {
-            return shaderInstance ?: synchronized(this) {
-                shaderInstance ?: run {
-                    agslSource = loadAgslSource(context)
-                    android.graphics.RuntimeShader(agslSource).also { shaderInstance = it }
-                }
-            }
-        }
+        @Volatile
+        private var shaderFailed = false
 
         @Volatile
         private var shaderInstance: android.graphics.RuntimeShader? = null
+
+        fun getProgressiveShader(context: Context): android.graphics.RuntimeShader {
+            if (shaderFailed) {
+                throw IllegalStateException("AGSL RuntimeShader creation previously failed")
+            }
+            return shaderInstance ?: synchronized(this) {
+                if (shaderFailed) {
+                    throw IllegalStateException("AGSL RuntimeShader creation previously failed")
+                }
+                shaderInstance ?: run {
+                    agslSource = loadAgslSource(context)
+                    try {
+                        android.graphics.RuntimeShader(agslSource).also { shaderInstance = it }
+                    } catch (e: Exception) {
+                        shaderFailed = true
+                        android.util.Log.e("LightspeedBlur", "AGSL RuntimeShader creation failed", e)
+                        throw e
+                    }
+                }
+            }
+        }
 
         val progressiveShader: android.graphics.RuntimeShader
             get() = shaderInstance ?: synchronized(this) {

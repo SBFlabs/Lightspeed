@@ -120,16 +120,53 @@ fun HudStripTabContent(
         }
     }
 
-    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "tactical_hardware", "system_overrides", "config_vault", "experimental_labs")
+    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "tactical_hardware", "synthetic_gravity", "refueling_bay", "system_overrides", "config_vault", "experimental_labs")
     var currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
         list + (defaultOrder1 - list.toSet())
     }.toMutableList()
 
     LaunchedEffect(Unit) {
+        var orderChanged = false
         if (currentOrder1.lastOrNull() == "system_overrides" && currentOrder1.contains("config_vault")) {
             currentOrder1.remove("system_overrides")
             currentOrder1.add(currentOrder1.indexOf("config_vault"), "system_overrides")
-            prefs.edit().putString("pref_tab_order_1", currentOrder1.joinToString(",")).apply()
+            orderChanged = true
+        }
+        if (!currentOrder1.contains("synthetic_gravity")) {
+            val tacticalIdx = currentOrder1.indexOf("tactical_hardware")
+            if (tacticalIdx != -1) {
+                currentOrder1.add(tacticalIdx + 1, "synthetic_gravity")
+            } else {
+                currentOrder1.add("synthetic_gravity")
+            }
+            orderChanged = true
+        } else {
+            val tacticalIdx = currentOrder1.indexOf("tactical_hardware")
+            val gravityIdx = currentOrder1.indexOf("synthetic_gravity")
+            if (tacticalIdx != -1 && gravityIdx != -1 && gravityIdx != tacticalIdx + 1) {
+                currentOrder1.removeAt(gravityIdx)
+                val newTacticalIdx = currentOrder1.indexOf("tactical_hardware")
+                currentOrder1.add(newTacticalIdx + 1, "synthetic_gravity")
+                orderChanged = true
+            }
+        }
+        val gravityIdx = currentOrder1.indexOf("synthetic_gravity")
+        val refuelingIdx = currentOrder1.indexOf("refueling_bay")
+        if (gravityIdx != -1) {
+            if (refuelingIdx == -1) {
+                currentOrder1.add(gravityIdx + 1, "refueling_bay")
+                orderChanged = true
+            } else if (refuelingIdx != gravityIdx + 1) {
+                currentOrder1.removeAt(refuelingIdx)
+                val newGravityIdx = currentOrder1.indexOf("synthetic_gravity")
+                currentOrder1.add(newGravityIdx + 1, "refueling_bay")
+                orderChanged = true
+            }
+        }
+        if (orderChanged) {
+            val newStr = currentOrder1.joinToString(",")
+            sectionOrder1Str = newStr
+            prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, newStr).apply()
         }
     }
 
@@ -295,6 +332,39 @@ fun HudStripTabContent(
                                     pendingBackTapScope = key
                                     showBatteryWarningDialog = true
                                 },
+                                installedTools = installedTacticalTools,
+                                onRefreshNeeded = onRefreshNeeded
+                            )
+                        }
+                    }
+                    "synthetic_gravity" -> {
+                        item(key = "synthetic_gravity") {
+                            HudSyntheticGravitySection(
+                                context = context,
+                                prefs = prefs,
+                                isExpanded = isSyntheticGravityExpanded,
+                                onToggle = {
+                                    toggleSection(1, "synthetic_gravity", isSyntheticGravityExpanded) { isSyntheticGravityExpanded = it }
+                                    prefs.edit()
+                                        .putBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, isSyntheticGravityExpanded)
+                                        .apply()
+                                    safeReloadPreferences()
+                                },
+                                onRefreshNeeded = onRefreshNeeded
+                            )
+                        }
+                    }
+                    "refueling_bay" -> {
+                        item(key = "refueling_bay") {
+                            HudRefuelingBaySection(
+                                context = context,
+                                prefs = prefs,
+                                isExpanded = isRefuelingExpanded,
+                                onToggle = {
+                                    toggleSection(1, "refueling_bay", isRefuelingExpanded) { isRefuelingExpanded = it }
+                                    prefs.edit().putBoolean("pref_section_refueling_expanded", isRefuelingExpanded).apply()
+                                },
+                                onShowAmoledWarning = { showAmoledWarningDialog = true },
                                 onRefreshNeeded = onRefreshNeeded
                             )
                         }
@@ -342,16 +412,7 @@ fun HudStripTabContent(
                                         .apply()
                                     safeReloadPreferences()
                                 },
-                                isSyntheticGravityExpanded = isSyntheticGravityExpanded,
-                                onToggleSyntheticGravity = {
-                                    isSyntheticGravityExpanded = !isSyntheticGravityExpanded
-                                    prefs.edit()
-                                        .putBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, isSyntheticGravityExpanded)
-                                        .apply()
-                                    safeReloadPreferences()
-                                    onRefreshNeeded()
-                                },
-                                 isNotchCalibExpanded = isNotchCalibExpanded,
+                                isNotchCalibExpanded = isNotchCalibExpanded,
                                 onToggleNotchCalib = {
                                     isNotchCalibExpanded = !isNotchCalibExpanded
                                     prefs.edit()

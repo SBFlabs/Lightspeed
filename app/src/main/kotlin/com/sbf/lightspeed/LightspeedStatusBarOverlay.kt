@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.SharedPreferences
@@ -322,7 +323,7 @@ class LightspeedStatusBarOverlay(
             lp.width = screenW
             lp.height = targetH
             lp.gravity = Gravity.TOP or Gravity.START
-            try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
+            try { wm.updateViewLayout(this, lp) } catch (e: Exception) { logSwallowed("LightspeedStatusBarOverlay", "expandForHud:325", e) }
         }
     }
 
@@ -357,7 +358,7 @@ class LightspeedStatusBarOverlay(
         lp.x = 0
         lp.y = 0
         lp.gravity = Gravity.TOP or Gravity.START
-        try { wm.updateViewLayout(this, lp) } catch (_: Exception) {}
+        try { wm.updateViewLayout(this, lp) } catch (e: Exception) { logSwallowed("LightspeedStatusBarOverlay", "restoreWindowLayout:360", e) }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -419,7 +420,7 @@ class LightspeedStatusBarOverlay(
                         passes++
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { logSwallowed("LightspeedStatusBarOverlay", "scrollToTop:422", e) }
         }
     }
 

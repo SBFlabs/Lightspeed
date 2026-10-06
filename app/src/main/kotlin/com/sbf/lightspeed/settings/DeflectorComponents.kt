@@ -268,90 +268,6 @@ fun DeflectorMasterCard(
 }
 
 @Composable
-fun SymmetryCouplingCard(
-    context: Context,
-    prefs: SharedPreferences,
-    onModeChanged: () -> Unit = {},
-    onInfoClick: () -> Unit = {}
-) {
-    var geomMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_SYMMETRY_GEOMETRY_MODE, "independent") ?: "independent") }
-    var gestMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_SYMMETRY_GESTURE_MODE, "independent") ?: "independent") }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-    ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.SyncAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)
-                    Text("Synchronize wings or maintain bilateral independence", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
-                }
-                IconButton(
-                    onClick = onInfoClick,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = "Info",
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
-
-            // 1. Physical Geometry Switch
-            ThreeWayTacticalSelector(
-                title = "Physical Geometry (Span, Reach, Offset, Glow)",
-                subtitle = when (geomMode) {
-                    "right" -> "Right Deflector master — Left Deflector mirrors right geometry"
-                    "left" -> "Left Deflector master — Right Deflector mirrors left geometry"
-                    else -> "Independent — Each deflector has custom geometry"
-                },
-                selectedMode = geomMode,
-                onSelect = { mode ->
-                    geomMode = mode
-                    prefs.edit().putString(LightspeedPreferences.KEY_SYMMETRY_GEOMETRY_MODE, mode).apply()
-                    safeReloadPreferences()
-                    onModeChanged()
-                }
-            )
-
-            // 2. Astrogation & Gestures Switch
-            ThreeWayTacticalSelector(
-                title = "Astrogation & Gestures (Cockpit & Macros)",
-                subtitle = when (gestMode) {
-                    "right" -> "Right Deflector master — Left Deflector inverts & executes right actions"
-                    "left" -> "Left Deflector master — Right Deflector inverts & executes left actions"
-                    else -> "Independent — Each deflector has dedicated gesture maps"
-                },
-                selectedMode = gestMode,
-                onSelect = { mode ->
-                    gestMode = mode
-                    prefs.edit().putString(LightspeedPreferences.KEY_SYMMETRY_GESTURE_MODE, mode).apply()
-                    safeReloadPreferences()
-                    onModeChanged()
-                }
-            )
-        }
-    }
-}
-
-@Composable
 fun DeflectorLandscapeGeometryCard(
     context: Context,
     prefs: SharedPreferences,
@@ -419,7 +335,7 @@ fun DeflectorLandscapeGeometryCard(
                 val modes = listOf(
                     Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_AUTO, "📐 Auto (0.45×)"),
                     Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM, "⚙ Custom Scale"),
-                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_FIXED, "🔒 Fixed 1:1")
+                    Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_FIXED, "📏 Fixed 1:1")
                 )
                 modes.forEach { (modeKey, label) ->
                     val isSelected = landscapeMode == modeKey

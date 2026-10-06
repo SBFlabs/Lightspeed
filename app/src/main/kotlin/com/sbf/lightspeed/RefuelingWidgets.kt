@@ -1,5 +1,6 @@
 package com.sbf.lightspeed
 
+import com.sbf.lightspeed.system.logSwallowed
 import android.app.Activity
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
@@ -159,7 +160,7 @@ fun MultiWidgetContainer(
                                 onSwipeDelta = { deltaX ->
                                     try {
                                         pagerState.dispatchRawDelta(-deltaX)
-                                    } catch (_: Exception) {}
+                                    } catch (e: Exception) { logSwallowed("RefuelingWidgets", "MultiWidgetContainer:162", e) }
                                 },
                                 onSwipeEnd = { totalDx, xVel ->
                                     val pageCount = widgetIds.size

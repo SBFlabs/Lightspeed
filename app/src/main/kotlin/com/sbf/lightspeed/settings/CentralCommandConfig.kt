@@ -50,6 +50,8 @@ fun CentralCommandMatrixFields(
         onRefreshNeeded = onRefreshNeeded
     )
 
+    val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+
     val scope = rememberCoroutineScope()
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -66,10 +68,7 @@ fun CentralCommandMatrixFields(
         }
         when (jumpTargetSection) {
             "statusbar", "sensor_deck" -> state.isSensorDeckExpandedState.value = true
-            "gravity", "synthetic_gravity", "orientation", "attitude" -> {
-                state.isExperimentalLabsExpandedState.value = true
-                state.isSyntheticGravityExpandedState.value = true
-            }
+            "gravity", "synthetic_gravity", "orientation", "attitude" -> state.isSyntheticGravityExpandedState.value = true
             "telemetry", "telemetry_indicators", "beacons", "notch_beacon" -> state.isTelemetryExpandedState.value = true
             "refueling", "refueling_bay" -> {
                 state.isExperimentalLabsExpandedState.value = true
@@ -235,9 +234,9 @@ fun CentralCommandMatrixFields(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val tabTitles = listOf(
-                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_LEFT),
-                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_CENTER),
-                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_RIGHT)
+                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_LEFT, currentLanguageMode),
+                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_CENTER, currentLanguageMode),
+                LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_RIGHT, currentLanguageMode)
             )
             tabTitles.forEachIndexed { index, tabTitle ->
                 val isSelected = state.pagerState.currentPage == index
@@ -469,9 +468,9 @@ fun CentralCommandMatrixFields(
         val popoverTarget = state.popoverTabTargetState.value
         if (popoverTarget != null) {
             val tabTitle = when (popoverTarget) {
-                0 -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_LEFT)
-                1 -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_CENTER)
-                2 -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_RIGHT)
+                0 -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_LEFT, currentLanguageMode)
+                1 -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_CENTER, currentLanguageMode)
+                2 -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.TAB_RIGHT, currentLanguageMode)
                 else -> "Avionics Tab"
             }
             val currentMode = when (popoverTarget) {

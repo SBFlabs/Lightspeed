@@ -46,10 +46,26 @@ To cancel the gesture at any point, swipe your finger back to the **Astrogation 
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_Category_Cruise_app_launching.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01_Category_Cruise_1st_jump.jpg" alt="Category Cruise — kinetic app browsing with live icon grid" width="320" />
 </p>
 
 <p align="center"><sub>🌠 <em>Category Cruise — kinetic app browsing with live icon grid</em></sub></p>
+
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02_Category_Cruise_2nd_jump.jpg" alt="Category Cruise — 2nd jump browsing" width="320" />
+</p>
+
+<p align="center"><sub>🌠 <em>Category Cruise — 2nd jump browsing</em></sub></p>
+
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03_Category_Cruise_app_launching.jpg" alt="Category Cruise — app launching" width="320" />
+</p>
+
+<p align="center"><sub>🌠 <em>Category Cruise — app launching</em></sub></p>
 
 ### 2. ⚙️ Cockpit
 
@@ -70,10 +86,26 @@ The Action Selection Menu also features Lightspeed's distinctive take on an inde
 <br>
 
 <p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04_Cockpit_Gear_Sets.jpg" alt="Cockpit Gear Sets (favorite items)" width="320" />
+</p>
+
+<p align="center"><sub>⚙️ <em>Cockpit Gear Sets (favorite items)</em></sub></p>
+
+<br>
+
+<p align="center">
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05_Cockpit_Hangar_main.jpg" alt="Cockpit Hangar — dual orbital gear rings with tactile controls" width="320" />
 </p>
 
 <p align="center"><sub>⚙️ <em>Cockpit Hangar — dual orbital gear rings with full tactile eject, rotate &amp; edit controls</em></sub></p>
+
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06_Cockpit_Hangar_edit_item.jpg" alt="Cockpit Hangar — editing hangar items" width="320" />
+</p>
+
+<p align="center"><sub>⚙️ <em>Cockpit Hangar — editing hangar items</em></sub></p>
 
 ### 3. 🛰️ Central Command
 
@@ -82,16 +114,40 @@ Central Command can be accessed directly by tapping the **Lightspeed app icon**,
 <br>
 
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/09_Flight_Control_Deck_main.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07_Central_Command_HUD_STRIP.jpg" alt="Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault" width="320" />
 </p>
 
 <p align="center"><sub>🛰️ <em>Central Command — HUD Strip, Sensor Area, Hull &amp; Ship Maneuvers, System Override &amp; Config Vault</em></sub></p>
 
-The **Central Command floating window's header area** is interactive in three ways. You can swipe down on the header area to dismiss the floating window. The **Central Command title** can be single-tapped or long-tapped: a long tap quickly toggles the entire Lightspeed system on or off. The **Guidebook icon** can likewise be single-tapped or long-tapped. There is also the plain old **Expand/Collapse All** button for expanding or collapsing the accordions in the current tab.
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/08_Central_Command_lang.jpg" alt="Central Command — language settings" width="320" />
+</p>
+
+<p align="center"><sub>🛰️ <em>Central Command — language settings</em></sub></p>
+
+The **Central Command floating window'header area** is interactive in three ways. You can swipe down on the header area to dismiss the floating window. The **Central Command title** can be single-tapped or long-tapped: a long tap quickly toggles the entire Lightspeed system on or off. The **Guidebook icon** can likewise be single-tapped or long-tapped. There is also the plain old **Expand/Collapse All** button for expanding or collapsing the accordions in the current tab.
 
 For customizing the **Central Command theme**, tap the Central Command title. For organizing or changing how the accordions are arranged within a specific tab, tap the **tab title while it is in focus** — whether it is the **HUD STRIP, Left DEFLECTOR, or Right DEFLECTOR**.
 
 The **Flight Control Deck** is organized into three cards. The first card contains the aforementioned **theme engine** for Central Command and different ways of toggling Lightspeed as a whole or in part.
+
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/09_Flight_Control_Deck_main.jpg" alt="Flight Control Deck — main overview" width="320" />
+</p>
+
+<p align="center"><sub>🛰️ <em>Flight Control Deck — main overview</em></sub></p>
+
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/10_Flight_Control_Deck_theme.jpg" alt="Flight Control Deck — theme selection" width="320" />
+</p>
+
+<p align="center"><sub>🛰️ <em>Flight Control Deck — theme selection</em></sub></p>
 
 The second card contains the **Core Watchdog**. It keeps Lightspeed alive through two possible methods and includes the **Black Box**:
 
@@ -101,7 +157,23 @@ The second card contains the **Core Watchdog**. It keeps Lightspeed alive throug
 
 The **Core Watchdog** also contains a **Material 3 mini-card/button labeled “Services.”** Pressing it opens the **Perimeter Watchdog**, where the accessibility services of your apps can be toggled more conveniently than through Android's built-in settings page. Each service can also be **shielded** and have its battery exemption whitelisted or revoked using two dedicated buttons directly beneath it.
 
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/11_Perimeter_watch.jpg" alt="Perimeter Watchdog — accessibility service monitoring" width="320" />
+</p>
+
+<p align="center"><sub>🛰️ <em>Perimeter Watchdog — accessibility service monitoring</em></sub></p>
+
 The **Perimeter Watchdog** also contains a **light-blue Material 3 mini-card/button labeled “Exempt More Apps.”** Pressing it opens the **Exempt More Apps floating window**, providing a more accessible way to whitelist or revoke apps from Android's native battery-management exemption system.
+
+<br>
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/12_Battery_exemption_control.jpg" alt="Exempt More Apps — battery exemption control" width="320" />
+</p>
+
+<p align="center"><sub>🛰️ <em>Exempt More Apps — battery exemption control</em></sub></p>
 
 **Both the Core Watchdog and Perimeter Watchdog are not 100% bulletproof and should be treated accordingly.**
 

@@ -577,6 +577,8 @@ object LightspeedWatchdogEngine {
             } catch (e: Exception) {
                 Log.e(TAG, "Shizuku reboot error", e)
             }
+        } else {
+            ElevatedTaskCloser.toastShizukuNeeded(context, "Reboot")
         }
 
         Log.w(TAG, "Core Cooling reboot failed: Shizuku is not active")

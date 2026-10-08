@@ -24,6 +24,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.os.SystemClock
+import android.view.inputmethod.InputMethodManager
 import com.sbf.lightspeed.system.LightspeedKeyEngine
 import com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -35,6 +37,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
     companion object {
         const val TAG = "LightspeedService"
         internal var instanceRef: java.lang.ref.WeakReference<LightspeedAccessibilityService>? = null
+
+        @Volatile var lastAppPackage: String? = null
+        @Volatile var lastAppUptimeMs: Long = 0L
+
+        @Volatile var lastBayDarkMs: Long = 0L
+        fun noteBayDark() { lastBayDarkMs = System.currentTimeMillis() }
 
         val instance: LightspeedAccessibilityService?
             get() = instanceRef?.get()
@@ -93,6 +101,29 @@ class LightspeedAccessibilityService : AccessibilityService() {
     // Hardware Orientation Anchor (1x1 Transparent Anchor Window for Native Hardware Orientation Overrides)
     internal var orientationAnchorView: View? = null
     internal var orientationAnchorParams: WindowManager.LayoutParams? = null
+
+    // Refueling Bay Sleep Blackout Overlay
+    internal var baySleepBlackoutView: View? = null
+    internal var baySleepBlackoutParams: WindowManager.LayoutParams? = null
+    internal var lastBaySleepHeartbeat: Long = 0L
+    internal val baySleepRaiseRunnable = object : Runnable {
+        override fun run() {
+            try {
+                val now = System.currentTimeMillis()
+                if (baySleepBlackoutView == null || now - lastBaySleepHeartbeat > 5000L) {
+                    hideBaySleepBlackout()
+                    return
+                }
+                baySleepBlackoutView?.let { v ->
+                    try { windowManager?.removeView(v) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:removeView", e) }
+                    try { windowManager?.addView(v, baySleepBlackoutParams) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:addView", e) }
+                }
+            } catch (e: Exception) {
+                logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable", e)
+            }
+            handler.postDelayed(this, 2000L)
+        }
+    }
 
     internal var systemStateReceiver: BroadcastReceiver? = null
     internal var rotationContentObserver: ContentObserver? = null
@@ -293,6 +324,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         // 5. Register System State & Dock Receivers
         registerSystemStateReceiver()
+        com.sbf.lightspeed.system.CallStateTracker.register(this)
 
         // 6. Check Deflector Startup Default State & Flight Notification
         val deflectorStartup = prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed")
@@ -381,6 +413,53 @@ class LightspeedAccessibilityService : AccessibilityService() {
             if (isLikelyActivity) {
                 com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this, isLocked, currentPkg)
             }
+
+            if (!currentPkg.isNullOrEmpty()) {
+                trackForegroundPackage(currentPkg)
+            }
+        }
+    }
+
+    @Volatile
+    private var cachedLauncherPackages: Set<String> = emptySet()
+    @Volatile
+    private var lastLauncherPackagesQueryTimeMs: Long = 0L
+
+    private fun getLauncherPackagesCached(): Set<String> {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastLauncherPackagesQueryTimeMs > 60_000L || cachedLauncherPackages.isEmpty()) {
+            val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
+            val resolveInfos = try {
+                packageManager.queryIntentActivities(intent, 0)
+            } catch (_: Exception) {
+                emptyList()
+            }
+            cachedLauncherPackages = resolveInfos.mapNotNull { it.activityInfo?.packageName }.toSet()
+            lastLauncherPackagesQueryTimeMs = now
+        }
+        return cachedLauncherPackages
+    }
+
+    private fun isInputMethodPackage(pkg: String): Boolean {
+        return try {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.enabledInputMethodList?.any { it.packageName == pkg } == true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun trackForegroundPackage(pkg: String) {
+        if (pkg == packageName || pkg == "com.android.systemui") return
+        if (isInputMethodPackage(pkg)) return
+
+        val launcherPkgs = getLauncherPackagesCached()
+        if (launcherPkgs.contains(pkg)) {
+            lastAppPackage = null
+            lastAppUptimeMs = SystemClock.uptimeMillis()
+        } else {
+            lastAppPackage = pkg
+            lastAppUptimeMs = SystemClock.uptimeMillis()
         }
     }
 
@@ -423,6 +502,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
             com.sbf.lightspeed.system.LightspeedWatchdogEngine.stopSentinel()
             com.sbf.lightspeed.system.LightspeedWatchdogEngine.unregisterFastTriggers(this)
             com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
+            com.sbf.lightspeed.system.CallStateTracker.unregister(this)
             teardown()
         } catch (e: Exception) {
             Log.e(TAG, "Exception during service onDestroy: ${e.message}", e)

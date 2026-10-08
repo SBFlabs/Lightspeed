@@ -23,7 +23,7 @@ class LightspeedPowerGestureActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (!isAuthorizedCaller()) {
+        if (!LightspeedPowerKeyEngine.isPowerEnabled(this) || !isAuthorizedCaller()) {
             finish()
             return
         }
@@ -119,12 +119,12 @@ class LightspeedPowerGestureActivity : Activity() {
     }
 
     private fun isAuthorizedCaller(): Boolean {
-        intent.removeExtra(Intent.EXTRA_REFERRER)
-        intent.removeExtra(Intent.EXTRA_REFERRER_NAME)
-        val callerPackage = callingPackage ?: referrer?.host ?: referrer?.authority ?: return true
-        if (callerPackage == packageName) return true
-        if (callerPackage == "android" || callerPackage == "com.android.systemui") return true
         return try {
+            intent.removeExtra(Intent.EXTRA_REFERRER)
+            intent.removeExtra(Intent.EXTRA_REFERRER_NAME)
+            val callerPackage = callingPackage ?: referrer?.host ?: referrer?.authority ?: return true
+            if (callerPackage == packageName) return true
+            if (callerPackage == "android" || callerPackage == "com.android.systemui") return true
             val info = packageManager.getApplicationInfo(callerPackage, 0)
             (info.flags and ApplicationInfo.FLAG_SYSTEM) != 0 ||
             (info.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0 ||

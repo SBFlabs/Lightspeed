@@ -1,0 +1,7 @@
+• Accessibility-only mode: use Lightspeed without Shizuku.
+• Optional setting to hide the side gesture bars during phone calls.
+• Refueling Bay: black overlay cover and a "When dismissed" setting.
+• Tap a slider for Precision Control & Presets; long press resets.
+• Power button: tunable double-press window and grab warning.
+• Fixes: Bay relaunch loop, Flight Blackbox always visible, clearer Shizuku reboot message.
+• Close app falls back to Recents without Shizuku.

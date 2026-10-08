@@ -1,15 +1,18 @@
 package com.sbf.lightspeed
 
 import android.app.Application
+import com.sbf.lightspeed.system.ShizukuGate
 import com.sbf.lightspeed.system.LightspeedCrashSentinel
 
 class LightspeedApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        ShizukuGate.init(this)
         com.sbf.lightspeed.system.ElevatedTaskCloser.exemptHiddenApis()
         com.sbf.lightspeed.system.LightspeedPreferences.initializeDefaults(this)
         com.sbf.lightspeed.system.LightspeedLanguageEngine.init(this)
         LightspeedCrashSentinel.init(this)
+        com.sbf.lightspeed.system.FlightLog.init(this)
     }
 
     override fun onTrimMemory(level: Int) {

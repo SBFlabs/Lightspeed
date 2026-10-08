@@ -8,9 +8,11 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.math.roundToInt
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +41,7 @@ import kotlin.math.roundToInt
 
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GestureMappingRow(
     context: Context,
@@ -315,10 +318,16 @@ fun GestureMappingRow(
                                             border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .clickable {
-                                                    LightspeedHapticEngine.tick(context)
-                                                    isHoldFlyoutOpen = true
-                                                }
+                                                .combinedClickable(
+                                                    onClick = {
+                                                        LightspeedHapticEngine.tick(context)
+                                                        isHoldFlyoutOpen = true
+                                                    },
+                                                    onLongClick = {
+                                                        LightspeedHapticEngine.heavyClick(context)
+                                                        tempHoldVal = 300f
+                                                    }
+                                                )
                                         ) {
                                             Text(
                                                 text = "${tempHoldVal.roundToInt()} ms",
@@ -846,10 +855,16 @@ fun GestureMappingRow(
                                                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .clickable {
-                                                        LightspeedHapticEngine.tick(context)
-                                                        isBrightFlyoutOpen = true
-                                                    }
+                                                    .combinedClickable(
+                                                        onClick = {
+                                                            LightspeedHapticEngine.tick(context)
+                                                            isBrightFlyoutOpen = true
+                                                        },
+                                                        onLongClick = {
+                                                            LightspeedHapticEngine.heavyClick(context)
+                                                            tempRes = 32f
+                                                        }
+                                                    )
                                             ) {
                                                 Text(
                                                     text = "$curSteps Steps (~${String.format(java.util.Locale.US, "%.1f", 100f / curSteps)}%)",
@@ -1039,10 +1054,16 @@ fun GestureMappingRow(
                                                 border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(8.dp))
-                                                    .clickable {
-                                                        LightspeedHapticEngine.tick(context)
-                                                        isVolFlyoutOpen = true
-                                                    }
+                                                    .combinedClickable(
+                                                        onClick = {
+                                                            LightspeedHapticEngine.tick(context)
+                                                            isVolFlyoutOpen = true
+                                                        },
+                                                        onLongClick = {
+                                                            LightspeedHapticEngine.heavyClick(context)
+                                                            tempRes = 100f
+                                                        }
+                                                    )
                                             ) {
                                                 Text(
                                                     text = "$curRes Steps (~$pct%)",

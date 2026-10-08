@@ -25,7 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.readTextOrKill
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +35,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.sbf.lightspeed.system.ShizukuGate
 
 @Composable
 fun SystemOverrideDeckContents(
@@ -227,6 +230,67 @@ fun SystemOverrideDeckContents(
         
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
+    // Accessibility Service only switch
+    var accOnly by remember { mutableStateOf(ShizukuGate.isAccessibilityOnly()) }
+    DisposableEffect(Unit) {
+        val listener = rikka.shizuku.Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+            if (requestCode == com.sbf.lightspeed.system.ElevatedTaskCloser.SHIZUKU_REQ_CODE) {
+                if (grantResult != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    accOnly = true
+                    ShizukuGate.chooseAccessibilityOnly()
+                }
+            }
+        }
+        try {
+            rikka.shizuku.Shizuku.addRequestPermissionResultListener(listener)
+        } catch (_: Exception) {}
+        onDispose {
+            try {
+                rikka.shizuku.Shizuku.removeRequestPermissionResultListener(listener)
+            } catch (_: Exception) {}
+        }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .clickable {
+                val next = !accOnly
+                accOnly = next
+                if (next) ShizukuGate.chooseAccessibilityOnly() else ShizukuGate.chooseFull()
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Accessibility Service only (no Shizuku)",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White
+            )
+            Text(
+                "Lightspeed will never ask for Shizuku. Features that need it will say so.",
+                fontSize = 10.sp,
+                color = Color.White.copy(alpha = 0.7f)
+            )
+        }
+        Switch(
+            checked = accOnly,
+            onCheckedChange = { checked ->
+                accOnly = checked
+                if (checked) ShizukuGate.chooseAccessibilityOnly() else ShizukuGate.chooseFull()
+            },
+            modifier = Modifier.padding(start = 8.dp),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                uncheckedTrackColor = Color.White.copy(alpha = 0.12f)
+            )
+        )
+    }
+
         // Tactical Native Back Conflict Neutralization Card
         if (edgeGestureScale > 0.01f) {
             Surface(
@@ -363,10 +427,14 @@ fun SystemOverrideDeckContents(
         var currentRailMode by remember {
             mutableStateOf(prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_HORIZON_RAIL_MODE, "hide") ?: "hide")
         }
+        var currentCallDeflectorMode by remember {
+            mutableStateOf(prefs.getString(LightspeedPreferences.KEY_CALL_DEFLECTOR_MODE, "keep_active") ?: "keep_active")
+        }
 
         var isLockscreenDropdownOpen by remember { mutableStateOf(false) }
         var isSensorDropdownOpen by remember { mutableStateOf(false) }
         var isRailDropdownOpen by remember { mutableStateOf(false) }
+        var isCallDeflectorDropdownOpen by remember { mutableStateOf(false) }
 
         val lockscreenOptions = listOf(
             "hide_deflectors" to "🙈 Hide Deflectors Only (Astrogation Core Active)",
@@ -568,6 +636,83 @@ fun SystemOverrideDeckContents(
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.Gray)
                     }
                 }
+            }
+        }
+
+        val callDeflectorOptions = listOf(
+            "keep_active" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE),
+            "hide_deflectors" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CALL_DEFLECTOR_MODE_HIDE)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Text(
+                    text = "DURING PHONE CALLS",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 0.8.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CALL_DEFLECTOR_MODE_TITLE),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Box {
+                    OutlinedButton(
+                        onClick = { isCallDeflectorDropdownOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = callDeflectorOptions.firstOrNull { it.first == currentCallDeflectorMode }?.second ?: LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE),
+                                color = Color.White,
+                                fontSize = 11.5.sp
+                            )
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = isCallDeflectorDropdownOpen,
+                        onDismissRequest = { isCallDeflectorDropdownOpen = false },
+                        modifier = Modifier
+                            .background(Color(0xF012141A))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color(0xF012141A)
+                    ) {
+                        callDeflectorOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                modifier = Modifier.heightIn(min = 44.dp),
+                                text = { Text(label, fontSize = 12.5.sp) },
+                                onClick = {
+                                    isCallDeflectorDropdownOpen = false
+                                    currentCallDeflectorMode = key
+                                    prefs.edit().putString(LightspeedPreferences.KEY_CALL_DEFLECTOR_MODE, key).apply()
+                                    com.sbf.lightspeed.system.safeReloadPreferences()
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Status bar and sensor area are not affected.",
+                    fontSize = 10.5.sp,
+                    color = Color.LightGray.copy(alpha = 0.75f)
+                )
             }
         }
 
@@ -870,12 +1015,12 @@ fun OverrideSliderRow(
                         enabled = isEnabled,
                         onClick = {
                             LightspeedHapticEngine.tick(context)
-                            onValueChange(defaultValue)
-                            onValueChangeFinished()
+                            isFlyoutOpen = true
                         },
                         onLongClick = {
                             LightspeedHapticEngine.heavyClick(context)
-                            isFlyoutOpen = true
+                            onValueChange(defaultValue)
+                            onValueChangeFinished()
                         }
                     )
             ) {

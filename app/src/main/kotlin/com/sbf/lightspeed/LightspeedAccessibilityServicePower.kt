@@ -72,6 +72,10 @@ import com.sbf.lightspeed.system.defaultPrefs
     }
 
     internal fun LightspeedAccessibilityService.checkScreenOffRefuelingTrigger(prefs: SharedPreferences) {
+        if (System.currentTimeMillis() - LightspeedAccessibilityService.lastBayDarkMs < 10_000L) {
+            Log.d(LightspeedAccessibilityService.TAG, "Bay dark guard: ignoring screen-off")
+            return
+        }
         val trigger = prefs.getString(LightspeedPreferences.KEY_REFUELING_BAY_TRIGGER, "disabled") ?: "disabled"
         if (trigger == "disabled" || trigger == "screensaver_only") return
         if (LightspeedRefuelingActivity.isChargingSessionDismissed) return

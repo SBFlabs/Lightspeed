@@ -439,6 +439,7 @@ fun PickerCustomizationOptionRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PickerCustomizationSliderRow(
     item: PickerRowItem.SystemCustomizationSlider,
@@ -450,6 +451,14 @@ fun PickerCustomizationSliderRow(
     var isFlyoutOpen by remember { mutableStateOf(false) }
     var isTapToJumpEnabled by remember {
         mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_${item.prefKey}", false))
+    }
+
+    val defaultValStr = remember(item.prefKey, item.range) {
+        when (item.prefKey) {
+            LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION -> "32"
+            LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION -> "100"
+            else -> item.range.start.toInt().toString()
+        }
     }
 
     Column(
@@ -499,10 +508,18 @@ fun PickerCustomizationSliderRow(
                     .clip(RoundedCornerShape(6.dp))
                     .background(dynamicSecondary.copy(alpha = 0.2f))
                     .border(1.dp, dynamicSecondary.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
-                    .clickable {
-                        LightspeedHapticEngine.tick(context)
-                        isFlyoutOpen = true
-                    }
+                    .combinedClickable(
+                        onClick = {
+                            LightspeedHapticEngine.tick(context)
+                            isFlyoutOpen = true
+                        },
+                        onLongClick = {
+                            LightspeedHapticEngine.heavyClick(context)
+                            defaultValStr.toFloatOrNull()?.let { f ->
+                                onValueChange(f.coerceIn(item.range))
+                            }
+                        }
+                    )
                     .padding(horizontal = 7.dp, vertical = 2.5.dp),
                 contentAlignment = Alignment.Center
             ) {

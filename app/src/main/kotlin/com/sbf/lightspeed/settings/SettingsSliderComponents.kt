@@ -477,7 +477,8 @@ fun PrefDottedSliderRow(
                         },
                         onLongClick = {
                             LightspeedHapticEngine.heavyClick(context)
-                            isFlyoutOpen = true
+                            value = defaultVal
+                            prefs.edit().putInt(key, defaultVal).apply()
                         }
                     )
             ) {
@@ -609,7 +610,13 @@ fun PrefFloatDottedSliderRow(
                         },
                         onLongClick = {
                             LightspeedHapticEngine.heavyClick(context)
-                            isFlyoutOpen = true
+                            value = defaultVal
+                            try {
+                                prefs.edit().putFloat(key, defaultVal).apply()
+                            } catch (_: Exception) {
+                                prefs.edit().putInt(key, (defaultVal * 10).toInt()).apply()
+                            }
+                            onValueChanged(defaultVal)
                         }
                     )
             ) {

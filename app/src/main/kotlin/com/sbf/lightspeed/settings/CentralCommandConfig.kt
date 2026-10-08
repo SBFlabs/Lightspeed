@@ -28,6 +28,7 @@ import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.system.ShizukuGate
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -186,9 +187,11 @@ fun CentralCommandMatrixFields(
                             onClick = {
                                 if (rikka.shizuku.Shizuku.pingBinder()) {
                                     if (rikka.shizuku.Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                                        rikka.shizuku.Shizuku.requestPermission(com.sbf.lightspeed.system.ElevatedTaskCloser.SHIZUKU_REQ_CODE)
-                                        android.widget.Toast.makeText(context, "Authorize Lightspeed in Shizuku / Shevery", android.widget.Toast.LENGTH_SHORT).show()
-                                        return@Button
+                                        val requested = ShizukuGate.requestIfAllowed()
+                                        if (requested) {
+                                            android.widget.Toast.makeText(context, "Authorize Lightspeed in Shizuku / Shevery", android.widget.Toast.LENGTH_SHORT).show()
+                                            return@Button
+                                        }
                                     }
                                 }
                                 val revived = com.sbf.lightspeed.system.LightspeedWatchdogEngine.reviveAccessibilityService(context)

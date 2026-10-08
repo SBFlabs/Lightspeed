@@ -64,7 +64,9 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
+                    hideBaySleepBlackout()
                     com.sbf.lightspeed.system.LightspeedOrientationManager.onScreenOff(this@registerSystemStateReceiver)
+                    com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOff(this@registerSystemStateReceiver)
                     if (LightspeedRefuelingActivity.shizukuPanelOff) {
                         // The panel was blanked by Shizuku without a real sleep, so this broadcast is the
                         // user's first power press. Wait for the sleep transition to finish, then wake immediately
@@ -83,9 +85,13 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     if (!LightspeedRefuelingActivity.isActive) {
                         updateOverlaysVisibility(isLocked = true, currentPkg = null)
                     }
+                    if (prefs.getString(LightspeedPreferences.KEY_REFUELING_DISMISS_BEHAVIOR, "session") == "screen_off") {
+                        LightspeedRefuelingActivity.isChargingSessionDismissed = false
+                    }
                     checkScreenOffRefuelingTrigger(prefs)
                 }
                 Intent.ACTION_SCREEN_ON -> {
+                    com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOn(this@registerSystemStateReceiver)
                     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                     val isLocked = keyguardManager?.isKeyguardLocked == true
 
@@ -100,6 +106,7 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     }
                 }
                 Intent.ACTION_DREAMING_STOPPED, Intent.ACTION_USER_PRESENT -> {
+                    com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOn(this@registerSystemStateReceiver)
                     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                     val isLocked = keyguardManager?.isKeyguardLocked == true
 
@@ -178,5 +185,11 @@ internal fun LightspeedAccessibilityService.teardown() {
         orientationAnchorView = null
     }
     orientationAnchorParams = null
+    baySleepBlackoutView?.let {
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:181", e) }
+        baySleepBlackoutView = null
+    }
+    baySleepBlackoutParams = null
+    handler.removeCallbacks(baySleepRaiseRunnable)
     com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
 }

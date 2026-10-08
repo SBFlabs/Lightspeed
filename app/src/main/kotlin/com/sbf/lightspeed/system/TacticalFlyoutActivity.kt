@@ -270,10 +270,7 @@ fun TacticalFlyoutContent(
 
                         com.sbf.lightspeed.settings.CoreCoolingTripleLockButton(
                             onExecuteReboot = {
-                                val ok = com.sbf.lightspeed.system.LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
-                                if (!ok) {
-                                    Toast.makeText(context, "Shizuku required for reboot", Toast.LENGTH_SHORT).show()
-                                }
+                                com.sbf.lightspeed.system.LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
                             }
                         )
                     }

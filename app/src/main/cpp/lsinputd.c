@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
         int best_fd = -1;
         char best_path[128] = "";
         char best_name[256] = "";
-        int found_preferred = 0;
+        int best_score = -1;
 
         for (int i = 0; i <= 63; i++) {
             char path[64];
@@ -214,35 +214,39 @@ int main(int argc, char **argv) {
             lower_name[nlen < sizeof(lower_name) - 1 ? nlen : sizeof(lower_name) - 1] = '\0';
 
             if (strncmp(lower_name, "lsinputd", 8) == 0 ||
+                strstr(lower_name, "uinput") || strstr(lower_name, "virtual") ||
                 strstr(lower_name, "touch") || strstr(lower_name, "goodix") ||
                 strstr(lower_name, "fts") || strstr(lower_name, "tpd")) {
                 close(fd);
                 continue;
             }
 
+            struct input_id dev_id_check;
+            if (ioctl(fd, EVIOCGID, &dev_id_check) == 0 && dev_id_check.bustype == BUS_VIRTUAL) {
+                close(fd);
+                continue;
+            }
+
+            int has_vol_keys = ((key_bits[KEY_VOLUMEUP / BITS_PER_LONG] & (1UL << (KEY_VOLUMEUP % BITS_PER_LONG))) != 0) ||
+                               ((key_bits[KEY_VOLUMEDOWN / BITS_PER_LONG] & (1UL << (KEY_VOLUMEDOWN % BITS_PER_LONG))) != 0);
+
             int is_pref = (strstr(lower_name, "pmic") != NULL ||
                            strstr(lower_name, "pwrkey") != NULL ||
                            strstr(lower_name, "power") != NULL ||
-                           strstr(lower_name, "gpio-keys") != NULL);
+                           strstr(lower_name, "gpio-keys") != NULL ||
+                           strstr(lower_name, "qpnp_pon") != NULL ||
+                           strstr(lower_name, "pon") != NULL);
 
-            if (is_pref) {
-                if (!found_preferred) {
-                    if (best_fd >= 0) close(best_fd);
-                    best_fd = fd;
-                    snprintf(best_path, sizeof(best_path), "%s", path);
-                    snprintf(best_name, sizeof(best_name), "%s", name[0] ? name : "Unknown");
-                    found_preferred = 1;
-                } else {
-                    close(fd);
-                }
+            int score = (is_pref ? 10 : 0) + (!has_vol_keys ? 5 : 0);
+
+            if (score > best_score) {
+                if (best_fd >= 0) close(best_fd);
+                best_fd = fd;
+                snprintf(best_path, sizeof(best_path), "%s", path);
+                snprintf(best_name, sizeof(best_name), "%s", name[0] ? name : "Unknown");
+                best_score = score;
             } else {
-                if (best_fd < 0) {
-                    best_fd = fd;
-                    snprintf(best_path, sizeof(best_path), "%s", path);
-                    snprintf(best_name, sizeof(best_name), "%s", name[0] ? name : "Unknown");
-                } else {
-                    close(fd);
-                }
+                close(fd);
             }
         }
 

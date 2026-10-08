@@ -741,6 +741,99 @@ fun HudRefuelingBaySection(
                 }
             }
 
+            val currentDismissBehavior = prefs.getString(LightspeedPreferences.KEY_REFUELING_DISMISS_BEHAVIOR, "session") ?: "session"
+            var isDismissDropdownOpen by remember { mutableStateOf(false) }
+            val dismissOptions = listOf(
+                "session" to "Until unplugged (default)",
+                "screen_off" to "Until the screen turns off"
+            )
+
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Text("WHEN DISMISSED", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Box {
+                    OutlinedButton(
+                        onClick = { isDismissDropdownOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                dismissOptions.firstOrNull { it.first == currentDismissBehavior }?.second ?: "Until unplugged (default)",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = isDismissDropdownOpen,
+                        onDismissRequest = { isDismissDropdownOpen = false },
+                        modifier = Modifier
+                            .background(Color(0xF012141A))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color(0xF012141A)
+                    ) {
+                        dismissOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                modifier = Modifier.heightIn(min = 48.dp),
+                                text = { Text(label) },
+                                onClick = {
+                                    isDismissDropdownOpen = false
+                                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_DISMISS_BEHAVIOR, key).apply()
+                                    onRefreshNeeded()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            var isSleepBlackoutEnabled by remember {
+                mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_SLEEP_BLACKOUT, true))
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(
+                        text = "Cover overlays while the Bay sleeps",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Draws black over Lightspeed's side deflectors and other apps' overlays during Bay sleep, to protect OLED screens",
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
+                Switch(
+                    checked = isSleepBlackoutEnabled,
+                    onCheckedChange = { checked ->
+                        isSleepBlackoutEnabled = checked
+                        prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_SLEEP_BLACKOUT, checked).apply()
+                        onRefreshNeeded()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            }
+
+
             val currentTimeout = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s"
             var isTimeoutDropdownOpen by remember { mutableStateOf(false) }
             val timeoutOptions = listOf(

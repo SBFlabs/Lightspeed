@@ -1,6 +1,7 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
@@ -14,6 +15,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class DaemonMode {
+    FORWARD,
+    SWALLOW
+}
+
 /**
  * Dedicated engine for hardware Power button gestures (Single, Double, Hold, Tap-then-Hold).
  * Supports Shizuku getevent listening, kernel wake lock management, and OEM assistant disambiguation.
@@ -22,6 +28,12 @@ object LightspeedPowerKeyEngine {
 
     const val LONG_PRESS_TIMEOUT_MS = 400L
     const val POWER_SEQUENCE_TIMEOUT_MS = 450L
+
+    @Volatile
+    var currentDaemonMode: DaemonMode = DaemonMode.FORWARD
+
+    @Volatile
+    var wasPressForwarded: Boolean = false
 
     @Volatile
     private var powerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -59,7 +71,7 @@ object LightspeedPowerKeyEngine {
                 powerWakeLock?.setReferenceCounted(false)
             }
             powerWakeLock?.acquire(durationMs)
-        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "acquirePowerScreenWakeLock:57", e) }
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "acquirePowerScreenWakeLock", e) }
     }
 
     private fun releasePowerScreenWakeLock() {
@@ -67,10 +79,27 @@ object LightspeedPowerKeyEngine {
             if (powerWakeLock?.isHeld == true) {
                 powerWakeLock?.release()
             }
-        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "releasePowerScreenWakeLock:65", e) }
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "releasePowerScreenWakeLock", e) }
     }
 
     private fun isLockAction(action: String?): Boolean = action == "system:lock_screen"
+
+    fun sendDaemonMode(mode: DaemonMode) {
+        currentDaemonMode = mode
+        val proc = shizukuProcess ?: return
+        val cmd = if (mode == DaemonMode.SWALLOW) "MODE swallow" else "MODE forward"
+        PowerGrabHelper.sendCommand(proc, cmd)
+    }
+
+    fun onScreenOff(context: Context) {
+        resetPowerState()
+        sendDaemonMode(DaemonMode.FORWARD)
+    }
+
+    fun onScreenOn(context: Context) {
+        resetPowerState()
+        sendDaemonMode(DaemonMode.SWALLOW)
+    }
 
     fun onPowerGestureHandled() {
         powerSinglePressJob?.cancel()
@@ -92,7 +121,7 @@ object LightspeedPowerKeyEngine {
             if (activePkg != null && (activePkg.contains("assistant") || activePkg.contains("googlequicksearchbox") || activePkg.contains("gemini"))) {
                 return true
             }
-        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "isAssistantActiveOrPending:98", e) }
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "isAssistantActiveOrPending", e) }
         return false
     }
 
@@ -121,9 +150,15 @@ object LightspeedPowerKeyEngine {
         return null
     }
 
+    fun getDoublePressWindowMs(context: Context): Long {
+        val prefs = context.defaultPrefs()
+        return prefs.getLong(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW, LightspeedPreferences.DEFAULT_POWER_DOUBLE_PRESS_WINDOW_MS)
+    }
+
     fun handlePowerKeyEvent(context: Context, event: KeyEvent, now: Long): Boolean {
         if (!isPowerEnabled(context)) return false
 
+        val doublePressWindowMs = getDoublePressWindowMs(context)
         val singleAction = getBoundPowerAction(context, PowerTriggerSlot.POWER_SINGLE_PRESS)
         val doubleAction = getBoundPowerAction(context, PowerTriggerSlot.POWER_DOUBLE_PRESS)
         val holdAction = getBoundPowerAction(context, PowerTriggerSlot.POWER_HOLD)
@@ -135,20 +170,23 @@ object LightspeedPowerKeyEngine {
         val action = event.action
 
         if (action == KeyEvent.ACTION_DOWN) {
-            if (event.repeatCount > 0) return true
-
-            val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
             if (!isPowerPressed) {
-                wasScreenInteractiveAtDown = pm?.isInteractive == true
+                wasPressForwarded = (currentDaemonMode == DaemonMode.FORWARD)
                 powerPressDownTime = now
             }
             isPowerPressed = true
+
+            if (wasPressForwarded) {
+                return false
+            }
+            if (event.repeatCount > 0) return true
+
             isPowerHoldFired = false
             isPowerPressHoldFired = false
 
             // 1. Check Press-then-Hold / Double-Press Trigger (Second press within sequence window)
             val diffPower = now - lastPowerReleaseTime
-            if (lastPowerReleaseTime > 0L && diffPower <= POWER_SEQUENCE_TIMEOUT_MS) {
+            if (lastPowerReleaseTime > 0L && diffPower <= doublePressWindowMs) {
                 powerSinglePressJob?.cancel()
                 powerSinglePressJob = null
                 acquirePowerScreenWakeLock(context, 3500L)
@@ -166,7 +204,7 @@ object LightspeedPowerKeyEngine {
                         LightspeedHapticEngine.heavyClick(context)
                         ActionDispatcher.dispatch(pressHoldAction, context)
                         if (isLockAction(pressHoldAction)) {
-                            releasePowerScreenWakeLock()
+                            onScreenOff(context)
                         }
                     } else {
                         onPassthroughHoldStart?.invoke()
@@ -189,7 +227,7 @@ object LightspeedPowerKeyEngine {
                     LightspeedHapticEngine.heavyClick(context)
                     ActionDispatcher.dispatch(holdAction, context)
                     if (isLockAction(holdAction)) {
-                        releasePowerScreenWakeLock()
+                        onScreenOff(context)
                     }
                 } else {
                     onPassthroughHoldStart?.invoke()
@@ -198,11 +236,16 @@ object LightspeedPowerKeyEngine {
 
             val hasMultiTapAction = doubleAction != null || pressHoldAction != null || singleAction != null || holdAction != null
             if (hasMultiTapAction) {
-                acquirePowerScreenWakeLock(context, POWER_SEQUENCE_TIMEOUT_MS + 200L)
+                acquirePowerScreenWakeLock(context, doublePressWindowMs + 200L)
                 return true
             }
             return false
         } else if (action == KeyEvent.ACTION_UP) {
+            if (wasPressForwarded) {
+                isPowerPressed = false
+                return false
+            }
+
             isPowerPressed = false
             powerHoldJob?.cancel()
             powerHoldJob = null
@@ -235,7 +278,7 @@ object LightspeedPowerKeyEngine {
 
             // 3. Double Press Trigger Check (Quick second tap release)
             val diffPower = now - lastPowerReleaseTime
-            if (lastPowerReleaseTime > 0L && diffPower <= POWER_SEQUENCE_TIMEOUT_MS) {
+            if (lastPowerReleaseTime > 0L && diffPower <= doublePressWindowMs) {
                 powerSinglePressJob?.cancel()
                 powerSinglePressJob = null
                 lastPowerReleaseTime = 0L
@@ -244,7 +287,7 @@ object LightspeedPowerKeyEngine {
                     LightspeedHapticEngine.click(context)
                     ActionDispatcher.dispatch(doubleAction, context)
                     if (isLockAction(doubleAction)) {
-                        releasePowerScreenWakeLock()
+                        onScreenOff(context)
                     }
                     return true
                 } else {
@@ -258,10 +301,10 @@ object LightspeedPowerKeyEngine {
             lastPowerReleaseTime = now
             val shouldDisambiguate = doubleAction != null || pressHoldAction != null || singleAction != null
             if (shouldDisambiguate) {
-                acquirePowerScreenWakeLock(context, POWER_SEQUENCE_TIMEOUT_MS + 200L)
+                acquirePowerScreenWakeLock(context, doublePressWindowMs + 200L)
                 powerSinglePressJob?.cancel()
                 powerSinglePressJob = powerScope.launch {
-                    delay(POWER_SEQUENCE_TIMEOUT_MS)
+                    delay(doublePressWindowMs)
                     if (isPowerPressed || lastPowerReleaseTime == 0L) {
                         return@launch
                     }
@@ -271,7 +314,7 @@ object LightspeedPowerKeyEngine {
                         LightspeedHapticEngine.click(context)
                         ActionDispatcher.dispatch(singleAction, context)
                         if (isLockAction(singleAction)) {
-                            releasePowerScreenWakeLock()
+                            onScreenOff(context)
                         }
                     } else {
                         onPassthroughPress?.invoke()
@@ -298,6 +341,7 @@ object LightspeedPowerKeyEngine {
         isPowerHoldFired = false
         isPowerPressHoldFired = false
         wasScreenInteractiveAtDown = true
+        wasPressForwarded = false
         lastPowerReleaseTime = 0L
         releasePowerScreenWakeLock()
     }
@@ -335,13 +379,25 @@ object LightspeedPowerKeyEngine {
                         }
 
                         shizukuProcess = proc
-                        PowerGrabHelper.sendCommand(proc, "MODE swallow")
-                        onPassthroughPress = { PowerGrabHelper.sendCommand(proc, "TAP") }
+                        val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                        val initialInteractive = pm?.isInteractive == true
+                        val initialMode = if (initialInteractive) DaemonMode.SWALLOW else DaemonMode.FORWARD
+                        withContext(Dispatchers.Main) {
+                            sendDaemonMode(initialMode)
+                        }
+
+                        onPassthroughPress = {
+                            if (!wasPressForwarded) {
+                                PowerGrabHelper.sendCommand(proc, "TAP")
+                            }
+                        }
                         onPassthroughDoubleTap = {
                             powerScope.launch(Dispatchers.IO) {
-                                PowerGrabHelper.sendCommand(proc, "TAP")
-                                delay(80L)
-                                PowerGrabHelper.sendCommand(proc, "TAP")
+                                if (!wasPressForwarded) {
+                                    PowerGrabHelper.sendCommand(proc, "TAP")
+                                    delay(80L)
+                                    PowerGrabHelper.sendCommand(proc, "TAP")
+                                }
                             }
                         }
                         onPassthroughHoldStart = { PowerGrabHelper.sendDown(proc) }
@@ -363,7 +419,7 @@ object LightspeedPowerKeyEngine {
                                             LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_POWER))
                                         } else if (isUp) {
                                             val consumed = LightspeedKeyEngine.onKeyEvent(context, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_POWER))
-                                            if (!consumed) {
+                                            if (!consumed && !wasPressForwarded) {
                                                 PowerGrabHelper.sendCommand(proc, "TAP")
                                             }
                                         }
@@ -483,7 +539,7 @@ object LightspeedPowerKeyEngine {
         try {
             shizukuProcess?.destroy()
             shizukuProcess = null
-        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "stopShizukuPowerMonitor:318", e) }
+        } catch (e: Exception) { logSwallowed("LightspeedPowerKeyEngine", "stopShizukuPowerMonitor", e) }
         powerScope.cancel()
         powerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     }

@@ -358,6 +358,15 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val lockscreenRailMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_HORIZON_RAIL_MODE, "hide") ?: "hide"
     val lockscreenSensorMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_SENSOR_DECK_MODE, "hide") ?: "hide"
 
+    val callSetting = LightspeedPreferences.getCallDeflectorMode(this)
+    val callActiveBool = com.sbf.lightspeed.system.CallStateTracker.isCallActive(this)
+    val hideDeflectorsOnCall = callSetting == "hide_deflectors" && callActiveBool
+
+    if (com.sbf.lightspeed.system.CallStateTracker.lastHideOnCall != hideDeflectorsOnCall) {
+        com.sbf.lightspeed.system.CallStateTracker.lastHideOnCall = hideDeflectorsOnCall
+        Log.i("CallDeflectors", "hideOnCall=$hideDeflectorsOnCall callActive=$callActiveBool mode=$callSetting")
+    }
+
     val hideDeflectorsOnLock = effectiveLocked && lockscreenMode != "keep_active"
     val hideTopHudOnLock = effectiveLocked && lockscreenMode == "full_lockdown"
 
@@ -365,7 +374,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val hideSensorOnLock = effectiveLocked && (lockscreenMode == "full_lockdown" || lockscreenSensorMode == "hide")
 
     // Dynamic Native Back Gesture Restoration on Lockscreen
-    if (hideDeflectorsOnLock) {
+    if (hideDeflectorsOnLock || hideDeflectorsOnCall) {
         if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
             val userScale = prefs.getFloat("sys_override_edge_gesture", 0.0f)
             if (userScale == 0.0f) {
@@ -391,8 +400,8 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val isPillOnlyLock = effectiveLocked && lockscreenMode == "hide_deflectors"
     val isFullLockdown = effectiveLocked && lockscreenMode == "full_lockdown"
 
-    overlayView?.setLockscreenPillOnlyMode(isPillOnlyLock)
-    leftWingOverlayView?.setLockscreenPillOnlyMode(isPillOnlyLock)
+    overlayView?.setLockscreenPillOnlyMode(isPillOnlyLock || hideDeflectorsOnCall)
+    leftWingOverlayView?.setLockscreenPillOnlyMode(isPillOnlyLock || hideDeflectorsOnCall)
 
     // Kinetic Deflectors (Left & Right Flank Wings / Edge Gesture Controls)
     val isLeftDeflectorEnabled = LightspeedPreferences.isLeftDeflectorEnabled(this)
@@ -499,6 +508,69 @@ internal fun LightspeedAccessibilityService.updateForcedOrientationInternal(orie
                     Log.w("LightspeedAccessibility", "Failed updating hardware orientation anchor", e)
                 }
             }
+        }
+    }
+}
+
+fun LightspeedAccessibilityService.showBaySleepBlackout() {
+    handler.post {
+        if (!defaultPrefs().getBoolean(LightspeedPreferences.KEY_REFUELING_SLEEP_BLACKOUT, true)) return@post
+        lastBaySleepHeartbeat = System.currentTimeMillis()
+        if (baySleepBlackoutView != null) return@post
+
+        @Suppress("DEPRECATION")
+        val flags = WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            flags,
+            PixelFormat.OPAQUE
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        }
+
+        val view = View(this).apply {
+            setBackgroundColor(android.graphics.Color.BLACK)
+        }
+
+        baySleepBlackoutParams = params
+        baySleepBlackoutView = view
+
+        try {
+            windowManager?.addView(view, params)
+        } catch (e: Exception) {
+            logSwallowed("LightspeedAccessibilityOverlays", "showBaySleepBlackout", e)
+        }
+
+        handler.removeCallbacks(baySleepRaiseRunnable)
+        handler.postDelayed(baySleepRaiseRunnable, 2000L)
+    }
+}
+
+fun LightspeedAccessibilityService.hideBaySleepBlackout() {
+    handler.post {
+        handler.removeCallbacks(baySleepRaiseRunnable)
+        baySleepBlackoutView?.let { v ->
+            try { windowManager?.removeView(v) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "hideBaySleepBlackout", e) }
+        }
+        baySleepBlackoutView = null
+        baySleepBlackoutParams = null
+    }
+}
+
+fun LightspeedAccessibilityService.sendBaySleepHeartbeat() {
+    handler.post {
+        if (baySleepBlackoutView == null) {
+            showBaySleepBlackout()
+        } else {
+            lastBaySleepHeartbeat = System.currentTimeMillis()
         }
     }
 }

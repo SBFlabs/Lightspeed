@@ -81,6 +81,14 @@ object LightspeedVocabulary {
         GUIDEBOOK,
         TELEMETRY_AND_INDICATORS,
         TACTICAL_HARDWARE,
+
+        POWER_GRAB_WARNING,
+        FLIGHT_BLACKBOX,
+
+        // Call Deflector Mode
+        CALL_DEFLECTOR_MODE_TITLE,
+        CALL_DEFLECTOR_MODE_KEEP_ACTIVE,
+        CALL_DEFLECTOR_MODE_HIDE,
     }
 
     // ─── Vessel Lore dictionary ─────────────────────────────────────────────
@@ -137,6 +145,12 @@ object LightspeedVocabulary {
         Key.GUIDEBOOK               to "The Stranded in Space Guidebook",
         Key.TELEMETRY_AND_INDICATORS to "Info Beacons",
         Key.TACTICAL_HARDWARE       to "Hull & Ship Maneuvers",
+        Key.POWER_GRAB_WARNING      to "Experimental module: with grab active, power key may fail to wake dormant display on certain hardware. If encountered, disengage grab or wake via biometric sensor or power supply.",
+        Key.FLIGHT_BLACKBOX         to "Flight Blackbox",
+
+        Key.CALL_DEFLECTOR_MODE_TITLE       to "Comms Channel Deflector Protocol",
+        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to "🛡️ Maintain Active Deflectors During Comms",
+        Key.CALL_DEFLECTOR_MODE_HIDE        to "🙈 Cloak Deflectors During Comms",
     )
 
     // ─── Clear Comms dictionary ──────────────────────────────────────────────
@@ -193,6 +207,12 @@ object LightspeedVocabulary {
         Key.GUIDEBOOK               to "Feature Dictionary",
         Key.TELEMETRY_AND_INDICATORS to "Telemetry",
         Key.TACTICAL_HARDWARE       to "Hardware Gestures",
+        Key.POWER_GRAB_WARNING      to "This feature is experimental: with grab ON, the power button may not wake a screen that is off on some devices. If that happens, turn grab OFF or wake the phone with the fingerprint sensor or by plugging in a charger.",
+        Key.FLIGHT_BLACKBOX         to "Diagnostics & Crash Logs",
+
+        Key.CALL_DEFLECTOR_MODE_TITLE       to "Gesture Sidebars During Calls",
+        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to "Keep sidebars active during calls",
+        Key.CALL_DEFLECTOR_MODE_HIDE        to "Hide sidebars during calls",
     )
 
     // ─── Co-Pilot (Bilingual) Subtitle dictionary ────────────────────────────
@@ -200,6 +220,7 @@ object LightspeedVocabulary {
     private val copilotSubtitleMap: Map<Key, String> = mapOf(
         Key.TELEMETRY_AND_INDICATORS to "Status bar telemetry",
         Key.REFUELING_BAY           to "Charging Dashboard",
+        Key.POWER_GRAB_WARNING      to "Experimental feature warning: turn grab OFF or wake with fingerprint or charger if screen off wake fails.",
     )
 
     // ─── Lookup functions ───────────────────────────────────────────────────

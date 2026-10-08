@@ -55,11 +55,12 @@ object LightspeedAppSovereigntyEngine {
             context?.showToast("Shizuku is not running")
             return false
         }
+        if (ShizukuGate.isAccessibilityOnly()) return false
         if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
             Log.w(TAG, "Shizuku permission not granted")
             try {
-                Shizuku.requestPermission(ElevatedTaskCloser.SHIZUKU_REQ_CODE)
-                context?.showToast("Please authorize Lightspeed in Shizuku")
+                val asked = ShizukuGate.requestIfAllowed()
+                if (asked) context?.showToast("Please authorize Lightspeed in Shizuku")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to request Shizuku permission", e)
             }

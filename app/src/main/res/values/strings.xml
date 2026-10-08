@@ -2,5 +2,6 @@
     <string name="app_name">Lightspeed</string>
     <string name="accessibility_service_description">Lightspeed high-performance edge gesture and category cruise overlay.</string>
     <string name="restricted_settings_hint">If the switch is greyed out: open this app\'s info page, tap the three dots, then \'Allow restricted settings\'.</string>
+    <string name="power_grab_warning">This feature is experimental: with grab ON, the power button may not wake a screen that is off on some devices. If that happens, turn grab OFF or wake the phone with the fingerprint sensor or by plugging in a charger.</string>
 </resources>
 

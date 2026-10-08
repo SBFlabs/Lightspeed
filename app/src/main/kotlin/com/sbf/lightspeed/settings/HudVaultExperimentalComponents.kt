@@ -19,6 +19,9 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -164,6 +167,7 @@ fun HudSystemOverridesSection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HudExperimentalLabsSection(
     context: Context,
@@ -600,9 +604,191 @@ fun HudExperimentalLabsSection(
                     }
                 )
 
+                // Warning Card for Power Button Grab
+                val (grabWarnTitle, grabWarnSub) = LightspeedLanguageEngine.resolvePair(
+                    LightspeedVocabulary.Key.POWER_GRAB_WARNING, currentLanguageMode
+                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 8.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = cautionAmber.copy(alpha = 0.12f)),
+                    border = BorderStroke(1.dp, cautionAmber.copy(alpha = 0.35f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WarningAmber,
+                            contentDescription = null,
+                            tint = cautionAmber,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = grabWarnTitle,
+                                fontSize = 11.sp,
+                                color = cautionAmber,
+                                lineHeight = 14.sp
+                            )
+                            if (grabWarnSub != null) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = grabWarnSub,
+                                    fontSize = 10.sp,
+                                    color = Color.LightGray.copy(alpha = 0.85f),
+                                    lineHeight = 13.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Double-Press Window Slider & Text Field
+                var doublePressWindow by remember(prefs) {
+                    mutableStateOf(prefs.getLong(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW, LightspeedPreferences.DEFAULT_POWER_DOUBLE_PRESS_WINDOW_MS))
+                }
+                var textInput by remember(doublePressWindow) {
+                    mutableStateOf("$doublePressWindow")
+                }
+
+                val doublePressTitle = when (currentLanguageMode) {
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.VESSEL_LORE -> "Double-Press Inter-Press Window"
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CO_PILOT -> "Double-Press Window ⇄ Inter-Press Timeout"
+                    com.sbf.lightspeed.system.LightspeedLanguageEngine.LanguageMode.CLEAR_COMMS -> "Double-Press Inter-Press Timeout"
+                }
+
+                val minWindowVal = 200L
+                val maxWindowVal = 600L
+                val stepWindowMs = 25L
+                val stepsWindowCount = (((maxWindowVal - minWindowVal) / stepWindowMs) - 1).toInt()
+
+                fun applyWindowValue(valueMs: Long) {
+                    val clamped = valueMs.coerceIn(minWindowVal, maxWindowVal)
+                    val rounded = minWindowVal + kotlin.math.round((clamped - minWindowVal).toDouble() / stepWindowMs.toDouble()).toLong() * stepWindowMs
+                    val finalVal = rounded.coerceIn(minWindowVal, maxWindowVal)
+                    if (doublePressWindow != finalVal) {
+                        doublePressWindow = finalVal
+                        textInput = "$finalVal"
+                        prefs.edit().putLong(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW, finalVal).apply()
+                        try {
+                            LightspeedAccessibilityService.instance?.reloadPreferences()
+                        } catch (e: Exception) {
+                            logSwallowed("HudVaultExperimentalComponents", "DoublePressWindowSlider", e)
+                        }
+                        onRefreshNeeded()
+                    } else {
+                        textInput = "$finalVal"
+                    }
+                }
+
+                var isFlyoutOpen by remember { mutableStateOf(false) }
+                var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_${LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW}", false)) }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.4f))
+                        .padding(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = doublePressTitle,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp,
+                            color = Color.White,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                            maxLines = 1
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .combinedClickable(
+                                    onClick = {
+                                        LightspeedHapticEngine.tick(context)
+                                        isFlyoutOpen = true
+                                    },
+                                    onLongClick = {
+                                        LightspeedHapticEngine.heavyClick(context)
+                                        applyWindowValue(LightspeedPreferences.DEFAULT_POWER_DOUBLE_PRESS_WINDOW_MS)
+                                    }
+                                )
+                        ) {
+                            Text(
+                                text = "${doublePressWindow} ms",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    DragOnlySlider(
+                        value = doublePressWindow.toFloat(),
+                        onValueChange = { floatVal ->
+                            val rounded = (minWindowVal + kotlin.math.round((floatVal - minWindowVal.toFloat()) / stepWindowMs.toFloat()) * stepWindowMs).toLong().coerceIn(minWindowVal, maxWindowVal)
+                            applyWindowValue(rounded)
+                        },
+                        valueRange = minWindowVal.toFloat()..maxWindowVal.toFloat(),
+                        steps = stepsWindowCount,
+                        tapToJump = isTapToJumpEnabled,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (isFlyoutOpen) {
+                    SliderCalibrationFlyoutDialog(
+                        title = doublePressTitle,
+                        sliderKey = LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW,
+                        currentValueStr = doublePressWindow.toString(),
+                        defaultValueStr = LightspeedPreferences.DEFAULT_POWER_DOUBLE_PRESS_WINDOW_MS.toString(),
+                        onValueTyped = { typedStr ->
+                            val parsed = typedStr.filter { it.isDigit() }.toLongOrNull()
+                            if (parsed != null) {
+                                applyWindowValue(parsed)
+                            }
+                        },
+                        onResetToDefault = {
+                            applyWindowValue(LightspeedPreferences.DEFAULT_POWER_DOUBLE_PRESS_WINDOW_MS)
+                        },
+                        onSelectProfile = { profileStr ->
+                            val parsed = profileStr.filter { it.isDigit() }.toLongOrNull()
+                            if (parsed != null) {
+                                applyWindowValue(parsed)
+                            }
+                        },
+                        onDismiss = { isFlyoutOpen = false },
+                        prefs = prefs,
+                        context = context,
+                        isTapToJumpEnabled = isTapToJumpEnabled,
+                        onTapToJumpChanged = { enabled ->
+                            isTapToJumpEnabled = enabled
+                            prefs.edit().putBoolean("pref_slider_tap_to_jump_${LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW}", enabled).apply()
+                        }
+                    )
+                }
+
                 val powerGestures = listOf(
                     Triple(LightspeedPreferences.KEY_POWER_SINGLE_PRESS, "Single Press", PowerTriggerSlot.POWER_SINGLE_PRESS),
-                    Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<300ms)", PowerTriggerSlot.POWER_DOUBLE_PRESS),
+                    Triple(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS, "Double Press (<${doublePressWindow}ms)", PowerTriggerSlot.POWER_DOUBLE_PRESS),
                     Triple(LightspeedPreferences.KEY_POWER_HOLD, "Hold (~400ms)", PowerTriggerSlot.POWER_HOLD),
                     Triple(LightspeedPreferences.KEY_POWER_PRESS_THEN_HOLD, "Press-then-Hold", PowerTriggerSlot.POWER_PRESS_THEN_HOLD)
                 )

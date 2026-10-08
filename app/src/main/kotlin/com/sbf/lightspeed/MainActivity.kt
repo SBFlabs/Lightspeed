@@ -21,6 +21,7 @@ import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import rikka.shizuku.Shizuku
+import com.sbf.lightspeed.system.ShizukuGate
 
 class MainActivity : ComponentActivity() {
 
@@ -85,6 +86,7 @@ class MainActivity : ComponentActivity() {
             }
 
             LightspeedTheme {
+                ShizukuChoiceDialog()
                 MainSettingsScreen()
             }
         }
@@ -109,7 +111,7 @@ class MainActivity : ComponentActivity() {
         try {
             if (Shizuku.pingBinder()) {
                 if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-                    Shizuku.requestPermission(ElevatedTaskCloser.SHIZUKU_REQ_CODE)
+                ShizukuGate.requestIfAllowed()
                 } else {
                     autoReviveServiceIfShizukuAvailable()
                 }

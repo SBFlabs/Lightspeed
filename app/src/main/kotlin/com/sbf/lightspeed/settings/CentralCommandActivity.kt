@@ -21,6 +21,7 @@ import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.sbf.lightspeed.system.ShizukuGate
 import rikka.shizuku.Shizuku
 
 class CentralCommandActivity : ComponentActivity() {
@@ -128,7 +129,7 @@ class CentralCommandActivity : ComponentActivity() {
         try {
             if (Shizuku.pingBinder()) {
                 if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    Shizuku.requestPermission(com.sbf.lightspeed.system.ElevatedTaskCloser.SHIZUKU_REQ_CODE)
+                ShizukuGate.requestIfAllowed()
                 } else {
                     autoReviveServiceIfShizukuAvailable()
                 }

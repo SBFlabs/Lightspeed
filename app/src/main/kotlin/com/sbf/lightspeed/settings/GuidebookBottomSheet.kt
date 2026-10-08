@@ -134,6 +134,16 @@ val GUIDEBOOK_ENTRIES = listOf(
         androidUtility = "Zeroes out Android's native back gesture sensitivity (back_gesture_inset_scale_left/right = 0) via Shizuku/ADB to eliminate edge touch conflicts, and configures global OS animation and display DPI scales.",
         tabIndex = 1,
         sectionKey = "system_overrides"
+    ),
+    GuidebookEntry(
+        id = "gesture_scrubbers",
+        vesselTitle = "Scrubbers & Precision Calibration",
+        androidTitle = "Sliders, Tactile Value Pills & Preset Profiles",
+        icon = Icons.Default.Tune,
+        vesselLore = "Sub-system scrubbers engineered with liquid-glass thumb tracking and dual-mode gearing. Vertical drag activates micro-precision 1-step gearing. Tapping a tactile value pill deploys the Precision Control & Presets flyout matrix; long-pressing resets the setting to factory default.",
+        androidUtility = "Interactive slider controls with vertical drag precision gearing. Tapping any numeric value box/pill opens Precision Control & Presets to type exact numbers, save custom preset profiles, or toggle tap-to-jump. Long-pressing the value pill resets it to factory default.",
+        tabIndex = 1,
+        sectionKey = "scrubbers"
     )
 )
 

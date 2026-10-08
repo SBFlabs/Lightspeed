@@ -510,17 +510,29 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         window.attributes = lp
         appWidgetHost?.stopListening()
+        LightspeedAccessibilityService.instance?.hideBaySleepBlackout()
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
         if (!isChangingConfigurations && !isWaitingForResult) {
-            isChargingSessionDismissed = true
+            val dismissBehavior = defaultPrefs().getString(LightspeedPreferences.KEY_REFUELING_DISMISS_BEHAVIOR, "session") ?: "session"
+            val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            val isScreenOffStop = dismissBehavior == "screen_off" && pm?.isInteractive == false
+            if (!isScreenOffStop) {
+                isChargingSessionDismissed = true
+            }
             finish()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        LightspeedAccessibilityService.instance?.hideBaySleepBlackout()
         if (!isChangingConfigurations && !isWaitingForResult) {
-            isChargingSessionDismissed = true
+            val dismissBehavior = defaultPrefs().getString(LightspeedPreferences.KEY_REFUELING_DISMISS_BEHAVIOR, "session") ?: "session"
+            val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            val isScreenOffStop = dismissBehavior == "screen_off" && pm?.isInteractive == false
+            if (!isScreenOffStop) {
+                isChargingSessionDismissed = true
+            }
         }
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.show(WindowInsetsCompat.Type.systemBars())

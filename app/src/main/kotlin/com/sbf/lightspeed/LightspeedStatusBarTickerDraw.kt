@@ -302,13 +302,13 @@ internal fun LightspeedStatusBarOverlay.drawTelemetryTicker(
     val hasCutout = !isCutoutZeroed && (isCenteredCutout || (cutoutRight > layout.railLeft && cutoutLeft < layout.railRight))
 
     val isStatusBarGuard = renderCache.isStatusBarGuard
-    val tickerClipLeft = if (isLandscape && isStatusBarGuard) {
-        maxOf(layout.railLeft, (renderCache.safePaddingLeftDp + 42f) * d)
+    val tickerClipLeft = if (isStatusBarGuard) {
+        maxOf(layout.railLeft, (renderCache.safePaddingLeftDp + renderCache.textSafeLeftDp) * d)
     } else {
         layout.railLeft
     }
-    val tickerClipRight = if (isLandscape && isStatusBarGuard) {
-        minOf(layout.railRight, screenW - ((renderCache.safePaddingRightDp + 58f) * d))
+    val tickerClipRight = if (isStatusBarGuard) {
+        minOf(layout.railRight, screenW - ((renderCache.safePaddingRightDp + renderCache.textSafeRightDp) * d))
     } else {
         layout.railRight
     }

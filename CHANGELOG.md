@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-09 — Accessibility-Only Mode, Call Deflector & Refueling Bay Upgrades
+
+### Added
+* **Accessibility Service Only Mode (`ShizukuGate`)**: New "Accessibility-only" switch in System Override lets Lightspeed run on the Accessibility Service alone. Every Shizuku permission request now goes through `ShizukuGate`, a single throttled entry point initialized at app start that shows a toast only when a request is actually issued. A one-time Shizuku choice dialog lets you pick how Lightspeed uses Shizuku. In this mode, Shizuku-only actions show a "needs Shizuku" message instead of failing, misleading Shizuku authorization toasts are suppressed, and the arm button can revive the accessibility service without issuing a Shizuku request. If you switch the mode off and deny Shizuku authorization, the switch reverts to on.
+* **Call Deflector (`CallStateTracker`)**: New setting to hide the left and right gesture sidebars while a phone call is ringing or active (System Override > During phone calls, off by default). `CallStateTracker` detects the call state. The status bar and sensor area are not affected.
+* **Refueling Bay Overlay Cover**: Bay sleep now covers Lightspeed's own overlays and other apps' overlays with black to prevent OLED burn-in (setting: Cover overlays while the Bay sleeps, on by default).
+* **Refueling Bay "WHEN DISMISSED" Setting**: Choose whether the Bay stays dismissed until the device is unplugged or until the screen turns off.
+* **Slider Shortcuts**: Tapping a slider opens Precision Control & Presets, and a long press resets it to its default (documented in the Guidebook).
+* **Power Button Controls**: New grab warning and a tunable double-press window slider.
+* **Close App Without Shizuku**: The close app action now falls back to opening Recents and shows a message explaining what to do, instead of doing nothing.
+
+### Changed
+* **Horizon Rail Text Safe Guard**: The status bar guard now applies in portrait as well as landscape, with customizable left and right text margins (0-200 dp, defaults 42/58).
+* **Power Button Handling (`lsinputd`)**: Power presses are now forwarded natively while the screen is off, and the power grab daemon scores power input devices more accurately when selecting one.
+
+### Fixed
+* **Core Cooling Reboot**: Now shows a clear message when Shizuku is not running or not authorized, instead of doing nothing.
+* **Refueling Bay Relaunch Loop**: The Bay no longer relaunches in a loop after it goes dark, and its dark guard no longer blocks launches while the screen is off.
+* **Flight Blackbox Visibility**: The Flight Blackbox is now always visible instead of only appearing after a crash, and it keeps a saved log of actions that did not work as intended.
+* **System Override Dialog State**: The dialog state now survives configuration changes.
+* **Power Gesture Hardening (`LightspeedPowerGestureActivity`)**: Hardened the power gesture activity and the automation receiver.
+
 ## [1.1.1] - 2026-10-06 — Security Hardening, Backup Validation, Native Monotonic Clock & Countdown Guard
 
 ### Added & Hardened

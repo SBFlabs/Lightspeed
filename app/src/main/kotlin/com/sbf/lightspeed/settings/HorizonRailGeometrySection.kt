@@ -113,13 +113,15 @@ fun HorizonRailGeometrySection(
             prefs = prefs,
             prefKey = LightspeedPreferences.KEY_HORIZON_RAIL_STATUS_BAR_GUARD,
             defaultVal = true,
-            title = "Landscape Status Bar Safe Guard",
-            subtitle = "Automatically prevents long telemetry text or rails from occluding system status bar items (clock and network/battery icons).",
+            title = "Status Bar Text Safe Guard",
+            subtitle = "Keeps ticker text away from the system clock and battery icons in both portrait and landscape, using the text margins below.",
             onChanged = { onRefreshNeeded() }
         )
 
         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_SAFE_PADDING_LEFT, "", "Left Safe Margin Inset (dp)", 0, 80, 2, 0)
         PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_SAFE_PADDING_RIGHT, "", "Right Safe Margin Inset (dp)", 0, 80, 2, 0)
+        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SAFE_LEFT, "", "Text Safe Margin Left, clock side (dp)", 0, 200, 2, 42)
+        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SAFE_RIGHT, "", "Text Safe Margin Right, battery side (dp)", 0, 200, 2, 58)
 
         val currentPriority = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_PRIORITY, "downloads_top") ?: "downloads_top"
         val priorityOptions = listOf(

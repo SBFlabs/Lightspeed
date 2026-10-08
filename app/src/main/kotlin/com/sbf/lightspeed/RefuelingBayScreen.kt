@@ -289,6 +289,7 @@ fun RefuelingBayScreen(
             // Check auto-sleep timeout
             val idleDuration = System.currentTimeMillis() - lastInteractionTimestamp
             if (sleepTimeoutMs < Long.MAX_VALUE && idleDuration >= sleepTimeoutMs && !isSleeping) {
+                LightspeedAccessibilityService.noteBayDark()
                 if (sleepAction == "screen_off") {
                     lastInteractionTimestamp = System.currentTimeMillis()
                     val window = activity.window
@@ -322,14 +323,29 @@ fun RefuelingBayScreen(
         }
     }
 
-    // Sync System Bars with Sleep State
+    // Sync System Bars & Accessibility Overlay Sleep Blackout with Sleep State
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(isSleeping) {
         val window = activity.window
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (isSleeping) {
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            val isBlackoutEnabled = prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_SLEEP_BLACKOUT, true)
+            if (isBlackoutEnabled) {
+                LightspeedAccessibilityService.instance?.showBaySleepBlackout()
+            }
+            while (isSleeping) {
+                if (lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+                    LightspeedAccessibilityService.noteBayDark()
+                }
+                if (isBlackoutEnabled) {
+                    LightspeedAccessibilityService.instance?.sendBaySleepHeartbeat()
+                }
+                delay(1000L)
+            }
         } else {
+            LightspeedAccessibilityService.instance?.hideBaySleepBlackout()
             insetsController.show(WindowInsetsCompat.Type.systemBars())
         }
     }

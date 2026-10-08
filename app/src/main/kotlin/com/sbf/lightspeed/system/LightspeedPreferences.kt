@@ -189,6 +189,8 @@ object LightspeedPreferences {
     const val KEY_POWER_PRESS_THEN_HOLD = "pref_key_power_press_then_hold"
     const val KEY_POWER_LONG_PRESS_ACTION = "pref_power_long_press_action" // Legacy compatibility alias
     const val KEY_SUB_POWER_EXPANDED = "pref_sub_power_expanded"
+    const val KEY_POWER_DOUBLE_PRESS_WINDOW = "pref_power_double_press_window"
+    const val DEFAULT_POWER_DOUBLE_PRESS_WINDOW_MS = 450L
 
     // Action Tokens
     const val ACTION_TACTICAL_FLYOUT = "system:tactical_flyout"
@@ -322,6 +324,8 @@ object LightspeedPreferences {
     const val KEY_HORIZON_RAIL_OFFSET_Y = "pref_horizon_rail_offset_y"
     const val KEY_HORIZON_RAIL_SAFE_PADDING_LEFT = "pref_horizon_rail_safe_padding_left"
     const val KEY_HORIZON_RAIL_SAFE_PADDING_RIGHT = "pref_horizon_rail_safe_padding_right"
+    const val KEY_HORIZON_RAIL_TEXT_SAFE_LEFT = "pref_horizon_rail_text_safe_left"
+    const val KEY_HORIZON_RAIL_TEXT_SAFE_RIGHT = "pref_horizon_rail_text_safe_right"
     const val KEY_HORIZON_RAIL_STATUS_BAR_GUARD = "pref_horizon_rail_status_bar_guard"
     const val KEY_HORIZON_RAIL_THICKNESS = "pref_horizon_rail_thickness"
     const val KEY_HORIZON_RAIL_STACK_SPACING = "pref_horizon_rail_stack_spacing" // inter-rail gap: 0 to 6dp (0 = laminated stack)
@@ -395,6 +399,10 @@ object LightspeedPreferences {
     const val DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION = ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT
     const val KEY_HIDE_ON_LOCKSCREEN_AND_DOCK = "pref_hide_on_lockscreen_and_dock"
     const val KEY_LOCKSCREEN_DEFLECTOR_MODE = "pref_lockscreen_deflector_mode" // "keep_active", "hide_deflectors", "full_lockdown"
+    const val KEY_CALL_DEFLECTOR_MODE = "pref_call_deflector_mode" // "keep_active", "hide_deflectors"
+
+    fun getCallDeflectorMode(context: Context): String =
+        context.defaultPrefs().getString(KEY_CALL_DEFLECTOR_MODE, "keep_active") ?: "keep_active"
     const val KEY_LOCKSCREEN_HORIZON_RAIL_MODE = "pref_lockscreen_horizon_rail_mode" // "hide", "keep_active"
     const val KEY_LOCKSCREEN_SENSOR_DECK_MODE = "pref_lockscreen_sensor_deck_mode" // "hide", "keep_active"
     const val KEY_LOCKSCREEN_ORBITAL_CAPSULE_MODE = "pref_lockscreen_orbital_capsule_mode" // "disabled"
@@ -430,9 +438,12 @@ object LightspeedPreferences {
 
     // Refueling Bay Keys
     const val KEY_REFUELING_BAY_TRIGGER = "pref_refueling_bay_trigger" // "disabled", "charging_screen_off", "charging_dock_landscape", "screen_timeout", "screensaver_only"
+    const val KEY_REFUELING_DISMISS_BEHAVIOR = "pref_refueling_dismiss_behavior" // "session" (default), "screen_off"
     const val KEY_REFUELING_BATTERY_STYLE = "pref_refueling_battery_style" // "halo", "reactor_ticks", "dual_wings", "tachometer"
     const val KEY_REFUELING_SLEEP_TIMEOUT = "pref_refueling_sleep_timeout" // "5s", "15s", "30s", "60s", "120s", "300s", "never"
     const val KEY_REFUELING_SLEEP_ACTION = "pref_refueling_sleep_action" // "overlay", "screen_off"
+    const val KEY_REFUELING_SLEEP_BLACKOUT = "pref_bay_sleep_blackout" // Boolean: default true
+
     const val KEY_REFUELING_SPLIT_RATIO_PORTRAIT = "pref_refueling_split_ratio_portrait" // Float 0.3f to 0.7f
     const val KEY_REFUELING_SPLIT_RATIO_LANDSCAPE = "pref_refueling_split_ratio_landscape" // Float 0.3f to 0.7f
     const val KEY_REFUELING_PIXEL_SHIFT = "pref_refueling_pixel_shift"

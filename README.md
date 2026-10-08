@@ -19,7 +19,7 @@ Lightspeed's Central Command provides a polished portal for configuring navigati
 arm64 phones only (32-bit-only phones cannot install this build)
 
 [![Download Latest APK](https://img.shields.io/github/downloads/SBFlabs/Lightspeed/total?style=for-the-badge&logo=github&logoColor=white&label=Download%20APK&color=238636)](https://github.com/SBFlabs/Lightspeed/releases/latest)
-[![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
+[![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
 
 > [!TIP]
 > **Obtainium users:** Tapping **Add to Obtainium** on your device automatically imports Lightspeed pre-configured with **pre-releases disabled** (stable releases only). Every release published includes an official SHA-256 checksum in the release notes for cryptographic verification.

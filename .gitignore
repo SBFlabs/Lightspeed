@@ -30,3 +30,4 @@ Thumbs.db
 *.swp
 *.bak
 *.tmp
+release/

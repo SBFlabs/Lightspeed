@@ -418,9 +418,7 @@ If Lightspeed crashes or is uninstalled while active system overrides remain in 
 
 Lightspeed is built as a modular Android application, with its gesture system, configuration interface, action mapping, watchdogs, and experimental features separated into distinct components.
 
-The project goes through regular cycles of implementation, testing, and refactoring. As part of that process, source files exceeding **400 lines** are treated as warning signs that a component may be becoming too large or carrying too many responsibilities. Files exceeding **750 lines** are treated as a critical threshold and are placed at the top of the priority list for the next refactoring cycle.
-
-These thresholds are not strict technical limits. They are practical indicators used to keep the codebase maintainable as Lightspeed continues to grow.
+The project goes through regular cycles of implementation, testing, and refactoring. As part of that process, source files exceeding **400 lines** and **750 lines** are used as smoke detectors. They flag components that may be carrying too many responsibilities and put them on the list for the next refactoring cycle. They are not strict limits, and size alone never decides a split: the responsibilities a file carries decide whether and how it is divided.
 
 ### AI-Assisted Development
 

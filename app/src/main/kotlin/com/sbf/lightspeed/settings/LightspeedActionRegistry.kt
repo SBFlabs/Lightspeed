@@ -425,11 +425,11 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:media_next" -> "Media: Next Track"
         token == "system:media_prev" -> "Media: Previous Track"
         token == "system:media_skip_forward" -> {
-            val skipSec = context.defaultPrefs().getInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+            val skipSec = LightspeedPreferences.getMediaSkipSeconds(context.defaultPrefs(), forward = true)
             "Media: Skip Forward (${skipSec}s)"
         }
         token == "system:media_skip_backward" -> {
-            val skipSec = context.defaultPrefs().getInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+            val skipSec = LightspeedPreferences.getMediaSkipSeconds(context.defaultPrefs(), forward = false)
             "Media: Skip Backward (${skipSec}s)"
         }
         token == "system:media_scrubber" -> "Media: Timeline Scrubber (HUD)"

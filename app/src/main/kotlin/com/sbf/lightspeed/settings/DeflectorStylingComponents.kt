@@ -110,11 +110,13 @@ fun DeflectorPillStylingContent(
             PrefDottedSliderRow(context, prefs, "${prefix}_height_landscape", "", "Deflector Span (Height) [Landscape]", 30, 800, 10, defaultLandscapeH)
             PrefDottedSliderRow(context, prefs, "${prefix}_touch_width", "", "Touch Vector Reach", 0, 100, 1, 10)
             PrefDottedSliderRow(context, prefs, "${prefix}_y_offset_landscape", "", "Deflector Alignment Offset [Landscape]", -300, 300, 10, defaultLandscapeY)
+            PrefDottedSliderRow(context, prefs, "${prefix}_x_offset", "", "Distance From Screen Edge", 0, 100, 1, 0)
             PrefDottedSliderRow(context, prefs, "${prefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 35)
         } else {
             PrefDottedSliderRow(context, prefs, "${prefix}_height", "", "Deflector Span (Height)", 50, 1000, 10, 70)
             PrefDottedSliderRow(context, prefs, "${prefix}_touch_width", "", "Touch Vector Reach", 0, 100, 1, 10)
             PrefDottedSliderRow(context, prefs, "${prefix}_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+            PrefDottedSliderRow(context, prefs, "${prefix}_x_offset", "", "Distance From Screen Edge", 0, 100, 1, 0)
             PrefDottedSliderRow(context, prefs, "${prefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 35)
         }
 

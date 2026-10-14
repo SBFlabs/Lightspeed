@@ -59,6 +59,9 @@ object LightspeedOrientationEngine {
     }
 
     @Volatile
+    var forcedActive: Boolean = false
+
+    @Volatile
     private var lastInternalWriteTime = 0L
     private var lastPermissionPromptTime = 0L
 
@@ -221,6 +224,7 @@ object LightspeedOrientationEngine {
         } else {
             LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
         }
+        forcedActive = true
     }
 
     fun forcePortrait(context: Context) {
@@ -236,6 +240,7 @@ object LightspeedOrientationEngine {
             writeSystemSetting(context, Settings.System.ACCELEROMETER_ROTATION, 0)
             writeSystemSetting(context, Settings.System.USER_ROTATION, Surface.ROTATION_0)
         }
+        forcedActive = true
         LightspeedOrientationManager.startActiveSensorPortraitDriver(context)
     }
 
@@ -252,6 +257,7 @@ object LightspeedOrientationEngine {
     }
 
     fun releaseForcedOrientation(context: Context) {
+        forcedActive = false
         LightspeedOrientationManager.stopActiveSensorPortraitDriver()
         Log.i(TAG, "Releasing forced orientation to native baseline")
         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)

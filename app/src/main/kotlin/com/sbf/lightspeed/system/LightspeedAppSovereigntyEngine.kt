@@ -52,7 +52,7 @@ object LightspeedAppSovereigntyEngine {
     fun ensureShizukuPermission(context: Context? = null): Boolean {
         if (!Shizuku.pingBinder()) {
             Log.w(TAG, "Shizuku server is not running")
-            context?.showToast("Shizuku is not running")
+            context?.showToast("Shizuku isn't running. Start it, then try again.")
             return false
         }
         if (ShizukuGate.isAccessibilityOnly()) return false
@@ -137,10 +137,10 @@ object LightspeedAppSovereigntyEngine {
     fun armAppSovereignty(pkg: String) {
         try {
             ElevatedTaskCloser.execShizuku(
-                "cmd appops set $pkg TAKE_AUDIO_FOCUS allow; " +
-                "cmd appops set $pkg CONTROL_AUDIO allow; " +
-                "cmd appops set $pkg CONTROL_AUDIO_PARTIAL allow; " +
-                "dumpsys deviceidle whitelist +$pkg"
+                "cmd appops set ${shellSingleQuote(pkg)} TAKE_AUDIO_FOCUS allow; " +
+                "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO allow; " +
+                "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO_PARTIAL allow; " +
+                "dumpsys deviceidle whitelist ${shellSingleQuote("+$pkg")}"
             )
             Log.i(TAG, "armAppSovereignty($pkg) applied")
         } catch (e: Throwable) {
@@ -151,9 +151,9 @@ object LightspeedAppSovereigntyEngine {
     fun disarmAppSovereignty(pkg: String) {
         try {
             ElevatedTaskCloser.execShizuku(
-                "cmd appops set $pkg TAKE_AUDIO_FOCUS default; " +
-                "cmd appops set $pkg CONTROL_AUDIO default; " +
-                "cmd appops set $pkg CONTROL_AUDIO_PARTIAL default"
+                "cmd appops set ${shellSingleQuote(pkg)} TAKE_AUDIO_FOCUS default; " +
+                "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO default; " +
+                "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO_PARTIAL default"
             )
             Log.i(TAG, "disarmAppSovereignty($pkg) applied")
         } catch (e: Throwable) {
@@ -406,9 +406,12 @@ object LightspeedAppSovereigntyEngine {
                 list.remove(pkg)
             }
             val updated = list.joinToString(",")
-            ElevatedTaskCloser.execShizuku("settings put global audio.zerosound.applist '$updated'").waitForOrKill()
+            ElevatedTaskCloser.execShizuku("settings put global audio.zerosound.applist ${shellSingleQuote(updated)}").waitForOrKill()
         } catch (e: Exception) { logSwallowed(TAG, "runTranssionZeroSound:410", e) }
     }
+
+    private fun shellSingleQuote(value: String): String =
+        "'" + value.replace("'", "'\\''") + "'"
 
     private fun String.label() = substringAfterLast('.')
         .replaceFirstChar { it.uppercaseChar() }

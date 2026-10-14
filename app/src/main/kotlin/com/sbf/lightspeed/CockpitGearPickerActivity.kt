@@ -218,7 +218,8 @@ var showHud by remember { mutableStateOf(false) }
                             pinnedApps = pinnedApps,
                             prefs = prefs,
                             singleSelectPrefKey = singleSelectPrefKey,
-                            isHoldOrScrubGesture = isHoldGesture
+                            isHoldOrScrubGesture = isHoldGesture,
+                            context = this@CockpitGearPickerActivity
                         )
                         if (isSplitMode) {
                             filterForSplitMode(rawList)
@@ -577,6 +578,19 @@ var showHud by remember { mutableStateOf(false) }
                                                             dynamicSecondary = dynamicSecondary,
                                                             onClick = {
                                                                 when {
+                                                                    item.optionKey.startsWith("action_method:") -> {
+                                                                        val parts = item.optionKey.split(":")
+                                                                        if (parts.size >= 4) {
+                                                                            val parentToken = "${parts[1]}:${parts[2]}"
+                                                                            val methodId = parts[3]
+                                                                            if (com.sbf.lightspeed.system.ActionMethods.isOptionEnabled(methodId)) {
+                                                                                com.sbf.lightspeed.system.ActionMethods.toggle(this@CockpitGearPickerActivity, parentToken, methodId)
+                                                                                LightspeedActionRegistry.labelCache[parentToken] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, parentToken)
+                                                                                safeReloadPreferences()
+                                                                                hudStyleVersion++
+                                                                            }
+                                                                        }
+                                                                    }
                                                                     item.optionKey.startsWith("action_behavior:") -> {
                                                                         val parts = item.optionKey.split(":")
                                                                         if (parts.size >= 4) {
@@ -602,7 +616,7 @@ var showHud by remember { mutableStateOf(false) }
                                                                     }
                                                                     item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward" -> {
                                                                         val sec = item.optionKey.toIntOrNull() ?: 10
-                                                                        prefs.edit().putInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
+                                                                        LightspeedPreferences.setMediaSkipSeconds(prefs, forward = (item.parentToken == "system:media_skip_forward"), sec = sec)
                                                                         LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_forward")
                                                                         LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_backward")
                                                                         safeReloadPreferences()

@@ -1,0 +1,6 @@
+• Close app without Shizuku: now works through Recents, best on near-stock Android.
+• Choose which methods Close app and Split screen use.
+• New Manual Native Rotation policy for Synthetic Gravity.
+• Deflector distance-from-edge slider.
+• Separate skip-forward and skip-back durations.
+• Fixes: Refueling Bay overlays flashing, charging watts on Samsung, MacroDroid restore.

@@ -397,6 +397,14 @@ object LightspeedPreferences {
     const val ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT = "persistent"
     const val ORIENTATION_OVERRIDE_EXPIRATION_DISABLED = "disabled"
     const val DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION = ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT
+
+    const val KEY_MANUAL_NATIVE_ROTATION_POLICY = "pref_manual_native_rotation_policy"
+    const val MANUAL_NATIVE_POLICY_BUCKET_WINS = "bucket_wins"
+    const val MANUAL_NATIVE_POLICY_UNTIL_APP_SWITCH = "until_app_switch"
+    const val MANUAL_NATIVE_POLICY_UNTIL_SCREEN_LOCK = "until_screen_lock"
+
+    fun getManualNativeRotationPolicy(context: Context): String =
+        context.defaultPrefs().getString(KEY_MANUAL_NATIVE_ROTATION_POLICY, MANUAL_NATIVE_POLICY_BUCKET_WINS) ?: MANUAL_NATIVE_POLICY_BUCKET_WINS
     const val KEY_HIDE_ON_LOCKSCREEN_AND_DOCK = "pref_hide_on_lockscreen_and_dock"
     const val KEY_LOCKSCREEN_DEFLECTOR_MODE = "pref_lockscreen_deflector_mode" // "keep_active", "hide_deflectors", "full_lockdown"
     const val KEY_CALL_DEFLECTOR_MODE = "pref_call_deflector_mode" // "keep_active", "hide_deflectors"
@@ -468,6 +476,22 @@ object LightspeedPreferences {
 
     // Media Actions Keys
     const val KEY_MEDIA_SKIP_SECONDS = "pref_media_skip_seconds"
+    const val KEY_MEDIA_SKIP_FORWARD_SECONDS = "pref_media_skip_forward_seconds"
+    const val KEY_MEDIA_SKIP_BACKWARD_SECONDS = "pref_media_skip_backward_seconds"
+
+    fun getMediaSkipSeconds(prefs: SharedPreferences, forward: Boolean): Int {
+        val specificKey = if (forward) KEY_MEDIA_SKIP_FORWARD_SECONDS else KEY_MEDIA_SKIP_BACKWARD_SECONDS
+        return if (prefs.contains(specificKey)) {
+            prefs.getInt(specificKey, 10)
+        } else {
+            prefs.getInt(KEY_MEDIA_SKIP_SECONDS, 10)
+        }
+    }
+
+    fun setMediaSkipSeconds(prefs: SharedPreferences, forward: Boolean, sec: Int) {
+        val specificKey = if (forward) KEY_MEDIA_SKIP_FORWARD_SECONDS else KEY_MEDIA_SKIP_BACKWARD_SECONDS
+        prefs.edit().putInt(specificKey, sec).apply()
+    }
 
     fun getRefuelingStackWidgetIds(context: Context): List<Int> {
         val prefs = context.defaultPrefs()
@@ -831,6 +855,7 @@ object LightspeedPreferences {
         // 2. Left Deflector Geometry Defaults
         editor.putInt("pref_sidebar_left_center_height", 70)
         editor.putInt("pref_sidebar_left_center_y_offset", 0)
+        editor.putInt("pref_sidebar_left_center_x_offset", 0)
         editor.putInt("pref_sidebar_left_center_touch_width", 10)
         editor.putInt("pref_sidebar_left_center_visual_width", 0)
         editor.putInt("pref_sidebar_left_center_transparency", 0)
@@ -846,6 +871,7 @@ object LightspeedPreferences {
         // 3. Right Deflector Geometry Defaults
         editor.putInt("pref_sidebar_center_height", 70)
         editor.putInt("pref_sidebar_center_y_offset", 0)
+        editor.putInt("pref_sidebar_center_x_offset", 0)
         editor.putInt("pref_sidebar_center_touch_width", 10)
         editor.putInt("pref_sidebar_center_visual_width", 0)
         editor.putInt("pref_sidebar_center_transparency", 35)

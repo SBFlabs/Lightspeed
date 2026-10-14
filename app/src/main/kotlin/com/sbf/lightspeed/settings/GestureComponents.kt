@@ -104,10 +104,13 @@ fun GestureMappingRow(
                 currentRawValue == "system:gravity_override_sensor_portrait" ||
                 currentRawValue == "system:gravity_override_landscape"
 
+        val isMethodAction = com.sbf.lightspeed.system.ActionMethods.isMethodAction(currentRawValue)
+
         val hasControls = showMediaQuickAccess ||
                 showToolsQuickAccess ||
                 isHold ||
                 isOrientationAction ||
+                isMethodAction ||
                 (gravityBucket != null) ||
                 (currentRawValue == "system:screen_timeout") ||
                 (currentRawValue == "system:brightness") ||
@@ -506,6 +509,90 @@ fun GestureMappingRow(
                     }
                 }
 
+                // 0.4b. Action Method Sub-Chip (when assigned to split_screen or close_app)
+                if (isMethodAction) {
+                    var selectedMethods by remember(currentRawValue) {
+                        mutableStateOf(com.sbf.lightspeed.system.ActionMethods.getSelected(context, currentRawValue))
+                    }
+                    var showMethodMenu by remember { mutableStateOf(false) }
+
+                    Box {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                            modifier = Modifier.clickable { showMethodMenu = true }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.5.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = "Action Method Mode",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${com.sbf.lightspeed.system.ActionMethods.summaryLabel(currentRawValue, selectedMethods)} ▾",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showMethodMenu,
+                            onDismissRequest = { showMethodMenu = false },
+                            modifier = Modifier
+                                .background(Color(0xF012141A))
+                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                            shape = RoundedCornerShape(16.dp),
+                            containerColor = Color(0xF012141A)
+                        ) {
+                            val options = com.sbf.lightspeed.system.ActionMethods.options(currentRawValue)
+                            options.forEach { opt ->
+                                val isSelected = selectedMethods.contains(opt.id)
+                                val isEnabled = com.sbf.lightspeed.system.ActionMethods.isOptionEnabled(opt.id)
+                                DropdownMenuItem(
+                                    enabled = isEnabled,
+                                    modifier = Modifier.heightIn(min = 48.dp),
+                                    text = {
+                                        Column {
+                                            Text(
+                                                text = if (isSelected) "✓ ${opt.title}" else opt.title,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (!isEnabled) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                                        else if (isSelected) MaterialTheme.colorScheme.primary else Color.Unspecified
+                                            )
+                                            val subText = if (!isEnabled && opt.id == com.sbf.lightspeed.system.ActionMethods.SHIZUKU) {
+                                                "Off in Accessibility Service only mode"
+                                            } else {
+                                                opt.subtitle
+                                            }
+                                            if (subText.isNotEmpty()) {
+                                                Text(
+                                                    text = subText,
+                                                    fontSize = 10.sp,
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isEnabled) 0.6f else 0.38f)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        if (isEnabled) {
+                                            selectedMethods = com.sbf.lightspeed.system.ActionMethods.toggle(context, currentRawValue, opt.id)
+                                            com.sbf.lightspeed.settings.LightspeedActionRegistry.labelCache[currentRawValue] = resolveDynamicTokenLabel(context, currentRawValue)
+                                            try { com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:ActionMethod", e) }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // 0.5. Synthetic Gravity Assigned Apps Chip (when assigned to an orientation action)
                 if (gravityBucket != null) {
                     val isGravityEnabled = remember(currentRawValue) {
@@ -619,13 +706,14 @@ fun GestureMappingRow(
                             shape = RoundedCornerShape(16.dp),
                             containerColor = Color(0xF012141A)
                         ) {
-                            val skipSec = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+                            val skipForwardSec = com.sbf.lightspeed.system.LightspeedPreferences.getMediaSkipSeconds(prefs, forward = true)
+                            val skipBackwardSec = com.sbf.lightspeed.system.LightspeedPreferences.getMediaSkipSeconds(prefs, forward = false)
                             val mediaItems = listOf(
                                 "system:media_play_pause" to "Play / Pause",
                                 "system:media_next" to "Next Track",
                                 "system:media_prev" to "Previous Track",
-                                "system:media_skip_forward" to "Skip Forward (${skipSec}s)",
-                                "system:media_skip_backward" to "Skip Backward (${skipSec}s)",
+                                "system:media_skip_forward" to "Skip Forward (${skipForwardSec}s)",
+                                "system:media_skip_backward" to "Skip Backward (${skipBackwardSec}s)",
                                 "system:media_scrubber" to "Media Timeline Scrubber (HUD)",
                                 "system:media_stop" to "Stop Playback"
                             )
@@ -1216,8 +1304,9 @@ fun GestureMappingRow(
 
                 // 3. Skip Duration Selector for Media Skip Actions
                 if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {
+                    val isForward = currentRawValue == "system:media_skip_forward"
                     var currentSkipSec by remember(currentRawValue) {
-                        mutableStateOf(prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10))
+                        mutableStateOf(com.sbf.lightspeed.system.LightspeedPreferences.getMediaSkipSeconds(prefs, forward = isForward))
                     }
                     var showSkipMenu by remember { mutableStateOf(false) }
 
@@ -1255,7 +1344,7 @@ fun GestureMappingRow(
                                     },
                                     onClick = {
                                         currentSkipSec = sec
-                                        prefs.edit().putInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, sec).apply()
+                                        com.sbf.lightspeed.system.LightspeedPreferences.setMediaSkipSeconds(prefs, forward = isForward, sec = sec)
                                         try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("GestureComponents.kt", "GestureMappingRow:1238", e) }
                                         showSkipMenu = false
                                     }

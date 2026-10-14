@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,9 +33,11 @@ fun PrefDropdownSelector(
     currentKey: String,
     options: List<Pair<String, String>>,
     modifier: Modifier = Modifier,
-    onSelected: (String) -> Unit
+    onSelected: (String) -> Unit,
+    fontFor: ((String) -> FontFamily?)? = null
 ) {
     var isExpanded by remember { mutableStateOf(false) }
+    var shownKey by remember(currentKey) { mutableStateOf(currentKey) }
     Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(
             text = title,
@@ -55,10 +58,12 @@ fun PrefDropdownSelector(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val closedFontFamily = remember(shownKey) { fontFor?.invoke(shownKey) }
                     Text(
-                        text = options.firstOrNull { it.first == currentKey }?.second ?: currentKey,
+                        text = options.firstOrNull { it.first == shownKey }?.second ?: shownKey,
                         color = Color.White,
                         fontSize = 12.sp,
+                        fontFamily = closedFontFamily,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
@@ -80,10 +85,12 @@ fun PrefDropdownSelector(
                 containerColor = Color(0xF012141A)
             ) {
                 options.forEach { (key, label) ->
+                    val itemFontFamily = remember(key) { fontFor?.invoke(key) }
                     DropdownMenuItem(
                         modifier = Modifier.heightIn(min = 48.dp),
-                        text = { Text(label) },
+                        text = { Text(text = label, fontFamily = itemFontFamily) },
                         onClick = {
+                            shownKey = key
                             isExpanded = false
                             onSelected(key)
                         }

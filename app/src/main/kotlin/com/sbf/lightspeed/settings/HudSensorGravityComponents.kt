@@ -997,6 +997,74 @@ fun HudSyntheticGravitySection(
                     }
                 }
             }
+
+            // 6. Manual Native Rotation Policy
+            val currentNativePolicy = prefs.getString(
+                LightspeedPreferences.KEY_MANUAL_NATIVE_ROTATION_POLICY,
+                LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS
+            ) ?: LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS
+            var isNativePolicyDropdownOpen by remember { mutableStateOf(false) }
+            val nativePolicyOptions = listOf(
+                LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS to "Bucket wins (default)",
+                LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_APP_SWITCH to "Manual wins until app switch",
+                LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_SCREEN_LOCK to "Manual wins until screen lock"
+            )
+
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Text("MANUAL NATIVE ROTATION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
+                Text("If you flip the system auto-rotate toggle while an app bucket is active, choose who wins:", fontSize = 10.sp, color = Color.LightGray.copy(alpha = 0.75f), lineHeight = 13.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Box {
+                    OutlinedButton(
+                        onClick = { isNativePolicyDropdownOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = nativePolicyOptions.firstOrNull { it.first == currentNativePolicy }?.second ?: "Bucket wins (default)",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = isNativePolicyDropdownOpen,
+                        onDismissRequest = { isNativePolicyDropdownOpen = false },
+                        modifier = Modifier
+                            .background(Color(0xF012141A))
+                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = Color(0xF012141A)
+                    ) {
+                        nativePolicyOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                modifier = Modifier.heightIn(min = 48.dp),
+                                text = { Text(label) },
+                                onClick = {
+                                    isNativePolicyDropdownOpen = false
+                                    prefs.edit().putString(LightspeedPreferences.KEY_MANUAL_NATIVE_ROTATION_POLICY, key).apply()
+                                    onRefreshNeeded()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

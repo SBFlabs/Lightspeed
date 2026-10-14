@@ -160,6 +160,7 @@ class LightspeedLeftWingOverlay(
         }
 
         centerTouchWidthPx = prefs.getInt("${centerPrefix}_touch_width", 10).toFloat() * density
+        val edgeOffsetPx = (prefs.getInt("${centerPrefix}_x_offset", 0) * density).toInt()
         centerVisualWidthPx = prefs.getInt("${centerPrefix}_visual_width", 0).toFloat() * density
 
         topTouchWidthPx = prefs.getInt("${topPrefix}_touch_width", 10).toFloat() * density
@@ -178,9 +179,9 @@ class LightspeedLeftWingOverlay(
             bottomTouchBounds.setEmpty()
             centerTouchBounds.set(0f, 0f, centerTouchWidthPx, centerHeightPx)
 
-            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.gravity != (Gravity.TOP or Gravity.START)) {
+            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.START)) {
                 lp.gravity = Gravity.TOP or Gravity.START
-                lp.x = 0
+                lp.x = edgeOffsetPx
                 lp.y = winY
                 lp.width = winWidth
                 lp.height = winHeight
@@ -204,9 +205,9 @@ class LightspeedLeftWingOverlay(
         centerTouchBounds.set(0f, topHeightPx, centerTouchWidthPx, topHeightPx + centerHeightPx)
         bottomTouchBounds.set(0f, topHeightPx + centerHeightPx, bottomTouchWidthPx, topHeightPx + centerHeightPx + bottomHeightPx)
 
-        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.gravity != (Gravity.TOP or Gravity.START)) {
+        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.START)) {
             lp.gravity = Gravity.TOP or Gravity.START
-            lp.x = 0
+            lp.x = edgeOffsetPx
             lp.y = winY
             lp.width = winWidth
             lp.height = winHeight

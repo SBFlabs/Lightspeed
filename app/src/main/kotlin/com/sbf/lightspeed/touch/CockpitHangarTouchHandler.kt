@@ -284,7 +284,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                 if (ret3Rect.contains(x, y)) {
                     if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                         triggerHardwareHaptic(50, 255)
-                        android.widget.Toast.makeText(context, "Lightspeed Infinity required for Cross reticle", android.widget.Toast.LENGTH_SHORT).show()
+                        showInfinityPrompt()
                         invalidate()
                         return true
                     }
@@ -296,7 +296,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                 if (ret4Rect.contains(x, y)) {
                     if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                         triggerHardwareHaptic(50, 255)
-                        android.widget.Toast.makeText(context, "Lightspeed Infinity required for Diamond reticle", android.widget.Toast.LENGTH_SHORT).show()
+                        showInfinityPrompt()
                         invalidate()
                         return true
                     }
@@ -596,7 +596,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                         if (bayRect.contains(x, y)) {
                             if (gIndex >= 2 && !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                                 triggerHardwareHaptic(50, 255)
-                                android.widget.Toast.makeText(context, "Lightspeed Infinity required for Gear Set ${gIndex + 1}", android.widget.Toast.LENGTH_SHORT).show()
+                                showInfinityPrompt()
                                 invalidate()
                                 return true
                             }
@@ -612,7 +612,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                     if (plusRect.contains(x, y)) {
                         if (setsList.size >= 2 && !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                             triggerHardwareHaptic(50, 255)
-                            android.widget.Toast.makeText(context, "Lightspeed Infinity required for 3+ Gear Sets", android.widget.Toast.LENGTH_SHORT).show()
+                            showInfinityPrompt()
                             invalidate()
                             return true
                         }
@@ -635,6 +635,16 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
         }
     }
     return true
+}
+
+internal fun LightspeedCruiseOverlay.showInfinityPrompt() {
+    val intent = Intent(context, CockpitDialogActivity::class.java).apply {
+        action = CockpitDialogActivity.ACTION_SHOW_INFINITY
+        putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, activeGearSetIndex.coerceAtLeast(0))
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+    }
+    dismissOverlay()
+    context.startActivity(intent)
 }
 
 /**

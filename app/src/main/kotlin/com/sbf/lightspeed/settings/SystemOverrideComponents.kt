@@ -36,6 +36,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.sbf.lightspeed.system.ShizukuGate
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
+import android.content.pm.PackageManager
 
 @Composable
 fun SystemOverrideDeckContents(
@@ -43,6 +47,22 @@ fun SystemOverrideDeckContents(
     prefs: SharedPreferences
 ) {
     var isShizukuActive by remember { mutableStateOf(ElevatedTaskCloser.isShizukuActive) }
+    var accOnly by remember { mutableStateOf(ShizukuGate.isAccessibilityOnly()) }
+    var permissionRemoved by remember { mutableStateOf(checkShizukuPermissionRemoved(accOnly)) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isShizukuActive = ElevatedTaskCloser.isShizukuActive
+                permissionRemoved = checkShizukuPermissionRemoved(accOnly)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
     
     DisposableEffect(Unit) {
         val listener = rikka.shizuku.Shizuku.OnBinderReceivedListener {
@@ -231,7 +251,6 @@ fun SystemOverrideDeckContents(
         HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
 
     // Accessibility Service only switch
-    var accOnly by remember { mutableStateOf(ShizukuGate.isAccessibilityOnly()) }
     DisposableEffect(Unit) {
         val listener = rikka.shizuku.Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
             if (requestCode == com.sbf.lightspeed.system.ElevatedTaskCloser.SHIZUKU_REQ_CODE) {
@@ -239,6 +258,8 @@ fun SystemOverrideDeckContents(
                     accOnly = true
                     ShizukuGate.chooseAccessibilityOnly()
                 }
+                isShizukuActive = ElevatedTaskCloser.isShizukuActive
+                permissionRemoved = checkShizukuPermissionRemoved(accOnly)
             }
         }
         try {
@@ -258,6 +279,8 @@ fun SystemOverrideDeckContents(
                 val next = !accOnly
                 accOnly = next
                 if (next) ShizukuGate.chooseAccessibilityOnly() else ShizukuGate.chooseFull()
+                permissionRemoved = checkShizukuPermissionRemoved(next)
+                isShizukuActive = ElevatedTaskCloser.isShizukuActive
             },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -274,12 +297,21 @@ fun SystemOverrideDeckContents(
                 fontSize = 10.sp,
                 color = Color.White.copy(alpha = 0.7f)
             )
+            if (permissionRemoved) {
+                Text(
+                    "Shizuku access was removed. Falling back to Accessibility Service only until you allow it again in your Shizuku app or fork.",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         }
         Switch(
             checked = accOnly,
             onCheckedChange = { checked ->
                 accOnly = checked
                 if (checked) ShizukuGate.chooseAccessibilityOnly() else ShizukuGate.chooseFull()
+                permissionRemoved = checkShizukuPermissionRemoved(checked)
+                isShizukuActive = ElevatedTaskCloser.isShizukuActive
             },
             modifier = Modifier.padding(start = 8.dp),
             colors = SwitchDefaults.colors(
@@ -409,6 +441,7 @@ fun SystemOverrideDeckContents(
             onValueChangeFinished = {
                 if (!isShizukuActive) return@OverrideSliderRow
                 LightspeedHapticEngine.tick(context)
+                prefs.edit().putFloat("sys_override_edge_gesture", edgeGestureScale).apply()
                 scope.launch(Dispatchers.IO) {
                     ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left ${edgeGestureScale}")
                     ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_right ${edgeGestureScale}")
@@ -1079,5 +1112,15 @@ fun OverrideSliderRow(
                 prefs.edit().putBoolean("pref_slider_tap_to_jump_$sliderKey", it).apply()
             }
         )
+    }
+}
+
+private fun checkShizukuPermissionRemoved(accOnly: Boolean): Boolean {
+    if (accOnly) return false
+    return try {
+        rikka.shizuku.Shizuku.pingBinder() &&
+            rikka.shizuku.Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED
+    } catch (_: Exception) {
+        false
     }
 }

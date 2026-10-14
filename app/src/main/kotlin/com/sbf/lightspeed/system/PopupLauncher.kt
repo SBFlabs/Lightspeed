@@ -45,6 +45,32 @@ internal object PopupLauncher {
                 return@execute
             }
 
+            val methods = ActionMethods.getSelected(context, "system:popup_window")
+            val auto = ActionMethods.AUTO in methods
+            val a11yOnly = ShizukuGate.isAccessibilityOnly()
+            val useRecentsButton = (auto && a11yOnly) || (ActionMethods.RECENTS_BUTTON in methods && !(ActionMethods.SHIZUKU in methods && ElevatedTaskCloser.isShizukuActive))
+            Log.w(TAG, "popup methods=$methods useRecentsButton=$useRecentsButton")
+
+            if (useRecentsButton && !targetPkg.isNullOrBlank()) {
+                val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+                if (service != null) {
+                    RecentsPopupFallback.popupViaRecents(context, service, targetPkg)
+                    return@execute
+                } else {
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Pop-up failed: AccessibilityService not connected", Toast.LENGTH_SHORT).show()
+                    }
+                    return@execute
+                }
+            }
+
+            if (ActionMethods.AUTO !in methods && ActionMethods.SHIZUKU !in methods && !useRecentsButton) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Pop-up isn't supported with the selected methods", Toast.LENGTH_SHORT).show()
+                }
+                return@execute
+            }
+
             if (style == LightspeedPreferences.POPUP_STYLE_OEM) {
                 val oemResult = executeOemPopup(context, targetTaskId, targetPkg, topComponent)
                 if (oemResult.success) {

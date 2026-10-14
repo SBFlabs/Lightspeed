@@ -2,6 +2,8 @@ package com.sbf.lightspeed.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Typeface
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.sbf.lightspeed.LightspeedAccessibilityService
@@ -107,6 +109,7 @@ fun HorizonRailTickerSection(
 
             val currentFont = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_FONT, "system_default") ?: "system_default"
             val availableFonts = remember { DeviceFontScanner.getInstalledFonts() }
+            val fontCache = remember { mutableMapOf<String, FontFamily?>() }
             PrefDropdownSelector(
                 title = "MICRO-TEXT FONT FAMILY",
                 currentKey = currentFont,
@@ -115,6 +118,24 @@ fun HorizonRailTickerSection(
                     prefs.edit().putString(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_FONT, key).apply()
                     try { LightspeedAccessibilityService.instance?.reloadPreferences() } catch (e: Exception) { logSwallowed("HorizonRailTickerSection.kt", "HorizonRailTickerSection:116", e) }
                     onRefreshNeeded()
+                },
+                fontFor = { key ->
+                    fontCache.getOrPut(key) {
+                        if (key == "system_default") {
+                            null
+                        } else {
+                            try {
+                                val tf = if (key.startsWith("/")) {
+                                    Typeface.createFromFile(key)
+                                } else {
+                                    Typeface.create(key, Typeface.NORMAL)
+                                }
+                                FontFamily(tf)
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                    }
                 }
             )
 
@@ -139,6 +160,8 @@ fun HorizonRailTickerSection(
             )
 
             PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_OFFSET_Y, "", "Vertical Fine Y-Offset (dp)", -20, 40, 1, 0)
+            PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SAFE_LEFT, "", "Text Safe Margin Left, clock side (dp)", 0, 200, 2, 42)
+            PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_SAFE_RIGHT, "", "Text Safe Margin Right, battery side (dp)", 0, 200, 2, 58)
 
             val currentMarqueeScope = prefs.getString(LightspeedPreferences.KEY_HORIZON_RAIL_MARQUEE_SCOPE, "both_wings") ?: "both_wings"
             val marqueeScopeOptions = listOf(

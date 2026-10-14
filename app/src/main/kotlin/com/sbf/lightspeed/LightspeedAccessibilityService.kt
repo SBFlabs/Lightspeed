@@ -106,6 +106,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
     internal var baySleepBlackoutView: View? = null
     internal var baySleepBlackoutParams: WindowManager.LayoutParams? = null
     internal var lastBaySleepHeartbeat: Long = 0L
+    internal var baySleepSwapView: View? = null
+    internal var baySleepSwapAt: Long = 0L
     internal val baySleepRaiseRunnable = object : Runnable {
         override fun run() {
             try {
@@ -114,9 +116,30 @@ class LightspeedAccessibilityService : AccessibilityService() {
                     hideBaySleepBlackout()
                     return
                 }
-                baySleepBlackoutView?.let { v ->
-                    try { windowManager?.removeView(v) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:removeView", e) }
-                    try { windowManager?.addView(v, baySleepBlackoutParams) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:addView", e) }
+                val cur = baySleepBlackoutView
+                if (cur != null) {
+                    if (baySleepSwapView !== cur) {
+                        // a new cover appeared: start its 30 second clock
+                        baySleepSwapView = cur
+                        baySleepSwapAt = now
+                    } else if (now - baySleepSwapAt >= 30_000L) {
+                        // seamless swap: add a new black cover FIRST, only then remove the old one, so there is never a gap
+                        val oldParams = baySleepBlackoutParams
+                        if (oldParams != null) {
+                            val newView = View(this@LightspeedAccessibilityService).apply { setBackgroundColor(android.graphics.Color.BLACK) }
+                            val newParams = WindowManager.LayoutParams().apply { copyFrom(oldParams) }
+                            try {
+                                windowManager?.addView(newView, newParams)
+                                baySleepBlackoutView = newView
+                                baySleepBlackoutParams = newParams
+                                baySleepSwapView = newView
+                                baySleepSwapAt = now
+                                try { windowManager?.removeView(cur) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:removeOld", e) }
+                            } catch (e: Exception) {
+                                logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:swap", e)
+                            }
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable", e)
@@ -188,7 +211,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         instanceRef = java.lang.ref.WeakReference(this)
 
         val info = serviceInfo ?: AccessibilityServiceInfo()
-        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS or AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
         serviceInfo = info
 
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)

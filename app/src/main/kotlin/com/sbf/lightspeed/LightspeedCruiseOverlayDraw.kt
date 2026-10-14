@@ -573,6 +573,15 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
         centerVisualWidthPx
     }
 
+    val offsetKey = if (isLeft) {
+        val geomMode = prefs().getString("pref_symmetry_geometry_mode", "independent") ?: "independent"
+        if (geomMode == "right") "pref_sidebar_center_x_offset" else "pref_sidebar_left_center_x_offset"
+    } else "pref_sidebar_center_x_offset"
+    val edgeShiftPx = prefs().getInt(offsetKey, 0).toFloat() * d
+    val glowDx = if (isLeft) edgeShiftPx else -edgeShiftPx
+
+    canvas.save()
+    canvas.translate(glowDx, 0f)
     com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
         canvas = canvas,
         isLeft = isLeft,
@@ -599,6 +608,7 @@ private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Prim
         touchY = null,
         visualWidthPx = visualWidth
     )
+    canvas.restore()
 }
 
 internal fun LightspeedCruiseOverlay.drawSpaceshipGimbalRing(

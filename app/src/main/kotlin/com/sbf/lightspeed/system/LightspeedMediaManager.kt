@@ -191,12 +191,12 @@ object LightspeedMediaManager {
     }
 
     fun skipForward(context: Context, seconds: Int? = null) {
-        val skipSec = seconds ?: context.defaultPrefs().getInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+        val skipSec = seconds ?: LightspeedPreferences.getMediaSkipSeconds(context.defaultPrefs(), forward = true)
         scrubRelative(context, skipSec * 1000L)
     }
 
     fun skipBackward(context: Context, seconds: Int? = null) {
-        val skipSec = seconds ?: context.defaultPrefs().getInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+        val skipSec = seconds ?: LightspeedPreferences.getMediaSkipSeconds(context.defaultPrefs(), forward = false)
         scrubRelative(context, -(skipSec * 1000L))
     }
 

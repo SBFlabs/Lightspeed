@@ -7,6 +7,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.background
@@ -26,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedNotificationListener
 
 /**
  * Clones macro actions and HUD styles between wing flank zones.
@@ -525,7 +527,7 @@ fun NotificationAccessDialog(
         },
         text = {
             Text(
-                "To display real-time download progress and active media playback in your status bar or notch pill, Android requires Notification Access (Device & App Notifications).\n\nLightspeed is 100% offline and never records, stores, or transmits your personal notifications.",
+                "Lightspeed needs Notification Access for two things:\n\n• Media control: gestures that play, pause or skip tracks can only reach your music or video app through Notification Access.\n• Live status: showing real-time download progress and active media playback in your status bar or notch pill.\n\nLightspeed is 100% offline and never records, stores, or transmits your personal notifications.",
                 fontSize = 13.sp,
                 color = Color.LightGray.copy(alpha = 0.9f),
                 lineHeight = 18.sp
@@ -724,6 +726,35 @@ fun CentralCommandDialogDeck(
         prefs = prefs,
         onRefreshNeeded = onRefreshNeeded
     )
+
+    val notificationAccessPrompt by viewModel.notificationAccessPrompt.collectAsState()
+    val importStatusMessage by viewModel.importStatusMessage.collectAsState()
+    LaunchedEffect(notificationAccessPrompt, importStatusMessage) {
+        if (notificationAccessPrompt && importStatusMessage == null) {
+            showNotificationAccessDialogState.value = true
+            viewModel.consumeNotificationAccessPrompt()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { sp, changedKey ->
+            if (changedKey == null) return@OnSharedPreferenceChangeListener
+            try {
+                val value = sp.getString(changedKey, null)
+                if (value != null && value.startsWith("system:media_")) {
+                    val granted = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")?.contains(context.packageName) == true || LightspeedNotificationListener.instance != null
+                    if (!granted) {
+                        showNotificationAccessDialogState.value = true
+                    }
+                }
+            } catch (e: Exception) {
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
 
     NotificationAccessDialog(
         showState = showNotificationAccessDialogState,

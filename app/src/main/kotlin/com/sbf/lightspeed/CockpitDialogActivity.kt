@@ -48,6 +48,7 @@ import com.sbf.lightspeed.system.LightspeedShortcutManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.sbf.lightspeed.settings.LightspeedInfinityDialog
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class CockpitDialogActivity : ComponentActivity() {
@@ -56,6 +57,7 @@ class CockpitDialogActivity : ComponentActivity() {
         const val ACTION_RENAME_GEAR = "com.sbf.lightspeed.action.RENAME_GEAR"
         const val ACTION_EDIT_ITEM = "com.sbf.lightspeed.action.EDIT_ITEM"
         const val ACTION_CONFIRM_DEEP_ACTIVITY = "com.sbf.lightspeed.action.CONFIRM_DEEP_ACTIVITY"
+        const val ACTION_SHOW_INFINITY = "com.sbf.lightspeed.action.SHOW_INFINITY"
 
         const val EXTRA_SET_ID = "EXTRA_SET_ID"
         const val EXTRA_SET_INDEX = "EXTRA_SET_INDEX"
@@ -118,6 +120,11 @@ class CockpitDialogActivity : ComponentActivity() {
                                 ACTION_CONFIRM_DEEP_ACTIVITY -> DeepActivityWarningContent(
                                     token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
                                     onDismiss = { finish() }
+                                )
+                                ACTION_SHOW_INFINITY -> LightspeedInfinityDialog(
+                                    context = this@CockpitDialogActivity,
+                                    onDismiss = { finish() },
+                                    onUnlocked = {}
                                 )
                                 else -> finish()
                             }

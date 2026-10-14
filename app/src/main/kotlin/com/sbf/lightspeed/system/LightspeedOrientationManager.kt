@@ -57,6 +57,9 @@ object LightspeedOrientationManager {
     private var lastForegroundPackage: String? = null
 
     @Volatile
+    private var manualNativeRotationActive = false
+
+    @Volatile
     private var isSensorPortraitDriverActive = false
     private var sensorPortraitListener: OrientationEventListener? = null
     @Volatile
@@ -127,6 +130,7 @@ object LightspeedOrientationManager {
     fun resetGravity(context: Context) {
         Log.i(TAG, "Restoring Default Gravity baseline")
         manualGestureOverride = null
+        manualNativeRotationActive = false
         LightspeedOrientationEngine.releaseForcedOrientation(context)
         val shown = com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
             title = "GRAVITY RESTORED",
@@ -370,6 +374,17 @@ object LightspeedOrientationManager {
     fun onExternalAutoRotateChanged(context: Context, isEnabled: Boolean) {
         Log.i(TAG, "External Auto-Rotate change synced: $isEnabled")
         LightspeedOrientationEngine.setMasterAutoRotateBaseline(context, isEnabled)
+        val policy = LightspeedPreferences.getManualNativeRotationPolicy(context)
+        val prefs = context.defaultPrefs()
+        if (policy != LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS &&
+            LightspeedOrientationEngine.forcedActive &&
+            manualGestureOverride == null &&
+            prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)
+        ) {
+            manualNativeRotationActive = true
+            Log.i(TAG, "Manual native rotation active (policy: $policy), releasing forced orientation")
+            evaluateGravityCascade(context)
+        }
     }
 
     fun onForegroundPackageChanged(context: Context, newPackage: String?, isLocked: Boolean) {
@@ -394,12 +409,18 @@ object LightspeedOrientationManager {
             if (expiration == LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_UNTIL_APP_SWITCH) {
                 manualGestureOverride = null
             }
+            if (LightspeedPreferences.getManualNativeRotationPolicy(context) == LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_APP_SWITCH) {
+                manualNativeRotationActive = false
+            }
         }
         evaluateGravityCascade(context, isLocked = isLocked, foregroundPackage = targetPkg)
     }
 
     fun onScreenOff(context: Context) {
         LightspeedOrientationEngine.releaseForcedOrientation(context)
+        if (LightspeedPreferences.getManualNativeRotationPolicy(context) == LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_SCREEN_LOCK) {
+            manualNativeRotationActive = false
+        }
         val prefs = context.defaultPrefs()
         val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION) ?: LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION
         if (expiration != LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT) {
@@ -408,6 +429,9 @@ object LightspeedOrientationManager {
     }
 
     fun onDeviceUnlocked(context: Context) {
+        if (LightspeedPreferences.getManualNativeRotationPolicy(context) == LightspeedPreferences.MANUAL_NATIVE_POLICY_UNTIL_SCREEN_LOCK) {
+            manualNativeRotationActive = false
+        }
         val prefs = context.defaultPrefs()
         val expiration = prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERRIDE_EXPIRATION, LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION) ?: LightspeedPreferences.DEFAULT_ORIENTATION_OVERRIDE_EXPIRATION
         if (expiration != LightspeedPreferences.ORIENTATION_OVERRIDE_EXPIRATION_PERSISTENT) {
@@ -430,11 +454,28 @@ object LightspeedOrientationManager {
     }
 
     fun killConflictingTools(context: Context) {
-        if (ElevatedTaskCloser.isShizukuActive) {
+        if (!ElevatedTaskCloser.isShizukuActive) return
+        val appContext = context.applicationContext
+        val macroPkg = "com.arlosoft.macrodroid"
+        Thread {
             try {
-                ElevatedTaskCloser.execShizuku("am force-stop com.arlosoft.macrodroid")
-            } catch (e: Exception) { logSwallowed(TAG, "killConflictingTools:436", e) }
-        }
+                // Android removes an app's accessibility services from the enabled list when that app is force-stopped.
+                // Remember which MacroDroid services were enabled before, force-stop, then switch exactly those back on.
+                val enabledBefore = LightspeedWatchdogEngine.getEnabledAccessibilityServices(appContext)
+                    .filter { it.packageName == macroPkg }
+                ElevatedTaskCloser.execShizuku("am force-stop $macroPkg")?.waitForOrKill()
+                if (enabledBefore.isNotEmpty()) {
+                    Thread.sleep(1500L)
+                    val enabledNow = LightspeedWatchdogEngine.getEnabledAccessibilityServices(appContext)
+                    for (cn in enabledBefore) {
+                        if (!enabledNow.contains(cn)) {
+                            LightspeedWatchdogEngine.toggleAccessibilityService(appContext, cn.flattenToString(), true)
+                            Log.i(TAG, "killConflictingTools: re-enabled ${cn.flattenToShortString()} after force-stop")
+                        }
+                    }
+                }
+            } catch (e: Exception) { logSwallowed(TAG, "killConflictingTools", e) }
+        }.apply { name = "KillConflictingTools"; isDaemon = true }.start()
     }
 
     fun evaluateGravityCascade(context: Context, isLocked: Boolean? = null, foregroundPackage: String? = null) {
@@ -459,6 +500,14 @@ object LightspeedOrientationManager {
                 }
                 return
             }
+        }
+
+        val nativeRotationPolicy = LightspeedPreferences.getManualNativeRotationPolicy(context)
+        if (nativeRotationPolicy == LightspeedPreferences.MANUAL_NATIVE_POLICY_BUCKET_WINS) {
+            manualNativeRotationActive = false
+        } else if (manualNativeRotationActive) {
+            LightspeedOrientationEngine.releaseForcedOrientation(context)
+            return
         }
 
         // Master Automation Interlock: If Synthetic Gravity Engine (per-app buckets) is disabled,

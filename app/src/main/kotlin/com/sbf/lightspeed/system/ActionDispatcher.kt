@@ -5,7 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 
@@ -140,24 +145,31 @@ object ActionDispatcher {
                 LightspeedTimeoutEngine.cycleNext(context)
             }
             token == "system:media_play_pause" -> {
+                warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.playPause(context)
             }
             token == "system:media_next" -> {
+                warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.next(context)
             }
             token == "system:media_prev" -> {
+                warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.previous(context)
             }
             token == "system:media_skip_forward" -> {
+                warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.skipForward(context)
             }
             token == "system:media_skip_backward" -> {
+                warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.skipBackward(context)
             }
             token == "system:media_scrubber" -> {
+                warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.showScrubber(context)
             }
             token == "system:media_stop" -> {
+                warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.stop(context)
             }
             token == "system:refueling_bay" -> {
@@ -381,6 +393,29 @@ object ActionDispatcher {
                 }, null)
                 torchCallbackRegistered = true
             } catch (e: Exception) { logSwallowed(TAG, "onTorchModeChanged:380", e) }
+        }
+    }
+
+    private var lastNoAccessToastMs: Long = 0L
+
+    private fun warnIfNoNotificationAccess(context: Context) {
+        try {
+            val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+            if (flat?.contains(context.packageName) == true || LightspeedNotificationListener.instance != null) {
+                return
+            }
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastNoAccessToastMs >= 15000) {
+                lastNoAccessToastMs = now
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        context,
+                        "Media control needs Notification access. Allow it for this app in Android settings.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        } catch (_: Exception) {
         }
     }
 

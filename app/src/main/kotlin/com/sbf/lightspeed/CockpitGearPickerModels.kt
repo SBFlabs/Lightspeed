@@ -108,7 +108,8 @@ fun buildFlatItemsList(
     pinnedApps: Set<String>,
     prefs: SharedPreferences,
     singleSelectPrefKey: String?,
-    isHoldOrScrubGesture: Boolean = true
+    isHoldOrScrubGesture: Boolean = true,
+    context: android.content.Context? = null
 ): List<PickerRowItem> {
     val list = mutableListOf<PickerRowItem>()
     val scrubTokens = setOf("system:screen_timeout", "system:volume", "system:brightness")
@@ -227,6 +228,7 @@ fun buildFlatItemsList(
                                     token == "system:media_skip_backward" ||
                                     token == "system:popup_window" ||
                                     token == "system:freeform" ||
+                                    com.sbf.lightspeed.system.ActionMethods.isMethodAction(token) ||
                                     isOrientationAction ||
                                     gravityBucket != null
                             val customKey = "customization:$token"
@@ -234,6 +236,28 @@ fun buildFlatItemsList(
                             list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded))
 
                             if (isCustomizable && isCustomExpanded) {
+                                if (com.sbf.lightspeed.system.ActionMethods.isMethodAction(token) && context != null) {
+                                    val selected = com.sbf.lightspeed.system.ActionMethods.getSelected(context, token)
+                                    val options = com.sbf.lightspeed.system.ActionMethods.options(token)
+                                    options.forEach { opt ->
+                                        val isEnabled = com.sbf.lightspeed.system.ActionMethods.isOptionEnabled(opt.id)
+                                        val subtitle = if (!isEnabled && opt.id == com.sbf.lightspeed.system.ActionMethods.SHIZUKU) {
+                                            "Off in Accessibility Service only mode"
+                                        } else {
+                                            opt.subtitle
+                                        }
+                                        list.add(
+                                            PickerRowItem.SystemCustomizationOption(
+                                                parentToken = token,
+                                                optionKey = "action_method:${token}:${opt.id}",
+                                                title = opt.title,
+                                                subtitle = subtitle,
+                                                isSelected = selected.contains(opt.id)
+                                            )
+                                        )
+                                    }
+                                }
+
                                 if (isOrientationAction) {
                                     val currentBehavior = prefs.getString("${LightspeedPreferences.KEY_ACTION_BEHAVIOR_PREFIX}${token}", "toggle") ?: "toggle"
 
@@ -296,7 +320,7 @@ fun buildFlatItemsList(
                                         )
                                     )
                                 } else if (token == "system:media_skip_forward" || token == "system:media_skip_backward") {
-                                    val currentSkip = prefs.getInt(LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS, 10)
+                                    val currentSkip = LightspeedPreferences.getMediaSkipSeconds(prefs, forward = (token == "system:media_skip_forward"))
                                     val durations = listOf(
                                         Pair("5", "5 Seconds" to "Ultra-short quick leap"),
                                         Pair("10", "10 Seconds (Default)" to "Standard music & podcast skip"),

@@ -238,8 +238,8 @@ object LightspeedWatchdogEngine {
             val cmd = """
                 svc_long=$svcLongQuote
                 svc_short=$svcShortQuote
-                appops set $targetPkg ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null
-                pm grant $targetPkg android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
+                appops set ${shellSingleQuote(targetPkg)} ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null
+                pm grant ${shellSingleQuote(targetPkg)} android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
                 current_services=$(settings get secure enabled_accessibility_services)
                 if [ -z "${'$'}current_services" ] || [ "${'$'}current_services" = "null" ]; then
                     new_services="${'$'}svc_long"
@@ -340,7 +340,7 @@ object LightspeedWatchdogEngine {
         val targetPkg = targetCn.packageName
 
         // If enabling, also bypass Android 13+ Restricted Settings via appops
-        val restrictedCmd = if (enable) "appops set $targetPkg ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null; " else ""
+        val restrictedCmd = if (enable) "appops set ${shellSingleQuote(targetPkg)} ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null; " else ""
         val cmd = "${restrictedCmd}settings put secure enabled_accessibility_services ${shellSingleQuote(newServices)} && settings put secure accessibility_enabled $accessibilityEnabled"
 
         recordInternalWrite()

@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-10-14 — Close App Methods, Manual Rotation Policy & Refueling Bay Fixes
+
+### Added
+* **Close App Without Shizuku (`TopAppCloser`, `RecentsFallbackCloser`)**: The close app action can now close the current app through the Recents screen (tap, dismiss or button methods). It works best on near-stock Android. If a phone's Recents cannot be opened, a message asks you to swipe the app away yourself.
+* **Action Methods (`ActionMethods`)**: Close app and Split screen now let you choose which methods are used (Auto, Shizuku, Accessibility action or Recents). Backups validate these choices on import.
+* **Manual Native Rotation Policy**: New setting in Synthetic Gravity for when you flip Android's own auto-rotate while an app bucket is active: bucket wins (default), manual wins until app switch, or manual wins until screen lock.
+* **Deflector Distance From Edge**: New X-offset slider for the left and right deflectors; the opened-state glow follows the offset.
+* **Separate Media Skip Durations**: Skip forward and skip backward now have their own duration.
+* **Notification Access Warnings**: A warning card in Central Command, a prompt when a media action is assigned or imported, and a rate-limited toast (at most one every 15 s) when a media gesture is used without Notification Access.
+* **Shizuku Permission Removal Warning**: System Override tells you when Shizuku access was removed and Lightspeed has fallen back to Accessibility Service only.
+
+### Changed
+* **Accessibility Service** now also sees views apps mark as unimportant and reads view IDs (`flagIncludeNotImportantViews`, `flagReportViewIds`), used by the Recents-based close. No new permissions.
+* **Accessibility Service Only mode** now blocks all Shizuku use, including App Sovereignty.
+* **Refueling Bay sleep timeouts** unified to 60 s, 120 s and 300 s (default 60 s); changes apply live.
+* **Font choices** are shown in their own font and the closed selector refreshes.
+* **Text safe margins** moved into the micro-text sub-accordion.
+
+### Fixed
+* **Refueling Bay overlay flashing**: the sleep cover is now swapped seamlessly every 30 s instead of re-added every 2 s.
+* **Charging watts** now correct on phones that report current in milliamps (seen on Samsung); the battery readout refreshes every 3 s.
+* **Edge gesture slider** value is saved, so the overlay loop no longer resets it to 0.
+* **MacroDroid** accessibility services are restored after Lightspeed force-stops it.
+* **Shizuku status card** refreshes when the toggle changes; the "not running" message is unified.
+* **Infinity prompt** opens from the cockpit hangar when a locked gear set or reticle is tapped.
+* **Shell quoting**: package names and the zero-sound list are quoted in the Watchdog and App Sovereignty shell commands.
+
+### Refactored & Optimized
+* **`ElevatedTaskCloser` split into focused modules** (`AppSwitcherHelper`, `TopAppCloser`, `RecentsFallbackCloser`, `RecentsSplitFallback`, `ShizukuExecHelper`, `SplitScreenManager`, `ActionMethods`).
+
 ## [1.1.2] - 2026-10-09 — Accessibility-Only Mode, Call Deflector & Refueling Bay Upgrades
 
 ### Added

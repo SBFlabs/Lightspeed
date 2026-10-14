@@ -206,6 +206,32 @@ object LightspeedBackupEngine {
                 }
 
                 val value = settingsObject.get(key)
+                if (key.startsWith(LightspeedPreferences.KEY_ACTION_BEHAVIOR_PREFIX)) {
+                    if (value !is String) {
+                        Log.w(TAG, "Ignoring non-string value for action behavior key: $key")
+                        continue
+                    }
+                    val token = key.removePrefix(LightspeedPreferences.KEY_ACTION_BEHAVIOR_PREFIX)
+                    val finalValue = if (token == "system:split_screen" || token == "system:close_app" || token == "system:popup_window" || token == "system:freeform") {
+                        val validIds = setOf(
+                            ActionMethods.AUTO,
+                            ActionMethods.SHIZUKU,
+                            ActionMethods.A11Y_ACTION,
+                            ActionMethods.RECENTS_CLICK,
+                            ActionMethods.RECENTS_DISMISS,
+                            ActionMethods.RECENTS_BUTTON
+                        )
+                        val filtered = value.split(",")
+                            .map { it.trim() }
+                            .filter { it in validIds }
+                        if (filtered.isEmpty()) ActionMethods.AUTO else filtered.joinToString(",")
+                    } else {
+                        value
+                    }
+                    editor.putString(key, finalValue)
+                    importedCount++
+                    continue
+                }
                 if (isActionTokenKey(key)) {
                     val valueStr = value.toString()
                     if (!isValidActionTokenValue(key, valueStr)) {
@@ -260,7 +286,7 @@ object LightspeedBackupEngine {
                         } else if (existingVal is Float || key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
                             val floatVal = value.toFloatOrNull()
                             if (floatVal != null) editor.putFloat(key, floatVal) else editor.putString(key, value)
-                        } else if (existingVal is Int || key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE || key == LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS) {
+                        } else if (existingVal is Int || key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE || key == LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_FORWARD_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_BACKWARD_SECONDS) {
                             val intVal = value.toIntOrNull()
                             if (intVal != null) editor.putInt(key, intVal) else editor.putString(key, value)
                         } else if (existingVal is Long || key.endsWith("_time") || key.endsWith("_timestamp")) {

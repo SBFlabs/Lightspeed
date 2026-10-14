@@ -29,6 +29,24 @@ object TaskInspector {
         var targetPkg: String? = null
         var targetComponent: String? = null
 
+        if (!ElevatedTaskCloser.isShizukuActive) {
+            fun isValid(p: String?) = !p.isNullOrBlank() && p != myPkg && p != "com.android.systemui" && !isSystem(p)
+            val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+            val rawLast = com.sbf.lightspeed.LightspeedAccessibilityService.lastAppPackage
+            val rawRoot = service?.rootInActiveWindow?.packageName?.toString()
+            val pkg = if (isValid(rawLast)) rawLast else if (isValid(rawRoot)) rawRoot else null
+            Log.w(TAG, "A11Y foreground lookup: pkg=$pkg")
+            val comp = pkg?.let { p ->
+                try {
+                    context.packageManager.getLaunchIntentForPackage(p)?.component?.flattenToShortString()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to resolve launch intent component for $p", e)
+                    null
+                }
+            }
+            return ForegroundTaskInfo(null, pkg, comp)
+        }
+
         if (ElevatedTaskCloser.isShizukuActive) {
             try {
                 val atm = ElevatedTaskCloser.getActivityTaskManager()

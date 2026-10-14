@@ -4,15 +4,20 @@ import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
+import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.ShizukuGate
@@ -189,7 +195,7 @@ fun CentralCommandMatrixFields(
                                     if (rikka.shizuku.Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                         val requested = ShizukuGate.requestIfAllowed()
                                         if (requested) {
-                                            android.widget.Toast.makeText(context, "Authorize Lightspeed in Shizuku / Shevery", android.widget.Toast.LENGTH_SHORT).show()
+                                            android.widget.Toast.makeText(context, "Authorize Lightspeed in your Shizuku app or fork", android.widget.Toast.LENGTH_SHORT).show()
                                             return@Button
                                         }
                                     }
@@ -220,6 +226,52 @@ fun CentralCommandMatrixFields(
                         ) {
                             Text("🛡️ PERIMETER", fontSize = 12.sp)
                         }
+                    }
+                }
+            }
+        }
+
+        var mediaNeedsAccess by remember {
+            mutableStateOf(false)
+        }
+        DisposableEffect(lifecycleOwner, prefs) {
+            fun recompute() {
+                mediaNeedsAccess = try {
+                    val hasMedia = prefs.all.values.any { it is String && it.startsWith("system:media_") }
+                    val granted = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")?.contains(context.packageName) == true || LightspeedNotificationListener.instance != null
+                    hasMedia && !granted
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            recompute()
+            val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> recompute() }
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) recompute()
+            }
+            prefs.registerOnSharedPreferenceChangeListener(prefListener)
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        }
+        if (mediaNeedsAccess) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { state.showNotificationAccessDialogState.value = true },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+            ) {
+                Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Media gestures need Notification Access", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                        Text("A gesture is set to control media, but Notification Access is off, so it will not work. Tap here to fix it.", fontSize = 11.sp, color = Color.White.copy(alpha = 0.85f))
                     }
                 }
             }

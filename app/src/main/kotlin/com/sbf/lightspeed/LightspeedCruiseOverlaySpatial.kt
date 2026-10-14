@@ -62,6 +62,7 @@ fun LightspeedCruiseOverlay.updateMetricsDimensions() {
     }
 
     linkEdges = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LINK_EDGES, false)
+    val edgeOffsetPx = (prefs.getInt("pref_sidebar_center_x_offset", 0) * density).toInt()
 
     if (isCustomLandscape) {
         val defCenterH = (prefs.getInt("pref_sidebar_center_height", 70) * 0.45f).toInt().coerceAtLeast(30)
@@ -110,9 +111,9 @@ fun LightspeedCruiseOverlay.updateMetricsDimensions() {
 
             launchpadPillBounds.set(centerVisualBounds)
 
-            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.gravity != (Gravity.TOP or Gravity.END)) {
+            if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.END)) {
                 lp.gravity = Gravity.TOP or Gravity.END
-                lp.x = 0; lp.y = winY
+                lp.x = edgeOffsetPx; lp.y = winY
                 lp.width = winWidth; lp.height = winHeight
                 wm.updateViewLayout(this, lp)
             }
@@ -144,9 +145,9 @@ fun LightspeedCruiseOverlay.updateMetricsDimensions() {
 
         launchpadPillBounds.set(centerVisualBounds)
 
-        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.gravity != (Gravity.TOP or Gravity.END)) {
+        if (lp.height != winHeight || lp.width != winWidth || lp.y != winY || lp.x != edgeOffsetPx || lp.gravity != (Gravity.TOP or Gravity.END)) {
             lp.gravity = Gravity.TOP or Gravity.END
-            lp.x = 0; lp.y = winY
+            lp.x = edgeOffsetPx; lp.y = winY
             lp.width = winWidth; lp.height = winHeight
             wm.updateViewLayout(this, lp)
         }

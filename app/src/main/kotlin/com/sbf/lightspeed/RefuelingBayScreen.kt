@@ -89,6 +89,13 @@ private fun Modifier.refuelingBayUnlockSwipe(
     )
 }
 
+fun normalizeRefuelingTimeout(value: String): String = when (value) {
+    "1m" -> "60s"
+    "2m" -> "120s"
+    "5m" -> "300s"
+    else -> value
+}
+
 @Composable
 fun RefuelingBayScreen(
     activity: Activity,
@@ -135,7 +142,7 @@ fun RefuelingBayScreen(
 
     // Style, Sleep & Resizable Split Settings
     var batteryStyle by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, "halo") ?: "halo") }
-    var sleepTimeoutSetting by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "30s") ?: "30s") }
+    var sleepTimeoutSetting by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s") }
     var sleepAction by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_ACTION, "overlay") ?: "overlay") }
     var splitRatioPortrait by remember { mutableFloatStateOf(prefs.getFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_PORTRAIT, 0.52f).coerceIn(0.3f, 0.7f)) }
     var splitRatioLandscape by remember { mutableFloatStateOf(prefs.getFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_LANDSCAPE, 0.44f).coerceIn(0.3f, 0.7f)) }
@@ -145,16 +152,17 @@ fun RefuelingBayScreen(
     var showAlarm by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_SHOW_ALARM, true)) }
     var showCustomizationModal by remember { mutableStateOf(false) }
 
-    val sleepTimeoutMs = when (sleepTimeoutSetting) {
+    val sleepTimeoutMs = when (normalizeRefuelingTimeout(sleepTimeoutSetting)) {
         "5s" -> 5_000L
         "15s" -> 15_000L
         "30s" -> 30_000L
-        "1m" -> 60_000L
-        "2m" -> 120_000L
-        "5m" -> 300_000L
+        "60s" -> 60_000L
+        "120s" -> 120_000L
+        "300s" -> 300_000L
         "never" -> Long.MAX_VALUE
-        else -> 30_000L
+        else -> 60_000L
     }
+    val sleepTimeoutMsLatest by rememberUpdatedState(sleepTimeoutMs)
 
     // OLED Burn-In Sleep Shield States
     var isSleeping by remember { mutableStateOf(false) }
@@ -203,8 +211,10 @@ fun RefuelingBayScreen(
                 val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
                 if (bm != null) {
                     val currentNowUa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-                    currentMa = (abs(currentNowUa) / 1000).coerceAtLeast(0)
-                    val rawWattage = (voltageMv / 1000f) * (abs(currentNowUa) / 1_000_000f)
+                    // Some phones (e.g. Samsung) report milliamps instead of microamps
+                    val currentUa: Int = if (abs(currentNowUa) < 10_000) abs(currentNowUa) * 1000 else abs(currentNowUa)
+                    currentMa = (currentUa / 1000).coerceAtLeast(0)
+                    val rawWattage = (voltageMv / 1000f) * (currentUa / 1_000_000f)
                     wattage = if (rawWattage > 0.05f) rawWattage else 0f
 
                     chargeTypeLabel = when {
@@ -226,7 +236,20 @@ fun RefuelingBayScreen(
         val filter = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val runnable = object : Runnable {
+            override fun run() {
+                val latestIntent = context.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+                if (latestIntent != null) {
+                    receiver.onReceive(context, latestIntent)
+                }
+                handler.postDelayed(this, 3000L)
+            }
+        }
+        handler.post(runnable)
+
         onDispose {
+            handler.removeCallbacksAndMessages(null)
             try { context.unregisterReceiver(receiver) } catch (e: Exception) { logSwallowed("RefuelingBayScreen", "RefuelingBayContent:229", e) }
         }
     }
@@ -288,7 +311,7 @@ fun RefuelingBayScreen(
 
             // Check auto-sleep timeout
             val idleDuration = System.currentTimeMillis() - lastInteractionTimestamp
-            if (sleepTimeoutMs < Long.MAX_VALUE && idleDuration >= sleepTimeoutMs && !isSleeping) {
+            if (sleepTimeoutMsLatest < Long.MAX_VALUE && idleDuration >= sleepTimeoutMsLatest && !isSleeping) {
                 LightspeedAccessibilityService.noteBayDark()
                 if (sleepAction == "screen_off") {
                     lastInteractionTimestamp = System.currentTimeMillis()
@@ -1206,9 +1229,9 @@ fun RefuelingCustomizationModal(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        val timeouts = listOf("5s", "15s", "30s", "1m", "2m", "5m", "never")
+                        val timeouts = listOf("5s", "15s", "30s", "60s", "120s", "300s", "never")
                         timeouts.forEach { timeout ->
-                            val isSelected = sleepTimeout == timeout
+                            val isSelected = normalizeRefuelingTimeout(sleepTimeout) == timeout
                             Box(
                                 modifier = Modifier
                                     .weight(1f)

@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.normalizeRefuelingTimeout
 import com.sbf.lightspeed.system.*
 import java.util.Locale
 
@@ -834,7 +835,7 @@ fun HudRefuelingBaySection(
             }
 
 
-            val currentTimeout = prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s"
+            val currentTimeout = normalizeRefuelingTimeout(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s")
             var isTimeoutDropdownOpen by remember { mutableStateOf(false) }
             val timeoutOptions = listOf(
                 "5s" to "5 Seconds (Rapid Sleep Test)",

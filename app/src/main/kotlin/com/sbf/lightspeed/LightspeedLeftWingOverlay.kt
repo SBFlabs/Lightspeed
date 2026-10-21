@@ -660,84 +660,14 @@ class LightspeedLeftWingOverlay(
             LightspeedAccessibilityService.instance?.reopenCockpitHangar()
             return
         }
-        ActionDispatcher.execute(service, actionKey) {
-            scrollToTop()
-        }
+        ActionDispatcher.execute(service, actionKey)
     }
 
     private fun scrollToTop() {
-        val scrollableNodes = mutableListOf<AccessibilityNodeInfo>()
-        val windows = service.windows
-
-        if (!windows.isNullOrEmpty()) {
-            for (window in windows) {
-                if (window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION || window.isActive) {
-                    val root = window.root ?: continue
-                    collectScrollableNodes(root, scrollableNodes)
-                }
-            }
-        }
-
-        if (scrollableNodes.isEmpty()) {
-            service.rootInActiveWindow?.let { root ->
-                collectScrollableNodes(root, scrollableNodes)
-            }
-        }
-
-        if (scrollableNodes.isEmpty()) return
-        val targetNodes = scrollableNodes.reversed()
-
-        for (node in targetNodes) {
-            try {
-                val bundle = Bundle().apply {
-                    putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT, 0)
-                    putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_COLUMN_INT, 0)
-                }
-
-                var success = false
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    success = node.performAction(
-                        AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.id,
-                        bundle
-                    )
-                }
-
-                if (!success) {
-                    var passes = 0
-                    while (passes < 25) {
-                        val moved = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                                node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_PAGE_UP.id)) ||
-                                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                                        node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id)) ||
-                                node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
-                        if (!moved) break
-                        passes++
-                    }
-                }
-            } catch (e: Exception) { logSwallowed("LightspeedLeftWingOverlay", "scrollToTop:715", e) }
-        }
+        com.sbf.lightspeed.system.LightspeedScrollHelper.scroll(service, toBottom = false)
     }
 
     private fun collectScrollableNodes(node: AccessibilityNodeInfo, list: MutableList<AccessibilityNodeInfo>) {
-        val hasScrollAction = node.actionList.any { action ->
-            action.id == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD ||
-                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_UP.id) ||
-                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && action.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.id)
-        }
-
-        if (node.isScrollable || hasScrollAction) {
-            val copy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                AccessibilityNodeInfo(node)
-            } else {
-                @Suppress("DEPRECATION")
-                AccessibilityNodeInfo.obtain(node)
-            }
-            list.add(copy)
-        }
-
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            collectScrollableNodes(child, list)
-        }
+        com.sbf.lightspeed.system.LightspeedScrollHelper.collectScrollableNodes(node, list, toBottom = false)
     }
 }

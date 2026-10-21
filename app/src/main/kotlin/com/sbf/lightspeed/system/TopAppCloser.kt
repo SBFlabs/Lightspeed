@@ -1,6 +1,7 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
@@ -15,7 +16,16 @@ internal object TopAppCloser {
         Log.i(TAG, "closeTopApp() invoked")
         ElevatedTaskCloser.exemptHiddenApis()
 
-        val methods = ActionMethods.getSelected(context, "system:close_app")
+        val frontPkg = LightspeedAccessibilityService.lastAppPackage
+            ?: ElevatedTaskCloser.getTopForegroundTaskInfo(context).packageName
+
+        val assignedMethods = if (!frontPkg.isNullOrBlank()) {
+            ActionMethods.getAssignedMethodsForApp(context, "system:close_app", frontPkg)
+        } else {
+            emptySet()
+        }
+
+        val methods = if (assignedMethods.isNotEmpty()) assignedMethods else ActionMethods.getSelected(context, "system:close_app")
         val auto = ActionMethods.AUTO in methods
         val a11yOnly = ShizukuGate.isAccessibilityOnly()
         val useShizuku = !a11yOnly && ElevatedTaskCloser.isShizukuActive && (auto || ActionMethods.SHIZUKU in methods)
@@ -132,20 +142,24 @@ internal object TopAppCloser {
                 }
             }
 
-            // 4. Secondary fallback: CLI remove
+            // 4. Secondary fallback: CLI remove (waits for the result)
             if (!evicted && targetTaskId != null && targetTaskId > 0) {
                 try {
-                    ElevatedTaskCloser.execShizuku("am task remove $targetTaskId 2>/dev/null || am stack remove $targetTaskId 2>/dev/null")
-                    evicted = true
+                    val cliProc = ElevatedTaskCloser.execShizuku("am task remove $targetTaskId 2>/dev/null || am stack remove $targetTaskId 2>/dev/null")
+                    val cliCode = cliProc.waitForOrKill(3000L)
+                    evicted = (cliCode == 0)
+                    Log.i(TAG, "CLI task remove exit code: $cliCode")
                 } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:223", e) }
             }
 
-            // 5. Ultimate fallback: force-stop
+            // 5. Ultimate fallback: force-stop (only when no task id was found, as before)
             var forceStopped = false
-            if (!evicted && targetPkg != null) {
+            if (!evicted && targetPkg != null && (targetTaskId == null || targetTaskId <= 0)) {
                 try {
-                    ElevatedTaskCloser.execShizuku("am force-stop $targetPkg")
-                    forceStopped = true
+                    val fsProc = ElevatedTaskCloser.execShizuku("am force-stop $targetPkg")
+                    val fsCode = fsProc.waitForOrKill(3000L)
+                    forceStopped = (fsCode == 0)
+                    Log.i(TAG, "force-stop exit code: $fsCode")
                 } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:230", e) }
             }
 

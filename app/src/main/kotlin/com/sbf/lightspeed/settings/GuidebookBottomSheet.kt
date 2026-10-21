@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import java.util.Locale
 
 data class GuidebookEntry(
@@ -140,7 +142,7 @@ val GUIDEBOOK_ENTRIES = listOf(
         vesselTitle = "Scrubbers & Precision Calibration",
         androidTitle = "Sliders, Tactile Value Pills & Preset Profiles",
         icon = Icons.Default.Tune,
-        vesselLore = "Sub-system scrubbers engineered with liquid-glass thumb tracking and dual-mode gearing. Vertical drag activates micro-precision 1-step gearing. Tapping a tactile value pill deploys the Precision Control & Presets flyout matrix; long-pressing resets the setting to factory default.",
+        vesselLore = "Sub-system scrubbers engineered with Prism thumb tracking and dual-mode gearing. Vertical drag activates micro-precision 1-step gearing. Tapping a tactile value pill deploys the Precision Control & Presets flyout matrix; long-pressing resets the setting to factory default.",
         androidUtility = "Interactive slider controls with vertical drag precision gearing. Tapping any numeric value box/pill opens Precision Control & Presets to type exact numbers, save custom preset profiles, or toggle tap-to-jump. Long-pressing the value pill resets it to factory default.",
         tabIndex = 1,
         sectionKey = "scrubbers"
@@ -154,6 +156,7 @@ fun GuidebookBottomSheet(
     onDismiss: () -> Unit,
     onNavigateToSection: (tabIndex: Int, sectionKey: String) -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var searchQuery by remember { mutableStateOf("") }
     val context = androidx.compose.ui.platform.LocalContext.current
     val viewMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
@@ -172,30 +175,53 @@ fun GuidebookBottomSheet(
         }
     }
 
+    val activeSnapshot = LocalDeckTheme.current
+    val cornerDp = activeSnapshot.cornerRadiusDp.dp
+    val sheetShape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Color(0xFF10141E),
-        tonalElevation = 16.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(40.dp)
-                    .height(4.5.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.25f))
-            )
-        }
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+        shape = sheetShape,
+        dragHandle = null
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .clip(sheetShape)
         ) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(sheetShape)
+            ) {
+                ClippedFallbackBlurLayer(snapshot = activeSnapshot)
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .deckGlassSurface(snapshot = activeSnapshot, isBlurAvailable = true)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, start = 18.dp, end = 18.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.5.dp)
+                        .clip(CircleShape)
+                        .background(lsColors.textPrimary.copy(alpha = 0.28f))
+                )
+            }
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -223,7 +249,7 @@ fun GuidebookBottomSheet(
                             text = "The Stranded in Space Guidebook",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = lsColors.textPrimary
                         )
                         Text(
                             text = "Standard Operating Procedures for Vessel Systems",
@@ -238,9 +264,9 @@ fun GuidebookBottomSheet(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
+                        .background(lsColors.textPrimary.copy(alpha = 0.08f))
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = lsColors.textPrimary, modifier = Modifier.size(16.dp))
                 }
             }
 
@@ -249,7 +275,7 @@ fun GuidebookBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.06f))
+                    .background(lsColors.textPrimary.copy(alpha = 0.06f))
                     .padding(3.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -272,7 +298,7 @@ fun GuidebookBottomSheet(
                             text = label,
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else lsColors.textPrimary.copy(alpha = 0.75f),
                             textAlign = TextAlign.Center
                         )
                     }
@@ -284,12 +310,12 @@ fun GuidebookBottomSheet(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search bridge terminology or Android utilities…", fontSize = 12.sp, color = Color.White.copy(alpha = 0.45f)) },
+                placeholder = { Text("Search bridge terminology or Android utilities…", fontSize = 12.sp, color = lsColors.textPrimary.copy(alpha = 0.45f)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Clear, contentDescription = "Clear", tint = lsColors.textPrimary.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                         }
                     }
                 },
@@ -297,11 +323,11 @@ fun GuidebookBottomSheet(
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-                    focusedContainerColor = Color.White.copy(alpha = 0.04f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    unfocusedBorderColor = lsColors.textPrimary.copy(alpha = 0.12f),
+                    focusedContainerColor = lsColors.textPrimary.copy(alpha = 0.04f),
+                    unfocusedContainerColor = lsColors.textPrimary.copy(alpha = 0.04f),
+                    focusedTextColor = lsColors.textPrimary,
+                    unfocusedTextColor = lsColors.textPrimary
                 )
             )
 
@@ -317,7 +343,7 @@ fun GuidebookBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp)),
+                            .border(1.dp, lsColors.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp)),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
                     ) {
                         Column(
@@ -351,7 +377,7 @@ fun GuidebookBottomSheet(
                                         },
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = lsColors.textPrimary
                                     )
                                 }
 
@@ -405,7 +431,7 @@ fun GuidebookBottomSheet(
                                 Text(
                                     text = "Vessel Protocol: ${entry.vesselLore}",
                                     fontSize = 12.sp,
-                                    color = Color.White.copy(alpha = 0.85f),
+                                    color = lsColors.textPrimary.copy(alpha = 0.85f),
                                     lineHeight = 16.sp
                                 )
                             }
@@ -424,4 +450,5 @@ fun GuidebookBottomSheet(
             }
         }
     }
+}
 }

@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
 fun PinAppDialog(
@@ -27,6 +28,7 @@ fun PinAppDialog(
     onConfirm: (nowPinned: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -34,13 +36,13 @@ fun PinAppDialog(
                 Icon(
                     imageVector = Icons.Outlined.PushPin,
                     contentDescription = null,
-                    tint = Color(0xFFFFD700),
+                    tint = lsColors.accentGold,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = if (isCurrentlyPinned) "Unpin App?" else "Pin to Quick Deck?",
-                    color = Color.White,
+                    color = lsColors.textPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -52,7 +54,7 @@ fun PinAppDialog(
                     "Remove $appName from the Quick Deck top list?"
                 else
                     "Pin $appName to the Quick Deck top list for immediate access?",
-                color = Color.LightGray,
+                color = lsColors.textSecondary,
                 fontSize = 13.sp
             )
         },
@@ -61,12 +63,12 @@ fun PinAppDialog(
                 onClick = { onConfirm(!isCurrentlyPinned) },
                 colors = ButtonDefaults.buttonColors(containerColor = dynamicPrimary)
             ) {
-                Text(if (isCurrentlyPinned) "UNPIN" else "PIN", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(if (isCurrentlyPinned) "UNPIN" else "PIN", color = lsColors.textPrimary, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = Color.LightGray)
+                Text("CANCEL", color = lsColors.textSecondary)
             }
         },
         containerColor = Color(0xFF181B24),
@@ -80,6 +82,7 @@ fun DeepActivityWarningDialog(
     onProceed: (doNotShowAgain: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var doNotShowAgain by remember { mutableStateOf(false) }
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
@@ -88,7 +91,7 @@ fun DeepActivityWarningDialog(
                 .fillMaxWidth(0.92f)
                 .clip(RoundedCornerShape(20.dp))
                 .background(Color(0xFF161822).copy(alpha = 0.95f))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
+                .border(1.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF161822).copy(alpha = 0.95f))
         ) {
@@ -104,14 +107,14 @@ fun DeepActivityWarningDialog(
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = null,
-                        tint = Color(0xFFFFB300),
+                        tint = lsColors.accentWarn,
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
                         text = "Deep Activity Warning",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                 }
 
@@ -120,7 +123,7 @@ fun DeepActivityWarningDialog(
                 Text(
                     text = "Launching internal activities directly may cause instability or unexpected behavior.",
                     fontSize = 13.sp,
-                    color = Color.LightGray.copy(alpha = 0.85f),
+                    color = lsColors.textSecondary.copy(alpha = 0.85f),
                     lineHeight = 18.sp
                 )
 
@@ -139,14 +142,14 @@ fun DeepActivityWarningDialog(
                         onCheckedChange = { doNotShowAgain = it },
                         colors = CheckboxDefaults.colors(
                             checkedColor = dynamicPrimary,
-                            uncheckedColor = Color.Gray
+                            uncheckedColor = lsColors.textDisabled
                         )
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Do not show again",
                         fontSize = 13.sp,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                 }
 
@@ -160,7 +163,7 @@ fun DeepActivityWarningDialog(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Cancel", color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                        Text("Cancel", color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
@@ -186,13 +189,14 @@ fun SystemAccordionPrefsDialog(
     onSelectPreference: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .clip(RoundedCornerShape(20.dp))
                 .background(Color(0xFF161822).copy(alpha = 0.95f))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
+                .border(1.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF161822).copy(alpha = 0.95f))
         ) {
@@ -206,7 +210,7 @@ fun SystemAccordionPrefsDialog(
                     text = "$sysTitle Default State",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = lsColors.textPrimary
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -214,7 +218,7 @@ fun SystemAccordionPrefsDialog(
                 Text(
                     text = "How should the $sysTitle categories behave when you open the Action Picker?",
                     fontSize = 13.sp,
-                    color = Color.LightGray.copy(alpha = 0.85f),
+                    color = lsColors.textSecondary.copy(alpha = 0.85f),
                     lineHeight = 18.sp
                 )
 
@@ -233,7 +237,7 @@ fun SystemAccordionPrefsDialog(
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) dynamicPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f))
+                            .background(if (isSelected) dynamicPrimary.copy(alpha = 0.15f) else lsColors.textPrimary.copy(alpha = 0.05f))
                             .border(1.dp, if (isSelected) dynamicPrimary.copy(alpha = 0.5f) else Color.Transparent, RoundedCornerShape(12.dp))
                             .clickable { onSelectPreference(key) }
                             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -244,13 +248,13 @@ fun SystemAccordionPrefsDialog(
                             onClick = null,
                             colors = RadioButtonDefaults.colors(
                                 selectedColor = dynamicPrimary,
-                                unselectedColor = Color.Gray
+                                unselectedColor = lsColors.textDisabled
                             )
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text(text = title, color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
-                            Text(text = subtitle, color = Color.LightGray, fontSize = 11.sp, lineHeight = 14.sp)
+                            Text(text = title, color = lsColors.textPrimary, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                            Text(text = subtitle, color = lsColors.textSecondary, fontSize = 11.sp, lineHeight = 14.sp)
                         }
                     }
                 }
@@ -265,7 +269,7 @@ fun SystemAccordionPrefsDialog(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Close", color = Color.LightGray, fontWeight = FontWeight.SemiBold)
+                        Text("Close", color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

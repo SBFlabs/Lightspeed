@@ -1,5 +1,6 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.content.Context
@@ -8,6 +9,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,8 +37,10 @@ import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.ShizukuGate
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -50,6 +54,7 @@ fun CentralCommandMatrixFields(
     jumpTargetSection: String? = null,
     onRefreshNeeded: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     val state = rememberCentralCommandState(
         context = context,
         prefs = prefs,
@@ -99,11 +104,13 @@ fun CentralCommandMatrixFields(
         }
     }
 
-    // Auto-hide / auto-show preview on tab swipe
+    // Auto-hide / auto-show preview on tab swipe (only when settled, never during scroll animation)
     LaunchedEffect(state.pagerState) {
-        snapshotFlow { state.pagerState.currentPage }
-            .drop(1)
-            .collect { page ->
+        snapshotFlow {
+            if (state.pagerState.isScrollInProgress) {
+                null
+            } else {
+                val page = state.pagerState.currentPage
                 val leftActive = page == 0 && (
                     state.isLeftCenterExpandedState.value ||
                     (if (state.isLeftFlankUnifiedState.value) state.isLeftUnifiedExpandedState.value else state.isLeftTopExpandedState.value || state.isLeftBottomExpandedState.value)
@@ -116,14 +123,27 @@ fun CentralCommandMatrixFields(
                 val anyRail = state.isHorizonRailGeomExpandedState.value || state.isHorizonRailColorExpandedState.value || state.isHorizonRailTextExpandedState.value
                 val notchActive = page == 1 && state.isTelemetryExpandedState.value && state.isNotchCalibExpandedState.value
                 val railActive = page == 1 && state.isTelemetryExpandedState.value && anyRail
-                prefs.edit()
-                    .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, leftActive)
-                    .putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, canopyActive)
-                    .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, rightActive)
-                    .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
-                    .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
-                    .apply()
-                safeReloadPreferences()
+                CentralCommandPreviewState(leftActive, canopyActive, rightActive, notchActive, railActive)
+            }
+        }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect { target ->
+                val curLeft = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, false)
+                val curCanopy = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
+                val curRight = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, false)
+                val curNotch = prefs.getBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false)
+                val curRail = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
+
+                if (curLeft != target.left || curCanopy != target.canopy || curRight != target.right || curNotch != target.notch || curRail != target.rail) {
+                    prefs.edit()
+                        .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, target.left)
+                        .putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, target.canopy)
+                        .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, target.right)
+                        .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, target.notch)
+                        .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, target.rail)
+                        .apply()
+                }
             }
     }
 
@@ -206,7 +226,8 @@ fun CentralCommandMatrixFields(
                                     android.widget.Toast.makeText(context, "⚡ Core Avionics Armed!", android.widget.Toast.LENGTH_SHORT).show()
                                 } else {
                                     com.sbf.lightspeed.system.LightspeedWatchdogEngine.openAccessibilitySettings(context)
-                                    android.widget.Toast.makeText(context, "Enable Lightspeed in Accessibility Settings", android.widget.Toast.LENGTH_LONG).show()
+                                    val serviceLabel = context.getString(R.string.accessibility_service_label)
+                                    android.widget.Toast.makeText(context, "Enable $serviceLabel in Accessibility Settings", android.widget.Toast.LENGTH_LONG).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -257,21 +278,20 @@ fun CentralCommandMatrixFields(
             }
         }
         if (mediaNeedsAccess) {
-            Card(
+            DeckCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { state.showNotificationAccessDialogState.value = true },
+                    .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+                tint = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                onClick = { state.showNotificationAccessDialogState.value = true }
             ) {
                 Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Media gestures need Notification Access", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                        Text("A gesture is set to control media, but Notification Access is off, so it will not work. Tap here to fix it.", fontSize = 11.sp, color = Color.White.copy(alpha = 0.85f))
+                        Text("Media gestures need Notification Access", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = lsColors.textPrimary)
+                        Text("A gesture is set to control media, but Notification Access is off, so it will not work. Tap here to fix it.", fontSize = 11.sp, color = lsColors.textPrimary.copy(alpha = 0.85f))
                     }
                 }
             }
@@ -283,7 +303,7 @@ fun CentralCommandMatrixFields(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color.White.copy(alpha = 0.06f))
+                .background(lsColors.textPrimary.copy(alpha = 0.06f))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -326,7 +346,7 @@ fun CentralCommandMatrixFields(
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White.copy(alpha = 0.75f),
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else lsColors.textPrimary.copy(alpha = 0.75f),
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -345,39 +365,10 @@ fun CentralCommandMatrixFields(
             }
         }
 
-        // Preview Sync
-        LaunchedEffect(
-            state.pagerState.currentPage,
-            state.isLeftTopGeoExpandedState.value, state.isLeftBottomGeoExpandedState.value, state.isLeftUnifiedGeoExpandedState.value,
-            state.isTopGeoExpandedState.value, state.isBottomGeoExpandedState.value, state.isRightUnifiedGeoExpandedState.value,
-            state.isStatusBarGeoExpandedState.value
-        ) {
-            val editor = prefs.edit()
-            val showLeftPreview = when (state.pagerState.currentPage) {
-                0 -> state.isLeftTopGeoExpandedState.value || state.isLeftBottomGeoExpandedState.value || state.isLeftUnifiedGeoExpandedState.value
-                else -> false
-            }
-            val showStatusBarPreview = when (state.pagerState.currentPage) {
-                1 -> state.isStatusBarGeoExpandedState.value
-                else -> false
-            }
-            val showRightPreview = when (state.pagerState.currentPage) {
-                2 -> state.isTopGeoExpandedState.value || state.isBottomGeoExpandedState.value || state.isRightUnifiedGeoExpandedState.value
-                else -> false
-            }
-
-            editor.putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, showLeftPreview)
-            editor.putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, showRightPreview)
-            editor.putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, showStatusBarPreview)
-            editor.apply()
-
-            safeReloadPreferences()
-        }
-
         HorizontalPager(
             state = state.pagerState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            beyondViewportPageCount = 1
+            beyondViewportPageCount = 2
         ) { pageIndex ->
             when (pageIndex) {
                 0 -> {
@@ -584,3 +575,12 @@ fun CentralCommandMatrixFields(
         }
     }
 }
+
+private data class CentralCommandPreviewState(
+    val left: Boolean,
+    val canopy: Boolean,
+    val right: Boolean,
+    val notch: Boolean,
+    val rail: Boolean
+)
+

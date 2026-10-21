@@ -34,7 +34,7 @@ import kotlin.math.hypot
  * Implements Dynamic Notch Geometry wrapping the physical camera cutout with configurable
  * Snugness Padding, multiple Capsule Layout Modes ("Unified Right", "Dual-Wing Bridge", "Unified Left"),
  * high-resolution circular application icons and VectorDrawables (zero raw text characters),
- * Title Marquee & Truncation engine, and an interactive liquid-glass Mini-Player card.
+ * Title Marquee & Truncation engine, and an interactive Prism Mini-Player card.
  */
 class LightspeedNotchOverlay(context: Context) : View(context) {
 

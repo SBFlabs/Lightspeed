@@ -12,8 +12,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Material 3 Expressive Liquid Glass HUD Engine for Lightspeed Cockpit & Overlays.
- * Renders tactical telemetry with translucent liquid glass surfaces,
+ * Material 3 Expressive Prism HUD Engine for Lightspeed Cockpit & Overlays.
+ * Renders tactical telemetry with translucent Prism surfaces,
  * specular edge refraction, dynamic Monet palettes, and 7-segment quantum gauges.
  *
  * Performance: All LinearGradient / RadialGradient shaders are cached as private fields
@@ -145,7 +145,7 @@ object LightspeedHudRenderer {
     }
 
     /**
-     * Draws a standardized liquid glass card backplane, refractive rim, and optional specular top shimmer line.
+     * Draws a standardized Prism card backplane, refractive rim, and optional specular top shimmer line.
      */
     private fun drawGlassCard(
         canvas: Canvas,
@@ -160,7 +160,7 @@ object LightspeedHudRenderer {
         val g = Color.green(primaryColor)
         val b = Color.blue(primaryColor)
 
-        // 1. Frosted Liquid Glass Backplane — cached shader
+        // 1. Frosted Prism Backplane — cached shader
         val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, primaryColor)
         if (glassKey != cardGlassKey) {
             cardGlassShader = LinearGradient(
@@ -179,7 +179,7 @@ object LightspeedHudRenderer {
             canvas.drawPath(path, p)
         }
 
-        // 2. Liquid Glass Refractive Rim — cached shader
+        // 2. Prism Refractive Rim — cached shader
         val rimKey = gradKey4f(rect.left, rect.top, rect.right, rect.bottom, primaryColor)
         if (rimKey != cardRimKey) {
             cardRimShader = LinearGradient(
@@ -273,7 +273,7 @@ object LightspeedHudRenderer {
     }
 
     /**
-     * Style 1: Tactical Canopy Drop-Pod (Liquid Glass)
+     * Style 1: Tactical Canopy Drop-Pod (Prism)
      * Floats cleanly beneath the status bar cutout/icons with 45° chamfered glass visor & 7-segment quantum bar.
      */
     fun drawCanopyDropPod(
@@ -321,7 +321,7 @@ object LightspeedHudRenderer {
         valueTextPaint.textAlign = Paint.Align.CENTER
         canvas.drawText("[ $value ]", cx, topY + (41f * d), valueTextPaint)
 
-        // 6. 7-Segment Liquid Glass Quantum Gauge / Continuous Precision Track
+        // 6. 7-Segment Prism Quantum Gauge / Continuous Precision Track
         if (hasGauge) {
             val maxGaugeW = cardW - (36f * d)
             val gaugeY = topY + (52f * d)
@@ -356,7 +356,7 @@ object LightspeedHudRenderer {
                     }
                 }
             } else {
-                // Continuous High-Precision Liquid Glass Track (for fine resolutions / 100+ steps)
+                // Continuous High-Precision Prism Track (for fine resolutions / 100+ steps)
                 val trackH = 5.5f * d
                 val trackLeft = cx - (maxGaugeW / 2f)
                 val trackRight = cx + (maxGaugeW / 2f)
@@ -401,7 +401,7 @@ object LightspeedHudRenderer {
     }
 
     /**
-     * Style 2: Holographic Cockpit Reticle (Liquid Glass)
+     * Style 2: Holographic Cockpit Reticle (Prism)
      * Projects in the focal cockpit area with tachyon circular orbital arc and collimator pips.
      */
     fun drawCockpitReticle(
@@ -440,7 +440,7 @@ object LightspeedHudRenderer {
             canvas.drawCircle(cx, cy, radius + (14f * d), p)
         }
 
-        // 2. Liquid Glass Outer Rim
+        // 2. Prism Outer Rim
         glassRimPaint.strokeWidth = 1.3f * d
         glassRimPaint.color = Color.argb(90, 255, 255, 255)
         canvas.drawCircle(cx, cy, radius + (14f * d), glassRimPaint)
@@ -532,7 +532,7 @@ object LightspeedHudRenderer {
     }
 
     /**
-     * Style 3: Dynamic Edge Blade (Liquid Glass)
+     * Style 3: Dynamic Edge Blade (Prism)
      * Anchored alongside the active gesture swipe flank as a vertical energy ladder.
      */
     fun drawEdgeBlade(
@@ -634,7 +634,7 @@ object LightspeedHudRenderer {
     }
 
     /**
-     * Style 4: Quantum Synthetic Horizon (Liquid Glass HUD)
+     * Style 4: Quantum Synthetic Horizon (Prism HUD)
      * Aircraft/starship artificial horizon collimator with pitch ladder hashes, swept wings,
      * glowing waterline level bar, and digital flight telemetry.
      */
@@ -655,7 +655,7 @@ object LightspeedHudRenderer {
     }
 
     /**
-     * Style 5: Tachyon Orbital Radar (Liquid Glass HUD)
+     * Style 5: Tachyon Orbital Radar (Prism HUD)
      * High-tech circular tactical scanner with 360° azimuth degree hashes, concentric range rings,
      * sweeping orbital energy arc, target acquisition crosshairs, and digital telemetry.
      */
@@ -685,7 +685,7 @@ object LightspeedHudRenderer {
         LightspeedMediaScrubberOverlay.getMediaScrubberBarBounds(cx, topY, d)
 
     /**
-     * Style 6: Interactive Liquid Glass Media Timeline Scrubber HUD.
+     * Style 6: Interactive Prism Media Timeline Scrubber HUD.
      * Displays current track title, artist, live position / duration, and glowing seekbar.
      */
     fun drawMediaScrubberHud(

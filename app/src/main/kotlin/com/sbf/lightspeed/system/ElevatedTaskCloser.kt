@@ -2,6 +2,7 @@ package com.sbf.lightspeed.system
 
 import android.app.Activity
 import android.content.ComponentName
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -102,7 +103,13 @@ object ElevatedTaskCloser {
             val targetTaskId = taskInfo.taskId
             val targetPkg = taskInfo.packageName
 
-            val methods = ActionMethods.getSelected(context, "system:split_screen")
+            val frontPkg = targetPkg ?: LightspeedAccessibilityService.lastAppPackage
+            val assignedMethods = if (!frontPkg.isNullOrBlank()) {
+                ActionMethods.getAssignedMethodsForApp(context, "system:split_screen", frontPkg)
+            } else {
+                emptySet()
+            }
+            val methods = if (assignedMethods.isNotEmpty()) assignedMethods else ActionMethods.getSelected(context, "system:split_screen")
             val auto = ActionMethods.AUTO in methods
             val a11yOnly = ShizukuGate.isAccessibilityOnly()
             val useShizuku = !a11yOnly && isShizukuActive && (auto || ActionMethods.SHIZUKU in methods)
@@ -427,7 +434,13 @@ object ElevatedTaskCloser {
         }
     }
 
-    fun splitWithApp(context: Context, component: String) { SplitScreenManager.splitWithApp(context, component) }
+    fun splitWithApp(context: Context, component: String, allowRecents: Boolean = true) {
+        SplitScreenManager.splitWithApp(context, component, allowRecents)
+    }
+
+    fun splitPairWithApp(context: Context, component: String) {
+        SplitScreenManager.splitPairWithApp(context, component)
+    }
 
     private fun showSplitAppPicker(context: Context) {
         SplitScreenManager.showSplitAppPicker(context)
@@ -440,6 +453,10 @@ object ElevatedTaskCloser {
 
     fun launchInPopup(context: Context, style: String = LightspeedPreferences.POPUP_STYLE_NATIVE) {
         PopupLauncher.launchInPopup(context, style)
+    }
+
+    fun launchAppInPopup(context: Context, component: String, allowRecents: Boolean = true) {
+        PopupLauncher.launchAppInPopup(context, component, allowRecents = allowRecents)
     }
 }
 

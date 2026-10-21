@@ -18,6 +18,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,9 +84,9 @@ fun M3RowMooringRope(
     )
 
     val colorScheme = MaterialTheme.colorScheme
-    val goldHighlight = Color(0xFFFFD700).copy(alpha = 0.85f)
-    val goldBase = Color(0xFFFFA000).copy(alpha = 0.55f)
-    val goldShadow = Color(0xFF6D4C41).copy(alpha = 0.25f)
+    val goldHighlight = LightspeedStyle.colors.accentGold.copy(alpha = 0.85f)
+    val goldBase = LightspeedTokens.StatusGoldDeep.copy(alpha = 0.55f)
+    val goldShadow = LightspeedTokens.StatusGoldShadow.copy(alpha = 0.25f)
 
     val highlightColor = androidx.compose.ui.graphics.lerp(
         colorScheme.primary.copy(alpha = 0.45f),
@@ -351,14 +353,14 @@ fun MooringConfirmDialog(
 ) {
     if (confirmData == null) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
                 text = confirmData.title,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
-                color = Color.White
+                color = LightspeedStyle.colors.textPrimary
             )
         },
         text = {
@@ -385,11 +387,9 @@ fun MooringConfirmDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.LightGray)
+                Text("Cancel", color = LightspeedStyle.colors.textSecondary)
             }
-        },
-        containerColor = Color(0xF0161922),
-        shape = RoundedCornerShape(16.dp)
+        }
     )
 }
 
@@ -420,8 +420,8 @@ fun SeveredMooringPairCard(
     )
 
     val colorScheme = MaterialTheme.colorScheme
-    val goldHighlight = Color(0xFFFFD700)
-    val goldBase = Color(0xFFFFA000)
+    val goldHighlight = LightspeedStyle.colors.accentGold
+    val goldBase = LightspeedTokens.StatusGoldDeep
     val highlightColor = androidx.compose.ui.graphics.lerp(colorScheme.primary, goldHighlight, goldenAnim)
     val baseColor = androidx.compose.ui.graphics.lerp(colorScheme.tertiary.copy(alpha = 0.32f), goldBase.copy(alpha = 0.5f), goldenAnim)
     val frayColor = androidx.compose.ui.graphics.lerp(colorScheme.tertiary.copy(alpha = 0.70f), goldBase.copy(alpha = 0.8f), goldenAnim)

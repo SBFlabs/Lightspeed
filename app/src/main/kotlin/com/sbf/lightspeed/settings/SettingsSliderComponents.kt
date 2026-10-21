@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.logSwallowed
 import androidx.compose.animation.animateColorAsState
@@ -58,7 +60,7 @@ fun PrefToggleRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LightspeedStyle.colors.textPrimary)
             if (subtitle.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
@@ -68,12 +70,12 @@ fun PrefToggleRow(
             checked = isChecked,
             onCheckedChange = null,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
+                checkedThumbColor = LightspeedStyle.colors.textPrimary,
                 checkedTrackColor = MaterialTheme.colorScheme.primary,
                 checkedBorderColor = Color.Transparent,
-                uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                uncheckedThumbColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.75f),
+                uncheckedTrackColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.12f),
+                uncheckedBorderColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.25f)
             )
         )
     }
@@ -349,7 +351,7 @@ fun DragOnlySlider(
                             .size(4.dp)
                             .clip(CircleShape)
                             .background(
-                                if (tickPos <= currentProgress) Color.White.copy(alpha = 0.8f)
+                                if (tickPos <= currentProgress) LightspeedStyle.colors.textPrimary.copy(alpha = 0.8f)
                                 else primaryColor.copy(alpha = 0.4f)
                             )
                     )
@@ -357,7 +359,7 @@ fun DragOnlySlider(
             }
         }
 
-        // 4. M3 Liquid-Glass Reactive Thumb Indicator
+        // 4. M3 Prism Reactive Thumb Indicator
         val thumbWidth by animateDpAsState(
             targetValue = if (isDragging) 28.dp else 18.dp,
             animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -461,7 +463,7 @@ fun PrefDottedSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LightspeedStyle.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1)
 
             // Interactive Tactile Value Pill
             Surface(
@@ -594,7 +596,7 @@ fun PrefFloatDottedSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1)
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LightspeedStyle.colors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1)
 
             // Interactive Tactile Value Pill
             Surface(
@@ -725,7 +727,7 @@ fun <T> RotaryWheelColumn(
         modifier = modifier
             .height(totalHeight)
             .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xFF10131A))
+            .background(LightspeedTokens.TacticalDeepNavy)
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), RoundedCornerShape(14.dp)),
         contentAlignment = Alignment.Center
     ) {
@@ -756,7 +758,7 @@ fun <T> RotaryWheelColumn(
                         text = labelProvider(item),
                         fontSize = if (isSelected) 14.5.sp else 12.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.45f)
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else LightspeedStyle.colors.textSecondary.copy(alpha = 0.45f)
                     )
                 }
             }

@@ -27,7 +27,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
 @Composable
 fun SliderCalibrationFlyoutDialog(
@@ -44,6 +48,7 @@ fun SliderCalibrationFlyoutDialog(
     isTapToJumpEnabled: Boolean,
     onTapToJumpChanged: (Boolean) -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var presets by remember { mutableStateOf(SliderPresetManager.getPresets(prefs, sliderKey)) }
     var isProfilesExpanded by remember { mutableStateOf(true) }
     var itemToRename by remember { mutableStateOf<SliderPresetManager.PresetItem?>(null) }
@@ -80,15 +85,18 @@ fun SliderCalibrationFlyoutDialog(
         )
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        val activeSnapshot = LocalDeckTheme.current
+        DeckGlassCardSurface(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .wrapContentHeight()
-                .clip(RoundedCornerShape(22.dp))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(22.dp)),
-            shape = RoundedCornerShape(22.dp),
-            color = Color(0xF0141822)
+                .fillMaxWidth(0.80f)
+                .widthIn(max = 350.dp)
+                .wrapContentHeight(),
+            snapshotOverride = activeSnapshot,
+            isFlyout = true
         ) {
             Column(
                 modifier = Modifier
@@ -125,14 +133,14 @@ fun SliderCalibrationFlyoutDialog(
                                 text = title.ifEmpty { "Slider Calibration" },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.5.sp,
-                                color = Color.White,
+                                color = lsColors.textPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Precision Control & Presets",
                                 fontSize = 11.sp,
-                                color = Color.Gray
+                                color = lsColors.textDisabled
                             )
                         }
                     }
@@ -144,7 +152,7 @@ fun SliderCalibrationFlyoutDialog(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.LightGray,
+                            tint = lsColors.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -152,7 +160,7 @@ fun SliderCalibrationFlyoutDialog(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 12.dp),
-                    color = Color.White.copy(alpha = 0.1f)
+                    color = lsColors.textPrimary.copy(alpha = 0.1f)
                 )
 
                 // 2. Current & Default Value Chips (with direct numeric editing)
@@ -188,7 +196,7 @@ fun SliderCalibrationFlyoutDialog(
                                 BasicTextField(
                                     value = directValueText,
                                     onValueChange = { newTxt -> directValueText = newTxt },
-                                    textStyle = TextStyle(color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                                    textStyle = TextStyle(color = lsColors.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold),
                                     keyboardActions = KeyboardActions(onDone = { 
                                         onValueTyped(directValueText)
                                         onDismiss()
@@ -210,13 +218,13 @@ fun SliderCalibrationFlyoutDialog(
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.1f)),
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Text("Factory Default", fontSize = 10.sp, color = Color.Gray)
+                            Text("Factory Default", fontSize = 10.sp, color = lsColors.textDisabled)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(defaultValueStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
+                            Text(defaultValueStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = lsColors.textSecondary)
                         }
                     }
 
@@ -229,7 +237,7 @@ fun SliderCalibrationFlyoutDialog(
                         Column(modifier = Modifier.padding(8.dp)) {
                             Text("↕ Fine Gearing", fontSize = 10.sp, color = MaterialTheme.colorScheme.tertiary, fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("±1 Step", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("±1 Step", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
                         }
                     }
                 }
@@ -240,7 +248,7 @@ fun SliderCalibrationFlyoutDialog(
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -256,12 +264,12 @@ fun SliderCalibrationFlyoutDialog(
                                 text = "Tap-to-Jump on Track",
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                                color = lsColors.textPrimary
                             )
                             Text(
                                 text = "Instantly snap thumb to tap position on rail",
                                 fontSize = 10.5.sp,
-                                color = Color.Gray
+                                color = lsColors.textDisabled
                             )
                         }
                         Switch(
@@ -341,13 +349,13 @@ fun SliderCalibrationFlyoutDialog(
                                     text = "Saved Profiles (${presets.size})",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = lsColors.textPrimary
                                 )
                             }
                             Icon(
                                 imageVector = if (isProfilesExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = Color.LightGray,
+                                tint = lsColors.textSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -358,10 +366,10 @@ fun SliderCalibrationFlyoutDialog(
                             // Add Current Profile Row ("Add +")
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isCurrentValueAlreadySaved) Color.White.copy(alpha = 0.06f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                color = if (isCurrentValueAlreadySaved) lsColors.textPrimary.copy(alpha = 0.06f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.dp,
-                                    if (isCurrentValueAlreadySaved) Color.White.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                                    if (isCurrentValueAlreadySaved) lsColors.textPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -384,7 +392,7 @@ fun SliderCalibrationFlyoutDialog(
                                     Icon(
                                         imageVector = if (isCurrentValueAlreadySaved) Icons.Default.Check else Icons.Default.Add,
                                         contentDescription = "Add",
-                                        tint = if (isCurrentValueAlreadySaved) Color.LightGray else MaterialTheme.colorScheme.primary,
+                                        tint = if (isCurrentValueAlreadySaved) lsColors.textSecondary else MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -392,7 +400,7 @@ fun SliderCalibrationFlyoutDialog(
                                         text = if (isCurrentValueAlreadySaved) "Current Value '$currentValueStr' Already Saved" else "Add + (Save '$currentValueStr' as Profile)",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isCurrentValueAlreadySaved) Color.LightGray else MaterialTheme.colorScheme.primary
+                                        color = if (isCurrentValueAlreadySaved) lsColors.textSecondary else MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -408,7 +416,7 @@ fun SliderCalibrationFlyoutDialog(
                                     Text(
                                         text = "No saved profiles for this slider yet.",
                                         fontSize = 11.sp,
-                                        color = Color.Gray
+                                        color = lsColors.textDisabled
                                     )
                                 }
                             } else {
@@ -416,7 +424,7 @@ fun SliderCalibrationFlyoutDialog(
                                 presets.forEach { profileItem ->
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = Color(0x22FFFFFF),
+                                        color = LightspeedTokens.TacticalSubtleWhite,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 2.dp)

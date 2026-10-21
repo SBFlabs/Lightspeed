@@ -45,6 +45,7 @@ import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedShortcutManager
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -61,7 +62,7 @@ fun PickerSystemHeaderRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 3.dp)
-            .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
+            .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -69,7 +70,7 @@ fun PickerSystemHeaderRow(
         val title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_ACTIONS)
         Text(
             text = "⚡ $title (${item.count})",
-            color = Color.White,
+            color = LightspeedStyle.colors.textPrimary,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(1f)
@@ -79,7 +80,7 @@ fun PickerSystemHeaderRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.1f))
+                    .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.1f))
                     .combinedClickable(
                         onClick = onToggleAll,
                         onLongClick = onToggleAllLongClick
@@ -89,7 +90,7 @@ fun PickerSystemHeaderRow(
                 Icon(
                     Icons.Default.UnfoldMore,
                     contentDescription = "Expand/Collapse All",
-                    tint = Color.White,
+                    tint = LightspeedStyle.colors.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -116,7 +117,7 @@ fun PickerSystemCategoryHeaderRow(
     var showTransientInfoDialog by remember { mutableStateOf(false) }
 
     if (showTransientInfoDialog) {
-        val cautionAmber = Color(0xFFFFB300)
+        val cautionAmber = LightspeedStyle.colors.accentWarn
         AlertDialog(
             onDismissRequest = { showTransientInfoDialog = false },
             icon = {
@@ -132,7 +133,7 @@ fun PickerSystemCategoryHeaderRow(
                     text = "TRANSIENT GRAVITY OVERRIDES",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = LightspeedStyle.colors.textPrimary
                 )
             },
             text = {
@@ -140,13 +141,13 @@ fun PickerSystemCategoryHeaderRow(
                     Text(
                         text = "• Why Transient Override?\nActions under Synthetic Gravity (such as 'Transient Sensor Portrait', 'Transient 360° Gyro', etc.) are manual overrides that yield automatically back to the Synthetic Gravity automation rules upon app switch or screen off.",
                         fontSize = 12.5.sp,
-                        color = Color.LightGray.copy(alpha = 0.9f),
+                        color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
                         lineHeight = 17.sp
                     )
                     Text(
                         text = "• Yields to Automation:\nThis transient behavior exists so manual triggers yield automatically back to the per-app automation buckets configured in Central Command upon app switch or screen-off, preventing your device from being permanently hard-locked into a forced orientation.",
                         fontSize = 12.sp,
-                        color = Color.LightGray.copy(alpha = 0.75f),
+                        color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.75f),
                         lineHeight = 16.sp
                     )
                 }
@@ -169,7 +170,7 @@ fun PickerSystemCategoryHeaderRow(
             },
             dismissButton = {
                 TextButton(onClick = { showTransientInfoDialog = false }) {
-                    Text("DISMISS", color = Color.LightGray, fontSize = 12.sp)
+                    Text("DISMISS", color = LightspeedStyle.colors.textSecondary, fontSize = 12.sp)
                 }
             },
             containerColor = Color(0xFF1B1F2B),
@@ -202,15 +203,15 @@ fun PickerSystemCategoryHeaderRow(
                         modifier = Modifier
                             .size(18.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFFFB300).copy(alpha = 0.2f))
-                            .border(0.8.dp, Color(0xFFFFB300).copy(alpha = 0.5f), CircleShape)
+                            .background(LightspeedStyle.colors.accentWarn.copy(alpha = 0.2f))
+                            .border(0.8.dp, LightspeedStyle.colors.accentWarn.copy(alpha = 0.5f), CircleShape)
                             .clickable { showTransientInfoDialog = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.PriorityHigh,
                             contentDescription = "Transient Explanation",
-                            tint = Color(0xFFFFB300),
+                            tint = LightspeedStyle.colors.accentWarn,
                             modifier = Modifier.size(12.dp)
                         )
                     }
@@ -265,11 +266,11 @@ fun PickerSystemActionRow(
                     )
                 )
                 .background(
-                    color = if (isChecked) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.03f)
+                    color = if (isChecked) dynamicPrimary.copy(alpha = 0.28f) else LightspeedStyle.colors.textPrimary.copy(alpha = 0.03f)
                 )
                 .border(
                     width = 1.dp,
-                    color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.05f),
+                    color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else LightspeedStyle.colors.textPrimary.copy(alpha = 0.05f),
                     shape = RoundedCornerShape(
                         topStart = 10.dp,
                         bottomStart = 10.dp,
@@ -289,7 +290,7 @@ fun PickerSystemActionRow(
             ) {
                 Text(
                     text = item.label,
-                    color = if (isChecked) dynamicPrimary else Color.White,
+                    color = if (isChecked) dynamicPrimary else LightspeedStyle.colors.textPrimary,
                     fontSize = 13.sp,
                     fontWeight = if (isChecked) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
@@ -301,7 +302,7 @@ fun PickerSystemActionRow(
                 )
                 Text(
                     text = item.token,
-                    color = Color.LightGray.copy(alpha = 0.40f),
+                    color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.40f),
                     fontSize = 10.sp,
                     maxLines = 1,
                     style = TextStyle(
@@ -358,12 +359,24 @@ fun PickerSystemActionRow(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PickerCustomizationOptionRow(
     item: PickerRowItem.SystemCustomizationOption,
     dynamicSecondary: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
+    val isMethodOption = item.optionKey.startsWith("action_method:")
+    val assignedCount = if (isMethodOption) {
+        val parts = item.optionKey.split(":")
+        if (parts.size >= 4) {
+            val parentToken = "${parts[1]}:${parts[2]}"
+            val methodId = parts[3]
+            com.sbf.lightspeed.system.ActionMethods.getMethodApps(LocalContext.current, parentToken, methodId).size
+        } else 0
+    } else 0
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -371,14 +384,20 @@ fun PickerCustomizationOptionRow(
             .clip(RoundedCornerShape(8.dp))
             .background(
                 if (item.isSelected) dynamicSecondary.copy(alpha = 0.22f)
-                else Color.White.copy(alpha = 0.04f)
+                else LightspeedStyle.colors.textPrimary.copy(alpha = 0.04f)
             )
             .border(
                 width = 1.dp,
-                color = if (item.isSelected) dynamicSecondary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.06f),
+                color = if (item.isSelected) dynamicSecondary.copy(alpha = 0.65f) else LightspeedStyle.colors.textPrimary.copy(alpha = 0.06f),
                 shape = RoundedCornerShape(8.dp)
             )
-            .clickable(onClick = onClick)
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                }
+            )
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -388,7 +407,7 @@ fun PickerCustomizationOptionRow(
         ) {
             Text(
                 text = item.title,
-                color = if (item.isSelected) dynamicSecondary else Color.White,
+                color = if (item.isSelected) dynamicSecondary else LightspeedStyle.colors.textPrimary,
                 fontSize = 12.5.sp,
                 fontWeight = if (item.isSelected) FontWeight.Bold else FontWeight.Medium,
                 style = TextStyle(
@@ -398,7 +417,7 @@ fun PickerCustomizationOptionRow(
             )
             Text(
                 text = item.subtitle,
-                color = Color.LightGray.copy(alpha = 0.55f),
+                color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.55f),
                 fontSize = 10.sp,
                 style = TextStyle(
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -406,22 +425,40 @@ fun PickerCustomizationOptionRow(
                 )
             )
         }
+        if (isMethodOption && assignedCount > 0) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .background(dynamicSecondary.copy(alpha = 0.20f), RoundedCornerShape(6.dp))
+                    .border(1.dp, dynamicSecondary.copy(alpha = 0.50f), RoundedCornerShape(6.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "$assignedCount APPS",
+                    color = dynamicSecondary,
+                    fontSize = 8.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
         if (item.optionKey.startsWith("gravity_bucket_assign:")) {
             Spacer(modifier = Modifier.width(6.dp))
             Box(
                 modifier = Modifier
-                    .background(if (item.isSelected) dynamicSecondary else Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                    .background(if (item.isSelected) dynamicSecondary else LightspeedStyle.colors.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 7.dp, vertical = 3.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = if (item.isSelected) "CONFIGURED" else "CHOOSE APPS",
-                    color = if (item.isSelected) Color.Black else Color.White,
+                    color = if (item.isSelected) Color.Black else LightspeedStyle.colors.textPrimary,
                     fontSize = 8.5.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
         } else if (item.isSelected) {
+            Spacer(modifier = Modifier.width(6.dp))
             Box(
                 modifier = Modifier
                     .background(dynamicSecondary, CircleShape)
@@ -466,10 +503,10 @@ fun PickerCustomizationSliderRow(
             .fillMaxWidth()
             .padding(start = 24.dp, end = 2.dp, top = 3.dp, bottom = 3.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(Color.White.copy(alpha = 0.04f))
+            .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.04f))
             .border(
                 width = 1.dp,
-                color = Color.White.copy(alpha = 0.06f),
+                color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.06f),
                 shape = RoundedCornerShape(8.dp)
             )
             .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -485,7 +522,7 @@ fun PickerCustomizationSliderRow(
             ) {
                 Text(
                     text = item.title,
-                    color = Color.White,
+                    color = LightspeedStyle.colors.textPrimary,
                     fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     style = TextStyle(
@@ -495,7 +532,7 @@ fun PickerCustomizationSliderRow(
                 )
                 Text(
                     text = item.subtitle,
-                    color = Color.LightGray.copy(alpha = 0.55f),
+                    color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.55f),
                     fontSize = 10.sp,
                     style = TextStyle(
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -580,326 +617,5 @@ fun PickerCustomizationSliderRow(
                 prefs.edit().putBoolean("pref_slider_tap_to_jump_${item.prefKey}", enabled).apply()
             }
         )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun PickerAppHeaderRow(
-    item: PickerRowItem.AppHeader,
-    isAppSelected: Boolean,
-    context: Context,
-    dynamicPrimary: Color,
-    dynamicSecondary: Color,
-    onSelect: () -> Unit,
-    onLongClick: () -> Unit,
-    onExpandToggle: () -> Unit
-) {
-    val hasShortcuts = item.totalShortcuts > 0
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Main Board (Left)
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 12.dp,
-                        bottomStart = 12.dp,
-                        topEnd = if (hasShortcuts) 4.dp else 12.dp,
-                        bottomEnd = if (hasShortcuts) 4.dp else 12.dp
-                    )
-                )
-                .background(
-                    if (isAppSelected) dynamicPrimary.copy(alpha = 0.28f)
-                    else if (item.isPinned) Color(0x18FFD700)
-                    else Color.White.copy(alpha = 0.06f)
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (item.isPinned) Color(0x66FFD700)
-                    else if (isAppSelected) dynamicPrimary.copy(alpha = 0.65f)
-                    else Color.White.copy(alpha = 0.07f),
-                    shape = RoundedCornerShape(
-                        topStart = 12.dp,
-                        bottomStart = 12.dp,
-                        topEnd = if (hasShortcuts) 4.dp else 12.dp,
-                        bottomEnd = if (hasShortcuts) 4.dp else 12.dp
-                    )
-                )
-                .combinedClickable(
-                    onClick = onSelect,
-                    onLongClick = onLongClick
-                )
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val iconBmp by produceState<Bitmap?>(initialValue = LightspeedIconManager.temporaryPickerCache[item.packageName], item.packageName) {
-                if (value == null) {
-                    withContext(Dispatchers.IO) {
-                        value = LightspeedActionRegistry.getIconBitmap(context, item.packageName, useCache = false)
-                    }
-                }
-            }
-            if (iconBmp != null) {
-                Image(
-                    bitmap = iconBmp!!.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier.size(26.dp).padding(end = 8.dp)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .padding(end = 8.dp)
-                        .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = item.appName.firstOrNull()?.uppercase() ?: "?",
-                        color = Color.White.copy(alpha = 0.6f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (item.isPinned) {
-                        Icon(
-                            imageVector = Icons.Outlined.PushPin,
-                            contentDescription = "Pinned",
-                            tint = Color(0xFFFFD700),
-                            modifier = Modifier.size(14.dp).padding(end = 4.dp)
-                        )
-                    }
-                    Text(
-                        text = item.appName,
-                        color = if (isAppSelected) dynamicPrimary else if (item.isPinned) Color(0xFFFFF176) else Color.White,
-                        fontSize = 13.5.sp,
-                        fontWeight = if (isAppSelected || item.isPinned) FontWeight.Bold else FontWeight.SemiBold,
-                        style = TextStyle(
-                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                            lineHeight = 16.sp
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (hasShortcuts) {
-                    Text(
-                        text = "${item.totalShortcuts} deep action${if (item.totalShortcuts > 1) "s" else ""}",
-                        color = dynamicSecondary.copy(alpha = 0.85f),
-                        fontSize = 10.sp,
-                        style = TextStyle(
-                            platformStyle = PlatformTextStyle(includeFontPadding = false),
-                            lineHeight = 12.sp
-                        ),
-                        maxLines = 1
-                    )
-                }
-            }
-
-            if (isAppSelected) {
-                Box(
-                    modifier = Modifier
-                        .padding(start = 6.dp)
-                        .background(dynamicPrimary, CircleShape)
-                        .padding(horizontal = 7.dp, vertical = 2.5.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "SELECTED",
-                        color = Color.Black,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
-            }
-        }
-
-        // Expand Chevron Zone (Right)
-        if (hasShortcuts) {
-            Spacer(modifier = Modifier.width(3.dp))
-            Box(
-                modifier = Modifier
-                    .width(42.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 12.dp, bottomEnd = 12.dp))
-                    .background(
-                        if (item.isExpanded) dynamicSecondary.copy(alpha = 0.35f)
-                        else dynamicSecondary.copy(alpha = 0.12f)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (item.isExpanded) dynamicSecondary.copy(alpha = 0.65f) else dynamicSecondary.copy(alpha = 0.20f),
-                        shape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 12.dp, bottomEnd = 12.dp)
-                    )
-                    .clickable(onClick = onExpandToggle),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.ArrowDropDown,
-                    contentDescription = if (item.isExpanded) "Collapse" else "Expand",
-                    tint = if (item.isExpanded) dynamicSecondary else dynamicSecondary.copy(alpha = 0.9f),
-                    modifier = Modifier
-                        .size(22.dp)
-                        .rotate(if (item.isExpanded) 180f else 0f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun PickerSubHeaderRow(
-    item: PickerRowItem.SubHeader,
-    dynamicSecondary: Color,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 12.dp, top = 2.dp, bottom = 2.dp)
-            .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = item.label,
-            color = dynamicSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Icon(
-            Icons.Default.ArrowDropDown,
-            contentDescription = null,
-            tint = dynamicSecondary,
-            modifier = Modifier
-                .size(18.dp)
-                .rotate(if (item.isExpanded) 180f else 0f)
-        )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun PickerShortcutActionRow(
-    item: PickerRowItem.ShortcutAction,
-    isChecked: Boolean,
-    context: Context,
-    dynamicPrimary: Color,
-    onSelect: () -> Unit,
-    onLaunchWizard: () -> Unit,
-    onLongClick: () -> Unit = {}
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .padding(start = 18.dp, top = 2.dp, bottom = 2.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(
-                color = if (isChecked) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.03f)
-            )
-            .border(
-                width = 1.dp,
-                color = if (isChecked) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.05f),
-                shape = RoundedCornerShape(10.dp)
-            )
-            .combinedClickable(
-                onClick = {
-                    if (item.isPlugin && !isChecked) onLaunchWizard() else onSelect()
-                },
-                onLongClick = onLongClick
-            )
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        val shortcutBmp by produceState<Bitmap?>(initialValue = LightspeedIconManager.temporaryPickerCache[item.token], item.token) {
-            if (value == null) {
-                withContext(Dispatchers.IO) {
-                    value = LightspeedShortcutManager.resolveIconBitmap(context, item.token, useCache = false)
-                }
-            }
-        }
-        if (shortcutBmp != null) {
-            Image(
-                bitmap = shortcutBmp!!.asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier.size(22.dp).padding(end = 8.dp)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .padding(end = 8.dp)
-                    .background(Color.White.copy(alpha = 0.10f), RoundedCornerShape(4.dp))
-            )
-        }
-        val displayLabel = remember(item.token) {
-            LightspeedShortcutManager.resolveLabel(context, item.token)
-        }
-        Column(
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
-        ) {
-            Text(
-                text = displayLabel,
-                color = if (isChecked) dynamicPrimary else Color.White,
-                fontSize = 13.sp,
-                fontWeight = if (isChecked) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 16.sp
-                )
-            )
-            Text(
-                text = if (item.isPlugin) "Shortcut Creator Wizard" else item.token,
-                color = Color.LightGray.copy(alpha = 0.40f),
-                fontSize = 10.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 12.sp
-                )
-            )
-        }
-
-        if (isChecked) {
-            Box(
-                modifier = Modifier
-                    .background(dynamicPrimary, CircleShape)
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "SELECTED",
-                    color = Color.Black,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-        }
     }
 }

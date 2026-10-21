@@ -27,16 +27,26 @@ class LightspeedDataBridge(private val context: Context) {
         val instanceId: Int = 0
     )
 
-    private val categories = listOf(
-        CategoryNode("comm", "Communication"),
-        CategoryNode("internet", "Internet"),
-        CategoryNode("audio", "Audio"),
-        CategoryNode("graphics", "Graphics & Video"),
-        CategoryNode("games", "Games"),
-        CategoryNode("utilities", "Utilities"),
-        CategoryNode("settings", "Settings"),
-        CategoryNode("other", "Other")
-    )
+    companion object {
+        val DRAWER_CATEGORIES = listOf(
+            CategoryNode("comm", "Communication"),
+            CategoryNode("internet", "Internet"),
+            CategoryNode("audio", "Audio"),
+            CategoryNode("graphics", "Graphics & Video"),
+            CategoryNode("games", "Games"),
+            CategoryNode("finance", "Finance"),
+            CategoryNode("learning", "Learning & Books"),
+            CategoryNode("utilities", "Utilities"),
+            CategoryNode("security", "Security & Privacy"),
+            CategoryNode("productivity", "Productivity"),
+            CategoryNode("stores", "App Stores"),
+            CategoryNode("health", "Health & Fitness"),
+            CategoryNode("settings", "Systems & Styles"),
+            CategoryNode("other", "Other")
+        )
+    }
+
+    private val categories = DRAWER_CATEGORIES
 
     private val appCache = ConcurrentHashMap<String, List<LaunchTarget>>()
     
@@ -52,9 +62,16 @@ class LightspeedDataBridge(private val context: Context) {
         registerPackageReceiver()
     }
 
+    fun getOrderedCategories(): List<CategoryNode> {
+        val order = com.sbf.lightspeed.system.LightspeedPreferences.getCategoryOrder(context)
+        val defaultMap = DRAWER_CATEGORIES.associateBy { it.id }
+        return order.mapNotNull { defaultMap[it] }
+    }
+
     fun getLiveCategories(): List<CategoryNode> {
-        val active = categories.filter { (appCache[it.id]?.isNotEmpty() == true) }
-        return if (active.isNotEmpty()) active else categories
+        val ordered = getOrderedCategories()
+        val active = ordered.filter { (appCache[it.id]?.isNotEmpty() == true) }
+        return if (active.isNotEmpty()) active else ordered
     }
 
     fun getAppsForCategory(categoryId: String): List<LaunchTarget> {
@@ -63,6 +80,22 @@ class LightspeedDataBridge(private val context: Context) {
 
     fun getIcon(packageName: String): Drawable? {
         return com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, packageName)
+    }
+
+    fun moveAppCategory(pkg: String, newCat: String) {
+        var movedTarget: LaunchTarget? = null
+        for ((cat, list) in appCache) {
+            val target = list.firstOrNull { it.packageName == pkg }
+            if (target != null) {
+                movedTarget = target
+                appCache[cat] = list.filter { it.packageName != pkg }
+                break
+            }
+        }
+        if (movedTarget != null) {
+            val currentList = appCache[newCat] ?: emptyList()
+            appCache[newCat] = (currentList + movedTarget).sortedBy { it.label.lowercase() }
+        }
     }
 
     fun refreshCacheAsync(onComplete: (() -> Unit)? = null) {
@@ -81,12 +114,12 @@ class LightspeedDataBridge(private val context: Context) {
                 val actv = resolveInfo.activityInfo.name
                 val label = resolveInfo.loadLabel(pm)?.toString() ?: pkg
 
-
-                val assignedCat = classifyApp(appInfo, pkg, label)
+                val overrideCat = com.sbf.lightspeed.system.LightspeedPreferences.getAppCategoryOverride(context, pkg)
+                val isValidCategory = overrideCat != null && categories.any { it.id == overrideCat }
+                val assignedCat = if (isValidCategory) overrideCat!! else LightspeedAppCategorizer.categorize(appInfo, pkg, label)
                 val targetList = newCache[assignedCat] ?: newCache.getOrPut("other") { mutableListOf() }
                 targetList.add(LaunchTarget(label, pkg, actv))
             }
-
             newCache.forEach { (cat, list) ->
                 appCache[cat] = list.sortedBy { it.label.lowercase() }
             }
@@ -111,48 +144,4 @@ class LightspeedDataBridge(private val context: Context) {
         ContextCompat.registerReceiver(context.applicationContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
-    private fun classifyApp(appInfo: ApplicationInfo, pkg: String, label: String): String {
-        val p = pkg.lowercase()
-        val l = label.lowercase()
-
-        if (p.contains("settings") || p == "com.android.settings" || l.contains("settings")) return "settings"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            when (appInfo.category) {
-                ApplicationInfo.CATEGORY_GAME -> return "games"
-                ApplicationInfo.CATEGORY_AUDIO -> return "audio"
-                ApplicationInfo.CATEGORY_VIDEO, ApplicationInfo.CATEGORY_IMAGE -> return "graphics"
-                ApplicationInfo.CATEGORY_SOCIAL, ApplicationInfo.CATEGORY_NEWS -> return "comm"
-                ApplicationInfo.CATEGORY_MAPS -> return "internet"
-                ApplicationInfo.CATEGORY_PRODUCTIVITY, ApplicationInfo.CATEGORY_ACCESSIBILITY -> return "utilities"
-            }
-        }
-
-        @Suppress("DEPRECATION")
-        val isLegacyGame = (appInfo.flags and ApplicationInfo.FLAG_IS_GAME) != 0
-
-        return when {
-            isLegacyGame || p.contains("game") || l.contains("game") -> "games"
-            p.contains("whatsapp") || p.contains("telegram") || p.contains("messaging") ||
-            p.contains("dialer") || p.contains("contacts") || p.contains("discord") ||
-            p.contains("mail") || p.contains("gmail") || p.contains("messages") ||
-            p.contains("signal") || p.contains("sms") || p.contains("chat") -> "comm"
-            p.contains("browser") || p.contains("chrome") || p.contains("firefox") ||
-            p.contains("cromite") || p.contains("weblibre") || p.contains("opera") ||
-            p.contains("brave") || p.contains("duckduckgo") || p.contains("edge") ||
-            p.contains("map") || p.contains("navigation") -> "internet"
-            p.contains("music") || p.contains("audio") || p.contains("spotify") ||
-            p.contains("sound") || p.contains("radio") || p.contains("podcast") ||
-            p.contains("mpv") || p.contains("player") || p.contains("recorder") -> "audio"
-            p.contains("camera") || p.contains("gallery") || p.contains("photo") ||
-            p.contains("video") || p.contains("youtube") || p.contains("vance") ||
-            p.contains("editor") || p.contains("canvas") || p.contains("draw") -> "graphics"
-            p.contains("calc") || p.contains("termux") || p.contains("file") ||
-            p.contains("clock") || p.contains("alarm") || p.contains("calendar") ||
-            p.contains("note") || p.contains("authenticator") || p.contains("bitwarden") ||
-            p.contains("vault") || p.contains("anki") || p.contains("reader") ||
-            p.contains("pdf") || p.contains("tool") -> "utilities"
-            else -> "other"
-        }
-    }
 }

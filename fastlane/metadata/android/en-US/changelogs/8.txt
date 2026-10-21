@@ -1,0 +1,6 @@
+• Overhauled Category Cruise with ground-up catalog indexing and threshold swipe-to-pin.
+• App menu actions: Split with..., Split screen, Pop-up window, and category moves.
+• Rearrange category column order by long-pressing empty space.
+• 12-theme optical glass engine with live in-place tuner and per-theme profiles.
+• First 6 themes 100% free; remaining 6 unlocked via offline DRM-free honor key.
+• Direct multi-window execution, clamped fast scroller, and top alphabet HUD.

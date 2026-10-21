@@ -49,7 +49,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.sbf.lightspeed.settings.LightspeedInfinityDialog
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
+import com.sbf.lightspeed.ui.theme.CockpitPalette
+import com.sbf.lightspeed.ui.theme.LocalDomainPalette
 
 class CockpitDialogActivity : ComponentActivity() {
 
@@ -87,46 +90,48 @@ class CockpitDialogActivity : ComponentActivity() {
 
         setContent {
             LightspeedTheme(forceDark = true) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.55f))
-                        .clickable(onClick = { finish() }),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
+                CompositionLocalProvider(LocalDomainPalette provides CockpitPalette) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth(0.92f)
-                            .clickable(enabled = false, onClick = {}),
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color(0xF012141A),
-                        tonalElevation = 6.dp,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            Color(0x33FFFFFF)
-                        )
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .clickable(onClick = { finish() }),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(modifier = Modifier.padding(22.dp)) {
-                            when (action) {
-                                ACTION_RENAME_GEAR -> RenameGearContent(
-                                    setId = intent.getStringExtra(EXTRA_SET_ID) ?: "0",
-                                    currentName = intent.getStringExtra(EXTRA_CURRENT_NAME) ?: "SET 1",
-                                    onDismiss = { finish() }
-                                )
-                                ACTION_EDIT_ITEM -> EditItemContent(
-                                    token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
-                                    onDismiss = { finish() }
-                                )
-                                ACTION_CONFIRM_DEEP_ACTIVITY -> DeepActivityWarningContent(
-                                    token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
-                                    onDismiss = { finish() }
-                                )
-                                ACTION_SHOW_INFINITY -> LightspeedInfinityDialog(
-                                    context = this@CockpitDialogActivity,
-                                    onDismiss = { finish() },
-                                    onUnlocked = {}
-                                )
-                                else -> finish()
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .clickable(enabled = false, onClick = {}),
+                            shape = RoundedCornerShape(24.dp),
+                            color = LightspeedStyle.colors.dialogSurface,
+                            tonalElevation = 6.dp,
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                LightspeedStyle.colors.borderSubtle
+                            )
+                        ) {
+                            Box(modifier = Modifier.padding(22.dp)) {
+                                when (action) {
+                                    ACTION_RENAME_GEAR -> RenameGearContent(
+                                        setId = intent.getStringExtra(EXTRA_SET_ID) ?: "0",
+                                        currentName = intent.getStringExtra(EXTRA_CURRENT_NAME) ?: "SET 1",
+                                        onDismiss = { finish() }
+                                    )
+                                    ACTION_EDIT_ITEM -> EditItemContent(
+                                        token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
+                                        onDismiss = { finish() }
+                                    )
+                                    ACTION_CONFIRM_DEEP_ACTIVITY -> DeepActivityWarningContent(
+                                        token = intent.getStringExtra(EXTRA_TOKEN) ?: "",
+                                        onDismiss = { finish() }
+                                    )
+                                    ACTION_SHOW_INFINITY -> LightspeedInfinityDialog(
+                                        context = this@CockpitDialogActivity,
+                                        onDismiss = { finish() },
+                                        onUnlocked = {}
+                                    )
+                                    else -> finish()
+                                }
                             }
                         }
                     }
@@ -813,14 +818,14 @@ fun DeepActivityWarningContent(
             Icon(
                 imageVector = Icons.Default.WarningAmber,
                 contentDescription = null,
-                tint = Color(0xFFFFB300),
+                tint = LightspeedStyle.colors.accentWarn,
                 modifier = Modifier.size(26.dp)
             )
             Text(
                 text = "Deep Activity Warning",
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
-                color = Color.White
+                color = LightspeedStyle.colors.textPrimary
             )
         }
 
@@ -829,7 +834,7 @@ fun DeepActivityWarningContent(
         Text(
             text = "⚠️ Deep Activity Warning: Launching internal activities directly may cause instability or unexpected behavior.",
             fontSize = 13.5.sp,
-            color = Color.LightGray.copy(alpha = 0.9f),
+            color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
             lineHeight = 19.sp
         )
 
@@ -849,14 +854,14 @@ fun DeepActivityWarningContent(
                 onCheckedChange = { doNotShowAgain = it },
                 colors = CheckboxDefaults.colors(
                     checkedColor = MaterialTheme.colorScheme.primary,
-                    uncheckedColor = Color.Gray
+                    uncheckedColor = LightspeedStyle.colors.textDisabled
                 )
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "Do not show again",
                 fontSize = 13.sp,
-                color = Color.White
+                color = LightspeedStyle.colors.textPrimary
             )
         }
 

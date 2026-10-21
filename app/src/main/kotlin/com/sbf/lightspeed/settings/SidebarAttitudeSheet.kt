@@ -1,6 +1,9 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
+
 
 
 import android.content.Context
@@ -43,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -54,10 +58,40 @@ fun AttitudeAppAssignmentSheet(
     onDismiss: () -> Unit,
     onUpdated: () -> Unit
 ) {
+    AppAssignmentSheet(
+        context = context,
+        title = "Assign Apps: ${bucket.title}",
+        subtitle = bucket.subtitle,
+        icon = when (bucket) {
+            LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
+            LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
+            LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
+            else -> Icons.Default.ScreenRotation
+        },
+        initialAssigned = remember(bucket) { LightspeedOrientationEngine.getAssignedPackages(context, bucket) },
+        onSave = { pkgs -> LightspeedOrientationEngine.setAssignedPackages(context, bucket, pkgs) },
+        onDismiss = onDismiss,
+        onUpdated = onUpdated,
+        bucket = bucket
+    )
+}
+
+@Composable
+fun AppAssignmentSheet(
+    context: Context,
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector = Icons.Default.Apps,
+    initialAssigned: Set<String>,
+    onSave: (Set<String>) -> Unit,
+    onDismiss: () -> Unit,
+    onUpdated: () -> Unit,
+    bucket: LightspeedOrientationEngine.AttitudeBucket? = null
+) {
     var searchQuery by remember { mutableStateOf("") }
-    val assignedPackages = remember(bucket) {
+    val assignedPackages = remember(initialAssigned) {
         mutableStateListOf<String>().apply {
-            addAll(LightspeedOrientationEngine.getAssignedPackages(context, bucket))
+            addAll(initialAssigned)
         }
     }
 
@@ -268,20 +302,57 @@ fun AttitudeAppAssignmentSheet(
     var sideBarHeight by remember { mutableStateOf(1f) }
     var isDragging by remember { mutableStateOf(false) }
     var hudLetter by remember { mutableStateOf("") }
+    val activeSnapshot = LocalDeckTheme.current
+    val opticalColors = activeSnapshot.resolveOpticalColors()
+    val cornerDp = activeSnapshot.cornerRadiusDp.dp
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color(0xFF10121C),
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp),
+        dragHandle = null
     ) {
-        Column(
+        val sheetShape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp)
+                .clip(sheetShape)
         ) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(sheetShape)
+            ) {
+                ClippedFallbackBlurLayer(snapshot = activeSnapshot)
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .deckGlassSurface(snapshot = activeSnapshot, isBlurAvailable = true)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
+            ) {
+            // Drag handle pill at the top
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.5.dp)
+                        .clip(CircleShape)
+                        .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.28f))
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+
             // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
@@ -292,32 +363,27 @@ fun AttitudeAppAssignmentSheet(
                     Box(
                         modifier = Modifier
                             .size(38.dp)
-                            .background(dynamicPrimary.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
-                            .border(1.dp, dynamicPrimary.copy(alpha = 0.40f), RoundedCornerShape(10.dp)),
+                            .background(opticalColors.readableTintColor.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
+                            .border(1.dp, opticalColors.borderColor.copy(alpha = 0.40f), RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = when (bucket) {
-                                LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT -> Icons.Default.StayCurrentPortrait
-                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_PORTRAIT -> Icons.Default.ScreenRotationAlt
-                                LightspeedOrientationEngine.AttitudeBucket.SENSOR_LANDSCAPE -> Icons.Default.StayCurrentLandscape
-                                else -> Icons.Default.ScreenRotation
-                            },
+                            imageVector = icon,
                             contentDescription = null,
-                            tint = dynamicPrimary,
+                            tint = opticalColors.readableTintColor,
                             modifier = Modifier.size(22.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Assign Apps: ${bucket.title}",
+                            text = title,
                             fontSize = 15.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = LightspeedStyle.colors.textPrimary
                         )
                         Text(
-                            text = "${bucket.subtitle} (${assignedPackages.size} assigned)",
+                            text = if (subtitle.isNotEmpty()) "$subtitle (${assignedPackages.size} assigned)" else "${assignedPackages.size} assigned",
                             fontSize = 11.5.sp,
                             color = dynamicSecondary
                         )
@@ -325,22 +391,22 @@ fun AttitudeAppAssignmentSheet(
                 }
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.08f), CircleShape)
+                    modifier = Modifier.size(32.dp).background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.08f), CircleShape)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = LightspeedStyle.colors.textPrimary, modifier = Modifier.size(18.dp))
                 }
             }
 
             var activeInfoDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
             if (activeInfoDialog != null) {
                 val (infoTitle, infoMessage) = activeInfoDialog!!
-                AlertDialog(
+                DeckDialog(
                     onDismissRequest = { activeInfoDialog = null },
                     icon = {
                         Icon(
                             imageVector = if (infoTitle.contains("LOCK SCREEN") || infoTitle.contains("ADVISORY")) Icons.Default.PriorityHigh else Icons.Default.Info,
                             contentDescription = null,
-                            tint = if (infoTitle.contains("LOCK SCREEN") || infoTitle.contains("ADVISORY")) Color(0xFFFFB300) else dynamicPrimary,
+                            tint = if (infoTitle.contains("LOCK SCREEN") || infoTitle.contains("ADVISORY")) LightspeedStyle.colors.accentWarn else dynamicPrimary,
                             modifier = Modifier.size(28.dp)
                         )
                     },
@@ -349,7 +415,7 @@ fun AttitudeAppAssignmentSheet(
                             text = infoTitle,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = LightspeedStyle.colors.textPrimary,
                             textAlign = TextAlign.Center
                         )
                     },
@@ -357,7 +423,7 @@ fun AttitudeAppAssignmentSheet(
                         Text(
                             text = infoMessage,
                             fontSize = 12.5.sp,
-                            color = Color.LightGray.copy(alpha = 0.9f),
+                            color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
                             lineHeight = 18.sp,
                             textAlign = TextAlign.Start
                         )
@@ -366,9 +432,7 @@ fun AttitudeAppAssignmentSheet(
                         TextButton(onClick = { activeInfoDialog = null }) {
                             Text("UNDERSTOOD", color = dynamicPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
-                    },
-                    containerColor = Color(0xFF1B1F2B),
-                    shape = RoundedCornerShape(16.dp)
+                    }
                 )
             }
 
@@ -376,20 +440,20 @@ fun AttitudeAppAssignmentSheet(
             TextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search apps, messengers, launchers...", color = Color.White.copy(alpha = 0.45f), fontSize = 13.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) },
+                placeholder = { Text("Search apps, messengers, launchers...", color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.45f), fontSize = 13.sp) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                         }
                     }
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedContainerColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.08f),
+                    unfocusedContainerColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.05f),
+                    focusedTextColor = LightspeedStyle.colors.textPrimary,
+                    unfocusedTextColor = LightspeedStyle.colors.textPrimary,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent
@@ -423,7 +487,7 @@ fun AttitudeAppAssignmentSheet(
 
                         Row(
                             modifier = Modifier
-                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                                .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
                                 .border(1.dp, dynamicPrimary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -447,13 +511,13 @@ fun AttitudeAppAssignmentSheet(
                                 text = label.take(15),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                                color = LightspeedStyle.colors.textPrimary
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             IconButton(
                                 onClick = {
                                     assignedPackages.remove(pkg)
-                                    LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
+                                    onSave(assignedPackages.toSet())
                                     onUpdated()
                                 },
                                 modifier = Modifier.size(18.dp)
@@ -461,13 +525,20 @@ fun AttitudeAppAssignmentSheet(
                                 Icon(
                                     Icons.Default.Close,
                                     contentDescription = "Remove",
-                                    tint = Color(0xFFFF6B6B),
+                                    tint = LightspeedTokens.StatusErrorSoft,
                                     modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
                     }
                 }
+            }
+
+            val togglePackage: (String) -> Unit = { pkg ->
+                if (assignedPackages.contains(pkg)) assignedPackages.remove(pkg)
+                else assignedPackages.add(pkg)
+                onSave(assignedPackages.toSet())
+                onUpdated()
             }
 
             // Main List + A-Z Scrubber
@@ -516,12 +587,7 @@ fun AttitudeAppAssignmentSheet(
                                     dynamicSecondary = dynamicSecondary,
                                     bucket = bucket,
                                     onShowDetailInfo = { title, msg -> activeInfoDialog = Pair(title, msg) },
-                                    onToggle = {
-                                        if (isAssigned) assignedPackages.remove(target.id)
-                                        else assignedPackages.add(target.id)
-                                        LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
-                                        onUpdated()
-                                    }
+                                    onToggle = { togglePackage(target.id) }
                                 )
                             }
 
@@ -532,14 +598,14 @@ fun AttitudeAppAssignmentSheet(
                                         .fillMaxWidth()
                                         .padding(top = 10.dp, bottom = 4.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color.White.copy(alpha = 0.05f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                                        .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.05f))
+                                        .border(1.dp, LightspeedStyle.colors.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
                                         .padding(horizontal = 10.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = "📱 ALL INSTALLED APPS (${regularTargets.size})",
-                                        color = Color.White.copy(alpha = 0.85f),
+                                        color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f),
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.8.sp,
@@ -558,12 +624,7 @@ fun AttitudeAppAssignmentSheet(
                                     dynamicSecondary = dynamicSecondary,
                                     bucket = bucket,
                                     onShowDetailInfo = { title, msg -> activeInfoDialog = Pair(title, msg) },
-                                    onToggle = {
-                                        if (isAssigned) assignedPackages.remove(target.id)
-                                        else assignedPackages.add(target.id)
-                                        LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
-                                        onUpdated()
-                                    }
+                                    onToggle = { togglePackage(target.id) }
                                 )
                             }
                         } else {
@@ -595,12 +656,7 @@ fun AttitudeAppAssignmentSheet(
                                     dynamicSecondary = dynamicSecondary,
                                     bucket = bucket,
                                     onShowDetailInfo = { title, msg -> activeInfoDialog = Pair(title, msg) },
-                                    onToggle = {
-                                        if (isAssigned) assignedPackages.remove(target.id)
-                                        else assignedPackages.add(target.id)
-                                        LightspeedOrientationEngine.setAssignedPackages(context, bucket, assignedPackages.toSet())
-                                        onUpdated()
-                                    }
+                                    onToggle = { togglePackage(target.id) }
                                 )
                             }
                         }
@@ -667,7 +723,7 @@ fun AttitudeAppAssignmentSheet(
                                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                                     Text(
                                         text = letter.toString(),
-                                        color = if (hasApps) Color.White.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.18f),
+                                        color = if (hasApps) LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f) else LightspeedStyle.colors.textPrimary.copy(alpha = 0.18f),
                                         fontSize = 8.5.sp,
                                         fontWeight = if (hasApps) FontWeight.Bold else FontWeight.Normal
                                     )
@@ -684,11 +740,11 @@ fun AttitudeAppAssignmentSheet(
                             .align(Alignment.Center)
                             .size(72.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xE610121C))
+                            .background(LightspeedTokens.TacticalDeepSlate.copy(alpha = 0.90f))
                             .border(1.5.dp, dynamicPrimary, RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = hudLetter, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Text(text = hudLetter, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = LightspeedStyle.colors.textPrimary)
                     }
                 }
             }
@@ -702,14 +758,14 @@ fun AttitudeAppAssignmentSheet(
                     OutlinedButton(
                         onClick = {
                             assignedPackages.clear()
-                            LightspeedOrientationEngine.setAssignedPackages(context, bucket, emptySet())
+                            onSave(emptySet())
                             onUpdated()
                         },
                         modifier = Modifier.weight(1f).height(46.dp),
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                        border = androidx.compose.foundation.BorderStroke(1.dp, LightspeedStyle.colors.textPrimary.copy(alpha = 0.20f))
                     ) {
-                        Text("CLEAR ALL", color = Color(0xFFFF6B6B), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("CLEAR ALL", color = LightspeedTokens.StatusErrorSoft, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
 
@@ -719,9 +775,10 @@ fun AttitudeAppAssignmentSheet(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(if (assignedPackages.isNotEmpty()) 1.2f else 1f).height(46.dp)
                 ) {
-                    Text("DONE (${assignedPackages.size})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("DONE (${assignedPackages.size})", color = LightspeedStyle.colors.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
+        }
         }
     }
 }
@@ -733,7 +790,7 @@ private fun AttitudeTargetRow(
     context: Context,
     dynamicPrimary: Color,
     dynamicSecondary: Color,
-    bucket: LightspeedOrientationEngine.AttitudeBucket,
+    bucket: LightspeedOrientationEngine.AttitudeBucket? = null,
     onShowDetailInfo: ((title: String, message: String) -> Unit)? = null,
     onToggle: () -> Unit
 ) {
@@ -750,14 +807,14 @@ private fun AttitudeTargetRow(
                 .clip(RoundedCornerShape(12.dp))
                 .background(
                     if (isAssigned) dynamicPrimary.copy(alpha = 0.28f)
-                    else if (item.isPinned) Color(0x18FFD700)
-                    else Color.White.copy(alpha = 0.06f)
+                    else if (item.isPinned) LightspeedTokens.StatusGoldPinSubtle
+                    else LightspeedStyle.colors.textPrimary.copy(alpha = 0.06f)
                 )
                 .border(
                     width = 1.dp,
                     color = if (isAssigned) dynamicPrimary.copy(alpha = 0.65f)
-                    else if (item.isPinned) Color(0x66FFD700)
-                    else Color.White.copy(alpha = 0.07f),
+                    else if (item.isPinned) LightspeedTokens.StatusGoldPin
+                    else LightspeedStyle.colors.textPrimary.copy(alpha = 0.07f),
                     shape = RoundedCornerShape(12.dp)
                 )
                 .clickable(onClick = onToggle)
@@ -769,13 +826,13 @@ private fun AttitudeTargetRow(
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .background(Color(0xFFFFD700).copy(alpha = 0.18f), RoundedCornerShape(6.dp)),
+                        .background(LightspeedStyle.colors.accentGold.copy(alpha = 0.18f), RoundedCornerShape(6.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = Color(0xFFFFD700),
+                        tint = LightspeedStyle.colors.accentGold,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -802,13 +859,13 @@ private fun AttitudeTargetRow(
                     Box(
                         modifier = Modifier
                             .size(28.dp)
-                            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(6.dp)),
+                            .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(6.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = iconVector,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.7f),
+                            tint = LightspeedStyle.colors.textPrimary.copy(alpha = 0.7f),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -828,15 +885,15 @@ private fun AttitudeTargetRow(
                         Icon(
                             imageVector = Icons.Outlined.PushPin,
                             contentDescription = "Pinned",
-                            tint = Color(0xFFFFD700),
+                            tint = LightspeedStyle.colors.accentGold,
                             modifier = Modifier.size(13.dp).padding(end = 4.dp)
                         )
                     }
                     Text(
                         text = item.label,
                         color = if (isAssigned) dynamicPrimary
-                        else if (item.isPinned) Color(0xFFFFF176)
-                        else Color.White,
+                        else if (item.isPinned) LightspeedTokens.StatusGoldBright
+                        else LightspeedStyle.colors.textPrimary,
                         fontSize = 13.5.sp,
                         fontWeight = if (isAssigned || item.isPinned) FontWeight.Bold else FontWeight.SemiBold,
                         style = TextStyle(
@@ -851,10 +908,10 @@ private fun AttitudeTargetRow(
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = if (item.badge == "SYSTEM") Color(0xFFFFD700).copy(alpha = 0.2f) else dynamicPrimary.copy(alpha = 0.2f),
+                            color = if (item.badge == "SYSTEM") LightspeedStyle.colors.accentGold.copy(alpha = 0.2f) else dynamicPrimary.copy(alpha = 0.2f),
                             border = androidx.compose.foundation.BorderStroke(
                                 0.5.dp,
-                                if (item.badge == "SYSTEM") Color(0xFFFFD700).copy(alpha = 0.6f) else dynamicPrimary.copy(alpha = 0.5f)
+                                if (item.badge == "SYSTEM") LightspeedStyle.colors.accentGold.copy(alpha = 0.6f) else dynamicPrimary.copy(alpha = 0.5f)
                             ),
                             modifier = Modifier.wrapContentWidth()
                         ) {
@@ -862,7 +919,7 @@ private fun AttitudeTargetRow(
                                 text = item.badge,
                                 fontSize = 8.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = if (item.badge == "SYSTEM") Color(0xFFFFD700) else dynamicPrimary,
+                                color = if (item.badge == "SYSTEM") LightspeedStyle.colors.accentGold else dynamicPrimary,
                                 modifier = Modifier.padding(horizontal = 4.5.dp, vertical = 1.dp),
                                 softWrap = false,
                                 maxLines = 1
@@ -872,7 +929,7 @@ private fun AttitudeTargetRow(
                 }
                 Text(
                     text = item.subtitle,
-                    color = Color.LightGray.copy(alpha = 0.55f),
+                    color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.55f),
                     fontSize = 10.sp,
                     style = TextStyle(
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -883,14 +940,14 @@ private fun AttitudeTargetRow(
                 )
             }
 
-            if (item.id == "keyguard:lockscreen" && bucket != LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT) {
+            if (bucket != null && item.id == "keyguard:lockscreen" && bucket != LightspeedOrientationEngine.AttitudeBucket.STRICT_PORTRAIT) {
                 Box(
                     modifier = Modifier
                         .padding(end = 6.dp)
                         .size(26.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFFB300).copy(alpha = 0.15f))
-                        .border(1.dp, Color(0xFFFFB300).copy(alpha = 0.45f), CircleShape)
+                        .background(LightspeedStyle.colors.accentWarn.copy(alpha = 0.15f))
+                        .border(1.dp, LightspeedStyle.colors.accentWarn.copy(alpha = 0.45f), CircleShape)
                         .clickable {
                             onShowDetailInfo?.invoke(
                                 "LOCK SCREEN INTERLOCK",
@@ -902,7 +959,7 @@ private fun AttitudeTargetRow(
                     Icon(
                         imageVector = Icons.Default.PriorityHigh,
                         contentDescription = "Lockscreen Interlock Info",
-                        tint = Color(0xFFFFB300),
+                        tint = LightspeedStyle.colors.accentWarn,
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -935,8 +992,8 @@ private fun AttitudeTargetRow(
                         .padding(end = 6.dp)
                         .size(26.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFFFB300).copy(alpha = 0.15f))
-                        .border(1.dp, Color(0xFFFFB300).copy(alpha = 0.45f), CircleShape)
+                        .background(LightspeedStyle.colors.accentWarn.copy(alpha = 0.15f))
+                        .border(1.dp, LightspeedStyle.colors.accentWarn.copy(alpha = 0.45f), CircleShape)
                         .clickable {
                             onShowDetailInfo?.invoke(
                                 "LAUNCHER LANDSCAPE ADVISORY",
@@ -948,7 +1005,7 @@ private fun AttitudeTargetRow(
                     Icon(
                         imageVector = Icons.Default.PriorityHigh,
                         contentDescription = "Launcher Landscape Advisory",
-                        tint = Color(0xFFFFB300),
+                        tint = LightspeedStyle.colors.accentWarn,
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -974,7 +1031,7 @@ private fun AttitudeTargetRow(
                     modifier = Modifier
                         .padding(start = 6.dp)
                         .size(18.dp)
-                        .border(1.2.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                        .border(1.2.dp, LightspeedStyle.colors.textPrimary.copy(alpha = 0.22f), CircleShape)
                 )
             }
         }

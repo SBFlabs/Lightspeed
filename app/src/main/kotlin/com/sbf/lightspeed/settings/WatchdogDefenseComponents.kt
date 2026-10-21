@@ -60,9 +60,12 @@ import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
+import com.sbf.lightspeed.system.PerimeterPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
 /**
  * Perimeter Accessibility Sentinels Deck Dialog:
@@ -76,9 +79,10 @@ fun PerimeterServicesDeckDialog(
     onDismiss: () -> Unit,
     onRefreshNeeded: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     val coroutineScope = rememberCoroutineScope()
-    val cautionAmber = Color(0xFFFFB300)
-    val successGreen = Color(0xFF00E676)
+    val cautionAmber = lsColors.accentWarn
+    val successGreen = lsColors.accentOk
     val pm = context.packageManager
     val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
     val isShizukuActive = ElevatedTaskCloser.isShizukuActive
@@ -99,6 +103,10 @@ fun PerimeterServicesDeckDialog(
 
     var protectedServicesSet by remember {
         mutableStateOf(LightspeedPreferences.getPerimeterProtectedServices(context))
+    }
+
+    var policiesMap by remember(refreshTrigger) {
+        mutableStateOf(LightspeedPreferences.getPerimeterServicePolicies(context))
     }
 
     var pinnedServicesSet by remember {
@@ -133,19 +141,18 @@ fun PerimeterServicesDeckDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        val glassVisuals = rememberDeckGlassVisuals(context)
-        val backdropVisuals = rememberDeckBackdropVisuals(context)
+        val activeSnapshot = LocalDeckTheme.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                 val lp = dialogWindow?.attributes
                 if (lp != null) {
-                    lp.blurBehindRadius = backdropVisuals.blurBehindRadius
+                    lp.blurBehindRadius = activeSnapshot.windowBlurRadiusPx.coerceIn(0, 150)
                     dialogWindow.attributes = lp
                 }
             }
-            dialogWindow?.setDimAmount(backdropVisuals.dimAmount)
+            dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
         Box(
@@ -154,100 +161,13 @@ fun PerimeterServicesDeckDialog(
                 .padding(horizontal = 8.dp, vertical = 18.dp),
             contentAlignment = Alignment.Center
         ) {
-            Card(
+            DeckGlassCardSurface(
                 modifier = Modifier
                     .fillMaxWidth(0.98f)
                     .fillMaxHeight(0.88f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-                    .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
-                    .background(glassVisuals.backgroundBrush)
-                    .border(glassVisuals.borderWidth, glassVisuals.borderBrush, RoundedCornerShape(glassVisuals.shapeCornerRadius)),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (glassVisuals.showTopGlare) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.45f),
-                                            Color(0xFF80D8FF).copy(alpha = glassVisuals.topGlareAlpha * 0.15f),
-                                            Color.Transparent
-                                        ),
-                                        center = Offset(x = 350f, y = 0f),
-                                        radius = 650f
-                                    )
-                                )
-                        )
-                    }
-                    if (glassVisuals.showBottomCaustic) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(70.dp)
-                                .align(Alignment.BottomCenter)
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color(0xFF00E5FF).copy(alpha = 0.08f),
-                                            Color.White.copy(alpha = 0.14f)
-                                        )
-                                    )
-                                )
-                        )
-                    }
-                    if (glassVisuals.showRefractiveRim) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .padding(2.5.dp)
-                                .border(
-                                    1.dp,
-                                    Brush.linearGradient(
-                                        colors = listOf(
-                                            Color(0xFF00E5FF).copy(alpha = 0.50f),
-                                            Color.White.copy(alpha = 0.65f),
-                                            Color(0xFFE040FB).copy(alpha = 0.45f),
-                                            Color.Transparent
-                                        ),
-                                        start = Offset(0f, 0f),
-                                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                                    ),
-                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 2.5.dp)
-                                )
-                        )
-                    }
-                    if (glassVisuals.innerChamferAlpha > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .padding(1.dp)
-                                .border(
-                                    0.8.dp,
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = glassVisuals.innerChamferAlpha),
-                                            Color.Transparent
-                                        )
-                                    ),
-                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
-                                )
-                        )
-                    }
-                    if (glassVisuals.showNoiseGrain) {
-                        Canvas(modifier = Modifier.matchParentSize()) {
-                            drawRect(
-                                brush = GlassNoiseTexture.getBrush(),
-                                alpha = glassVisuals.noiseAlpha
-                            )
-                        }
-                    }
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -335,7 +255,7 @@ fun PerimeterServicesDeckDialog(
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Filter accessibility services...", fontSize = 12.sp, color = Color.Gray) },
+                            placeholder = { Text("Filter accessibility services...", fontSize = 12.sp, color = lsColors.textDisabled) },
                             modifier = Modifier.fillMaxWidth().height(50.dp),
                             leadingIcon = {
                                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
@@ -343,16 +263,16 @@ fun PerimeterServicesDeckDialog(
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = lsColors.textDisabled, modifier = Modifier.size(14.dp))
                                     }
                                 }
                             },
                             singleLine = true,
                             shape = RoundedCornerShape(10.dp),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = Color.White),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = lsColors.textPrimary),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                                unfocusedBorderColor = lsColors.textPrimary.copy(alpha = 0.15f),
                                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                             )
@@ -365,7 +285,7 @@ fun PerimeterServicesDeckDialog(
                             Text(
                                 text = if (searchQuery.isBlank()) "No external accessibility services installed." else "No matching services found.",
                                 fontSize = 11.5.sp,
-                                color = Color.LightGray.copy(alpha = 0.6f),
+                                color = lsColors.textSecondary.copy(alpha = 0.6f),
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
@@ -392,6 +312,7 @@ fun PerimeterServicesDeckDialog(
                                 isServiceEnabled = enabledComponents.contains(component),
                                 isProtected = protectedServicesSet.contains(componentId),
                                 isBatteryWhitelisted = LightspeedWatchdogEngine.isPackageBatteryWhitelisted(context, sPkg),
+                                policy = policiesMap[componentId] ?: PerimeterPolicy.NORMAL,
                                 successGreen = successGreen,
                                 cautionAmber = cautionAmber,
                                 onTogglePin = {
@@ -471,6 +392,21 @@ fun PerimeterServicesDeckDialog(
                                             onRefreshNeeded()
                                         }
                                     }
+                                },
+                                onCyclePolicy = {
+                                    val next = LightspeedPreferences.cyclePerimeterPolicy(context, componentId)
+                                    policiesMap = LightspeedPreferences.getPerimeterServicePolicies(context)
+                                    LightspeedHapticEngine.tick(context)
+                                    val sLabel = try {
+                                        sInfo.resolveInfo?.loadLabel(pm)?.toString() ?: sPkg
+                                    } catch (_: Exception) { sPkg }
+                                    val policyName = when (next) {
+                                        PerimeterPolicy.ALWAYS_REVIVE -> "ALWAYS REVIVE"
+                                        PerimeterPolicy.KEEP_OFF -> "KEEP OFF"
+                                        PerimeterPolicy.NORMAL -> "NORMAL (AUTO)"
+                                    }
+                                    Toast.makeText(context, "$sLabel: $policyName", Toast.LENGTH_SHORT).show()
+                                    onRefreshNeeded()
                                 },
                                 onOpenExemptionDeck = { showBatteryExemptionDeck = true }
                             )

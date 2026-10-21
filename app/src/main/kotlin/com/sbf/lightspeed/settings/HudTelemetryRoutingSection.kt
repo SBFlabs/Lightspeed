@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.safeReloadPreferences
@@ -59,11 +60,12 @@ fun HudTelemetryRoutingSection(
     }
 
     // Visual Dual-Channel HUD Guide Badge Card
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+    DeckCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -73,12 +75,12 @@ fun HudTelemetryRoutingSection(
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("📏 Horizon Rail", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                    Text("Ultra-thin progress line on display top edge", fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.85f))
+                    Text("📏 Horizon Rail", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = LightspeedStyle.colors.textPrimary)
+                    Text("Ultra-thin progress line on display top edge", fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f))
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("💊 Orbital Capsule", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
-                    Text("Dynamic liquid-glass island on camera cutout", fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.85f))
+                    Text("💊 Orbital Capsule", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = LightspeedStyle.colors.textPrimary)
+                    Text("Dynamic Prism island on camera cutout", fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f))
                 }
             }
         }
@@ -87,15 +89,14 @@ fun HudTelemetryRoutingSection(
 
 
     if (!isNotifAccessGranted) {
-        Card(
+        DeckCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .clickable { onShowNotificationAccessDialog() }
-                .padding(vertical = 2.dp),
+                .padding(vertical = 2.dp)
+                .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
+            tint = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+            onClick = { onShowNotificationAccessDialog() }
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -104,10 +105,10 @@ fun HudTelemetryRoutingSection(
                 Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                    Text("Tap here to grant permission in Android Settings so Lightspeed can read download progress and media metadata.", fontSize = 11.sp, color = Color.White.copy(alpha = 0.85f))
+                    Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = LightspeedStyle.colors.textPrimary)
+                    Text("Tap here to grant permission in Android Settings so Lightspeed can read download progress and media metadata.", fontSize = 11.sp, color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f))
                 }
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.6f))
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f))
             }
         }
     }

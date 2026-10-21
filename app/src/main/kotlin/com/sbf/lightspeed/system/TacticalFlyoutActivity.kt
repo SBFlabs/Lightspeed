@@ -40,7 +40,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.overrideZeroTransition
+import com.sbf.lightspeed.settings.deckGlassSurface
+import com.sbf.lightspeed.ui.theme.DeckTheme
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
 class TacticalFlyoutActivity : ComponentActivity() {
 
@@ -50,12 +55,14 @@ class TacticalFlyoutActivity : ComponentActivity() {
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         setContent {
             LightspeedTheme(forceDark = true) {
-                TacticalFlyoutContent(
-                    context = this,
-                    onDismiss = {
-                        finish()
-                    }
-                )
+                DeckTheme {
+                    TacticalFlyoutContent(
+                        context = this,
+                        onDismiss = {
+                            finish()
+                        }
+                    )
+                }
             }
         }
     }
@@ -98,27 +105,28 @@ fun TacticalFlyoutContent(
             },
         contentAlignment = Alignment.Center
     ) {
+        val activeSnapshot = LocalDeckTheme.current
+        val shape = RoundedCornerShape(activeSnapshot.cornerRadiusDp.dp)
+
         AnimatedVisibility(
             visible = isVisible,
             enter = fadeIn() + scaleIn(initialScale = 0.92f),
             exit = fadeOut() + scaleOut(targetScale = 0.92f)
         ) {
-            Card(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .wrapContentHeight()
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(shape)
+                    .deckGlassSurface(
+                        snapshot = activeSnapshot,
+                        isBlurAvailable = true,
+                        isFlyout = true
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) { /* prevent click through */ }
-                    .border(
-                        1.dp,
-                        Color(0x33FFFFFF),
-                        RoundedCornerShape(24.dp)
-                    ),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xF0101216))
             ) {
                 Column(
                     modifier = Modifier
@@ -157,7 +165,7 @@ fun TacticalFlyoutContent(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color.White.copy(alpha = 0.7f),
+                                tint = LightspeedStyle.colors.textPrimary.copy(alpha = 0.7f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -170,7 +178,7 @@ fun TacticalFlyoutContent(
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f),
                             letterSpacing = 1.sp
                         )
 
@@ -183,7 +191,7 @@ fun TacticalFlyoutContent(
                                 title = "ChatGPT",
                                 subtitle = "Voice / Chat",
                                 icon = Icons.Default.AutoAwesome,
-                                accentColor = Color(0xFF10A37F),
+                                accentColor = LightspeedTokens.StatusTeal,
                                 onClick = {
                                     onDismiss()
                                     TacticalFlyoutLauncher.launchChatGPT(context)
@@ -195,7 +203,7 @@ fun TacticalFlyoutContent(
                                 title = "Claude",
                                 subtitle = "Anthropic AI",
                                 icon = Icons.Default.Psychology,
-                                accentColor = Color(0xFFD97706),
+                                accentColor = LightspeedTokens.StatusAmber,
                                 onClick = {
                                     onDismiss()
                                     TacticalFlyoutLauncher.launchClaude(context)
@@ -207,7 +215,7 @@ fun TacticalFlyoutContent(
                                 title = "Gemini",
                                 subtitle = "Google AI",
                                 icon = Icons.Default.Stars,
-                                accentColor = Color(0xFF3B82F6),
+                                accentColor = LightspeedTokens.StatusBlue,
                                 onClick = {
                                     onDismiss()
                                     TacticalFlyoutLauncher.launchGemini(context)
@@ -223,7 +231,7 @@ fun TacticalFlyoutContent(
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f),
                             letterSpacing = 1.sp
                         )
 
@@ -236,7 +244,7 @@ fun TacticalFlyoutContent(
                                 title = "Google Lens",
                                 subtitle = "Visual OCR Search",
                                 icon = Icons.Default.CameraAlt,
-                                accentColor = Color(0xFFEA4335),
+                                accentColor = LightspeedTokens.StatusCrimson,
                                 onClick = {
                                     onDismiss()
                                     TacticalFlyoutLauncher.launchLens(context)
@@ -248,7 +256,7 @@ fun TacticalFlyoutContent(
                                 title = "QR Scanner",
                                 subtitle = "Optical Code Scan",
                                 icon = Icons.Default.QrCodeScanner,
-                                accentColor = Color(0xFF06B6D4),
+                                accentColor = LightspeedTokens.StatusCyan,
                                 onClick = {
                                     onDismiss()
                                     TacticalFlyoutLauncher.launchQrScanner(context)
@@ -264,7 +272,7 @@ fun TacticalFlyoutContent(
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f),
                             letterSpacing = 1.sp
                         )
 
@@ -282,7 +290,7 @@ fun TacticalFlyoutContent(
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.6f),
                             letterSpacing = 1.sp
                         )
 
@@ -291,7 +299,7 @@ fun TacticalFlyoutContent(
                             title = "Power Menu",
                             subtitle = "Shutdown / Restart",
                             icon = Icons.Default.PowerSettingsNew,
-                            accentColor = Color(0xFF94A3B8),
+                            accentColor = LightspeedTokens.StatusSlate,
                             onClick = {
                                 onDismiss()
                                 Handler(Looper.getMainLooper()).postDelayed(
@@ -321,12 +329,12 @@ fun TacticalFlyoutTile(
             .clickable { onClick() }
             .border(
                 1.dp,
-                if (isPulse) Color(0xFFEF4444) else accentColor.copy(alpha = 0.35f),
+                if (isPulse) LightspeedTokens.StatusErrorPulse else accentColor.copy(alpha = 0.35f),
                 RoundedCornerShape(14.dp)
             ),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isPulse) Color(0xFFEF4444).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
+            containerColor = if (isPulse) LightspeedTokens.StatusErrorPulse.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
         )
     ) {
         Column(
@@ -355,13 +363,13 @@ fun TacticalFlyoutTile(
                 text = title,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = LightspeedStyle.colors.textPrimary
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 fontSize = 9.5.sp,
-                color = Color.White.copy(alpha = 0.65f),
+                color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.65f),
                 maxLines = 1
             )
         }

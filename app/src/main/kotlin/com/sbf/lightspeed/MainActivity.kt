@@ -15,10 +15,11 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import com.sbf.lightspeed.settings.MainSettingsScreen
-import com.sbf.lightspeed.settings.rememberDeckBackdropVisuals
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.ElevatedTaskCloser
+import com.sbf.lightspeed.ui.theme.DeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import rikka.shizuku.Shizuku
 import com.sbf.lightspeed.system.ShizukuGate
@@ -44,6 +45,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
 
         // 1. Ensure core defaults are initialized on clean installs
         com.sbf.lightspeed.system.LightspeedPreferences.initializeDefaults(this)
@@ -67,33 +69,49 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val backdrop = rememberDeckBackdropVisuals(this)
+            val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.snapshotFlow.collectAsState().value
+            val fallbackBitmap = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.backdropBitmap
             SideEffect {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    if (windowManager.isCrossWindowBlurEnabled) {
+                    val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(this@MainActivity)
+                    val nativeSupported = com.sbf.lightspeed.settings.BackdropBlurModeManager.isNativeBlurSupported(windowManager)
+                    val useNative = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(windowManager, blurMode)
+                    val useScreenshot = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseScreenshotBlur(windowManager, blurMode)
+
+                    com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(nativeSupported && blurMode != com.sbf.lightspeed.settings.BackdropBlurMode.SCREENSHOT)
+                    if (useNative) {
                         window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                         val lp = window.attributes
-                        lp.blurBehindRadius = backdrop.blurBehindRadius
+                        lp.blurBehindRadius = snapshot.windowBlurRadiusPx.coerceIn(0, 150)
                         window.attributes = lp
+                        window.setDimAmount(snapshot.dimAmount)
                     } else {
                         window.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                         val lp = window.attributes
                         lp.blurBehindRadius = 0
                         window.attributes = lp
+                        window.setDimAmount(if (useScreenshot && fallbackBitmap != null) 0f else snapshot.dimAmount)
                     }
+                } else {
+                    com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(false)
+                    window.setDimAmount(snapshot.dimAmount)
                 }
-                window.setDimAmount(backdrop.dimAmount)
             }
 
             LightspeedTheme {
-                ShizukuChoiceDialog()
-                MainSettingsScreen()
+                DeckTheme {
+                    ShizukuChoiceDialog()
+                    MainSettingsScreen()
+                }
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
+        if (com.sbf.lightspeed.settings.CentralCommandBackdropBlur.backdropBitmap == null) {
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
+        }
         checkAndRequest()
     }
 
@@ -135,6 +153,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onWindowHidden(isChangingConfigurations)
         try {
             Shizuku.removeBinderReceivedListener(binderReceivedListener)
             Shizuku.removeRequestPermissionResultListener(permissionResultListener)

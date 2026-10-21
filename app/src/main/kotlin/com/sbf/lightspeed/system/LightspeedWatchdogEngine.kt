@@ -19,6 +19,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import kotlinx.coroutines.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Subspace Watchdog & Sentinel Engine.
@@ -36,6 +37,10 @@ object LightspeedWatchdogEngine {
 
     @Volatile
     private var lastPerimeterPulseTime = 0L
+
+    private val missingPulseCounts = ConcurrentHashMap<String, Int>()
+    private val previouslyEnabledServices = ConcurrentHashMap<String, Boolean>()
+    private val presumedToggleOffLogged = ConcurrentHashMap<String, Boolean>()
 
     private var a11yObserver: ContentObserver? = null
     private var fastTriggerReceiver: BroadcastReceiver? = null
@@ -187,6 +192,7 @@ object LightspeedWatchdogEngine {
     fun reviveAccessibilityService(context: Context): Boolean {
         if (context.defaultPrefs().getBoolean("pref_service_intentionally_stopped", false)) {
             Log.i(TAG, "reviveAccessibilityService: pref_service_intentionally_stopped is true. Skipping revive.")
+            FlightLog.log("watchdog", false, "Revive skip: Lightspeed (intentionally stopped)")
             return false
         }
 
@@ -221,12 +227,15 @@ object LightspeedWatchdogEngine {
                     if (!containsService) list.add(serviceLong)
                     list.joinToString(":")
                 }
+                FlightLog.log("watchdog", true, "Revive attempt: $serviceLong (direct Settings write)")
                 Settings.Secure.putString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, newServices)
                 Settings.Secure.putInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
                 Log.i(TAG, "Revived via direct Settings.Secure: $newServices")
+                FlightLog.log("watchdog", true, "Revive result: $serviceLong (direct Settings write succeeded)")
                 return true
             } catch (e: Exception) {
                 Log.w(TAG, "Failed writing secure accessibility settings: ${e.message}")
+                FlightLog.log("watchdog", false, "Revive result: $serviceLong (direct Settings write failed: ${e.message})")
             }
         }
 
@@ -253,12 +262,15 @@ object LightspeedWatchdogEngine {
                 settings put secure accessibility_enabled 1
             """.trimIndent()
 
+            FlightLog.log("watchdog", true, "Revive attempt: $serviceLong (Shizuku privileged shell)")
             val success = execPrivileged(cmd)
             Log.i(TAG, "Revival command result: $success")
+            FlightLog.log("watchdog", success, "Revive result: $serviceLong (Shizuku shell ${if (success) "succeeded" else "failed"})")
             if (success) return true
         }
 
         Log.w(TAG, "Cannot revive accessibility service: Elevated permissions / Shizuku not available")
+        FlightLog.log("watchdog", false, "Revive skip: $serviceLong (elevated permissions unavailable)")
         return false
     }
 
@@ -450,7 +462,8 @@ object LightspeedWatchdogEngine {
     /**
      * Pulses and ensures all protected third-party accessibility sentinels are running.
      * Re-injects any missing services and triggers Android AccessibilityManagerService re-binding.
-     * Uses GriffinRecovery recipe for services verified crashed via dumpsys.
+     * Uses GriffinRecovery recipe for services verified crashed via dumpsys, and plain re-add
+     * for services missing across 2 consecutive pulses.
      */
     fun pulsePerimeterServices(context: Context): Int {
         val hasElevated = ElevatedTaskCloser.isShizukuActive
@@ -460,6 +473,7 @@ object LightspeedWatchdogEngine {
 
         if (!hasElevated && !hasDirectWritePermission) {
             Log.w(TAG, "pulsePerimeterServices: no elevated access (Shizuku or WRITE_SECURE_SETTINGS)")
+            FlightLog.log("watchdog", false, "Perimeter pulse skipped: no elevated access (Shizuku or WRITE_SECURE_SETTINGS)")
             return 0
         }
 
@@ -467,27 +481,131 @@ object LightspeedWatchdogEngine {
         val protectedCns = protectedStrings.mapNotNull { ComponentName.unflattenFromString(it) }
         if (protectedCns.isEmpty()) return 0
 
-        val currentRaw = Settings.Secure.getString(
-            context.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        ) ?: ""
-        val entries = currentRaw.split(":").map { it.trim() }.filter { it.isNotEmpty() }
+        val activeProtectedKeys = protectedCns.map { it.flattenToString() }.toSet()
+        missingPulseCounts.keys.retainAll(activeProtectedKeys)
+        previouslyEnabledServices.keys.retainAll(activeProtectedKeys)
+        presumedToggleOffLogged.keys.retainAll(activeProtectedKeys)
 
         var recoveredCount = 0
+        val policies = LightspeedPreferences.getPerimeterServicePolicies(context)
+
         for (pCn in protectedCns) {
+            val pCnLong = pCn.flattenToString()
+            val pCnShort = pCn.flattenToShortString()
+
+            // Skip uninstalled packages silently (no FlightLog, no revive, keep saved list)
+            val isInstalled = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.packageManager.getPackageInfo(pCn.packageName, PackageManager.PackageInfoFlags.of(0L))
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(pCn.packageName, 0)
+                }
+                true
+            } catch (_: PackageManager.NameNotFoundException) {
+                false
+            } catch (_: Exception) {
+                false
+            }
+            if (!isInstalled) {
+                continue
+            }
+
+            // Fresh read for each protected component (no stale snapshot)
+            val currentRaw = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: ""
+            val entries = currentRaw.split(":").map { it.trim() }.filter { it.isNotEmpty() }
+
             val alreadyIn = entries.any { entry ->
                 val cn = ComponentName.unflattenFromString(entry)
-                cn == pCn || entry.equals(pCn.flattenToString(), ignoreCase = true) || entry.equals(pCn.flattenToShortString(), ignoreCase = true)
+                cn == pCn || entry.equals(pCnLong, ignoreCase = true) || entry.equals(pCnShort, ignoreCase = true)
             }
-            if (!alreadyIn) {
-                // Perimeter Watchdog: Check isCrashed before attempting recovery (respects user toggle-off)
+
+            val policy = policies[pCnLong] ?: PerimeterPolicy.NORMAL
+
+            if (policy == PerimeterPolicy.KEEP_OFF) {
+                if (alreadyIn) {
+                    Log.i(TAG, "pulsePerimeterServices: $pCnLong policy is KEEP_OFF and enabled. Toggling off...")
+                    toggleAccessibilityService(context, pCnLong, enable = false)
+                    FlightLog.log("watchdog", true, "Perimeter policy KEEP_OFF: disabled $pCnLong")
+                }
+                previouslyEnabledServices[pCnLong] = false
+                missingPulseCounts[pCnLong] = 0
+                presumedToggleOffLogged.remove(pCnLong)
+                continue
+            }
+
+            if (policy == PerimeterPolicy.ALWAYS_REVIVE) {
+                if (alreadyIn) {
+                    previouslyEnabledServices[pCnLong] = true
+                    missingPulseCounts[pCnLong] = 0
+                    presumedToggleOffLogged.remove(pCnLong)
+                } else {
+                    Log.i(TAG, "pulsePerimeterServices: $pCnLong policy is ALWAYS_REVIVE and missing. Attempting plain re-add...")
+                    recordInternalWrite()
+                    var revived = GriffinRecovery.plainReAdd(context, pCnLong, reason = "policy ALWAYS_REVIVE")
+                    if (revived) {
+                        if (GriffinRecovery.isCrashed(pCn.packageName)) {
+                            Log.w(TAG, "pulsePerimeterServices: $pCnLong plain re-add failed to stick (crashed in dumpsys). Executing Griffin recovery...")
+                            recordInternalWrite()
+                            revived = GriffinRecovery.recover(context, pCn.packageName, pCnLong, skipDebounce = true)
+                        }
+                    } else if (!GriffinRecovery.isDebounced(pCnLong)) {
+                        Log.w(TAG, "pulsePerimeterServices: $pCnLong plain re-add failed. Executing Griffin recovery...")
+                        recordInternalWrite()
+                        revived = GriffinRecovery.recover(context, pCn.packageName, pCnLong, skipDebounce = true)
+                    }
+                    if (revived) {
+                        recoveredCount++
+                        previouslyEnabledServices[pCnLong] = true
+                        missingPulseCounts[pCnLong] = 0
+                        presumedToggleOffLogged.remove(pCnLong)
+                    }
+                }
+                continue
+            }
+
+            if (alreadyIn) {
+                previouslyEnabledServices[pCnLong] = true
+                missingPulseCounts[pCnLong] = 0
+                presumedToggleOffLogged.remove(pCnLong)
+            } else {
                 if (GriffinRecovery.isCrashed(pCn.packageName)) {
                     Log.w(TAG, "Perimeter Sentinel alert: Protected service ${pCn.packageName} crashed! Executing Griffin recovery...")
                     recordInternalWrite()
-                    val success = GriffinRecovery.recover(context, pCn.packageName, pCn.flattenToString())
-                    if (success) recoveredCount++
+                    val success = GriffinRecovery.recover(context, pCn.packageName, pCnLong)
+                    if (success) {
+                        recoveredCount++
+                        previouslyEnabledServices[pCnLong] = true
+                        missingPulseCounts[pCnLong] = 0
+                        presumedToggleOffLogged.remove(pCnLong)
+                    }
                 } else {
-                    Log.i(TAG, "pulsePerimeterServices: ${pCn.packageName} is missing but not crashed. Treating as user toggle-off.")
+                    val wasEnabled = previouslyEnabledServices[pCnLong] ?: false
+                    val count = ((missingPulseCounts[pCnLong] ?: 0) + 1).coerceAtMost(3)
+                    missingPulseCounts[pCnLong] = count
+
+                    if (wasEnabled && count == 2) {
+                        Log.i(TAG, "pulsePerimeterServices: $pCnLong missing on 2 consecutive pulses. Attempting plain re-add...")
+                        recordInternalWrite()
+                        val success = GriffinRecovery.plainReAdd(context, pCnLong)
+                        if (success) {
+                            recoveredCount++
+                            previouslyEnabledServices[pCnLong] = true
+                            missingPulseCounts[pCnLong] = 0
+                            presumedToggleOffLogged.remove(pCnLong)
+                        }
+                    } else if (wasEnabled && count == 1) {
+                        Log.i(TAG, "pulsePerimeterServices: $pCnLong missing on 1st pulse. Waiting for 2 consecutive pulses.")
+                        FlightLog.log("watchdog", false, "Revive skip: $pCnLong (missing 1 pulse, awaiting confirmation)")
+                    } else {
+                        if (presumedToggleOffLogged.put(pCnLong, true) != true) {
+                            Log.i(TAG, "pulsePerimeterServices: $pCnLong missing (count=$count, wasEnabled=$wasEnabled). Treating as user toggle-off.")
+                            FlightLog.log("watchdog", false, "Revive skip: $pCnLong (presumed user toggle-off, count=$count)")
+                        }
+                    }
                 }
             }
         }
@@ -588,6 +706,9 @@ object LightspeedWatchdogEngine {
     fun stopSentinel() {
         sentinelJob?.cancel()
         sentinelJob = null
+        missingPulseCounts.clear()
+        previouslyEnabledServices.clear()
+        presumedToggleOffLogged.clear()
         watchdogScope.cancel()
         watchdogScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     }

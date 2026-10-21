@@ -216,6 +216,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
         com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
+        com.sbf.lightspeed.system.CockpitGearRepository.prewarmGearCache(this)
         com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
         com.sbf.lightspeed.system.PowerLongPressTakeover.sync(this)
         com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)

@@ -20,6 +20,7 @@ import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -46,6 +47,7 @@ fun DeflectorUnifiedSection(
     coroutineScope: CoroutineScope,
     onMooringConfirm: (MooringConfirmData) -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     val macroPrefix = if (isLeft) "LEFT_" else ""
     val sidebarPrefix = if (isLeft) "pref_sidebar_left_" else "pref_sidebar_"
     val secUnifiedKey = if (isLeft) "left_unified" else "unified"
@@ -185,7 +187,7 @@ fun DeflectorUnifiedSection(
                                         Text(
                                             text = "All deflector gestures are currently linked across the full deflector. Tap the rope on any gesture to split it into independent Upper & Lower controls.",
                                             fontSize = 12.sp,
-                                            color = Color.LightGray.copy(alpha = 0.8f),
+                                            color = lsColors.textSecondary.copy(alpha = 0.8f),
                                             modifier = Modifier.padding(12.dp)
                                         )
                                     }
@@ -400,7 +402,7 @@ fun DeflectorUnifiedSection(
                                         Text(
                                             text = "All deflector gestures have been split into Separate Controls. Tap the rope on any gesture to link Upper & Lower back together.",
                                             fontSize = 12.sp,
-                                            color = Color.LightGray.copy(alpha = 0.8f),
+                                            color = lsColors.textSecondary.copy(alpha = 0.8f),
                                             modifier = Modifier.padding(12.dp)
                                         )
                                     }

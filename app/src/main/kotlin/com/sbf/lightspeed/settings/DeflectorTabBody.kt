@@ -34,6 +34,8 @@ import com.sbf.lightspeed.system.LightspeedFlightNotificationManager
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 @Composable
 fun DeflectorTabBody(
@@ -325,10 +327,10 @@ fun DeflectorTabBody(
 
             if (showEdgeSovereigntyNotice) {
                 item(key = "${secPrefix}edge_sovereignty_tip") {
-                    val cautionAmber = Color(0xFFFFB300)
-                    val noticeContainerColor = if (exceedsEdgeThreshold) Color(0xFF332010).copy(alpha = 0.70f) else Color(0xFF263238).copy(alpha = 0.55f)
-                    val noticeBorderColor = if (exceedsEdgeThreshold) cautionAmber.copy(alpha = 0.50f) else Color(0xFF80DEEA).copy(alpha = 0.35f)
-                    val noticeAccentColor = if (exceedsEdgeThreshold) cautionAmber else Color(0xFF80DEEA)
+                    val cautionAmber = LightspeedStyle.colors.accentWarn
+                    val noticeContainerColor = if (exceedsEdgeThreshold) LightspeedTokens.TacticalNoticeWarm.copy(alpha = 0.70f) else LightspeedTokens.TacticalNoticeDark.copy(alpha = 0.55f)
+                    val noticeBorderColor = if (exceedsEdgeThreshold) cautionAmber.copy(alpha = 0.50f) else LightspeedTokens.StatusCyanSoft.copy(alpha = 0.35f)
+                    val noticeAccentColor = if (exceedsEdgeThreshold) cautionAmber else LightspeedTokens.StatusCyanSoft
 
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -373,7 +375,7 @@ fun DeflectorTabBody(
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Dismiss",
-                                        tint = Color.LightGray.copy(alpha = 0.7f),
+                                        tint = LightspeedStyle.colors.textSecondary.copy(alpha = 0.7f),
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -386,7 +388,7 @@ fun DeflectorTabBody(
                                     "Android's native back gestures are active along the screen edges and may conflict with deflector swipes. You can neutralize native back insets anytime under Central Command → HUD Strip → System Overrides."
                                 },
                                 fontSize = 11.5.sp,
-                                color = Color.White.copy(alpha = 0.85f),
+                                color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f),
                                 lineHeight = 16.sp
                             )
 
@@ -626,16 +628,10 @@ fun DeflectorTabBody(
             onDismissRequest = { showOverridesDeck = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            val glassVisuals = rememberDeckGlassVisuals(context)
-            Card(
+            DeckGlassCardSurface(
                 modifier = Modifier
                     .fillMaxWidth(0.96f)
                     .fillMaxHeight(0.85f)
-                    .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
-                    .background(glassVisuals.backgroundBrush)
-                    .border(glassVisuals.borderWidth, glassVisuals.borderBrush, RoundedCornerShape(glassVisuals.shapeCornerRadius)),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
             ) {
                 Column(
                     modifier = Modifier
@@ -651,10 +647,10 @@ fun DeflectorTabBody(
                             "SYSTEM OVERRIDES",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
-                            color = Color.White
+                            color = LightspeedStyle.colors.textPrimary
                         )
                         IconButton(onClick = { showOverridesDeck = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = LightspeedStyle.colors.textPrimary)
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))

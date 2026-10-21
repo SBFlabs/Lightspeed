@@ -3,6 +3,7 @@ package com.sbf.lightspeed.settings
 
 
 
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -57,13 +59,13 @@ fun TabAccordionPopover(
     onToggleBlueprintMode: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("$tabTitle Blueprint", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("$tabTitle Blueprint", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = LightspeedStyle.colors.textPrimary)
             }
         },
         text = {
@@ -71,7 +73,7 @@ fun TabAccordionPopover(
                 Text(
                     "Select default accordion display behavior for this tab:",
                     fontSize = 12.sp,
-                    color = Color.LightGray.copy(alpha = 0.9f)
+                    color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f)
                 )
 
                 val modes = listOf(
@@ -84,21 +86,17 @@ fun TabAccordionPopover(
 
                 modes.forEach { (modeKey, title, desc) ->
                     val isSelected = currentMode == modeKey
-                    Card(
+                    DeckCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
-                                onSelectMode(modeKey)
-                            },
+                            .border(
+                                1.dp,
+                                if (isSelected) MaterialTheme.colorScheme.primary else LightspeedStyle.colors.textPrimary.copy(alpha = 0.08f),
+                                RoundedCornerShape(12.dp)
+                            ),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f)
-                        )
+                        tint = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Unspecified,
+                        onClick = { onSelectMode(modeKey) }
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(10.dp),
@@ -111,9 +109,9 @@ fun TabAccordionPopover(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Column {
-                                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color.White)
+                                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = LightspeedStyle.colors.textPrimary)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                Text(desc, fontSize = 10.5.sp, color = Color.LightGray.copy(alpha = 0.75f), lineHeight = 13.sp)
+                                Text(desc, fontSize = 10.5.sp, color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.75f), lineHeight = 13.sp)
                                 if (modeKey == "custom_pinned" && pinnedSectionId != null && pinnedSectionId != "none" && pinnedSectionId.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Surface(
@@ -157,9 +155,7 @@ fun TabAccordionPopover(
             TextButton(onClick = onDismiss) {
                 Text("Close", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             }
-        },
-        shape = RoundedCornerShape(20.dp),
-        containerColor = Color(0xFF10121C)
+        }
     )
 }
 

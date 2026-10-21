@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -98,7 +99,7 @@ fun PerimeterDialogHeader(
                 modifier = Modifier
                     .size(width = 38.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.35f))
+                    .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.35f))
             )
         }
 
@@ -129,7 +130,7 @@ fun PerimeterDialogHeader(
                         "PERIMETER SENTINELS",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Black,
-                        color = Color.White,
+                        color = LightspeedStyle.colors.textPrimary,
                         letterSpacing = 0.5.sp
                     )
                     Text(
@@ -143,9 +144,9 @@ fun PerimeterDialogHeader(
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier.size(32.dp),
-                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.08f))
+                colors = IconButtonDefaults.iconButtonColors(containerColor = LightspeedStyle.colors.textPrimary.copy(alpha = 0.08f))
             ) {
-                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = LightspeedStyle.colors.textPrimary, modifier = Modifier.size(18.dp))
             }
         }
     }

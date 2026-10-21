@@ -72,11 +72,11 @@ internal fun LightspeedNotchOverlay.handleDraw(canvas: Canvas, superCall: () -> 
 
         if (isExpanded) {
             // =========================================================================
-            // INTERACTIVE EXPANDED LIQUID-GLASS 2-PAGE CAPSULE CARD
+            // INTERACTIVE EXPANDED PRISM 2-PAGE CAPSULE CARD
             // =========================================================================
             expandedCardBounds.set(0f, 0f, w, h)
 
-            // Liquid-Glass M3 Card Background & Glow
+            // Prism M3 Card Background & Glow
             telemetryPillFillPaint.color = Color.argb(240, 14, 18, 28)
             canvas.drawRoundRect(expandedCardBounds, 22f * d, 22f * d, telemetryPillFillPaint)
 

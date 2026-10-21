@@ -22,6 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -53,9 +56,12 @@ fun MainSettingsScreen() {
     val scope = rememberCoroutineScope()
 
     var isVisible by remember { mutableStateOf(false) }
+    val isCapturingBackdrop = CentralCommandBackdropBlur.isCapturing
     val langMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
-    LaunchedEffect(Unit) {
-        isVisible = true
+    LaunchedEffect(isCapturingBackdrop) {
+        if (!isCapturingBackdrop) {
+            isVisible = true
+        }
     }
 
     var showLanguageHud by remember { mutableStateOf(false) }
@@ -95,10 +101,10 @@ fun MainSettingsScreen() {
         dismissAction()
     }
 
-    val backdropVisuals = rememberDeckBackdropVisuals(context)
+    val snapshot = LocalDeckTheme.current
 
     val animatedScrimAlpha by animateFloatAsState(
-        targetValue = if (isVisible) backdropVisuals.scrimAlpha else 0f,
+        targetValue = if (isVisible) (snapshot.dimAmount * 0.7f).coerceIn(0.15f, 0.6f) else 0f,
         animationSpec = tween(durationMillis = 300),
         label = "scrim_alpha"
     )
@@ -106,9 +112,13 @@ fun MainSettingsScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = animatedScrimAlpha))
             .clickable { dismissAction() }
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = animatedScrimAlpha))
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -254,7 +264,7 @@ fun MainSettingsScreen() {
                                             Row(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(24.dp))
-                                                    .background(Color(0xFF1E1E1E).copy(alpha = 0.95f))
+                                                    .background(LightspeedTokens.TacticalMenuSurface.copy(alpha = 0.95f))
                                                     .padding(6.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
@@ -268,7 +278,7 @@ fun MainSettingsScreen() {
                                                     ) {
                                                         Text(
                                                             text = title,
-                                                            color = if (isSelected) colorScheme.onPrimary else Color.White.copy(alpha = 0.7f),
+                                                            color = if (isSelected) colorScheme.onPrimary else LightspeedStyle.colors.textPrimary.copy(alpha = 0.7f),
                                                             fontSize = 13.sp,
                                                             fontWeight = FontWeight.Bold
                                                         )

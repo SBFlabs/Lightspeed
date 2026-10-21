@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
  * Reusable dropdown menu selector with tactical Material 3 styling
@@ -36,6 +37,7 @@ fun PrefDropdownSelector(
     onSelected: (String) -> Unit,
     fontFor: ((String) -> FontFamily?)? = null
 ) {
+    val lsColors = LightspeedStyle.colors
     var isExpanded by remember { mutableStateOf(false) }
     var shownKey by remember(currentKey) { mutableStateOf(currentKey) }
     Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -61,7 +63,7 @@ fun PrefDropdownSelector(
                     val closedFontFamily = remember(shownKey) { fontFor?.invoke(shownKey) }
                     Text(
                         text = options.firstOrNull { it.first == shownKey }?.second ?: shownKey,
-                        color = Color.White,
+                        color = lsColors.textPrimary,
                         fontSize = 12.sp,
                         fontFamily = closedFontFamily,
                         maxLines = 1,
@@ -75,20 +77,23 @@ fun PrefDropdownSelector(
                     )
                 }
             }
-            DropdownMenu(
+            DeckThemedDropdownMenu(
                 expanded = isExpanded,
-                onDismissRequest = { isExpanded = false },
-                modifier = Modifier
-                    .background(Color(0xF012141A))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                shape = RoundedCornerShape(16.dp),
-                containerColor = Color(0xF012141A)
+                onDismissRequest = { isExpanded = false }
             ) {
                 options.forEach { (key, label) ->
                     val itemFontFamily = remember(key) { fontFor?.invoke(key) }
+                    val isSelected = (key == shownKey)
                     DropdownMenuItem(
                         modifier = Modifier.heightIn(min = 48.dp),
-                        text = { Text(text = label, fontFamily = itemFontFamily) },
+                        text = {
+                            Text(
+                                text = if (isSelected) "✓ $label" else label,
+                                fontFamily = itemFontFamily,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else lsColors.textPrimary
+                            )
+                        },
                         onClick = {
                             shownKey = key
                             isExpanded = false

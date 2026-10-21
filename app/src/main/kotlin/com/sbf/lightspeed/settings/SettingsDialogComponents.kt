@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -56,6 +57,7 @@ import kotlin.math.roundToInt
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
 fun CentralCommandDeckDialog(
@@ -65,6 +67,7 @@ fun CentralCommandDeckDialog(
     onRefreshNeeded: () -> Unit = {},
     initialScrollToWatchdog: Boolean = false
 ) {
+    val lsColors = LightspeedStyle.colors
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
@@ -78,19 +81,18 @@ fun CentralCommandDeckDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        val glassVisuals = rememberDeckGlassVisuals(context)
-        val backdropVisuals = rememberDeckBackdropVisuals(context)
+        val activeSnapshot = LocalDeckTheme.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                 val lp = dialogWindow?.attributes
                 if (lp != null) {
-                    lp.blurBehindRadius = backdropVisuals.blurBehindRadius
+                    lp.blurBehindRadius = activeSnapshot.windowBlurRadiusPx.coerceIn(0, 150)
                     dialogWindow.attributes = lp
                 }
             }
-            dialogWindow?.setDimAmount(backdropVisuals.dimAmount)
+            dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
         Box(
@@ -99,100 +101,13 @@ fun CentralCommandDeckDialog(
                 .padding(horizontal = 8.dp, vertical = 18.dp),
             contentAlignment = Alignment.Center
         ) {
-            Card(
+            DeckGlassCardSurface(
                 modifier = Modifier
                     .fillMaxWidth(0.98f)
                     .fillMaxHeight(0.88f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-                    .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
-                    .background(glassVisuals.backgroundBrush)
-                    .border(glassVisuals.borderWidth, glassVisuals.borderBrush, RoundedCornerShape(glassVisuals.shapeCornerRadius)),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (glassVisuals.showTopGlare) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.45f),
-                                            Color(0xFF80D8FF).copy(alpha = glassVisuals.topGlareAlpha * 0.15f),
-                                            Color.Transparent
-                                        ),
-                                        center = Offset(x = 350f, y = 0f),
-                                        radius = 650f
-                                    )
-                                )
-                        )
-                    }
-                    if (glassVisuals.showBottomCaustic) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(70.dp)
-                                .align(Alignment.BottomCenter)
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color(0xFF00E5FF).copy(alpha = 0.08f),
-                                            Color.White.copy(alpha = 0.14f)
-                                        )
-                                    )
-                                )
-                        )
-                    }
-                    if (glassVisuals.showRefractiveRim) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .padding(2.5.dp)
-                                .border(
-                                    1.dp,
-                                    Brush.linearGradient(
-                                        colors = listOf(
-                                            Color(0xFF00E5FF).copy(alpha = 0.50f),
-                                            Color.White.copy(alpha = 0.65f),
-                                            Color(0xFFE040FB).copy(alpha = 0.45f),
-                                            Color.Transparent
-                                        ),
-                                        start = Offset(0f, 0f),
-                                        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                                    ),
-                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 2.5.dp)
-                                )
-                        )
-                    }
-                    if (glassVisuals.innerChamferAlpha > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .padding(1.dp)
-                                .border(
-                                    0.8.dp,
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = glassVisuals.innerChamferAlpha),
-                                            Color.Transparent
-                                        )
-                                    ),
-                                    RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
-                                )
-                        )
-                    }
-                    if (glassVisuals.showNoiseGrain) {
-                        Canvas(modifier = Modifier.matchParentSize()) {
-                            drawRect(
-                                brush = GlassNoiseTexture.getBrush(),
-                                alpha = glassVisuals.noiseAlpha
-                            )
-                        }
-                    }
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -258,7 +173,7 @@ fun CentralCommandDeckDialog(
                                 modifier = Modifier
                                     .size(width = 38.dp, height = 4.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.35f))
+                                    .background(lsColors.textPrimary.copy(alpha = 0.35f))
                             )
                         }
 
@@ -289,7 +204,7 @@ fun CentralCommandDeckDialog(
                                         "FLIGHT CONTROL DECK",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Black,
-                                        color = Color.White,
+                                        color = lsColors.textPrimary,
                                         letterSpacing = 0.5.sp
                                     )
                                     Text(
@@ -303,9 +218,9 @@ fun CentralCommandDeckDialog(
                             IconButton(
                                 onClick = onDismiss,
                                 modifier = Modifier.size(32.dp),
-                                colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.08f))
+                                colors = IconButtonDefaults.iconButtonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f))
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = lsColors.textPrimary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
@@ -361,7 +276,7 @@ fun CentralCommandDeckDialog(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                        border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f))
                     ) {
                         Column(
                             modifier = Modifier
@@ -413,12 +328,12 @@ fun CentralCommandDeckDialog(
                                             },
                                         colors = CardDefaults.cardColors(
                                             containerColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                            else Color.White.copy(alpha = 0.04f)
+                                            else lsColors.textPrimary.copy(alpha = 0.04f)
                                         ),
                                         border = androidx.compose.foundation.BorderStroke(
                                             1.dp,
                                             if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                            else Color.White.copy(alpha = 0.06f)
+                                            else lsColors.textPrimary.copy(alpha = 0.06f)
                                         )
                                     ) {
                                         Row(
@@ -442,7 +357,7 @@ fun CentralCommandDeckDialog(
                                                 text = label,
                                                 fontSize = 12.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                color = Color.White
+                                                color = lsColors.textPrimary
                                             )
                                         }
                                     }
@@ -467,16 +382,18 @@ fun ProfileNamingDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var name by remember { mutableStateOf(initialName) }
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF161B26),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+        val activeSnapshot = LocalDeckTheme.current
+        DeckGlassCardSurface(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .wrapContentHeight()
+                .fillMaxWidth(0.78f)
+                .widthIn(max = 330.dp)
+                .wrapContentHeight(),
+            snapshotOverride = activeSnapshot,
+            isFlyout = true
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(
@@ -493,7 +410,7 @@ fun ProfileNamingDialog(
                         text = dialogTitle,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
@@ -508,15 +425,15 @@ fun ProfileNamingDialog(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Profile Label / Context", fontSize = 12.sp) },
-                    placeholder = { Text("e.g. Rainy days, Gaming, Desk mode...", fontSize = 12.sp, color = Color.Gray) },
+                    placeholder = { Text("e.g. Rainy days, Gaming, Desk mode...", fontSize = 12.sp, color = lsColors.textDisabled) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        unfocusedBorderColor = lsColors.textPrimary.copy(alpha = 0.2f),
+                        focusedTextColor = lsColors.textPrimary,
+                        unfocusedTextColor = lsColors.textPrimary,
                         focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = Color.LightGray
+                        unfocusedLabelColor = lsColors.textSecondary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -527,7 +444,7 @@ fun ProfileNamingDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = Color.LightGray)
+                        Text("Cancel", color = lsColors.textSecondary)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(

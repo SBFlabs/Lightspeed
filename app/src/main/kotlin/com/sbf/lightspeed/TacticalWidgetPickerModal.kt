@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.sbf.lightspeed.system.LightspeedIconManager
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,6 +74,7 @@ fun TacticalWidgetPickerModal(
     onSelectProvider: (AppWidgetProviderInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val lsColors = LightspeedStyle.colors
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -216,7 +219,7 @@ fun TacticalWidgetPickerModal(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF04060A).copy(alpha = 0.98f))
+            .background(LightspeedTokens.TacticalSurfaceDeep.copy(alpha = 0.98f))
             .statusBarsPadding()
             .navigationBarsPadding()
             .zIndex(10000f)
@@ -258,7 +261,7 @@ fun TacticalWidgetPickerModal(
                         text = "SELECT COMPATIBLE WIDGET TO DEPLOY INTO REFUELING BAY",
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = lsColors.textPrimary.copy(alpha = 0.5f),
                         letterSpacing = 0.8.sp
                     )
                 }
@@ -269,13 +272,13 @@ fun TacticalWidgetPickerModal(
                     modifier = Modifier
                         .size(34.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White.copy(alpha = 0.08f))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                        .background(lsColors.textPrimary.copy(alpha = 0.08f))
+                        .border(1.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Abort",
-                        tint = Color.White.copy(alpha = 0.85f),
+                        tint = lsColors.textPrimary.copy(alpha = 0.85f),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -287,7 +290,7 @@ fun TacticalWidgetPickerModal(
                     .fillMaxWidth()
                     .height(44.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF0E131C))
+                    .background(LightspeedTokens.TacticalSurfaceCard)
                     .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
@@ -319,7 +322,7 @@ fun TacticalWidgetPickerModal(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear",
-                                tint = Color.LightGray,
+                                tint = lsColors.textSecondary,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -350,7 +353,7 @@ fun TacticalWidgetPickerModal(
                             text = "SCANNING INSTALLED AVIONICS MODULES...",
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = lsColors.textPrimary.copy(alpha = 0.6f),
                             letterSpacing = 1.sp
                         )
                     }
@@ -366,7 +369,7 @@ fun TacticalWidgetPickerModal(
                         text = "NO COMPATIBLE MODULES FOUND",
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = Color.White.copy(alpha = 0.45f),
+                        color = lsColors.textPrimary.copy(alpha = 0.45f),
                         letterSpacing = 1.sp
                     )
                 }
@@ -450,7 +453,7 @@ fun TacticalWidgetPickerModal(
                                         fontSize = 8.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Monospace,
-                                        color = if (hasApps) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.2f)
+                                        color = if (hasApps) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.2f)
                                     )
                                 }
                             }
@@ -464,7 +467,7 @@ fun TacticalWidgetPickerModal(
                                 .align(Alignment.Center)
                                 .size(76.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF0B1018).copy(alpha = 0.94f))
+                                .background(LightspeedTokens.TacticalSurfacePanel.copy(alpha = 0.94f))
                                 .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -473,7 +476,7 @@ fun TacticalWidgetPickerModal(
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Black,
                                 fontFamily = FontFamily.Monospace,
-                                color = Color.White
+                                color = lsColors.textPrimary
                             )
                         }
                     }
@@ -491,12 +494,13 @@ private fun TacticalAppGroupCard(
     group: TacticalAppWidgetGroup,
     onSelectProvider: (AppWidgetProviderInfo) -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF090D14).copy(alpha = 0.85f))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+            .background(LightspeedTokens.TacticalSurfaceDark.copy(alpha = 0.85f))
+            .border(1.dp, lsColors.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -523,7 +527,7 @@ private fun TacticalAppGroupCard(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color.White.copy(alpha = 0.1f))
+                            .background(lsColors.textPrimary.copy(alpha = 0.1f))
                     )
                 }
 
@@ -533,7 +537,7 @@ private fun TacticalAppGroupCard(
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 0.8.sp,
-                    color = Color.White
+                    color = lsColors.textPrimary
                 )
             }
 
@@ -573,14 +577,15 @@ private fun TacticalWidgetItemCard(
     item: TacticalWidgetItem,
     onClick: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F141F)),
+        colors = CardDefaults.cardColors(containerColor = LightspeedTokens.TacticalSurfaceContainer),
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, Color(0xFF1E2838))
+        border = BorderStroke(1.dp, LightspeedTokens.TacticalSurfaceBorderAlt)
     ) {
         Column(
             modifier = Modifier
@@ -594,8 +599,8 @@ private fun TacticalWidgetItemCard(
                     .fillMaxWidth()
                     .heightIn(min = 90.dp, max = 150.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF070A0F))
-                    .border(1.dp, Color(0xFF141C28), RoundedCornerShape(6.dp)),
+                    .background(LightspeedTokens.TacticalSurfaceBase)
+                    .border(1.dp, LightspeedTokens.TacticalSurfaceBorder, RoundedCornerShape(6.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (item.previewBitmap != null) {
@@ -625,13 +630,13 @@ private fun TacticalWidgetItemCard(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                     if (!item.description.isNullOrBlank()) {
                         Text(
                             text = item.description,
                             fontSize = 10.sp,
-                            color = Color.LightGray.copy(alpha = 0.6f),
+                            color = lsColors.textSecondary.copy(alpha = 0.6f),
                             maxLines = 2
                         )
                     }
@@ -648,8 +653,8 @@ private fun TacticalWidgetItemCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color.White.copy(alpha = 0.06f))
-                            .border(0.8.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                            .background(lsColors.textPrimary.copy(alpha = 0.06f))
+                            .border(0.8.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
                             .padding(horizontal = 6.dp, vertical = 3.dp)
                     ) {
                         Text(
@@ -657,7 +662,7 @@ private fun TacticalWidgetItemCard(
                             fontSize = 9.5.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = lsColors.textPrimary.copy(alpha = 0.8f)
                         )
                     }
 
@@ -688,13 +693,14 @@ private fun TacticalWidgetItemCard(
  */
 @Composable
 private fun TacticalBlueprintPlaceholder(item: TacticalWidgetItem) {
+    val lsColors = LightspeedStyle.colors
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val step = 16.dp.toPx()
-            val gridColor = Color(0xFF00E5FF).copy(alpha = 0.04f)
+            val gridColor = lsColors.accentInfo.copy(alpha = 0.04f)
             var x = 0f
             while (x < size.width) {
                 drawLine(gridColor, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
@@ -731,7 +737,7 @@ private fun TacticalBlueprintPlaceholder(item: TacticalWidgetItem) {
                     text = "STANDALONE AVIONICS MODULE",
                     fontSize = 8.5.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = Color.White.copy(alpha = 0.35f)
+                    color = lsColors.textPrimary.copy(alpha = 0.35f)
                 )
             }
         }
@@ -748,13 +754,14 @@ private fun BasicTextSearchField(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
+    val lsColors = LightspeedStyle.colors
     androidx.compose.foundation.text.BasicTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
         singleLine = true,
         textStyle = androidx.compose.ui.text.TextStyle(
-            color = Color.White,
+            color = lsColors.textPrimary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Medium
@@ -764,7 +771,7 @@ private fun BasicTextSearchField(
             if (value.isEmpty()) {
                 Text(
                     text = placeholder,
-                    color = Color.White.copy(alpha = 0.35f),
+                    color = lsColors.textPrimary.copy(alpha = 0.35f),
                     fontSize = 11.5.sp,
                     fontFamily = FontFamily.Monospace
                 )

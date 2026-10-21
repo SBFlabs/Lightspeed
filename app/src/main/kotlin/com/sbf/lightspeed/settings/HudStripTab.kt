@@ -457,6 +457,9 @@ fun HudStripTabContent(
                     }
                 }
             }
+            item(key = "about_feedback") {
+                AboutFeedbackSection(context = context)
+            }
         }
     }
 }

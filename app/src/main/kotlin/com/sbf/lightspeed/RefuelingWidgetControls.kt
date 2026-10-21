@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 @Composable
 fun WidgetEngineToolbar(
@@ -33,6 +35,7 @@ fun WidgetEngineToolbar(
     isStackMemoryEnabled: Boolean = false,
     onToggleStackMemory: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -54,12 +57,12 @@ fun WidgetEngineToolbar(
                         .clip(RoundedCornerShape(6.dp))
                         .background(
                             if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                            else Color(0xFF0E131C).copy(alpha = 0.85f)
+                            else LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.85f)
                         )
                         .border(
                             1.dp,
                             if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary
-                            else Color.White.copy(alpha = 0.15f),
+                            else lsColors.textPrimary.copy(alpha = 0.15f),
                             RoundedCornerShape(6.dp)
                         )
                         .clickable { onToggleStackMemory() }
@@ -70,7 +73,7 @@ fun WidgetEngineToolbar(
                     Icon(
                         imageVector = Icons.Default.Memory,
                         contentDescription = "Toggle Stack Memory",
-                        tint = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.65f),
+                        tint = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.65f),
                         modifier = Modifier.size(13.dp)
                     )
                     Text(
@@ -78,7 +81,7 @@ fun WidgetEngineToolbar(
                         fontSize = 9.5.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        color = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.65f)
+                        color = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.65f)
                     )
                 }
             }
@@ -90,12 +93,12 @@ fun WidgetEngineToolbar(
                     .clip(RoundedCornerShape(6.dp))
                     .background(
                         if (isEditMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                        else Color(0xFF0E131C).copy(alpha = 0.85f)
+                        else LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.85f)
                     )
                     .border(
                         1.dp,
                         if (isEditMode) MaterialTheme.colorScheme.primary
-                        else Color.White.copy(alpha = 0.15f),
+                        else lsColors.textPrimary.copy(alpha = 0.15f),
                         RoundedCornerShape(6.dp)
                     )
                     .clickable { onToggleEditMode() }
@@ -106,7 +109,7 @@ fun WidgetEngineToolbar(
                 Icon(
                     imageVector = if (isEditMode) Icons.Default.Done else Icons.Default.Tune,
                     contentDescription = "Edit Widgets",
-                    tint = if (isEditMode) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f),
+                    tint = if (isEditMode) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.85f),
                     modifier = Modifier.size(13.dp)
                 )
                 Text(
@@ -114,7 +117,7 @@ fun WidgetEngineToolbar(
                     fontSize = 9.5.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = if (isEditMode) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f)
+                    color = if (isEditMode) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.85f)
                 )
             }
 
@@ -150,8 +153,8 @@ fun WidgetEngineToolbar(
                 modifier = Modifier
                     .height(30.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF0E131C).copy(alpha = 0.85f))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                    .background(LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.85f))
+                    .border(1.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                     .clickable { onToggleLayoutMode() }
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -160,7 +163,7 @@ fun WidgetEngineToolbar(
                 Icon(
                     imageVector = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
                     contentDescription = "Switch Layout",
-                    tint = Color.White.copy(alpha = 0.85f),
+                    tint = lsColors.textPrimary.copy(alpha = 0.85f),
                     modifier = Modifier.size(13.dp)
                 )
                 Text(
@@ -168,7 +171,7 @@ fun WidgetEngineToolbar(
                     fontSize = 9.5.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.85f)
+                    color = lsColors.textPrimary.copy(alpha = 0.85f)
                 )
             }
         }
@@ -189,13 +192,14 @@ internal fun TacticalWidgetEditControls(
     modifier: Modifier = Modifier,
     isCompact: Boolean = false
 ) {
+    val lsColors = LightspeedStyle.colors
     val btnSize = if (isCompact) 20.dp else 26.dp
     val iconSize = if (isCompact) 11.dp else 14.dp
 
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFF070B12).copy(alpha = 0.96f))
+            .background(LightspeedTokens.TacticalSurfaceDeepAlt.copy(alpha = 0.96f))
             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.50f), RoundedCornerShape(6.dp))
             .padding(horizontal = if (isCompact) 3.dp else 5.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -239,7 +243,7 @@ internal fun TacticalWidgetEditControls(
                 modifier = Modifier
                     .size(btnSize)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .background(lsColors.textPrimary.copy(alpha = 0.08f))
                     .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.40f), RoundedCornerShape(4.dp))
                     .clickable { onConfigure() },
                 contentAlignment = Alignment.Center
@@ -257,7 +261,7 @@ internal fun TacticalWidgetEditControls(
             modifier = Modifier
                 .height(if (isCompact) 12.dp else 14.dp)
                 .width(1.dp)
-                .background(Color.White.copy(alpha = 0.25f))
+                .background(lsColors.textPrimary.copy(alpha = 0.25f))
         )
 
         // Eject / Remove Button
@@ -265,8 +269,8 @@ internal fun TacticalWidgetEditControls(
             modifier = Modifier
                 .height(btnSize)
                 .clip(RoundedCornerShape(4.dp))
-                .background(Color(0xFFFF3B30).copy(alpha = 0.22f))
-                .border(0.8.dp, Color(0xFFFF3B30).copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                .background(LightspeedTokens.StatusDangerAlt.copy(alpha = 0.22f))
+                .border(0.8.dp, LightspeedTokens.StatusDangerAlt.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
                 .clickable { onRemove() }
                 .padding(horizontal = if (isCompact) 5.dp else 7.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -275,7 +279,7 @@ internal fun TacticalWidgetEditControls(
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Eject",
-                tint = Color(0xFFFF453A),
+                tint = LightspeedTokens.StatusDangerFlash,
                 modifier = Modifier.size(iconSize)
             )
             if (!isCompact) {
@@ -284,7 +288,7 @@ internal fun TacticalWidgetEditControls(
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFF453A)
+                    color = LightspeedTokens.StatusDangerFlash
                 )
             }
         }
@@ -293,6 +297,7 @@ internal fun TacticalWidgetEditControls(
 
 @Composable
 fun EmptyWidgetSlot(onPickWidget: () -> Unit) {
+    val lsColors = LightspeedStyle.colors
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -314,14 +319,14 @@ fun EmptyWidgetSlot(onPickWidget: () -> Unit) {
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
             letterSpacing = 1.2.sp,
-            color = Color.White
+            color = lsColors.textPrimary
         )
         Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = "Tap to browse tactical widget catalog",
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            color = Color.LightGray.copy(alpha = 0.65f)
+            color = lsColors.textSecondary.copy(alpha = 0.65f)
         )
     }
 }

@@ -1,5 +1,7 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
+
 import com.sbf.lightspeed.system.safeReloadPreferences
 import com.sbf.lightspeed.system.logSwallowed
 
@@ -7,7 +9,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.Build
 import android.provider.Settings
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.foundation.background
@@ -22,12 +26,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedNotificationListener
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
  * Clones macro actions and HUD styles between wing flank zones.
@@ -63,9 +69,9 @@ fun ResetConfirmDialog(
 ) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
-        title = { Text("Reset to Factory Defaults?", fontWeight = FontWeight.Bold, color = Color.White) },
+        title = { Text("Reset to Factory Defaults?", fontWeight = FontWeight.Bold) },
         text = {
             Text(
                 "This will wipe all customized gestures, sensitivity sliders, and custom gear sets. This action cannot be undone.",
@@ -73,24 +79,23 @@ fun ResetConfirmDialog(
             )
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = "Reset Everything",
                 onClick = {
                     viewModel.resetToDefaults(context)
                     showState.value = false
                     Toast.makeText(context, "Preferences reset to factory defaults", Toast.LENGTH_SHORT).show()
                     onRefreshNeeded()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("Reset Everything", color = Color.White)
-            }
+                isDestructive = true
+            )
         },
         dismissButton = {
-            TextButton(onClick = { showState.value = false }) {
-                Text("Cancel", color = Color.White)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            DeckButton(
+                text = "Cancel",
+                onClick = { showState.value = false }
+            )
+        }
     )
 }
 
@@ -105,7 +110,7 @@ fun ImportStatusDialog(
 
     if (importStatusMessage == null) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { viewModel.clearImportStatus() },
         title = {
             Text(
@@ -122,7 +127,8 @@ fun ImportStatusDialog(
             )
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = if (isImportSuccess) "Done" else "Dismiss",
                 onClick = {
                     val wasSuccess = isImportSuccess
                     viewModel.clearImportStatus()
@@ -130,14 +136,9 @@ fun ImportStatusDialog(
                         (context as? Activity)?.recreate() ?: onRefreshNeeded()
                     }
                 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isImportSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Text(if (isImportSuccess) "Done" else "Dismiss", color = Color.White)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                isActive = isImportSuccess
+            )
+        }
     )
 }
 
@@ -149,13 +150,13 @@ fun ImportOptionsDialog(
 ) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("Restore Configuration", fontWeight = FontWeight.Bold, color = Color.White)
+                Text("Restore Configuration", fontWeight = FontWeight.Bold)
             }
         },
         text = {
@@ -185,7 +186,7 @@ fun ImportOptionsDialog(
                     Icon(Icons.Default.FolderOpen, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Choose Backup File", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                        Text("Choose Backup File", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = LightspeedStyle.colors.textPrimary)
                         Text("Select your backup .json file from storage", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -208,18 +209,18 @@ fun ImportOptionsDialog(
                     Icon(Icons.Default.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color.White)
+                        Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = LightspeedStyle.colors.textPrimary)
                         Text("Paste backup payload from clipboard", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = { showState.value = false }) {
-                Text("Cancel", color = Color.White)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+        dismissButton = {
+            DeckButton(
+                text = "Cancel",
+                onClick = { showState.value = false }
+            )
+        }
     )
 }
 
@@ -232,9 +233,9 @@ fun PasteJsonDialog(
 ) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
-        title = { Text("Paste Backup JSON", fontWeight = FontWeight.Bold, color = Color.White) },
+        title = { Text("Paste Backup JSON", fontWeight = FontWeight.Bold) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text("Paste your exported JSON payload below:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -247,12 +248,13 @@ fun PasteJsonDialog(
                         .height(220.dp),
                     placeholder = { Text("{\n  \"settings\": {\n    ...\n  }\n}", fontSize = 12.sp) },
                     maxLines = 15,
-                    textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
+                    textStyle = TextStyle(fontSize = 12.sp, color = LightspeedStyle.colors.textPrimary)
                 )
             }
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = "Restore",
                 onClick = {
                     val text = pastedJsonTextState.value.trim()
                     showState.value = false
@@ -260,17 +262,15 @@ fun PasteJsonDialog(
                         viewModel.importFromJson(context, text)
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("Restore", color = Color.White)
-            }
+                isActive = true
+            )
         },
         dismissButton = {
-            TextButton(onClick = { showState.value = false }) {
-                Text("Cancel", color = Color.White)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            DeckButton(
+                text = "Cancel",
+                onClick = { showState.value = false }
+            )
+        }
     )
 }
 
@@ -278,10 +278,10 @@ fun PasteJsonDialog(
 fun SymmetryInfoDialog(showState: MutableState<Boolean>) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
         icon = { Icon(Icons.Default.SyncAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold, color = Color.White) },
+        title = { Text("Deflector Symmetry & Coupling", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("The 3-position selector acts as a non-destructive Flight Profile Switch:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
@@ -293,11 +293,12 @@ fun SymmetryInfoDialog(showState: MutableState<Boolean>) {
             }
         },
         confirmButton = {
-            Button(onClick = { showState.value = false }) {
-                Text("Got it", color = Color.White)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            DeckButton(
+                text = "Got it",
+                onClick = { showState.value = false },
+                isActive = true
+            )
+        }
     )
 }
 
@@ -305,10 +306,10 @@ fun SymmetryInfoDialog(showState: MutableState<Boolean>) {
 fun UnifyInfoDialog(showState: MutableState<Boolean>) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
         icon = { Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        title = { Text("Unified Flank Actions & Dual Scrubbers", fontWeight = FontWeight.Bold, color = Color.White) },
+        title = { Text("Unified Flank Actions & Dual Scrubbers", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("This unifies your gesture configuration while preserving ergonomics:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
@@ -320,11 +321,12 @@ fun UnifyInfoDialog(showState: MutableState<Boolean>) {
             }
         },
         confirmButton = {
-            Button(onClick = { showState.value = false }) {
-                Text("Got it", color = Color.White)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            DeckButton(
+                text = "Got it",
+                onClick = { showState.value = false },
+                isActive = true
+            )
+        }
     )
 }
 
@@ -337,13 +339,12 @@ fun UnifyTemplateDialog(
     if (!showState.value) return
     var selectedOption by remember { mutableIntStateOf(0) }
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
         title = {
             Text(
                 if (isLeft) "Activate Unified Left Flank" else "Activate Unified Right Flank",
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
@@ -369,27 +370,27 @@ fun UnifyTemplateDialog(
                             colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(optLabel, fontSize = 12.5.sp, color = Color.White)
+                        Text(optLabel, fontSize = 12.5.sp, color = LightspeedStyle.colors.textPrimary)
                     }
                 }
             }
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = "Unify Actions",
                 onClick = {
                     showState.value = false
                     onConfirm(selectedOption)
-                }
-            ) {
-                Text("Unify Actions", color = Color.White)
-            }
+                },
+                isActive = true
+            )
         },
         dismissButton = {
-            TextButton(onClick = { showState.value = false }) {
-                Text("Cancel", color = Color.White)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            DeckButton(
+                text = "Cancel",
+                onClick = { showState.value = false }
+            )
+        }
     )
 }
 
@@ -401,16 +402,17 @@ fun OemShieldDialog(
 ) {
     if (!showState.value) return
 
+    val lsColors = LightspeedStyle.colors
     var preserveScreenshot by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_OEM_PRESERVE_SCREENSHOT, true)) }
     var preserveAccessibility by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_OEM_PRESERVE_ACCESSIBILITY, true)) }
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("OEM Compatibility Shield", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+                Text("OEM Compatibility Shield", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         },
         text = {
@@ -418,7 +420,7 @@ fun OemShieldDialog(
                 Text(
                     "Configure hardware-level passthrough guardrails to ensure native Android system shortcuts remain responsive on your specific device hardware.",
                     fontSize = 13.sp,
-                    color = Color.LightGray.copy(alpha = 0.85f),
+                    color = lsColors.textSecondary.copy(alpha = 0.85f),
                     lineHeight = 17.sp
                 )
                 PrefToggleRow(
@@ -436,7 +438,8 @@ fun OemShieldDialog(
             }
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = "APPLY SHIELD",
                 onClick = {
                     prefs.edit()
                         .putBoolean(LightspeedPreferences.KEY_OEM_SHIELD_COMPLETED, true)
@@ -446,17 +449,15 @@ fun OemShieldDialog(
                     showState.value = false
                     onRefreshNeeded()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("APPLY SHIELD", color = Color.Black, fontWeight = FontWeight.Bold)
-            }
+                isActive = true
+            )
         },
         dismissButton = {
-            TextButton(onClick = { showState.value = false }) {
-                Text("DISMISS", color = Color.White.copy(alpha = 0.7f))
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            DeckButton(
+                text = "DISMISS",
+                onClick = { showState.value = false }
+            )
+        }
     )
 }
 
@@ -469,43 +470,40 @@ fun BatteryWarningDialog(
 ) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
         title = {
-            Text("⚠️ High Battery Usage Warning", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+            Text("⚠️ High Battery Usage Warning", fontWeight = FontWeight.Bold, fontSize = 17.sp)
         },
         text = {
             Text(
                 "Detecting back taps while the screen is off keeps your CPU awake (Partial Wake Lock), preventing Android from entering deep sleep. This typically consumes 2% to 4% battery per hour while idle.",
                 fontSize = 13.sp,
-                color = Color.LightGray.copy(alpha = 0.9f),
+                color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
                 lineHeight = 18.sp
             )
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = "ENABLE ANYWAY",
                 onClick = {
                     prefs.edit().putString(LightspeedPreferences.KEY_BACK_TAP_SCOPE, pendingBackTapScope).apply()
                     showState.value = false
                     onRefreshNeeded()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("ENABLE ANYWAY", color = Color.White, fontWeight = FontWeight.Bold)
-            }
+                isDestructive = true
+            )
         },
         dismissButton = {
-            TextButton(
+            DeckButton(
+                text = "CANCEL",
                 onClick = {
                     prefs.edit().putString(LightspeedPreferences.KEY_BACK_TAP_SCOPE, "screen_on").apply()
                     showState.value = false
                     onRefreshNeeded()
                 }
-            ) {
-                Text("CANCEL", color = Color.White.copy(alpha = 0.7f))
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        }
     )
 }
 
@@ -516,25 +514,26 @@ fun NotificationAccessDialog(
 ) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = { showState.value = false },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                Text("Notification Access Required", fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
         },
         text = {
             Text(
                 "Lightspeed needs Notification Access for two things:\n\n• Media control: gestures that play, pause or skip tracks can only reach your music or video app through Notification Access.\n• Live status: showing real-time download progress and active media playback in your status bar or notch pill.\n\nLightspeed is 100% offline and never records, stores, or transmits your personal notifications.",
                 fontSize = 13.sp,
-                color = Color.LightGray.copy(alpha = 0.9f),
+                color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
                 lineHeight = 18.sp
             )
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = "OPEN SETTINGS",
                 onClick = {
                     showState.value = false
                     try {
@@ -551,17 +550,15 @@ fun NotificationAccessDialog(
                         } catch (e: Exception) { logSwallowed("CentralCommandDialogs", "NotificationAccessDialog:548", e) }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("OPEN SETTINGS", color = Color.Black, fontWeight = FontWeight.Bold)
-            }
+                isActive = true
+            )
         },
         dismissButton = {
-            TextButton(onClick = { showState.value = false }) {
-                Text("NOT NOW", color = Color.White.copy(alpha = 0.7f))
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+            DeckButton(
+                text = "NOT NOW",
+                onClick = { showState.value = false }
+            )
+        }
     )
 }
 
@@ -573,7 +570,7 @@ fun AmoledWarningDialog(
 ) {
     if (!showState.value) return
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = {
             showState.value = false
             prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s").apply()
@@ -583,41 +580,39 @@ fun AmoledWarningDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Hardware Notice: AMOLED Image Retention", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = Color.White)
+                Text("Hardware Notice: AMOLED Image Retention", fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
         },
         text = {
             Text(
                 "Prolonged static display on OLED panels can cause permanent subpixel degradation (burn-in). Keep auto-sleep enabled?",
                 fontSize = 13.sp,
-                color = Color.LightGray.copy(alpha = 0.9f),
+                color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.9f),
                 lineHeight = 18.sp
             )
         },
         confirmButton = {
-            Button(
+            DeckButton(
+                text = "Keep Auto-Sleep (Recommended)",
                 onClick = {
                     prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s").apply()
                     showState.value = false
                     onRefreshNeeded()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("Keep Auto-Sleep (Recommended)", color = Color.Black, fontWeight = FontWeight.Bold)
-            }
+                isActive = true
+            )
         },
         dismissButton = {
-            TextButton(
+            DeckButton(
+                text = "Enable Always-On",
                 onClick = {
                     prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "never").apply()
                     showState.value = false
                     onRefreshNeeded()
-                }
-            ) {
-                Text("Enable Always-On (My Device Has No OLED / I Understand)", color = MaterialTheme.colorScheme.error)
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                },
+                isDestructive = true
+            )
+        }
     )
 }
 

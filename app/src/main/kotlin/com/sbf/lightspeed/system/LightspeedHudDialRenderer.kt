@@ -98,7 +98,7 @@ object LightspeedHudDialRenderer {
         val g = Color.green(primaryColor)
         val b = Color.blue(primaryColor)
 
-        // 1. Frosted Liquid Glass Circular Backplane — cached RadialGradient
+        // 1. Frosted Prism Circular Backplane — cached RadialGradient
         val dialKey = gradKey2f(cx, cy, primaryColor) xor java.lang.Float.floatToIntBits(radius).toLong()
         if (dialKey != tachyonDialKey) {
             tachyonDialShader = RadialGradient(
@@ -123,7 +123,7 @@ object LightspeedHudDialRenderer {
         canvas.drawCircle(cx, cy, radius * 0.45f, specularPaint)
         canvas.drawCircle(cx, cy, radius * 0.72f, specularPaint)
 
-        // Outer Refractive Liquid Glass Rim
+        // Outer Refractive Prism Rim
         glassRimPaint.strokeWidth = 1.4f * d
         glassRimPaint.color = Color.argb(120, 255, 255, 255)
         canvas.drawCircle(cx, cy, radius, glassRimPaint)

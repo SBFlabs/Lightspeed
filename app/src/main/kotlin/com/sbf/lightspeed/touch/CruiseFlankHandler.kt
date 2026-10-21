@@ -188,6 +188,7 @@ internal fun LightspeedCruiseOverlay.performFlankTouchEvent(isLeft: Boolean, eve
                         invalidate()
                         return true
                     }
+                    persistActiveGearSetIndex()
                     currentLayer = CruiseLayer.HIDDEN
                     isCruising = false
                     service?.updateWindowLayout(false)
@@ -271,7 +272,6 @@ internal fun LightspeedCruiseOverlay.processGyroscopeTouchPhysics(rawX: Float, r
         if (!isCubeRotationFired) {
             isCubeRotationFired = true
             activeGearSetIndex = (activeGearSetIndex + 1) % totalGearSetsCount
-            persistActiveGearSetIndex()
             triggerHardwareHaptic(55, 255) // Solid mechanical locking thud
             // Start continuous hold cycling with a 450ms initial safety gate
             uiHandler.removeCallbacks(gearAutoRepeatRunnable)

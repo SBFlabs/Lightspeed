@@ -1,20 +1,109 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
-import androidx.compose.foundation.layout.*
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import com.sbf.lightspeed.system.LightspeedPreferences
-import androidx.compose.foundation.ExperimentalFoundationApi
+import android.os.Build
+import android.view.WindowManager
 import androidx.compose.ui.graphics.ShaderBrush
+import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.defaultPrefs
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * Backdrop Blur Mode options for Central Command and Flight Control Deck themes.
+ * - AUTOMATIC: Uses native window blur if genuine hardware/firmware support exists; otherwise uses screenshot blur workaround.
+ * - NATIVE: Uses native OS window blur only when supported; never silently falls back to screenshot blur.
+ * - SCREENSHOT: Always uses Lightspeed's screenshot-based clipped backdrop blur workaround (ideal for OEM ROMs with broken native blur).
+ */
+enum class BackdropBlurMode(val key: String, val label: String) {
+    AUTOMATIC(LightspeedPreferences.BLUR_MODE_AUTOMATIC, "Automatic"),
+    NATIVE(LightspeedPreferences.BLUR_MODE_NATIVE, "Native"),
+    SCREENSHOT(LightspeedPreferences.BLUR_MODE_SCREENSHOT, "Screenshot");
 
+    companion object {
+        fun fromKey(key: String?): BackdropBlurMode = when (key) {
+            LightspeedPreferences.BLUR_MODE_NATIVE -> NATIVE
+            LightspeedPreferences.BLUR_MODE_AUTOMATIC -> AUTOMATIC
+            LightspeedPreferences.BLUR_MODE_SCREENSHOT -> SCREENSHOT
+            else -> SCREENSHOT
+        }
+    }
+}
+
+/**
+ * Global singleton state and controller for Backdrop Blur Mode selection.
+ * Persisted under [LightspeedPreferences.KEY_BACKDROP_BLUR_MODE] across all 12 themes.
+ */
+object BackdropBlurModeManager {
+    private val _modeFlow = MutableStateFlow(BackdropBlurMode.SCREENSHOT)
+    val modeFlow: StateFlow<BackdropBlurMode> = _modeFlow
+
+    private var initialized = false
+
+    fun getMode(context: Context): BackdropBlurMode {
+        if (!initialized) init(context)
+        return _modeFlow.value
+    }
+
+    fun setMode(context: Context, mode: BackdropBlurMode) {
+        context.defaultPrefs().edit()
+            .putString(LightspeedPreferences.KEY_BACKDROP_BLUR_MODE, mode.key)
+            .apply()
+        _modeFlow.value = mode
+        initialized = true
+
+        val wm = context.getSystemService(WindowManager::class.java)
+        if (shouldUseScreenshotBlur(wm, mode)) {
+            CentralCommandBackdropBlur.prepareForCentralCommand(wm, forceRecapture = true)
+        } else {
+            CentralCommandBackdropBlur.clearBitmap()
+        }
+        CentralCommandActivity.activeInstance?.updateLiveWindowBlur()
+    }
+
+    fun init(context: Context) {
+        val stored = context.defaultPrefs().getString(LightspeedPreferences.KEY_BACKDROP_BLUR_MODE, null)
+        _modeFlow.value = BackdropBlurMode.fromKey(stored)
+        initialized = true
+    }
+
+    /**
+     * Inspects whether the hardware/firmware genuine native cross-window blur is supported and active.
+     */
+    fun isNativeBlurSupported(windowManager: WindowManager?): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
+        return try {
+            windowManager?.isCrossWindowBlurEnabled == true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Determines whether native OS blur should be applied to the Window, given the selected mode
+     * and actual runtime capabilities.
+     */
+    fun shouldUseNativeBlur(windowManager: WindowManager?, mode: BackdropBlurMode): Boolean {
+        val nativeSupported = isNativeBlurSupported(windowManager)
+        return when (mode) {
+            BackdropBlurMode.NATIVE -> nativeSupported
+            BackdropBlurMode.SCREENSHOT -> false
+            BackdropBlurMode.AUTOMATIC -> nativeSupported
+        }
+    }
+
+    /**
+     * Determines whether the screenshot-based clipped blur capture & layer should run.
+     */
+    fun shouldUseScreenshotBlur(windowManager: WindowManager?, mode: BackdropBlurMode): Boolean {
+        val nativeSupported = isNativeBlurSupported(windowManager)
+        return when (mode) {
+            BackdropBlurMode.SCREENSHOT -> true
+            BackdropBlurMode.NATIVE -> false
+            BackdropBlurMode.AUTOMATIC -> !nativeSupported
+        }
+    }
+}
 
 object GlassNoiseTexture {
     private var cachedBrush: ShaderBrush? = null
@@ -37,196 +126,3 @@ object GlassNoiseTexture {
         return brush
     }
 }
-
-data class DeckGlassVisuals(
-    val styleKey: String,
-    val backgroundBrush: Brush,
-    val borderBrush: Brush,
-    val borderWidth: androidx.compose.ui.unit.Dp,
-    val showTopGlare: Boolean,
-    val topGlareAlpha: Float,
-    val innerChamferAlpha: Float,
-    val showNoiseGrain: Boolean = false,
-    val noiseAlpha: Float = 0f,
-    val showRefractiveRim: Boolean = false,
-    val showBottomCaustic: Boolean = false,
-    val shapeCornerRadius: androidx.compose.ui.unit.Dp = 28.dp,
-    // ── True Liquid Glass system ──────────────────────────────────────────
-    // When true: LiquidGlassPanel + liquidGlassLayer() are activated.
-    // All other showXxx flags are ignored — LiquidGlassPanel owns rendering.
-    val showLiquidGlass: Boolean = false,
-    val liquidGlassBlurRadius: Float = 22f
-)
-
-data class DeckBackdropVisuals(
-    val styleKey: String,
-    val title: String,
-    val subtitle: String,
-    val dimAmount: Float,
-    val scrimAlpha: Float,
-    val blurBehindRadius: Int
-)
-
-object DeckBackdropTheme {
-    val STYLES = listOf(
-        DeckBackdropVisuals(
-            styleKey = "cosmic",
-            title = "Cosmic",
-            subtitle = "Tactical spaceship contrast",
-            dimAmount = 0.65f,
-            scrimAlpha = 0.45f,
-            blurBehindRadius = 60
-        ),
-        DeckBackdropVisuals(
-            styleKey = "void",
-            title = "Void",
-            subtitle = "Deep stealth OLED blackout",
-            dimAmount = 0.78f,
-            scrimAlpha = 0.60f,
-            blurBehindRadius = 50
-        ),
-        DeckBackdropVisuals(
-            styleKey = "frost_veil",
-            title = "Frosted",
-            subtitle = "Luminous ambient diffusion",
-            dimAmount = 0.45f,
-            scrimAlpha = 0.30f,
-            blurBehindRadius = 90
-        ),
-        DeckBackdropVisuals(
-            styleKey = "clear",
-            title = "Clarity",
-            subtitle = "High context visibility",
-            dimAmount = 0.40f,
-            scrimAlpha = 0.25f,
-            blurBehindRadius = 40
-        )
-    )
-
-    fun resolve(styleKey: String): DeckBackdropVisuals {
-        return STYLES.find { it.styleKey == styleKey } ?: STYLES[0]
-    }
-}
-
-@Composable
-fun rememberDeckBackdropVisuals(context: Context): DeckBackdropVisuals {
-    val styleFlow by LightspeedPreferences.deckBackdropStyleFlow.collectAsState()
-    val activeStyle = styleFlow ?: remember { LightspeedPreferences.getDeckBackdropStyle(context) }
-    return DeckBackdropTheme.resolve(activeStyle)
-}
-
-object DeckGlassTheme {
-    @Composable
-    fun resolve(style: String): DeckGlassVisuals {
-        val colorScheme = MaterialTheme.colorScheme
-        return when (style) {
-            "frost" -> DeckGlassVisuals(
-                styleKey = "frost",
-                backgroundBrush = Brush.radialGradient(
-                    colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.08f),
-                        colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                        colorScheme.surface.copy(alpha = 0.65f)
-                    ),
-                    center = Offset(0.5f, 0.15f),
-                    radius = 1100f
-                ),
-                borderBrush = Brush.verticalGradient(
-                    colors = listOf(
-                        colorScheme.outlineVariant.copy(alpha = 0.75f),
-                        colorScheme.outlineVariant.copy(alpha = 0.30f),
-                        colorScheme.outlineVariant.copy(alpha = 0.10f)
-                    )
-                ),
-                borderWidth = 1.4.dp,
-                showTopGlare = false,
-                topGlareAlpha = 0f,
-                innerChamferAlpha = 0.20f,
-                showNoiseGrain = true,
-                noiseAlpha = 0.08f,
-                showRefractiveRim = false,
-                showBottomCaustic = false,
-                shapeCornerRadius = 28.dp,
-                showLiquidGlass = false,
-                liquidGlassBlurRadius = 0f
-            )
-            "obsidian" -> DeckGlassVisuals(
-                styleKey = "obsidian",
-                backgroundBrush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFF090D14).copy(alpha = 0.94f),
-                        Color(0xFF040608).copy(alpha = 0.98f)
-                    ),
-                    radius = 1200f
-                ),
-                borderBrush = Brush.verticalGradient(
-                    colors = listOf(
-                        colorScheme.primary.copy(alpha = 0.85f),
-                        colorScheme.primary.copy(alpha = 0.35f),
-                        Color.White.copy(alpha = 0.12f),
-                        Color.Transparent
-                    )
-                ),
-                borderWidth = 1.2.dp,
-                showTopGlare = false,
-                topGlareAlpha = 0f,
-                innerChamferAlpha = 0f,
-                showNoiseGrain = false,
-                noiseAlpha = 0f,
-                showRefractiveRim = false,
-                showBottomCaustic = false,
-                shapeCornerRadius = 28.dp
-            )
-            else -> {
-                val glassConfig = rememberLiquidGlassConfig()
-                val baseOpacity = (0.55f + glassConfig.opacity * 0.40f).coerceIn(0.65f, 0.98f)
-                val activePrimary = if (glassConfig.useCustomColor) Color(glassConfig.customColor) else colorScheme.primary
-                val activeSecondary = if (glassConfig.useCustomColor) {
-                    val hsv = FloatArray(3)
-                    val argb = (glassConfig.customColor.toLong() and 0xFFFFFFFFL).toInt()
-                    android.graphics.Color.colorToHSV(argb, hsv)
-                    val secHsv = floatArrayOf((hsv[0] + 30f) % 360f, (hsv[1] * 0.70f).coerceIn(0f, 1f), hsv[2])
-                    Color(android.graphics.Color.HSVToColor(secHsv))
-                } else colorScheme.secondary
-
-                DeckGlassVisuals( // "liquid" — Dynamic liquid glass (RenderEffect + AGSL + Canvas layers)
-                    styleKey = "liquid",
-                    backgroundBrush = Brush.radialGradient(
-                        colors = listOf(
-                            colorScheme.surfaceVariant.copy(alpha = (baseOpacity * 0.88f).coerceIn(0.55f, 0.96f)),
-                            colorScheme.surface.copy(alpha = baseOpacity)
-                        ),
-                        center = Offset(0.5f, 0.1f),
-                        radius = 1200f
-                    ),
-                    borderBrush = Brush.linearGradient(
-                        colors = listOf(
-                            activePrimary.copy(alpha = 0.65f),
-                            Color.White.copy(alpha = 0.30f),
-                            activeSecondary.copy(alpha = 0.40f),
-                            Color.Transparent
-                        )
-                    ),
-                    borderWidth = 1.2.dp,
-                    showTopGlare = true,
-                    topGlareAlpha = 0.12f,
-                    innerChamferAlpha = 0.18f,
-                    showNoiseGrain = false,
-                    showRefractiveRim = true,
-                    showBottomCaustic = false,
-                    shapeCornerRadius = 28.dp,
-                    showLiquidGlass = true,
-                    liquidGlassBlurRadius = 22f
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun rememberDeckGlassVisuals(context: Context): DeckGlassVisuals {
-    val styleFlow by LightspeedPreferences.deckGlassStyleFlow.collectAsState()
-    val activeStyle = styleFlow ?: remember { LightspeedPreferences.getDeckGlassStyle(context) }
-    return DeckGlassTheme.resolve(activeStyle)
-}
-

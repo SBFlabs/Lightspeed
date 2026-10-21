@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.sbf.lightspeed.overrideZeroTransition
 import com.sbf.lightspeed.settings.CentralCommandDeckDialog
+import com.sbf.lightspeed.ui.theme.DeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 /**
@@ -20,24 +21,34 @@ class LightspeedCoreWatchdogActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.setDimAmount(0.65f)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
 
         setContent {
             LightspeedTheme(forceDark = true) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CentralCommandDeckDialog(
-                        context = this@LightspeedCoreWatchdogActivity,
-                        prefs = defaultPrefs(),
-                        onDismiss = {
-                            finish()
-                        },
-                        onRefreshNeeded = {},
-                        initialScrollToWatchdog = true
-                    )
+                DeckTheme {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CentralCommandDeckDialog(
+                            context = this@LightspeedCoreWatchdogActivity,
+                            prefs = defaultPrefs(),
+                            onDismiss = {
+                                finish()
+                            },
+                            onRefreshNeeded = {},
+                            initialScrollToWatchdog = true
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (com.sbf.lightspeed.settings.CentralCommandBackdropBlur.backdropBitmap == null) {
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
         }
     }
 

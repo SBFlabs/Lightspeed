@@ -407,9 +407,9 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                     
                     // Symmetrical anchor based on flank origin
                     val targetTextX = if (isOpenedFromLeftFlank) {
-                        (28f * density) + (cos(sweepAngleRad).toFloat() * 160f * density)
+                        (28f * density) + (cos(sweepAngleRad).toFloat() * 100f * density)
                     } else {
-                        w - (28f * density) - (cos(sweepAngleRad).toFloat() * 160f * density)
+                        w - (28f * density) - (cos(sweepAngleRad).toFloat() * 100f * density)
                     }
                     val distanceRatio = (abs(relativeDistanceFromCenter) / ((endYArea - startYArea) / 2f)).coerceIn(0f, 1f)
                     val zoom = 0.70f + Math.pow(1.0 - distanceRatio, 2.5).toFloat() * 1.35f
@@ -480,7 +480,13 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
             if (decelerationFactor < 1f) postInvalidateOnAnimation()
         } else if (currentLayer == CruiseLayer.GRID || isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) {
             val density = resources.displayMetrics.density
-            canvas.drawColor(Color.argb(195, 4, 6, 12))
+            val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
+            val themePanel = snapshot.panelColorArgb.toInt()
+            val themeTint = snapshot.tintArgb.toInt()
+            val themeBorder = snapshot.borderColorArgb.toInt()
+
+            val bgAlpha = (snapshot.panelAlpha * 210f).toInt().coerceIn(160, 230)
+            canvas.drawColor(Color.argb(bgAlpha, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel)))
             drawCosmicStarfield(canvas, w, h, density, 0.7f)
 
             textPaint.textAlign = Paint.Align.CENTER
@@ -491,24 +497,25 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 if (isSel) {
                     // Starlight Pod Active Docking Ring
                     highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(160, 24, 32, 52)
+                    highlightPaint.color = Color.argb(160, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel))
                     canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
                     
                     highlightPaint.style = Paint.Style.STROKE
                     highlightPaint.strokeWidth = 2.2f * density
-                    highlightPaint.color = m3Primary
+                    highlightPaint.color = themeBorder
                     canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
                     
                     textPaint.color = Color.WHITE
                     textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                 } else {
                     elementPaint.style = Paint.Style.FILL
-                    elementPaint.color = Color.argb(if (item.app.isWidget) 30 else 18, 200, 220, 255)
+                    val tileAlpha = if (item.app.isWidget) 45 else 25
+                    elementPaint.color = Color.argb(tileAlpha, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel))
                     canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 16f, 16f, elementPaint)
                     
                     elementPaint.style = Paint.Style.STROKE
                     elementPaint.strokeWidth = 1f * density
-                    elementPaint.color = Color.argb(35, 200, 220, 255)
+                    elementPaint.color = Color.argb(40, Color.red(themeBorder), Color.green(themeBorder), Color.blue(themeBorder))
                     canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 16f, 16f, elementPaint)
                     
                     textPaint.color = Color.parseColor("#E0E5F0")
@@ -547,6 +554,9 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                 }
             }
             canvas.restore()
+            if (isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) drawSettingsButton(canvas, elementPaint)
+            if (isPinnedAppMenuOpen()) drawPinnedAppMenu(canvas, elementPaint)
+            if (isEditModeOpen) drawEditModePanel(canvas, elementPaint)
         }
 
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)

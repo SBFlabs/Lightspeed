@@ -230,8 +230,7 @@ internal class DeepSpaceRenderer(
 
         for (g in setsList.indices) {
             val setId = setsList[g]
-            val defaultName = when (setId) { "0" -> "POWER"; "1" -> "STORES"; "2" -> "UTILITY"; "3" -> "MEDIA"; else -> "SET" }
-            val setName = prefs.getString("gear_set_${setId}_name", defaultName) ?: defaultName
+            val setName = com.sbf.lightspeed.system.CockpitGearRepository.getGearSetNameById(context, setId)
             val btnX = railStartX + (g + 0.5f) * slotW
             val isCurrentBay = (activeGearSetIndexLocal == g)
 

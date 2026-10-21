@@ -91,7 +91,7 @@ internal object RecentsFallbackCloser {
         ElevatedTaskCloser.executor.execute {
             val lastSeenWindows = mutableListOf<WindowDumpInfo>()
             try {
-                try { Thread.sleep(400L) } catch (_: InterruptedException) { return@execute }
+                try { Thread.sleep(60L) } catch (_: InterruptedException) { return@execute }
 
                 val startTime = android.os.SystemClock.uptimeMillis()
                 val deadline = startTime + 2000L
@@ -230,7 +230,7 @@ internal object RecentsFallbackCloser {
                         }
                     }
 
-                    try { Thread.sleep(300L) } catch (_: InterruptedException) { break }
+                    try { Thread.sleep(80L) } catch (_: InterruptedException) { break }
                 }
 
                 if (!succeeded) {

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Security
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -48,6 +50,7 @@ fun WatchdogQuickTelemetryCard(
     prefs: SharedPreferences,
     onStateChanged: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     val coroutineScope = rememberCoroutineScope()
     val isServiceRunning = LightspeedAccessibilityService.instance != null
     val isShizukuActive = com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive
@@ -71,7 +74,7 @@ fun WatchdogQuickTelemetryCard(
 
     val enabledSet = remember { LightspeedWatchdogEngine.getEnabledAccessibilityServices(context) }
     val protectedSet = remember { LightspeedPreferences.getPerimeterProtectedServices(context) }
-    val cautionAmber = Color(0xFFFFB300)
+    val cautionAmber = lsColors.accentWarn
     var showPerimeterDialog by rememberSaveable { mutableStateOf(false) }
     var showBatteryExemptionDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -146,7 +149,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f))
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -174,7 +177,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                     )
                 }
                 val statusColor = when {
-                    isServiceRunning && isShizukuActive -> Color(0xFF00E676)
+                    isServiceRunning && isShizukuActive -> lsColors.accentOk
                     isServiceRunning -> MaterialTheme.colorScheme.primary
                     else -> cautionAmber
                 }
@@ -208,19 +211,19 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                 Surface(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF3D00).copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF3D00).copy(alpha = 0.35f))
+                    color = if (isServiceRunning) lsColors.accentOk.copy(alpha = 0.12f) else LightspeedTokens.StatusDanger.copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isServiceRunning) lsColors.accentOk.copy(alpha = 0.35f) else LightspeedTokens.StatusDanger.copy(alpha = 0.35f))
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("CORE", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text("CORE", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
                             text = if (isServiceRunning) "ONLINE" else "OFFLINE",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isServiceRunning) Color(0xFF00E676) else Color(0xFFFF3D00),
+                            color = if (isServiceRunning) lsColors.accentOk else LightspeedTokens.StatusDanger,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -231,19 +234,19 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                 Surface(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
+                    color = if (isShizukuActive) lsColors.accentOk.copy(alpha = 0.12f) else lsColors.accentAlert.copy(alpha = 0.15f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isShizukuActive) lsColors.accentOk.copy(alpha = 0.35f) else lsColors.accentAlert.copy(alpha = 0.35f))
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("SHIZUKU", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text("SHIZUKU", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
                             text = if (isShizukuActive) "ACTIVE" else "STANDBY",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isShizukuActive) Color(0xFF00E676) else Color(0xFFFF9800),
+                            color = if (isShizukuActive) lsColors.accentOk else lsColors.accentAlert,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -256,10 +259,10 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.12f) else Color(0xFFFF9800).copy(alpha = 0.15f))
+                        .background(if (isBatteryIgnored) lsColors.accentOk.copy(alpha = 0.12f) else lsColors.accentAlert.copy(alpha = 0.15f))
                         .border(
                             1.dp,
-                            if (isBatteryIgnored) Color(0xFF00E676).copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f),
+                            if (isBatteryIgnored) lsColors.accentOk.copy(alpha = 0.35f) else lsColors.accentAlert.copy(alpha = 0.35f),
                             RoundedCornerShape(8.dp)
                         )
                         .combinedClickable(
@@ -294,12 +297,20 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("BATTERY", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text("BATTERY", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
                             text = if (isBatteryIgnored) "EXEMPT" else "LIMITED",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isBatteryIgnored) Color(0xFF00E676) else Color(0xFFFF9800),
+                            color = if (isBatteryIgnored) lsColors.accentOk else lsColors.accentAlert,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        Text(
+                            text = "HOLD ↗",
+                            fontSize = 7.5.sp,
+                            color = (if (isBatteryIgnored) lsColors.accentOk else lsColors.accentAlert).copy(alpha = 0.85f),
+                            fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -320,7 +331,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("SERVICES", fontSize = 8.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                        Text("SERVICES", fontSize = 8.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                         Text(
                             text = "${enabledSet.size} ACTIVE",
                             fontSize = 10.sp,
@@ -504,7 +515,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         Text(
                             text = lastCrashMessage ?: "Core exception recorded",
                             fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = lsColors.textPrimary.copy(alpha = 0.9f),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             lineHeight = 15.sp
@@ -520,17 +531,17 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                             // Copy button
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = Color.White.copy(alpha = 0.08f),
-                                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color.White.copy(alpha = 0.2f)),
+                                color = lsColors.textPrimary.copy(alpha = 0.08f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, lsColors.textPrimary.copy(alpha = 0.2f)),
                                 modifier = Modifier.clickable { copyReportToClipboard() }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = lsColors.textPrimary.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("COPY", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.9f))
+                                    Text("COPY", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary.copy(alpha = 0.9f))
                                 }
                             }
 
@@ -561,17 +572,17 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                             // Clear button
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFFFF5252).copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0xFFFF5252).copy(alpha = 0.4f)),
+                                color = lsColors.accentDanger.copy(alpha = 0.15f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, lsColors.accentDanger.copy(alpha = 0.4f)),
                                 modifier = Modifier.clickable { clearTelemetry() }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.DeleteOutline, contentDescription = "Clear", tint = Color(0xFFFF5252), modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Default.DeleteOutline, contentDescription = "Clear", tint = lsColors.accentDanger, modifier = Modifier.size(12.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("CLEAR", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF5252))
+                                    Text("CLEAR", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accentDanger)
                                 }
                             }
                         }
@@ -632,7 +643,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
 
                     val newestEntry = flightLogEntries.firstOrNull()
                     if (newestEntry != null) {
-                        val statusColor = if (newestEntry.ok) Color(0xFF00E676) else Color(0xFFFF5252)
+                        val statusColor = if (newestEntry.ok) lsColors.accentOk else lsColors.accentDanger
                         val statusText = if (newestEntry.ok) "OK" else "FAIL"
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -642,7 +653,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                                 text = "[${newestEntry.formatTimestamp()}] [${newestEntry.tag}] ",
                                 fontSize = 10.sp,
                                 fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                color = Color.LightGray
+                                color = lsColors.textSecondary
                             )
                             Text(
                                 text = "[$statusText] ",
@@ -654,7 +665,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                             Text(
                                 text = newestEntry.text,
                                 fontSize = 10.sp,
-                                color = Color.White.copy(alpha = 0.9f),
+                                color = lsColors.textPrimary.copy(alpha = 0.9f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -663,7 +674,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         Text(
                             text = "No action entries logged",
                             fontSize = 10.5.sp,
-                            color = Color.White.copy(alpha = 0.5f)
+                            color = lsColors.textPrimary.copy(alpha = 0.5f)
                         )
                     }
 
@@ -677,17 +688,17 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         // COPY button
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color.White.copy(alpha = 0.08f),
-                            border = androidx.compose.foundation.BorderStroke(0.8.dp, Color.White.copy(alpha = 0.2f)),
+                            color = lsColors.textPrimary.copy(alpha = 0.08f),
+                            border = androidx.compose.foundation.BorderStroke(0.8.dp, lsColors.textPrimary.copy(alpha = 0.2f)),
                             modifier = Modifier.clickable { copyReportToClipboard() }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = lsColors.textPrimary.copy(alpha = 0.9f), modifier = Modifier.size(12.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("COPY", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.9f))
+                                Text("COPY", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary.copy(alpha = 0.9f))
                             }
                         }
 
@@ -718,17 +729,17 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         // CLEAR button
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFFF5252).copy(alpha = 0.15f),
-                            border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0xFFFF5252).copy(alpha = 0.4f)),
+                            color = lsColors.accentDanger.copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(0.8.dp, lsColors.accentDanger.copy(alpha = 0.4f)),
                             modifier = Modifier.clickable { clearActionLogOnly() }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.DeleteOutline, contentDescription = "Clear", tint = Color(0xFFFF5252), modifier = Modifier.size(12.dp))
+                                Icon(Icons.Default.DeleteOutline, contentDescription = "Clear", tint = lsColors.accentDanger, modifier = Modifier.size(12.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("CLEAR", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFF5252))
+                                Text("CLEAR", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = lsColors.accentDanger)
                             }
                         }
                     }
@@ -738,7 +749,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
     }
 
     if (showFlightLogDialog || showCrashDetailDialog) {
-        AlertDialog(
+        DeckDialog(
             onDismissRequest = {
                 showFlightLogDialog = false
                 showCrashDetailDialog = false
@@ -757,7 +768,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         text = blackboxTitle.uppercase(),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                        color = lsColors.textPrimary,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -790,14 +801,14 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                                     text = lastCrashMessage ?: "Unknown Anomaly",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color.White
+                                    color = lsColors.textPrimary
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .heightIn(max = 140.dp)
-                                        .background(Color(0xFF0D1117), shape = RoundedCornerShape(6.dp))
+                                        .background(LightspeedTokens.TacticalSurfaceTerminal, shape = RoundedCornerShape(6.dp))
                                         .padding(6.dp)
                                         .verticalScroll(rememberScrollState())
                                 ) {
@@ -805,7 +816,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                                         text = lastCrashStack ?: "No stacktrace recorded",
                                         fontSize = 9.sp,
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                        color = Color(0xFF81D4FA),
+                                        color = LightspeedTokens.StatusSky,
                                         lineHeight = 12.sp
                                     )
                                 }
@@ -825,18 +836,18 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                         Text(
                             text = "No action entries recorded.",
                             fontSize = 11.sp,
-                            color = Color.Gray,
+                            color = lsColors.textDisabled,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     } else {
                         flightLogEntries.forEach { entry ->
-                            val statusColor = if (entry.ok) Color(0xFF00E676) else Color(0xFFFF5252)
+                            val statusColor = if (entry.ok) lsColors.accentOk else lsColors.accentDanger
                             val statusText = if (entry.ok) "OK" else "FAIL"
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(6.dp),
-                                color = Color.White.copy(alpha = 0.04f),
-                                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color.White.copy(alpha = 0.08f))
+                                color = lsColors.textPrimary.copy(alpha = 0.04f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, lsColors.textPrimary.copy(alpha = 0.08f))
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
                                     Row(
@@ -849,7 +860,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                                             fontSize = 9.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                            color = Color.LightGray
+                                            color = lsColors.textSecondary
                                         )
                                         Surface(
                                             shape = RoundedCornerShape(4.dp),
@@ -870,7 +881,7 @@ ${lastCrashStack ?: "No stacktrace recorded"}
                                         text = entry.text,
                                         fontSize = 9.5.sp,
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                        color = Color.White.copy(alpha = 0.9f),
+                                        color = lsColors.textPrimary.copy(alpha = 0.9f),
                                         lineHeight = 13.sp
                                     )
                                 }
@@ -889,20 +900,18 @@ ${lastCrashStack ?: "No stacktrace recorded"}
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = clearActionLogOnly) {
-                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(15.dp))
+                        Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = LightspeedTokens.StatusErrorSoft, modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("CLEAR LOG", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+                        Text("CLEAR LOG", color = LightspeedTokens.StatusErrorSoft, fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
                     }
                     TextButton(onClick = {
                         showFlightLogDialog = false
                         showCrashDetailDialog = false
                     }) {
-                        Text("CLOSE", color = Color.White.copy(alpha = 0.7f), fontSize = 11.5.sp)
+                        Text("CLOSE", color = lsColors.textPrimary.copy(alpha = 0.7f), fontSize = 11.5.sp)
                     }
                 }
-            },
-            containerColor = Color(0xFF1B1F2B),
-            shape = RoundedCornerShape(16.dp)
+            }
         )
     }
 

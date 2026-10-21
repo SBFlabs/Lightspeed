@@ -15,6 +15,7 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 
 object ActionDispatcher {
+    private val closeExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
     private const val TAG = "ActionDispatcher"
 
     fun dispatch(token: String?, context: Context) {
@@ -99,9 +100,21 @@ object ActionDispatcher {
                 try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:91", e) }
             }
             token == "system:close_app" -> {
-                ElevatedTaskCloser.closeTopApp(context)
+                closeExecutor.execute {
+                    try {
+                        ElevatedTaskCloser.closeTopApp(context)
+                    } catch (e: Throwable) {
+                        logSwallowed(TAG, "close_app", e)
+                    }
+                }
             }
-            token == "system:scroll_to_top" -> onScrollToTop()
+            token == "system:scroll_to_top" -> {
+                LightspeedScrollHelper.scroll(context, toBottom = false)
+                onScrollToTop()
+            }
+            token == "system:scroll_to_bottom" -> {
+                LightspeedScrollHelper.scroll(context, toBottom = true)
+            }
             token == "system:gravity_reset" -> {
                 LightspeedOrientationManager.resetGravity(context)
             }

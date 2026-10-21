@@ -31,6 +31,7 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -39,6 +40,7 @@ fun FlightControlDeckCard(
     prefs: SharedPreferences,
     onStateChanged: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     var isArmed by remember { mutableStateOf(LightspeedPreferences.isMasterFlightArmed(context)) }
     var isNotifEnabled by remember { mutableStateOf(LightspeedPreferences.isFlightNotificationEnabled(context)) }
 
@@ -46,7 +48,7 @@ fun FlightControlDeckCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isArmed) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else Color(0xFFFF9800).copy(alpha = 0.35f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isArmed) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else lsColors.accentAlert.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier
@@ -73,13 +75,13 @@ fun FlightControlDeckCard(
                     },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isArmed) Color(0xFF00E676).copy(alpha = 0.12f)
-                    else Color(0xFFFF9800).copy(alpha = 0.10f)
+                    containerColor = if (isArmed) lsColors.accentOk.copy(alpha = 0.12f)
+                    else lsColors.accentAlert.copy(alpha = 0.10f)
                 ),
                 border = androidx.compose.foundation.BorderStroke(
                     1.2.dp,
-                    if (isArmed) Color(0xFF00E676).copy(alpha = 0.5f)
-                    else Color(0xFFFF9800).copy(alpha = 0.45f)
+                    if (isArmed) lsColors.accentOk.copy(alpha = 0.5f)
+                    else lsColors.accentAlert.copy(alpha = 0.45f)
                 )
             ) {
                 Row(
@@ -93,15 +95,15 @@ fun FlightControlDeckCard(
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isArmed) Color(0xFF00E676).copy(alpha = 0.22f)
-                                else Color(0xFFFF9800).copy(alpha = 0.22f)
+                                if (isArmed) lsColors.accentOk.copy(alpha = 0.22f)
+                                else lsColors.accentAlert.copy(alpha = 0.22f)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isArmed) Icons.Default.Bolt else Icons.Default.PowerSettingsNew,
                             contentDescription = null,
-                            tint = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                            tint = if (isArmed) lsColors.accentOk else lsColors.accentAlert,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -111,7 +113,7 @@ fun FlightControlDeckCard(
                             "MASTER FLIGHT DECK",
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color.White,
+                            color = lsColors.textPrimary,
                             letterSpacing = 0.6.sp
                         )
                         Spacer(modifier = Modifier.height(3.dp))
@@ -119,23 +121,27 @@ fun FlightControlDeckCard(
                             if (isArmed) "ARMED // All sensors & hangars live"
                             else "STANDBY // Overlays detached",
                             fontSize = 11.sp,
-                            color = if (isArmed) Color(0xFF00E676) else Color(0xFFFF9800),
+                            color = if (isArmed) lsColors.accentOk else lsColors.accentAlert,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
 
-            // Live Glass Material Prototype Selector
-            val styleFlow by LightspeedPreferences.deckGlassStyleFlow.collectAsState()
-            val currentGlassStyle = styleFlow ?: remember { LightspeedPreferences.getDeckGlassStyle(context) }
-
-            var showLiquidGlassDialog by remember { mutableStateOf(false) }
+            // Theme-Aware Optical Deck Customization
+            var customizingStyleId by remember { mutableStateOf<String?>(null) }
             var showInfinityDialog by remember { mutableStateOf(false) }
-            if (showLiquidGlassDialog) {
-                LiquidGlassCustomizationDialog(
+            var showStyleLabDialog by remember { mutableStateOf(false) }
+
+            if (customizingStyleId != null) {
+                DeckThemeCustomizationDialog(
                     context = context,
-                    onDismiss = { showLiquidGlassDialog = false }
+                    styleId = customizingStyleId!!,
+                    onDismiss = {
+                        customizingStyleId = null
+                        DeckThemeManager.refresh(context)
+                        onStateChanged()
+                    }
                 )
             }
             if (showInfinityDialog) {
@@ -146,90 +152,19 @@ fun FlightControlDeckCard(
                 )
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "CENTRAL COMMAND THEME",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        when (currentGlassStyle) {
-                            "frost" -> "Deep Frosted Matte"
-                            "obsidian" -> "Tactical Stealth"
-                            else -> "\"Refractive Glass\""
-                        },
-                        fontSize = 10.sp,
-                        color = Color.LightGray.copy(alpha = 0.75f)
-                    )
-                }
-
                 val isInfinityUnlocked = com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf(
-                        "liquid" to "\"Glass\"",
-                        "frost" to "Deep Frost",
-                        "obsidian" to "Obsidian"
-                    ).forEach { (styleKey, title) ->
-                        val isSelected = currentGlassStyle == styleKey
-                        val isLocked = styleKey == "obsidian" && !isInfinityUnlocked
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .combinedClickable(
-                                    onClick = {
-                                        if (isLocked) {
-                                            LightspeedHapticEngine.triggerWarning(context)
-                                            showInfinityDialog = true
-                                        } else {
-                                            LightspeedPreferences.setDeckGlassStyle(context, styleKey)
-                                            LightspeedHapticEngine.tick(context)
-                                            onStateChanged()
-                                        }
-                                    },
-                                    onLongClick = if (styleKey == "liquid") {
-                                        {
-                                            LightspeedHapticEngine.tick(context)
-                                            showLiquidGlassDialog = true
-                                        }
-                                    } else null
-                                ),
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.12f)
-                            )
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(vertical = 7.dp, horizontal = 2.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (isLocked) "$title 🔒" else title,
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isLocked) Color(0xFFFFD700) else if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.75f),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
+                DeckStylePickerGrid(
+                    context = context,
+                    isInfinityUnlocked = isInfinityUnlocked,
+                    onLockedClick = { showInfinityDialog = true },
+                    onCustomizeStyle = { styleId ->
+                        customizingStyleId = styleId
+                    },
+                    onStyleSelected = onStateChanged
+                )
 
                 // Lightspeed Infinity Status / Upgrade Card
                 Surface(
@@ -241,10 +176,10 @@ fun FlightControlDeckCard(
                             showInfinityDialog = true
                         },
                     shape = RoundedCornerShape(10.dp),
-                    color = if (isInfinityUnlocked) Color(0xFFFFD700).copy(alpha = 0.12f) else Color.White.copy(alpha = 0.05f),
+                    color = if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.12f) else lsColors.textPrimary.copy(alpha = 0.05f),
                     border = androidx.compose.foundation.BorderStroke(
                         0.8.dp,
-                        if (isInfinityUnlocked) Color(0xFFFFD700).copy(alpha = 0.45f) else Color.White.copy(alpha = 0.1f)
+                        if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.45f) else lsColors.textPrimary.copy(alpha = 0.1f)
                     )
                 ) {
                     Row(
@@ -256,90 +191,83 @@ fun FlightControlDeckCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Text(if (isInfinityUnlocked) "★" else "☕", fontSize = 12.sp, color = if (isInfinityUnlocked) Color(0xFFFFD700) else MaterialTheme.colorScheme.primary)
+                            Text(if (isInfinityUnlocked) "★" else "☕", fontSize = 12.sp, color = if (isInfinityUnlocked) lsColors.accentGold else MaterialTheme.colorScheme.primary)
                             Text(
                                 text = if (isInfinityUnlocked) "LIGHTSPEED INFINITY ACTIVE" else "UPGRADE TO LIGHTSPEED INFINITY",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isInfinityUnlocked) Color(0xFFFFD700) else Color.White.copy(alpha = 0.85f),
+                                color = if (isInfinityUnlocked) lsColors.accentGold else lsColors.textPrimary.copy(alpha = 0.85f),
                                 letterSpacing = 0.8.sp
                             )
                         }
                         Text(
                             text = if (isInfinityUnlocked) "UNLIMITED DECKS" else "2 DECKS (FREE) ▾",
                             fontSize = 9.5.sp,
-                            color = if (isInfinityUnlocked) Color(0xFFFFD700).copy(alpha = 0.85f) else Color.Gray,
+                            color = if (isInfinityUnlocked) lsColors.accentGold.copy(alpha = 0.85f) else lsColors.textDisabled,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-            // Cockpit Backdrop / Area Behind Window Selector
-            val backdropFlow by LightspeedPreferences.deckBackdropStyleFlow.collectAsState()
-            val currentBackdropStyle = backdropFlow ?: remember { LightspeedPreferences.getDeckBackdropStyle(context) }
-            val currentBackdropVisuals = remember(currentBackdropStyle) { DeckBackdropTheme.resolve(currentBackdropStyle) }
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "BACKDROP THEME",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        currentBackdropVisuals.subtitle,
-                        fontSize = 9.5.sp,
-                        color = Color.LightGray.copy(alpha = 0.75f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                if (showStyleLabDialog) {
+                    StyleLabPreviewDialog(
+                        context = context,
+                        onDismiss = { showStyleLabDialog = false },
+                        onLockedClick = { showInfinityDialog = true },
+                        onCustomizeStyle = { styleId ->
+                            showStyleLabDialog = false
+                            customizingStyleId = styleId
+                        }
                     )
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            LightspeedHapticEngine.tick(context)
+                            showStyleLabDialog = true
+                        },
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        0.9.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                    )
                 ) {
-                    DeckBackdropTheme.STYLES.forEach { backdrop ->
-                        val isSelected = currentBackdropStyle == backdrop.styleKey
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable {
-                                    LightspeedPreferences.setDeckBackdropStyle(context, backdrop.styleKey)
-                                    LightspeedHapticEngine.tick(context)
-                                    onStateChanged()
-                                },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.12f)
-                            )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Box(
-                                modifier = Modifier.padding(vertical = 7.dp, horizontal = 2.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = backdrop.title,
-                                    fontSize = 9.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.75f),
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Optical Style Lab (All 12 Live Themes)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = lsColors.textPrimary
+                            )
                         }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
@@ -381,7 +309,7 @@ fun FlightControlDeckCard(
                 }
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             // Row 4: Persistent Flight Control Notification Switch
             Row(
@@ -400,7 +328,7 @@ fun FlightControlDeckCard(
                         "Flight Control Notification",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                     Text(
                         "Persistent notification with quick controls",
@@ -416,24 +344,24 @@ fun FlightControlDeckCard(
                         com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
                     },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
+                        checkedThumbColor = lsColors.textPrimary,
                         checkedTrackColor = MaterialTheme.colorScheme.primary,
                         checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                        uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
+                        uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
+                        uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
                     )
                 )
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             // Row 5: Quick Settings Tiles Notice
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.04f))
+                    .background(lsColors.textPrimary.copy(alpha = 0.04f))
                     .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -486,7 +414,7 @@ fun FlightControlDeckCard(
                 }
 
                 if (showAutomationWarningDialog) {
-                    AlertDialog(
+                    DeckDialog(
                         onDismissRequest = { showAutomationWarningDialog = false },
                         title = {
                             Text(
@@ -564,7 +492,7 @@ fun FlightControlDeckCard(
                 OutlinedButton(onClick = { expandedDropdown = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("Action: $selectedAction", fontSize = 12.sp)
                 }
-                DropdownMenu(expanded = expandedDropdown, onDismissRequest = { expandedDropdown = false }) {
+                DeckThemedDropdownMenu(expanded = expandedDropdown, onDismissRequest = { expandedDropdown = false }) {
                     actions.forEach { action ->
                         DropdownMenuItem(text = { Text(action, fontSize = 12.sp) }, onClick = { 
                             selectedAction = action
@@ -592,7 +520,7 @@ fun FlightControlDeckCard(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(8.dp)) {
-                        Text(text = commandText, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.weight(1f))
+                        Text(text = commandText, fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = lsColors.textPrimary, modifier = Modifier.weight(1f))
                         IconButton(onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("Command", commandText))

@@ -10,7 +10,7 @@ import android.graphics.Shader
 import android.graphics.Typeface
 
 /**
- * Dedicated renderer for Style 4: Quantum Synthetic Horizon (Liquid Glass HUD).
+ * Dedicated renderer for Style 4: Quantum Synthetic Horizon (Prism HUD).
  * Aircraft/starship artificial horizon collimator with pitch ladder hashes, swept wings,
  * glowing waterline level bar, and digital flight telemetry.
  */
@@ -127,7 +127,7 @@ object LightspeedHudHorizonRenderer {
         val g = Color.green(primaryColor)
         val b = Color.blue(primaryColor)
 
-        // 1. Frosted Liquid Glass Backplane — cached shader
+        // 1. Frosted Prism Backplane — cached shader
         val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, primaryColor)
         if (glassKey != horizonGlassKey) {
             horizonGlassShader = LinearGradient(
@@ -146,7 +146,7 @@ object LightspeedHudHorizonRenderer {
             canvas.drawPath(path, p)
         }
 
-        // 2. Liquid Glass Refractive Rim — cached shader
+        // 2. Prism Refractive Rim — cached shader
         val rimKey = gradKey4f(rect.left, rect.top, rect.right, rect.bottom, primaryColor)
         if (rimKey != horizonRimKey) {
             horizonRimShader = LinearGradient(

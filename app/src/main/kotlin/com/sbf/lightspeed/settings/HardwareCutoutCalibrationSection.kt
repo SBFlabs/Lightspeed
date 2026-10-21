@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
  * Sub-Component: Hardware Cutout & Punch-Hole Calibration.
@@ -28,7 +29,7 @@ fun HardwareCutoutCalibrationSection(
         androidx.compose.material3.Text(
             text = "ℹ Live Alignment Beacon requires Orbital Capsule to be enabled in Experimental Labs.",
             fontSize = 11.sp,
-            color = androidx.compose.ui.graphics.Color.Gray,
+            color = LightspeedStyle.colors.textDisabled,
             modifier = androidx.compose.ui.Modifier.padding(vertical = 6.dp)
         )
         return

@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.sbf.lightspeed.overrideZeroTransition
 import com.sbf.lightspeed.settings.BatteryExemptionDeckDialog
+import com.sbf.lightspeed.ui.theme.DeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class LightspeedBatteryExemptionActivity : ComponentActivity() {
@@ -19,17 +20,19 @@ class LightspeedBatteryExemptionActivity : ComponentActivity() {
 
         setContent {
             LightspeedTheme(forceDark = true) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    BatteryExemptionDeckDialog(
-                        context = this@LightspeedBatteryExemptionActivity,
-                        onDismiss = {
-                            finish()
-                        },
-                        onExemptionChanged = {}
-                    )
+                DeckTheme {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BatteryExemptionDeckDialog(
+                            context = this@LightspeedBatteryExemptionActivity,
+                            onDismiss = {
+                                finish()
+                            },
+                            onExemptionChanged = {}
+                        )
+                    }
                 }
             }
         }

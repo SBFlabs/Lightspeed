@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.IntOffset
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import kotlin.math.roundToInt
 import androidx.compose.foundation.Canvas
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 
 
@@ -60,6 +62,7 @@ fun FloatingOverlayContainer(
     footer: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
@@ -69,126 +72,12 @@ fun FloatingOverlayContainer(
     val dragOffsetY = remember { Animatable(0f) }
     var hasCrossedThreshold by remember { mutableStateOf(false) }
 
-    val glassVisuals = rememberDeckGlassVisuals(context)
-
-    // Build the Card modifier.
-    // NOTE: For liquid glass, we do NOT apply RenderEffect to the card itself —
-    // that would blur the card's own children (text, buttons, switches).
-    // The real backdrop blur is handled at window level via FLAG_BLUR_BEHIND in
-    // CentralCommandActivity. LiquidGlassPanel Canvas layers render the glass
-    // surface optics (glare, rim, caustics, flares) as a pure draw-behind pass.
-    val cardModifier = Modifier
-        .fillMaxSize()
-        .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-        .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
-        .background(glassVisuals.backgroundBrush)
-        .then(
-            if (!glassVisuals.showLiquidGlass) {
-                Modifier.border(
-                    glassVisuals.borderWidth,
-                    glassVisuals.borderBrush,
-                    RoundedCornerShape(glassVisuals.shapeCornerRadius)
-                )
-            } else Modifier // LiquidGlassPanel draws its own multi-spectral border
-        )
-
-    Card(
-        modifier = cardModifier,
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
+    DeckGlassCardSurface(
+        modifier = Modifier
+            .fillMaxSize()
+            .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // ── TRUE LIQUID GLASS: LiquidGlassPanel owns the full surface ───────
-            if (glassVisuals.showLiquidGlass) {
-                LiquidGlassPanel(
-                    cornerRadius = glassVisuals.shapeCornerRadius,
-                    modifier = Modifier.matchParentSize()
-                )
-            } else {
-                // ── LEGACY glass layers (frost / obsidian) ───────────────────────
-                if (glassVisuals.showTopGlare) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(160.dp)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = glassVisuals.topGlareAlpha),
-                                        Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.45f),
-                                        Color(0xFF80D8FF).copy(alpha = glassVisuals.topGlareAlpha * 0.15f),
-                                        Color.Transparent
-                                    ),
-                                    center = Offset(x = 350f, y = 0f),
-                                    radius = 650f
-                                )
-                            )
-                    )
-                }
-                if (glassVisuals.showBottomCaustic) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(70.dp)
-                            .align(Alignment.BottomCenter)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color(0xFF00E5FF).copy(alpha = 0.08f),
-                                        Color.White.copy(alpha = 0.14f)
-                                    )
-                                )
-                            )
-                    )
-                }
-                if (glassVisuals.showRefractiveRim) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .padding(2.5.dp)
-                            .border(
-                                1.dp,
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF00E5FF).copy(alpha = 0.50f),
-                                        Color.White.copy(alpha = 0.65f),
-                                        Color(0xFFE040FB).copy(alpha = 0.45f),
-                                        Color.Transparent
-                                    ),
-                                    start = Offset(0f, 0f),
-                                    end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-                                ),
-                                RoundedCornerShape(glassVisuals.shapeCornerRadius - 2.5.dp)
-                            )
-                    )
-                }
-                if (glassVisuals.innerChamferAlpha > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .padding(1.dp)
-                            .border(
-                                0.8.dp,
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = glassVisuals.innerChamferAlpha),
-                                        Color.Transparent
-                                    )
-                                ),
-                                RoundedCornerShape(glassVisuals.shapeCornerRadius - 1.dp)
-                            )
-                    )
-                }
-                if (glassVisuals.showNoiseGrain) {
-                    Canvas(modifier = Modifier.matchParentSize()) {
-                        drawRect(
-                            brush = GlassNoiseTexture.getBrush(),
-                            alpha = glassVisuals.noiseAlpha
-                        )
-                    }
-                }
-            }
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
             // Scoped Drag Handle + Header Region (drag detection strictly scoped to header/handle)
             Column(
@@ -262,7 +151,7 @@ fun FloatingOverlayContainer(
                         modifier = Modifier
                             .size(width = 38.dp, height = 4.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.35f))
+                            .background(lsColors.textPrimary.copy(alpha = 0.35f))
                     )
                 }
 
@@ -294,14 +183,14 @@ fun FloatingOverlayContainer(
                             text = title,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = lsColors.textPrimary
                         )
                         if (onTitleClick != null || onTitleLongClick != null) {
                             Spacer(modifier = Modifier.width(3.dp))
                             Icon(
                                 imageVector = Icons.Default.ExpandMore,
                                 contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.45f),
+                                tint = lsColors.textPrimary.copy(alpha = 0.45f),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -319,12 +208,12 @@ fun FloatingOverlayContainer(
                 }
             }
 
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(bottom = 10.dp))
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), modifier = Modifier.padding(bottom = 10.dp))
             Box(modifier = Modifier.weight(1f)) {
                 content()
             }
             if (footer != null) {
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+                HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
                 footer()
             }
         }
@@ -337,6 +226,7 @@ fun CentralCommandFooter(
     context: Context,
     onVersionClick: (() -> Unit)? = null
 ) {
+    val lsColors = LightspeedStyle.colors
     val versionName = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
@@ -356,7 +246,7 @@ fun CentralCommandFooter(
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.White.copy(alpha = 0.06f))
+                .background(lsColors.textPrimary.copy(alpha = 0.06f))
                 .clickable {
                     val info = "Lightspeed v$versionName (${context.packageName})"
                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
@@ -372,14 +262,14 @@ fun CentralCommandFooter(
                 modifier = Modifier
                     .size(6.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF00E5FF))
+                    .background(lsColors.accentInfo)
             )
             Text(
                 text = "v$versionName",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 fontFamily = FontFamily.Monospace,
-                color = Color.White.copy(alpha = 0.85f)
+                color = lsColors.textPrimary.copy(alpha = 0.85f)
             )
         }
 
@@ -392,7 +282,7 @@ fun CentralCommandFooter(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .background(lsColors.textPrimary.copy(alpha = 0.08f))
                     .clickable {
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/SBFlabs/Lightspeed")).apply {
@@ -410,14 +300,14 @@ fun CentralCommandFooter(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_github),
                     contentDescription = "GitHub Repository",
-                    tint = Color.White,
+                    tint = lsColors.textPrimary,
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
                     text = "GitHub",
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = lsColors.textPrimary.copy(alpha = 0.9f)
                 )
             }
 
@@ -425,8 +315,8 @@ fun CentralCommandFooter(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFFFDD00).copy(alpha = 0.16f))
-                    .border(0.8.dp, Color(0xFFFFDD00).copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                    .background(LightspeedTokens.StatusGoldAlt.copy(alpha = 0.16f))
+                    .border(0.8.dp, LightspeedTokens.StatusGoldAlt.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
                     .clickable {
                         try {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/sbflabs")).apply {
@@ -444,14 +334,14 @@ fun CentralCommandFooter(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_buymeacoffee),
                     contentDescription = "Buy Me a Coffee",
-                    tint = Color(0xFFFFDD00),
+                    tint = LightspeedTokens.StatusGoldAlt,
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
                     text = "Coffee",
                     fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFFDD00)
+                    color = LightspeedTokens.StatusGoldAlt
                 )
             }
         }
@@ -471,6 +361,7 @@ fun CompactAccordionSection(
     headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -497,13 +388,13 @@ fun CompactAccordionSection(
                         text = title,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                     if (!subtitle.isNullOrBlank()) {
                         Text(
                             text = subtitle,
                             fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.6f)
+                            color = lsColors.textPrimary.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -538,11 +429,12 @@ fun CollapsibleSubSection(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -566,7 +458,7 @@ fun CollapsibleSubSection(
                             text = title,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.5.sp,
-                            color = Color.White
+                            color = lsColors.textPrimary
                         )
                         if (!subtitle.isNullOrBlank()) {
                             Text(
@@ -615,8 +507,9 @@ fun HazardAccordionSection(
     headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    val cautionAmber = Color(0xFFFFB300)
-    val deepBlack = Color(0xFF0F1115)
+    val lsColors = LightspeedStyle.colors
+    val cautionAmber = lsColors.accentWarn
+    val deepBlack = LightspeedTokens.TacticalDeepBlack
     val hazardStripePath = remember { androidx.compose.ui.graphics.Path() }
 
     Card(
@@ -695,7 +588,7 @@ fun HazardAccordionSection(
                         Text(
                             text = subtitle,
                             fontSize = 11.5.sp,
-                            color = Color.LightGray.copy(alpha = 0.85f),
+                            color = lsColors.textSecondary.copy(alpha = 0.85f),
                             lineHeight = 15.sp
                         )
                     }

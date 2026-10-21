@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -68,9 +70,9 @@ fun BatteryExemptionAppCard(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
         border = BorderStroke(
             1.dp,
-            if (isPinned) Color(0xFFFFD54F).copy(alpha = 0.45f)
+            if (isPinned) LightspeedTokens.StatusGold.copy(alpha = 0.45f)
             else if (isWhitelisted) successGreen.copy(alpha = 0.25f)
-            else Color.White.copy(alpha = 0.08f)
+            else LightspeedStyle.colors.textPrimary.copy(alpha = 0.08f)
         )
     ) {
         Row(
@@ -88,10 +90,10 @@ fun BatteryExemptionAppCard(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White.copy(alpha = 0.1f)),
+                        .background(LightspeedStyle.colors.textPrimary.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(appItem.label.take(1).uppercase(), fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(appItem.label.take(1).uppercase(), fontWeight = FontWeight.Bold, color = LightspeedStyle.colors.textPrimary)
                 }
             }
 
@@ -102,7 +104,7 @@ fun BatteryExemptionAppCard(
                     text = appItem.label,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
-                    color = Color.White,
+                    color = LightspeedStyle.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -122,7 +124,7 @@ fun BatteryExemptionAppCard(
                 Icon(
                     imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
                     contentDescription = "Pin",
-                    tint = if (isPinned) Color(0xFFFFD54F) else Color.LightGray.copy(alpha = 0.45f),
+                    tint = if (isPinned) LightspeedTokens.StatusGold else LightspeedStyle.colors.textSecondary.copy(alpha = 0.45f),
                     modifier = Modifier.size(16.dp)
                 )
             }

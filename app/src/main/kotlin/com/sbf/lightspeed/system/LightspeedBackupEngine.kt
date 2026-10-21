@@ -8,6 +8,8 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.settings.BackdropBlurModeManager
+import com.sbf.lightspeed.settings.DeckThemeManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -206,20 +208,44 @@ object LightspeedBackupEngine {
                 }
 
                 val value = settingsObject.get(key)
+                if (key.startsWith(LightspeedPreferences.KEY_ACTION_METHOD_APPS_PREFIX)) {
+                    val rawValue = when (value) {
+                        is String -> value
+                        is JSONArray -> {
+                            val list = mutableListOf<String>()
+                            for (i in 0 until value.length()) {
+                                list.add(value.getString(i))
+                            }
+                            list.joinToString(",")
+                        }
+                        else -> value.toString()
+                    }
+                    val cleaned = rawValue.split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .joinToString(",")
+                    editor.putString(key, cleaned)
+                    importedCount++
+                    continue
+                }
                 if (key.startsWith(LightspeedPreferences.KEY_ACTION_BEHAVIOR_PREFIX)) {
                     if (value !is String) {
                         Log.w(TAG, "Ignoring non-string value for action behavior key: $key")
                         continue
                     }
                     val token = key.removePrefix(LightspeedPreferences.KEY_ACTION_BEHAVIOR_PREFIX)
-                    val finalValue = if (token == "system:split_screen" || token == "system:close_app" || token == "system:popup_window" || token == "system:freeform") {
+                    val finalValue = if (token == "system:split_screen" || token == "system:close_app" || token == "system:popup_window" || token == "system:freeform" || ActionMethods.isMethodAction(token)) {
                         val validIds = setOf(
                             ActionMethods.AUTO,
                             ActionMethods.SHIZUKU,
                             ActionMethods.A11Y_ACTION,
                             ActionMethods.RECENTS_CLICK,
                             ActionMethods.RECENTS_DISMISS,
-                            ActionMethods.RECENTS_BUTTON
+                            ActionMethods.RECENTS_BUTTON,
+                            ActionMethods.SCROLL_POSITION,
+                            ActionMethods.SCROLL_PAGE,
+                            ActionMethods.SCROLL_STEP,
+                            ActionMethods.SCROLL_SWIPE
                         )
                         val filtered = value.split(",")
                             .map { it.trim() }
@@ -320,6 +346,10 @@ object LightspeedBackupEngine {
                 }
             }
 
+            if (settingsObject.isNull(LightspeedPreferences.KEY_DECK_STYLE)) {
+                editor.remove(LightspeedPreferences.KEY_DECK_STYLE)
+            }
+
             val success = editor.commit()
             if (!success) {
                 editor.apply()
@@ -366,6 +396,8 @@ object LightspeedBackupEngine {
                 LightspeedPreferences.refreshDeckGlassStyle(context)
                 LightspeedPreferences.refreshDeckBackdropStyle(context)
                 LightspeedPreferences.refreshLiquidGlassConfig(context)
+                BackdropBlurModeManager.init(context)
+                DeckThemeManager.refresh(context)
                 safeReloadPreferences()
             } catch (e: Exception) { logSwallowed(TAG, "importFromJson:323", e) }
             Log.i(TAG, "Imported and committed $importedCount settings entries successfully")

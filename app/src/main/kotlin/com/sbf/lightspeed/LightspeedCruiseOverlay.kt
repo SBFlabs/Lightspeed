@@ -212,6 +212,22 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var totalGridContentHeight = 0f
     internal var viewportScrollOffset = 0f
     internal var activeItem: LightspeedDataBridge.LaunchTarget? = null
+    internal var pinnedMenuApp: LightspeedDataBridge.LaunchTarget? = null
+    internal var pinnedMenuX = 0f
+    internal var pinnedMenuY = 0f
+    internal var pinnedMenuCategoryMode = false
+    internal var isEditModeOpen = false
+    internal var editModeTab = EditModeTab.PAGE
+    internal var editModeCategories = mutableListOf<LightspeedDataBridge.CategoryNode>()
+    internal var stickyPinLongPressRunnable: Runnable? = null
+    internal var stickyPinLongPressFired = false
+    internal var editModeHoldFired = false
+    internal var editModeSavedCategories = listOf<LightspeedDataBridge.CategoryNode>()
+    internal var isEditModePromptOpen = false
+    internal var editModeDragSourceIndex = -1
+    internal var editModeDragTargetIndex = -1
+    internal var editModeDragY = 0f
+    internal var editModeDragRunnable: Runnable? = null
 
     internal val categoryAppsCache = mutableMapOf<String, List<LightspeedDataBridge.LaunchTarget>>()
     internal val categoryGridCache = mutableMapOf<String, List<PlacedItem>>()
@@ -232,7 +248,6 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal val gearAutoRepeatRunnable = object : Runnable {
         override fun run() {
             activeGearSetIndex = (activeGearSetIndex + 1) % totalGearSetsCount
-            com.sbf.lightspeed.system.CockpitGearRepository.persistActiveGearSetIndex(context, activeGearSetIndex, isOpenedFromLeftFlank)
             triggerHardwareHaptic(40, 200)
             invalidate()
             uiHandler.postDelayed(this, 350L)
@@ -241,6 +256,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     internal fun stopGearAutoRepeat() {
         uiHandler.removeCallbacks(gearAutoRepeatRunnable)
+        persistActiveGearSetIndex()
     }
 
     internal fun triggerGearCogHaptic() {
@@ -325,6 +341,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
+        closePinnedAppMenu()
+        closeEditMode()
         stopGearAutoRepeat()
         categoryIconJob?.cancel()
         categoryIconJob = null
@@ -359,6 +377,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
 
     internal fun loadActiveCategoryGrid() {
+        closePinnedAppMenu()
         if (activeCatIndex !in cachedCategories.indices) return
         val targetId = cachedCategories[activeCatIndex].id
         if (targetId == "launcher_settings_virtual_id") {

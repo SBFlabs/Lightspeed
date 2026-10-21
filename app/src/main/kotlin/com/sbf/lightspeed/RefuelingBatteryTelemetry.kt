@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.Text
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import java.util.Locale
 import kotlin.math.*
 
@@ -36,6 +37,7 @@ fun BatteryTelemetryCircle(
     thermalBadgeColor: Color,
     sizeDp: Dp
 ) {
+    val lsColors = LightspeedStyle.colors
     // Fast-charge (>20W) pulsating glow transition
     val infiniteTransition = rememberInfiniteTransition(label = "pulse_glow")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -123,7 +125,7 @@ fun BatteryTelemetryCircle(
                         val tickColor = if (isActive) {
                             if (isPulseActive) dynamicArcColor.copy(alpha = pulseAlpha) else dynamicArcColor
                         } else {
-                            Color.White.copy(alpha = 0.12f)
+                            lsColors.textPrimary.copy(alpha = 0.12f)
                         }
                         val tickWidth = if (isActive) 3.5.dp.toPx() else 2.dp.toPx()
 
@@ -140,7 +142,7 @@ fun BatteryTelemetryCircle(
                 "dual_wings" -> {
                     // Style 3: Symmetrical brackets sweeping upward from bottom (90°) to top (270° / -90°)
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.06f),
+                        color = lsColors.textPrimary.copy(alpha = 0.06f),
                         style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
                     )
                     val halfSweep = (batteryPct / 100f) * 180f
@@ -166,7 +168,7 @@ fun BatteryTelemetryCircle(
                     // Style 4: 240° cockpit sweep (7 to 5 o'clock, 150° to 390°) with micro-graduations
                     // Background track (150° with sweep 240°)
                     drawArc(
-                        color = Color.White.copy(alpha = 0.08f),
+                        color = lsColors.textPrimary.copy(alpha = 0.08f),
                         startAngle = 150f,
                         sweepAngle = 240f,
                         useCenter = false,
@@ -190,7 +192,7 @@ fun BatteryTelemetryCircle(
                         val innerY = center.y + (radius - strokeWidthPx / 2f - 2.dp.toPx() - tLen) * sinVal
 
                         drawLine(
-                            color = Color.White.copy(alpha = if (isMajor) 0.35f else 0.15f),
+                            color = lsColors.textPrimary.copy(alpha = if (isMajor) 0.35f else 0.15f),
                             start = androidx.compose.ui.geometry.Offset(innerX, innerY),
                             end = androidx.compose.ui.geometry.Offset(outerX, outerY),
                             strokeWidth = if (isMajor) 2.dp.toPx() else 1.2.dp.toPx(),
@@ -212,7 +214,7 @@ fun BatteryTelemetryCircle(
                 else -> {
                     // Style 1: "halo" (Default smooth continuous neon arc)
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.06f),
+                        color = lsColors.textPrimary.copy(alpha = 0.06f),
                         style = Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
                     )
                     val sweep = (batteryPct / 100f) * 360f
@@ -238,7 +240,7 @@ fun BatteryTelemetryCircle(
                     text = "$batteryPct",
                     fontSize = if (sizeDp > 160.dp) 44.sp else 36.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = lsColors.textPrimary
                 )
                 Text(
                     text = "%",
@@ -277,7 +279,7 @@ fun BatteryTelemetryCircle(
                 fontSize = if (sizeDp > 160.dp) 10.5.sp else 9.sp,
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 0.8.sp,
-                color = Color.White.copy(alpha = 0.75f),
+                color = lsColors.textPrimary.copy(alpha = 0.75f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
@@ -290,7 +292,7 @@ fun BatteryTelemetryCircle(
                         "Full in ${timeRemainingMinutes}m"
                     },
                     fontSize = 9.5.sp,
-                    color = Color.LightGray.copy(alpha = 0.8f)
+                    color = lsColors.textSecondary.copy(alpha = 0.8f)
                 )
             }
         }

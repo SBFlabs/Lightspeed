@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.*
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import java.util.Calendar
 
 @Composable
@@ -41,6 +42,7 @@ fun HudConfigVaultSection(
     onShowImportOptions: () -> Unit,
     onShowResetConfirm: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     CompactAccordionSection(
         title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SHIP_DATA_VAULT),
         icon = {
@@ -76,7 +78,7 @@ fun HudConfigVaultSection(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                    Text("Export Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                     Text("Save all gesture sets, sliders, physics, and shortcuts to a standalone JSON file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
                 }
             }
@@ -102,10 +104,17 @@ fun HudConfigVaultSection(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                    Text("Import Configuration (JSON)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                     Text("Restore complete settings from a previous Lightspeed backup file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
                 }
             }
+
+            Text(
+                text = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VAULT_IMPORT_WARNING),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
 
             // Reset Card
             Row(
@@ -195,7 +204,8 @@ fun HudExperimentalLabsSection(
     onShowAmoledWarning: () -> Unit = {},
     onRefreshNeeded: () -> Unit
 ) {
-    val cautionAmber = Color(0xFFFFB300)
+    val lsColors = LightspeedStyle.colors
+    val cautionAmber = lsColors.accentWarn
     val currentLanguageMode by com.sbf.lightspeed.system.LightspeedLanguageEngine.modeFlow.collectAsState()
     HazardAccordionSection(
         title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.EXPERIMENTAL_LABS, currentLanguageMode),
@@ -205,11 +215,8 @@ fun HudExperimentalLabsSection(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Maintenance Bay Intro Badge
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = cautionAmber.copy(alpha = 0.08f)),
-                border = BorderStroke(1.dp, cautionAmber.copy(alpha = 0.35f))
+            DeckCard(
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(10.dp),
@@ -290,11 +297,8 @@ fun HudExperimentalLabsSection(
                 if (isCapsuleMasterEnabled) {
                     // OEM Dynamic Notch / Dynamic Bar Advisory Glass Callout
                     if (!isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+                        DeckCard(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                         ) {
                             Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Row(
@@ -313,12 +317,12 @@ fun HudExperimentalLabsSection(
                                             text = "OEM Camera Cutout Conflicts",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White
+                                            color = lsColors.textPrimary
                                         )
                                         Text(
                                             text = "Your device may have $oemFeatureName enabled. Disable it in system settings to prevent overlapping indicators.",
                                             fontSize = 11.sp,
-                                            color = Color.LightGray.copy(alpha = 0.85f),
+                                            color = lsColors.textSecondary.copy(alpha = 0.85f),
                                             lineHeight = 14.sp
                                         )
                                     }
@@ -326,7 +330,7 @@ fun HudExperimentalLabsSection(
                                         onClick = { onOemNoticeDemotedChange(true) },
                                         modifier = Modifier.size(24.dp)
                                     ) {
-                                        Icon(Icons.Outlined.VerticalAlignBottom, contentDescription = "Demote to Footnote", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Outlined.VerticalAlignBottom, contentDescription = "Demote to Footnote", tint = lsColors.textSecondary, modifier = Modifier.size(16.dp))
                                     }
                                 }
                                 Button(
@@ -367,18 +371,13 @@ fun HudExperimentalLabsSection(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(capsuleOrientOptions.firstOrNull { it.first == currentCapsuleOrientMode }?.second ?: "🔄 Both Orientations", color = Color.White, fontSize = 12.sp)
+                                    Text(capsuleOrientOptions.firstOrNull { it.first == currentCapsuleOrientMode }?.second ?: "🔄 Both Orientations", color = lsColors.textPrimary, fontSize = 12.sp)
                                     Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 }
                             }
-                            DropdownMenu(
+                            DeckThemedDropdownMenu(
                                 expanded = isCapsuleOrientDropdownOpen,
-                                onDismissRequest = { isCapsuleOrientDropdownOpen = false },
-                                modifier = Modifier
-                                    .background(Color(0xF012141A))
-                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                shape = RoundedCornerShape(16.dp),
-                                containerColor = Color(0xF012141A)
+                                onDismissRequest = { isCapsuleOrientDropdownOpen = false }
                             ) {
                                 capsuleOrientOptions.forEach { (key, label) ->
                                     DropdownMenuItem(
@@ -418,18 +417,13 @@ fun HudExperimentalLabsSection(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(capsuleOptions.firstOrNull { it.first == currentCapsuleLayout }?.second ?: "Unified Right (Compact)", color = Color.White, fontSize = 12.sp)
+                                    Text(capsuleOptions.firstOrNull { it.first == currentCapsuleLayout }?.second ?: "Unified Right (Compact)", color = lsColors.textPrimary, fontSize = 12.sp)
                                     Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 }
                             }
-                            DropdownMenu(
+                            DeckThemedDropdownMenu(
                                 expanded = isCapsuleDropdownOpen,
-                                onDismissRequest = { isCapsuleDropdownOpen = false },
-                                modifier = Modifier
-                                    .background(Color(0xF012141A))
-                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                                shape = RoundedCornerShape(16.dp),
-                                containerColor = Color(0xF012141A)
+                                onDismissRequest = { isCapsuleDropdownOpen = false }
                             ) {
                                 capsuleOptions.forEach { (key, label) ->
                                     DropdownMenuItem(
@@ -481,11 +475,8 @@ fun HudExperimentalLabsSection(
 
                     // OEM Advisory Footnote (Demoted)
                     if (isOemNoticeDemoted && !oemFeatureName.isNullOrBlank()) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                        DeckCard(
+                            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(10.dp),
@@ -499,7 +490,7 @@ fun HudExperimentalLabsSection(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text("OEM Advisory Footnote: OEM Camera Cutout Conflicts", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f))
-                                        Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.65f), lineHeight = 13.sp)
+                                        Text("Your device may have $oemFeatureName enabled. Tap to manage settings if indicators overlap.", fontSize = 9.5.sp, color = lsColors.textSecondary.copy(alpha = 0.65f), lineHeight = 13.sp)
                                     }
                                     IconButton(
                                         onClick = { onOemNoticeDemotedChange(false) },
@@ -508,19 +499,12 @@ fun HudExperimentalLabsSection(
                                         Icon(Icons.Outlined.VerticalAlignTop, contentDescription = "Move Upward", tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), modifier = Modifier.size(16.dp))
                                     }
                                 }
-                                Button(
+                                DeckButton(
+                                    text = "Settings",
+                                    icon = Icons.Default.Settings,
                                     onClick = { OemNotchDetector.openSearch(context) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
-                                    contentPadding = PaddingValues(vertical = 6.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                        Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Settings", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary)
-                                    }
-                                }
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         }
                     }
@@ -545,11 +529,8 @@ fun HudExperimentalLabsSection(
                 onToggle = onToggleSubPower
             ) {
                 // Emergency Reset Hardware Notice Banner
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                    border = BorderStroke(1.dp, cautionAmber.copy(alpha = 0.3f))
+                DeckCard(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(10.dp),
@@ -565,7 +546,7 @@ fun HudExperimentalLabsSection(
                         Text(
                             text = "Emergency Notice: 10s hardware power hold forces device reset. Disabling Accessibility restores system defaults.",
                             fontSize = 11.sp,
-                            color = Color.LightGray.copy(alpha = 0.85f),
+                            color = lsColors.textSecondary.copy(alpha = 0.85f),
                             lineHeight = 14.sp
                         )
                     }
@@ -608,13 +589,10 @@ fun HudExperimentalLabsSection(
                 val (grabWarnTitle, grabWarnSub) = LightspeedLanguageEngine.resolvePair(
                     LightspeedVocabulary.Key.POWER_GRAB_WARNING, currentLanguageMode
                 )
-                Card(
+                DeckCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 8.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = cautionAmber.copy(alpha = 0.12f)),
-                    border = BorderStroke(1.dp, cautionAmber.copy(alpha = 0.35f))
+                        .padding(top = 4.dp, bottom = 8.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -641,7 +619,7 @@ fun HudExperimentalLabsSection(
                                 Text(
                                     text = grabWarnSub,
                                     fontSize = 10.sp,
-                                    color = Color.LightGray.copy(alpha = 0.85f),
+                                    color = lsColors.textSecondary.copy(alpha = 0.85f),
                                     lineHeight = 13.sp
                                 )
                             }
@@ -706,7 +684,7 @@ fun HudExperimentalLabsSection(
                             text = doublePressTitle,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.5.sp,
-                            color = Color.White,
+                            color = lsColors.textPrimary,
                             modifier = Modifier.weight(1f).padding(end = 8.dp),
                             maxLines = 1
                         )
@@ -883,16 +861,13 @@ fun HudExperimentalLabsSection(
                 }
 
                 // Strict Cold-Start Policy Notice (Strictly Placed Inside Core Cooling at Bottom)
-                Card(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                DeckCard(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                 ) {
                     Text(
                         text = "STRICT COLD-START POLICY: Zero automatic reboots. When weekly cooling cycle is reached, dispatches a silent status reminder to the HUD and Orbital Capsule.",
                         fontSize = 10.5.sp,
-                        color = Color.LightGray.copy(alpha = 0.85f),
+                        color = lsColors.textSecondary.copy(alpha = 0.85f),
                         modifier = Modifier.padding(10.dp),
                         lineHeight = 13.sp
                     )

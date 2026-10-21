@@ -176,6 +176,7 @@ object LightspeedDeckStyleManager {
             .putFloat(LightspeedPreferences.KEY_LIQUID_GLASS_TINT_INTENSITY, config.tintIntensity)
             .apply()
         _liquidGlassConfigFlow.value = config
+        com.sbf.lightspeed.settings.DeckThemeManager.refresh(context)
     }
 
     fun refreshLiquidGlassConfig(context: Context) {

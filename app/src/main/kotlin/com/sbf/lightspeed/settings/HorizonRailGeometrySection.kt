@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
  * Sub-Component: Horizon Rail Geometry & Multi-Rail Stacking.
@@ -130,7 +131,7 @@ fun HorizonRailGeometrySection(
         Text(
             text = "Select which active stream is pinned at the top and displays the typography ticker.",
             fontSize = 11.sp,
-            color = Color.Gray,
+            color = LightspeedStyle.colors.textDisabled,
             lineHeight = 14.sp,
             modifier = Modifier.padding(top = 4.dp)
         )

@@ -53,7 +53,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
 fun MultiWidgetContainer(
@@ -70,15 +72,16 @@ fun MultiWidgetContainer(
     onReconfigureWidget: ((Int) -> Unit)? = null,
     reorderVersion: Int = 0
 ) {
+    val lsColors = LightspeedStyle.colors
     if (widgetIds.isEmpty()) {
         Card(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color.White.copy(alpha = 0.04f))
+                .background(lsColors.textPrimary.copy(alpha = 0.04f))
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f))),
+                    Brush.verticalGradient(listOf(lsColors.textPrimary.copy(alpha = 0.18f), lsColors.textPrimary.copy(alpha = 0.04f))),
                     RoundedCornerShape(20.dp)
                 ),
             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -120,10 +123,10 @@ fun MultiWidgetContainer(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color.White.copy(alpha = 0.04f))
+                .background(lsColors.textPrimary.copy(alpha = 0.04f))
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.04f))),
+                    Brush.verticalGradient(listOf(lsColors.textPrimary.copy(alpha = 0.18f), lsColors.textPrimary.copy(alpha = 0.04f))),
                     RoundedCornerShape(20.dp)
                 ),
             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -215,7 +218,7 @@ fun MultiWidgetContainer(
                                 modifier = Modifier
                                     .size(if (isActive) 12.dp else 5.dp, 5.dp)
                                     .clip(RoundedCornerShape(3.dp))
-                                    .background(if (isActive) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.35f))
+                                    .background(if (isActive) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.35f))
                             )
                         }
                     }
@@ -271,10 +274,10 @@ fun MultiWidgetContainer(
                                     .width(calculatedWidth)
                                     .height(currentHeight.dp)
                                 .clip(RoundedCornerShape(18.dp))
-                                .background(Color.White.copy(alpha = 0.04f))
+                                .background(lsColors.textPrimary.copy(alpha = 0.04f))
                                 .border(
                                     1.dp,
-                                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.15f), Color.White.copy(alpha = 0.03f))),
+                                    Brush.verticalGradient(listOf(lsColors.textPrimary.copy(alpha = 0.15f), lsColors.textPrimary.copy(alpha = 0.03f))),
                                     RoundedCornerShape(18.dp)
                                 ),
                             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -321,7 +324,7 @@ fun MultiWidgetContainer(
                                                     },
                                                     modifier = Modifier.size(18.dp)
                                                 ) {
-                                                    Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                    Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = lsColors.textPrimary, modifier = Modifier.size(11.dp))
                                                 }
                                                 Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
                                                 IconButton(
@@ -332,7 +335,7 @@ fun MultiWidgetContainer(
                                                     },
                                                     modifier = Modifier.size(18.dp)
                                                 ) {
-                                                    Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                    Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = lsColors.textPrimary, modifier = Modifier.size(11.dp))
                                                 }
                                             }
                                             // X Width Row
@@ -348,7 +351,7 @@ fun MultiWidgetContainer(
                                                     },
                                                     modifier = Modifier.size(18.dp)
                                                 ) {
-                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = lsColors.textPrimary, modifier = Modifier.size(11.dp))
                                                 }
                                                 Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
                                                 IconButton(
@@ -359,7 +362,7 @@ fun MultiWidgetContainer(
                                                     },
                                                     modifier = Modifier.size(18.dp)
                                                 ) {
-                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White, modifier = Modifier.size(11.dp))
+                                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Increase Width", tint = lsColors.textPrimary, modifier = Modifier.size(11.dp))
                                                 }
                                             }
                                         }
@@ -379,7 +382,7 @@ fun MultiWidgetContainer(
                                                     val newH = (currentHeight - 20).coerceAtLeast(80)
                                                     prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
                                                     currentHeight = newH
-                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = Color.White) }
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Remove, contentDescription = "Decrease Height", tint = lsColors.textPrimary) }
                                                 
                                                 Text("Y:${currentHeight}", color = Color.Cyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                                 
@@ -387,7 +390,7 @@ fun MultiWidgetContainer(
                                                     val newH = (currentHeight + 20).coerceAtMost(600)
                                                     prefs.edit().putInt("widget_height_${orientationPrefix}_$widgetId", newH).apply()
                                                     currentHeight = newH
-                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = Color.White) }
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.Default.Add, contentDescription = "Increase Height", tint = lsColors.textPrimary) }
                                                 
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 
@@ -396,7 +399,7 @@ fun MultiWidgetContainer(
                                                     val newW = (currentWidthPct - 10).coerceAtLeast(20)
                                                     prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
                                                     currentWidthPct = newW
-                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = Color.White) }
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Decrease Width", tint = lsColors.textPrimary) }
                                                 
                                                 Text("X:${currentWidthPct}%", color = Color.Magenta, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                                 
@@ -404,7 +407,7 @@ fun MultiWidgetContainer(
                                                     val newW = (currentWidthPct + 10).coerceAtMost(100)
                                                     prefs.edit().putInt("widget_width_pct_${orientationPrefix}_$widgetId", newW).apply()
                                                     currentWidthPct = newW
-                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Increase Width", tint = Color.White) }
+                                                }, modifier = Modifier.size(26.dp)) { androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Increase Width", tint = lsColors.textPrimary) }
                                             }
                                         }
                                     }
@@ -440,7 +443,7 @@ fun MultiWidgetContainer(
                             .height(80.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .clickable { onPickWidget() }
-                            .background(Color(0xFF080C14).copy(alpha = 0.6f))
+                            .background(LightspeedTokens.TacticalSurfaceDeepAlt.copy(alpha = 0.6f))
                             .border(
                                 1.dp,
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
@@ -466,7 +469,7 @@ fun MultiWidgetContainer(
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = lsColors.textPrimary
                             )
                         }
                     }

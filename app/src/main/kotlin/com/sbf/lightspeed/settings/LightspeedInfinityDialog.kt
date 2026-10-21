@@ -26,6 +26,8 @@ import androidx.compose.ui.window.Dialog
 import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedInfinityManager
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 /**
  * Lightspeed Infinity Activation & Supporter Dialog.
@@ -38,45 +40,43 @@ fun LightspeedInfinityDialog(
     onDismiss: () -> Unit,
     onUnlocked: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     var codeInput by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isUnlocked by remember { mutableStateOf(LightspeedInfinityManager.isUnlocked(context)) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = Color(0xFF14161C),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.45f)),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+    DeckDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
                 // Header Badge
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("★", fontSize = 18.sp, color = Color(0xFFFFD700))
+                    Text("★", fontSize = 18.sp, color = lsColors.accentGold)
                     Text(
                         "LIGHTSPEED INFINITY",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFD700),
+                        color = lsColors.accentGold,
                         letterSpacing = 1.2.sp
                     )
-                    Text("★", fontSize = 18.sp, color = Color(0xFFFFD700))
+                    Text("★", fontSize = 18.sp, color = lsColors.accentGold)
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = if (isUnlocked) "Flight Deck Unlocked • Lifetime Supporter" else "Support independent development to unlock unlimited decks & tactical themes.",
+                    text = if (isUnlocked) "Flight Deck Unlocked • Lifetime Supporter" else "Support independent development to unlock unlimited decks & all themes.",
                     fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.75f),
+                    color = lsColors.textPrimary.copy(alpha = 0.75f),
                     textAlign = TextAlign.Center
                 )
 
@@ -87,14 +87,14 @@ fun LightspeedInfinityDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.04f))
-                        .border(0.8.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        .background(lsColors.textPrimary.copy(alpha = 0.04f))
+                        .border(0.8.dp, lsColors.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     PerkRow("♾️", "Unlimited Cockpit Gear Sets", "Expand beyond the 2 default flight decks")
-                    PerkRow("🌌", "Obsidian Stealth Theme", "Exclusive tactical deep black AMOLED glass")
-                    PerkRow("🚀", "Independent Development", "100% offline, zero trackers, built for longevity")
+                    PerkRow("🎨", "All Available Themes", "Unlock all current and future optical themes")
+                    PerkRow("🚀", "Independent Craftsman Support", "100% offline, zero trackers, DRM-free honor system")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -106,14 +106,14 @@ fun LightspeedInfinityDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFFFD700).copy(alpha = 0.12f))
-                            .border(1.dp, Color(0xFFFFD700).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .background(lsColors.accentGold.copy(alpha = 0.12f))
+                            .border(1.dp, lsColors.accentGold.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "✓ KEY ACTIVE: $activeKey",
-                            color = Color(0xFFFFD700),
+                            color = lsColors.accentGold,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace
@@ -125,9 +125,9 @@ fun LightspeedInfinityDialog(
                     Button(
                         onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f))
+                        colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.1f))
                     ) {
-                        Text("Close Deck", color = Color.White, fontSize = 12.sp)
+                        Text("Close Deck", color = lsColors.textPrimary, fontSize = 12.sp)
                     }
                 } else {
                     // Locked State: 1-Tap Buy Me a Coffee + Code Entry
@@ -135,7 +135,7 @@ fun LightspeedInfinityDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFFFDD00))
+                            .background(LightspeedTokens.StatusGoldAlt)
                             .clickable {
                                 try {
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/sbflabs/e/579114")).apply {
@@ -171,7 +171,7 @@ fun LightspeedInfinityDialog(
                         "OR ENTER ACTIVATION KEY",
                         fontSize = 9.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = lsColors.textPrimary.copy(alpha = 0.5f),
                         letterSpacing = 1.sp
                     )
 
@@ -189,20 +189,20 @@ fun LightspeedInfinityDialog(
                                 codeInput = it.uppercase()
                                 errorMessage = null
                             },
-                            placeholder = { Text("LSINF-XXXX-YYYY", fontSize = 11.sp, color = Color.Gray) },
+                            placeholder = { Text("LSINF-XXXX-YYYY", fontSize = 11.sp, color = lsColors.textDisabled) },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                             textStyle = androidx.compose.ui.text.TextStyle(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = lsColors.textPrimary
                             ),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFFFFD700),
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                                focusedContainerColor = Color.Black.copy(alpha = 0.3f),
-                                unfocusedContainerColor = Color.Black.copy(alpha = 0.3f)
+                                focusedBorderColor = lsColors.accentGold,
+                                unfocusedBorderColor = lsColors.textPrimary.copy(alpha = 0.2f),
+                                focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f)
                             )
                         )
 
@@ -216,16 +216,16 @@ fun LightspeedInfinityDialog(
                                     errorMessage = null
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
+                            colors = ButtonDefaults.buttonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f)),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                         ) {
-                            Text("Paste", fontSize = 11.sp, color = Color.White)
+                            Text("Paste", fontSize = 11.sp, color = lsColors.textPrimary)
                         }
                     }
 
                     if (errorMessage != null) {
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(errorMessage!!, color = Color(0xFFFF5252), fontSize = 10.5.sp, textAlign = TextAlign.Center)
+                        Text(errorMessage!!, color = lsColors.accentDanger, fontSize = 10.5.sp, textAlign = TextAlign.Center)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -247,19 +247,19 @@ fun LightspeedInfinityDialog(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700).copy(alpha = 0.22f)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.6f))
+                        colors = ButtonDefaults.buttonColors(containerColor = lsColors.accentGold.copy(alpha = 0.22f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, lsColors.accentGold.copy(alpha = 0.6f))
                     ) {
-                        Text("Authorize Key", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Authorize Key", color = lsColors.accentGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
         }
     }
-}
 
 @Composable
 private fun PerkRow(icon: String, title: String, subtitle: String) {
+    val lsColors = LightspeedStyle.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -267,8 +267,8 @@ private fun PerkRow(icon: String, title: String, subtitle: String) {
     ) {
         Text(icon, fontSize = 14.sp)
         Column {
-            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-            Text(subtitle, fontSize = 9.5.sp, color = Color.LightGray.copy(alpha = 0.7f))
+            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+            Text(subtitle, fontSize = 9.5.sp, color = lsColors.textSecondary.copy(alpha = 0.7f))
         }
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
  * Sub-Component: Horizon Rail Colors, Dynamic Palette & Contrast.
@@ -34,6 +35,7 @@ fun HorizonRailStyleSection(
     onToggle: () -> Unit,
     onRefreshNeeded: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     CollapsibleSubSection(
         title = "Horizon Rail Colors & Contrast",
         subtitle = "Cover art dynamic sampling, palette presets & ambient outline",
@@ -73,7 +75,7 @@ fun HorizonRailStyleSection(
                 "#FFFFFF" to "White"
             )
             Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("CUSTOM PALETTE PRESETS", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Color.LightGray)
+                Text("CUSTOM PALETTE PRESETS", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textSecondary)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     presetColors.forEach { (hex, _) ->
                         val col = try { Color(android.graphics.Color.parseColor(hex)) } catch (_: Exception) { Color.Cyan }
@@ -85,7 +87,7 @@ fun HorizonRailStyleSection(
                                 .background(col)
                                 .border(
                                     width = if (isSelected) 2.5.dp else 1.dp,
-                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.3f),
+                                    color = if (isSelected) lsColors.textPrimary else lsColors.textPrimary.copy(alpha = 0.3f),
                                     shape = CircleShape
                                 )
                                 .clickable {
@@ -96,7 +98,7 @@ fun HorizonRailStyleSection(
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSelected) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = if (hex == "#FFFFFF") Color.Black else Color.White, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Check, contentDescription = null, tint = if (hex == "#FFFFFF") Color.Black else lsColors.textPrimary, modifier = Modifier.size(16.dp))
                             }
                         }
                     }

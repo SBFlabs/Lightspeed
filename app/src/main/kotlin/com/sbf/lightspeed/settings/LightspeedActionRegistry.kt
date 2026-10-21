@@ -54,6 +54,7 @@ object LightspeedActionRegistry {
         "system:notifications",
         "system:quick_settings",
         "system:scroll_to_top",
+        "system:scroll_to_bottom",
         "system:auto_rotate_toggle",
         "system:gravity_reset",
         "system:gravity_override_portrait",
@@ -284,6 +285,7 @@ object LightspeedActionRegistry {
         "system:battery_whitelist", "system:battery_exemption", "battery_exemption", "ACTION_BATTERY_EXEMPTION" -> "system:battery_exemption"
         "ACTION_CLOSE_APP", "close_app"                        -> "system:close_app"
         "ACTION_SCROLL_TO_TOP", "scroll_to_top"                -> "system:scroll_to_top"
+        "ACTION_SCROLL_TO_BOTTOM", "scroll_to_bottom"          -> "system:scroll_to_bottom"
         "ACTION_HOME", "home"                                  -> "system:home"
         "ACTION_BACK", "back"                                  -> "system:back"
         "ACTION_RECENTS", "recents"                            -> "system:recents"
@@ -395,6 +397,7 @@ fun resolveDynamicTokenLabel(context: Context, token: String): String {
         token == "system:notifications" -> "Notification Shade"
         token == "system:quick_settings" -> "Quick Settings"
         token == "system:scroll_to_top" -> "Scroll to Top"
+        token == "system:scroll_to_bottom" -> "Scroll to Bottom"
         token == "system:auto_rotate_toggle" || token == "system:toggle_auto_rotate" || token == "system:gravity_toggle_master" || token == "ACTION_GRAVITY_TOGGLE_MASTER" || token == "system:orientation_toggle" || token == "ACTION_TOGGLE_ROTATION" -> {
             val behavior = LightspeedPreferences.getActionBehavior(context, "system:auto_rotate_toggle")
             when (behavior) {

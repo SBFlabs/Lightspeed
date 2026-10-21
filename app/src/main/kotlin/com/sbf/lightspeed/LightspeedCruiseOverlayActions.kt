@@ -103,6 +103,7 @@ fun LightspeedCruiseOverlay.handleFlankTouchEvent(isLeft: Boolean, event: Motion
 }
 
 fun LightspeedCruiseOverlay.openHangarDirectly(setIndex: Int = -1) {
+    com.sbf.lightspeed.system.CockpitGearRepository.prewarmGearCache(context)
     uiHandler.removeCallbacks(neutralToCategoryRunnable)
     uiHandler.removeCallbacks(holdTimerRunnable)
     categoryScrubbingEngaged = false
@@ -120,6 +121,7 @@ fun LightspeedCruiseOverlay.openHangarDirectly(setIndex: Int = -1) {
 }
 
 fun LightspeedCruiseOverlay.openHangarFromFlank(isLeftFlank: Boolean) {
+    com.sbf.lightspeed.system.CockpitGearRepository.prewarmGearCache(context)
     uiHandler.removeCallbacks(neutralToCategoryRunnable)
     uiHandler.removeCallbacks(holdTimerRunnable)
     categoryScrubbingEngaged = false

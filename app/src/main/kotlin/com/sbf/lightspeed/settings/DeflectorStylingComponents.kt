@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
 fun DeflectorPillStylingContent(
@@ -29,6 +30,7 @@ fun DeflectorPillStylingContent(
     isLeft: Boolean,
     onRefreshNeeded: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var glowEnabled by remember {
         mutableStateOf(
             if (isLeft) LightspeedPreferences.isLeftDeflectorGlowEnabled(context)
@@ -68,7 +70,7 @@ fun DeflectorPillStylingContent(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                Text("Central Pill Active Glow", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                Text("Central Pill Active Glow", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                 Text(
                     if (glowEnabled) "Tactile static bezel indicator active" else "Pill hidden / dormant",
                     fontSize = 12.sp,
@@ -86,12 +88,12 @@ fun DeflectorPillStylingContent(
                     onRefreshNeeded()
                 },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
+                    checkedThumbColor = lsColors.textPrimary,
                     checkedTrackColor = MaterialTheme.colorScheme.primary,
                     checkedBorderColor = Color.Transparent,
-                    uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                    uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                    uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                    uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
+                    uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
+                    uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
                 )
             )
         }
@@ -121,7 +123,7 @@ fun DeflectorPillStylingContent(
         }
 
         if (glowEnabled) {
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             val pillOptions1 = listOf(
                 "anchored_glow" to "Anchored",
@@ -135,7 +137,7 @@ fun DeflectorPillStylingContent(
             )
             
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Pill Geometry Style", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text("Pill Geometry Style", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     pillOptions1.forEach { (id, label) ->
                         val isSelected = pillStyle == id
@@ -216,7 +218,7 @@ fun DeflectorPillStylingContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                    Text("Material 3 Dynamic Color", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                    Text("Material 3 Dynamic Color", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                     Text(
                         if (useM3Color) "Tints pill with dynamic wallpaper theme color" else "Use custom aesthetic shading palette",
                         fontSize = 12.sp,
@@ -233,12 +235,12 @@ fun DeflectorPillStylingContent(
                         onRefreshNeeded()
                     },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
+                        checkedThumbColor = lsColors.textPrimary,
                         checkedTrackColor = MaterialTheme.colorScheme.primary,
                         checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                        uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
+                        uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
+                        uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
                     )
                 )
             }
@@ -250,7 +252,7 @@ fun DeflectorPillStylingContent(
                         "Pill Aesthetic Style",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -337,7 +339,7 @@ fun DeflectorPillStylingContent(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                    Text("Glow on Gesture Registration", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
+                    Text("Glow on Gesture Registration", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = lsColors.textPrimary)
                     Text(
                         "Briefly pulse pill when gesture recognition begins",
                         fontSize = 12.sp,
@@ -353,12 +355,12 @@ fun DeflectorPillStylingContent(
                         onRefreshNeeded()
                     },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
+                        checkedThumbColor = lsColors.textPrimary,
                         checkedTrackColor = MaterialTheme.colorScheme.primary,
                         checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                        uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
+                        uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
+                        uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
                     )
                 )
             }

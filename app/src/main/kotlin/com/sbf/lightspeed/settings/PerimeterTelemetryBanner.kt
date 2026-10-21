@@ -3,6 +3,7 @@ package com.sbf.lightspeed.settings
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 @Composable
 fun PerimeterShizukuBanner(
@@ -32,16 +35,17 @@ fun PerimeterShizukuBanner(
     successGreen: Color,
     cautionAmber: Color
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    val lsColors = LightspeedStyle.colors
+    DeckCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                1.dp,
+                if (isShizukuActive) successGreen.copy(alpha = 0.4f) else cautionAmber.copy(alpha = 0.4f),
+                RoundedCornerShape(12.dp)
+            ),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isShizukuActive) successGreen.copy(alpha = 0.12f) else cautionAmber.copy(alpha = 0.12f)
-        ),
-        border = BorderStroke(
-            1.dp,
-            if (isShizukuActive) successGreen.copy(alpha = 0.4f) else cautionAmber.copy(alpha = 0.4f)
-        )
+        tint = if (isShizukuActive) successGreen.copy(alpha = 0.12f) else cautionAmber.copy(alpha = 0.12f)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(10.dp),
@@ -66,7 +70,7 @@ fun PerimeterShizukuBanner(
                 Text(
                     text = if (isShizukuActive) "Sub-100ms instant toggles armed without settings page" else "Standby. Toggles will launch system settings page",
                     fontSize = 9.5.sp,
-                    color = Color.LightGray.copy(alpha = 0.75f),
+                    color = lsColors.textSecondary.copy(alpha = 0.75f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -88,11 +92,12 @@ fun PerimeterTelemetrySummaryCard(
     onRefreshNeeded: () -> Unit,
     onOpenExemptionDeck: () -> Unit = {}
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    val lsColors = LightspeedStyle.colors
+    DeckCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, lsColors.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(12.dp)),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -102,16 +107,16 @@ fun PerimeterTelemetrySummaryCard(
                 Surface(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color.White.copy(alpha = 0.05f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    color = lsColors.textPrimary.copy(alpha = 0.05f),
+                    border = BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.12f))
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("TOTAL", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text("$totalCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                        Text("TOTAL", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text("$totalCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary, maxLines = 1)
                     }
                 }
 
@@ -126,7 +131,7 @@ fun PerimeterTelemetrySummaryCard(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("ACTIVE", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text("ACTIVE", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text("$activeCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = successGreen, maxLines = 1)
                     }
                 }
@@ -142,7 +147,7 @@ fun PerimeterTelemetrySummaryCard(
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("SHIELDED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text("SHIELDED", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text("$shieldedCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, maxLines = 1)
                     }
                 }
@@ -150,16 +155,16 @@ fun PerimeterTelemetrySummaryCard(
                 Surface(
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFFD54F).copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, Color(0xFFFFD54F).copy(alpha = 0.35f))
+                    color = LightspeedTokens.StatusGold.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, LightspeedTokens.StatusGold.copy(alpha = 0.35f))
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 5.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("PINNED", fontSize = 8.5.sp, color = Color.LightGray, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                        Text("$pinnedCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFD54F), maxLines = 1)
+                        Text("PINNED", fontSize = 8.5.sp, color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text("$pinnedCount", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LightspeedTokens.StatusGold, maxLines = 1)
                     }
                 }
             }
@@ -199,13 +204,13 @@ fun PerimeterTelemetrySummaryCard(
                     },
                     modifier = Modifier.weight(1f).height(36.dp),
                     shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, lsColors.accentInfo.copy(alpha = 0.6f)),
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(13.dp))
+                        Icon(Icons.Default.BatteryChargingFull, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(13.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Exempt More Apps", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = Color(0xFF00E5FF), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Exempt More Apps", fontWeight = FontWeight.Bold, fontSize = 10.5.sp, color = lsColors.accentInfo, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

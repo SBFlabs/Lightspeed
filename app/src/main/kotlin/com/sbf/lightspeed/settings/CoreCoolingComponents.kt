@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 @Composable
 fun CoreCoolingRotarySchedulePicker(
@@ -23,6 +25,7 @@ fun CoreCoolingRotarySchedulePicker(
     selectedHour: Int,
     onScheduleChanged: (day: Int, hour: Int) -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     val daysList = remember {
         listOf(
             Pair(java.util.Calendar.MONDAY, "Monday"),
@@ -56,7 +59,7 @@ fun CoreCoolingRotarySchedulePicker(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.35f))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
+            .border(1.dp, lsColors.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(16.dp))
             .padding(12.dp)
     ) {
         Row(
@@ -90,6 +93,7 @@ fun CoreCoolingRotarySchedulePicker(
 fun CoreCoolingTripleLockButton(
     onExecuteReboot: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var lockState by remember { mutableIntStateOf(0) } // 0: Idle, 1: Are you sure?, 2: Are you sure sure?
 
     // 5-second inactivity auto-reset timer
@@ -101,9 +105,9 @@ fun CoreCoolingTripleLockButton(
     }
 
     val buttonColor = when (lockState) {
-        1 -> Color(0xFFFFB300) // Amber
-        2 -> Color(0xFFFF3D00) // Red
-        else -> Color(0xFF00E5FF) // Electric Blue
+        1 -> lsColors.accentWarn // Amber
+        2 -> LightspeedTokens.StatusDanger // Red
+        else -> lsColors.accentInfo // Electric Blue
     }
 
     val buttonText = when (lockState) {

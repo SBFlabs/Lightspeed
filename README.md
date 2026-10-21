@@ -1,4 +1,4 @@
-▶️ **[Watch the Lightspeed showcase on YouTube](https://youtube.com/playlist?list=PLR50weqNuCd4)**
+▶️ **[Watch the Lightspeed showcase on YouTube](https://www.youtube.com/@SBFlabs)**
 
 # 🚀 Lightspeed
 

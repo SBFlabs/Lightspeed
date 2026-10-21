@@ -1,24 +1,20 @@
 package com.sbf.lightspeed.settings
 
-import com.sbf.lightspeed.system.safeReloadPreferences
-
-import androidx.compose.ui.text.style.TextAlign
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.style.TextAlign
+import com.sbf.lightspeed.system.safeReloadPreferences
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -28,8 +24,7 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedPreferences
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Security
-
-
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 @Composable
 fun UnifyFlankActionsCard(
@@ -37,11 +32,9 @@ fun UnifyFlankActionsCard(
     onToggle: (Boolean) -> Unit,
     onInfoClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    val lsColors = LightspeedStyle.colors
+    DeckCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -52,7 +45,7 @@ fun UnifyFlankActionsCard(
             Icon(
                 Icons.Default.Link,
                 contentDescription = null,
-                tint = if (isUnified) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f),
+                tint = if (isUnified) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.6f),
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
@@ -61,7 +54,7 @@ fun UnifyFlankActionsCard(
                     "Unify Upper & Lower Actions",
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.5.sp,
-                    color = Color.White
+                    color = lsColors.textPrimary
                 )
                 Text(
                     if (isUnified) "Single unified gesture set • Dual scrubbers active" else "Independent upper & lower gesture sets",
@@ -85,12 +78,12 @@ fun UnifyFlankActionsCard(
                 checked = isUnified,
                 onCheckedChange = { onToggle(it) },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
+                    checkedThumbColor = lsColors.textPrimary,
                     checkedTrackColor = MaterialTheme.colorScheme.primary,
                     checkedBorderColor = Color.Transparent,
-                    uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                    uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                    uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                    uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
+                    uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
+                    uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
                 )
             )
         }
@@ -105,18 +98,9 @@ fun DeflectorMasterCard(
     startupMode: String,
     onStartupModeChange: (String) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isEnabled) MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
-            else MaterialTheme.colorScheme.surface.copy(alpha = 0.2f)
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-            else Color.White.copy(alpha = 0.08f)
-        )
+    val lsColors = LightspeedStyle.colors
+    DeckCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
@@ -134,14 +118,14 @@ fun DeflectorMasterCard(
                         .clip(CircleShape)
                         .background(
                             if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                            else Color.White.copy(alpha = 0.08f)
+                            else lsColors.textPrimary.copy(alpha = 0.08f)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isEnabled) Icons.Default.Shield else Icons.Default.Security,
                         contentDescription = null,
-                        tint = if (isEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.5f),
+                        tint = if (isEnabled) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.5f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -152,24 +136,24 @@ fun DeflectorMasterCard(
                             flankName,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.5.sp,
-                            color = Color.White
+                            color = lsColors.textPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isEnabled) Color(0xFF00E676).copy(alpha = 0.18f)
-                            else Color.White.copy(alpha = 0.1f),
+                            color = if (isEnabled) lsColors.accentOk.copy(alpha = 0.18f)
+                            else lsColors.textPrimary.copy(alpha = 0.1f),
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isEnabled) Color(0xFF00E676).copy(alpha = 0.45f)
-                                else Color.White.copy(alpha = 0.2f)
+                                if (isEnabled) lsColors.accentOk.copy(alpha = 0.45f)
+                                else lsColors.textPrimary.copy(alpha = 0.2f)
                             )
                         ) {
                             Text(
                                 text = if (isEnabled) "ACTIVE" else "OFF",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
-                                color = if (isEnabled) Color(0xFF00E676) else Color.White.copy(alpha = 0.6f),
+                                color = if (isEnabled) lsColors.accentOk else lsColors.textPrimary.copy(alpha = 0.6f),
                                 letterSpacing = 0.5.sp,
                                 maxLines = 1,
                                 softWrap = false,
@@ -187,18 +171,18 @@ fun DeflectorMasterCard(
                     checked = isEnabled,
                     onCheckedChange = { onToggle(it) },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
+                        checkedThumbColor = lsColors.textPrimary,
                         checkedTrackColor = MaterialTheme.colorScheme.primary,
                         checkedBorderColor = Color.Transparent,
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                        uncheckedBorderColor = Color.White.copy(alpha = 0.25f)
+                        uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
+                        uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f),
+                        uncheckedBorderColor = lsColors.textPrimary.copy(alpha = 0.25f)
                     )
                 )
             }
 
             // Startup state preference block (Full width description with selectable chips underneath)
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -208,7 +192,7 @@ fun DeflectorMasterCard(
                     "Startup Default State",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = lsColors.textPrimary
                 )
                 Text(
                     if (startupMode == "standby_by_default")
@@ -273,15 +257,13 @@ fun DeflectorLandscapeGeometryCard(
     prefs: SharedPreferences,
     onRefreshNeeded: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var landscapeMode by remember {
         mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE, LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM) ?: LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM)
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.35f)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+    DeckCard(
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
@@ -313,7 +295,7 @@ fun DeflectorLandscapeGeometryCard(
                         "Landscape Deflector Geometry",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.5.sp,
-                        color = Color.White
+                        color = lsColors.textPrimary
                     )
                     Text(
                         when (landscapeMode) {
@@ -368,7 +350,7 @@ fun DeflectorLandscapeGeometryCard(
 
             if (landscapeMode == LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM) {
                 val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-                HorizontalDivider(color = Color.White.copy(alpha = 0.08f), thickness = 0.8.dp)
+                HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
@@ -390,7 +372,7 @@ fun DeflectorLandscapeGeometryCard(
                                 "Core Astrogation & Deflector geometry sliders below calibrate PORTRAIT dimensions. Rotate your device to Landscape to calibrate landscape dimensions directly."
                             },
                             fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = lsColors.textPrimary.copy(alpha = 0.85f),
                             lineHeight = 15.sp
                         )
                     }

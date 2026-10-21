@@ -33,6 +33,7 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextOverflow
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 
 
@@ -51,6 +52,7 @@ fun PowerGestureMappingRow(
     labelCache: Map<String, String>,
     onRefreshNeeded: () -> Unit
 ) {
+    val lsColors = LightspeedStyle.colors
     var currentValue by remember {
         mutableStateOf(
             if (isSinglePress && !isSinglePressUnlocked) "none"
@@ -97,7 +99,7 @@ fun PowerGestureMappingRow(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (isLocked) 0.15f else 0.35f),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isLocked) Color.Gray.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+            if (isLocked) lsColors.textDisabled.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
         )
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
@@ -114,10 +116,10 @@ fun PowerGestureMappingRow(
                     Surface(
                         modifier = Modifier.wrapContentWidth(),
                         shape = RoundedCornerShape(8.dp),
-                        color = (if (isLocked) Color.Gray else MaterialTheme.colorScheme.primary).copy(alpha = 0.16f),
+                        color = (if (isLocked) lsColors.textDisabled else MaterialTheme.colorScheme.primary).copy(alpha = 0.16f),
                         border = androidx.compose.foundation.BorderStroke(
                             1.dp,
-                            (if (isLocked) Color.Gray else MaterialTheme.colorScheme.primary).copy(alpha = 0.5f)
+                            (if (isLocked) lsColors.textDisabled else MaterialTheme.colorScheme.primary).copy(alpha = 0.5f)
                         )
                     ) {
                         Row(
@@ -128,7 +130,7 @@ fun PowerGestureMappingRow(
                             Icon(
                                 imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.PowerSettingsNew,
                                 contentDescription = null,
-                                tint = if (isLocked) Color.LightGray else MaterialTheme.colorScheme.primary,
+                                tint = if (isLocked) lsColors.textSecondary else MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(15.dp)
                             )
                             when (slot) {
@@ -138,7 +140,7 @@ fun PowerGestureMappingRow(
                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 11.sp,
-                                        color = if (isLocked) Color.LightGray else MaterialTheme.colorScheme.primary
+                                        color = if (isLocked) lsColors.textSecondary else MaterialTheme.colorScheme.primary
                                     )
                                 }
                                 com.sbf.lightspeed.system.PowerTriggerSlot.POWER_DOUBLE_PRESS -> {
@@ -183,7 +185,7 @@ fun PowerGestureMappingRow(
                             text = title,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
-                            color = if (isLocked) Color.LightGray else Color.White
+                            color = if (isLocked) lsColors.textSecondary else lsColors.textPrimary
                         )
                         if (isLocked) {
                             Surface(
@@ -207,7 +209,7 @@ fun PowerGestureMappingRow(
                             Text(
                                 text = "Native OS Interlock (Tap 7× to unlock override)",
                                 fontSize = 10.5.sp,
-                                color = Color.Gray,
+                                color = lsColors.textDisabled,
                                 maxLines = 1
                             )
                         } else {
@@ -259,14 +261,9 @@ fun PowerGestureMappingRow(
                             }
                         }
 
-                        DropdownMenu(
+                        DeckThemedDropdownMenu(
                             expanded = isToolsDropdownOpen,
-                            onDismissRequest = { isToolsDropdownOpen = false },
-                            modifier = Modifier
-                                .background(Color(0xF012141A))
-                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp)),
-                            shape = RoundedCornerShape(16.dp),
-                            containerColor = Color(0xF012141A)
+                            onDismissRequest = { isToolsDropdownOpen = false }
                         ) {
                             DropdownMenuItem(
                                 modifier = Modifier.heightIn(min = 48.dp),
@@ -274,11 +271,11 @@ fun PowerGestureMappingRow(
                                     Icon(
                                         imageVector = Icons.Default.PowerSettingsNew,
                                         contentDescription = null,
-                                        tint = Color.LightGray,
+                                        tint = lsColors.textSecondary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 },
-                                text = { Text("None (Native / Sleep)", fontWeight = FontWeight.Normal, fontSize = 12.5.sp, color = Color.LightGray) },
+                                text = { Text("None (Native / Sleep)", fontWeight = FontWeight.Normal, fontSize = 12.5.sp, color = lsColors.textSecondary) },
                                 onClick = {
                                     isToolsDropdownOpen = false
                                     currentValue = "none"
@@ -288,7 +285,7 @@ fun PowerGestureMappingRow(
                                 }
                             )
 
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color(0x33FFFFFF))
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = lsColors.borderSubtle)
 
                             var currentCategory = ""
                             installedTools.forEach { tool ->
@@ -328,7 +325,7 @@ fun PowerGestureMappingRow(
                                         Icon(
                                             imageVector = icon,
                                             contentDescription = null,
-                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else lsColors.textSecondary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     },
@@ -337,7 +334,7 @@ fun PowerGestureMappingRow(
                                             text = tool.label,
                                             fontSize = 12.5.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else lsColors.textPrimary
                                         )
                                     },
                                     onClick = {

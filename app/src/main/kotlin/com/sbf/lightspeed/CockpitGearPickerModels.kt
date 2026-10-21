@@ -141,7 +141,7 @@ fun buildFlatItemsList(
                 Triple(
                     "sys_hw",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.HARDWARE_CONTROLS),
-                    listOf("system:flashlight", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top")
+                    listOf("system:flashlight", "system:screenshot", "system:lock_screen", "system:notifications", "system:quick_settings", "system:scroll_to_top", "system:scroll_to_bottom")
                 ),
                 Triple(
                     "sys_media",
@@ -241,10 +241,20 @@ fun buildFlatItemsList(
                                     val options = com.sbf.lightspeed.system.ActionMethods.options(token)
                                     options.forEach { opt ->
                                         val isEnabled = com.sbf.lightspeed.system.ActionMethods.isOptionEnabled(opt.id)
-                                        val subtitle = if (!isEnabled && opt.id == com.sbf.lightspeed.system.ActionMethods.SHIZUKU) {
+                                        val baseSubtitle = if (!isEnabled && opt.id == com.sbf.lightspeed.system.ActionMethods.SHIZUKU) {
                                             "Off in Accessibility Service only mode"
                                         } else {
                                             opt.subtitle
+                                        }
+                                        val assignedCount = com.sbf.lightspeed.system.ActionMethods.getMethodApps(context, token, opt.id).size
+                                        val subtitle = if (assignedCount > 0) {
+                                            if (baseSubtitle.isNotEmpty()) "$baseSubtitle • $assignedCount app(s) assigned"
+                                            else "$assignedCount app(s) assigned"
+                                        } else if (isEnabled) {
+                                            if (baseSubtitle.isNotEmpty()) "$baseSubtitle • Long press to assign apps"
+                                            else "Long press to assign apps"
+                                        } else {
+                                            baseSubtitle
                                         }
                                         list.add(
                                             PickerRowItem.SystemCustomizationOption(

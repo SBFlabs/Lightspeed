@@ -2,6 +2,7 @@ package com.sbf.lightspeed.system
 
 import android.content.ComponentName
 import android.content.Context
+import com.sbf.lightspeed.LightspeedAccessibilityService
 import android.content.Intent
 import android.graphics.Rect
 import android.os.Build
@@ -25,30 +26,92 @@ internal object PopupLauncher {
         launchInPopup(context, style)
     }
 
-    fun launchInPopup(context: Context, style: String = LightspeedPreferences.POPUP_STYLE_NATIVE) {
-        Log.w(TAG, "launchInPopup() invoked with style: $style")
+    fun launchInPopup(context: Context, style: String = context.defaultPrefs().getString(
+        LightspeedPreferences.KEY_POPUP_STYLE,
+        LightspeedPreferences.POPUP_STYLE_NATIVE
+    ) ?: LightspeedPreferences.POPUP_STYLE_NATIVE) {
+        executePopup(context, style, null)
+    }
+
+    fun launchAppInPopup(
+        context: Context,
+        component: String,
+        style: String = context.defaultPrefs().getString(
+            LightspeedPreferences.KEY_POPUP_STYLE,
+            LightspeedPreferences.POPUP_STYLE_NATIVE
+        ) ?: LightspeedPreferences.POPUP_STYLE_NATIVE,
+        allowRecents: Boolean = true
+    ) {
+        executePopup(context, style, component, allowRecents)
+    }
+
+    private fun executePopup(
+        context: Context,
+        style: String,
+        component: String?,
+        allowRecents: Boolean = true
+    ) {
+        Log.w(TAG, "executePopup() invoked for component=$component with style: $style allowRecents=$allowRecents")
         ElevatedTaskCloser.exemptHiddenApis()
 
         // Run all Shizuku/shell work off the main thread
         ElevatedTaskCloser.executor.execute {
-            val taskInfo = ElevatedTaskCloser.getTopForegroundTaskInfo(context)
-            val targetTaskId = taskInfo.taskId
-            val targetPkg = taskInfo.packageName
-            val topComponent = taskInfo.componentName
+            val targetTaskId: Int?
+            val targetPkg: String?
+            val topComponent: String?
 
-            if (targetTaskId == null && targetPkg == null && topComponent == null) {
-                Log.w(TAG, "No foreground task found to launch in Pop-up view")
-                PopupDiagnostics.recordLastResult("launchInPopup", "No foreground task detected")
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "Pop-up failed: no active app found", Toast.LENGTH_SHORT).show()
+            if (component != null) {
+                targetTaskId = null
+                targetPkg = if (component.contains("/")) {
+                    component.substringBefore("/")
+                } else {
+                    component
                 }
-                return@execute
+                topComponent = if (component.contains("/")) {
+                    component
+                } else {
+                    context.packageManager.getLaunchIntentForPackage(targetPkg)?.component?.flattenToString()
+                }
+
+                if (targetPkg.isBlank()) {
+                    Log.w(TAG, "No package specified to launch in Pop-up view")
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Pop-up failed: invalid app", Toast.LENGTH_SHORT).show()
+                    }
+                    return@execute
+                }
+            } else {
+                val taskInfo = ElevatedTaskCloser.getTopForegroundTaskInfo(context)
+                targetTaskId = taskInfo.taskId
+                targetPkg = taskInfo.packageName
+                topComponent = taskInfo.componentName
+
+                if (targetTaskId == null && targetPkg == null && topComponent == null) {
+                    Log.w(TAG, "No foreground task found to launch in Pop-up view")
+                    PopupDiagnostics.recordLastResult("launchInPopup", "No foreground task detected")
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Pop-up failed: no active app found", Toast.LENGTH_SHORT).show()
+                    }
+                    return@execute
+                }
             }
 
-            val methods = ActionMethods.getSelected(context, "system:popup_window")
+            val frontPkg = targetPkg ?: LightspeedAccessibilityService.lastAppPackage
+            val assignedMethods = if (!frontPkg.isNullOrBlank()) {
+                ActionMethods.getAssignedMethodsForApp(context, "system:popup_window", frontPkg)
+            } else {
+                emptySet()
+            }
+            val methods = if (!allowRecents) {
+                setOf(ActionMethods.AUTO)
+            } else if (assignedMethods.isNotEmpty()) {
+                assignedMethods
+            } else {
+                ActionMethods.getSelected(context, "system:popup_window")
+            }
             val auto = ActionMethods.AUTO in methods
             val a11yOnly = ShizukuGate.isAccessibilityOnly()
-            val useRecentsButton = (auto && a11yOnly) || (ActionMethods.RECENTS_BUTTON in methods && !(ActionMethods.SHIZUKU in methods && ElevatedTaskCloser.isShizukuActive))
+            val useRecentsButton = allowRecents && ((auto && a11yOnly) || (ActionMethods.RECENTS_BUTTON in methods && !(ActionMethods.SHIZUKU in methods && ElevatedTaskCloser.isShizukuActive)))
             Log.w(TAG, "popup methods=$methods useRecentsButton=$useRecentsButton")
 
             if (useRecentsButton && !targetPkg.isNullOrBlank()) {
@@ -71,28 +134,29 @@ internal object PopupLauncher {
                 return@execute
             }
 
-            if (style == LightspeedPreferences.POPUP_STYLE_OEM) {
-                val oemResult = executeOemPopup(context, targetTaskId, targetPkg, topComponent)
-                if (oemResult.success) {
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
-                    }
-                } else {
-                    Log.w(TAG, "OEM Pop-up failed or unverified (${oemResult.step}); falling back to Native")
-                    PopupDiagnostics.recordLastResult(
-                        "launchInPopup:oem",
-                        "OEM unverified (${oemResult.step}), falling back to native"
-                    )
-                    val nativeResult = executeNativePopup(context, targetTaskId, targetPkg, topComponent)
-                    Handler(Looper.getMainLooper()).post {
-                        if (nativeResult.success) {
-                            Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Pop-up failed: ${nativeResult.step}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+            dispatchPopup(context, style, targetTaskId, targetPkg, topComponent)
+        }
+    }
+
+    private fun dispatchPopup(
+        context: Context,
+        style: String,
+        targetTaskId: Int?,
+        targetPkg: String?,
+        topComponent: String?
+    ) {
+        if (style == LightspeedPreferences.POPUP_STYLE_OEM) {
+            val oemResult = executeOemPopup(context, targetTaskId, targetPkg, topComponent)
+            if (oemResult.success) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
                 }
             } else {
+                Log.w(TAG, "OEM Pop-up failed or unverified (${oemResult.step}); falling back to Native")
+                PopupDiagnostics.recordLastResult(
+                    "launchInPopup:oem",
+                    "OEM unverified (${oemResult.step}), falling back to native"
+                )
                 val nativeResult = executeNativePopup(context, targetTaskId, targetPkg, topComponent)
                 Handler(Looper.getMainLooper()).post {
                     if (nativeResult.success) {
@@ -100,6 +164,15 @@ internal object PopupLauncher {
                     } else {
                         Toast.makeText(context, "Pop-up failed: ${nativeResult.step}", Toast.LENGTH_SHORT).show()
                     }
+                }
+            }
+        } else {
+            val nativeResult = executeNativePopup(context, targetTaskId, targetPkg, topComponent)
+            Handler(Looper.getMainLooper()).post {
+                if (nativeResult.success) {
+                    Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Pop-up failed: ${nativeResult.step}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

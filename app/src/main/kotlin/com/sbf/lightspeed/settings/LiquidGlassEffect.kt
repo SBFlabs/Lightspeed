@@ -136,7 +136,7 @@ fun rememberLiquidGlassConfig(context: Context = LocalContext.current): LiquidGl
 }
 
 /**
- * LiquidGlassPanel — 100% Material 3 dynamic color compliant liquid glass renderer.
+ * LiquidGlassPanel — 100% Material 3 dynamic color compliant Prism renderer.
  * Draws physical glass phenomena: progressive depth diffusion, meniscus crest, specular
  * apex glare, prismatic Material edge dispersion, and tactile micro-frosted texture.
  */

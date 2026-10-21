@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlin.math.abs
 
 /**
@@ -252,7 +253,7 @@ fun AppWidgetContainerView(
             Box(modifier = modifier, contentAlignment = Alignment.Center) {
                 Text(
                     text = "Widget Unavailable (ID: $widgetId)",
-                    color = Color.LightGray.copy(alpha = 0.6f),
+                    color = LightspeedStyle.colors.textSecondary.copy(alpha = 0.6f),
                     fontSize = 11.5.sp
                 )
             }

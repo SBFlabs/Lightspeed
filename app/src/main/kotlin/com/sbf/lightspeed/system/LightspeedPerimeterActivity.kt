@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.sbf.lightspeed.overrideZeroTransition
 import com.sbf.lightspeed.settings.PerimeterServicesDeckDialog
+import com.sbf.lightspeed.ui.theme.DeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 class LightspeedPerimeterActivity : ComponentActivity() {
@@ -16,23 +17,33 @@ class LightspeedPerimeterActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.setDimAmount(0.65f)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
 
         setContent {
             LightspeedTheme(forceDark = true) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    PerimeterServicesDeckDialog(
-                        context = this@LightspeedPerimeterActivity,
-                        prefs = defaultPrefs(),
-                        onDismiss = {
-                            finish()
-                        },
-                        onRefreshNeeded = {}
-                    )
+                DeckTheme {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PerimeterServicesDeckDialog(
+                            context = this@LightspeedPerimeterActivity,
+                            prefs = defaultPrefs(),
+                            onDismiss = {
+                                finish()
+                            },
+                            onRefreshNeeded = {}
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (com.sbf.lightspeed.settings.CentralCommandBackdropBlur.backdropBitmap == null) {
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
         }
     }
 

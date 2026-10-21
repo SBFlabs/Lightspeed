@@ -83,6 +83,7 @@ object LightspeedVocabulary {
         TACTICAL_HARDWARE,
 
         POWER_GRAB_WARNING,
+        VAULT_IMPORT_WARNING,
         FLIGHT_BLACKBOX,
 
         // Call Deflector Mode
@@ -146,6 +147,7 @@ object LightspeedVocabulary {
         Key.TELEMETRY_AND_INDICATORS to "Info Beacons",
         Key.TACTICAL_HARDWARE       to "Hull & Ship Maneuvers",
         Key.POWER_GRAB_WARNING      to "Experimental module: with grab active, power key may fail to wake dormant display on certain hardware. If encountered, disengage grab or wake via biometric sensor or power supply.",
+        Key.VAULT_IMPORT_WARNING    to "Only import files you exported yourself. Lightspeed has powerful access to your phone, and a settings file from someone else could change what it does.",
         Key.FLIGHT_BLACKBOX         to "Flight Blackbox",
 
         Key.CALL_DEFLECTOR_MODE_TITLE       to "Comms Channel Deflector Protocol",
@@ -208,6 +210,7 @@ object LightspeedVocabulary {
         Key.TELEMETRY_AND_INDICATORS to "Telemetry",
         Key.TACTICAL_HARDWARE       to "Hardware Gestures",
         Key.POWER_GRAB_WARNING      to "This feature is experimental: with grab ON, the power button may not wake a screen that is off on some devices. If that happens, turn grab OFF or wake the phone with the fingerprint sensor or by plugging in a charger.",
+        Key.VAULT_IMPORT_WARNING    to "Only import files you exported yourself. Lightspeed has powerful access to your phone, and a settings file from someone else could change what it does.",
         Key.FLIGHT_BLACKBOX         to "Diagnostics & Crash Logs",
 
         Key.CALL_DEFLECTOR_MODE_TITLE       to "Gesture Sidebars During Calls",

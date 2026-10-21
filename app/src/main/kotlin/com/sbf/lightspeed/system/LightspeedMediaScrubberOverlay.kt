@@ -9,7 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 
 /**
- * Interactive Liquid Glass Media Timeline Scrubber Floating HUD Overlay.
+ * Interactive Prism Media Timeline Scrubber Floating HUD Overlay.
  *
  * Provides real-time touch timeline scrubbing across the active media session,
  * displaying track title, artist, live position / duration, and glowing seek pip with haptic feedback.
@@ -269,7 +269,7 @@ class LightspeedMediaScrubberOverlay(
             val g = Color.green(primaryColor)
             val b = Color.blue(primaryColor)
 
-            // 1. Frosted Liquid Glass Backplane — cached shader
+            // 1. Frosted Prism Backplane — cached shader
             val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, primaryColor)
             if (glassKey != mediaGlassKey) {
                 mediaGlassShader = LinearGradient(
@@ -288,7 +288,7 @@ class LightspeedMediaScrubberOverlay(
                 canvas.drawPath(path, it)
             }
 
-            // 2. Liquid Glass Refractive Rim — cached shader
+            // 2. Prism Refractive Rim — cached shader
             val rimKey = gradKey4f(rect.left, rect.top, rect.right, rect.bottom, primaryColor)
             if (rimKey != mediaRimKey) {
                 mediaRimShader = LinearGradient(

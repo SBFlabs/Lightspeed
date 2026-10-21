@@ -1,77 +1,109 @@
 package com.sbf.lightspeed
 
-import com.sbf.lightspeed.system.logSwallowed
-import com.sbf.lightspeed.system.safeReloadPreferences
-
-import android.app.Activity
-import android.content.Context
 import android.content.Intent
-import android.content.pm.LauncherApps
-import android.graphics.Bitmap
-import android.graphics.Canvas
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.IntentCompat
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.sbf.lightspeed.settings.AttitudeAppAssignmentSheet
+import com.sbf.lightspeed.settings.BackdropBlurMode
+import com.sbf.lightspeed.settings.BackdropBlurModeManager
+import com.sbf.lightspeed.settings.CentralCommandActivity
+import com.sbf.lightspeed.settings.CentralCommandBackdropBlur
+import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
-import com.sbf.lightspeed.settings.resolveDynamicTokenLabel
-import com.sbf.lightspeed.system.ActionDispatcher
-import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedIconManager
-import com.sbf.lightspeed.system.LightspeedOrientationEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedShortcutManager
-import com.sbf.lightspeed.system.PopupDiagnostics
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
+import androidx.compose.runtime.CompositionLocalProvider
+import com.sbf.lightspeed.ui.theme.CockpitPalette
+import com.sbf.lightspeed.ui.theme.LocalDomainPalette
+import java.util.function.Consumer
 
 class CockpitGearPickerActivity : ComponentActivity() {
+    private var crossWindowBlurListener: Consumer<Boolean>? = null
+
+    internal fun applyWindowBlur(): Int {
+        val snapshot = DeckThemeManager.getSnapshot(this)
+        val hasFallbackBackdrop = CentralCommandBackdropBlur.backdropBitmap != null
+        val blurMode = BackdropBlurModeManager.getMode(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val nativeSupported = BackdropBlurModeManager.isNativeBlurSupported(windowManager)
+            val useNative = BackdropBlurModeManager.shouldUseNativeBlur(windowManager, blurMode)
+            val useScreenshot = BackdropBlurModeManager.shouldUseScreenshotBlur(windowManager, blurMode)
+
+            CentralCommandActivity.updateCrossWindowBlurState(nativeSupported && blurMode != BackdropBlurMode.SCREENSHOT)
+            val targetRadius = if (useNative) {
+                snapshot.windowBlurRadiusPx.coerceIn(0, 150)
+            } else {
+                0
+            }
+            if (useNative) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                val lp = window.attributes
+                lp.blurBehindRadius = targetRadius
+                window.attributes = lp
+                window.setDimAmount(snapshot.dimAmount)
+            } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                val lp = window.attributes
+                lp.blurBehindRadius = 0
+                window.attributes = lp
+                window.setDimAmount(if (useScreenshot && hasFallbackBackdrop) 0f else snapshot.dimAmount)
+            }
+            return targetRadius
+        } else {
+            CentralCommandActivity.updateCrossWindowBlurState(false)
+            window.setDimAmount(snapshot.dimAmount)
+            return 0
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (CentralCommandBackdropBlur.backdropBitmap == null) {
+            CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
+        }
+        applyWindowBlur()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            applyWindowBlur()
+        }
+    }
+
     override fun finish() {
-        finishAndRemoveTask()
+        if (isTaskRoot) {
+            finishAndRemoveTask()
+        }
         super.finish()
         overrideZeroTransition()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        com.sbf.lightspeed.system.LightspeedIconManager.temporaryPickerCache.clear()
-        com.sbf.lightspeed.system.LightspeedShortcutManager.temporaryPickerCache.clear()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            crossWindowBlurListener?.let { listener ->
+                try {
+                    windowManager.removeCrossWindowBlurEnabledListener(listener)
+                } catch (e: Exception) {
+                    logSwallowed("CockpitGearPickerActivity", "removeCrossWindowBlurEnabledListener", e)
+                }
+            }
+            crossWindowBlurListener = null
+        }
+        LightspeedIconManager.temporaryPickerCache.clear()
+        LightspeedShortcutManager.temporaryPickerCache.clear()
         val setId = intent.getStringExtra("SET_ID")
         val isSingleSelect = !intent.getStringExtra("SINGLE_SELECT_PREF_KEY").isNullOrBlank()
         if (!isSingleSelect && !setId.isNullOrBlank()) {
@@ -82,12 +114,32 @@ class CockpitGearPickerActivity : ComponentActivity() {
                 } catch (e: Exception) { logSwallowed("CockpitGearPickerActivity", "onDestroy:81", e) }
             }
         }
+        if (isTaskRoot) {
+            CentralCommandBackdropBlur.onWindowHidden(isChangingConfigurations)
+        }
     }
 
-    @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        if (CentralCommandBackdropBlur.backdropBitmap == null) {
+            CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val listener = Consumer<Boolean> { enabled ->
+                CentralCommandActivity.updateCrossWindowBlurState(enabled)
+                applyWindowBlur()
+            }
+            crossWindowBlurListener = listener
+            try {
+                windowManager.addCrossWindowBlurEnabledListener(listener)
+            } catch (e: Exception) {
+                logSwallowed("CockpitGearPickerActivity", "addCrossWindowBlurEnabledListener", e)
+            }
+        }
+        applyWindowBlur()
 
         val singleSelectPrefKey = intent.getStringExtra("SINGLE_SELECT_PREF_KEY")
         val singleSelectTitle = intent.getStringExtra("SINGLE_SELECT_TITLE") ?: "Select Action"
@@ -114,7 +166,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
         val dynamicPrimary = Color(primaryAccent)
         val dynamicSecondary = Color(secondaryAccent)
 
-        com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
+        LightspeedIconManager.clearCache()
         LightspeedActionRegistry.iconBitmapCache.clear()
         LightspeedActionRegistry.initializeSync(this)
 
@@ -137,1050 +189,31 @@ class CockpitGearPickerActivity : ComponentActivity() {
         }
 
         setContent {
+            val shortcutConfigLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult()
+            ) { /* Handled in ScreenContent */ }
+
             LightspeedTheme(forceDark = true) {
-                val context: Context = this@CockpitGearPickerActivity
-                var searchQuery by remember { mutableStateOf("") }
-                val selectedTokens = remember { mutableStateListOf<String>().apply { addAll(initialItems) } }
-                val allSysCategories = listOf("collapsed:sys_nav", "collapsed:sys_hw", "collapsed:sys_media", "collapsed:sys_tactical", "collapsed:sys_orient", "collapsed:sys_scrub")
-                var systemAccordionMode by remember { mutableStateOf(prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SYSTEM_ACCORDION_MODE, "expanded") ?: "expanded") }
-                var expandedSubsections by remember {
-                    mutableStateOf(
-                        if (systemAccordionMode == "remember") {
-                            prefs.getStringSet(com.sbf.lightspeed.system.LightspeedPreferences.KEY_EXPANDED_SUBSECTIONS, emptySet()) ?: emptySet()
-                        } else if (systemAccordionMode == "collapsed") {
-                            allSysCategories.toSet()
-                        } else {
-                            emptySet()
-                        }
+                CompositionLocalProvider(LocalDomainPalette provides CockpitPalette) {
+                    CockpitGearPickerScreenContent(
+                        activity = this@CockpitGearPickerActivity,
+                        prefs = prefs,
+                        setId = setId,
+                        ringIndex = ringIndex,
+                        singleSelectPrefKey = singleSelectPrefKey,
+                        singleSelectTitle = singleSelectTitle,
+                        isSingleSelect = isSingleSelect,
+                        isSplitMode = isSplitMode,
+                        isHoldGesture = isHoldGesture,
+                        initialItems = initialItems,
+                        dynamicPrimary = dynamicPrimary,
+                        dynamicSecondary = dynamicSecondary,
+                        shortcutConfigLauncher = shortcutConfigLauncher,
+                        onApplyWindowBlur = { applyWindowBlur() },
+                        onFinish = { finish() }
                     )
                 }
-
-                LaunchedEffect(expandedSubsections, systemAccordionMode) {
-                    if (systemAccordionMode == "remember") {
-                        prefs.edit().putStringSet(com.sbf.lightspeed.system.LightspeedPreferences.KEY_EXPANDED_SUBSECTIONS, expandedSubsections).apply()
-                    }
-                }
-                val listState = rememberLazyListState()
-                val coroutineScope = rememberCoroutineScope()
-                var sideBarHeight by remember { mutableStateOf(1f) }
-                var isDragging by remember { mutableStateOf(false) }
-var showHud by remember { mutableStateOf(false) }
-                var hudLetter by remember { mutableStateOf("") }
-                var pinnedApps by remember {
-                    mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_PICKER_PINNED_APPS, emptySet()) ?: emptySet())
-                }
-                var pendingPinApp by remember { mutableStateOf<Pair<String, String>?>(null) }
-                var pendingDeepActivitySubKey by remember { mutableStateOf<String?>(null) }
-                var showDeepActivityWarning by remember { mutableStateOf(false) }
-                var hudStyleVersion by remember { mutableStateOf(0) }
-                var showSystemAccordionPrefsDialog by remember { mutableStateOf(false) }
-                var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
-
-                fun handleTokenSelection(token: String) {
-                    if (isSingleSelect) {
-                        prefs.edit().putString(singleSelectPrefKey, token).apply()
-                        safeReloadPreferences()
-                        setResult(Activity.RESULT_OK, Intent().putExtra("SELECTED_TOKEN", token))
-                        finish()
-                    } else {
-                        if (selectedTokens.contains(token)) selectedTokens.remove(token)
-                        else selectedTokens.add(token)
-                    }
-                }
-
-                LaunchedEffect(Unit) {
-                    LightspeedActionRegistry.ensureIndexed(this@CockpitGearPickerActivity)
-                }
-
-                val allTokens = LightspeedActionRegistry.allTokens
-                val labelCache = LightspeedActionRegistry.labelCache
-
-                val shortcutConfigLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.StartActivityForResult()
-                ) { result ->
-                    val data = result.data
-                    if (data != null && result.resultCode == Activity.RESULT_OK) {
-                        val generatedToken = extractShortcutToken(data)
-                        if (generatedToken.isNotBlank()) {
-                            handleTokenSelection(generatedToken)
-                        }
-                    }
-                }
-
-                // Build hierarchical items list
-                val flatItemsList by remember(allTokens.size, labelCache.size, searchQuery, expandedSubsections, hudStyleVersion, isSplitMode) {
-                    derivedStateOf {
-                        val rawList = buildFlatItemsList(
-                            allTokens = allTokens,
-                            labelCache = labelCache,
-                            searchQuery = searchQuery,
-                            expandedSubsections = expandedSubsections,
-                            pinnedApps = pinnedApps,
-                            prefs = prefs,
-                            singleSelectPrefKey = singleSelectPrefKey,
-                            isHoldOrScrubGesture = isHoldGesture,
-                            context = this@CockpitGearPickerActivity
-                        )
-                        if (isSplitMode) {
-                            filterForSplitMode(rawList)
-                        } else {
-                            rawList
-                        }
-                    }
-                }
-
-                val letterIndices = remember(flatItemsList) {
-                    val map = mutableMapOf<Char, Int>()
-                    flatItemsList.forEachIndexed { index, item ->
-                        if (item is PickerRowItem.AppHeader && !item.isPinned) {
-                            val firstChar = item.appName.firstOrNull()?.uppercaseChar() ?: '#'
-                            val targetKey = if (firstChar in 'A'..'Z') firstChar else '#'
-                            if (!map.containsKey(targetKey)) map[targetKey] = index
-                        }
-                    }
-                    map
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.65f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth(0.95f)
-                            .fillMaxHeight(0.90f)
-                            .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(24.dp)),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0E0E14).copy(alpha = 0.95f))
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                            val rawName = defaultPrefs().getString("gear_set_${setId}_name", "") ?: ""
-                            val sName = if (rawName.isEmpty() || rawName in listOf("SET A", "SET B", "SET C", "SET D", "SET")) {
-                                when(setId) {
-                                    "0" -> "POWER USER ANDROID"
-                                    "1" -> "MY APP STORES"
-                                    "2" -> "UTILITIES SECTOR"
-                                    "3" -> "ENTERTAINMENT DECK"
-                                    else -> "CUSTOM SET"
-                                }
-                            } else rawName
-
-                            // Header Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = if (isSingleSelect) singleSelectTitle else "Assign to Gear ${ringIndex + 1} (${if (ringIndex == 0) "Outer" else "Inner"})",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = if (isSingleSelect) {
-                                            if (isSplitMode) "Tap any app or shortcut" else "Tap any app, deep shortcut or system action to assign"
-                                        } else "Profile: $sName (${selectedTokens.size} selected)",
-                                        fontSize = 12.sp,
-                                        color = dynamicSecondary
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { finish() },
-                                    modifier = Modifier.size(32.dp).background(Color.White.copy(alpha = 0.08f), CircleShape)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
-                                }
-                            }
-
-                            // Search Field
-                            TextField(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                placeholder = { Text("Search apps, shortcuts & actions...", color = Color.White.copy(alpha = 0.45f), fontSize = 13.sp) },
-                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp)) },
-                                trailingIcon = {
-                                    if (searchQuery.isNotEmpty()) {
-                                        IconButton(onClick = { searchQuery = "" }) {
-                                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-                                },
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    disabledIndicatorColor = Color.Transparent
-                                ),
-                                shape = RoundedCornerShape(16.dp),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                singleLine = true
-                            )
-
-                            // None / Clear action row (single-select only)
-                            if (isSingleSelect && searchQuery.isBlank() && !isSplitMode) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 8.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(if (selectedTokens.isEmpty() || selectedTokens.contains("none")) dynamicPrimary.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.04f))
-                                        .border(1.dp, if (selectedTokens.isEmpty() || selectedTokens.contains("none")) dynamicPrimary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                        .clickable { handleTokenSelection("none") }
-                                        .padding(horizontal = 12.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = null, tint = Color(0xFFFF6B6B), modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text("None (No Action)", color = Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Clear and disable action for this gesture", color = Color.LightGray.copy(alpha = 0.5f), fontSize = 10.5.sp)
-                                    }
-                                    if (selectedTokens.isEmpty() || selectedTokens.contains("none")) {
-                                        Box(
-                                            modifier = Modifier.background(dynamicPrimary, CircleShape).padding(horizontal = 8.dp, vertical = 3.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text("ACTIVE", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Sticky Advisory Warning Banner
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFB300).copy(alpha = 0.12f)),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.35f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(imageVector = Icons.Default.WarningAmber, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = "Deep activities bypass standard app entry points and may produce unpredictable results.", fontSize = 11.sp, color = Color(0xFFFFE082), lineHeight = 14.sp)
-                                }
-                            }
-
-                            // Selected Tokens Reorder Tray
-                            if (!isSingleSelect && selectedTokens.isNotEmpty()) {
-                                Text(
-                                    text = "RING COG ORDER (${selectedTokens.size} PAYLOADS) — TAP ◀ ▶ TO SHIFT:",
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = dynamicSecondary,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
-                                androidx.compose.foundation.lazy.LazyRow(
-                                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    items(selectedTokens.size, key = { idx -> "selected_${idx}_${selectedTokens[idx]}" }) { idx ->
-                                        val token = selectedTokens[idx]
-                                        val label = LightspeedShortcutManager.resolveLabel(this@CockpitGearPickerActivity, token)
-                                        val iconBmp by produceState<Bitmap?>(initialValue = LightspeedIconManager.temporaryPickerCache[token], token) {
-                                            if (value == null) {
-                                                withContext(Dispatchers.IO) {
-                                                    value = LightspeedShortcutManager.resolveIconBitmap(this@CockpitGearPickerActivity, token, useCache = false)
-                                                }
-                                            }
-                                        }
-                                        val isFirst = (idx == 0)
-                                        val isLast = (idx == selectedTokens.size - 1)
-
-                                        Row(
-                                            modifier = Modifier
-                                                .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
-                                                .border(1.dp, dynamicPrimary.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                                .padding(horizontal = 6.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            if (selectedTokens.size > 1) {
-                                                IconButton(
-                                                    onClick = {
-                                                        if (!isFirst) {
-                                                            val temp = selectedTokens[idx]
-                                                            selectedTokens[idx] = selectedTokens[idx - 1]
-                                                            selectedTokens[idx - 1] = temp
-                                                        }
-                                                    },
-                                                    enabled = !isFirst,
-                                                    modifier = Modifier.size(22.dp)
-                                                ) {
-                                                    Text("◀", fontSize = 10.sp, color = if (!isFirst) dynamicSecondary else Color.Gray.copy(alpha = 0.3f), fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-
-                                            if (iconBmp != null) {
-                                                androidx.compose.foundation.Image(
-                                                    bitmap = iconBmp!!.asImageBitmap(),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp).padding(end = 4.dp)
-                                                )
-                                            } else {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(16.dp)
-                                                        .padding(end = 4.dp)
-                                                        .background(Color.White.copy(alpha = 0.10f), RoundedCornerShape(3.dp))
-                                                )
-                                            }
-
-                                            Text(
-                                                text = "${idx + 1}. ${label.take(13)}",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White,
-                                                modifier = Modifier.padding(horizontal = 4.dp)
-                                            )
-
-                                            if (selectedTokens.size > 1) {
-                                                IconButton(
-                                                    onClick = {
-                                                        if (!isLast) {
-                                                            val temp = selectedTokens[idx]
-                                                            selectedTokens[idx] = selectedTokens[idx + 1]
-                                                            selectedTokens[idx + 1] = temp
-                                                        }
-                                                    },
-                                                    enabled = !isLast,
-                                                    modifier = Modifier.size(22.dp)
-                                                ) {
-                                                    Text("▶", fontSize = 10.sp, color = if (!isLast) dynamicSecondary else Color.Gray.copy(alpha = 0.3f), fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-
-                                            IconButton(
-                                                onClick = { selectedTokens.removeAt(idx) },
-                                                modifier = Modifier.size(22.dp)
-                                            ) {
-                                                Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color(0xFFFF6B6B), modifier = Modifier.size(13.dp))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Main List + A-Z Scrubber
-                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                                Row(modifier = Modifier.fillMaxSize()) {
-                                    LazyColumn(
-                                        state = listState,
-                                        modifier = Modifier.weight(1f).fillMaxHeight()
-                                    ) {
-                                        items(items = flatItemsList, key = { it.key }) { item ->
-                                            when (item) {
-                                                is PickerRowItem.SystemHeader -> PickerSystemHeaderRow(
-                                                    item = item,
-                                                    dynamicSecondary = dynamicSecondary,
-                                                    onClick = {
-                                                        val sysKey = "category:system"
-                                                        expandedSubsections = if (item.isExpanded) expandedSubsections - sysKey else expandedSubsections + sysKey
-                                                    },
-                                                    onToggleAll = {
-                                                        val areAllCollapsed = allSysCategories.all { expandedSubsections.contains(it) }
-                                                        expandedSubsections = if (areAllCollapsed) {
-                                                            expandedSubsections - allSysCategories.toSet()
-                                                        } else {
-                                                            expandedSubsections + allSysCategories.toSet()
-                                                        }
-                                                    },
-                                                    onToggleAllLongClick = {
-                                                        showSystemAccordionPrefsDialog = true
-                                                    }
-                                                )
-                                                is PickerRowItem.SystemCategoryHeader -> PickerSystemCategoryHeaderRow(
-                                                    item = item,
-                                                    dynamicPrimary = dynamicPrimary,
-                                                    onClick = {
-                                                        val collapseKey = "collapsed:${item.categoryKey}"
-                                                        expandedSubsections = if (item.isExpanded) expandedSubsections + collapseKey else expandedSubsections - collapseKey
-                                                    }
-                                                )
-                                                is PickerRowItem.SystemAction -> PickerSystemActionRow(
-                                                    item = item,
-                                                    isChecked = selectedTokens.contains(item.token),
-                                                    dynamicPrimary = dynamicPrimary,
-                                                    dynamicSecondary = dynamicSecondary,
-                                                    onSelect = { handleTokenSelection(item.token) },
-                                                    onCustomizeToggle = {
-                                                        val customKey = "customization:${item.token}"
-                                                        expandedSubsections = if (item.isExpanded) expandedSubsections - customKey else expandedSubsections + customKey
-                                                    }
-                                                )
-                                                is PickerRowItem.SystemCustomizationSlider -> PickerCustomizationSliderRow(
-                                                    item = item,
-                                                    dynamicSecondary = dynamicSecondary,
-                                                    onValueChange = { newVal ->
-                                                        when (item.prefKey) {
-                                                            LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION -> {
-                                                                val resVal = kotlin.math.round(newVal).toInt().coerceIn(10, 254)
-                                                                val stepVal = (255f / resVal).toInt().coerceIn(1, 32)
-                                                                prefs.edit()
-                                                                    .putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, resVal)
-                                                                    .putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, stepVal)
-                                                                    .apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION -> {
-                                                                val resVal = kotlin.math.round(newVal).toInt().coerceIn(5, 100)
-                                                                val stepVal = (100f / resVal).roundToInt().coerceIn(1, 20)
-                                                                prefs.edit()
-                                                                    .putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, resVal)
-                                                                    .putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, stepVal)
-                                                                    .apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            LightspeedPreferences.KEY_VOLUME_SCRUB_STEP -> {
-                                                                val volVal = kotlin.math.round(newVal).toInt().coerceIn(1, 25)
-                                                                prefs.edit()
-                                                                    .putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, volVal)
-                                                                    .apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                            else -> {
-                                                                prefs.edit().putFloat(item.prefKey, newVal).apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            }
-                                                        }
-                                                    }
-                                                )
-                                                is PickerRowItem.SystemCustomizationOption -> {
-                                                    if (item.optionKey.startsWith("popup_style:")) {
-                                                        PickerPopupStyleOptionRow(
-                                                            item = item,
-                                                            dynamicSecondary = dynamicSecondary,
-                                                            onClick = {
-                                                                val style = item.optionKey.removePrefix("popup_style:")
-                                                                prefs.edit().putString(LightspeedPreferences.KEY_POPUP_STYLE, style).apply()
-                                                                safeReloadPreferences()
-                                                                hudStyleVersion++
-                                                            },
-                                                            onLongClick = {
-                                                                PopupDiagnostics.copyToClipboard(this@CockpitGearPickerActivity)
-                                                            }
-                                                        )
-                                                    } else {
-                                                        PickerCustomizationOptionRow(
-                                                            item = item,
-                                                            dynamicSecondary = dynamicSecondary,
-                                                            onClick = {
-                                                                when {
-                                                                    item.optionKey.startsWith("action_method:") -> {
-                                                                        val parts = item.optionKey.split(":")
-                                                                        if (parts.size >= 4) {
-                                                                            val parentToken = "${parts[1]}:${parts[2]}"
-                                                                            val methodId = parts[3]
-                                                                            if (com.sbf.lightspeed.system.ActionMethods.isOptionEnabled(methodId)) {
-                                                                                com.sbf.lightspeed.system.ActionMethods.toggle(this@CockpitGearPickerActivity, parentToken, methodId)
-                                                                                LightspeedActionRegistry.labelCache[parentToken] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, parentToken)
-                                                                                safeReloadPreferences()
-                                                                                hudStyleVersion++
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    item.optionKey.startsWith("action_behavior:") -> {
-                                                                        val parts = item.optionKey.split(":")
-                                                                        if (parts.size >= 4) {
-                                                                            val parentToken = "${parts[1]}:${parts[2]}"
-                                                                            val behavior = parts[3]
-                                                                            LightspeedPreferences.setActionBehavior(this@CockpitGearPickerActivity, parentToken, behavior)
-                                                                            LightspeedActionRegistry.labelCache[parentToken] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, parentToken)
-                                                                            safeReloadPreferences()
-                                                                            hudStyleVersion++
-                                                                        }
-                                                                    }
-                                                                    item.optionKey.startsWith("gravity_bucket_assign:") -> {
-                                                                        val bucketName = item.optionKey.removePrefix("gravity_bucket_assign:")
-                                                                        val isGravityEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SYNTHETIC_GRAVITY_ENABLED, false)
-                                                                        if (!isGravityEnabled) {
-                                                                            android.widget.Toast.makeText(this@CockpitGearPickerActivity, "Synthetic Gravity Engine is disabled", android.widget.Toast.LENGTH_SHORT).show()
-                                                                        } else {
-                                                                            val bucket = runCatching { LightspeedOrientationEngine.AttitudeBucket.valueOf(bucketName) }.getOrNull()
-                                                                            if (bucket != null) {
-                                                                                selectedAttitudeBucketForAppPicker = bucket
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                    item.parentToken == "system:media_skip_forward" || item.parentToken == "system:media_skip_backward" -> {
-                                                                        val sec = item.optionKey.toIntOrNull() ?: 10
-                                                                        LightspeedPreferences.setMediaSkipSeconds(prefs, forward = (item.parentToken == "system:media_skip_forward"), sec = sec)
-                                                                        LightspeedActionRegistry.labelCache["system:media_skip_forward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_forward")
-                                                                        LightspeedActionRegistry.labelCache["system:media_skip_backward"] = resolveDynamicTokenLabel(this@CockpitGearPickerActivity, "system:media_skip_backward")
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    item.optionKey.startsWith("brightness_hud_toggle:") -> {
-                                                                        val enabled = item.optionKey.endsWith(":on")
-                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_BRIGHTNESS_ENABLED, enabled).apply()
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    item.optionKey.startsWith("volume_hud_toggle:") -> {
-                                                                        val enabled = item.optionKey.endsWith(":on")
-                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, enabled).apply()
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    item.optionKey.startsWith("volume_native_slider:") -> {
-                                                                        val enabled = item.optionKey.endsWith(":on")
-                                                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_VOLUME_SHOW_NATIVE_SLIDER, enabled).apply()
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    item.optionKey.startsWith("popup_style:") -> {
-                                                                        val style = item.optionKey.removePrefix("popup_style:")
-                                                                        prefs.edit().putString(LightspeedPreferences.KEY_POPUP_STYLE, style).apply()
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    item.optionKey.startsWith("brightness_step:") -> {
-                                                                        val step = item.optionKey.removePrefix("brightness_step:").toIntOrNull() ?: 8
-                                                                        prefs.edit().putInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, step).apply()
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    item.optionKey.startsWith("volume_step:") -> {
-                                                                        val step = item.optionKey.removePrefix("volume_step:").toIntOrNull() ?: 1
-                                                                        prefs.edit().putInt(LightspeedPreferences.KEY_VOLUME_SCRUB_STEP, step).apply()
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    item.optionKey.startsWith("hud_style:") -> {
-                                                                        val style = item.optionKey.removePrefix("hud_style:")
-                                                                        LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                    else -> {
-                                                                        val style = item.optionKey
-                                                                        LightspeedPreferences.saveHudStyle(prefs, singleSelectPrefKey, item.parentToken, style)
-                                                                        safeReloadPreferences()
-                                                                        hudStyleVersion++
-                                                                    }
-                                                                }
-                                                            }
-                                                        )
-                                                    }
-                                                }
-                                                is PickerRowItem.AppHeader -> PickerAppHeaderRow(
-                                                    item = item,
-                                                    isAppSelected = selectedTokens.contains(item.appToken),
-                                                    context = context,
-                                                    dynamicPrimary = dynamicPrimary,
-                                                    dynamicSecondary = dynamicSecondary,
-                                                    onSelect = { handleTokenSelection(item.appToken) },
-                                                    onLongClick = { pendingPinApp = Pair(item.packageName, item.appName) },
-                                                    onExpandToggle = {
-                                                        val appKey = "app:${item.packageName}"
-                                                        expandedSubsections = if (item.isExpanded) expandedSubsections - appKey else expandedSubsections + appKey
-                                                    }
-                                                )
-                                                is PickerRowItem.SubHeader -> PickerSubHeaderRow(
-                                                    item = item,
-                                                    dynamicSecondary = dynamicSecondary,
-                                                    onClick = {
-                                                        val isDeepActivitiesHeader = item.subKey.endsWith("|DeepActivities")
-                                                        if (isDeepActivitiesHeader && !item.isExpanded) {
-                                                            val isSuppressed = prefs.getBoolean(LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, false)
-                                                            if (!isSuppressed) {
-                                                                pendingDeepActivitySubKey = item.subKey
-                                                                showDeepActivityWarning = true
-                                                                return@PickerSubHeaderRow
-                                                            }
-                                                        }
-                                                        expandedSubsections = if (item.isExpanded) expandedSubsections - item.subKey else expandedSubsections + item.subKey
-                                                    }
-                                                )
-                                                is PickerRowItem.ShortcutAction -> PickerShortcutActionRow(
-                                                    item = item,
-                                                    isChecked = selectedTokens.contains(item.token),
-                                                    context = context,
-                                                    dynamicPrimary = dynamicPrimary,
-                                                    onSelect = { handleTokenSelection(item.token) },
-                                                    onLaunchWizard = {
-                                                        val pkg = item.token.substringAfter(";pkg=").substringBefore(";")
-                                                        val act = item.token.substringAfter(";activity=").substringBefore(";")
-                                                        val intent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
-                                                            setClassName(pkg, act)
-                                                        }
-                                                        shortcutConfigLauncher.launch(intent)
-                                                    },
-                                                    onLongClick = {
-                                                        if (!item.isPlugin) {
-                                                            LightspeedHapticEngine.click(this@CockpitGearPickerActivity)
-                                                            ActionDispatcher.execute(applicationContext, item.token)
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    // A-Z Scrubber Sidebar
-                                    var currentDragY by remember { mutableStateOf(0f) }
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxHeight()
-                                            .width(32.dp)
-                                            .padding(start = 6.dp)
-                                            .onGloballyPositioned { sideBarHeight = it.size.height.toFloat().coerceAtLeast(1f) }
-                                            .pointerInput(flatItemsList) {
-                                                awaitPointerEventScope {
-                                                    while (true) {
-                                                        val down = awaitFirstDown(requireUnconsumed = false)
-                                                        var hasDragged = false
-                                                        var initialY = down.position.y
-                                                        showHud = true
-
-                                                        fun calculateInterpolatedIndex(yPos: Float) {
-                                                            if (flatItemsList.isEmpty()) return
-                                                            val letterArray = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray()
-                                                            val letterRatio = (yPos / sideBarHeight).coerceIn(0f, 0.999f)
-                                                            val fractionalIndex = letterRatio * letterArray.size
-                                                            val letterIndex = fractionalIndex.toInt()
-                                                            val fractionWithinLetter = fractionalIndex - letterIndex
-
-                                                            var startListIdx = -1
-                                                            var searchStart = letterIndex
-                                                            while (searchStart >= 0) {
-                                                                val l = letterArray[searchStart]
-                                                                if (letterIndices.containsKey(l)) {
-                                                                    startListIdx = letterIndices[l]!!
-                                                                    break
-                                                                }
-                                                                searchStart--
-                                                            }
-                                                            if (startListIdx == -1) startListIdx = 0
-
-                                                            var endListIdx = -1
-                                                            var searchEnd = letterIndex + 1
-                                                            while (searchEnd < letterArray.size) {
-                                                                val l = letterArray[searchEnd]
-                                                                if (letterIndices.containsKey(l)) {
-                                                                    endListIdx = letterIndices[l]!!
-                                                                    break
-                                                                }
-                                                                searchEnd++
-                                                            }
-                                                            if (endListIdx == -1) endListIdx = flatItemsList.size - 1
-
-                                                            val finalFloatIdx = startListIdx + (fractionWithinLetter * (endListIdx - startListIdx))
-                                                            val finalListIdx = finalFloatIdx.toInt().coerceIn(0, flatItemsList.size - 1)
-
-                                                            coroutineScope.launch { listState.scrollToItem(finalListIdx) }
-
-                                                            val item = flatItemsList[finalListIdx]
-                                                            val label = when (item) {
-                                                                is PickerRowItem.SystemHeader -> "System Actions"
-                                                                is PickerRowItem.SystemCategoryHeader -> item.title
-                                                                is PickerRowItem.SystemAction -> item.label
-                                                                is PickerRowItem.SystemCustomizationOption -> item.title
-                                                                is PickerRowItem.SystemCustomizationSlider -> item.title
-                                                                is PickerRowItem.AppHeader -> item.appName
-                                                                is PickerRowItem.SubHeader -> item.label.substringBefore(" (")
-                                                                is PickerRowItem.ShortcutAction -> item.label
-                                                            }
-                                                            hudLetter = if (label.length >= 2) label.take(1).uppercase() + label.substring(1, 2).lowercase() else label.uppercase()
-                                                        }
-
-                                                        // Handle immediate tap
-                                                        calculateInterpolatedIndex(initialY.coerceIn(0f, sideBarHeight))
-
-                                                        while (true) {
-                                                            val event = awaitPointerEvent()
-                                                            val dragChange = event.changes.firstOrNull()
-                                                            if (dragChange != null && dragChange.pressed) {
-                                                                val dragY = dragChange.position.y.coerceIn(0f, sideBarHeight)
-                                                                if (!hasDragged && kotlin.math.abs(dragY - initialY) > 8f) {
-                                                                    hasDragged = true
-                                                                    isDragging = true
-                                                                }
-                                                                
-                                                                if (hasDragged) {
-                                                                    currentDragY = dragY
-                                                                    calculateInterpolatedIndex(dragY)
-                                                                }
-                                                                dragChange.consume()
-                                                            } else {
-                                                                isDragging = false
-                                                                showHud = false
-                                                                break
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                    ) {
-                                        if (isDragging) {
-                                            // Morph into a physical scrollbar track and thumb
-                                            Box(modifier = Modifier.fillMaxHeight().width(4.dp).background(Color.White.copy(alpha=0.1f), RoundedCornerShape(2.dp)).align(Alignment.Center))
-                                            Box(
-                                                modifier = Modifier
-                                                    .offset(y = with(androidx.compose.ui.platform.LocalDensity.current) { (currentDragY - 16.dp.toPx()).toDp() })
-                                                    .height(32.dp).width(6.dp)
-                                                    .background(dynamicPrimary, RoundedCornerShape(3.dp))
-                                                    .align(Alignment.TopCenter)
-                                            )
-                                        } else {
-                                            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly, horizontalAlignment = Alignment.CenterHorizontally) {
-                                                "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".forEach { letter ->
-                                                    val hasApps = letterIndices.containsKey(letter)
-                                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                                        Text(
-                                                            text = letter.toString(),
-                                                            fontSize = 9.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = if (hasApps) dynamicSecondary else Color.White.copy(alpha = 0.2f)
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Dragging HUD Letter Overlay
-                                if (showHud && hudLetter.isNotEmpty()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.Center)
-                                            .size(80.dp)
-                                            .background(Color(0xFF1E1E28).copy(alpha = 0.94f), shape = RoundedCornerShape(16.dp))
-                                            .border(2.2.dp, dynamicPrimary, shape = RoundedCornerShape(16.dp)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(text = hudLetter, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                                    }
-                                }
-                            }
-
-                            // Bottom Save/Cancel Bar (multi-select mode)
-                            if (!isSingleSelect) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    OutlinedButton(
-                                        onClick = { finish() },
-                                        modifier = Modifier.weight(1f).height(46.dp),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
-                                    ) {
-                                        Text("CANCEL", color = Color.White.copy(alpha = 0.8f), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            prefs.edit().putString("gear_set_${setId}_ring_${ringIndex}_packages", selectedTokens.joinToString(",")).apply()
-                                            finish()
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = dynamicPrimary),
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.weight(1f).height(46.dp)
-                                    ) {
-                                        Text("SAVE (${selectedTokens.size})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Dialogs
-                    if (pendingPinApp != null) {
-                        val (pinPkg, pinName) = pendingPinApp!!
-                        PinAppDialog(
-                            packageName = pinPkg,
-                            appName = pinName,
-                            isCurrentlyPinned = pinnedApps.contains(pinPkg),
-                            dynamicPrimary = dynamicPrimary,
-                            onConfirm = { nowPinned ->
-                                val newSet = if (nowPinned) pinnedApps + pinPkg else pinnedApps - pinPkg
-                                pinnedApps = newSet
-                                prefs.edit().putStringSet(LightspeedPreferences.KEY_PICKER_PINNED_APPS, newSet).apply()
-                                pendingPinApp = null
-                            },
-                            onDismiss = { pendingPinApp = null }
-                        )
-                    }
-
-                    if (showDeepActivityWarning && pendingDeepActivitySubKey != null) {
-                        DeepActivityWarningDialog(
-                            dynamicPrimary = dynamicPrimary,
-                            onProceed = { doNotShowAgain ->
-                                if (doNotShowAgain) {
-                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUPPRESS_DEEP_ACTIVITY_WARNING, true).apply()
-                                }
-                                val subKeyToExpand = pendingDeepActivitySubKey
-                                showDeepActivityWarning = false
-                                pendingDeepActivitySubKey = null
-                                if (subKeyToExpand != null) {
-                                    expandedSubsections = expandedSubsections + subKeyToExpand
-                                }
-                            },
-                            onDismiss = {
-                                showDeepActivityWarning = false
-                                pendingDeepActivitySubKey = null
-                            }
-                        )
-                    }
-
-                    if (showSystemAccordionPrefsDialog) {
-                        SystemAccordionPrefsDialog(
-                            dynamicPrimary = dynamicPrimary,
-                            currentPreference = systemAccordionMode,
-                            onSelectPreference = { mode ->
-                                systemAccordionMode = mode
-                                prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SYSTEM_ACCORDION_MODE, mode).apply()
-                                if (mode == "expanded") {
-                                    expandedSubsections = expandedSubsections - allSysCategories.toSet()
-                                } else if (mode == "collapsed") {
-                                    expandedSubsections = expandedSubsections + allSysCategories.toSet()
-                                }
-                                showSystemAccordionPrefsDialog = false
-                            },
-                            onDismiss = { showSystemAccordionPrefsDialog = false }
-                        )
-                    }
-
-                    if (selectedAttitudeBucketForAppPicker != null) {
-                        AttitudeAppAssignmentSheet(
-                            context = this@CockpitGearPickerActivity,
-                            bucket = selectedAttitudeBucketForAppPicker!!,
-                            onDismiss = { selectedAttitudeBucketForAppPicker = null },
-                            onUpdated = {
-                                hudStyleVersion++
-                                safeReloadPreferences()
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun extractShortcutToken(data: Intent): String {
-        var generatedToken = ""
-
-        // 1. Prioritize authentic Intent extraction (MacroDroid style)
-        val shortcutIntent = try {
-            IntentCompat.getParcelableExtra(data, Intent.EXTRA_SHORTCUT_INTENT, Intent::class.java)
-        } catch (_: Exception) { null }
-
-        if (shortcutIntent != null) {
-            val shortcutName = data.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: "Shortcut"
-            val rawBmp: Bitmap? = try {
-                IntentCompat.getParcelableExtra(data, Intent.EXTRA_SHORTCUT_ICON, Bitmap::class.java)
-            } catch (_: Exception) { null }
-
-            val shortcutBmp = rawBmp ?: run {
-                val iconRes = try {
-                    IntentCompat.getParcelableExtra(data, Intent.EXTRA_SHORTCUT_ICON_RESOURCE, Intent.ShortcutIconResource::class.java)
-                } catch (_: Exception) { null }
-                if (iconRes != null) {
-                    try {
-                        val foreignRes = packageManager.getResourcesForApplication(iconRes.packageName)
-                        val id = foreignRes.getIdentifier(iconRes.resourceName, null, null)
-                        if (id != 0) {
-                            val d = foreignRes.getDrawable(id, null)
-                            if (d != null) {
-                                val w = d.intrinsicWidth.coerceIn(48, 256)
-                                val h = d.intrinsicHeight.coerceIn(48, 256)
-                                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                                val canvas = android.graphics.Canvas(bmp)
-                                d.setBounds(0, 0, w, h)
-                                d.draw(canvas)
-                                bmp
-                            } else null
-                        } else null
-                    } catch (_: Exception) { null }
-                } else null
-            }
-
-            val pkg = shortcutIntent.`package` ?: shortcutIntent.component?.packageName ?: ""
-            generatedToken = LightspeedShortcutManager.createCustomShortcutToken(
-                context = this,
-                pkg = pkg,
-                label = shortcutName,
-                intent = shortcutIntent,
-                bitmap = shortcutBmp
-            )
-        }
-
-        // 2. Fallback to PIN_ITEM_REQUEST if EXTRA_SHORTCUT_INTENT was missing
-        if (generatedToken.isBlank() && data.hasExtra("android.content.pm.extra.PIN_ITEM_REQUEST")) {
-            val pinRequest = try {
-                IntentCompat.getParcelableExtra(data, "android.content.pm.extra.PIN_ITEM_REQUEST", LauncherApps.PinItemRequest::class.java)
-            } catch (_: Exception) { null }
-
-            if (pinRequest != null && pinRequest.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
-                try { pinRequest.accept() } catch (e: Exception) { logSwallowed("CockpitGearPickerActivity", "extractShortcutToken:1007", e) }
-                val info = pinRequest.shortcutInfo
-                if (info != null) {
-                    val label = info.shortLabel?.toString() ?: info.longLabel?.toString() ?: "Shortcut"
-                    generatedToken = LightspeedShortcutManager.createPinnedShortcutToken(info.`package`, info.id, label)
-                }
-            }
-        }
-
-        return generatedToken
-    }
-
-    private fun filterForSplitMode(list: List<PickerRowItem>): List<PickerRowItem> {
-        val allowedSystemTokens = setOf(
-            "system:refueling_bay",
-            "system:perimeter_watchdog",
-            "system:core_watchdog",
-            "system:battery_exemption",
-            "system:central_command"
-        )
-
-        val allowedActions = list.filterIsInstance<PickerRowItem.SystemAction>()
-            .filter { allowedSystemTokens.contains(it.token) }
-
-        if (allowedActions.isEmpty()) {
-            return list.filter { item ->
-                item !is PickerRowItem.SystemHeader &&
-                item !is PickerRowItem.SystemCategoryHeader &&
-                item !is PickerRowItem.SystemAction &&
-                item !is PickerRowItem.SystemCustomizationOption &&
-                item !is PickerRowItem.SystemCustomizationSlider
-            }
-        }
-
-        val result = mutableListOf<PickerRowItem>()
-        var currentCatHeader: PickerRowItem.SystemCategoryHeader? = null
-        val currentCatActions = mutableListOf<PickerRowItem>()
-
-        fun flushCategory() {
-            val catHeader = currentCatHeader ?: return
-            val validInCat = currentCatActions.filter {
-                (it is PickerRowItem.SystemAction && allowedSystemTokens.contains(it.token)) ||
-                (it is PickerRowItem.SystemCustomizationOption && allowedSystemTokens.contains(it.parentToken)) ||
-                (it is PickerRowItem.SystemCustomizationSlider && allowedSystemTokens.contains(it.parentToken))
-            }
-            val actionCount = validInCat.count { it is PickerRowItem.SystemAction }
-            if (actionCount > 0) {
-                result.add(catHeader.copy(count = actionCount))
-                result.addAll(validInCat)
-            }
-            currentCatHeader = null
-            currentCatActions.clear()
-        }
-
-        for (item in list) {
-            when (item) {
-                is PickerRowItem.SystemHeader -> {
-                    result.add(item.copy(count = allowedActions.size))
-                }
-                is PickerRowItem.SystemCategoryHeader -> {
-                    flushCategory()
-                    currentCatHeader = item
-                }
-                is PickerRowItem.SystemAction,
-                is PickerRowItem.SystemCustomizationOption,
-                is PickerRowItem.SystemCustomizationSlider -> {
-                    if (currentCatHeader != null) {
-                        currentCatActions.add(item)
-                    } else {
-                        if (item is PickerRowItem.SystemAction && allowedSystemTokens.contains(item.token)) {
-                            result.add(item)
-                        }
-                    }
-                }
-                else -> {
-                    flushCategory()
-                    result.add(item)
-                }
-            }
-        }
-        flushCategory()
-
-        return result
-    }
-}
-
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable
-private fun PickerPopupStyleOptionRow(
-    item: PickerRowItem.SystemCustomizationOption,
-    dynamicSecondary: Color,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 24.dp, end = 2.dp, top = 2.dp, bottom = 2.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                if (item.isSelected) dynamicSecondary.copy(alpha = 0.22f)
-                else Color.White.copy(alpha = 0.04f)
-            )
-            .border(
-                width = 1.dp,
-                color = if (item.isSelected) dynamicSecondary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.06f),
-                shape = RoundedCornerShape(8.dp)
-            )
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-            .padding(horizontal = 12.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
-        ) {
-            Text(
-                text = item.title,
-                color = if (item.isSelected) dynamicSecondary else Color.White,
-                fontSize = 12.5.sp,
-                fontWeight = if (item.isSelected) FontWeight.Bold else FontWeight.Medium,
-                style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 15.sp
-                )
-            )
-            Text(
-                text = item.subtitle,
-                color = Color.LightGray.copy(alpha = 0.55f),
-                fontSize = 10.sp,
-                style = TextStyle(
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    lineHeight = 12.sp
-                )
-            )
-        }
-        if (item.isSelected) {
-            Box(
-                modifier = Modifier
-                    .background(dynamicSecondary, CircleShape)
-                    .padding(horizontal = 7.dp, vertical = 2.5.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "ACTIVE",
-                    color = Color.Black,
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
             }
         }
     }
 }
-

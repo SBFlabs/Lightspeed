@@ -3,6 +3,7 @@ package com.sbf.lightspeed.settings
 
 
 
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -44,6 +45,7 @@ import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedOrientationEngine
 import java.util.Locale
 import kotlinx.coroutines.launch
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 
 @Composable
@@ -61,15 +63,17 @@ fun BlueprintWireframeView(
     onMoveSubUp: (String, Int) -> Unit = { _, _ -> },
     onMoveSubDown: (String, Int) -> Unit = { _, _ -> }
 ) {
+    val lsColors = LightspeedStyle.colors
     Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
+        DeckCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -78,8 +82,8 @@ fun BlueprintWireframeView(
                 Icon(Icons.Default.ViewAgenda, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("$tabTitle — Blueprint Reorder Mode", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
-                    Text("Use ▲ / ▼ to reorder sections. Tap 📌 to designate the anchor open section.", fontSize = 11.sp, color = Color.LightGray.copy(alpha = 0.85f))
+                    Text("$tabTitle — Blueprint Reorder Mode", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = lsColors.textPrimary)
+                    Text("Use ▲ / ▼ to reorder sections. Tap 📌 to designate the anchor open section.", fontSize = 11.sp, color = lsColors.textSecondary.copy(alpha = 0.85f))
                 }
             }
         }
@@ -88,16 +92,16 @@ fun BlueprintWireframeView(
             val isPinned = (secId == pinnedSectionId)
             val title = sectionTitles[secId] ?: secId
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
+            DeckCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        1.2.dp,
+                        if (isPinned) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.12f),
+                        RoundedCornerShape(12.dp)
+                    ),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isPinned) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color(0xFF141724).copy(alpha = 0.8f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.2.dp,
-                    if (isPinned) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.12f)
-                )
+                tint = if (isPinned) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.Unspecified
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -106,7 +110,7 @@ fun BlueprintWireframeView(
                     Icon(
                         Icons.Default.DragHandle,
                         contentDescription = "Drag Handle",
-                        tint = Color.White.copy(alpha = 0.45f),
+                        tint = lsColors.textPrimary.copy(alpha = 0.45f),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -115,7 +119,7 @@ fun BlueprintWireframeView(
                             text = title,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp,
-                            color = Color.White
+                            color = lsColors.textPrimary
                         )
                         if (isPinned) {
                             Text(
@@ -135,7 +139,7 @@ fun BlueprintWireframeView(
                         Icon(
                             imageVector = Icons.Default.PushPin,
                             contentDescription = "Pin",
-                            tint = if (isPinned) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.35f),
+                            tint = if (isPinned) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.35f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -180,16 +184,16 @@ fun BlueprintWireframeView(
                     subs.forEachIndexed { subIndex, subId ->
                         val isSubPinned = ("${secId}_${subId}" == pinnedSectionId)
                         val subTitle = subSectionTitles[subId] ?: subId
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
+                        DeckCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    1.dp,
+                                    if (isSubPinned) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.08f),
+                                    RoundedCornerShape(8.dp)
+                                ),
                             shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSubPinned) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color(0xFF1B1E2B).copy(alpha = 0.8f)
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isSubPinned) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.08f)
-                            )
+                            tint = if (isSubPinned) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Unspecified
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
@@ -201,7 +205,7 @@ fun BlueprintWireframeView(
                                         text = "↳ $subTitle",
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 11.sp,
-                                        color = Color.LightGray
+                                        color = lsColors.textSecondary
                                     )
                                 }
 
@@ -213,7 +217,7 @@ fun BlueprintWireframeView(
                                     Icon(
                                         imageVector = Icons.Default.PushPin,
                                         contentDescription = "Pin Sub",
-                                        tint = if (isSubPinned) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.25f),
+                                        tint = if (isSubPinned) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.25f),
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }

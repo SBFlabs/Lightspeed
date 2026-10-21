@@ -338,6 +338,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                         invalidate()
                         return true
                     }
+                    persistActiveGearSetIndex()
                     currentLayer = CruiseLayer.HIDDEN
                     isCruising = false
                     service?.updateWindowLayout(false) // CRITICAL DIRECTIVE: Disengage overlay window touch-trap immediately

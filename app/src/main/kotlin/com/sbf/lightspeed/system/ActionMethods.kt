@@ -15,6 +15,10 @@ object ActionMethods {
     const val RECENTS_CLICK = "recents_click"
     const val RECENTS_DISMISS = "recents_dismiss"
     const val RECENTS_BUTTON = "recents_button"
+    const val SCROLL_POSITION = "scroll_position"
+    const val SCROLL_PAGE = "scroll_page"
+    const val SCROLL_STEP = "scroll_step"
+    const val SCROLL_SWIPE = "scroll_swipe"
 
     private fun canonical(token: String): String {
         return if (token == "system:freeform") "system:popup_window" else token
@@ -22,7 +26,8 @@ object ActionMethods {
 
     fun isMethodAction(token: String): Boolean {
         val c = canonical(token)
-        return c == "system:split_screen" || c == "system:close_app" || c == "system:popup_window"
+        return c == "system:split_screen" || c == "system:close_app" || c == "system:popup_window" ||
+                c == "system:scroll_to_top" || c == "system:scroll_to_bottom"
     }
 
     fun options(token: String): List<MethodOption> {
@@ -43,6 +48,13 @@ object ActionMethods {
                 MethodOption(SHIZUKU, "Shizuku", "native freeform launch"),
                 MethodOption(RECENTS_BUTTON, "Recents button", "taps the pop-up button on the app's Recents card")
             )
+            "system:scroll_to_top", "system:scroll_to_bottom" -> listOf(
+                MethodOption(AUTO, "Automatic", "current fallback chain"),
+                MethodOption(SCROLL_POSITION, "Scroll to position", "direct position jump"),
+                MethodOption(SCROLL_PAGE, "Page scroll", "repeated page up/down"),
+                MethodOption(SCROLL_STEP, "Step scroll", "repeated directional scroll"),
+                MethodOption(SCROLL_SWIPE, "Swipe gesture", "simulated finger swipes")
+            )
             else -> emptyList()
         }
     }
@@ -50,7 +62,7 @@ object ActionMethods {
     fun getSelected(context: Context, token: String): Set<String> {
         val canon = canonical(token)
         val raw = LightspeedPreferences.getActionBehavior(context, canon, AUTO)
-        val validIds = setOf(AUTO, SHIZUKU, A11Y_ACTION, RECENTS_CLICK, RECENTS_DISMISS, RECENTS_BUTTON)
+        val validIds = setOf(AUTO, SHIZUKU, A11Y_ACTION, RECENTS_CLICK, RECENTS_DISMISS, RECENTS_BUTTON, SCROLL_POSITION, SCROLL_PAGE, SCROLL_STEP, SCROLL_SWIPE)
         val parsed = raw.split(",")
             .map { it.trim() }
             .filter { it.isNotEmpty() && it in validIds }
@@ -95,5 +107,41 @@ object ActionMethods {
         val opts = options(token)
         val selectedTitles = opts.filter { selected.contains(it.id) }.map { it.title }
         return if (selectedTitles.isEmpty()) "Auto" else selectedTitles.joinToString(" + ")
+    }
+
+    fun getMethodAppsPrefKey(token: String, methodId: String): String {
+        return "${LightspeedPreferences.KEY_ACTION_METHOD_APPS_PREFIX}${canonical(token)}_${methodId}"
+    }
+
+    fun getMethodApps(context: Context, token: String, methodId: String): Set<String> {
+        val key = getMethodAppsPrefKey(token, methodId)
+        val raw = context.defaultPrefs().getString(key, "") ?: ""
+        return raw.split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+    }
+
+    fun setMethodApps(context: Context, token: String, methodId: String, apps: Set<String>) {
+        val key = getMethodAppsPrefKey(token, methodId)
+        val raw = apps.filter { it.isNotBlank() }.joinToString(",")
+        context.defaultPrefs().edit().putString(key, raw).apply()
+    }
+
+    fun getAssignedMethodsForApp(context: Context, token: String, packageName: String): Set<String> {
+        val canon = canonical(token)
+        val result = mutableSetOf<String>()
+        val allMethods = options(canon).map { it.id }
+        for (m in allMethods) {
+            val apps = getMethodApps(context, canon, m)
+            if (packageName in apps) {
+                result.add(m)
+            }
+        }
+        return result
+    }
+
+    fun getAssignedAppsCount(context: Context, token: String, methodId: String): Int {
+        return getMethodApps(context, token, methodId).size
     }
 }

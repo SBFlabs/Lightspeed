@@ -79,31 +79,59 @@ object GriffinRecovery {
     }
 
     /**
-     * Executes Griffin macro recovery recipe for a crashed package/component:
-     * 1. `killall -9 <pkg>`
-     * 2. `am force-stop <pkg>`
-     * 3. Remove ONLY that component from secure enabled_accessibility_services (OFF)
-     * 4. Wait 500 ms
-     * 5. Add it back (ON)
-     *
-     * Enforces a 60-second debounce per package.
+     * Returns true if recovery for [componentString] is currently debounced (< 60s since last run).
      */
-    fun recover(context: Context, packageName: String, componentString: String): Boolean {
-        if (packageName.isBlank() || componentString.isBlank()) return false
-
+    fun isDebounced(componentString: String): Boolean {
+        val targetCn = ComponentName.unflattenFromString(componentString)
+        val svcLong = targetCn?.flattenToString() ?: componentString
         val now = System.currentTimeMillis()
-        val lastRecovery = lastRecoveryMap[packageName] ?: 0L
-        if (now - lastRecovery < DEBOUNCE_MS) {
-            Log.i(TAG, "Debounced recovery for $packageName (last run ${now - lastRecovery}ms ago)")
-            return false
-        }
-        lastRecoveryMap[packageName] = now
+        val lastRecovery = lastRecoveryMap[svcLong] ?: 0L
+        return now - lastRecovery < DEBOUNCE_MS
+    }
 
-        Log.i(TAG, "Executing Griffin recovery recipe for pkg=$packageName component=$componentString")
+    /**
+     * Executes Griffin macro recovery recipe for a crashed package/component:
+     * 1. Records all currently enabled accessibility components of that package before force-stop
+     * 2. `killall -9 <pkg>` and `am force-stop <pkg>`
+     * 3. Removes recorded components from secure enabled_accessibility_services (OFF)
+     * 4. Waits 500 ms
+     * 5. Adds ALL of them back in one write (ON)
+     *
+     * Enforces a 60-second debounce per component.
+     */
+    fun recover(context: Context, packageName: String, componentString: String, skipDebounce: Boolean = false): Boolean {
+        if (packageName.isBlank() || componentString.isBlank()) return false
 
         val targetCn = ComponentName.unflattenFromString(componentString)
         val svcLong = targetCn?.flattenToString() ?: componentString
-        val svcShort = targetCn?.flattenToShortString() ?: componentString
+
+        val now = System.currentTimeMillis()
+        val lastRecovery = lastRecoveryMap[svcLong] ?: 0L
+        if (!skipDebounce && now - lastRecovery < DEBOUNCE_MS) {
+            val skipMsg = "Debounced recovery for $svcLong (last run ${now - lastRecovery}ms ago)"
+            Log.i(TAG, skipMsg)
+            FlightLog.log("watchdog", false, "Revive skip: $svcLong (debounced, ${now - lastRecovery}ms < 60s)")
+            return false
+        }
+        lastRecoveryMap[svcLong] = now
+
+        // Step 0: Record every enabled accessibility component of this package before force-stop
+        val currentRaw = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: ""
+        val packageComponents = LinkedHashSet<String>()
+        for (entry in currentRaw.split(":").map { it.trim() }.filter { it.isNotEmpty() }) {
+            val cn = ComponentName.unflattenFromString(entry)
+            val entryPkg = cn?.packageName ?: if (entry.contains('/')) entry.substringBefore('/') else entry
+            if (entryPkg.equals(packageName, ignoreCase = true)) {
+                packageComponents.add(cn?.flattenToString() ?: entry)
+            }
+        }
+        packageComponents.add(svcLong)
+
+        Log.i(TAG, "Executing Griffin recovery recipe for pkg=$packageName component=$svcLong (all components: $packageComponents)")
+        FlightLog.log("watchdog", true, "Revive attempt: $svcLong (crashed in dumpsys)")
 
         // Step 1 & 2: killall -9 <pkg> and am force-stop <pkg>
         if (ElevatedTaskCloser.isShizukuActive) {
@@ -111,8 +139,8 @@ object GriffinRecovery {
             ElevatedTaskCloser.execShizuku(killCmd)?.waitForOrKill()
         }
 
-        // Step 3: Remove ONLY that component from secure enabled_accessibility_services (OFF)
-        toggleComponentInSettings(context, svcLong, svcShort, packageName, enable = false)
+        // Step 3: Remove recorded components of this package from secure enabled_accessibility_services (OFF)
+        toggleComponentsInSettings(context, packageComponents, packageName, enable = false)
 
         // Step 4: Wait 500 ms
         try {
@@ -121,24 +149,56 @@ object GriffinRecovery {
             Thread.currentThread().interrupt()
         }
 
-        // Step 5: Add it back (ON)
-        val success = toggleComponentInSettings(context, svcLong, svcShort, packageName, enable = true)
+        // Step 5: Add ALL of them back (ON) in one write
+        val success = toggleComponentsInSettings(context, packageComponents, packageName, enable = true)
 
         Log.i(TAG, "Griffin recovery complete for $packageName: success=$success")
+        FlightLog.log("watchdog", success, "Revive result: $svcLong (crashed recovery ${if (success) "succeeded" else "failed"})")
+        return success
+    }
+
+    /**
+     * Executes plain re-add of a missing accessibility component without force-stopping the host package.
+     * Merges the component into secure enabled_accessibility_services in one atomic write.
+     * Enforces a 60-second debounce per component.
+     */
+    fun plainReAdd(context: Context, componentString: String, reason: String = "missing 2 consecutive pulses", skipDebounce: Boolean = false): Boolean {
+        if (componentString.isBlank()) return false
+
+        val targetCn = ComponentName.unflattenFromString(componentString)
+        val svcLong = targetCn?.flattenToString() ?: componentString
+        val packageName = targetCn?.packageName ?: if (componentString.contains('/')) componentString.substringBefore('/') else componentString
+
+        val now = System.currentTimeMillis()
+        val lastRecovery = lastRecoveryMap[svcLong] ?: 0L
+        if (!skipDebounce && now - lastRecovery < DEBOUNCE_MS) {
+            val skipMsg = "Debounced plain re-add for $svcLong (last run ${now - lastRecovery}ms ago)"
+            Log.i(TAG, skipMsg)
+            FlightLog.log("watchdog", false, "Revive skip: $svcLong (debounced, ${now - lastRecovery}ms < 60s)")
+            return false
+        }
+        lastRecoveryMap[svcLong] = now
+
+        Log.i(TAG, "Executing plain re-add for component=$svcLong pkg=$packageName")
+        FlightLog.log("watchdog", true, "Revive attempt: $svcLong ($reason)")
+
+        val success = toggleComponentsInSettings(context, setOf(svcLong), packageName, enable = true)
+
+        Log.i(TAG, "Plain re-add complete for $svcLong: success=$success")
+        FlightLog.log("watchdog", success, "Revive result: $svcLong (plain re-add ${if (success) "succeeded" else "failed"})")
         return success
     }
 
     private fun shellSingleQuote(value: String): String =
         "'" + value.replace("'", "'\\''") + "'"
 
-    private fun toggleComponentInSettings(
+    private fun toggleComponentsInSettings(
         context: Context,
-        svcLong: String,
-        svcShort: String,
+        components: Set<String>,
         packageName: String,
         enable: Boolean
     ): Boolean {
-        val targetCn = ComponentName.unflattenFromString(svcLong)
+        val targetCns = components.mapNotNull { ComponentName.unflattenFromString(it) }
 
         val currentRaw = Settings.Secure.getString(
             context.contentResolver,
@@ -147,17 +207,27 @@ object GriffinRecovery {
         val entries = currentRaw.split(":").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
 
         entries.removeAll { entry ->
-            entry.equals(svcLong, ignoreCase = true) ||
-            entry.equals(svcShort, ignoreCase = true) ||
-            (targetCn != null && ComponentName.unflattenFromString(entry) == targetCn)
+            val entryCn = ComponentName.unflattenFromString(entry)
+            components.any { comp ->
+                entry.equals(comp, ignoreCase = true) ||
+                (entryCn != null && targetCns.contains(entryCn))
+            }
         }
 
         if (enable) {
-            entries.add(svcLong)
+            for (comp in components) {
+                val compCn = ComponentName.unflattenFromString(comp)
+                val canonical = compCn?.flattenToString() ?: comp
+                if (!entries.any { it.equals(canonical, ignoreCase = true) || (compCn != null && ComponentName.unflattenFromString(it) == compCn) }) {
+                    entries.add(canonical)
+                }
+            }
         }
 
         val newServices = entries.joinToString(":")
         val a11yEnabled = if (entries.isNotEmpty()) 1 else 0
+
+        LightspeedWatchdogEngine.recordInternalWrite()
 
         val canWrite = context.checkCallingOrSelfPermission(
             android.Manifest.permission.WRITE_SECURE_SETTINGS
@@ -169,7 +239,7 @@ object GriffinRecovery {
                 Settings.Secure.putInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, a11yEnabled)
                 return true
             } catch (e: Exception) {
-                Log.w(TAG, "Direct Settings write failed in toggleComponentInSettings", e)
+                Log.w(TAG, "Direct Settings write failed in toggleComponentsInSettings", e)
             }
         }
 

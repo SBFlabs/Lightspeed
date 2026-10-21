@@ -1,5 +1,8 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
+
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -47,6 +50,7 @@ import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,9 +62,10 @@ fun BatteryExemptionDeckDialog(
     onDismiss: () -> Unit,
     onExemptionChanged: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     val coroutineScope = rememberCoroutineScope()
-    val cautionAmber = Color(0xFFFFB300)
-    val successGreen = Color(0xFF00E676)
+    val cautionAmber = lsColors.accentWarn
+    val successGreen = lsColors.accentOk
     val pm = context.packageManager
 
     var isLoading by remember { mutableStateOf(true) }
@@ -104,19 +109,18 @@ fun BatteryExemptionDeckDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        val glassVisuals = rememberDeckGlassVisuals(context)
-        val backdropVisuals = rememberDeckBackdropVisuals(context)
+        val activeSnapshot = LocalDeckTheme.current
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 dialogWindow?.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                 val lp = dialogWindow?.attributes
                 if (lp != null) {
-                    lp.blurBehindRadius = backdropVisuals.blurBehindRadius
+                    lp.blurBehindRadius = activeSnapshot.windowBlurRadiusPx.coerceIn(0, 150)
                     dialogWindow.attributes = lp
                 }
             }
-            dialogWindow?.setDimAmount(backdropVisuals.dimAmount)
+            dialogWindow?.setDimAmount(activeSnapshot.dimAmount)
         }
 
         Box(
@@ -125,63 +129,13 @@ fun BatteryExemptionDeckDialog(
                 .padding(horizontal = 8.dp, vertical = 18.dp),
             contentAlignment = Alignment.Center
         ) {
-            Card(
+            DeckGlassCardSurface(
                 modifier = Modifier
                     .fillMaxWidth(0.98f)
                     .fillMaxHeight(0.88f)
                     .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-                    .clip(RoundedCornerShape(glassVisuals.shapeCornerRadius))
-                    .background(glassVisuals.backgroundBrush)
-                    .border(glassVisuals.borderWidth, glassVisuals.borderBrush, RoundedCornerShape(glassVisuals.shapeCornerRadius)),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                shape = RoundedCornerShape(glassVisuals.shapeCornerRadius)
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    if (glassVisuals.showTopGlare) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha),
-                                            Color.White.copy(alpha = glassVisuals.topGlareAlpha * 0.45f),
-                                            Color(0xFF80D8FF).copy(alpha = glassVisuals.topGlareAlpha * 0.15f),
-                                            Color.Transparent
-                                        ),
-                                        center = Offset(x = 350f, y = 0f),
-                                        radius = 650f
-                                    )
-                                )
-                        )
-                    }
-                    if (glassVisuals.showBottomCaustic) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(70.dp)
-                                .align(Alignment.BottomCenter)
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color(0xFF00E5FF).copy(alpha = 0.08f),
-                                            Color.White.copy(alpha = 0.14f)
-                                        )
-                                    )
-                                )
-                        )
-                    }
-                    if (glassVisuals.showNoiseGrain) {
-                        Canvas(modifier = Modifier.matchParentSize()) {
-                            drawRect(
-                                brush = GlassNoiseTexture.getBrush(),
-                                alpha = glassVisuals.noiseAlpha
-                            )
-                        }
-                    }
-
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -244,7 +198,7 @@ fun BatteryExemptionDeckDialog(
                                     modifier = Modifier
                                         .size(width = 38.dp, height = 4.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.35f))
+                                        .background(lsColors.textPrimary.copy(alpha = 0.35f))
                                 )
                             }
 
@@ -258,13 +212,13 @@ fun BatteryExemptionDeckDialog(
                                         modifier = Modifier
                                             .size(34.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF00E5FF).copy(alpha = 0.2f)),
+                                            .background(lsColors.accentInfo.copy(alpha = 0.2f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             Icons.Default.BatteryChargingFull,
                                             contentDescription = null,
-                                            tint = Color(0xFF00E5FF),
+                                            tint = lsColors.accentInfo,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -274,7 +228,7 @@ fun BatteryExemptionDeckDialog(
                                             "WANT TO EXEMPT MORE APPS?",
                                             fontSize = 13.5.sp,
                                             fontWeight = FontWeight.Black,
-                                            color = Color.White,
+                                            color = lsColors.textPrimary,
                                             letterSpacing = 0.5.sp
                                         )
                                         Text(
@@ -288,9 +242,9 @@ fun BatteryExemptionDeckDialog(
                                 IconButton(
                                     onClick = onDismiss,
                                     modifier = Modifier.size(32.dp),
-                                    colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.08f))
+                                    colors = IconButtonDefaults.iconButtonColors(containerColor = lsColors.textPrimary.copy(alpha = 0.08f))
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Close, contentDescription = "Close", tint = lsColors.textPrimary, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
@@ -310,8 +264,8 @@ fun BatteryExemptionDeckDialog(
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                                     selectedLabelColor = MaterialTheme.colorScheme.primary,
-                                    containerColor = Color.White.copy(alpha = 0.05f),
-                                    labelColor = Color.LightGray
+                                    containerColor = lsColors.textPrimary.copy(alpha = 0.05f),
+                                    labelColor = lsColors.textSecondary
                                 )
                             )
                             FilterChip(
@@ -322,8 +276,8 @@ fun BatteryExemptionDeckDialog(
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = successGreen.copy(alpha = 0.25f),
                                     selectedLabelColor = successGreen,
-                                    containerColor = Color.White.copy(alpha = 0.05f),
-                                    labelColor = Color.LightGray
+                                    containerColor = lsColors.textPrimary.copy(alpha = 0.05f),
+                                    labelColor = lsColors.textSecondary
                                 )
                             )
                             FilterChip(
@@ -332,10 +286,10 @@ fun BatteryExemptionDeckDialog(
                                 label = { Text("PINNED (${pinnedAppsSet.size})", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                                 modifier = Modifier.weight(1f).height(32.dp),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFFFD54F).copy(alpha = 0.25f),
-                                    selectedLabelColor = Color(0xFFFFD54F),
-                                    containerColor = Color.White.copy(alpha = 0.05f),
-                                    labelColor = Color.LightGray
+                                    selectedContainerColor = LightspeedTokens.StatusGold.copy(alpha = 0.25f),
+                                    selectedLabelColor = LightspeedTokens.StatusGold,
+                                    containerColor = lsColors.textPrimary.copy(alpha = 0.05f),
+                                    labelColor = lsColors.textSecondary
                                 )
                             )
                         }
@@ -346,7 +300,7 @@ fun BatteryExemptionDeckDialog(
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search apps by name or package...", fontSize = 11.5.sp, color = Color.Gray) },
+                            placeholder = { Text("Search apps by name or package...", fontSize = 11.5.sp, color = lsColors.textDisabled) },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             leadingIcon = {
                                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
@@ -354,16 +308,16 @@ fun BatteryExemptionDeckDialog(
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
                                     IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = lsColors.textDisabled, modifier = Modifier.size(14.dp))
                                     }
                                 }
                             },
                             singleLine = true,
                             shape = RoundedCornerShape(10.dp),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 11.5.sp, color = Color.White),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 11.5.sp, color = lsColors.textPrimary),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                                unfocusedBorderColor = lsColors.textPrimary.copy(alpha = 0.15f),
                                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                             )
@@ -403,7 +357,7 @@ fun BatteryExemptionDeckDialog(
                                 Text(
                                     text = if (searchQuery.isBlank()) "No apps found in this filter." else "No matching applications found.",
                                     fontSize = 12.sp,
-                                    color = Color.LightGray.copy(alpha = 0.6f)
+                                    color = lsColors.textSecondary.copy(alpha = 0.6f)
                                 )
                             }
                         } else {

@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 object CockpitGearRepository {
 
@@ -13,6 +16,7 @@ object CockpitGearRepository {
 
     private val gearAppsCache = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
     private val gearSetsOrderCache = java.util.concurrent.ConcurrentHashMap<Boolean, MutableList<String>>()
+    private val gearSetNamesCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     private var prefListenerRegistered = false
     private val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && (key.startsWith("gear_set_") || key.startsWith("gear_sets_order"))) {
@@ -31,6 +35,7 @@ object CockpitGearRepository {
     fun clearCache() {
         gearAppsCache.clear()
         gearSetsOrderCache.clear()
+        gearSetNamesCache.clear()
     }
 
     fun persistActiveGearSetIndex(context: Context, setIndex: Int, isLeft: Boolean) {
@@ -427,6 +432,7 @@ object CockpitGearRepository {
     }
 
     fun getGearSetNameById(context: Context, setId: String): String {
+        gearSetNamesCache[setId]?.let { return it }
         val prefs = context.defaultPrefs()
         val defaultName = when(setId) {
             "0" -> "CORE AVIONICS"
@@ -436,7 +442,9 @@ object CockpitGearRepository {
             else -> "CUSTOM SET"
         }
         val saved = prefs.getString("gear_set_${setId}_name", defaultName) ?: defaultName
-        return if (saved == "SET A" || saved == "SET B" || saved == "SET C" || saved == "SET D" || saved == "SET" || saved.isEmpty()) defaultName else saved
+        val effective = if (saved == "SET A" || saved == "SET B" || saved == "SET C" || saved == "SET D" || saved == "SET" || saved.isEmpty()) defaultName else saved
+        gearSetNamesCache[setId] = effective
+        return effective
     }
 
     fun getGearSetNameByIndex(context: Context, isLeft: Boolean, index: Int): String {
@@ -446,5 +454,29 @@ object CockpitGearRepository {
         }
         val alphabetLabel = if (index in 0..25) "${'A' + index}" else index.toString()
         return "SET " + alphabetLabel
+    }
+
+    fun prewarmGearCache(context: Context) {
+        val appContext = context.applicationContext ?: context
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                for (isLeft in listOf(false, true)) {
+                    val setsList = getGearSetsOrder(appContext, isLeft)
+                    for (setIndex in setsList.indices) {
+                        val setId = setsList[setIndex]
+                        getGearSetNameById(appContext, setId)
+                        for (ring in 0..1) {
+                            val apps = getAppsForActiveGear(appContext, isLeft, setIndex, ring)
+                            for (itemToken in apps) {
+                                LightspeedShortcutManager.resolveLabel(appContext, itemToken)
+                                LightspeedIconManager.loadIconAsync(appContext, itemToken) {}
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                logSwallowed("CockpitGearRepository", "prewarmGearCache", e)
+            }
+        }
     }
 }

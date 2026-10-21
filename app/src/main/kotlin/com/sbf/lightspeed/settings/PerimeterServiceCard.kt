@@ -35,6 +35,9 @@ import androidx.core.graphics.drawable.toBitmap
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import com.sbf.lightspeed.system.PerimeterPolicy
+import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -47,14 +50,17 @@ fun PerimeterServiceCard(
     isServiceEnabled: Boolean,
     isProtected: Boolean,
     isBatteryWhitelisted: Boolean,
+    policy: PerimeterPolicy = PerimeterPolicy.NORMAL,
     successGreen: Color,
     cautionAmber: Color,
     onTogglePin: () -> Unit,
     onToggleService: (Boolean) -> Unit,
     onToggleProtected: () -> Unit,
     onToggleBatteryWhitelist: () -> Unit,
+    onCyclePolicy: () -> Unit = {},
     onOpenExemptionDeck: () -> Unit = {}
 ) {
+    val lsColors = LightspeedStyle.colors
     val sPkg = sInfo.resolveInfo?.serviceInfo?.packageName ?: sInfo.id.substringBefore("/")
 
     val sLabel = remember(componentId) {
@@ -78,9 +84,9 @@ fun PerimeterServiceCard(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f),
         border = BorderStroke(
             1.dp,
-            if (isPinned) Color(0xFFFFD54F).copy(alpha = 0.45f)
+            if (isPinned) LightspeedTokens.StatusGold.copy(alpha = 0.45f)
             else if (isServiceEnabled) successGreen.copy(alpha = 0.25f)
-            else Color.White.copy(alpha = 0.08f)
+            else lsColors.textPrimary.copy(alpha = 0.08f)
         )
     ) {
         Column(
@@ -103,10 +109,10 @@ fun PerimeterServiceCard(
                         modifier = Modifier
                             .size(34.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.1f)),
+                            .background(lsColors.textPrimary.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(sLabel.take(1).uppercase(), fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(sLabel.take(1).uppercase(), fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
                     }
                 }
 
@@ -117,7 +123,7 @@ fun PerimeterServiceCard(
                         text = sLabel,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.5.sp,
-                        color = Color.White,
+                        color = lsColors.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -134,7 +140,7 @@ fun PerimeterServiceCard(
                     Icon(
                         imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
                         contentDescription = "Pin",
-                        tint = if (isPinned) Color(0xFFFFD54F) else Color.LightGray.copy(alpha = 0.45f),
+                        tint = if (isPinned) LightspeedTokens.StatusGold else lsColors.textSecondary.copy(alpha = 0.45f),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -145,9 +151,9 @@ fun PerimeterServiceCard(
                     checked = isServiceEnabled,
                     onCheckedChange = onToggleService,
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
+                        checkedThumbColor = lsColors.textPrimary,
                         checkedTrackColor = successGreen,
-                        uncheckedThumbColor = Color.LightGray,
+                        uncheckedThumbColor = lsColors.textSecondary,
                         uncheckedTrackColor = Color.DarkGray
                     ),
                     modifier = Modifier.height(28.dp)
@@ -164,10 +170,10 @@ fun PerimeterServiceCard(
                 Surface(
                     onClick = onToggleProtected,
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isProtected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.05f),
+                    color = if (isProtected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else lsColors.textPrimary.copy(alpha = 0.05f),
                     border = BorderStroke(
                         1.dp,
-                        if (isProtected) MaterialTheme.colorScheme.primary.copy(alpha = 0.65f) else Color.White.copy(alpha = 0.12f)
+                        if (isProtected) MaterialTheme.colorScheme.primary.copy(alpha = 0.65f) else lsColors.textPrimary.copy(alpha = 0.12f)
                     ),
                     modifier = Modifier.weight(1f).height(30.dp)
                 ) {
@@ -179,7 +185,7 @@ fun PerimeterServiceCard(
                         Icon(
                             imageVector = if (isProtected) Icons.Default.Shield else Icons.Outlined.Shield,
                             contentDescription = null,
-                            tint = if (isProtected) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.6f),
+                            tint = if (isProtected) MaterialTheme.colorScheme.primary else lsColors.textSecondary.copy(alpha = 0.6f),
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
@@ -187,7 +193,7 @@ fun PerimeterServiceCard(
                             text = if (isProtected) "SHIELDED" else "ARM SHIELD",
                             fontSize = 9.5.sp,
                             fontWeight = if (isProtected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isProtected) MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.8f),
+                            color = if (isProtected) MaterialTheme.colorScheme.primary else lsColors.textSecondary.copy(alpha = 0.8f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -231,6 +237,50 @@ fun PerimeterServiceCard(
                             color = if (isBatteryWhitelisted) successGreen else cautionAmber,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            // Row 3: Sentinel Recovery Policy Chip (if shielded)
+            if (isProtected) {
+                Surface(
+                    onClick = onCyclePolicy,
+                    shape = RoundedCornerShape(8.dp),
+                    color = when (policy) {
+                        PerimeterPolicy.ALWAYS_REVIVE -> successGreen.copy(alpha = 0.14f)
+                        PerimeterPolicy.KEEP_OFF -> cautionAmber.copy(alpha = 0.14f)
+                        PerimeterPolicy.NORMAL -> lsColors.textPrimary.copy(alpha = 0.05f)
+                    },
+                    border = BorderStroke(
+                        1.dp,
+                        when (policy) {
+                            PerimeterPolicy.ALWAYS_REVIVE -> successGreen.copy(alpha = 0.50f)
+                            PerimeterPolicy.KEEP_OFF -> cautionAmber.copy(alpha = 0.50f)
+                            PerimeterPolicy.NORMAL -> lsColors.textPrimary.copy(alpha = 0.12f)
+                        }
+                    ),
+                    modifier = Modifier.fillMaxWidth().height(26.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = when (policy) {
+                                PerimeterPolicy.ALWAYS_REVIVE -> "POLICY: ALWAYS REVIVE"
+                                PerimeterPolicy.KEEP_OFF -> "POLICY: KEEP OFF"
+                                PerimeterPolicy.NORMAL -> "POLICY: NORMAL"
+                            },
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = when (policy) {
+                                PerimeterPolicy.ALWAYS_REVIVE -> successGreen
+                                PerimeterPolicy.KEEP_OFF -> cautionAmber
+                                PerimeterPolicy.NORMAL -> lsColors.textSecondary.copy(alpha = 0.8f)
+                            },
+                            maxLines = 1
                         )
                     }
                 }

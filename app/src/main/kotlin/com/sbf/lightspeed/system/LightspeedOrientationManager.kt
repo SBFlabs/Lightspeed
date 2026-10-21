@@ -454,28 +454,7 @@ object LightspeedOrientationManager {
     }
 
     fun killConflictingTools(context: Context) {
-        if (!ElevatedTaskCloser.isShizukuActive) return
-        val appContext = context.applicationContext
-        val macroPkg = "com.arlosoft.macrodroid"
-        Thread {
-            try {
-                // Android removes an app's accessibility services from the enabled list when that app is force-stopped.
-                // Remember which MacroDroid services were enabled before, force-stop, then switch exactly those back on.
-                val enabledBefore = LightspeedWatchdogEngine.getEnabledAccessibilityServices(appContext)
-                    .filter { it.packageName == macroPkg }
-                ElevatedTaskCloser.execShizuku("am force-stop $macroPkg")?.waitForOrKill()
-                if (enabledBefore.isNotEmpty()) {
-                    Thread.sleep(1500L)
-                    val enabledNow = LightspeedWatchdogEngine.getEnabledAccessibilityServices(appContext)
-                    for (cn in enabledBefore) {
-                        if (!enabledNow.contains(cn)) {
-                            LightspeedWatchdogEngine.toggleAccessibilityService(appContext, cn.flattenToString(), true)
-                            Log.i(TAG, "killConflictingTools: re-enabled ${cn.flattenToShortString()} after force-stop")
-                        }
-                    }
-                }
-            } catch (e: Exception) { logSwallowed(TAG, "killConflictingTools", e) }
-        }.apply { name = "KillConflictingTools"; isDaemon = true }.start()
+        // No-op: previously force-stopped conflicting rotation tools on start
     }
 
     fun evaluateGravityCascade(context: Context, isLocked: Boolean? = null, foregroundPackage: String? = null) {

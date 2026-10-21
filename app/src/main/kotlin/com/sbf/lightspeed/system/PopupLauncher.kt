@@ -184,10 +184,20 @@ internal object PopupLauncher {
         targetPkg: String?,
         topComponent: String?
     ): PopupLaunchResult {
-        // a. Shizuku shell: "am start --windowingMode 5 --activity-reuse-task -n <topComponent>"
+        // a. Shizuku shell: "am start --windowingMode 5 -n <topComponent>"
         if (topComponent != null && ElevatedTaskCloser.isShizukuActive) {
             if (ShellArgGuard.isComponent(topComponent)) {
-                val cmd = "am start --windowingMode 5 --activity-reuse-task -n '$topComponent'"
+                // Ensure Settings.Global freeform flags are armed for OEMs (e.g. TCL, Transsion)
+                try {
+                    val cr = context.contentResolver
+                    val freeformOn = Settings.Global.getInt(cr, "enable_freeform_support", 0) == 1
+                    val resizableOn = Settings.Global.getInt(cr, "force_resizable_activities", 0) == 1
+                    if (!freeformOn || !resizableOn) {
+                        ElevatedTaskCloser.execShizuku("settings put global enable_freeform_support 1; settings put global force_resizable_activities 1").waitForOrKill()
+                    }
+                } catch (_: Exception) {}
+
+                val cmd = "am start --windowingMode 5 -n '$topComponent'"
                 val process = ElevatedTaskCloser.execShizuku(cmd)
                 val exitCode = process.waitForOrKill()
                 PopupDiagnostics.recordStep(

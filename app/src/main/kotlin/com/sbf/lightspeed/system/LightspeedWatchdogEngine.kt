@@ -601,9 +601,10 @@ object LightspeedWatchdogEngine {
                         Log.i(TAG, "pulsePerimeterServices: $pCnLong missing on 1st pulse. Waiting for 2 consecutive pulses.")
                         FlightLog.log("watchdog", false, "Revive skip: $pCnLong (missing 1 pulse, awaiting confirmation)")
                     } else {
-                        if (presumedToggleOffLogged.put(pCnLong, true) != true) {
+                        // Once marked as presumed user toggle-off, log it only once and never log again while missing
+                        if (presumedToggleOffLogged.putIfAbsent(pCnLong, true) == null) {
                             Log.i(TAG, "pulsePerimeterServices: $pCnLong missing (count=$count, wasEnabled=$wasEnabled). Treating as user toggle-off.")
-                            FlightLog.log("watchdog", false, "Revive skip: $pCnLong (presumed user toggle-off, count=$count)")
+                            FlightLog.log("watchdog", false, "Revive skip: $pCnLong (presumed user toggle-off)")
                         }
                     }
                 }

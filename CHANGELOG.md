@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-21 — Samsung & TCL Freeform Hotfix and Watchdog Flood Patch
+
+### Fixed
+* **Samsung One UI & Modern Android Freeform Crash**: Removed invalid `--activity-reuse-task` flag in `PopupLauncher` that caused `am start --windowingMode 5` to fail on Samsung One UI and modern Android releases, restoring native floating pop-up window launching across Samsung Galaxy devices.
+* **TCL NXTPAPER Freeform Auto-Arming**: Added automated verification in `PopupLauncher` to detect and arm `enable_freeform_support` and `force_resizable_activities` in `Settings.Global` via Shizuku if disabled by TCL OEM defaults.
+* **Watchdog FlightLog Buffer Spam**: Fixed repeated `presumed user toggle-off` log entries in `LightspeedWatchdogEngine` that flooded the 50-entry FlightLog ring buffer every 30 seconds for intentionally disabled perimeter services.
+
 ## [1.2.0] - 2026-10-21 — Category Cruise Overhaul, 12-Theme Glass Engine & Ergonomics
 
 ### Added

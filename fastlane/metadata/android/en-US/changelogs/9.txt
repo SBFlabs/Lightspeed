@@ -1,0 +1,3 @@
+• Fix Samsung One UI freeform crash by removing invalid shell flag.
+• Auto-arm TCL NXTPAPER global freeform settings via Shizuku.
+• Silence repeated Watchdog toggle-off FlightLog buffer spam.

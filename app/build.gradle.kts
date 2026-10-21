@@ -27,8 +27,8 @@ android {
         applicationId = "com.sbf.lightspeed"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.2.0"
+        versionCode = 9
+        versionName = "1.2.1"
         manifestPlaceholders["appName"] = "Lightspeed"
 
         ndk {

@@ -57,6 +57,7 @@ object LightspeedPowerKeyEngine {
 
     private var shizukuMonitorJob: Job? = null
     private var shizukuProcess: Process? = null
+    val activeProc: Process? get() = shizukuProcess
 
     private fun acquirePowerScreenWakeLock(context: Context, durationMs: Long = 3000L) {
         try {

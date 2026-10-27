@@ -166,6 +166,8 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var hasLongPressFired = false
     internal var isTouchingFocusedCog = false
     internal var isOpenedFromLeftFlank = false
+    @Volatile var isDispatchingFromLeftFlankView: Boolean = false
+    internal val gearRingPath = android.graphics.Path()
 
     internal var activeHoldScrubAction: String? = null
     internal var activeHoldScrubActionKey: String? = null
@@ -261,14 +263,46 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     internal fun triggerGearCogHaptic() {
         val prefs = prefs()
-        val strength = prefs.getString("pref_gear_haptic_strength", "tactical") ?: "tactical"
+        val strength = prefs.getString(LightspeedPreferences.KEY_COCKPIT_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_GEAR_HAPTIC_STRENGTH, "tactical") ?: "tactical")
         when (strength) {
-            "subtle" -> triggerHardwareHaptic(10, 50)
-            "tactical" -> triggerHardwareHaptic(18, 130)
+            "subtle", "soft", "soft_low_freq" -> triggerHardwareHaptic(10, 50)
             "heavy" -> triggerHardwareHaptic(30, 220)
             "off" -> {}
             else -> triggerHardwareHaptic(18, 130)
         }
+    }
+
+    internal fun triggerCruiseHaptic(isJump: Boolean, durationMs: Long = 20L, amplitude: Int = 100) {
+        val mode = prefs().getString(LightspeedPreferences.KEY_CRUISE_HAPTICS, "full") ?: "full"
+        when (mode) {
+            "off" -> {}
+            "jumps_only" -> {
+                if (isJump) triggerHardwareHaptic(durationMs, amplitude)
+            }
+            "soft", "soft_low_freq" -> {
+                triggerHardwareHaptic((durationMs * 0.7f).toLong().coerceAtLeast(10L), (amplitude * 0.6f).toInt().coerceAtLeast(50))
+            }
+            "heavy" -> {
+                triggerHardwareHaptic((durationMs * 1.3f).toLong().coerceAtMost(60L), (amplitude * 1.3f).toInt().coerceIn(1, 255))
+            }
+            "full", "tactical" -> {
+                triggerHardwareHaptic(durationMs, amplitude)
+            }
+            else -> triggerHardwareHaptic(durationMs, amplitude)
+        }
+    }
+
+    internal fun triggerCruiseCategoryHaptic() {
+        LightspeedHapticEngine.cruiseCategoryTick(context)
+    }
+
+    internal fun triggerCruiseLayerJumpHaptic() {
+        LightspeedHapticEngine.cruiseLayerJump(context)
+    }
+
+    internal fun triggerCruiseAppFocusHaptic() {
+        LightspeedHapticEngine.cruiseAppFocusTick(context)
     }
 
     internal var touchDownRawX = 0f

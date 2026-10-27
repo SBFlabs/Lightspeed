@@ -128,11 +128,7 @@ class LightspeedAutomationReceiver : BroadcastReceiver() {
                     try {
                         TileService.requestListeningState(
                             context,
-                            ComponentName(context, "com.sbf.lightspeed.settings.SidebarTileService")
-                        )
-                        TileService.requestListeningState(
-                            context,
-                            ComponentName(context, "com.sbf.lightspeed.settings.DeflectorTileService")
+                            ComponentName(context, "com.sbf.lightspeed.settings.MasterCutoffTileService")
                         )
                     } catch (e: Exception) { logSwallowed("LightspeedAutomationReceiver", "onReceive:132", e) }
                 }

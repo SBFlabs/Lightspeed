@@ -126,7 +126,8 @@ class LightspeedSensorDeckTouchOverlay(
         return action in listOf(
             "system:screen_timeout", "ACTION_SCREEN_TIMEOUT", "screen_timeout",
             "system:volume", "ACTION_VOLUME", "volume", "scrub:volume",
-            "system:brightness", "ACTION_BRIGHTNESS", "brightness", "scrub:brightness"
+            "system:brightness", "ACTION_BRIGHTNESS", "brightness", "scrub:brightness",
+            "system:scroll_scrub", "ACTION_SCROLL_SCRUB", "scroll_scrub", "scrub:scroll"
         )
     }
 
@@ -135,6 +136,7 @@ class LightspeedSensorDeckTouchOverlay(
             "system:screen_timeout", "ACTION_SCREEN_TIMEOUT", "screen_timeout" -> "system:screen_timeout"
             "system:volume", "ACTION_VOLUME", "volume", "scrub:volume" -> "system:volume"
             "system:brightness", "ACTION_BRIGHTNESS", "brightness", "scrub:brightness" -> "system:brightness"
+            "system:scroll_scrub", "ACTION_SCROLL_SCRUB", "scroll_scrub", "scrub:scroll" -> "system:scroll_scrub"
             else -> action
         }
     }
@@ -168,6 +170,12 @@ class LightspeedSensorDeckTouchOverlay(
                     scrubHudValue = res.value
                     CruiseScrubEngine.dispatchScrubHud(context, prefs, scrubType, fallbackKey, res.title, res.value, res.stepIndex, res.totalSteps)
                 }
+            }
+            "system:scroll_scrub" -> {
+                scrubCurrentValue = 1
+                scrubHudTitle = "SCROLL SCRUB"
+                scrubHudValue = "ACTIVE"
+                CruiseScrubEngine.dispatchScrubHud(context, prefs, scrubType, fallbackKey, scrubHudTitle, scrubHudValue, 1, 1)
             }
         }
     }
@@ -215,6 +223,12 @@ class LightspeedSensorDeckTouchOverlay(
                         scrubHudValue = res.value
                         CruiseScrubEngine.dispatchScrubHud(context, prefs, activeScrubType, fallbackKey, res.title, res.value, res.stepIndex, res.totalSteps)
                     }
+                }
+                "system:scroll_scrub" -> {
+                    com.sbf.lightspeed.system.LightspeedScrollScrubEngine.executeScrollScrub(context, steps)
+                    scrubCurrentValue = 1
+                    scrubHudValue = if (steps > 0) "▲ SCROLL UP" else "▼ SCROLL DOWN"
+                    CruiseScrubEngine.dispatchScrubHud(context, prefs, activeScrubType, fallbackKey, "SCROLL SCRUB", scrubHudValue, 1, 1)
                 }
             }
         }
@@ -326,9 +340,10 @@ class LightspeedSensorDeckTouchOverlay(
                     val isVolume = activeScrubType == "system:volume"
                     val isBrightness = activeScrubType == "system:brightness"
                     val isAudioDockEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_SONIC_DECK_ENABLED, false)
+                    val isVistaDockEnabled = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VISTA_DECK_ENABLED, true)
                     val verticalPull = kotlin.math.abs(event.rawY - startY)
                     
-                    if (verticalPull > 80f * density && ((isVolume && isAudioDockEnabled) || isBrightness)) {
+                    if (verticalPull > 80f * density && ((isVolume && isAudioDockEnabled) || (isBrightness && isVistaDockEnabled))) {
                         isScrubbing = false
                         activeScrubType = "none"
                         activeScrubActionKey = null
@@ -336,11 +351,7 @@ class LightspeedSensorDeckTouchOverlay(
                         if (isVolume) {
                             com.sbf.lightspeed.system.SonicDeckManager.show(service)
                         } else {
-                            val intent = android.content.Intent("com.sbf.lightspeed.OMNISCIENT_DISPLAY").apply {
-                                setPackage(context.packageName)
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                            }
-                            try { context.startActivity(intent) } catch (e: Exception) { logSwallowed("LightspeedSensorDeckTouchOverlay", "onTouchEvent:343", e) }
+                            com.sbf.lightspeed.system.VistaDeckManager.show(service)
                         }
                         return true
                     }

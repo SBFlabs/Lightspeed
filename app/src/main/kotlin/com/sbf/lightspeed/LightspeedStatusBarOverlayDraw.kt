@@ -7,6 +7,8 @@ import android.graphics.RectF
 import android.os.Build
 import com.sbf.lightspeed.system.LightspeedHudRenderer
 
+private val tempSensorRect = RectF()
+
 internal fun LightspeedStatusBarOverlay.handleDraw(canvas: Canvas, superCall: () -> Unit) {
     superCall()
     val d = resources.displayMetrics.density
@@ -72,12 +74,14 @@ internal fun LightspeedStatusBarOverlay.drawSensorDebugArea(
     if (isReview) {
         debugPaint.style = Paint.Style.FILL
         debugPaint.color = Color.argb(120, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-        canvas.drawRoundRect(RectF(sensorLeft, sensorTop, sensorRight, sensorBottom), 8f * d, 8f * d, debugPaint)
+        tempSensorRect.set(sensorLeft, sensorTop, sensorRight, sensorBottom)
+        canvas.drawRoundRect(tempSensorRect, 8f * d, 8f * d, debugPaint)
 
         debugPaint.style = Paint.Style.STROKE
         debugPaint.strokeWidth = 2f * d
         debugPaint.color = Color.WHITE
-        canvas.drawRoundRect(RectF(sensorLeft + 1f * d, sensorTop + 1f * d, sensorRight - 1f * d, sensorBottom - 1f * d), 8f * d, 8f * d, debugPaint)
+        tempSensorRect.set(sensorLeft + 1f * d, sensorTop + 1f * d, sensorRight - 1f * d, sensorBottom - 1f * d)
+        canvas.drawRoundRect(tempSensorRect, 8f * d, 8f * d, debugPaint)
 
         hudTextPaint.textSize = 10f * d
         hudTextPaint.color = Color.WHITE
@@ -86,10 +90,12 @@ internal fun LightspeedStatusBarOverlay.drawSensorDebugArea(
         val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
         debugPaint.style = Paint.Style.FILL
         debugPaint.color = Color.argb((alpha * 0.4f).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-        canvas.drawRoundRect(RectF(sensorLeft, sensorTop, sensorRight, sensorTop + 4f * d), 2f * d, 2f * d, debugPaint)
+        tempSensorRect.set(sensorLeft, sensorTop, sensorRight, sensorTop + 4f * d)
+        canvas.drawRoundRect(tempSensorRect, 2f * d, 2f * d, debugPaint)
 
         debugPaint.color = Color.argb(alpha, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-        canvas.drawRoundRect(RectF(sensorLeft, sensorTop, sensorRight, sensorTop + 2.5f * d), 1.5f * d, 1.5f * d, debugPaint)
+        tempSensorRect.set(sensorLeft, sensorTop, sensorRight, sensorTop + 2.5f * d)
+        canvas.drawRoundRect(tempSensorRect, 1.5f * d, 1.5f * d, debugPaint)
     }
 }
 
@@ -102,6 +108,7 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
     screenW: Float,
     m3Primary: Int
 ) {
+    val useCentralTheme = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_USE_CENTRAL_THEME, true)
     val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
     if (navState != null && navState.isActive) {
         val topY = (renderCache.thicknessDp * d) + (8f * d)
@@ -117,7 +124,8 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
             centerY = hudCenterY,
             topY = topY,
             primaryColor = m3Primary,
-            density = d
+            density = d,
+            useCentralTheme = useCentralTheme
         )
     } else {
         val transientHud = currentTransientHudState
@@ -135,7 +143,8 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
                 centerY = hudCenterY,
                 topY = topY,
                 primaryColor = m3Primary,
-                density = d
+                density = d,
+                useCentralTheme = useCentralTheme
             )
         }
     }

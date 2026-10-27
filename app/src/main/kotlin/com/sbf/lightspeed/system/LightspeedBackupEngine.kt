@@ -27,6 +27,8 @@ object LightspeedBackupEngine {
         LightspeedPreferences.KEY_STATUSBAR_PREVIEW,
         LightspeedPreferences.KEY_NOTCH_TEST_BEACON,
         LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW,
+        com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_LEFT,
+        com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_RIGHT,
         "pref_is_infinity_unlocked",
         "pref_active_infinity_code",
     )
@@ -208,6 +210,20 @@ object LightspeedBackupEngine {
                 }
 
                 val value = settingsObject.get(key)
+                if (key == LightspeedPreferences.KEY_PERIMETER_PROTECTED_SERVICES || key == LightspeedPreferences.KEY_PINNED_ACCESSIBILITY_SERVICES || key == LightspeedPreferences.KEY_CLOAKED_ACCESSIBILITY_SERVICES) {
+                    val validSet = mutableSetOf<String>()
+                    if (value is JSONArray) {
+                        for (i in 0 until value.length()) {
+                            val comp = value.optString(i, "").trim()
+                            if (comp.isNotEmpty() && ShellArgGuard.isComponent(comp)) {
+                                validSet.add(comp)
+                            }
+                        }
+                    }
+                    editor.putStringSet(key, validSet)
+                    importedCount++
+                    continue
+                }
                 if (key.startsWith(LightspeedPreferences.KEY_ACTION_METHOD_APPS_PREFIX)) {
                     val rawValue = when (value) {
                         is String -> value
@@ -297,7 +313,7 @@ object LightspeedBackupEngine {
                         importedCount++
                     }
                     is Number -> {
-                        if (existingVal is Float || value is Double || key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD || key.contains("threshold") || key.contains("scale") || key.contains("friction") || key.contains("sensitivity") || key.contains("velocity")) {
+                        if (existingVal is Float || value is Double || key.startsWith(LightspeedPreferences.KEY_PER_APP_VOLUME_PREFIX) || key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD || key.contains("threshold") || key.contains("scale") || key.contains("friction") || key.contains("sensitivity") || key.contains("velocity")) {
                             editor.putFloat(key, value.toFloat())
                         } else if (existingVal is Long || key.endsWith("_time") || key.endsWith("_timestamp")) {
                             editor.putLong(key, value.toLong())
@@ -391,13 +407,32 @@ object LightspeedBackupEngine {
             // Always flush all in-memory caches and hot reload live overlay
             try {
                 CockpitGearRepository.clearCache()
+                CockpitGimbalConfigCache.flush()
                 LightspeedShortcutManager.clearMemoryCache()
                 LightspeedIconManager.clearCache()
+                com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.refreshActiveAudioPlayers(context)
+                com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.initialize(context)
+                com.sbf.lightspeed.system.sonic.SonicChannelRouter.applyRoutingRules(context)
+                com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
+                com.sbf.lightspeed.widget.LightspeedStackWidgetProvider.notifyUpdate(context)
+                com.sbf.lightspeed.widget.SpacePodWidgetProvider.notifyUpdate(context)
+                com.sbf.lightspeed.widget.LightspeedFolderWidgetProvider.notifyUpdate(context)
                 LightspeedPreferences.refreshDeckGlassStyle(context)
                 LightspeedPreferences.refreshDeckBackdropStyle(context)
                 LightspeedPreferences.refreshLiquidGlassConfig(context)
                 BackdropBlurModeManager.init(context)
                 DeckThemeManager.refresh(context)
+                LightspeedAccessibilityService.instance?.overlayView?.let { overlay ->
+                    overlay.dataBridge.refreshCacheAsync {
+                        overlay.post {
+                            overlay.categoryAppsCache.clear()
+                            overlay.categoryGridCache.clear()
+                            overlay.categoryHeightCache.clear()
+                            overlay.lastLoadedCategoryId = null
+                            overlay.invalidate()
+                        }
+                    }
+                }
                 safeReloadPreferences()
             } catch (e: Exception) { logSwallowed(TAG, "importFromJson:323", e) }
             Log.i(TAG, "Imported and committed $importedCount settings entries successfully")
@@ -483,7 +518,24 @@ object LightspeedBackupEngine {
 
     fun resetToDefaults(context: Context) {
         val prefs = context.defaultPrefs()
-        prefs.edit().clear().apply()
+        prefs.edit().clear().commit()
+        LightspeedPreferences.initializeDefaults(context)
+        CockpitGearRepository.clearCache()
+        LightspeedShortcutManager.clearMemoryCache()
+        LightspeedIconManager.clearCache()
+        DeckThemeManager.refresh(context)
+        BackdropBlurModeManager.init(context)
+        LightspeedAccessibilityService.instance?.overlayView?.let { overlay ->
+            overlay.dataBridge.refreshCacheAsync {
+                overlay.post {
+                    overlay.categoryAppsCache.clear()
+                    overlay.categoryGridCache.clear()
+                    overlay.categoryHeightCache.clear()
+                    overlay.lastLoadedCategoryId = null
+                    overlay.invalidate()
+                }
+            }
+        }
         Log.i(TAG, "All preferences reset to default values")
     }
 
@@ -541,7 +593,7 @@ object LightspeedBackupEngine {
             } else ""
 
             if (act.isNotEmpty() && !ShellArgGuard.isClassName(act)) return false
-        } else if (!trimmed.startsWith("system:") && !trimmed.startsWith("#Intent;") && !trimmed.startsWith("intent:")) {
+        } else if (!trimmed.startsWith("system:") && !trimmed.startsWith("bot:") && !trimmed.startsWith("#Intent;") && !trimmed.startsWith("intent:")) {
             if (!ShellArgGuard.isPackage(trimmed)) return false
         }
         return true

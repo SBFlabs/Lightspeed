@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.view.MotionEvent
 import android.widget.Toast
+import com.sbf.lightspeed.system.CockpitGearRepository
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
@@ -21,40 +22,40 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
     val d = resources.displayMetrics.density
     val screenW = width.toFloat()
     val screenH = height.toFloat()
-    val cx = screenW / 2f
-    val cy = screenH / 2f
-    val deckW = (screenW * 0.92f).coerceAtMost(480f * d)
-    val leftX = cx - (deckW / 2f)
-    val rightX = cx + (deckW / 2f)
-    val gap = 8f * d
-
-    val topHangarY = (screenH * 0.07f).coerceAtLeast(54f * d)
     val prefs = prefs()
+    val openAccordion = prefs.getInt(KEY_HANGAR_OPEN_ACCORDION, -1)
+    val layout = computeHangarLayoutMetrics(screenW, screenH, d, openAccordion)
+
+    val ctrlCx = layout.ctrlCx
+    val deckW = layout.deckW
+    val leftX = layout.leftX
+    val rightX = layout.rightX
+    val gap = layout.gap
+    val r0Y = layout.r0Y
+    val rBayY = layout.rBayY
+    val rAccY = layout.rAccY
+
     val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
     if (activeGearSetIndex >= setsList.size) { activeGearSetIndex = 0 }
     val currentSetId = if (activeGearSetIndex in setsList.indices) setsList[activeGearSetIndex] else "0"
     val reticleOri = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_COCKPIT_RETICLE_ORIENTATION, com.sbf.lightspeed.system.LightspeedPreferences.RETICLE_ORIENTATION_CLASSIC_180) ?: com.sbf.lightspeed.system.LightspeedPreferences.RETICLE_ORIENTATION_CLASSIC_180
     val targetFocusAngle = if (reticleOri == com.sbf.lightspeed.system.LightspeedPreferences.RETICLE_ORIENTATION_MIRRORED_FLANK && isOpenedFromLeftFlank) 0f else 180f
 
-    val r0Y = topHangarY + 40f * d
-    val r1Y = r0Y + 38f * d
-    val r2Y = r1Y + 44f * d
-    val r3Y = r2Y + 44f * d
-    val r4Y = r3Y + 38f * d
-    val r5Y = r4Y + 38f * d
-    val r6Y = r5Y + 38f * d
-    val r7Y = r6Y + 35f * d
-    val r8Y = r7Y + 33f * d
+    val gearShape = CockpitGearRepository.getGearShape(context)
+    val unitScale = DeepSpaceGearGeometry.computeGearUnitScale(context)
+    val customDiameterScale = CockpitGearRepository.getGearCustomDiameterScale(context)
+    val dGimbal = unitScale * customDiameterScale * layout.landscapeGimbalFit
 
-    val cyGimbal = (r8Y + 155f * d).coerceAtLeast(screenH * 0.63f)
-    val radOuter = 135f * d
-    val radInner = 84f * d
-    val radHub = 32f * d
-    val shiftBarY = cyGimbal + radOuter + 26f * d
-    val transferBarY = cyGimbal + radOuter + 58f * d
+    val gimbalCx = layout.gimbalCx
+    val cyGimbal = layout.cyGimbal
+    val radOuter = 135f * dGimbal
+    val radInner = 84f * dGimbal
+    val radHub = 32f * dGimbal
+    val shiftBarY = cyGimbal + radOuter + (if (layout.isLandscape) 20f else 26f) * d
+    val transferBarY = cyGimbal + radOuter + (if (layout.isLandscape) 48f else 58f) * d
 
     val bayCount = setsList.size + 1
-    val slotW = (88f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
+    val slotW = (84f * d).coerceAtLeast(deckW / bayCount.coerceAtMost(4))
     val totalBayRailW = bayCount * slotW
     val maxScroll = (totalBayRailW - deckW).coerceAtLeast(0f)
 
@@ -75,12 +76,12 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
 
             hangarBayTouchDownX = x
             hangarBayTouchDownY = y
-            isDraggingHangarBays = (y in (r2Y - 24f * d)..(r2Y + 24f * d)) && (x in (leftX - 10f * d)..(rightX + 10f * d))
+            isDraggingHangarBays = (y in (rBayY - 20f * d)..(rBayY + 20f * d)) && (x in (leftX - 10f * d)..(rightX + 10f * d))
 
             if (isDraggingHangarBays) {
                 for (gIndex in setsList.indices) {
                     val btnX = railStartX + (gIndex + 0.5f) * slotW
-                    val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
+                    val bayRect = RectF(btnX - slotW * 0.46f, rBayY - 16f * d, btnX + slotW * 0.46f, rBayY + 16f * d)
                     if (bayRect.contains(x, y)) {
                         if (gIndex >= 2 && !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                             break
@@ -108,8 +109,8 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
             } else {
                 // 0. Flank Switcher: Port (Left) vs Starboard (Right)
                 val halfBtnW = (deckW - gap) / 2f
-                val portRect = RectF(leftX, r0Y - 16f * d, leftX + halfBtnW, r0Y + 16f * d)
-                val starboardRect = RectF(rightX - halfBtnW, r0Y - 16f * d, rightX, r0Y + 16f * d)
+                val portRect = RectF(leftX, r0Y - 15f * d, leftX + halfBtnW, r0Y + 15f * d)
+                val starboardRect = RectF(rightX - halfBtnW, r0Y - 15f * d, rightX, r0Y + 15f * d)
                 if (portRect.contains(x, y)) {
                     isOpenedFromLeftFlank = true
                     val flankSets = getGearSetsOrder(true)
@@ -129,204 +130,15 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                     return true
                 }
 
-                // 1. Startup Default Mode: Always First vs Resume Last (Per-Flank)
-                val btn1Rect = RectF(leftX, r1Y - 16f * d, leftX + halfBtnW, r1Y + 16f * d)
-                val btn2Rect = RectF(rightX - halfBtnW, r1Y - 16f * d, rightX, r1Y + 16f * d)
-                if (btn1Rect.contains(x, y)) {
-                    setFlankLaunchBehavior(isOpenedFromLeftFlank, "default")
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (btn2Rect.contains(x, y)) {
-                    setFlankLaunchBehavior(isOpenedFromLeftFlank, "last")
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-
-                // 3. Reorder & Delete Active Profile in Rotation (Per-Flank)
-                val shiftW = deckW * 0.35f
-                val deleteW = deckW * 0.26f
-                val shiftLeftRect = RectF(leftX, r3Y - 16f * d, leftX + shiftW, r3Y + 16f * d)
-                val deleteBayRect = RectF(cx - deleteW / 2f, r3Y - 16f * d, cx + deleteW / 2f, r3Y + 16f * d)
-                val shiftRightRect = RectF(rightX - shiftW, r3Y - 16f * d, rightX, r3Y + 16f * d)
-
-                if (shiftLeftRect.contains(x, y) && activeGearSetIndex > 0) {
-                    val temp = setsList[activeGearSetIndex]
-                    setsList[activeGearSetIndex] = setsList[activeGearSetIndex - 1]
-                    setsList[activeGearSetIndex - 1] = temp
-                    activeGearSetIndex--
-                    saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
-                    val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
-                    hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
-                    triggerHardwareHaptic(30, 160)
-                    invalidate()
-                    return true
-                }
-                if (shiftRightRect.contains(x, y) && activeGearSetIndex < setsList.size - 1) {
-                    val temp = setsList[activeGearSetIndex]
-                    setsList[activeGearSetIndex] = setsList[activeGearSetIndex + 1]
-                    setsList[activeGearSetIndex + 1] = temp
-                    activeGearSetIndex++
-                    saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
-                    val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
-                    hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
-                    triggerHardwareHaptic(30, 160)
-                    invalidate()
-                    return true
-                }
-                if (deleteBayRect.contains(x, y)) {
-                    if (setsList.size > 1) {
-                        val removedId = setsList.removeAt(activeGearSetIndex)
-                        if (activeGearSetIndex >= setsList.size) {
-                            activeGearSetIndex = setsList.size - 1
-                        }
-                        saveGearSetsOrder(isOpenedFromLeftFlank, setsList)
-                        val targetOffset = (deckW / 2f) - ((activeGearSetIndex + 0.5f) * slotW)
-                        hangarBayScrollOffset = targetOffset.coerceIn(-maxScroll, 0f)
-                        triggerHardwareHaptic(45, 230)
-                        invalidate()
-                        return true
-                    } else {
-                        Toast.makeText(context, "Cannot delete the last remaining gear set", Toast.LENGTH_SHORT).show()
-                        return true
-                    }
-                }
-
-                // 4. Icon Theme Carousel
-                val iconThemeRect = RectF(leftX, r4Y - 18f * d, rightX, r4Y + 18f * d)
-                if (iconThemeRect.contains(x, y)) {
-                    val availablePacks = LightspeedIconManager.getAvailableIconPacks(context)
-                    if (availablePacks.isNotEmpty()) {
-                        val activePack = LightspeedIconManager.getActiveIconPack(context)
-                        val currentIndex = availablePacks.indexOfFirst { it.packageName == activePack }
-                        val nextIndex = (currentIndex + 1) % availablePacks.size
-                        LightspeedIconManager.setActiveIconPack(context, availablePacks[nextIndex].packageName)
-                        triggerHardwareHaptic(35, 180)
-                        invalidate()
-                        return true
-                    }
-                }
-
-                // 5. Flight Momentum
-                val physW = (deckW - (gap * 2)) / 3f
-                val phys1Rect = RectF(leftX, r5Y - 16f * d, leftX + physW, r5Y + 16f * d)
-                val phys2Rect = RectF(leftX + physW + gap, r5Y - 16f * d, leftX + physW * 2 + gap, r5Y + 16f * d)
-                val phys3Rect = RectF(rightX - physW, r5Y - 16f * d, rightX, r5Y + 16f * d)
-                if (phys1Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_physics_profile", "magnetic").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (phys2Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_physics_profile", "fluid").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (phys3Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_physics_profile", "heavy").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-
-                // 6. Tactile Ratchet Haptics
-                val hapW = (deckW - (gap * 3)) / 4f
-                val hap1Rect = RectF(leftX, r6Y - 15f * d, leftX + hapW, r6Y + 15f * d)
-                val hap2Rect = RectF(leftX + (hapW + gap), r6Y - 15f * d, leftX + (hapW + gap) + hapW, r6Y + 15f * d)
-                val hap3Rect = RectF(leftX + (hapW + gap) * 2, r6Y - 15f * d, leftX + (hapW + gap) * 2 + hapW, r6Y + 15f * d)
-                val hap4Rect = RectF(rightX - hapW, r6Y - 15f * d, rightX, r6Y + 15f * d)
-                if (hap1Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "subtle").apply()
-                    triggerHardwareHaptic(10, 60)
-                    invalidate()
-                    return true
-                }
-                if (hap2Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "tactical").apply()
-                    triggerHardwareHaptic(20, 140)
-                    invalidate()
-                    return true
-                }
-                if (hap3Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "heavy").apply()
-                    triggerHardwareHaptic(35, 240)
-                    invalidate()
-                    return true
-                }
-                if (hap4Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_haptic_strength", "off").apply()
-                    invalidate()
-                    return true
-                }
-
-                // 7. Reticle Crosshair Style
-                val retW = (deckW - (gap * 3)) / 4f
-                val ret1Rect = RectF(leftX, r7Y - 14f * d, leftX + retW, r7Y + 14f * d)
-                val ret2Rect = RectF(leftX + (retW + gap), r7Y - 14f * d, leftX + (retW + gap) + retW, r7Y + 14f * d)
-                val ret3Rect = RectF(leftX + (retW + gap) * 2, r7Y - 14f * d, leftX + (retW + gap) * 2 + retW, r7Y + 14f * d)
-                val ret4Rect = RectF(rightX - retW, r7Y - 14f * d, rightX, r7Y + 14f * d)
-                if (ret1Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_reticle_style", "tactical").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (ret2Rect.contains(x, y)) {
-                    prefs.edit().putString("pref_gear_reticle_style", "cyber").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (ret3Rect.contains(x, y)) {
-                    if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                        triggerHardwareHaptic(50, 255)
-                        showInfinityPrompt()
-                        invalidate()
-                        return true
-                    }
-                    prefs.edit().putString("pref_gear_reticle_style", "cross").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (ret4Rect.contains(x, y)) {
-                    if (!com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
-                        triggerHardwareHaptic(50, 255)
-                        showInfinityPrompt()
-                        invalidate()
-                        return true
-                    }
-                    prefs.edit().putString("pref_gear_reticle_style", "diamond").apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-
-                // 7.5 Reticle Targeting Horizon (Classic 180° vs Dynamic Flank)
-                val oriW = (deckW - gap) / 2f
-                val ori1Rect = RectF(leftX, r8Y - 14f * d, leftX + oriW, r8Y + 14f * d)
-                val ori2Rect = RectF(rightX - oriW, r8Y - 14f * d, rightX, r8Y + 14f * d)
-                if (ori1Rect.contains(x, y)) {
-                    prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_COCKPIT_RETICLE_ORIENTATION, com.sbf.lightspeed.system.LightspeedPreferences.RETICLE_ORIENTATION_CLASSIC_180).apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
-                    return true
-                }
-                if (ori2Rect.contains(x, y)) {
-                    prefs.edit().putString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_COCKPIT_RETICLE_ORIENTATION, com.sbf.lightspeed.system.LightspeedPreferences.RETICLE_ORIENTATION_MIRRORED_FLANK).apply()
-                    triggerHardwareHaptic(20, 120)
-                    invalidate()
+                // 2. Accordion Tabs & Expanded Controls (0: FLEET, 1: RETICLE, 2: SHAPE)
+                if (handleCockpitHangarAccordionTouch(x, y, d, layout, openAccordion, setsList, slotW, maxScroll, customDiameterScale)) {
                     return true
                 }
 
                 // 7. Live Gimbal Touch & Interaction
-                val shiftCogLeftRect = RectF(cx - 150f * d, shiftBarY - 14f * d, cx - 60f * d, shiftBarY + 14f * d)
-                val shiftCogRightRect = RectF(cx + 60f * d, shiftBarY - 14f * d, cx + 150f * d, shiftBarY + 14f * d)
-                val transferRect = RectF(cx - 115f * d, transferBarY - 14f * d, cx + 115f * d, transferBarY + 14f * d)
+                val shiftCogLeftRect = RectF(gimbalCx - 150f * d, shiftBarY - 14f * d, gimbalCx - 60f * d, shiftBarY + 14f * d)
+                val shiftCogRightRect = RectF(gimbalCx + 60f * d, shiftBarY - 14f * d, gimbalCx + 150f * d, shiftBarY + 14f * d)
+                val transferRect = RectF(gimbalCx - 115f * d, transferBarY - 14f * d, gimbalCx + 115f * d, transferBarY + 14f * d)
                 val ringApps = getAppsForActiveGear(activeGearSetIndex, activeHangarRing).toMutableList()
 
                 // Check Inter-Ring Transfer Tap (Move App between Ring 0 and Ring 1)
@@ -404,12 +216,13 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                     return true
                 }
 
-                val distFromCore = kotlin.math.hypot(x - cx, y - cyGimbal)
+                val distFromCore = kotlin.math.hypot(x - gimbalCx, y - cyGimbal)
                 val ringRad = if (activeHangarRing == 0) radOuter else radInner
-                val reticleX = if (targetFocusAngle == 0f) cx + ringRad else cx - ringRad
-                val reticleY = cyGimbal
+                val targetAngleRad = Math.toRadians(targetFocusAngle.toDouble())
+                val rotRadFocused = Math.toRadians(gearRingRotations[activeHangarRing].toDouble())
+                val (reticleX, reticleY) = DeepSpaceGearGeometry.pointOnGearPerimeter(gimbalCx, cyGimbal, ringRad, targetAngleRad - rotRadFocused, rotRadFocused, gearShape)
                 val distFromReticle = kotlin.math.hypot(x - reticleX, y - reticleY)
-                val targetBadgeRect = RectF(cx - 75f * d, shiftBarY - 14f * d, cx + 75f * d, shiftBarY + 14f * d)
+                val targetBadgeRect = RectF(gimbalCx - 75f * d, shiftBarY - 14f * d, gimbalCx + 75f * d, shiftBarY + 14f * d)
 
                 // 1. Center Command Core Tap -> Open Gear Picker for Active Ring
                 if (distFromCore <= radHub) {
@@ -479,8 +292,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                 }
 
                 // 8. Bottom Exit Capsule
-                val exitBtnRect = RectF(cx - (deckW * 0.42f), screenH - 58f * d, cx + (deckW * 0.42f), screenH - 18f * d)
-                if (exitBtnRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
+                if (layout.exitRect.contains(x, y) || y < (20f * d) || y > (height - 15f * d)) {
                     dismissOverlay()
                     return true
                 }
@@ -507,7 +319,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
             } else if (isSpinningHangarRing) {
                 val dy = y - hangarSpinTouchY
                 hangarSpinTouchY = y
-                val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
+                val physicsProfile = prefs.getString(LightspeedPreferences.KEY_GEAR_PHYSICS_PROFILE, "magnetic") ?: "magnetic"
                 val multiplier = when (physicsProfile) {
                     "magnetic" -> 1.0f
                     "fluid" -> 1.45f
@@ -592,7 +404,7 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                 if (distMoved < 14f * d) {
                     for (gIndex in setsList.indices) {
                         val btnX = railStartX + (gIndex + 0.5f) * slotW
-                        val bayRect = RectF(btnX - slotW * 0.46f, r2Y - 18f * d, btnX + slotW * 0.46f, r2Y + 18f * d)
+                        val bayRect = RectF(btnX - slotW * 0.46f, rBayY - 16f * d, btnX + slotW * 0.46f, rBayY + 16f * d)
                         if (bayRect.contains(x, y)) {
                             if (gIndex >= 2 && !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                                 triggerHardwareHaptic(50, 255)
@@ -602,13 +414,13 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
                             }
                             activeGearSetIndex = gIndex
                             persistActiveGearSetIndex()
-                            triggerHardwareHaptic(25, 140)
+                            com.sbf.lightspeed.system.LightspeedHapticEngine.cockpitGearJump(context)
                             invalidate()
                             return true
                         }
                     }
                     val plusBtnX = railStartX + (setsList.size + 0.5f) * slotW
-                    val plusRect = RectF(plusBtnX - slotW * 0.42f, r2Y - 18f * d, plusBtnX + slotW * 0.42f, r2Y + 18f * d)
+                    val plusRect = RectF(plusBtnX - slotW * 0.42f, rBayY - 16f * d, plusBtnX + slotW * 0.42f, rBayY + 16f * d)
                     if (plusRect.contains(x, y)) {
                         if (setsList.size >= 2 && !com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
                             triggerHardwareHaptic(50, 255)
@@ -635,117 +447,4 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarTouch(event: MotionEvent
         }
     }
     return true
-}
-
-internal fun LightspeedCruiseOverlay.showInfinityPrompt() {
-    val intent = Intent(context, CockpitDialogActivity::class.java).apply {
-        action = CockpitDialogActivity.ACTION_SHOW_INFINITY
-        putExtra(CockpitDialogActivity.EXTRA_SET_INDEX, activeGearSetIndex.coerceAtLeast(0))
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-    }
-    dismissOverlay()
-    context.startActivity(intent)
-}
-
-/**
- * Resolves and dispatches hold gesture logic when hold timer expires.
- */
-internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZone) {
-    if (macroTrackingActive) {
-        val hostGesture = currentDetectedGesture
-        val holdEquivalent = when (hostGesture) {
-            MacroGesture.NONE -> MacroGesture.NONE
-            MacroGesture.SWIPE_UP -> MacroGesture.SWIPE_UP_HOLD
-            MacroGesture.SWIPE_DOWN -> MacroGesture.SWIPE_DOWN_HOLD
-            MacroGesture.SWIPE_LEFT -> MacroGesture.SWIPE_LEFT_HOLD
-            MacroGesture.SWIPE_UP_DOWN -> MacroGesture.SWIPE_UP_DOWN_HOLD
-            MacroGesture.SWIPE_DOWN_UP -> MacroGesture.SWIPE_DOWN_UP_HOLD
-            MacroGesture.SWIPE_UP_LEFT -> MacroGesture.SWIPE_UP_LEFT_HOLD
-            MacroGesture.SWIPE_DOWN_LEFT -> MacroGesture.SWIPE_DOWN_LEFT_HOLD
-            MacroGesture.SWIPE_LEFT_BACK -> MacroGesture.SWIPE_LEFT_BACK_HOLD
-            MacroGesture.SWIPE_LEFT_UP -> MacroGesture.SWIPE_LEFT_UP_HOLD
-            MacroGesture.SWIPE_LEFT_DOWN -> MacroGesture.SWIPE_LEFT_DOWN_HOLD
-            else -> hostGesture
-        }
-
-        val gestureKey = if (hostGesture == MacroGesture.NONE) "TAP_HOLD" else holdEquivalent.name
-        val zoneName = if (zone == TouchZone.TOP_EDGE) "TOP" else "BOTTOM"
-        val prefs = prefs()
-        val isFlankUnified = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_LINK_FLANK_ACTIONS, true)
-        val gestMode = prefs.getString(LightspeedPreferences.KEY_SYMMETRY_GESTURE_MODE, "independent") ?: "independent"
-        val isMirroringLeft = gestMode == "left"
-
-        val actionKey = if (isMirroringLeft) {
-            val isLeftUnified = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_LINK_FLANK_ACTIONS, true)
-            val leftGesture = when (gestureKey) {
-                "SWIPE_LEFT_HOLD" -> "SWIPE_RIGHT_HOLD"
-                "SWIPE_LEFT_UP_HOLD" -> "SWIPE_RIGHT_UP_HOLD"
-                "SWIPE_LEFT_DOWN_HOLD" -> "SWIPE_RIGHT_DOWN_HOLD"
-                "SWIPE_LEFT_BACK_HOLD" -> "SWIPE_RIGHT_BACK_HOLD"
-                "SWIPE_UP_LEFT_HOLD" -> "SWIPE_RIGHT_UP_HOLD"
-                "SWIPE_DOWN_LEFT_HOLD" -> "SWIPE_DOWN_RIGHT_HOLD"
-                else -> gestureKey
-            }
-            val isLeftGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = true, leftGesture)
-            val leftZone = if (isLeftUnified && isLeftGestureUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
-            "pref_macro_action_${leftZone}_$leftGesture"
-        } else {
-            val isGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gestureKey)
-            val dynamicZone = if (isFlankUnified && isGestureUnified) "UNIFIED" else zoneName
-            "pref_macro_action_${dynamicZone}_$gestureKey"
-        }
-        val explicit = prefs.getString(actionKey, null)
-        val actionValue = if (!explicit.isNullOrEmpty() && explicit != "none") {
-            explicit
-        } else {
-            com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(actionKey)
-        }
-
-        if (actionValue == "system:volume" || actionValue == "system:brightness" || actionValue == "system:screen_timeout" || actionValue == "scrub:volume" || actionValue == "scrub:brightness") {
-            isHoldFired = true
-            currentDetectedGesture = MacroGesture.SCRUBBING
-            activeHoldScrubAction = actionValue
-            activeHoldScrubActionKey = actionKey
-            aggregateScrubAccumulator = 0f
-            scrubStartX = lastTouchRawX
-            isScrubEntranceHapticFired = true
-            triggerHardwareHaptic(35, 180)
-            when (actionValue) {
-                "system:volume", "scrub:volume" -> {
-                    val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                    val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-                    val volResolution = prefs.getInt(LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
-                    val pct = kotlin.math.round(currentVol * 100f / maxVol.coerceAtLeast(1)).toInt().coerceIn(0, 100)
-                    activeScrubVolumePct = pct
-                    scrubHudTitle = "MEDIA VOLUME"
-                    scrubHudValue = "$pct%"
-                    dispatchScrubHud(scrubHudTitle, scrubHudValue, (pct * volResolution / 100).coerceIn(0, volResolution), volResolution)
-                }
-                "system:brightness", "scrub:brightness" -> {
-                    val currentBrightness = try {
-                        Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
-                    } catch (_: Exception) { 128 }
-                    val brightResolution = prefs.getInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
-                    scrubHudTitle = "BRIGHTNESS"
-                    scrubHudValue = "${(currentBrightness * 100 / 255)}%"
-                    dispatchScrubHud(scrubHudTitle, scrubHudValue, (currentBrightness * brightResolution / 255), brightResolution)
-                }
-                "system:screen_timeout" -> {
-                    scrubHudTitle = "SHIP GOES DARK IN"
-                    val idx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                    scrubHudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[idx].second
-                    dispatchScrubHud(scrubHudTitle, scrubHudValue, idx, LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
-                }
-            }
-            invalidate()
-        } else if (actionValue != "none") {
-            isHoldFired = true
-            if (holdEquivalent != hostGesture) {
-                currentDetectedGesture = holdEquivalent
-            }
-            executeMacroAction(zone, holdEquivalent)
-            triggerHardwareHaptic(35, 160)
-            macroTrackingActive = false
-        }
-    }
 }

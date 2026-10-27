@@ -3,8 +3,8 @@
 ### Genesis & Core Inspirations
 Lightspeed was built out of deep appreciation for the Android power-user community. While all application logic and Kotlin components were written independently, two specific projects served as the primary prompt and architectural catalyst that pushed me to create this app:
 
-* **Recents (by tymwitko):** The core conceptual logic behind the entire application—pioneering the *launcher-agnostic* workspace paradigm that allows Lightspeed to function as a daily launcher without replacing Android's default system launcher.
-* **LaunchTime:** The architectural logic and foundation for the offline app drawer and categorization heuristics.
+* **Recents (by tymwitko):** Conceptual inspiration for the *launcher-agnostic* workspace paradigm—allowing Lightspeed to function as a daily launcher without replacing Android's default system launcher (100% independent clean-room Kotlin implementation; zero source code shared).
+* **LaunchTime:** Conceptual inspiration for the categorized app drawer layout (100% independent clean-room Kotlin implementation; zero source code shared).
 
 Together, **Recents** and **LaunchTime** provided the initial spark and blueprint that prompted me to start building Lightspeed.
 
@@ -14,7 +14,7 @@ Together, **Recents** and **LaunchTime** provided the initial spark and blueprin
 Additional specialized mechanics and tactile workflows were shaped by exceptional utilities across the ecosystem:
 
 * **Droid Labs:** Direct inspiration for media playback tracking and live download progress indicators in the HUD strip.
-* **Fluid Navigation Gestures, Edge Gestures, UbikiTouch & One Hand Control:** The inspiration for gesture maneuvers: simple gestures, two-step gestures, rebound gestures, and gestures with the hold modifier.
+* **Fluid Navigation Gestures, Edge Gestures & One Hand Control:** The inspiration for gesture maneuvers: simple gestures, two-step gestures, rebound gestures, and gestures with the hold modifier.
 * **Key Mapper, MacroDroid, Shortcut Maker, SystemUI Tuner & Tap, Tap:** The direct inspiration for Hull & Ship Maneuvers, System Overrides, and the Action Selection Menu.
 * **Volume++ & 32steps:** The direct inspiration for the Sound Hub and granular audio stream controls.
 
@@ -61,3 +61,60 @@ You may obtain a copy of the Apache License at:
 https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+---
+
+#### SplitAudio
+Copyright (c) 2026 splitaudio contributors  
+Licensed under the MIT License:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+#### android-realtime-voice-isolation
+Copyright (c) 2026 André Naumann  
+Licensed under the MIT License:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+##### GTCRN Neural Speech Enhancement Model
+- Project: Xiaobin-Rong/gtcrn (`stream/onnx_models/gtcrn.onnx`)
+- Copyright (c) 2024 Rong Xiaobin
+- Licensed under the MIT License.
+
+##### Microsoft ONNX Runtime
+- Project: microsoft/onnxruntime (`com.microsoft.onnxruntime:onnxruntime-android:1.22.0`)
+- Licensed under the MIT License.
+
+---
+
+#### Essentials
+Copyright (c) 2025 Sameera Sandakelum  
+Licensed under the MIT License:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+---
+
+#### Volume++
+Copyright (c) 2026 noel-digital-fan  
+Licensed under the MIT License:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

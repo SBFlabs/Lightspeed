@@ -49,22 +49,18 @@ import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sin
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 
+private val cachedHudHeaderRect = RectF()
 
 internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () -> Unit) {
         if (activeGearSetIndex >= totalGearSetsCount) { activeGearSetIndex = 0 }
         // No per-frame prefs I/O — use render cache updated by prefChangeListener
 
-        val m3Primary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_accent1_600, context.theme)
-        } else {
-            Color.parseColor("#6750A4")
-        }
-        val m3Secondary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            context.resources.getColor(android.R.color.system_accent1_300, context.theme)
-        } else {
-            Color.parseColor("#D0BCFF")
-        }
+        val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
+        val palette = snapshot.resolveCanvasPalette(context)
+        val m3Primary = palette.primaryAccentArgb
+        val m3Secondary = palette.secondaryAccentArgb
 
         superCall()
         if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
@@ -142,213 +138,7 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
         }
 
         if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
-            val density = resources.displayMetrics.density
-            val cx = width / 2f
-            val cy = height / 2f
-            
-            // 1. Deep Space Astrogation Backdrop with subtle radial vignette — cached shader
-            val gradRadius = (width.toFloat().coerceAtLeast(height.toFloat()) * 0.75f)
-            val gradKey = (cx.toBits().toLong() xor (cy.toBits().toLong() shl 16)) xor gradRadius.toBits().toLong()
-            if (gradKey != spaceGradKey) {
-                spaceGradShader = android.graphics.RadialGradient(
-                    cx, cy, gradRadius,
-                    intArrayOf(Color.argb(210, 10, 14, 22), Color.argb(245, 4, 6, 10)),
-                    floatArrayOf(0.0f, 1.0f),
-                    android.graphics.Shader.TileMode.CLAMP
-                )
-                spaceGradKey = gradKey
-            }
-            elementPaint.style = Paint.Style.FILL
-            elementPaint.shader = spaceGradShader
-            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), elementPaint)
-            elementPaint.shader = null
-
-            // 2. Flight Telemetry Grid & Attitude Axis Crosshairs
-            elementPaint.style = Paint.Style.STROKE
-            elementPaint.strokeWidth = 1f * density
-            elementPaint.color = Color.argb(24, 200, 220, 255)
-            canvas.drawLine(cx - (380f * density / 2.6f), cy, cx + (380f * density / 2.6f), cy, elementPaint)
-            canvas.drawLine(cx, cy - (380f * density / 2.6f), cx, cy + (380f * density / 2.6f), elementPaint)
-            
-            // Scaled Radii for Outer, Inner, and Core Hub
-            val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
-            val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
-            val radHub = 64f * (density / 2.6f).coerceAtLeast(0.9f)
-            
-            // Draw Outer Orbital Gimbal Ring (Ring 0, 16 Magnetic Cogs)
-            drawSpaceshipGimbalRing(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                trackRadius = rad0,
-                trackWidth = 48f * density / 2.6f,
-                teethCount = 16,
-                toothDepth = 16f * density / 2.6f,
-                rotationDeg = gearRingRotations[0],
-                isActive = (activeGearRing == 0),
-                m3Primary = m3Primary
-            )
-
-            // Draw Inner Orbital Gimbal Ring (Ring 1, 12 Magnetic Cogs)
-            drawSpaceshipGimbalRing(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                trackRadius = rad1,
-                trackWidth = 42f * density / 2.6f,
-                teethCount = 12,
-                toothDepth = 14f * density / 2.6f,
-                rotationDeg = gearRingRotations[1],
-                isActive = (activeGearRing == 1),
-                m3Primary = m3Primary
-            )
-
-            // Draw Central Holographic Warp Core / Cockpit Command Node (Ring 2)
-            drawHolographicReactorCore(
-                canvas = canvas,
-                cx = cx,
-                cy = cy,
-                coreRadius = radHub,
-                isActive = (activeGearRing == 2),
-                m3Primary = m3Primary,
-                density = density
-            )
-
-            // --- ORBITAL APP FLIGHT PODS & ICONS PASS ---
-            val pm = context.packageManager
-            val sizeRaw = (42f * density).toInt()
-
-            var activeHighlightedCX = 0f
-            var activeHighlightedCY = 0f
-            var activeHighlightedBracketSize = 0f
-            var activeHighlightedLabel: String? = null
-
-            for (r in 0..1) {
-                val radius = if (r == 0) rad0 else rad1
-                val ringApps = getAppsForActiveGear(activeGearSetIndex, r)
-                if (ringApps.isEmpty()) continue
-                
-                val count = ringApps.size
-                val baseRotation = gearRingRotations[r]
-                val isRingFocused = (activeGearRing == r)
-                
-                for (i in ringApps.indices) {
-                    val angleDeg = (baseRotation + i * (360f / count)) % 360f
-                    val angleRad = Math.toRadians(angleDeg.toDouble())
-                    
-                    // Core Polar-to-Cartesian projection mapping coordinates
-                    val iconCX = cx + radius * Math.cos(angleRad).toFloat()
-                    val iconCY = cy + radius * Math.sin(angleRad).toFloat()
-                    
-                    // Dynamic Focus Interpolation: Classic 180° by default, or mirrored flank (0° left / 180° right)
-                    val isFlankAware = renderCacheReticleOrientation == com.sbf.lightspeed.system.LightspeedPreferences.RETICLE_ORIENTATION_MIRRORED_FLANK
-                    val targetFocusAngle = if (isFlankAware && isOpenedFromLeftFlank) 0f else 180f
-                    val normalizedDeg = if (angleDeg < 0) angleDeg + 360f else angleDeg
-                    val angleDiff = abs(normalizedDeg - targetFocusAngle)
-                    val effectiveDiff = if (angleDiff > 180f) 360f - angleDiff else angleDiff
-                    val isHighlighted = isRingFocused && effectiveDiff < (180f / count)
-                    val currentScale = if (isHighlighted) 1.28f else 1.0f
-                    val currentSize = (sizeRaw * currentScale).toInt()
-                    
-                    val itemToken = ringApps[i]
-                    val appLabel = resolveCleanAppLabel(itemToken)
-
-                    if (isHighlighted) {
-                        activeHighlightedCX = iconCX
-                        activeHighlightedCY = iconCY
-                        activeHighlightedBracketSize = currentSize + 22f * density
-                        activeHighlightedLabel = appLabel
-                    }
-
-                    // 1. Orbital Flight Pod Socket Behind Icon
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = if (isHighlighted) Color.argb(200, 22, 28, 44) else Color.argb(90, 16, 20, 30)
-                    canvas.drawCircle(iconCX, iconCY, (currentSize / 2f) + (6f * density), highlightPaint)
-
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = if (isHighlighted) 2.4f * density else 1.2f * density
-                    highlightPaint.color = if (isHighlighted) m3Primary else Color.argb(55, 200, 220, 255)
-                    canvas.drawCircle(iconCX, iconCY, (currentSize / 2f) + (6f * density), highlightPaint)
-
-                    // 2. Draw Icon Drawable or Tactical Monogram Placeholder
-                    try {
-                        val iconDrawable = com.sbf.lightspeed.system.LightspeedIconManager.getCachedIconDrawable(itemToken)
-                        if (iconDrawable != null) {
-                            iconDrawable.alpha = if (isRingFocused) (if (isHighlighted) 255 else 210) else 110
-                            iconDrawable.setBounds(
-                                (iconCX - currentSize / 2).toInt(),
-                                (iconCY - currentSize / 2).toInt(),
-                                (iconCX + currentSize / 2).toInt(),
-                                (iconCY + currentSize / 2).toInt()
-                            )
-                            iconDrawable.draw(canvas)
-                        } else {
-                            // Tactical Initial Monogram Placeholder: 0ms non-blocking instant draw
-                            val initial = appLabel.firstOrNull()?.uppercase() ?: "?"
-                            textPaint.color = Color.WHITE
-                            textPaint.textSize = currentSize * 0.44f
-                            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                            textPaint.textAlign = Paint.Align.CENTER
-                            canvas.drawText(initial, iconCX, iconCY + (currentSize * 0.16f), textPaint)
-
-                            // Asynchronous background fetch — populates cache and triggers postInvalidate()
-                            com.sbf.lightspeed.system.LightspeedIconManager.loadIconAsync(context, itemToken) {
-                                postInvalidate()
-                            }
-                        }
-                    } catch (e: Exception) { logSwallowed("LightspeedCruiseOverlayDraw", "handleDraw:298", e) }
-                }
-            }
-
-            // 3. Draw Flight Lock Targeting Reticle & Holographic Badge AFTER all rings & pods are drawn (Top of Z-Stack)
-            if (activeHighlightedLabel != null) {
-                drawFlightLockReticle(
-                    canvas = canvas,
-                    targetCX = activeHighlightedCX,
-                    targetCY = activeHighlightedCY,
-                    bracketSize = activeHighlightedBracketSize,
-                    m3Primary = m3Primary,
-                    m3Secondary = m3Secondary,
-                    appName = activeHighlightedLabel,
-                    density = density,
-                    reticleStyle = renderCacheReticleStyle
-                )
-            }
-            
-            // --- TOP FLIGHT TELEMETRY HUD HEADER (PROFILE HUD) ---
-            val topBadgeY = 54f * density
-            val profileName = when(activeGearSetIndex) {
-                0 -> getGearSetNameByIndex(0)
-                1 -> getGearSetNameByIndex(1)
-                2 -> getGearSetNameByIndex(2)
-                else -> getGearSetNameByIndex(3)
-            }
-            
-            val headerText = "◈ ASTROGATION // PROFILE $activeGearSetIndex: $profileName ◈"
-            textPaint.textSize = 12f * density
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            textPaint.textAlign = Paint.Align.CENTER
-            val headerWidth = textPaint.measureText(headerText)
-
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb(175, 12, 16, 28)
-            val headerRect = RectF(cx - headerWidth / 2f - 16f * density, topBadgeY - 15f * density, cx + headerWidth / 2f + 16f * density, topBadgeY + 15f * density)
-            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
-
-            highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 1.2f * density
-            highlightPaint.color = Color.argb(80, Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
-            canvas.drawRoundRect(headerRect, 10f * density, 10f * density, highlightPaint)
-
-            textPaint.color = Color.WHITE
-            canvas.drawText(headerText, cx, topBadgeY + 4f * density, textPaint)
-
-            // Subtitle Guidance Hint (cleanly separated with zero gear collision)
-            textPaint.textSize = 8.5f * density
-            textPaint.typeface = android.graphics.Typeface.DEFAULT
-            textPaint.color = Color.argb(160, 180, 210, 245)
-            canvas.drawText(if (isOpenedFromLeftFlank) "PULL RIGHT >> SWITCH PROFILE  •  SLIDE LEFT << CANCEL" else "PULL LEFT >> SWITCH PROFILE  •  SLIDE RIGHT << CANCEL", cx, topBadgeY + 28f * density, textPaint)
-            drawCruiseCentralPill(canvas, m3Primary)
+            drawFavoritesGearsLayer(canvas, m3Primary, m3Secondary)
             return
         }
 
@@ -382,8 +172,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
 
             highlightPaint.style = Paint.Style.FILL
             highlightPaint.color = Color.argb((150 * decelerationFactor).toInt(), 10, 14, 26)
-            val headerRect = RectF(w / 2f - hudWidth / 2f - 14f * density, topBadgeY - 13f * density, w / 2f + hudWidth / 2f + 14f * density, topBadgeY + 13f * density)
-            canvas.drawRoundRect(headerRect, 9f * density, 9f * density, highlightPaint)
+            cachedHudHeaderRect.set(w / 2f - hudWidth / 2f - 14f * density, topBadgeY - 13f * density, w / 2f + hudWidth / 2f + 14f * density, topBadgeY + 13f * density)
+            canvas.drawRoundRect(cachedHudHeaderRect, 9f * density, 9f * density, highlightPaint)
 
             textPaint.color = Color.WHITE
             textPaint.alpha = (255 * decelerationFactor).toInt()
@@ -397,8 +187,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
 
             // 4. Galactic Horizon: Cruising Through Nebulae & Star Systems
             if (cachedCategories.isNotEmpty()) {
-                val startYArea = h * 0.22f; val endYArea = h * 0.78f
-                val catLineH = (endYArea - startYArea) / cachedCategories.size
+                val startYArea = h * 0.25f; val endYArea = h * 0.75f
+                val catLineH = ((endYArea - startYArea) / cachedCategories.size) * categorySpacingScale()
 
                 cachedCategories.forEachIndexed { idx, cat ->
                     val centerY = startYArea + (idx * catLineH) + (catLineH / 2f) + categoryVisualOffset
@@ -479,195 +269,10 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
             }
             if (decelerationFactor < 1f) postInvalidateOnAnimation()
         } else if (currentLayer == CruiseLayer.GRID || isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) {
-            val density = resources.displayMetrics.density
-            val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
-            val themePanel = snapshot.panelColorArgb.toInt()
-            val themeTint = snapshot.tintArgb.toInt()
-            val themeBorder = snapshot.borderColorArgb.toInt()
-
-            val bgAlpha = (snapshot.panelAlpha * 210f).toInt().coerceIn(160, 230)
-            canvas.drawColor(Color.argb(bgAlpha, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel)))
-            drawCosmicStarfield(canvas, w, h, density, 0.7f)
-
-            textPaint.textAlign = Paint.Align.CENTER
-            canvas.save(); canvas.clipRect(0f, 0f, w, h)
-            canvas.translate(0f, -(if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset))
-            for (item in placedAppsList) {
-                val b = item.bounds; val isSel = activeItem == item.app
-                if (isSel) {
-                    // Starlight Pod Active Docking Ring
-                    highlightPaint.style = Paint.Style.FILL
-                    highlightPaint.color = Color.argb(160, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel))
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
-                    
-                    highlightPaint.style = Paint.Style.STROKE
-                    highlightPaint.strokeWidth = 2.2f * density
-                    highlightPaint.color = themeBorder
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
-                    
-                    textPaint.color = Color.WHITE
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                } else {
-                    elementPaint.style = Paint.Style.FILL
-                    val tileAlpha = if (item.app.isWidget) 45 else 25
-                    elementPaint.color = Color.argb(tileAlpha, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel))
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 16f, 16f, elementPaint)
-                    
-                    elementPaint.style = Paint.Style.STROKE
-                    elementPaint.strokeWidth = 1f * density
-                    elementPaint.color = Color.argb(40, Color.red(themeBorder), Color.green(themeBorder), Color.blue(themeBorder))
-                    canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 16f, 16f, elementPaint)
-                    
-                    textPaint.color = Color.parseColor("#E0E5F0")
-                    textPaint.typeface = android.graphics.Typeface.DEFAULT
-                }
-                if (item.app.isWidget) {
-                    canvas.drawText(if (item.app.label.length > 16) item.app.label.take(14) + ".." else item.app.label, b.centerX(), b.centerY() + 8f, textPaint)
-                } else {
-                    val icon = applicationIconCache[item.app.packageName]
-                    if (icon != null) {
-                        val sz = minOf(b.width() * 0.48f, b.height() * 0.48f)
-                        icon.setBounds((b.centerX() - sz / 2f).toInt(), (b.centerY() - sz * 0.62f).toInt(), (b.centerX() + sz / 2f).toInt(), (b.centerY() - sz * 0.62f + sz).toInt())
-                        icon.draw(canvas)
-                        canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
-                    } else {
-                        // Tactical Initial Monogram Placeholder — drawn in 0ms without blocking UI
-                        val sz = minOf(b.width() * 0.44f, b.height() * 0.44f)
-                        val iconY = b.centerY() - sz * 0.62f + sz / 2f
-                        elementPaint.style = Paint.Style.FILL
-                        elementPaint.color = Color.argb(22, 200, 220, 255)
-                        canvas.drawCircle(b.centerX(), iconY, sz * 0.44f, elementPaint)
-                        elementPaint.style = Paint.Style.STROKE
-                        elementPaint.strokeWidth = 1f * density
-                        elementPaint.color = Color.argb(45, 200, 220, 255)
-                        canvas.drawCircle(b.centerX(), iconY, sz * 0.44f, elementPaint)
-
-                        val initial = item.app.label.firstOrNull()?.uppercase() ?: "?"
-                        textPaint.textSize = sz * 0.46f
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-                        canvas.drawText(initial, b.centerX(), iconY + (sz * 0.16f), textPaint)
-
-                        textPaint.textSize = 10f * density
-                        textPaint.typeface = android.graphics.Typeface.DEFAULT
-                        canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
-                    }
-                }
-            }
-            canvas.restore()
-            if (isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) drawSettingsButton(canvas, elementPaint)
-            if (isPinnedAppMenuOpen()) drawPinnedAppMenu(canvas, elementPaint)
-            if (isEditModeOpen) drawEditModePanel(canvas, elementPaint)
+            drawCruiseGridLayer(canvas, w, h)
         }
 
         drawHyperdriveWarpSurge(canvas, m3Primary, resources.displayMetrics.density)
         drawCruiseCentralPill(canvas, m3Primary)
 }
-
-private fun LightspeedCruiseOverlay.drawCruiseCentralPill(canvas: Canvas, m3Primary: Int) {
-    val isLeft = isOpenedFromLeftFlank
-    val isGlowEnabled = if (isLeft) renderCacheLeftGlowEnabled else renderCacheGlowEnabled
-    if (!isGlowEnabled) {
-        return
-    }
-
-    val d = resources.displayMetrics.density
-    val w = width.toFloat()
-    val h = height.toFloat()
-
-    val visualWidth = if (isLeft) {
-        val geomMode = prefs().getString("pref_symmetry_geometry_mode", "independent") ?: "independent"
-        val isMirroringRight = geomMode == "right"
-        val prefix = if (isMirroringRight) "pref_sidebar_center" else "pref_sidebar_left_center"
-        prefs().getInt("${prefix}_visual_width", 6).toFloat() * d
-    } else {
-        centerVisualWidthPx
-    }
-
-    val offsetKey = if (isLeft) {
-        val geomMode = prefs().getString("pref_symmetry_geometry_mode", "independent") ?: "independent"
-        if (geomMode == "right") "pref_sidebar_center_x_offset" else "pref_sidebar_left_center_x_offset"
-    } else "pref_sidebar_center_x_offset"
-    val edgeShiftPx = prefs().getInt(offsetKey, 0).toFloat() * d
-    val glowDx = if (isLeft) edgeShiftPx else -edgeShiftPx
-
-    canvas.save()
-    canvas.translate(glowDx, 0f)
-    com.sbf.lightspeed.system.LightspeedDeflectorRenderer.drawDeflectorWing(
-        canvas = canvas,
-        isLeft = isLeft,
-        density = d,
-        w = w,
-        h = h,
-        topTouchBounds = topTouchBounds,
-        centerTouchBounds = centerTouchBounds,
-        bottomTouchBounds = bottomTouchBounds,
-        isCurrentlyTouched = isCurrentlyTouched,
-        activeZoneIsCenter = true,
-        activeZoneIsTop = false,
-        activeZoneIsBottom = false,
-        glowFraction = glowFraction,
-        centerTransparency = if (isLeft) renderCacheLeftCenterTransparency else renderCacheCenterTransparency,
-        topTransparency = 0,
-        bottomTransparency = 0,
-        isReview = false,
-        m3Primary = m3Primary,
-        glowStyle = renderCacheGlowStyle,
-        isGlowEnabled = true,
-        useM3Color = renderCacheUseM3Color,
-                pillStyle = com.sbf.lightspeed.system.LightspeedPreferences.getDeflectorPillStyle(context, isLeft),
-        touchY = null,
-        visualWidthPx = visualWidth
-    )
-    canvas.restore()
-}
-
-internal fun LightspeedCruiseOverlay.drawSpaceshipGimbalRing(
-    canvas: Canvas,
-    cx: Float,
-    cy: Float,
-    trackRadius: Float,
-    trackWidth: Float,
-    teethCount: Int,
-    toothDepth: Float,
-    rotationDeg: Float,
-    isActive: Boolean,
-    m3Primary: Int
-) = deepSpaceRenderer.drawSpaceshipGimbalRing(canvas, cx, cy, trackRadius, trackWidth, teethCount, toothDepth, rotationDeg, isActive, m3Primary)
-
-internal fun LightspeedCruiseOverlay.drawFlightLockReticle(
-    canvas: Canvas,
-    targetCX: Float,
-    targetCY: Float,
-    bracketSize: Float,
-    m3Primary: Int,
-    m3Secondary: Int,
-    appName: String,
-    density: Float,
-    reticleStyle: String = "tactical"
-) = deepSpaceRenderer.drawFlightLockReticle(canvas, targetCX, targetCY, bracketSize, m3Primary, m3Secondary, appName, density, reticleStyle)
-
-internal fun LightspeedCruiseOverlay.drawHolographicReactorCore(
-    canvas: Canvas,
-    cx: Float,
-    cy: Float,
-    coreRadius: Float,
-    isActive: Boolean,
-    m3Primary: Int,
-    density: Float
-) = deepSpaceRenderer.drawHolographicReactorCore(canvas, cx, cy, coreRadius, isActive, m3Primary, density)
-
-internal fun LightspeedCruiseOverlay.drawCosmicStarfield(canvas: Canvas, w: Float, h: Float, density: Float, alphaFactor: Float) =
-    deepSpaceRenderer.drawCosmicStarfield(canvas, w, h, density, alphaFactor)
-
-internal fun LightspeedCruiseOverlay.drawGalacticNebula(
-    canvas: Canvas,
-    cx: Float,
-    cy: Float,
-    radius: Float,
-    m3Primary: Int,
-    alphaFactor: Float
-) = deepSpaceRenderer.drawGalacticNebula(canvas, cx, cy, radius, m3Primary, alphaFactor)
-
-internal fun LightspeedCruiseOverlay.drawHyperdriveWarpSurge(canvas: Canvas, m3Primary: Int, density: Float) =
-    deepSpaceRenderer.drawHyperdriveWarpSurge(canvas, m3Primary, density)
 

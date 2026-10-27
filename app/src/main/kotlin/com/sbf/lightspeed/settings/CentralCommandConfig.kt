@@ -38,10 +38,22 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.ShizukuGate
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+
+object CentralCommandTabNavigator {
+    val jumpChannel = Channel<Int>(Channel.CONFLATED)
+    val pendingJumpTab = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
+
+    fun triggerJump(targetTab: Int) {
+        jumpChannel.trySend(targetTab)
+        pendingJumpTab.value = targetTab
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -66,6 +78,22 @@ fun CentralCommandMatrixFields(
 
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(Unit) {
+        CentralCommandTabNavigator.jumpChannel.receiveAsFlow().collect { target ->
+            if (target in 0..2) {
+                state.pagerState.animateScrollToPage(target)
+                kotlinx.coroutines.delay(220L)
+                val listState = if (target == 0) state.listState0 else if (target == 2) state.listState2 else null
+                if (listState != null) {
+                    val total = listState.layoutInfo.totalItemsCount
+                    if (total > 0) {
+                        listState.animateScrollToItem((total - 1).coerceAtLeast(0))
+                    }
+                }
+            }
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -82,19 +110,26 @@ fun CentralCommandMatrixFields(
             "statusbar", "sensor_deck" -> state.isSensorDeckExpandedState.value = true
             "gravity", "synthetic_gravity", "orientation", "attitude" -> state.isSyntheticGravityExpandedState.value = true
             "telemetry", "telemetry_indicators", "beacons", "notch_beacon" -> state.isTelemetryExpandedState.value = true
+            "volumekeys", "tactical_hardware" -> {
+                state.isTacticalHardwareExpandedState.value = true
+                state.isSubVolumeExpandedState.value = true
+            }
+            "backtap" -> {
+                state.isTacticalHardwareExpandedState.value = true
+                state.isSubHullTapExpandedState.value = true
+            }
             "refueling", "refueling_bay" -> {
-                state.isExperimentalLabsExpandedState.value = true
                 state.isRefuelingExpandedState.value = true
             }
             "backup", "config_vault", "vault" -> state.isConfigVaultExpandedState.value = true
-            "system_overrides" -> state.isSystemOverridesExpandedState.value = true
+            "system_overrides", "scrubbers", "display_wellness", "wellness", "smart_pixels", "eye_care", "airlock", "sonic_deck", "space_pods", "pods" -> state.isSystemOverridesExpandedState.value = true
             "experimental_labs", "labs", "experimental", "core_cooling" -> state.isExperimentalLabsExpandedState.value = true
             "power", "power_button" -> {
                 state.isExperimentalLabsExpandedState.value = true
                 state.isSubPowerExpandedState.value = true
             }
             "orbital", "orbital_capsule", "notch" -> {
-                state.isTelemetryExpandedState.value = true
+                state.isExperimentalLabsExpandedState.value = true
                 state.isNotchCalibExpandedState.value = true
             }
             "wings" -> {

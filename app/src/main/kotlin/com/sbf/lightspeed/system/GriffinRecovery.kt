@@ -18,15 +18,14 @@ object GriffinRecovery {
     private val lastRecoveryMap = ConcurrentHashMap<String, Long>()
 
     /**
-     * Inspects `dumpsys accessibility` and returns true ONLY if [packageName] appears
+     * Inspects `dumpsys accessibility` and returns all package names listed
      * under the "Crashed services" section.
      */
-    fun isCrashed(packageName: String): Boolean {
-        if (packageName.isBlank()) return false
-        if (!ElevatedTaskCloser.isShizukuActive) return false
-
+    fun getCrashedAccessibilityPackages(): Set<String> {
+        if (!ElevatedTaskCloser.isShizukuActive) return emptySet()
+        val crashedSet = mutableSetOf<String>()
         try {
-            val process = ElevatedTaskCloser.execShizuku("dumpsys accessibility 2>&1") ?: return false
+            val process = ElevatedTaskCloser.execShizuku("dumpsys accessibility 2>&1") ?: return emptySet()
             val reader = process.inputStream.bufferedReader()
             var inCrashedSection = false
             var line: String?
@@ -36,10 +35,7 @@ object GriffinRecovery {
                 if (l.contains("Crashed services:", ignoreCase = true)) {
                     val content = l.substringAfter("Crashed services:", "").trim()
                     if (content.isNotEmpty() && content != "{}") {
-                        if (containsPackage(content, packageName)) {
-                            process.waitForOrKill()
-                            return true
-                        }
+                        extractPackages(content, crashedSet)
                     }
                     inCrashedSection = true
                     continue
@@ -53,29 +49,34 @@ object GriffinRecovery {
                         inCrashedSection = false
                         continue
                     }
-                    if (containsPackage(l, packageName)) {
-                        process.waitForOrKill()
-                        return true
-                    }
+                    extractPackages(l, crashedSet)
                 }
             }
             process.waitForOrKill()
         } catch (e: Exception) {
-            Log.w(TAG, "isCrashed check failed for $packageName", e)
+            Log.w(TAG, "getCrashedAccessibilityPackages failed", e)
         }
-        return false
+        return crashedSet
     }
 
-    private fun containsPackage(text: String, packageName: String): Boolean {
+    private fun extractPackages(text: String, outSet: MutableSet<String>) {
         val regex = Regex("""[a-zA-Z0-9_.]+(?:/[a-zA-Z0-9_.]+)?""")
         for (match in regex.findAll(text)) {
             val str = match.value
             val pkg = if (str.contains('/')) str.substringBefore('/') else str
-            if (pkg.equals(packageName, ignoreCase = true)) {
-                return true
+            if (pkg.isNotEmpty()) {
+                outSet.add(pkg.lowercase())
             }
         }
-        return false
+    }
+
+    /**
+     * Inspects `dumpsys accessibility` and returns true ONLY if [packageName] appears
+     * under the "Crashed services" section.
+     */
+    fun isCrashed(packageName: String): Boolean {
+        if (packageName.isBlank()) return false
+        return getCrashedAccessibilityPackages().contains(packageName.lowercase())
     }
 
     /**
@@ -100,7 +101,7 @@ object GriffinRecovery {
      * Enforces a 60-second debounce per component.
      */
     fun recover(context: Context, packageName: String, componentString: String, skipDebounce: Boolean = false): Boolean {
-        if (packageName.isBlank() || componentString.isBlank()) return false
+        if (packageName.isBlank() || componentString.isBlank() || !ShellArgGuard.isPackage(packageName)) return false
 
         val targetCn = ComponentName.unflattenFromString(componentString)
         val svcLong = targetCn?.flattenToString() ?: componentString
@@ -168,6 +169,7 @@ object GriffinRecovery {
         val targetCn = ComponentName.unflattenFromString(componentString)
         val svcLong = targetCn?.flattenToString() ?: componentString
         val packageName = targetCn?.packageName ?: if (componentString.contains('/')) componentString.substringBefore('/') else componentString
+        if (!ShellArgGuard.isPackage(packageName)) return false
 
         val now = System.currentTimeMillis()
         val lastRecovery = lastRecoveryMap[svcLong] ?: 0L

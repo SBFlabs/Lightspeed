@@ -62,11 +62,18 @@ object LightspeedOrientationEngine {
     var forcedActive: Boolean = false
 
     @Volatile
+    private var lastAppliedOrientation: Int = Integer.MIN_VALUE
+    @Volatile
+    private var lastAppliedAccelRotation: Int = Integer.MIN_VALUE
+    @Volatile
+    private var lastAppliedUserRotation: Int = Integer.MIN_VALUE
+
+    @Volatile
     private var lastInternalWriteTime = 0L
     private var lastPermissionPromptTime = 0L
 
     fun isRecentInternalWrite(): Boolean {
-        return android.os.SystemClock.uptimeMillis() - lastInternalWriteTime < 1000L
+        return android.os.SystemClock.uptimeMillis() - lastInternalWriteTime < 2500L
     }
 
     fun recordInternalWrite() {
@@ -209,6 +216,17 @@ object LightspeedOrientationEngine {
     }
 
     internal fun applyOrientation(context: Context, orientation: Int, sysRotation: Int, accelRotation: Int) {
+        if (forcedActive &&
+            lastAppliedOrientation == orientation &&
+            lastAppliedUserRotation == sysRotation &&
+            lastAppliedAccelRotation == accelRotation
+        ) {
+            return
+        }
+        lastAppliedOrientation = orientation
+        lastAppliedUserRotation = sysRotation
+        lastAppliedAccelRotation = accelRotation
+
         val mode = LightspeedPreferences.getGravityEnforcementEngine(context)
         val useSystemSettings = mode == LightspeedPreferences.GRAVITY_ENGINE_SYSTEM_SETTINGS || mode == LightspeedPreferences.GRAVITY_ENGINE_DUAL_HYBRID
         val useWindowAnchor = mode == LightspeedPreferences.GRAVITY_ENGINE_WINDOW_ANCHOR || mode == LightspeedPreferences.GRAVITY_ENGINE_DUAL_HYBRID
@@ -257,8 +275,14 @@ object LightspeedOrientationEngine {
     }
 
     fun releaseForcedOrientation(context: Context) {
+        val wasForced = forcedActive
         forcedActive = false
+        lastAppliedOrientation = Integer.MIN_VALUE
+        lastAppliedAccelRotation = Integer.MIN_VALUE
+        lastAppliedUserRotation = Integer.MIN_VALUE
         LightspeedOrientationManager.stopActiveSensorPortraitDriver()
+        if (!wasForced) return
+
         Log.i(TAG, "Releasing forced orientation to native baseline")
         LightspeedAccessibilityService.instance?.updateForcedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED)
         val mode = LightspeedPreferences.getGravityEnforcementEngine(context)
@@ -285,6 +309,7 @@ object LightspeedOrientationEngine {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
                     ElevatedTaskCloser.execShizuku("settings put system $name $value")
+                    recordInternalWrite()
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed writing setting $name=$value via Shizuku: ${e.message}")
                 }

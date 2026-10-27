@@ -141,6 +141,12 @@ object DeckThemeManager {
         } else {
             snapshotWithCustom
         }
+        try {
+            val widgetIntent = android.content.Intent("com.sbf.lightspeed.widget.ACTION_REFRESH_THEME").apply {
+                setPackage(context.packageName)
+            }
+            context.sendBroadcast(widgetIntent)
+        } catch (_: Exception) {}
     }
 
     /**

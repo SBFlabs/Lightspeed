@@ -16,8 +16,6 @@ Lightspeed's Central Command provides a polished portal for configuring navigati
 
 ## 📥 Download
 
-arm64 phones only (32-bit-only phones cannot install this build)
-
 [![Download Latest APK](https://img.shields.io/github/downloads/SBFlabs/Lightspeed/total?style=for-the-badge&logo=github&logoColor=white&label=Download%20APK&color=238636)](https://github.com/SBFlabs/Lightspeed/releases/latest)
 [![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
 
@@ -257,6 +255,14 @@ The remaining experimental features are unfinished or currently non-functional a
 
 Experimental features are best treated as exactly that: experiments. The **HUD STRIP swipe-down gesture** may require making the Sensor Area thicker and keeping the swipe-down distance roughly equal to its thickness, so that Android's native status-bar pull-down gesture is not triggered unintentionally.
 
+### 7. 🆕 Decks, Trackpad & Master Cloak (v1.3.0)
+
+- **Cybernetic Trackpad**: Floating cursor navigation with customizable acceleration and haptics, plus robot-arm macro buttons.
+- **Sonic Deck**: Per-app volume mixer and offline voice isolation. It runs a privileged audio service through Shizuku that uses roughly 100–150 MB of RAM while enabled and is shut down when you turn it off.
+- **Vista Deck**: Unified brightness and display optics. Video Override only engages above 100% and below 1%, so the 1%–100% range stays pure native Android.
+- **Astrogation Airlock**: The 5-second mindful pause shows both App Time and Sector Time (total time today in that app's category).
+- **Master Cloak Quick Settings tile**: Lightspeed's single Quick Settings tile. Tap to cloak or re-arm everything; long-press to choose other accessibility services to switch off alongside it.
+
 ---
 
 ## 🔐 Permissions & Elevated Capabilities
@@ -455,7 +461,7 @@ Feature suggestions will be cataloged into the development backlog for future mi
 
 ---
 
-## ☕ Free & Supporter Longevity Model
+## 💙 Free & Supporter Longevity Model
 
 The vast majority of Lightspeed is and will remain free forever. Core gesture navigation, app launching, deflectors, system overrides, and backup reliability have zero paywalls.
 

@@ -258,11 +258,12 @@ object LightspeedAppSovereigntyEngine {
     // ────────────────────────────────────────────────
 
     fun setAppVolume(pkg: String, volume: Float, context: Context? = null) {
-        val clamped = volume.coerceIn(0.0f, 1.0f)
+        val clamped = volume.coerceIn(0.0f, 2.0f)
         appVolumeMap[pkg] = clamped
         Log.i(TAG, "setAppVolume($pkg, $clamped)")
 
         val ctx = context ?: return
+        com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.setAppVolume(ctx, pkg, clamped)
         val pm = ctx.packageManager
         var appliedCount = 0
 
@@ -352,14 +353,18 @@ object LightspeedAppSovereigntyEngine {
             val current = getStealthLockedApps(ctx).toMutableSet()
             if (isLocked) {
                 current.add(pkg)
-                prefs.edit().putStringSet(PREF_STEALTH_LOCKED_APPS, current).apply()
+                prefs.edit().putStringSet(PREF_STEALTH_LOCKED_APPS, current)
+                    .putBoolean(LightspeedPreferences.KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX + pkg, true)
+                    .apply()
                 stealthLockedApps.add(pkg)
                 armAppSovereignty(pkg)
                 setMultiAudioFocus(true)
                 ctx.showToast("${pkg.label()}: 🔒 Non-ducking Playback ON (won't pause or lower volume)")
             } else {
                 current.remove(pkg)
-                prefs.edit().putStringSet(PREF_STEALTH_LOCKED_APPS, current).apply()
+                prefs.edit().putStringSet(PREF_STEALTH_LOCKED_APPS, current)
+                    .putBoolean(LightspeedPreferences.KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX + pkg, false)
+                    .apply()
                 stealthLockedApps.remove(pkg)
                 disarmAppSovereignty(pkg)
                 if (current.isEmpty()) {

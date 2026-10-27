@@ -95,6 +95,33 @@ object CockpitGearRepository {
         prefs.edit().putString(key, behavior).apply()
     }
 
+    fun getGearShape(context: Context): String {
+        return context.defaultPrefs().getString(LightspeedPreferences.KEY_GEAR_SHAPE, LightspeedPreferences.GEAR_SHAPE_CIRCLE) ?: LightspeedPreferences.GEAR_SHAPE_CIRCLE
+    }
+
+    fun setGearShape(context: Context, shape: String) {
+        context.defaultPrefs().edit().putString(LightspeedPreferences.KEY_GEAR_SHAPE, shape).apply()
+        CockpitGimbalConfigCache.flush()
+    }
+
+    fun isGearDpiIndependent(context: Context): Boolean {
+        return context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_GEAR_DPI_INDEPENDENT, true)
+    }
+
+    fun setGearDpiIndependent(context: Context, independent: Boolean) {
+        context.defaultPrefs().edit().putBoolean(LightspeedPreferences.KEY_GEAR_DPI_INDEPENDENT, independent).apply()
+        CockpitGimbalConfigCache.flush()
+    }
+
+    fun getGearCustomDiameterScale(context: Context): Float {
+        return context.defaultPrefs().getFloat(LightspeedPreferences.KEY_GEAR_CUSTOM_DIAMETER_SCALE, 1.0f).coerceIn(0.5f, 2.0f)
+    }
+
+    fun setGearCustomDiameterScale(context: Context, scale: Float) {
+        context.defaultPrefs().edit().putFloat(LightspeedPreferences.KEY_GEAR_CUSTOM_DIAMETER_SCALE, scale.coerceIn(0.5f, 2.0f)).apply()
+        CockpitGimbalConfigCache.flush()
+    }
+
     fun resolveDefaultRingPackages(context: Context, ringIndex: Int): List<String> {
         val pm = context.packageManager
         if (ringIndex == 1) {

@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <!-- 12-Theme Wallpaper Blurred Glass Card Background Canvas -->
+    <ImageView
+        android:id="@+id/stack_card_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="@null" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <!-- Tactical Stack Header Bar -->
+        <LinearLayout
+            android:id="@+id/stack_header"
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/btn_stack_prev"
+                android:layout_width="32dp"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="◀"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF" />
+
+            <TextView
+                android:id="@+id/stack_header_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="TACTICAL APPS"
+                android:textSize="10.5sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/btn_stack_next"
+                android:layout_width="32dp"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="▶"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF" />
+
+            <TextView
+                android:id="@+id/btn_stack_edit"
+                android:layout_width="32dp"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="⚙"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- Dynamic Content Body -->
+        <FrameLayout
+            android:id="@+id/stack_content_container"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!-- Page 0 & 1: 2x2 Interactive Grid Slots (Apps / System Deck) -->
+            <LinearLayout
+                android:id="@+id/page_grid_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <!-- Row 1: Slot 1 & Slot 2 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <!-- Slot 1 -->
+                    <LinearLayout
+                        android:id="@+id/slot_1"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="2dp">
+
+                        <ImageView
+                            android:id="@+id/slot_1_icon"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/slot_1_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
+
+                        <TextView
+                            android:id="@+id/slot_1_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="7.5sp"
+                            android:textColor="#AAAAAA"
+                            android:maxLines="1"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <!-- Slot 2 -->
+                    <LinearLayout
+                        android:id="@+id/slot_2"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="2dp">
+
+                        <ImageView
+                            android:id="@+id/slot_2_icon"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/slot_2_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
+
+                        <TextView
+                            android:id="@+id/slot_2_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="7.5sp"
+                            android:textColor="#AAAAAA"
+                            android:maxLines="1"
+                            android:visibility="gone" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Row 2: Slot 3 & Slot 4 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <!-- Slot 3 -->
+                    <LinearLayout
+                        android:id="@+id/slot_3"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="2dp">
+
+                        <ImageView
+                            android:id="@+id/slot_3_icon"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/slot_3_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
+
+                        <TextView
+                            android:id="@+id/slot_3_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="7.5sp"
+                            android:textColor="#AAAAAA"
+                            android:maxLines="1"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <!-- Slot 4 -->
+                    <LinearLayout
+                        android:id="@+id/slot_4"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="2dp">
+
+                        <ImageView
+                            android:id="@+id/slot_4_icon"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/slot_4_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
+
+                        <TextView
+                            android:id="@+id/slot_4_status"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="7.5sp"
+                            android:textColor="#AAAAAA"
+                            android:maxLines="1"
+                            android:visibility="gone" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Page 2: Cockpit Gear & Telemetry Card -->
+            <LinearLayout
+                android:id="@+id/page_telemetry_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="6dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/telemetry_gear_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="GEAR 1: DEFAULT"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/telemetry_gear_sub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MODULE 1 OF 3 • 4 APPS ARMED"
+                    android:textSize="9sp"
+                    android:textColor="#B0BEC5"
+                    android:layout_marginTop="2dp"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/telemetry_battery_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⚡ BATTERY: 85% • IMMUNITY: ACTIVE"
+                    android:textSize="9sp"
+                    android:textColor="#00E676"
+                    android:layout_marginTop="4dp"
+                    android:maxLines="1" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp">
+
+                    <TextView
+                        android:id="@+id/btn_telemetry_cycle_gear"
+                        android:layout_width="wrap_content"
+                        android:layout_height="26dp"
+                        android:gravity="center"
+                        android:paddingLeft="12dp"
+                        android:paddingRight="12dp"
+                        android:text="CYCLE GEAR ⟳"
+                        android:textSize="9sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+
+                    <Space
+                        android:layout_width="12dp"
+                        android:layout_height="1dp" />
+
+                    <TextView
+                        android:id="@+id/btn_telemetry_open_deck"
+                        android:layout_width="wrap_content"
+                        android:layout_height="26dp"
+                        android:gravity="center"
+                        android:paddingLeft="12dp"
+                        android:paddingRight="12dp"
+                        android:text="REFUELING BAY ↗"
+                        android:textSize="9sp"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Page 3+: Hosted Android Widget View (if any configured) -->
+            <LinearLayout
+                android:id="@+id/page_hosted_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="6dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/hosted_widget_icon"
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/hosted_widget_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Widget Title"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginTop="4dp"
+                    android:maxLines="1" />
+
+                <TextView
+                    android:id="@+id/hosted_widget_sub"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TAP TO EXPAND INTERACTIVE WIDGET"
+                    android:textSize="8.5sp"
+                    android:textColor="#B0BEC5"
+                    android:layout_marginTop="2dp"
+                    android:maxLines="1" />
+            </LinearLayout>
+
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

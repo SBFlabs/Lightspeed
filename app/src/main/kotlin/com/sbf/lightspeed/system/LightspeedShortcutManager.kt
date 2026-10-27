@@ -61,6 +61,10 @@ object LightspeedShortcutManager {
         return "shortcut:type=pinned;pkg=$pkg;id=${encode(id)};label=${encode(label)};"
     }
 
+    fun queryAppDeepShortcuts(context: Context, packageName: String): List<DeepShortcutEntry> {
+        return LightspeedDeepShortcutHelper.queryAppDeepShortcuts(context, packageName)
+    }
+
     fun createCustomShortcutToken(
         context: Context,
         pkg: String,
@@ -123,6 +127,9 @@ object LightspeedShortcutManager {
             try {
                 val prefs = context.defaultPrefs()
                 val allShortcutHashes = mutableSetOf<String>()
+                LightspeedIconManager.getManuallyOverriddenTokens(context).forEach { token ->
+                    allShortcutHashes.add(token.hashCode().toString())
+                }
                 prefs.all.forEach { (k, v) ->
                     val str = v?.toString() ?: ""
                     if (str.startsWith("shortcut:") || str.startsWith("custom:")) {
@@ -190,20 +197,60 @@ object LightspeedShortcutManager {
             return ParsedShortcut("app", token.removePrefix("app:"))
         }
 
-        if (!token.startsWith("shortcut:")) {
+        val isStructured = token.startsWith("shortcut:") ||
+            token.startsWith("caller;") ||
+            token.contains(";label=") ||
+            token.contains(";b64uri=") ||
+            token.contains("type=") ||
+            token.contains("b64uri=")
+
+        if (!isStructured) {
             return ParsedShortcut("app", token)
         }
 
         val body = token.removePrefix("shortcut:")
 
-        // 0. Handle malformed tokens without proper structure (e.g., "shortcut:knstead")
+        // 0. Contact / Caller / Intent Token with Base64 URI (e.g. "caller;label=Dr Mom;b64uri=..." or "shortcut:type=intent;...")
+        if (body.contains("b64uri=") || body.startsWith("caller;")) {
+            val label = when {
+                body.contains("label=") -> decode(body.substringAfter("label=").substringBefore(";"))
+                body.contains(";label=") -> decode(body.substringAfter(";label=").substringBefore(";"))
+                else -> ""
+            }
+            var intentUri = ""
+            if (body.contains("b64uri=")) {
+                try {
+                    val b64 = body.substringAfter("b64uri=").substringBefore(";")
+                    val bytes = Base64.decode(b64, Base64.NO_WRAP or Base64.URL_SAFE)
+                    intentUri = String(bytes, Charsets.UTF_8)
+                } catch (e: Exception) { logSwallowed(TAG, "parseToken:b64", e) }
+            } else if (body.contains("uri=")) {
+                intentUri = decode(body.substringAfter("uri=").substringBefore(";"))
+            }
+
+            var pkg = when {
+                body.contains("pkg=") -> body.substringAfter("pkg=").substringBefore(";")
+                body.contains(";pkg=") -> body.substringAfter(";pkg=").substringBefore(";")
+                else -> ""
+            }
+            if (pkg.isBlank() && intentUri.isNotBlank()) {
+                try {
+                    val parsedIntent = Intent.parseUri(intentUri, Intent.URI_INTENT_SCHEME)
+                    pkg = parsedIntent.`package` ?: parsedIntent.component?.packageName ?: ""
+                } catch (_: Exception) {}
+            }
+
+            return ParsedShortcut("intent", pkg, label = label, intentUri = intentUri)
+        }
+
+        // 1. Handle malformed tokens without proper structure (e.g., "shortcut:knstead")
         if (!body.contains("=") && !body.contains(";")) {
             // Case 1: Token is just a label without pkg (e.g., "shortcut:knstead")
             val label = decode(body)
             return ParsedShortcut("generic", "", label = label)
         }
 
-        // 1. Structured Token Format: type=...;pkg=...;
+        // 2. Structured Token Format: type=...;pkg=...;
         if (body.contains("type=") && body.contains("pkg=")) {
             val type = body.substringAfter("type=").substringBefore(";")
             val pkg = body.substringAfter("pkg=").substringBefore(";")

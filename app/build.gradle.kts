@@ -26,13 +26,18 @@ android {
     defaultConfig {
         applicationId = "com.sbf.lightspeed"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 9
-        versionName = "1.2.1"
+        versionName = "1.3.0"
         manifestPlaceholders["appName"] = "Lightspeed"
+    }
 
-        ndk {
-            abiFilters += "arm64-v8a"
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
         }
     }
 
@@ -45,8 +50,12 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = false
         }
+    }
+
+    androidResources {
+        noCompress += "onnx"
     }
 
     if (hasReleaseKeystore) {
@@ -86,6 +95,7 @@ android {
     }
     buildFeatures {
         compose = true
+        aidl = true
     }
 }
 
@@ -101,6 +111,9 @@ dependencies {
     // Elevated system IPC (Shizuku & compatible forks) - MIT License (Zero copyleft)
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+
+    // Realtime neural voice isolation & DSP - MIT License
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
 
     // AndroidX & Jetpack Compose - Apache License 2.0
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))

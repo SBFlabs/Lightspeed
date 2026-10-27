@@ -56,13 +56,18 @@ fun BatteryExemptionAppCard(
     onTogglePin: () -> Unit,
     onWhitelistChanged: (Boolean) -> Unit
 ) {
-    val iconBitmap = remember(appItem.packageName) {
-        try {
-            pm.getApplicationIcon(appItem.appInfo).toBitmap(width = 64, height = 64).asImageBitmap()
-        } catch (_: Throwable) {
-            null
+    val iconBitmap = androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+        initialValue = null,
+        key1 = appItem.packageName
+    ) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                pm.getApplicationIcon(appItem.appInfo).toBitmap(width = 64, height = 64).asImageBitmap()
+            } catch (_: Throwable) {
+                null
+            }
         }
-    }
+    }.value
 
     Surface(
         modifier = Modifier.fillMaxWidth(),

@@ -9,6 +9,37 @@ import android.graphics.RectF
 import android.provider.Settings
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedUsageStats
+import com.sbf.lightspeed.system.defaultPrefs
+
+private val editModeArrowPath = Path()
+
+/** Category Cruise name-spacing presets (percent of the default row height). */
+internal val CATEGORY_SPACING_OPTIONS = listOf(70 to "TIGHT", 100 to "NORMAL", 130 to "WIDE", 160 to "WIDER")
+
+/** Live multiplier applied to the Category Cruise row height (1.0 = default spacing). */
+internal fun LightspeedCruiseOverlay.categorySpacingScale(): Float =
+    context.defaultPrefs().getInt(
+        LightspeedPreferences.KEY_CATEGORY_CRUISE_SPACING_PERCENT,
+        LightspeedPreferences.DEFAULT_CATEGORY_CRUISE_SPACING_PERCENT
+    ).coerceIn(40, 250) / 100f
+
+/** Category Cruise slider feel presets (stored values match the gear-ring physics tokens). */
+internal val CATEGORY_PHYSICS_OPTIONS = listOf("magnetic" to "SNAPPY", "fluid" to "FLUID", "heavy" to "HEAVY")
+
+/**
+ * Reshapes the finger-driven 0..1 Category Cruise progress by physics profile.
+ * Slope near the centre is 1.0 (snappy), 1.45 (fluid) or 0.72 (heavy); both ends stay reachable.
+ */
+internal fun LightspeedCruiseOverlay.shapeCategoryProgress(progress: Float): Float {
+    val profile = context.defaultPrefs().getString(LightspeedPreferences.KEY_CATEGORY_CRUISE_PHYSICS_PROFILE, "magnetic")
+    val t = (progress * 2f - 1f).coerceIn(-1f, 1f)
+    val shaped = when (profile) {
+        "fluid" -> t * (1.45f - 0.45f * t * t)
+        "heavy" -> t * (0.72f + 0.28f * t * t)
+        else -> t
+    }
+    return ((shaped + 1f) / 2f).coerceIn(0f, 1f)
+}
 
 enum class EditModeTab {
     PAGE,
@@ -90,186 +121,6 @@ internal fun LightspeedCruiseOverlay.saveAndApplyEditModeOrder() {
     lastLoadedCategoryId = null
     loadActiveCategoryGrid()
     invalidate()
-}
-
-internal fun LightspeedCruiseOverlay.handleEditModeTap(x: Float, y: Float) {
-    if (!isEditModeOpen) return
-
-    val dp = resources.displayMetrics.density
-
-    if (isEditModePromptOpen) {
-        val promptBounds = getUnsavedPromptBounds()
-        if (promptBounds.contains(x, y)) {
-            val btnRowTop = promptBounds.bottom - 40f * dp
-            if (y >= btnRowTop) {
-                val btnW = promptBounds.width() / 3f
-                val relX = x - promptBounds.left
-                when {
-                    relX < btnW -> {
-                        // "Save"
-                        triggerHardwareHaptic(20, 80)
-                        saveAndApplyEditModeOrder()
-                        closeEditMode()
-                        invalidate()
-                    }
-                    relX < btnW * 2f -> {
-                        // "Discard"
-                        triggerHardwareHaptic(20, 80)
-                        closeEditMode()
-                        invalidate()
-                    }
-                    else -> {
-                        // "Keep editing"
-                        triggerHardwareHaptic(20, 80)
-                        isEditModePromptOpen = false
-                        invalidate()
-                    }
-                }
-            }
-        }
-        return
-    }
-
-    val bounds = getEditModePanelBounds()
-    if (!bounds.contains(x, y)) {
-        if (editModeCategories != editModeSavedCategories) {
-            triggerHardwareHaptic(20, 80)
-            isEditModePromptOpen = true
-            invalidate()
-        } else {
-            closeEditMode()
-            triggerHardwareHaptic(20, 80)
-            invalidate()
-        }
-        return
-    }
-
-    val numCategories = editModeCategories.size
-    val totalRows = numCategories + 2
-    val actualRowH = bounds.height() / totalRows
-    val tabRowBottom = bounds.top + actualRowH
-    val btnRowTop = bounds.bottom - actualRowH
-
-    if (y < tabRowBottom) {
-        val midX = bounds.left + (bounds.width() / 2f)
-        val selectedTab = if (x < midX) EditModeTab.PAGE else EditModeTab.HUD
-        if (editModeTab != selectedTab) {
-            triggerHardwareHaptic(20, 80)
-            editModeTab = selectedTab
-            invalidate()
-        }
-        return
-    }
-
-    if (y >= btnRowTop) {
-        val btnW = bounds.width() / 4f
-        val relX = x - bounds.left
-        if (editModeTab == EditModeTab.PAGE) {
-            when {
-                relX < btnW -> {
-                    // "A-Z"
-                    triggerHardwareHaptic(25, 120)
-                    editModeCategories.sortBy { it.label.lowercase() }
-                    invalidate()
-                }
-                relX < btnW * 2f -> {
-                    // "Most used"
-                    handleMostUsedSort()
-                }
-                relX < btnW * 3f -> {
-                    // "Default"
-                    triggerHardwareHaptic(25, 120)
-                    val defaultMap = LightspeedDataBridge.DRAWER_CATEGORIES.associateBy { it.id }
-                    val defaultList = LightspeedDataBridge.DRAWER_CATEGORIES.mapNotNull { defaultMap[it.id] }
-                    editModeCategories.clear()
-                    editModeCategories.addAll(defaultList)
-                    invalidate()
-                }
-                else -> {
-                    // "Save"
-                    triggerHardwareHaptic(20, 80)
-                    saveAndApplyEditModeOrder()
-                    closeEditMode()
-                    invalidate()
-                }
-            }
-        } else {
-            if (relX >= btnW * 3f) {
-                // "Save"
-                triggerHardwareHaptic(20, 80)
-                saveAndApplyEditModeOrder()
-                closeEditMode()
-                invalidate()
-            }
-        }
-        return
-    }
-
-    if (editModeTab == EditModeTab.PAGE) {
-        val row = ((y - tabRowBottom) / actualRowH).toInt().coerceIn(0, numCategories - 1)
-        val upLeft = bounds.right - 56f * dp
-        val upRight = bounds.right - 28f * dp
-        val downRight = bounds.right
-
-        if (x in upLeft..upRight) {
-            if (row > 0) {
-                triggerHardwareHaptic(20, 100)
-                val item = editModeCategories.removeAt(row)
-                editModeCategories.add(row - 1, item)
-                invalidate()
-            }
-        } else if (x in upRight..downRight) {
-            if (row < numCategories - 1) {
-                triggerHardwareHaptic(20, 100)
-                val item = editModeCategories.removeAt(row)
-                editModeCategories.add(row + 1, item)
-                invalidate()
-            }
-        }
-    }
-}
-
-private fun LightspeedCruiseOverlay.handleMostUsedSort() {
-    if (!LightspeedUsageStats.hasUsageAccess(context)) {
-        triggerHardwareHaptic(20, 80)
-        try {
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-        } catch (_: Exception) {}
-        dismissOverlay()
-        return
-    }
-
-    triggerHardwareHaptic(25, 120)
-    Thread {
-        val usageMap = LightspeedUsageStats.usageMillisByPackage(context, 30)
-        val defaultIndexMap = LightspeedDataBridge.DRAWER_CATEGORIES.withIndex().associate { it.value.id to it.index }
-
-        val currentCategories = synchronized(editModeCategories) { editModeCategories.toList() }
-        val categoryUsage = currentCategories.associate { cat ->
-            val totalUsage = dataBridge.getAppsForCategory(cat.id).sumOf { app ->
-                usageMap[app.packageName] ?: 0L
-            }
-            cat.id to totalUsage
-        }
-
-        val withUsage = currentCategories.filter { (categoryUsage[it.id] ?: 0L) > 0L }
-            .sortedWith(compareByDescending<LightspeedDataBridge.CategoryNode> { categoryUsage[it.id] ?: 0L }
-                .thenBy { defaultIndexMap[it.id] ?: Int.MAX_VALUE })
-
-        val zeroUsage = currentCategories.filter { (categoryUsage[it.id] ?: 0L) == 0L }
-            .sortedBy { defaultIndexMap[it.id] ?: Int.MAX_VALUE }
-
-        val sortedCategories = withUsage + zeroUsage
-
-        uiHandler.post {
-            editModeCategories.clear()
-            editModeCategories.addAll(sortedCategories)
-            invalidate()
-        }
-    }.start()
 }
 
 internal fun LightspeedCruiseOverlay.getEditModeRowAt(x: Float, y: Float): Int {
@@ -374,150 +225,134 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
     }
 
     if (editModeTab == EditModeTab.PAGE) {
-        // Category rows
-        val textSize = (actualRowH * 0.38f).coerceIn(10f * dp, 12.5f * dp)
+        drawEditModeCategoryRows(canvas, paint, bounds, snapshot, actualRowH, tabRowBottom, numCategories, dp)
+    } else {
+        // HUD Options tab
+        val dp = resources.displayMetrics.density
+        val startY = tabRowBottom + (16f * dp)
+        val margin = 10f * dp
+        val pillSpacing = 4f * dp
+
+        // Settings gear alignment section
+        val gearSectionY = startY
         paint.style = Paint.Style.FILL
-        paint.textSize = textSize
         paint.textAlign = Paint.Align.LEFT
+        paint.textSize = 10f * dp
         paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        paint.color = Color.argb(220, 200, 220, 255)
+        canvas.drawText("SETTINGS GEAR POSITION", bounds.left + 12f * dp, gearSectionY, paint)
 
-        val fontMetrics = paint.fontMetrics
-        val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f
-        val textX = bounds.left + 12f * dp
-        val arrowSize = (actualRowH * 0.16f).coerceIn(3.5f * dp, 5f * dp)
-        val cxUp = bounds.right - 42f * dp
-        val cxDown = bounds.right - 14f * dp
+        val isGearLeft = context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_PINNED_GEAR_LEFT, false)
+        val gearPillOptions = listOf(false to "TOP RIGHT", true to "TOP LEFT")
+        val gearPillH = 26f * dp
+        val gearPillY = gearSectionY + (10f * dp)
+        val gearTotalPillW = bounds.width() - (margin * 2f)
+        val gearPillW = (gearTotalPillW - pillSpacing) / 2f
 
-        val isDragging = editModeDragSourceIndex in 0 until numCategories
-        val dragTarget = editModeDragTargetIndex.coerceIn(0, numCategories - 1)
+        for (i in gearPillOptions.indices) {
+            val (optLeft, optLabel) = gearPillOptions[i]
+            val isSelected = (isGearLeft == optLeft)
+            val pLeft = bounds.left + margin + (i * (gearPillW + pillSpacing))
+            val pRect = RectF(pLeft, gearPillY, pLeft + gearPillW, gearPillY + gearPillH)
 
-        // Slot dividers
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 0.8f * dp
-        paint.color = Color.argb(40, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
-        for (s in 0 until numCategories - 1) {
-            val divY = tabRowBottom + ((s + 1) * actualRowH)
-            canvas.drawLine(bounds.left + 10f * dp, divY, bounds.right - 10f * dp, divY, paint)
-        }
-
-        // Drop spot indicator when dragging
-        if (isDragging) {
-            val dropTop = tabRowBottom + (dragTarget * actualRowH)
-            val dropRect = RectF(bounds.left + 6f * dp, dropTop + 2f * dp, bounds.right - 6f * dp, dropTop + actualRowH - 2f * dp)
+            // Pill background
             paint.style = Paint.Style.FILL
-            paint.color = Color.argb(40, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
-            canvas.drawRoundRect(dropRect, 6f * dp, 6f * dp, paint)
+            paint.color = if (isSelected) Color.argb(180, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(35, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+
+            // Pill border
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 1f * dp
-            paint.color = Color.argb(120, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
-            canvas.drawRoundRect(dropRect, 6f * dp, 6f * dp, paint)
+            paint.color = if (isSelected) tintColor else Color.argb(60, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+
+            // Pill text
+            paint.style = Paint.Style.FILL
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = 8.5f * dp
+            paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+            paint.color = if (isSelected) Color.WHITE else Color.argb(180, 220, 230, 255)
+            val pfm = paint.fontMetrics
+            val pTextY = pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f)
+            canvas.drawText(optLabel, pRect.centerX(), pTextY, paint)
         }
 
-        // Category rows (stationary / shifted)
-        for (i in 0 until numCategories) {
-            if (isDragging && i == editModeDragSourceIndex) continue
-            val cat = editModeCategories[i]
-            val slot = when {
-                !isDragging -> i
-                dragTarget > editModeDragSourceIndex -> if (i in (editModeDragSourceIndex + 1)..dragTarget) i - 1 else i
-                dragTarget < editModeDragSourceIndex -> if (i in dragTarget until editModeDragSourceIndex) i + 1 else i
-                else -> i
-            }
-            val rowTop = tabRowBottom + (slot * actualRowH)
-            val rowCenterY = rowTop + (actualRowH / 2f)
-
-            // Text
-            paint.style = Paint.Style.FILL
-            paint.textSize = textSize
-            paint.textAlign = Paint.Align.LEFT
-            paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            paint.color = Color.argb(245, 240, 245, 255)
-            canvas.drawText(cat.label, textX, rowCenterY - textYOffset, paint)
-
-            // Up arrow
-            val upColor = if (slot > 0) Color.argb(220, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(45, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
-            paint.color = upColor
-            val upPath = Path().apply {
-                moveTo(cxUp, rowCenterY - arrowSize)
-                lineTo(cxUp + arrowSize, rowCenterY + arrowSize)
-                lineTo(cxUp - arrowSize, rowCenterY + arrowSize)
-                close()
-            }
-            canvas.drawPath(upPath, paint)
-
-            // Down arrow
-            val downColor = if (slot < numCategories - 1) Color.argb(220, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(45, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
-            paint.color = downColor
-            val downPath = Path().apply {
-                moveTo(cxDown - arrowSize, rowCenterY - arrowSize)
-                lineTo(cxDown + arrowSize, rowCenterY - arrowSize)
-                lineTo(cxDown, rowCenterY + arrowSize)
-                close()
-            }
-            canvas.drawPath(downPath, paint)
-        }
-
-        // Dragged row on top
-        if (isDragging) {
-            val draggedCat = editModeCategories[editModeDragSourceIndex]
-            val halfH = actualRowH / 2f
-            val minY = tabRowBottom + halfH
-            val maxY = tabRowBottom + (numCategories * actualRowH) - halfH
-            val clampedCenterY = editModeDragY.coerceIn(minY, maxY)
-            val rowTop = clampedCenterY - halfH
-            val rowBottom = clampedCenterY + halfH
-
-            // Dragged card background & elevation highlight
-            val panelColor = snapshot.panelColorArgb.toInt()
-            val dragRect = RectF(bounds.left + 4f * dp, rowTop + 1f * dp, bounds.right - 4f * dp, rowBottom - 1f * dp)
-            paint.style = Paint.Style.FILL
-            paint.color = Color.argb(235, Color.red(panelColor), Color.green(panelColor), Color.blue(panelColor))
-            canvas.drawRoundRect(dragRect, 8f * dp, 8f * dp, paint)
-
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 1.5f * dp
-            paint.color = Color.argb(210, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
-            canvas.drawRoundRect(dragRect, 8f * dp, 8f * dp, paint)
-
-            // Text
-            paint.style = Paint.Style.FILL
-            paint.textSize = textSize
-            paint.textAlign = Paint.Align.LEFT
-            paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            paint.color = Color.argb(255, 255, 255, 255)
-            canvas.drawText(draggedCat.label, textX, clampedCenterY - textYOffset, paint)
-
-            // Up arrow
-            paint.color = Color.argb(230, 160, 225, 255)
-            val upPath = Path().apply {
-                moveTo(cxUp, clampedCenterY - arrowSize)
-                lineTo(cxUp + arrowSize, clampedCenterY + arrowSize)
-                lineTo(cxUp - arrowSize, clampedCenterY + arrowSize)
-                close()
-            }
-            canvas.drawPath(upPath, paint)
-
-            // Down arrow
-            val downPath = Path().apply {
-                moveTo(cxDown - arrowSize, clampedCenterY - arrowSize)
-                lineTo(cxDown + arrowSize, clampedCenterY - arrowSize)
-                lineTo(cxDown, clampedCenterY + arrowSize)
-                close()
-            }
-            canvas.drawPath(downPath, paint)
-        }
-    } else {
-        // Placeholder text on HUD tab
-        val btnRowTop = bounds.bottom - actualRowH
-        val contentCenterY = (tabRowBottom + btnRowTop) / 2f
-        paint.style = Paint.Style.FILL
-        paint.textAlign = Paint.Align.CENTER
-        paint.textSize = 12f * dp
+        // Subtitle explanation for Settings Gear Position
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = 9f * dp
         paint.typeface = android.graphics.Typeface.DEFAULT
-        paint.color = Color.argb(160, 200, 220, 255)
-        val hudFontMetrics = paint.fontMetrics
-        val hudTextYOffset = (hudFontMetrics.descent + hudFontMetrics.ascent) / 2f
-        canvas.drawText("HUD options coming soon", bounds.centerX(), contentCenterY - hudTextYOffset, paint)
+        paint.color = Color.argb(140, 180, 200, 240)
+        val gearNoteY = gearPillY + gearPillH + (18f * dp)
+        val gearNoteText = if (isGearLeft) "Pinned-page settings gear anchored at top-left corner." else "Pinned-page settings gear anchored at top-right corner."
+        canvas.drawText(gearNoteText, bounds.left + 12f * dp, gearNoteY, paint)
+
+        // Category Cruise name spacing section
+        val spacingSectionY = gearNoteY + (22f * dp)
+        paint.textSize = 10f * dp
+        paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        paint.color = Color.argb(220, 200, 220, 255)
+        canvas.drawText("CATEGORY NAME SPACING", bounds.left + 12f * dp, spacingSectionY, paint)
+
+        val currentSpacing = context.defaultPrefs().getInt(
+            LightspeedPreferences.KEY_CATEGORY_CRUISE_SPACING_PERCENT,
+            LightspeedPreferences.DEFAULT_CATEGORY_CRUISE_SPACING_PERCENT
+        )
+        val spacingPillY = spacingSectionY + (10f * dp)
+        val spacingCount = CATEGORY_SPACING_OPTIONS.size
+        val spacingPillW = (bounds.width() - (margin * 2f) - pillSpacing * (spacingCount - 1)) / spacingCount
+        for (i in 0 until spacingCount) {
+            val (value, label) = CATEGORY_SPACING_OPTIONS[i]
+            val isSelected = (currentSpacing == value)
+            val pLeft = bounds.left + margin + (i * (spacingPillW + pillSpacing))
+            val pRect = RectF(pLeft, spacingPillY, pLeft + spacingPillW, spacingPillY + gearPillH)
+            paint.style = Paint.Style.FILL
+            paint.color = if (isSelected) Color.argb(180, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(35, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1f * dp
+            paint.color = if (isSelected) tintColor else Color.argb(60, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+            paint.style = Paint.Style.FILL
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = 7.5f * dp
+            paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+            paint.color = if (isSelected) Color.WHITE else Color.argb(180, 220, 230, 255)
+            val pfm = paint.fontMetrics
+            canvas.drawText(label, pRect.centerX(), pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f), paint)
+        }
+
+        // Category Cruise slider feel section
+        val feelSectionY = spacingPillY + gearPillH + (22f * dp)
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = 10f * dp
+        paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        paint.color = Color.argb(220, 200, 220, 255)
+        canvas.drawText("CATEGORY SLIDER FEEL", bounds.left + 12f * dp, feelSectionY, paint)
+
+        val currentFeel = context.defaultPrefs().getString(LightspeedPreferences.KEY_CATEGORY_CRUISE_PHYSICS_PROFILE, "magnetic")
+        val feelPillY = feelSectionY + (10f * dp)
+        val feelCount = CATEGORY_PHYSICS_OPTIONS.size
+        val feelPillW = (bounds.width() - (margin * 2f) - pillSpacing * (feelCount - 1)) / feelCount
+        for (i in 0 until feelCount) {
+            val (value, label) = CATEGORY_PHYSICS_OPTIONS[i]
+            val isSelected = (currentFeel == value)
+            val pLeft = bounds.left + margin + (i * (feelPillW + pillSpacing))
+            val pRect = RectF(pLeft, feelPillY, pLeft + feelPillW, feelPillY + gearPillH)
+            paint.style = Paint.Style.FILL
+            paint.color = if (isSelected) Color.argb(180, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(35, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1f * dp
+            paint.color = if (isSelected) tintColor else Color.argb(60, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+            paint.style = Paint.Style.FILL
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = 8f * dp
+            paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+            paint.color = if (isSelected) Color.WHITE else Color.argb(180, 220, 230, 255)
+            val pfm = paint.fontMetrics
+            canvas.drawText(label, pRect.centerX(), pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f), paint)
+        }
     }
 
     // Button row at bottom
@@ -584,87 +419,4 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
     if (isEditModePromptOpen) {
         drawUnsavedPrompt(canvas, paint)
     }
-}
-
-private fun LightspeedCruiseOverlay.drawUnsavedPrompt(canvas: Canvas, paint: Paint) {
-    val dp = resources.displayMetrics.density
-    val screenW = width.toFloat()
-    val screenH = height.toFloat()
-
-    // Dimming backdrop
-    paint.style = Paint.Style.FILL
-    paint.color = Color.argb(120, 0, 0, 0)
-    canvas.drawRect(0f, 0f, screenW, screenH, paint)
-
-    val promptBounds = getUnsavedPromptBounds()
-
-    // Theme-driven optical styling
-    val promptSnapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
-    val cornerRadius = (promptSnapshot.cornerRadiusDp * 0.65f).coerceIn(12f, 24f) * dp
-    val borderColor = promptSnapshot.borderColorArgb.toInt()
-
-    // 1-4. Full 12-theme optical flyout surface (shadow, dense substrate, light deflection, specular cap & border)
-    drawDeckThemedFlyoutSurface(canvas, promptBounds, promptSnapshot, cornerRadius, dp, paint)
-
-    // Header area
-    val btnRowH = 40f * dp
-    val headerH = promptBounds.height() - btnRowH
-
-    paint.style = Paint.Style.FILL
-    paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-    paint.textSize = 13f * dp
-    paint.color = Color.argb(245, 240, 245, 255)
-    val fontMetrics = paint.fontMetrics
-    val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f
-    val titleY = promptBounds.top + (headerH * 0.4f) - textYOffset
-    canvas.drawText("Unsaved Changes", promptBounds.centerX(), titleY, paint)
-
-    paint.textSize = 10.5f * dp
-    paint.typeface = android.graphics.Typeface.DEFAULT
-    paint.color = Color.argb(180, 200, 220, 255)
-    val subFontMetrics = paint.fontMetrics
-    val subTextYOffset = (subFontMetrics.descent + subFontMetrics.ascent) / 2f
-    val subY = promptBounds.top + (headerH * 0.75f) - subTextYOffset
-    canvas.drawText("Save modified category order?", promptBounds.centerX(), subY, paint)
-
-    // Divider above buttons
-    val btnRowTop = promptBounds.bottom - btnRowH
-    val btnRowCenterY = btnRowTop + (btnRowH / 2f)
-    val btnW = promptBounds.width() / 3f
-
-    paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 1f * dp
-    paint.color = Color.argb(60, 200, 220, 255)
-    canvas.drawLine(promptBounds.left, btnRowTop, promptBounds.right, btnRowTop, paint)
-
-    // Vertical dividers between buttons
-    canvas.drawLine(promptBounds.left + btnW, btnRowTop + 4f * dp, promptBounds.left + btnW, promptBounds.bottom - 4f * dp, paint)
-    canvas.drawLine(promptBounds.left + (btnW * 2f), btnRowTop + 4f * dp, promptBounds.left + (btnW * 2f), promptBounds.bottom - 4f * dp, paint)
-
-    // Button labels
-    paint.style = Paint.Style.FILL
-    paint.textAlign = Paint.Align.CENTER
-    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-    var btnTextSize = 10.5f * dp
-    paint.textSize = btnTextSize
-    while (paint.measureText("Keep editing") > btnW - 6f * dp && btnTextSize > 7.5f * dp) {
-        btnTextSize -= 0.5f * dp
-        paint.textSize = btnTextSize
-    }
-
-    val bfm = paint.fontMetrics
-    val btnYOffset = (bfm.descent + bfm.ascent) / 2f
-
-    // "Save"
-    paint.color = Color.argb(255, 120, 210, 255)
-    canvas.drawText("Save", promptBounds.left + (btnW * 0.5f), btnRowCenterY - btnYOffset, paint)
-
-    // "Discard"
-    paint.color = Color.argb(240, 255, 130, 130)
-    canvas.drawText("Discard", promptBounds.left + (btnW * 1.5f), btnRowCenterY - btnYOffset, paint)
-
-    // "Keep editing"
-    paint.color = Color.argb(230, 200, 220, 255)
-    canvas.drawText("Keep editing", promptBounds.left + (btnW * 2.5f), btnRowCenterY - btnYOffset, paint)
 }

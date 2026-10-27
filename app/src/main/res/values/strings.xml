@@ -5,5 +5,11 @@
     <string name="restricted_settings_hint">If the switch is greyed out: open this app\'s info page, tap the three dots, then \'Allow restricted settings\'.</string>
     <string name="power_grab_warning">This feature is experimental: with grab ON, the power button may not wake a screen that is off on some devices. If that happens, turn grab OFF or wake the phone with the fingerprint sensor or by plugging in a charger.</string>
     <string name="vault_import_warning">Only import files you exported yourself. Lightspeed has powerful access to your phone, and a settings file from someone else could change what it does.</string>
+    <string name="widget_stack_title">Lightspeed Flight Deck</string>
+    <string name="widget_stack_description">12-Theme Stackable Tactical Shortcuts &amp; Cockpit Telemetry Deck</string>
+    <string name="space_pod_widget_title">Space Pod</string>
+    <string name="space_pod_widget_description">Multi-Gesture 12-Theme Tactical Pod</string>
+    <string name="folder_widget_title">Lightspeed Folder</string>
+    <string name="folder_widget_description">12-Theme Resizable Tactical Folder</string>
 </resources>
 

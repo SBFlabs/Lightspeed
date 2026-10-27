@@ -93,6 +93,22 @@ internal fun LightspeedStatusBarOverlay.computeRailLayout(
     )
 }
 
+private val railShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    strokeCap = Paint.Cap.ROUND
+}
+
+private val railSeamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    strokeCap = Paint.Cap.BUTT
+    color = Color.argb(165, 4, 6, 10)
+}
+
+private val railCapPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.STROKE
+    strokeCap = Paint.Cap.ROUND
+}
+
 internal fun LightspeedStatusBarOverlay.drawHorizonRail(
     canvas: Canvas,
     layout: HorizonRailLayout,
@@ -108,10 +124,7 @@ internal fun LightspeedStatusBarOverlay.drawHorizonRail(
 
     // Ambient Drop Shadow & Contrast Trench
     if (isDropShadow) {
-        val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.ROUND
-        }
+        val shadowPaint = railShadowPaint
         activeStreams.forEachIndexed { index, stream ->
             val thickness = layout.thicknesses[index]
             val lineY = layout.lineYs[index]
@@ -159,11 +172,8 @@ internal fun LightspeedStatusBarOverlay.drawHorizonRail(
 
     // Inter-Rail Contact Micro-Grooves
     if (layout.gapDp <= 1f && activeStreams.size > 1) {
-        val seamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.BUTT
+        val seamPaint = railSeamPaint.apply {
             strokeWidth = (0.75f * d).coerceAtLeast(1f)
-            color = Color.argb(165, 4, 6, 10)
         }
         for (i in 0 until activeStreams.size - 1) {
             val topBottom = layout.lineYs[i] + (layout.thicknesses[i] * d / 2f)
@@ -178,10 +188,7 @@ internal fun LightspeedStatusBarOverlay.drawHorizonRail(
 
     // Tactical Terminal Progress Head Caps
     if (isTerminalCaps) {
-        val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.ROUND
-        }
+        val capPaint = railCapPaint
         activeStreams.forEachIndexed { index, stream ->
             val progressX = layout.progressXs[index]
             val thickness = layout.thicknesses[index]

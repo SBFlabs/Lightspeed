@@ -252,6 +252,7 @@ fun GestureScrubActionMenu(
                     "system:screen_timeout" -> "Screen Timeout (Ship Goes Dark)"
                     "system:volume" -> "Volume (Media Stream)"
                     "system:brightness" -> "Screen Brightness"
+                    "system:scroll_scrub" -> "Scroll Scrubbing"
                     "system:scroll_to_top" -> "Scroll to Top"
                     "system:scroll_to_bottom" -> "Scroll to Bottom"
                     else -> labelCache[opt] ?: opt
@@ -269,4 +270,30 @@ fun GestureScrubActionMenu(
             }
         }
     }
+}
+
+@Composable
+fun GestureHudThemeToggleChip(
+    prefs: SharedPreferences,
+    activeSnapshot: DeckThemeSnapshot
+) {
+    var useCentralTheme by remember {
+        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_HUD_USE_CENTRAL_THEME, true))
+    }
+    DeckSubChip(
+        text = if (useCentralTheme) "Theme: Deck 12-Style" else "Theme: Classic Dark",
+        icon = Icons.Default.Palette,
+        isActive = useCentralTheme,
+        snapshot = activeSnapshot,
+        onClick = {
+            val next = !useCentralTheme
+            useCentralTheme = next
+            prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_USE_CENTRAL_THEME, next).apply()
+            try {
+                LightspeedAccessibilityService.instance?.reloadPreferences()
+            } catch (e: Exception) {
+                logSwallowed("GestureActionDropdowns", "HudThemeToggle", e)
+            }
+        }
+    )
 }

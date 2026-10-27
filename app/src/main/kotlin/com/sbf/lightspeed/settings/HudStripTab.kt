@@ -103,71 +103,16 @@ fun HudStripTabContent(
         }
     }
     val scope = rememberCoroutineScope()
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        if (uri != null) {
-            scope.launch {
-                val result = withContext(Dispatchers.IO) {
-                    LightspeedBackupEngine.exportToFile(context, uri)
-                }
-                result.onSuccess { count ->
-                    Toast.makeText(context, "Successfully exported $count settings to backup!", Toast.LENGTH_SHORT).show()
-                }.onFailure { err ->
-                    Toast.makeText(context, "Failed to export backup: ${err.message ?: err.javaClass.simpleName}", Toast.LENGTH_SHORT).show()
-                }
-            }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) scope.launch {
+            val res = withContext(Dispatchers.IO) { LightspeedBackupEngine.exportToFile(context, uri) }
+            res.onSuccess { Toast.makeText(context, "Successfully exported $it settings to backup!", Toast.LENGTH_SHORT).show() }
+                .onFailure { Toast.makeText(context, "Failed to export: ${it.message ?: it.javaClass.simpleName}", Toast.LENGTH_SHORT).show() }
         }
     }
 
-    val defaultOrder1 = listOf("sensor_deck", "telemetry_indicators", "tactical_hardware", "synthetic_gravity", "refueling_bay", "system_overrides", "config_vault", "experimental_labs")
-    var currentOrder1 = sectionOrder1Str.split(",").map { it.trim() }.filter { it in defaultOrder1 }.distinct().let { list ->
-        list + (defaultOrder1 - list.toSet())
-    }.toMutableList()
-
-    LaunchedEffect(Unit) {
-        var orderChanged = false
-        if (currentOrder1.lastOrNull() == "system_overrides" && currentOrder1.contains("config_vault")) {
-            currentOrder1.remove("system_overrides")
-            currentOrder1.add(currentOrder1.indexOf("config_vault"), "system_overrides")
-            orderChanged = true
-        }
-        if (!currentOrder1.contains("synthetic_gravity")) {
-            val tacticalIdx = currentOrder1.indexOf("tactical_hardware")
-            if (tacticalIdx != -1) {
-                currentOrder1.add(tacticalIdx + 1, "synthetic_gravity")
-            } else {
-                currentOrder1.add("synthetic_gravity")
-            }
-            orderChanged = true
-        } else {
-            val tacticalIdx = currentOrder1.indexOf("tactical_hardware")
-            val gravityIdx = currentOrder1.indexOf("synthetic_gravity")
-            if (tacticalIdx != -1 && gravityIdx != -1 && gravityIdx != tacticalIdx + 1) {
-                currentOrder1.removeAt(gravityIdx)
-                val newTacticalIdx = currentOrder1.indexOf("tactical_hardware")
-                currentOrder1.add(newTacticalIdx + 1, "synthetic_gravity")
-                orderChanged = true
-            }
-        }
-        val gravityIdx = currentOrder1.indexOf("synthetic_gravity")
-        val refuelingIdx = currentOrder1.indexOf("refueling_bay")
-        if (gravityIdx != -1) {
-            if (refuelingIdx == -1) {
-                currentOrder1.add(gravityIdx + 1, "refueling_bay")
-                orderChanged = true
-            } else if (refuelingIdx != gravityIdx + 1) {
-                currentOrder1.removeAt(refuelingIdx)
-                val newGravityIdx = currentOrder1.indexOf("synthetic_gravity")
-                currentOrder1.add(newGravityIdx + 1, "refueling_bay")
-                orderChanged = true
-            }
-        }
-        if (orderChanged) {
-            val newStr = currentOrder1.joinToString(",")
-            sectionOrder1Str = newStr
-            prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, newStr).apply()
-        }
+    var currentOrder1 = remember(sectionOrder1Str) {
+        HudStripTabOrderHelper.resolveOrder(sectionOrder1Str, prefs).toMutableList()
     }
 
     if (blueprintTabTarget == 1) {
@@ -176,33 +121,13 @@ fun HudStripTabContent(
             sectionIds = currentOrder1,
             pinnedSectionId = pinnedSection1,
             sectionTitles = sectionTitles1,
-            onMoveUp = { idx: Int ->
-                if (idx > 0) {
-                    val mutable = currentOrder1.toMutableList()
-                    val item = mutable.removeAt(idx)
-                    mutable.add(idx - 1, item)
-                    val newStr = mutable.joinToString(",")
-                    sectionOrder1Str = newStr
-                    prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, newStr).apply()
-                }
+            onMoveUp = { sectionOrder1Str = HudStripTabOrderHelper.moveUp(currentOrder1, it, prefs) },
+            onMoveDown = { sectionOrder1Str = HudStripTabOrderHelper.moveDown(currentOrder1, it, prefs) },
+            onPinSection = {
+                pinnedSection1 = it
+                prefs.edit().putString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, it).apply()
             },
-            onMoveDown = { idx: Int ->
-                if (idx < currentOrder1.size - 1) {
-                    val mutable = currentOrder1.toMutableList()
-                    val item = mutable.removeAt(idx)
-                    mutable.add(idx + 1, item)
-                    val newStr = mutable.joinToString(",")
-                    sectionOrder1Str = newStr
-                    prefs.edit().putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, newStr).apply()
-                }
-            },
-            onPinSection = { secId: String ->
-                pinnedSection1 = secId
-                prefs.edit().putString(LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_1, secId).apply()
-            },
-            onExitBlueprint = {
-                blueprintTabTarget = null
-            }
+            onExitBlueprint = { blueprintTabTarget = null }
         )
     } else {
         LazyColumn(
@@ -337,123 +262,59 @@ fun HudStripTabContent(
                             )
                         }
                     }
-                    "synthetic_gravity" -> {
-                        item(key = "synthetic_gravity") {
-                            HudSyntheticGravitySection(
-                                context = context,
-                                prefs = prefs,
-                                isExpanded = isSyntheticGravityExpanded,
-                                onToggle = {
-                                    toggleSection(1, "synthetic_gravity", isSyntheticGravityExpanded) { isSyntheticGravityExpanded = it }
-                                    prefs.edit()
-                                        .putBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, isSyntheticGravityExpanded)
-                                        .apply()
-                                    safeReloadPreferences()
-                                },
-                                onRefreshNeeded = onRefreshNeeded
-                            )
-                        }
-                    }
-                    "refueling_bay" -> {
-                        item(key = "refueling_bay") {
-                            HudRefuelingBaySection(
-                                context = context,
-                                prefs = prefs,
-                                isExpanded = isRefuelingExpanded,
-                                onToggle = {
-                                    toggleSection(1, "refueling_bay", isRefuelingExpanded) { isRefuelingExpanded = it }
-                                    prefs.edit().putBoolean("pref_section_refueling_expanded", isRefuelingExpanded).apply()
-                                },
-                                onShowAmoledWarning = { showAmoledWarningDialog = true },
-                                onRefreshNeeded = onRefreshNeeded
-                            )
-                        }
-                    }
-                    "config_vault" -> {
-                        item(key = "config_vault") {
-                            HudConfigVaultSection(
-                                isExpanded = isConfigVaultExpanded,
-                                onToggle = {
-                                    toggleSection(1, "config_vault", isConfigVaultExpanded) { isConfigVaultExpanded = it }
-                                    prefs.edit().putBoolean("pref_section_backup_expanded", isConfigVaultExpanded).apply()
-                                },
-                                onExportClicked = { exportLauncher.launch("lightspeed-backup.json") },
-                                onShowImportOptions = { showImportOptionsDialog = true },
-                                onShowResetConfirm = { showResetConfirmDialog = true }
-                            )
-                        }
-                    }
-                    "system_overrides" -> {
-                        item(key = "system_overrides") {
-                            HudSystemOverridesSection(
-                                context = context,
-                                prefs = prefs,
-                                isExpanded = isSystemOverridesExpanded,
-                                onToggle = {
-                                    toggleSection(1, "system_overrides", isSystemOverridesExpanded) { isSystemOverridesExpanded = it }
-                                    prefs.edit()
-                                        .putBoolean("pref_section_system_overrides_expanded", isSystemOverridesExpanded)
-                                        .apply()
-                                    safeReloadPreferences()
-                                }
-                            )
-                        }
-                    }
-                    "experimental_labs" -> {
-                        item(key = "experimental_labs") {
-                            HudExperimentalLabsSection(
-                                context = context,
-                                prefs = prefs,
-                                isExpanded = isExperimentalLabsExpanded,
-                                onToggle = {
-                                    toggleSection(1, "experimental_labs", isExperimentalLabsExpanded) { isExperimentalLabsExpanded = it }
-                                    prefs.edit()
-                                        .putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, isExperimentalLabsExpanded)
-                                        .apply()
-                                    safeReloadPreferences()
-                                },
-                                isNotchCalibExpanded = isNotchCalibExpanded,
-                                onToggleNotchCalib = {
-                                    isNotchCalibExpanded = !isNotchCalibExpanded
-                                    prefs.edit()
-                                        .putBoolean(LightspeedPreferences.KEY_SUB_NOTCH_CALIB, isNotchCalibExpanded)
-                                        .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isNotchCalibExpanded)
-                                        .apply()
-                                    safeReloadPreferences()
-                                    onRefreshNeeded()
-                                },
-                                isOemNoticeDemoted = isOemNoticeDemoted,
-                                onOemNoticeDemotedChange = { demoted ->
-                                    isOemNoticeDemoted = demoted
-                                    prefs.edit().putBoolean("pref_oem_notch_notice_demoted", demoted).apply()
-                                },
-                                oemFeatureName = oemFeatureName,
-                                isMarqueeSubSectionExpanded = isMarqueeSubSectionExpanded,
-                                onToggleMarqueeSubSection = {
-                                    isMarqueeSubSectionExpanded = !isMarqueeSubSectionExpanded
-                                    prefs.edit().putBoolean("pref_sub_notch_marquee", isMarqueeSubSectionExpanded).apply()
-                                },
-                                isSubPowerExpanded = isSubPowerExpanded,
-                                onToggleSubPower = {
-                                    isSubPowerExpanded = !isSubPowerExpanded
-                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_POWER_EXPANDED, isSubPowerExpanded).apply()
-                                },
-                                isSinglePressUnlocked = isSinglePressUnlocked,
-                                onSinglePressUnlockedChange = { isSinglePressUnlocked = it },
-                                singlePressTapCount = singlePressTapCount,
-                                onSinglePressTapCountChange = { singlePressTapCount = it },
-                                installedTacticalTools = installedTacticalTools,
-                                dynamicActionTokens = dynamicActionTokens,
-                                tokenLabelCache = tokenLabelCache,
-                                isRefuelingExpanded = isRefuelingExpanded,
-                                onToggleRefueling = {
-                                    isRefuelingExpanded = !isRefuelingExpanded
-                                    prefs.edit().putBoolean("pref_section_refueling_expanded", isRefuelingExpanded).apply()
-                                },
-                                onShowAmoledWarning = { showAmoledWarningDialog = true },
-                                onRefreshNeeded = onRefreshNeeded
-                            )
-                        }
+                    else -> {
+                        renderHudStripAdvancedSection(
+                            sectionId = sectionId,
+                            context = context,
+                            prefs = prefs,
+                            toggleSection = toggleSection,
+                            onRefreshNeeded = onRefreshNeeded,
+                            isSyntheticGravityExpanded = isSyntheticGravityExpanded,
+                            onToggleSyntheticGravity = { isSyntheticGravityExpanded = it },
+                            isRefuelingExpanded = isRefuelingExpanded,
+                            onToggleRefueling = { isRefuelingExpanded = it },
+                            onShowAmoledWarning = { showAmoledWarningDialog = true },
+                            isConfigVaultExpanded = isConfigVaultExpanded,
+                            onToggleConfigVault = { isConfigVaultExpanded = it },
+                            exportLauncher = exportLauncher,
+                            onShowImportOptions = { showImportOptionsDialog = true },
+                            onShowResetConfirm = { showResetConfirmDialog = true },
+                            isSystemOverridesExpanded = isSystemOverridesExpanded,
+                            onToggleSystemOverrides = { isSystemOverridesExpanded = it },
+                            isExperimentalLabsExpanded = isExperimentalLabsExpanded,
+                            onToggleExperimentalLabs = { isExperimentalLabsExpanded = it },
+                            isNotchCalibExpanded = isNotchCalibExpanded,
+                            onToggleNotchCalib = {
+                                isNotchCalibExpanded = !isNotchCalibExpanded
+                                prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_NOTCH_CALIB, isNotchCalibExpanded)
+                                    .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, isNotchCalibExpanded).apply()
+                                safeReloadPreferences()
+                                onRefreshNeeded()
+                            },
+                            isOemNoticeDemoted = isOemNoticeDemoted,
+                            onOemNoticeDemotedChange = { demoted ->
+                                isOemNoticeDemoted = demoted
+                                prefs.edit().putBoolean("pref_oem_notch_notice_demoted", demoted).apply()
+                            },
+                            oemFeatureName = oemFeatureName,
+                            isMarqueeSubSectionExpanded = isMarqueeSubSectionExpanded,
+                            onToggleMarqueeSubSection = {
+                                isMarqueeSubSectionExpanded = !isMarqueeSubSectionExpanded
+                                prefs.edit().putBoolean("pref_sub_notch_marquee", isMarqueeSubSectionExpanded).apply()
+                            },
+                            isSubPowerExpanded = isSubPowerExpanded,
+                            onToggleSubPower = {
+                                isSubPowerExpanded = !isSubPowerExpanded
+                                prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_POWER_EXPANDED, isSubPowerExpanded).apply()
+                            },
+                            isSinglePressUnlocked = isSinglePressUnlocked,
+                            onSinglePressUnlockedChange = { isSinglePressUnlocked = it },
+                            singlePressTapCount = singlePressTapCount,
+                            onSinglePressTapCountChange = { singlePressTapCount = it },
+                            installedTacticalTools = installedTacticalTools,
+                            dynamicActionTokens = dynamicActionTokens,
+                            tokenLabelCache = tokenLabelCache
+                        )
                     }
                 }
             }

@@ -25,6 +25,10 @@ object LightspeedHudDialRenderer {
         style = Paint.Style.STROKE
     }
 
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+    }
+
     private val specularPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -85,8 +89,10 @@ object LightspeedHudDialRenderer {
         cx: Float,
         cy: Float,
         primaryColor: Int,
-        d: Float
+        d: Float,
+        useCentralTheme: Boolean = true
     ) {
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
         val hasGauge = totalSteps > 0 && stepIndex >= 0
         val radius = 64f * d
         glassFillPaint.shader = null
@@ -94,18 +100,43 @@ object LightspeedHudDialRenderer {
         specularPaint.shader = null
         gaugeFillPaint.shader = null
 
+        val pR = Color.red(spec.panelColor)
+        val pG = Color.green(spec.panelColor)
+        val pB = Color.blue(spec.panelColor)
+        val tR = Color.red(spec.tintColor)
+        val tG = Color.green(spec.tintColor)
+        val tB = Color.blue(spec.tintColor)
+        val pA = (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
         val r = Color.red(primaryColor)
         val g = Color.green(primaryColor)
         val b = Color.blue(primaryColor)
 
-        // 1. Frosted Prism Circular Backplane — cached RadialGradient
-        val dialKey = gradKey2f(cx, cy, primaryColor) xor java.lang.Float.floatToIntBits(radius).toLong()
+        // Outer Glow (Central Command Engine)
+        if (spec.glowStrength > 0.05f) {
+            val glowColor = spec.glowColor
+            glowPaint.color = Color.argb(
+                (spec.glowStrength * 120).toInt().coerceIn(0, 255),
+                Color.red(glowColor),
+                Color.green(glowColor),
+                Color.blue(glowColor)
+            )
+            glowPaint.strokeWidth = spec.borderWidthPx * (1.5f + spec.glowStrength * 1.5f)
+            canvas.drawCircle(cx, cy, radius, glowPaint)
+        }
+
+        // 1. Solid Frosted Base (Guarantees zero transparency)
+        glassFillPaint.shader = null
+        glassFillPaint.color = Color.argb(pA, (pR + tR * 0.08f).toInt().coerceIn(0, 255), (pG + tG * 0.08f).toInt().coerceIn(0, 255), (pB + tB * 0.08f).toInt().coerceIn(0, 255))
+        canvas.drawCircle(cx, cy, radius, glassFillPaint)
+
+        // 1b. Frosted Backplane — cached RadialGradient
+        val dialKey = gradKey2f(cx, cy, spec.panelColor) xor (spec.tintColor.toLong() shl 16) xor java.lang.Float.floatToIntBits(radius).toLong()
         if (dialKey != tachyonDialKey) {
             tachyonDialShader = RadialGradient(
                 cx, cy, radius,
                 intArrayOf(
-                    Color.argb(235, (16 + r * 0.08f).toInt().coerceIn(0, 255), (20 + g * 0.08f).toInt().coerceIn(0, 255), (32 + b * 0.08f).toInt().coerceIn(0, 255)),
-                    Color.argb(248, (8 + r * 0.04f).toInt().coerceIn(0, 255), (12 + g * 0.04f).toInt().coerceIn(0, 255), (20 + b * 0.04f).toInt().coerceIn(0, 255))
+                    Color.argb(pA, (pR + tR * 0.12f).toInt().coerceIn(0, 255), (pG + tG * 0.12f).toInt().coerceIn(0, 255), (pB + tB * 0.12f).toInt().coerceIn(0, 255)),
+                    Color.argb((pA * 1.05f).toInt().coerceIn(0, 255), pR, pG, pB)
                 ),
                 floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP
@@ -119,13 +150,13 @@ object LightspeedHudDialRenderer {
         // 2. Concentric Radar Range Rings
         specularPaint.style = Paint.Style.STROKE
         specularPaint.strokeWidth = 1.2f * d
-        specularPaint.color = Color.argb(40, 255, 255, 255)
+        specularPaint.color = Color.argb((spec.highlightStrength * 60).toInt().coerceIn(0, 255), 255, 255, 255)
         canvas.drawCircle(cx, cy, radius * 0.45f, specularPaint)
         canvas.drawCircle(cx, cy, radius * 0.72f, specularPaint)
 
-        // Outer Refractive Prism Rim
-        glassRimPaint.strokeWidth = 1.4f * d
-        glassRimPaint.color = Color.argb(120, 255, 255, 255)
+        // Outer Refractive Rim
+        glassRimPaint.strokeWidth = spec.borderWidthPx
+        glassRimPaint.color = spec.borderColor
         canvas.drawCircle(cx, cy, radius, glassRimPaint)
 
         // 3. Azimuth Degree Graduation Marks (12 ticks around 360°)

@@ -118,4 +118,24 @@ object LightspeedPreferencesPerimeterAccessors : LightspeedPerimeterAccessorsCon
         setPinnedBatteryExemptApps(context, current)
         return isNowPinned
     }
+
+    override fun getCloakedAccessibilityServices(context: Context): Set<String> =
+        context.defaultPrefs().getStringSet(LightspeedPreferences.KEY_CLOAKED_ACCESSIBILITY_SERVICES, emptySet()) ?: emptySet()
+
+    override fun setCloakedAccessibilityServices(context: Context, services: Set<String>) {
+        context.defaultPrefs().edit().putStringSet(LightspeedPreferences.KEY_CLOAKED_ACCESSIBILITY_SERVICES, services).apply()
+    }
+
+    override fun toggleCloakedAccessibilityService(context: Context, componentId: String): Boolean {
+        val current = getCloakedAccessibilityServices(context).toMutableSet()
+        val isNowCloaked = if (current.contains(componentId)) {
+            current.remove(componentId)
+            false
+        } else {
+            current.add(componentId)
+            true
+        }
+        setCloakedAccessibilityServices(context, current)
+        return isNowCloaked
+    }
 }

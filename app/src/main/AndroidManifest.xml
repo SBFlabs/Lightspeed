@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
@@ -68,6 +69,16 @@
 
         <activity
             android:name=".CockpitDialogActivity"
+            android:exported="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Lightspeed.Floating" />
+
+        <activity
+            android:name=".settings.ConsciousAirlockConfigActivity"
             android:exported="false"
             android:taskAffinity=""
             android:excludeFromRecents="true"
@@ -168,17 +179,6 @@
         </activity>
 
         <service
-            android:name=".settings.SidebarTileService"
-            android:icon="@drawable/ic_qs_flight_armed"
-            android:label="${appName}"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-        </service>
-
-        <service
             android:name=".system.LightspeedNotificationListener"
             android:label="${appName} Media Listener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
@@ -225,17 +225,88 @@
             </intent-filter>
         </receiver>
 
-        <!-- Dedicated Flank Deflectors QS Tile -->
+        <!-- Master Reactor Cutoff (Cold Shutdown & 1-Tap Resurrection) QS Tile -->
         <service
-            android:name=".settings.DeflectorTileService"
-            android:icon="@drawable/ic_qs_deflectors_active"
-            android:label="${appName} Deflectors"
+            android:name=".settings.MasterCutoffTileService"
+            android:icon="@drawable/ic_qs_flight_standby"
+            android:label="${appName} Cloak"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
+
+        <!-- Space Pods Long Press Preferences Interceptor -->
+        <activity
+            android:name=".settings.SpacePodLongClickActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
+
+        <!-- Master QS Tile Cloak Matrix Configuration -->
+        <activity
+            android:name=".settings.LightspeedTileCloakActivity"
+            android:exported="true"
+            android:label="${appName} Cloak Matrix"
+            android:theme="@style/Theme.Lightspeed.Floating"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="com.sbf.lightspeed.action.OPEN_CLOAK_MATRIX" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Space Pods Home Screen Shortcut Trampoline -->
+        <activity
+            android:name=".settings.SpacePodShortcutActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
+        <!-- 12-Theme 1x1 Space Pod Widget Provider -->
+        <receiver
+            android:name=".widget.SpacePodWidgetProvider"
+            android:label="@string/space_pod_widget_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sbf.lightspeed.widget.ACTION_POD_TAP" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/space_pod_widget_info" />
+        </receiver>
+
+        <!-- 12-Theme Resizable Tactical Folder Widget Provider -->
+        <receiver
+            android:name=".widget.LightspeedFolderWidgetProvider"
+            android:label="@string/folder_widget_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sbf.lightspeed.widget.FOLDER_LAUNCH_APP" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lightspeed_folder_widget_info" />
+        </receiver>
+
+        <!-- 12-Theme Tactical Folder Management Modal Activity -->
+        <activity
+            android:name=".widget.LightspeedFolderModalActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true" />
 
         <!-- Internal Automation Receiver for notification actions and 1-tap shortcuts -->
         <receiver
@@ -258,6 +329,46 @@
                 <action android:name="com.sbf.lightspeed.action.RESET_GRAVITY" />
             </intent-filter>
         </receiver>
+
+        <!-- 12-Theme Stackable Tactical Home Screen Widget -->
+        <receiver
+            android:name=".widget.LightspeedStackWidgetProvider"
+            android:label="@string/widget_stack_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.sbf.lightspeed.widget.ACTION_ITEM_CLICK" />
+                <action android:name="com.sbf.lightspeed.widget.ACTION_REFRESH_THEME" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lightspeed_stack_widget_info" />
+        </receiver>
+
+        <!-- 12-Theme Native Widget Configuration Activity -->
+        <activity
+            android:name=".widget.LightspeedWidgetConfigActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- 12-Theme Refueling-Bay-Style Stack Overlay Modal Activity -->
+        <activity
+            android:name=".widget.LightspeedHomeStackOverlayActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true" />
+
+        <!-- 12-Theme Tactical Bot Macro & Screen-Condition Editor Dialog -->
+        <activity
+            android:name=".system.bot.BotMacroEditorDialog"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true" />
 
         <!-- 1-Tap Shortcut Trampoline Activity for Home Screen and Launcher shortcuts -->
         <activity

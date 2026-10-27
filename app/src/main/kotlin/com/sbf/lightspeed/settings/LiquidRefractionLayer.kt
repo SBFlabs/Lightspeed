@@ -165,9 +165,13 @@ internal fun LiquidRefractionLayer(
                 shader.setFloatUniform("strength", strengthPx)
                 shader.setFloatUniform("scale", scalePx)
                 val shaderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content")
-                val blurPx = (blurRadiusPx * 0.35f).coerceIn(16f, 60f)
-                val blurEffect = RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
-                RenderEffect.createChainEffect(shaderEffect, blurEffect).asComposeRenderEffect()
+                val blurPx = (blurRadiusPx * 0.35f).coerceIn(0f, 60f)
+                if (blurPx >= 1f) {
+                    val blurEffect = RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
+                    RenderEffect.createChainEffect(shaderEffect, blurEffect).asComposeRenderEffect()
+                } else {
+                    shaderEffect.asComposeRenderEffect()
+                }
             } catch (e: Exception) {
                 android.util.Log.e("LightspeedShader", "Liquid refraction AGSL failed", e)
                 null

@@ -48,6 +48,7 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
         addAction(Intent.ACTION_USER_PRESENT)
         addAction(Intent.ACTION_POWER_CONNECTED)
         addAction(Intent.ACTION_POWER_DISCONNECTED)
+        addAction("android.media.VOLUME_CHANGED_ACTION")
     }
 
     systemStateReceiver = object : BroadcastReceiver() {
@@ -67,6 +68,8 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     hideBaySleepBlackout()
                     com.sbf.lightspeed.system.LightspeedOrientationManager.onScreenOff(this@registerSystemStateReceiver)
                     com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOff(this@registerSystemStateReceiver)
+                    com.sbf.lightspeed.system.LightspeedTimeoutEngine.onScreenOff()
+                    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onScreenOff(this@registerSystemStateReceiver)
                     if (LightspeedRefuelingActivity.shizukuPanelOff) {
                         // The panel was blanked by Shizuku without a real sleep, so this broadcast is the
                         // user's first power press. Wait for the sleep transition to finish, then wake immediately
@@ -89,8 +92,10 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                         LightspeedRefuelingActivity.isChargingSessionDismissed = false
                     }
                     checkScreenOffRefuelingTrigger(prefs)
+                    com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.onScreenStateChanged(this@registerSystemStateReceiver, false)
                 }
                 Intent.ACTION_SCREEN_ON -> {
+                    com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.onScreenStateChanged(this@registerSystemStateReceiver, true)
                     com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOn(this@registerSystemStateReceiver)
                     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                     val isLocked = keyguardManager?.isKeyguardLocked == true
@@ -134,6 +139,31 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                 Intent.ACTION_POWER_DISCONNECTED -> {
                     LightspeedRefuelingActivity.isChargingSessionDismissed = false
                     LightspeedRefuelingActivity.isSessionDismissed = false
+                }
+                "android.media.VOLUME_CHANGED_ACTION" -> {
+                    if (prefs.getBoolean(LightspeedPreferences.KEY_CUSTOM_VOLUME_HUD_ENABLED, false)) {
+                        val streamType = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
+                        if (streamType == android.media.AudioManager.STREAM_MUSIC) {
+                            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                            val max = audioManager?.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)?.toFloat()?.coerceAtLeast(1f) ?: 1f
+                            val currentVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
+                            val volRatio = if (currentVol != -1) {
+                                currentVol / max
+                            } else {
+                                (audioManager?.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)?.toFloat() ?: 0f) / max
+                            }
+                            val hudStyle = prefs.getString(LightspeedPreferences.KEY_HUD_STYLE_DEFAULT, LightspeedPreferences.DEFAULT_HUD_STYLE) ?: LightspeedPreferences.DEFAULT_HUD_STYLE
+                            val pct = (volRatio * 100).toInt()
+                            LightspeedStatusBarOverlay.showActionHud(
+                                title = "MEDIA VOLUME",
+                                value = "$pct%",
+                                stepIndex = (volRatio * max).toInt(),
+                                totalSteps = max.toInt(),
+                                durationMs = 1800L,
+                                style = hudStyle
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -192,4 +222,5 @@ internal fun LightspeedAccessibilityService.teardown() {
     baySleepBlackoutParams = null
     handler.removeCallbacks(baySleepRaiseRunnable)
     com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
+    com.sbf.lightspeed.system.VistaDeckManager.dismiss(this)
 }

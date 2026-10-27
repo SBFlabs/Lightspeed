@@ -1,35 +1,23 @@
 package com.sbf.lightspeed
 
-import com.sbf.lightspeed.system.logSwallowed
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.app.KeyguardManager
 import android.database.ContentObserver
-import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
-import android.net.Uri
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import android.os.SystemClock
-import android.view.inputmethod.InputMethodManager
-import com.sbf.lightspeed.system.LightspeedKeyEngine
-import com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay
-import com.sbf.lightspeed.system.LightspeedPreferences
-import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.*
 import kotlin.math.roundToInt
 
 class LightspeedAccessibilityService : AccessibilityService() {
@@ -47,16 +35,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         val instance: LightspeedAccessibilityService?
             get() = instanceRef?.get()
 
-        /** True when the service is bound and its WeakReference is still live. */
         val isAlive: Boolean
             get() = instanceRef?.get() != null
 
-        /**
-         * Executes [block] on the live service instance. If the instance has been
-         * GC'd or was never set, logs a diagnostic warning instead of silently
-         * dropping the action. Use this at call sites where a null service is
-         * unexpected (gestures, overlay lifecycle, automation commands).
-         */
         inline fun withService(block: LightspeedAccessibilityService.() -> Unit) {
             val svc = instance
             if (svc != null) {
@@ -76,11 +57,11 @@ class LightspeedAccessibilityService : AccessibilityService() {
     internal lateinit var windowParams: WindowManager.LayoutParams
     internal val edgeWidthPx: Int by lazy { (17f * resources.displayMetrics.density).roundToInt() }
 
-    // Status Bar Overlay (Full-Width 100% Pass-Through Visual Canvas for Horizon Rails & Guides)
+    // Status Bar Overlay
     internal var statusBarOverlayView: LightspeedStatusBarOverlay? = null
     internal lateinit var statusBarWindowParams: WindowManager.LayoutParams
 
-    // Sensor Deck Touch Overlay (Isolated Touch Target strictly sized to Sensor Area Geometry)
+    // Sensor Deck Touch Overlay
     internal var sensorTouchOverlayView: LightspeedSensorDeckTouchOverlay? = null
     internal lateinit var sensorTouchWindowParams: WindowManager.LayoutParams
     @Volatile
@@ -98,7 +79,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     // Floating Media Scrubber Overlay
     internal var mediaScrubberOverlayView: LightspeedMediaScrubberOverlay? = null
 
-    // Hardware Orientation Anchor (1x1 Transparent Anchor Window for Native Hardware Orientation Overrides)
+    // Hardware Orientation Anchor
     internal var orientationAnchorView: View? = null
     internal var orientationAnchorParams: WindowManager.LayoutParams? = null
 
@@ -119,11 +100,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
                 val cur = baySleepBlackoutView
                 if (cur != null) {
                     if (baySleepSwapView !== cur) {
-                        // a new cover appeared: start its 30 second clock
                         baySleepSwapView = cur
                         baySleepSwapAt = now
                     } else if (now - baySleepSwapAt >= 30_000L) {
-                        // seamless swap: add a new black cover FIRST, only then remove the old one, so there is never a gap
                         val oldParams = baySleepBlackoutParams
                         if (oldParams != null) {
                             val newView = View(this@LightspeedAccessibilityService).apply { setBackgroundColor(android.graphics.Color.BLACK) }
@@ -134,9 +113,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
                                 baySleepBlackoutParams = newParams
                                 baySleepSwapView = newView
                                 baySleepSwapAt = now
-                                try { windowManager?.removeView(cur) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:removeOld", e) }
+                                try { windowManager?.removeView(cur) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "baySleep:removeOld", e) }
                             } catch (e: Exception) {
-                                logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable:swap", e)
+                                logSwallowed("LightspeedAccessibilityService", "baySleep:swap", e)
                             }
                         }
                     }
@@ -178,20 +157,20 @@ class LightspeedAccessibilityService : AccessibilityService() {
             key == LightspeedPreferences.KEY_DEFLECTOR_LEFT_ENABLED ||
             key == LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED) {
             updateOverlaysVisibility()
-            com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
+            LightspeedFlightNotificationManager.update(this)
         }
         if (key == LightspeedPreferences.KEY_FLIGHT_NOTIFICATION_ENABLED) {
-            com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
+            LightspeedFlightNotificationManager.update(this)
         }
         if (key != null && key.startsWith("pref_back_tap_")) {
-            com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
+            LightspeedBackTapEngine.reloadPreferences()
         }
         if (key == LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY) {
             handleDisplayOrientationChange()
         }
         if (key == "pref_service_intentionally_stopped") {
             val isStopped = prefs.getBoolean("pref_service_intentionally_stopped", false)
-            com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(this, isStopped)
+            LightspeedGuardHelper.setPaused(this, isStopped)
         }
     }
 
@@ -199,6 +178,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         super.onConfigurationChanged(newConfig)
         handleDisplayOrientationChange()
         resyncOverlayMetrics()
+        com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -209,157 +189,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instanceRef = java.lang.ref.WeakReference(this)
-
-        val info = serviceInfo ?: AccessibilityServiceInfo()
-        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS or AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
-        serviceInfo = info
-
-        com.sbf.lightspeed.system.LightspeedShortcutManager.purgeCorruptedIcons(this)
-        com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
-        com.sbf.lightspeed.system.CockpitGearRepository.prewarmGearCache(this)
-        com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
-        com.sbf.lightspeed.system.PowerLongPressTakeover.sync(this)
-        com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
-        com.sbf.lightspeed.system.LightspeedWatchdogEngine.registerFastTriggers(this)
-        com.sbf.lightspeed.system.LightspeedOrientationManager.killConflictingTools(this)
-        com.sbf.lightspeed.system.LightspeedGuardHelper.start(this)
-
-        val initPrefs = defaultPrefs()
-        initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()
-        com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(this, false)
-        if (initPrefs.getBoolean("key_has_unreported_crash", false)) {
-            initPrefs.edit().putBoolean("key_has_unreported_crash", false).apply()
-            val crashMsg = initPrefs.getString("key_last_crash_message", "Core anomaly") ?: "Core anomaly"
-            handler.postDelayed({
-                com.sbf.lightspeed.system.LightspeedHapticEngine.tick(this@LightspeedAccessibilityService)
-                android.widget.Toast.makeText(
-                    this@LightspeedAccessibilityService,
-                    "// SENTINEL RECOVERY // Online after: $crashMsg",
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
-            }, 1200L)
-        }
-
-        if (!initPrefs.getBoolean("pref_service_first_connect_edge_notified", false)) {
-            initPrefs.edit().putBoolean("pref_service_first_connect_edge_notified", true).apply()
-            handler.postDelayed({
-                try {
-                    val leftInset = android.provider.Settings.Secure.getFloat(contentResolver, "back_gesture_inset_scale_left", 1.0f)
-                    val rightInset = android.provider.Settings.Secure.getFloat(contentResolver, "back_gesture_inset_scale_right", 1.0f)
-                    if (leftInset > 0.05f || rightInset > 0.05f) {
-                        android.widget.Toast.makeText(
-                            this@LightspeedAccessibilityService,
-                            "💡 Tip: Android's native back gestures can be neutralized in System Overrides.",
-                            android.widget.Toast.LENGTH_LONG
-                        ).show()
-                    }
-                } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "onServiceConnected:192", e) }
-            }, 3500L)
-        }
-
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        displayManager = getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
-        displayManager?.registerDisplayListener(displayListener, handler)
-
-        rotationContentObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean, uri: Uri?) {
-                super.onChange(selfChange, uri)
-                if (!com.sbf.lightspeed.system.LightspeedOrientationEngine.isRecentInternalWrite()) {
-                    val isEnabled = com.sbf.lightspeed.system.LightspeedOrientationEngine.isAutoRotateEnabled(this@LightspeedAccessibilityService)
-                    com.sbf.lightspeed.system.LightspeedOrientationManager.onExternalAutoRotateChanged(this@LightspeedAccessibilityService, isEnabled)
-                }
-            }
-        }
-        try {
-            contentResolver.registerContentObserver(
-                Settings.System.getUriFor(Settings.System.ACCELEROMETER_ROTATION),
-                false,
-                rotationContentObserver!!
-            )
-        } catch (e: Exception) {
-            Log.w("AccessibilityService", "Failed registering rotationContentObserver", e)
-        }
-
-        // 1. Initialize Right Sidebar Overlay Window
-        @Suppress("DEPRECATION")
-        val overlayFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
-
-        windowParams = WindowManager.LayoutParams(
-            edgeWidthPx,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            overlayFlags,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.END
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // Blur is disabled at rest — enabled dynamically via updateWindowLayoutInternal(expand=true)
-                // to avoid blurring the screen the moment the accessibility service is enabled.
-                blurBehindRadius = 0
-            }
-        }
-
-        try {
-            overlayView = LightspeedCruiseOverlay(this)
-            windowManager?.addView(overlayView, windowParams)
-            overlayView?.post { overlayView?.updateMetricsDimensions() }
-        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "onServiceConnected:250", e) }
-
-        // 2. Initialize Left Deflector Wing Overlay Window
-        leftWingWindowParams = WindowManager.LayoutParams(
-            edgeWidthPx,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            overlayFlags,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                // Blur disabled at rest — enabled dynamically when deflector activates
-                blurBehindRadius = 0
-            }
-        }
-
-        try {
-            leftWingOverlayView = LightspeedLeftWingOverlay(this, this)
-            windowManager?.addView(leftWingOverlayView, leftWingWindowParams)
-            leftWingOverlayView?.post { leftWingOverlayView?.updateMetricsDimensions() }
-        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityService", "onServiceConnected:274", e) }
-
-        // 3. Initialize Status Bar Overlay Window
-        val prefs = defaultPrefs()
-        prefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
-        setupStatusBarOverlay(prefs)
-        setupNotchOverlay()
-
-        // 4. Initialize Back Tap Engine
-        com.sbf.lightspeed.system.LightspeedBackTapEngine.init(this)
-
-        // 5. Register System State & Dock Receivers
-        registerSystemStateReceiver()
-        com.sbf.lightspeed.system.CallStateTracker.register(this)
-
-        // 6. Check Deflector Startup Default State & Flight Notification
-        val deflectorStartup = prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, "always_armed")
-        if (deflectorStartup == "standby_by_default") {
-            prefs.edit()
-                .putBoolean(LightspeedPreferences.KEY_DEFLECTOR_LEFT_ENABLED, false)
-                .putBoolean(LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED, false)
-                .apply()
-        }
-        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
-        updateOverlaysVisibility()
+        initializeServiceSession()
     }
 
     fun reloadPreferences() {
@@ -372,15 +202,15 @@ class LightspeedAccessibilityService : AccessibilityService() {
         overlayView?.postInvalidate()
         statusBarOverlayView?.updateRenderCache()
         statusBarOverlayView?.postInvalidate()
-        com.sbf.lightspeed.system.LightspeedBackTapEngine.reloadPreferences()
-        com.sbf.lightspeed.system.LightspeedKeyEngine.startShizukuPowerMonitor(this)
-        com.sbf.lightspeed.system.PowerLongPressTakeover.sync(this)
-        if (!com.sbf.lightspeed.system.LightspeedKeyEngine.isPowerEnabled(this))
-            com.sbf.lightspeed.system.LightspeedPowerKeyEngine.resetPowerState()
-        com.sbf.lightspeed.system.LightspeedWatchdogEngine.initSentinel(this)
-        com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateGravityCascade(this)
+        LightspeedBackTapEngine.reloadPreferences()
+        LightspeedKeyEngine.startShizukuPowerMonitor(this)
+        PowerLongPressTakeover.sync(this)
+        if (!LightspeedKeyEngine.isPowerEnabled(this))
+            LightspeedPowerKeyEngine.resetPowerState()
+        LightspeedWatchdogEngine.initSentinel(this)
+        LightspeedOrientationManager.evaluateGravityCascade(this)
         updateOverlaysVisibility()
-        com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(this)
+        LightspeedFlightNotificationManager.update(this)
     }
 
     fun reopenCockpitHangar(setIndex: Int = -1) {
@@ -390,10 +220,23 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     fun startCruiseFromLeft(rawX: Float, rawY: Float) {
-        overlayView?.startCruiseFromFlank(isLeft = true, startRawX = rawX, startRawY = rawY)
+        overlayView?.isDispatchingFromLeftFlankView = true
+        try {
+            overlayView?.startCruiseFromFlank(isLeft = true, startRawX = rawX, startRawY = rawY)
+        } finally {
+            overlayView?.isDispatchingFromLeftFlankView = false
+        }
     }
 
     fun forwardTouchEventToCruise(isLeft: Boolean, event: MotionEvent): Boolean {
+        if (isLeft) {
+            overlayView?.isDispatchingFromLeftFlankView = true
+            try {
+                return overlayView?.handleFlankTouchEvent(isLeft = isLeft, event = event) ?: false
+            } finally {
+                overlayView?.isDispatchingFromLeftFlankView = false
+            }
+        }
         return overlayView?.handleFlankTouchEvent(isLeft = isLeft, event = event) ?: false
     }
 
@@ -418,72 +261,8 @@ class LightspeedAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event == null) return
-
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val currentPkg = event.packageName?.toString()
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-            val isLocked = keyguardManager?.isKeyguardLocked == true
-
-            val isSysUi = currentPkg != null && currentPkg == "com.android.systemui"
-            isNotificationShadeActive = (isSysUi && !isLocked)
-
-            updateOverlaysVisibility(isLocked, currentPkg)
-
-            val isFullScreen = event.isFullScreen
-            val className = event.className?.toString()
-            val isLauncher = com.sbf.lightspeed.system.LightspeedOrientationEngine.isLauncherPackage(this, currentPkg)
-            val isLikelyActivity = isFullScreen || isLauncher || (className != null && (className.endsWith("Activity") || className.endsWith("Launcher") || className.contains("Workspace") || className.contains("Launcher") || className.contains("quickstep", ignoreCase = true)))
-            if (isLikelyActivity) {
-                com.sbf.lightspeed.system.LightspeedOrientationManager.evaluateContextGuardrails(this, isLocked, currentPkg)
-            }
-
-            if (!currentPkg.isNullOrEmpty()) {
-                trackForegroundPackage(currentPkg)
-            }
-        }
-    }
-
-    @Volatile
-    private var cachedLauncherPackages: Set<String> = emptySet()
-    @Volatile
-    private var lastLauncherPackagesQueryTimeMs: Long = 0L
-
-    private fun getLauncherPackagesCached(): Set<String> {
-        val now = SystemClock.uptimeMillis()
-        if (now - lastLauncherPackagesQueryTimeMs > 60_000L || cachedLauncherPackages.isEmpty()) {
-            val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_HOME) }
-            val resolveInfos = try {
-                packageManager.queryIntentActivities(intent, 0)
-            } catch (_: Exception) {
-                emptyList()
-            }
-            cachedLauncherPackages = resolveInfos.mapNotNull { it.activityInfo?.packageName }.toSet()
-            lastLauncherPackagesQueryTimeMs = now
-        }
-        return cachedLauncherPackages
-    }
-
-    private fun isInputMethodPackage(pkg: String): Boolean {
-        return try {
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.enabledInputMethodList?.any { it.packageName == pkg } == true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun trackForegroundPackage(pkg: String) {
-        if (pkg == packageName || pkg == "com.android.systemui") return
-        if (isInputMethodPackage(pkg)) return
-
-        val launcherPkgs = getLauncherPackagesCached()
-        if (launcherPkgs.contains(pkg)) {
-            lastAppPackage = null
-            lastAppUptimeMs = SystemClock.uptimeMillis()
-        } else {
-            lastAppPackage = pkg
-            lastAppUptimeMs = SystemClock.uptimeMillis()
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            LightspeedForegroundTracker.handleWindowStateChanged(this, event)
         }
     }
 
@@ -515,18 +294,24 @@ class LightspeedAccessibilityService : AccessibilityService() {
             }
             if (!isStillEnabled) {
                 defaultPrefs().edit().putBoolean("pref_service_intentionally_stopped", true).apply()
-                com.sbf.lightspeed.system.LightspeedGuardHelper.setPaused(this, true)
+                LightspeedGuardHelper.setPaused(this, true)
                 Log.i(TAG, "onDestroy: Lightspeed service removed from enabled_accessibility_services. Marked pref_service_intentionally_stopped = true")
             }
 
             val prefs = defaultPrefs()
             prefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
-            com.sbf.lightspeed.system.LightspeedKeyEngine.stopShizukuPowerMonitor()
-            com.sbf.lightspeed.system.PowerLongPressTakeover.release(this)
-            com.sbf.lightspeed.system.LightspeedWatchdogEngine.stopSentinel()
-            com.sbf.lightspeed.system.LightspeedWatchdogEngine.unregisterFastTriggers(this)
-            com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
-            com.sbf.lightspeed.system.CallStateTracker.unregister(this)
+            LightspeedKeyEngine.stopShizukuPowerMonitor()
+            PowerLongPressTakeover.release(this)
+            LightspeedWatchdogEngine.stopSentinel()
+            LightspeedWatchdogEngine.unregisterFastTriggers(this)
+            SonicDeckManager.dismiss(this)
+            VistaDeckManager.dismiss(this)
+            com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.resetAllAppVolumesToUnity()
+            com.sbf.lightspeed.system.sonic.SonicChannelRouter.unregisterPolicy()
+            com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.teardown(this)
+            com.sbf.lightspeed.system.display.LightspeedConsciousAirlockOverlay.dismiss()
+            LightspeedSpacePodOverlay.hide()
+            CallStateTracker.unregister(this)
             teardown()
         } catch (e: Exception) {
             Log.e(TAG, "Exception during service onDestroy: ${e.message}", e)

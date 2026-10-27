@@ -17,6 +17,7 @@ internal enum class PinnedMenuItem {
     SPLIT_WITH,
     POPUP_WINDOW,
     CHANGE_CATEGORY,
+    UNINSTALL,
     NONE
 }
 
@@ -34,7 +35,7 @@ internal fun LightspeedCruiseOverlay.getPinnedAppMenuBounds(): RectF {
     val dp = resources.displayMetrics.density
     val menuW = 168f * dp
     val rowH = 44f * dp
-    val menuH = rowH * 6f
+    val menuH = rowH * 7f
     val margin = 12f * dp
     val screenW = width.toFloat()
     val screenH = height.toFloat()
@@ -76,7 +77,7 @@ internal fun LightspeedCruiseOverlay.hitTestPinnedAppMenu(x: Float, y: Float): P
     if (pinnedMenuApp == null) return PinnedMenuItem.NONE
     val bounds = getPinnedAppMenuBounds()
     if (!bounds.contains(x, y)) return PinnedMenuItem.NONE
-    val rowH = bounds.height() / 6f
+    val rowH = bounds.height() / 7f
     val offset = y - bounds.top
     return when {
         offset < rowH -> PinnedMenuItem.OPEN
@@ -84,7 +85,8 @@ internal fun LightspeedCruiseOverlay.hitTestPinnedAppMenu(x: Float, y: Float): P
         offset < rowH * 3f -> PinnedMenuItem.SPLIT_WITH
         offset < rowH * 4f -> PinnedMenuItem.SPLIT_SCREEN
         offset < rowH * 5f -> PinnedMenuItem.POPUP_WINDOW
-        else -> PinnedMenuItem.CHANGE_CATEGORY
+        offset < rowH * 6f -> PinnedMenuItem.CHANGE_CATEGORY
+        else -> PinnedMenuItem.UNINSTALL
     }
 }
 
@@ -172,6 +174,20 @@ internal fun LightspeedCruiseOverlay.handlePinnedAppMenuTap(x: Float, y: Float) 
                 pinnedMenuCategoryMode = true
                 triggerHardwareHaptic(25, 120)
             }
+            PinnedMenuItem.UNINSTALL -> {
+                closePinnedAppMenu()
+                dismissOverlay()
+                try {
+                    // ACTION_UNINSTALL_PACKAGE needs REQUEST_DELETE_PACKAGES (declared in the manifest);
+                    // without it Android 9+ silently ignores the request.
+                    val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:${target.packageName}")).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("PinnedAppMenu", "Failed to uninstall ${target.packageName}", e)
+                }
+            }
             PinnedMenuItem.NONE -> {
                 closePinnedAppMenu()
             }
@@ -188,7 +204,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
 
     val dp = resources.displayMetrics.density
     val bounds = getPinnedAppMenuBounds()
-    val rowH = bounds.height() / 6f
+    val rowH = bounds.height() / 7f
 
     // Theme-driven optical styling
     val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
@@ -206,7 +222,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
         Color.green(borderColor),
         Color.blue(borderColor)
     )
-    for (i in 1 until 6) {
+    for (i in 1 until 7) {
         val divY = bounds.top + (rowH * i)
         canvas.drawLine(bounds.left + 16f * dp, divY, bounds.right - 16f * dp, divY, paint)
     }
@@ -222,7 +238,7 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     val fontMetrics = paint.fontMetrics
     val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f
 
-    val menuItems = listOf("Open", "App info", "Split with...", "Split screen", "Pop-up window", "Change category")
+    val menuItems = listOf("Open", "App info", "Split with...", "Split screen", "Pop-up window", "Change category", "Uninstall")
     menuItems.forEachIndexed { i, label ->
         val centerY = bounds.top + (rowH * i) + (rowH / 2f)
         canvas.drawText(label, textX, centerY - textYOffset, paint)

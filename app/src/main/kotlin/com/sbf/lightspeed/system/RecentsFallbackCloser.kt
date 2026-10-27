@@ -48,9 +48,9 @@ internal object RecentsFallbackCloser {
             null
         }
 
-        if (recordedPkg.isNullOrBlank() || label.isNullOrBlank()) {
+        if (recordedPkg.isNullOrBlank() || label.isNullOrBlank() || TaskInspector.isLauncherOrSystem(context, recordedPkg)) {
             isRecentsFallbackRunning.set(false)
-            val reason = if (recordedPkg.isNullOrBlank()) "No recorded app package" else "Could not resolve label for package $recordedPkg"
+            val reason = if (recordedPkg.isNullOrBlank()) "No recorded app package" else if (TaskInspector.isLauncherOrSystem(context, recordedPkg)) "Target package is launcher/system ($recordedPkg)" else "Could not resolve label for package $recordedPkg"
             FlightLog.log("recents_close", false, reason)
             PopupDiagnostics.recordStep(
                 action = "close_app",

@@ -24,6 +24,10 @@ object LightspeedHudHorizonRenderer {
         style = Paint.Style.STROKE
     }
 
+    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+    }
+
     private val specularPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -113,70 +117,100 @@ object LightspeedHudHorizonRenderer {
         cx: Float,
         topY: Float,
         primaryColor: Int,
-        d: Float
+        d: Float,
+        useCentralTheme: Boolean = true
     ) {
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
         val hasGauge = totalSteps > 0 && stepIndex >= 0
         val cardW = 324f * d
         val cardH = 88f * d
-        val chamfer = 12f * d
+        val chamfer = spec.cornerRadiusPx
         cardRect.set(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
         val rect = cardRect
         resetSharedPaints()
 
+        val pR = Color.red(spec.panelColor)
+        val pG = Color.green(spec.panelColor)
+        val pB = Color.blue(spec.panelColor)
+        val tR = Color.red(spec.tintColor)
+        val tG = Color.green(spec.tintColor)
+        val tB = Color.blue(spec.tintColor)
+        val pA = (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
         val r = Color.red(primaryColor)
         val g = Color.green(primaryColor)
         val b = Color.blue(primaryColor)
 
-        // 1. Frosted Prism Backplane — cached shader
-        val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, primaryColor)
+        val path = createChamferedPath(rect, chamfer)
+
+        // Outer Glow (Central Command Engine)
+        if (spec.glowStrength > 0.05f) {
+            val glowColor = spec.glowColor
+            glowPaint.color = Color.argb(
+                (spec.glowStrength * 120).toInt().coerceIn(0, 255),
+                Color.red(glowColor),
+                Color.green(glowColor),
+                Color.blue(glowColor)
+            )
+            glowPaint.strokeWidth = spec.borderWidthPx * (1.5f + spec.glowStrength * 1.5f)
+            canvas.drawPath(path, glowPaint)
+        }
+
+        // 1. Solid Frosted Base (Guarantees zero transparency)
+        glassFillPaint.shader = null
+        glassFillPaint.color = Color.argb(pA, (pR + tR * 0.08f).toInt().coerceIn(0, 255), (pG + tG * 0.08f).toInt().coerceIn(0, 255), (pB + tB * 0.08f).toInt().coerceIn(0, 255))
+        canvas.drawPath(path, glassFillPaint)
+
+        // 1b. Frosted Backplane — cached shader
+        val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, spec.panelColor) xor spec.tintColor.toLong()
         if (glassKey != horizonGlassKey) {
             horizonGlassShader = LinearGradient(
                 rect.left, rect.top, rect.left, rect.bottom,
                 intArrayOf(
-                    Color.argb(220, (14 + r * 0.08f).toInt().coerceIn(0, 255), (18 + g * 0.08f).toInt().coerceIn(0, 255), (28 + b * 0.08f).toInt().coerceIn(0, 255)),
-                    Color.argb(242, (8 + r * 0.04f).toInt().coerceIn(0, 255), (12 + g * 0.04f).toInt().coerceIn(0, 255), (20 + b * 0.04f).toInt().coerceIn(0, 255))
+                    Color.argb(pA, (pR + tR * 0.12f).toInt().coerceIn(0, 255), (pG + tG * 0.12f).toInt().coerceIn(0, 255), (pB + tB * 0.12f).toInt().coerceIn(0, 255)),
+                    Color.argb((pA * 1.05f).toInt().coerceIn(0, 255), pR, pG, pB)
                 ),
                 floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP
             )
             horizonGlassKey = glassKey
         }
-        val path = createChamferedPath(rect, chamfer)
         glassFillPaint.withShader(horizonGlassShader) { p ->
             canvas.drawPath(path, p)
         }
 
         // 2. Prism Refractive Rim — cached shader
-        val rimKey = gradKey4f(rect.left, rect.top, rect.right, rect.bottom, primaryColor)
+        val bColor = spec.borderColor
+        val rimKey = gradKey4f(rect.left, rect.top, rect.right, rect.bottom, bColor) xor spec.tintColor.toLong()
         if (rimKey != horizonRimKey) {
+            val bA = Color.alpha(bColor).coerceAtLeast(100)
             horizonRimShader = LinearGradient(
                 rect.left, rect.top, rect.right, rect.bottom,
                 intArrayOf(
                     Color.argb(170, 255, 255, 255),
-                    Color.argb(90, r, g, b),
+                    Color.argb(bA, Color.red(bColor), Color.green(bColor), Color.blue(bColor)),
                     Color.argb(30, 255, 255, 255),
-                    Color.argb(120, r, g, b)
+                    Color.argb(bA, tR, tG, tB)
                 ),
                 floatArrayOf(0f, 0.35f, 0.7f, 1f),
                 Shader.TileMode.CLAMP
             )
             horizonRimKey = rimKey
         }
-        glassRimPaint.strokeWidth = 1.4f * d
+        glassRimPaint.strokeWidth = spec.borderWidthPx
         glassRimPaint.withShader(horizonRimShader) { p ->
             canvas.drawPath(path, p)
         }
 
         // 3. Specular Light Glint along upper edge
         specularPaint.strokeWidth = 1.4f * d
-        specularPaint.color = Color.argb(180, 255, 255, 255)
+        specularPaint.color = Color.argb((spec.highlightStrength * 240).toInt().coerceIn(0, 255), 255, 255, 255)
         canvas.drawLine(rect.left + chamfer, rect.top + 0.8f * d, rect.right - chamfer, rect.top + 0.8f * d, specularPaint)
 
         // 4. Swept Flight Wing Brackets (HUD Reticle Frame)
         val bracketY = rect.top + (38f * d)
         val wingSpan = 28f * d
         specularPaint.strokeWidth = 1.8f * d
-        specularPaint.color = Color.argb(160, r, g, b)
+        specularPaint.color = Color.argb(160, tR, tG, tB)
         // Left Wing
         canvas.drawLine(rect.left + (16f * d), bracketY, rect.left + (16f * d) + wingSpan, bracketY, specularPaint)
         canvas.drawLine(rect.left + (16f * d), bracketY - (6f * d), rect.left + (16f * d), bracketY + (6f * d), specularPaint)

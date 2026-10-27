@@ -367,14 +367,91 @@ fun DeflectorLandscapeGeometryCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (isLandscape) {
-                                "Core Astrogation & Deflector geometry sliders below are currently calibrating your LANDSCAPE dimensions directly."
+                                "Core Astrogation, Deflector & Cybernetic Trackpad geometry sliders below are currently calibrating your LANDSCAPE dimensions directly."
                             } else {
-                                "Core Astrogation & Deflector geometry sliders below calibrate PORTRAIT dimensions. Rotate your device to Landscape to calibrate landscape dimensions directly."
+                                "Core Astrogation, Deflector & Cybernetic Trackpad geometry sliders below calibrate PORTRAIT dimensions. Rotate your device to Landscape to calibrate landscape dimensions directly."
                             },
                             fontSize = 11.sp,
                             color = lsColors.textPrimary.copy(alpha = 0.85f),
                             lineHeight = 15.sp
                         )
+                    }
+                }
+            }
+
+            // Orientation Overlay Policy (Adaptive 360° vs Portrait Only)
+            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
+            var currentOrientationPolicy by remember {
+                mutableStateOf(prefs.getString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, "adaptive") ?: "adaptive")
+            }
+            var isOrientationDropdownOpen by remember { mutableStateOf(false) }
+            val orientationOptions = listOf(
+                "adaptive" to "Adaptive (360° Follows All Rotations)",
+                "portrait_only" to "Portrait Only (Auto-Hide in Landscape)"
+            )
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "ORIENTATION OVERLAY POLICY",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Controls how Deflector strips, Cybernetic Trackpad, and HUD overlays behave when rotating: 'Adaptive' keeps them active across all angles, while 'Portrait Only' auto-hides them in landscape.",
+                    fontSize = 11.sp,
+                    color = lsColors.textSecondary.copy(alpha = 0.8f),
+                    lineHeight = 14.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box {
+                    OutlinedButton(
+                        onClick = { isOrientationDropdownOpen = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = orientationOptions.firstOrNull { it.first == currentOrientationPolicy }?.second ?: "Adaptive (360°)",
+                                color = lsColors.textPrimary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    DeckThemedDropdownMenu(
+                        expanded = isOrientationDropdownOpen,
+                        onDismissRequest = { isOrientationDropdownOpen = false }
+                    ) {
+                        orientationOptions.forEach { (key, label) ->
+                            DropdownMenuItem(
+                                modifier = Modifier.heightIn(min = 48.dp),
+                                text = { Text(label) },
+                                onClick = {
+                                    isOrientationDropdownOpen = false
+                                    currentOrientationPolicy = key
+                                    prefs.edit().putString(LightspeedPreferences.KEY_ORIENTATION_OVERLAY_POLICY, key).apply()
+                                    safeReloadPreferences()
+                                    com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.resyncGeometryAndVisibility()
+                                    onRefreshNeeded()
+                                }
+                            )
+                        }
                     }
                 }
             }

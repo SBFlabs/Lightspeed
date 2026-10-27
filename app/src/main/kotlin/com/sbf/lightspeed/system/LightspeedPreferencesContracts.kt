@@ -84,6 +84,9 @@ interface LightspeedPerimeterAccessorsContract {
     fun getPinnedBatteryExemptApps(context: Context): Set<String>
     fun setPinnedBatteryExemptApps(context: Context, apps: Set<String>)
     fun togglePinnedBatteryExemptApp(context: Context, packageName: String): Boolean
+    fun getCloakedAccessibilityServices(context: Context): Set<String>
+    fun setCloakedAccessibilityServices(context: Context, services: Set<String>)
+    fun toggleCloakedAccessibilityService(context: Context, componentId: String): Boolean
 }
 
 /**

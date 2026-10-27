@@ -142,7 +142,7 @@ object FlightLog {
         sb.appendLine()
 
         try {
-            val p = context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
+            val p = context.defaultPrefs()
             val lastCrashTimestamp = p.getLong("key_last_crash_timestamp", 0L)
             val lastCrashMessage = p.getString("key_last_crash_message", null)
             val lastCrashStack = p.getString("key_last_crash_stack", null)

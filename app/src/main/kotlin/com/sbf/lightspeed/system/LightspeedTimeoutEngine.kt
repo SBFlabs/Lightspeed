@@ -12,6 +12,52 @@ import com.sbf.lightspeed.LightspeedStatusBarOverlay
 object LightspeedTimeoutEngine {
     private const val TAG = "LightspeedTimeout"
     private var lastPermissionPromptTime = 0L
+    private var alwaysOnWakeLock: android.os.PowerManager.WakeLock? = null
+    var isAlwaysOnActive: Boolean = false
+        private set
+
+    fun toggleAlwaysOn(context: Context): Boolean {
+        return if (isAlwaysOnActive) {
+            releaseAlwaysOn()
+            false
+        } else {
+            acquireAlwaysOn(context)
+            true
+        }
+    }
+
+    fun acquireAlwaysOn(context: Context) {
+        if (alwaysOnWakeLock?.isHeld == true) return
+        try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            if (pm != null) {
+                @Suppress("DEPRECATION")
+                val lock = pm.newWakeLock(android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "Lightspeed:AlwaysOnUntilScreenOff")
+                lock.acquire(60 * 60 * 1000L) // 1 hour max safety timeout
+                alwaysOnWakeLock = lock
+                isAlwaysOnActive = true
+            }
+        } catch (e: Exception) {
+            logSwallowed(TAG, "acquireAlwaysOn", e)
+        }
+    }
+
+    fun releaseAlwaysOn() {
+        try {
+            if (alwaysOnWakeLock?.isHeld == true) {
+                alwaysOnWakeLock?.release()
+            }
+        } catch (e: Exception) {
+            logSwallowed(TAG, "releaseAlwaysOn", e)
+        } finally {
+            alwaysOnWakeLock = null
+            isAlwaysOnActive = false
+        }
+    }
+
+    fun onScreenOff() {
+        releaseAlwaysOn()
+    }
 
     val TIMEOUT_STEPS = listOf(
         15_000 to "15s",

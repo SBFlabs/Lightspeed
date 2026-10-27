@@ -139,6 +139,53 @@ static void send_power_tap(int uinput_fd) {
     }
 }
 
+static void send_back_tap(int uinput_fd) {
+    struct input_event ev_down, ev_syn_down, ev_up, ev_syn_up;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    memset(&ev_down, 0, sizeof(ev_down));
+    ev_down.time = tv;
+    ev_down.type = EV_KEY;
+    ev_down.code = KEY_BACK;
+    ev_down.value = 1;
+
+    memset(&ev_syn_down, 0, sizeof(ev_syn_down));
+    ev_syn_down.time = tv;
+    ev_syn_down.type = EV_SYN;
+    ev_syn_down.code = SYN_REPORT;
+    ev_syn_down.value = 0;
+
+    if (write(uinput_fd, &ev_down, sizeof(ev_down)) != (ssize_t)sizeof(ev_down)) {
+        fprintf(stderr, "write ev_down failed in send_back_tap: %s\n", strerror(errno));
+    }
+    if (write(uinput_fd, &ev_syn_down, sizeof(ev_syn_down)) != (ssize_t)sizeof(ev_syn_down)) {
+        fprintf(stderr, "write ev_syn_down failed in send_back_tap: %s\n", strerror(errno));
+    }
+
+    usleep(25000); // ~25 ms delay
+
+    gettimeofday(&tv, NULL);
+    memset(&ev_up, 0, sizeof(ev_up));
+    ev_up.time = tv;
+    ev_up.type = EV_KEY;
+    ev_up.code = KEY_BACK;
+    ev_up.value = 0;
+
+    memset(&ev_syn_up, 0, sizeof(ev_syn_up));
+    ev_syn_up.time = tv;
+    ev_syn_up.type = EV_SYN;
+    ev_syn_up.code = SYN_REPORT;
+    ev_syn_up.value = 0;
+
+    if (write(uinput_fd, &ev_up, sizeof(ev_up)) != (ssize_t)sizeof(ev_up)) {
+        fprintf(stderr, "write ev_up failed in send_back_tap: %s\n", strerror(errno));
+    }
+    if (write(uinput_fd, &ev_syn_up, sizeof(ev_syn_up)) != (ssize_t)sizeof(ev_syn_up)) {
+        fprintf(stderr, "write ev_syn_up failed in send_back_tap: %s\n", strerror(errno));
+    }
+}
+
 int main(int argc, char **argv) {
     clock_gettime(CLOCK_MONOTONIC, &g_start_ts);
 
@@ -336,6 +383,10 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (ioctl(uinput_fd, UI_SET_KEYBIT, KEY_BACK) < 0) {
+        fprintf(stderr, "UI_SET_KEYBIT(KEY_BACK) failed: %s\n", strerror(errno));
+    }
+
     struct uinput_setup usetup;
     memset(&usetup, 0, sizeof(usetup));
     usetup.id.bustype = dev_id.bustype;
@@ -447,6 +498,8 @@ int main(int argc, char **argv) {
                             } else if (strcmp(cmd_line, "UP") == 0) {
                                 send_power_up(uinput_fd);
                                 uinput_power_is_down = 0;
+                            } else if (strcmp(cmd_line, "BACK") == 0) {
+                                send_back_tap(uinput_fd);
                             } else if (strcmp(cmd_line, "QUIT") == 0) {
                                 exit_reason = "QUIT";
                                 quit_requested = 1;

@@ -16,6 +16,8 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.logSwallowed
 
+@Volatile private var lastRestoredNativeBackState: Boolean? = null
+
 internal fun LightspeedAccessibilityService.setupNotchOverlay() {
     val d = resources.displayMetrics.density
     @Suppress("DEPRECATION")
@@ -342,6 +344,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
         overlayView?.visibility = View.GONE
         leftWingOverlayView?.visibility = View.GONE
         mediaScrubberOverlayView?.visibility = View.GONE
+        com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.resyncGeometryAndVisibility(this)
         return
     }
 
@@ -373,19 +376,15 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val hideRailOnLock = effectiveLocked && (lockscreenMode == "full_lockdown" || lockscreenRailMode == "hide")
     val hideSensorOnLock = effectiveLocked && (lockscreenMode == "full_lockdown" || lockscreenSensorMode == "hide")
 
-    // Dynamic Native Back Gesture Restoration on Lockscreen
-    if (hideDeflectorsOnLock || hideDeflectorsOnCall) {
+    // Dynamic Native Back Gesture Restoration on Lockscreen (debounced on state change)
+    val shouldRestoreNativeBack = hideDeflectorsOnLock || hideDeflectorsOnCall
+    if (lastRestoredNativeBackState != shouldRestoreNativeBack) {
+        lastRestoredNativeBackState = shouldRestoreNativeBack
         if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
-            val userScale = prefs.getFloat("sys_override_edge_gesture", 0.0f)
+            val userScale = prefs.getFloat("sys_override_edge_gesture", -1.0f)
             if (userScale == 0.0f) {
-                com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left 1.0 && settings put secure back_gesture_inset_scale_right 1.0")
-            }
-        }
-    } else {
-        if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
-            val userScale = prefs.getFloat("sys_override_edge_gesture", 0.0f)
-            if (userScale == 0.0f) {
-                com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left 0 && settings put secure back_gesture_inset_scale_right 0")
+                val targetScale = if (shouldRestoreNativeBack) "1.0" else "0"
+                com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left $targetScale && settings put secure back_gesture_inset_scale_right $targetScale")
             }
         }
     }
@@ -421,6 +420,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     if (leftVisibility == View.VISIBLE) {
         leftWingOverlayView?.postInvalidate()
     }
+    com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.resyncGeometryAndVisibility(this)
 }
 
 internal fun LightspeedAccessibilityService.scheduleGeometryResyncInternal() {
@@ -432,6 +432,7 @@ internal fun LightspeedAccessibilityService.resyncOverlayMetrics() {
     if (windowManager == null) return
     overlayView?.updateMetricsDimensions()
     leftWingOverlayView?.updateMetricsDimensions()
+    com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.resyncGeometryAndVisibility(this)
     val prefs = defaultPrefs()
     statusBarOverlayView?.updateRenderCache()
     updateStatusBarOverlayFromPrefs(prefs)

@@ -146,7 +146,7 @@ fun DeflectorFlankSection(
                                     false,
                                     "pref_macro_action_${macroPrefix}${zoneUpper}_SCRUBBING",
                                     "Extended Inward Sweep (Scrubbing)",
-                                    listOf("none", "system:volume", "system:brightness", "system:screen_timeout"),
+                                    listOf("none", "system:volume", "system:brightness", "system:screen_timeout", "system:scroll_scrub"),
                                     tokenLabelCache
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))

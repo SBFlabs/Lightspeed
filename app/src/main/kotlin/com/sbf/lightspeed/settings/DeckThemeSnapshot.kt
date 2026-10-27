@@ -329,3 +329,100 @@ object DeckStylePresets {
         return ALL.find { it.styleId == styleId } ?: PRISM
     }
 }
+
+/**
+ * Rich, high-contrast 12-theme palette resolved specifically for Canvas overlays
+ * (Cockpit Gear Rings, Cockpit Hangar Deck, and Cybernetic Trackpad + 3 Buttons).
+ * Ensures every single one of the 12 themes has its unmistakable signature surface fill,
+ * dual-tone gradient, neon/glass border, and accent glow.
+ */
+data class CanvasThemePalette(
+    val panelInnerArgb: Int,
+    val panelOuterArgb: Int,
+    val primaryAccentArgb: Int,
+    val secondaryAccentArgb: Int,
+    val borderArgb: Int
+)
+
+fun DeckThemeSnapshot.resolveCanvasPalette(context: android.content.Context? = null): CanvasThemePalette {
+    if (styleId == "adaptive" && usesSystemDynamicColor &&
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && context != null
+    ) {
+        try {
+            val p = context.getColor(android.R.color.system_accent1_300)
+            val s = context.getColor(android.R.color.system_accent2_300)
+            val bgIn = context.getColor(android.R.color.system_neutral1_800)
+            val bgOut = context.getColor(android.R.color.system_neutral1_900)
+            return CanvasThemePalette(
+                panelInnerArgb = (bgIn and 0x00FFFFFF) or (0xE0 shl 24),
+                panelOuterArgb = (bgOut and 0x00FFFFFF) or (0xEE shl 24),
+                primaryAccentArgb = p or (0xFF shl 24),
+                secondaryAccentArgb = s or (0xFF shl 24),
+                borderArgb = p or (0xFF shl 24)
+            )
+        } catch (_: Exception) {}
+    }
+
+    val pR = ((panelColorArgb shr 16) and 0xFF).toInt()
+    val pG = ((panelColorArgb shr 8) and 0xFF).toInt()
+    val pB = (panelColorArgb and 0xFF).toInt()
+
+    val tR = ((tintArgb shr 16) and 0xFF).toInt()
+    val tG = ((tintArgb shr 8) and 0xFF).toInt()
+    val tB = (tintArgb and 0xFF).toInt()
+
+    // Blend tint into panelColor using the exact same intensity curve as DeckOpticalCacheBuilder
+    val tintMix = when (styleId) {
+        "jelly" -> 0.36f
+        "prism" -> 0.10f
+        "glassmorphism" -> 0.16f
+        "frosted" -> 0.22f
+        "gaussian" -> 0.20f
+        "progressive" -> 0.22f
+        "adaptive" -> 0.26f
+        "depth" -> 0.24f
+        "acrylic" -> 0.20f
+        "neon" -> 0.18f
+        else -> 0.12f
+    }
+
+    val inR = (pR * (1f - tintMix) + tR * tintMix).toInt().coerceIn(0, 255)
+    val inG = (pG * (1f - tintMix) + tG * tintMix).toInt().coerceIn(0, 255)
+    val inB = (pB * (1f - tintMix) + tB * tintMix).toInt().coerceIn(0, 255)
+
+    val outAlpha = (panelAlpha.coerceIn(0.55f, 0.94f) * 255f).toInt()
+    val inAlpha = ((panelAlpha * 0.92f).coerceIn(0.48f, 0.90f) * 255f).toInt()
+
+    val panelInner = (inAlpha shl 24) or (inR shl 16) or (inG shl 8) or inB
+    val panelOuter = (outAlpha shl 24) or (pR shl 16) or (pG shl 8) or pB
+
+    // Ensure dark-tinted stealth themes ("blur", "dark") still have a clean silver-white specular accent
+    val tintLum = (tR * 299 + tG * 587 + tB * 114) / 1000
+    val primaryAccent = if (tintLum < 45) {
+        0xFFCFD8DC.toInt()
+    } else {
+        (0xFF shl 24) or (tR shl 16) or (tG shl 8) or tB
+    }
+
+    val glowAlpha = ((glowColorArgb ushr 24) and 0xFF).toInt()
+    val secondaryAccent = if (glowAlpha > 0 && (glowColorArgb and 0x00FFFFFFL) != 0L) {
+        (0xFF shl 24) or (glowColorArgb.toInt() and 0x00FFFFFF)
+    } else {
+        primaryAccent
+    }
+
+    val borderAlpha = ((borderColorArgb ushr 24) and 0xFF).toInt()
+    val resolvedBorder = if (borderAlpha > 0 && (borderColorArgb and 0x00FFFFFFL) != 0L) {
+        (0xFF shl 24) or (borderColorArgb.toInt() and 0x00FFFFFF)
+    } else {
+        primaryAccent
+    }
+
+    return CanvasThemePalette(
+        panelInnerArgb = panelInner,
+        panelOuterArgb = panelOuter,
+        primaryAccentArgb = primaryAccent,
+        secondaryAccentArgb = secondaryAccent,
+        borderArgb = resolvedBorder
+    )
+}

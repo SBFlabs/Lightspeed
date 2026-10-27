@@ -17,15 +17,6 @@ import java.util.Locale
 internal object PopupLauncher {
     private const val TAG = "PopupLauncher"
 
-    @Deprecated("Use launchInPopup(context, style) instead")
-    fun launchInFreeform(context: Context) {
-        val style = context.defaultPrefs().getString(
-            LightspeedPreferences.KEY_POPUP_STYLE,
-            LightspeedPreferences.POPUP_STYLE_NATIVE
-        ) ?: LightspeedPreferences.POPUP_STYLE_NATIVE
-        launchInPopup(context, style)
-    }
-
     fun launchInPopup(context: Context, style: String = context.defaultPrefs().getString(
         LightspeedPreferences.KEY_POPUP_STYLE,
         LightspeedPreferences.POPUP_STYLE_NATIVE

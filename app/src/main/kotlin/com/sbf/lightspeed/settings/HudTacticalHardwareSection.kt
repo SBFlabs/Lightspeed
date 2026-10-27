@@ -41,6 +41,8 @@ fun HudTacticalHardwareSection(
     onToggleSubVolume: () -> Unit,
     isSubHullTapExpanded: Boolean,
     onToggleSubHullTap: () -> Unit,
+    isSubHapticsExpanded: Boolean = false,
+    onToggleSubHaptics: (() -> Unit)? = null,
     currentThreshold: Float,
     onThresholdChange: (Float) -> Unit,
     currentZImpulse: Float,
@@ -56,6 +58,15 @@ fun HudTacticalHardwareSection(
 ) {
     val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
     val (tacticalTitle, tacticalSub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.TACTICAL_HARDWARE, currentLanguageMode)
+
+    var localSubHapticsExpanded by rememberSaveable {
+        mutableStateOf(prefs.getBoolean("pref_sub_haptics_expanded", false))
+    }
+    val effectiveSubHapticsExpanded = if (onToggleSubHaptics != null) isSubHapticsExpanded else localSubHapticsExpanded
+    val effectiveToggleSubHaptics = onToggleSubHaptics ?: {
+        localSubHapticsExpanded = !localSubHapticsExpanded
+        prefs.edit().putBoolean("pref_sub_haptics_expanded", localSubHapticsExpanded).apply()
+    }
 
     CompactAccordionSection(
         title = tacticalTitle,
@@ -524,6 +535,15 @@ fun HudTacticalHardwareSection(
                     installedTools = installedTools
                 )
             }
+
+            // Tactile & Haptics Engine Sub-Accordion
+            HapticsSubSection(
+                context = context,
+                prefs = prefs,
+                isExpanded = effectiveSubHapticsExpanded,
+                onToggle = effectiveToggleSubHaptics,
+                onRefreshNeeded = onRefreshNeeded
+            )
         }
     }
 }

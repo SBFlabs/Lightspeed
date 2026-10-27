@@ -54,11 +54,13 @@ internal object SplitScreenManager {
                 sharedPreferences.edit().remove(LightspeedPreferences.KEY_SPLIT_WITH_APP_TARGET).apply()
 
                 if (token.startsWith("system:") || token.startsWith("action_")) {
+                    val myPkg = context.packageName
                     val resolvedComp = when (token) {
-                        "system:refueling_bay" -> "com.sbf.lightspeed/com.sbf.lightspeed.LightspeedRefuelingActivity"
-                        "system:perimeter_watchdog" -> "com.sbf.lightspeed/com.sbf.lightspeed.system.LightspeedPerimeterActivity"
-                        "system:core_watchdog" -> "com.sbf.lightspeed/com.sbf.lightspeed.system.LightspeedCoreWatchdogActivity"
-                        "system:battery_exemption" -> "com.sbf.lightspeed/com.sbf.lightspeed.system.LightspeedBatteryExemptionActivity"
+                        "system:refueling_bay" -> "$myPkg/com.sbf.lightspeed.LightspeedRefuelingActivity"
+                        "system:perimeter_watchdog" -> "$myPkg/com.sbf.lightspeed.system.LightspeedPerimeterActivity"
+                        "system:core_watchdog" -> "$myPkg/com.sbf.lightspeed.system.LightspeedCoreWatchdogActivity"
+                        "system:battery_exemption" -> "$myPkg/com.sbf.lightspeed.system.LightspeedBatteryExemptionActivity"
+                        "system:central_command" -> "$myPkg/com.sbf.lightspeed.settings.CentralCommandActivity"
                         else -> null
                     }
                     if (resolvedComp != null) {
@@ -376,6 +378,21 @@ internal object SplitScreenManager {
                     } else {
                         lastFailureReason = if (returnedText.isNotBlank()) returnedText else "cmd exit code $codeWm"
                     }
+                }
+            }
+
+            // 1.5 Lenovo Tablet native split screen orchestrator
+            if (useShizuku && !splitSuccess && Build.MANUFACTURER.contains("Lenovo", ignoreCase = true)) {
+                try {
+                    val proc = ElevatedTaskCloser.execShizuku("cmd activity start-activity --windowingMode 6 -n 'com.lenovo.screensplit/.MainActivity'")
+                    val exit = proc.waitForOrKill()
+                    if (exit == 0) {
+                        splitSuccess = true
+                        PopupDiagnostics.recordStep("split", "lenovo_screensplit", ran = true, returned = "exit 0", verified = true)
+                        Log.w(TAG, "Split Screen launched via Lenovo ScreenSplit orchestrator")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Lenovo ScreenSplit launch failed", e)
                 }
             }
 

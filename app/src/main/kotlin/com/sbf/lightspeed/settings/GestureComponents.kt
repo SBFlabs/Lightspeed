@@ -115,6 +115,7 @@ fun GestureMappingRow(
             (currentRawValue == "system:screen_timeout") ||
             (currentRawValue == "system:brightness") ||
             (currentRawValue == "system:volume") ||
+            (currentRawValue == "system:scroll_scrub") ||
             (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward")
 
     val isScrubAction = direction == ArrowDirection.SCRUB ||
@@ -233,16 +234,15 @@ fun GestureMappingRow(
                 }
             }
 
-            // Line 3: Dedicated Action Chips & Dropdowns (Horizontally scrollable)
+            // Line 3: Dedicated Action Chips & Dropdowns (Wrapped FlowRow)
             if (hasControls) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 46.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     // Hold Duration Customization Chip
                     if (isHold) {
@@ -275,14 +275,18 @@ fun GestureMappingRow(
                     }
 
                     // HUD Style & Controls for Scrubbers
-                    if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:brightness" || currentRawValue == "system:volume") {
+                    if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:brightness" || currentRawValue == "system:volume" || currentRawValue == "system:scroll_scrub") {
                         if (currentRawValue == "system:brightness") {
                             GestureBrightnessScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
+                            GestureBrightnessSubChips(context, prefs, activeSnapshot)
                         }
                         if (currentRawValue == "system:volume") {
                             GestureVolumeScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
+                            GestureVolumeSubChips(context, prefs, activeSnapshot)
                         }
                         GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
+                        GestureHudThemeToggleChip(prefs, activeSnapshot)
+                        GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
                     }
 
                     // Skip Duration Selector for Media Skip Actions

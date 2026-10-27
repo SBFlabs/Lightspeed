@@ -361,6 +361,7 @@ fun CompactAccordionSection(
     headerTrailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
     val lsColors = LightspeedStyle.colors
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -372,7 +373,10 @@ fun CompactAccordionSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .combinedClickable(
-                        onClick = { onToggle() },
+                        onClick = {
+                            LightspeedHapticEngine.centralCommandClick(context)
+                            onToggle()
+                        },
                         onLongClick = { onLongToggle?.invoke() }
                     )
                     .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -429,6 +433,7 @@ fun CollapsibleSubSection(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val context = LocalContext.current
     val lsColors = LightspeedStyle.colors
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -440,7 +445,10 @@ fun CollapsibleSubSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onToggle() }
+                    .clickable {
+                        LightspeedHapticEngine.centralCommandClick(context)
+                        onToggle()
+                    }
                     .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

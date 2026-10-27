@@ -71,7 +71,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.snapshotFlow.collectAsState().value
             val fallbackBitmap = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.backdropBitmap
-            SideEffect {
+            androidx.compose.runtime.LaunchedEffect(snapshot, fallbackBitmap) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(this@MainActivity)
                     val nativeSupported = com.sbf.lightspeed.settings.BackdropBlurModeManager.isNativeBlurSupported(windowManager)

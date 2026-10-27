@@ -10,4 +10,4 @@ set_target_properties(lsinputd PROPERTIES
     OUTPUT_NAME "lsinputd"
 )
 
-target_link_options(lsinputd PRIVATE -pie -Wl,-z,max-page-size=16384)
+target_link_options(lsinputd PRIVATE -pie -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384)

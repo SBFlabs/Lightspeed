@@ -1,41 +1,18 @@
 package com.sbf.lightspeed.settings
 
-import com.sbf.lightspeed.system.safeReloadPreferences
-
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.outlined.Navigation
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.LightspeedFlightNotificationManager
-import com.sbf.lightspeed.system.LightspeedLanguageEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
-import com.sbf.lightspeed.system.LightspeedVocabulary
-import com.sbf.lightspeed.ui.theme.LightspeedStyle
-import com.sbf.lightspeed.ui.theme.LightspeedTokens
+import com.sbf.lightspeed.system.safeReloadPreferences
 
 @Composable
 fun DeflectorTabBody(
@@ -104,38 +81,23 @@ fun DeflectorTabBody(
     val bottomSecId = "${secPrefix}bottom"
     val unifiedSecId = "${secPrefix}unified"
     val centerSecId = "${secPrefix}center"
+    val trackpadSecId = "${secPrefix}trackpad"
 
-    val customVectors = remember(isLeft) {
-        if (isLeft) {
-            listOf(
-                "TAP" to ("Tap" to ArrowDirection.TAP),
-                "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
-                "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
-                "SWIPE_RIGHT" to ("Swipe Inward" to ArrowDirection.SWIPE_RIGHT),
-                "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
-                "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
-                "SWIPE_RIGHT_BACK" to ("Rebound Inward" to ArrowDirection.RIGHT_BACK),
-                "SWIPE_UP_RIGHT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_RIGHT),
-                "SWIPE_DOWN_RIGHT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_RIGHT),
-                "SWIPE_RIGHT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.RIGHT_UP),
-            )
+    val customVectors = remember(isLeft) { getCustomVectorsForFlank(isLeft) }
+    val isTrackpadLabsEnabled = com.sbf.lightspeed.system.bot.LightspeedBotContract.isLabsEnabled(prefs)
+
+    val defaultOrder = buildList {
+        add(centerSecId)
+        if (isFlankUnified) {
+            add(unifiedSecId)
         } else {
-            listOf(
-                "TAP" to ("Tap" to ArrowDirection.TAP),
-                "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
-                "SWIPE_DOWN" to ("Swipe Down" to ArrowDirection.SWIPE_DOWN),
-                "SWIPE_LEFT" to ("Swipe Inward" to ArrowDirection.SWIPE_LEFT),
-                "SWIPE_UP_DOWN" to ("Rebound Up" to ArrowDirection.SWIPE_UP_DOWN),
-                "SWIPE_DOWN_UP" to ("Rebound Down" to ArrowDirection.SWIPE_DOWN_UP),
-                "SWIPE_LEFT_BACK" to ("Rebound Inward" to ArrowDirection.LEFT_BACK),
-                "SWIPE_UP_LEFT" to ("Two-Step: Up → Inward" to ArrowDirection.SWIPE_UP_LEFT),
-                "SWIPE_DOWN_LEFT" to ("Two-Step: Down → Inward" to ArrowDirection.SWIPE_DOWN_LEFT),
-                "SWIPE_LEFT_UP" to ("Two-Step: Inward → Up" to ArrowDirection.LEFT_UP),
-            )
+            add(topSecId)
+            add(bottomSecId)
+        }
+        if (isTrackpadLabsEnabled) {
+            add(trackpadSecId)
         }
     }
-
-    val defaultOrder = if (isFlankUnified) listOf(centerSecId, unifiedSecId) else listOf(centerSecId, topSecId, bottomSecId)
     val currentOrder = sectionOrderStr.split(",").map { it.trim() }.filter { it in defaultOrder }.distinct().let { list ->
         list + (defaultOrder - list.toSet())
     }
@@ -154,86 +116,26 @@ fun DeflectorTabBody(
     val pinnedAccordionPrefKey = if (isLeft) LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0 else LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2
 
     if (blueprintTabTarget == tabIndex) {
-        BlueprintWireframeView(
+        DeflectorBlueprintSection(
             tabTitle = tabTitle,
-            sectionIds = currentOrder,
-            pinnedSectionId = pinnedSection,
+            currentOrder = currentOrder,
+            pinnedSection = pinnedSection,
             sectionTitles = sectionTitles,
-            onMoveUp = { idx: Int ->
-                if (idx > 0) {
-                    val mutable = currentOrder.toMutableList()
-                    val item = mutable.removeAt(idx)
-                    mutable.add(idx - 1, item)
-                    val newStr = mutable.joinToString(",")
-                    sectionOrderStr = newStr
-                    prefs.edit().putString(sectionOrderPrefKey, newStr).apply()
-                }
-            },
-            onMoveDown = { idx: Int ->
-                if (idx < currentOrder.size - 1) {
-                    val mutable = currentOrder.toMutableList()
-                    val item = mutable.removeAt(idx)
-                    mutable.add(idx + 1, item)
-                    val newStr = mutable.joinToString(",")
-                    sectionOrderStr = newStr
-                    prefs.edit().putString(sectionOrderPrefKey, newStr).apply()
-                }
-            },
-            onPinSection = { secId: String ->
-                pinnedSection = secId
-                prefs.edit().putString(pinnedAccordionPrefKey, secId).apply()
-            },
-            onExitBlueprint = {
-                blueprintTabTarget = null
-            },
-            subSections = mapOf(
-                topSecId to currentSubTop,
-                bottomSecId to currentSubBottom,
-                unifiedSecId to currentSubUnified
-            ),
-            subSectionTitles = mapOf(
-                "geo" to "Sensor Geometry",
-                "scrub" to "Inward Scrubbing Control",
-                "gestures" to "Gesture Actions & Macro Mappings"
-            ),
-            onMoveSubUp = { secId, idx ->
-                if (idx > 0) {
-                    val (list, key) = when (secId) {
-                        topSecId -> currentSubTop to "pref_sub_order_${topSecId}_2"
-                        bottomSecId -> currentSubBottom to "pref_sub_order_${bottomSecId}_2"
-                        unifiedSecId -> currentSubUnified to "pref_sub_order_${unifiedSecId}_2"
-                        else -> return@BlueprintWireframeView
-                    }
-                    val mutable = list.toMutableList()
-                    val item = mutable.removeAt(idx)
-                    mutable.add(idx - 1, item)
-                    when (secId) {
-                        topSecId -> currentSubTop = mutable
-                        bottomSecId -> currentSubBottom = mutable
-                        unifiedSecId -> currentSubUnified = mutable
-                    }
-                    prefs.edit().putString(key, mutable.joinToString(",")).apply()
-                }
-            },
-            onMoveSubDown = { secId, idx ->
-                val (list, key) = when (secId) {
-                    topSecId -> currentSubTop to "pref_sub_order_${topSecId}_2"
-                    bottomSecId -> currentSubBottom to "pref_sub_order_${bottomSecId}_2"
-                    unifiedSecId -> currentSubUnified to "pref_sub_order_${unifiedSecId}_2"
-                    else -> return@BlueprintWireframeView
-                }
-                if (idx < list.size - 1) {
-                    val mutable = list.toMutableList()
-                    val item = mutable.removeAt(idx)
-                    mutable.add(idx + 1, item)
-                    when (secId) {
-                        topSecId -> currentSubTop = mutable
-                        bottomSecId -> currentSubBottom = mutable
-                        unifiedSecId -> currentSubUnified = mutable
-                    }
-                    prefs.edit().putString(key, mutable.joinToString(",")).apply()
-                }
-            }
+            topSecId = topSecId,
+            bottomSecId = bottomSecId,
+            unifiedSecId = unifiedSecId,
+            currentSubTop = currentSubTop,
+            currentSubBottom = currentSubBottom,
+            currentSubUnified = currentSubUnified,
+            sectionOrderPrefKey = sectionOrderPrefKey,
+            pinnedAccordionPrefKey = pinnedAccordionPrefKey,
+            prefs = prefs,
+            onOrderChange = { sectionOrderStr = it },
+            onPinnedChange = { pinnedSection = it },
+            onExitBlueprint = { blueprintTabTarget = null },
+            onSubTopChange = { currentSubTop = it },
+            onSubBottomChange = { currentSubBottom = it },
+            onSubUnifiedChange = { currentSubUnified = it }
         )
     } else {
         val configuration = LocalConfiguration.current
@@ -327,95 +229,26 @@ fun DeflectorTabBody(
 
             if (showEdgeSovereigntyNotice) {
                 item(key = "${secPrefix}edge_sovereignty_tip") {
-                    val cautionAmber = LightspeedStyle.colors.accentWarn
-                    val noticeContainerColor = if (exceedsEdgeThreshold) LightspeedTokens.TacticalNoticeWarm.copy(alpha = 0.70f) else LightspeedTokens.TacticalNoticeDark.copy(alpha = 0.55f)
-                    val noticeBorderColor = if (exceedsEdgeThreshold) cautionAmber.copy(alpha = 0.50f) else LightspeedTokens.StatusCyanSoft.copy(alpha = 0.35f)
-                    val noticeAccentColor = if (exceedsEdgeThreshold) cautionAmber else LightspeedTokens.StatusCyanSoft
-
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = noticeContainerColor,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, noticeBorderColor),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (exceedsEdgeThreshold) Icons.Default.Warning else Icons.Default.Info,
-                                        contentDescription = null,
-                                        tint = noticeAccentColor,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = if (exceedsEdgeThreshold) {
-                                            "ANDROID EDGE GESTURE NOTICE · HIGH SPAN (${(deflectorCoverageRatio * 100).toInt()}%)"
-                                        } else {
-                                            "ANDROID EDGE GESTURE NOTICE"
-                                        },
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = noticeAccentColor
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        dismissedWarningSession = true
-                                        prefs.edit().putBoolean("pref_has_seen_edge_sovereignty_tip", true).apply()
-                                    },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Dismiss",
-                                        tint = LightspeedStyle.colors.textSecondary.copy(alpha = 0.7f),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = if (exceedsEdgeThreshold) {
-                                    "Total deflector span along the display edge (${totalDeflectorSpanDp}dp) exceeds 25% of the side (${(screenHeightDp * 0.25f).toInt()}dp recommended threshold). This may overlap or conflict with Android's native back swipe gestures. You can reduce vector heights or neutralize edge back insets in System Overrides."
-                                } else {
-                                    "Android's native back gestures are active along the screen edges and may conflict with deflector swipes. You can neutralize native back insets anytime under Central Command → HUD Strip → System Overrides."
-                                },
-                                fontSize = 11.5.sp,
-                                color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.85f),
-                                lineHeight = 16.sp
-                            )
-
-                            if (exceedsEdgeThreshold) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                OutlinedButton(
-                                    onClick = { showOverridesDeck = true },
-                                    modifier = Modifier.fillMaxWidth().height(34.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, cautionAmber.copy(alpha = 0.45f)),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = cautionAmber.copy(alpha = 0.12f),
-                                        contentColor = cautionAmber
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                                ) {
-                                    Text(
-                                        "⚡ OPEN SYSTEM OVERRIDES (EDGE NEUTRALIZATION)",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    EdgeSovereigntyNoticeCard(
+                        exceedsEdgeThreshold = exceedsEdgeThreshold,
+                        deflectorCoverageRatio = deflectorCoverageRatio,
+                        totalDeflectorSpanDp = totalDeflectorSpanDp,
+                        screenHeightDp = screenHeightDp,
+                        onDismiss = {
+                            dismissedWarningSession = true
+                            prefs.edit().putBoolean("pref_has_seen_edge_sovereignty_tip", true).apply()
+                        },
+                        onOpenOverrides = { showOverridesDeck = true }
+                    )
                 }
+            }
+
+            item {
+                DeflectorLandscapeGeometryCard(
+                    context = context,
+                    prefs = prefs,
+                    onRefreshNeeded = onRefreshNeeded
+                )
             }
 
             item {
@@ -436,185 +269,67 @@ fun DeflectorTabBody(
                 )
             }
 
-            item {
-                DeflectorLandscapeGeometryCard(
-                    context = context,
-                    prefs = prefs,
-                    onRefreshNeeded = onRefreshNeeded
-                )
-            }
+            val expStates = buildDeflectorExpansionStates(
+                tabIndex = tabIndex,
+                centerSecId = centerSecId,
+                unifiedSecId = unifiedSecId,
+                topSecId = topSecId,
+                bottomSecId = bottomSecId,
+                isCenterExpanded = isCenterExpanded,
+                isUnifiedExpanded = isUnifiedExpanded,
+                isTopExpanded = isTopExpanded,
+                isBottomExpanded = isBottomExpanded,
+                isUnifiedGeoExpanded = isUnifiedGeoExpanded,
+                isUnifiedScrubExpanded = isUnifiedScrubExpanded,
+                isUnifiedGesturesExpanded = isUnifiedGesturesExpanded,
+                isTopGeoExpanded = isTopGeoExpanded,
+                isTopScrubExpanded = isTopScrubExpanded,
+                isTopGesturesExpanded = isTopGesturesExpanded,
+                isBottomGeoExpanded = isBottomGeoExpanded,
+                isBottomScrubExpanded = isBottomScrubExpanded,
+                isBottomGesturesExpanded = isBottomGesturesExpanded,
+                prefs = prefs,
+                toggleSection = toggleSection,
+                onSetCenterExpanded = { isCenterExpanded = it },
+                onSetUnifiedExpanded = { isUnifiedExpanded = it },
+                onSetTopExpanded = { isTopExpanded = it },
+                onSetBottomExpanded = { isBottomExpanded = it },
+                onSetUnifiedGeoExpanded = { isUnifiedGeoExpanded = it },
+                onSetUnifiedScrubExpanded = { isUnifiedScrubExpanded = it },
+                onSetUnifiedGesturesExpanded = { isUnifiedGesturesExpanded = it },
+                onSetTopGeoExpanded = { isTopGeoExpanded = it },
+                onSetTopScrubExpanded = { isTopScrubExpanded = it },
+                onSetTopGesturesExpanded = { isTopGesturesExpanded = it },
+                onSetBottomGeoExpanded = { isBottomGeoExpanded = it },
+                onSetBottomScrubExpanded = { isBottomScrubExpanded = it },
+                onSetBottomGesturesExpanded = { isBottomGesturesExpanded = it },
+                onRefreshNeeded = onRefreshNeeded
+            )
 
-            currentOrder.forEach { secId ->
-                when (secId) {
-                    centerSecId -> {
-                        item(key = centerSecId) {
-                            CompactAccordionSection(
-                                title = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
-                                icon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Navigation,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                isExpanded = isCenterExpanded,
-                                onToggle = {
-                                    toggleSection(tabIndex, centerSecId, isCenterExpanded) { isCenterExpanded = it }
-                                    prefs.edit()
-                                        .putBoolean("pref_section_${centerSecId}_expanded", isCenterExpanded)
-                                        .apply()
-                                    safeReloadPreferences()
-                                    onRefreshNeeded()
-                                }
-                            ) {
-                                DeflectorPillStylingContent(
-                                    context = context,
-                                    prefs = prefs,
-                                    isLeft = isLeft,
-                                    onRefreshNeeded = onRefreshNeeded
-                                )
-                            }
-                        }
-                    }
-                    unifiedSecId -> {
-                        if (isFlankUnified) {
-                            item(key = unifiedSecId) {
-                                DeflectorUnifiedSection(
-                                    isLeft = isLeft,
-                                    context = context,
-                                    prefs = prefs,
-                                    dynamicActionTokens = dynamicActionTokens,
-                                    tokenLabelCache = tokenLabelCache,
-                                    isExpanded = isUnifiedExpanded,
-                                    onToggle = {
-                                        toggleSection(tabIndex, unifiedSecId, isUnifiedExpanded) { isUnifiedExpanded = it }
-                                        prefs.edit()
-                                            .putBoolean("pref_section_${unifiedSecId}_expanded", isUnifiedExpanded)
-                                            .apply()
-                                        safeReloadPreferences()
-                                    },
-                                    subBlueprintTarget = subBlueprintTarget,
-                                    onSubBlueprintToggle = {
-                                        subBlueprintTarget = if (subBlueprintTarget == unifiedSecId) null else unifiedSecId
-                                    },
-                                    isGeoExpanded = isUnifiedGeoExpanded,
-                                    onGeoToggle = {
-                                        isUnifiedGeoExpanded = !isUnifiedGeoExpanded
-                                        prefs.edit().putBoolean("pref_sub_geo_${unifiedSecId}", isUnifiedGeoExpanded).apply()
-                                        safeReloadPreferences()
-                                        onRefreshNeeded()
-                                    },
-                                    isScrubExpanded = isUnifiedScrubExpanded,
-                                    onScrubToggle = {
-                                        isUnifiedScrubExpanded = !isUnifiedScrubExpanded
-                                        prefs.edit().putBoolean("pref_sub_scrub_${unifiedSecId}", isUnifiedScrubExpanded).apply()
-                                    },
-                                    isGesturesExpanded = isUnifiedGesturesExpanded,
-                                    onGesturesToggle = {
-                                        isUnifiedGesturesExpanded = !isUnifiedGesturesExpanded
-                                        prefs.edit().putBoolean("pref_sub_gestures_${unifiedSecId}", isUnifiedGesturesExpanded).apply()
-                                    },
-                                    customVectors = customVectors,
-                                    listState = listState,
-                                    coroutineScope = coroutineScope,
-                                    onMooringConfirm = { pendingMooringConfirm = it }
-                                )
-                            }
-                        }
-                    }
-                    topSecId -> {
-                        if (!isFlankUnified) {
-                            item(key = topSecId) {
-                                DeflectorFlankSection(
-                                    isLeft = isLeft,
-                                    isUpper = true,
-                                    context = context,
-                                    prefs = prefs,
-                                    dynamicActionTokens = dynamicActionTokens,
-                                    tokenLabelCache = tokenLabelCache,
-                                    isExpanded = isTopExpanded,
-                                    onToggle = {
-                                        toggleSection(tabIndex, topSecId, isTopExpanded) { isTopExpanded = it }
-                                        prefs.edit()
-                                            .putBoolean("pref_section_${topSecId}_expanded", isTopExpanded)
-                                            .apply()
-                                        safeReloadPreferences()
-                                    },
-                                    subBlueprintTarget = subBlueprintTarget,
-                                    onSubBlueprintToggle = {
-                                        subBlueprintTarget = if (subBlueprintTarget == topSecId) null else topSecId
-                                    },
-                                    isGeoExpanded = isTopGeoExpanded,
-                                    onGeoToggle = {
-                                        isTopGeoExpanded = !isTopGeoExpanded
-                                        prefs.edit().putBoolean("pref_sub_geo_${topSecId}", isTopGeoExpanded).apply()
-                                        safeReloadPreferences()
-                                        onRefreshNeeded()
-                                    },
-                                    isScrubExpanded = isTopScrubExpanded,
-                                    onScrubToggle = {
-                                        isTopScrubExpanded = !isTopScrubExpanded
-                                        prefs.edit().putBoolean("pref_sub_scrub_${topSecId}", isTopScrubExpanded).apply()
-                                    },
-                                    isGesturesExpanded = isTopGesturesExpanded,
-                                    onGesturesToggle = {
-                                        isTopGesturesExpanded = !isTopGesturesExpanded
-                                        prefs.edit().putBoolean("pref_sub_gestures_${topSecId}", isTopGesturesExpanded).apply()
-                                    },
-                                    customVectors = customVectors,
-                                    onRefreshNeeded = onRefreshNeeded
-                                )
-                            }
-                        }
-                    }
-                    bottomSecId -> {
-                        if (!isFlankUnified) {
-                            item(key = bottomSecId) {
-                                DeflectorFlankSection(
-                                    isLeft = isLeft,
-                                    isUpper = false,
-                                    context = context,
-                                    prefs = prefs,
-                                    dynamicActionTokens = dynamicActionTokens,
-                                    tokenLabelCache = tokenLabelCache,
-                                    isExpanded = isBottomExpanded,
-                                    onToggle = {
-                                        toggleSection(tabIndex, bottomSecId, isBottomExpanded) { isBottomExpanded = it }
-                                        prefs.edit()
-                                            .putBoolean("pref_section_${bottomSecId}_expanded", isBottomExpanded)
-                                            .apply()
-                                        safeReloadPreferences()
-                                    },
-                                    subBlueprintTarget = subBlueprintTarget,
-                                    onSubBlueprintToggle = {
-                                        subBlueprintTarget = if (subBlueprintTarget == bottomSecId) null else bottomSecId
-                                    },
-                                    isGeoExpanded = isBottomGeoExpanded,
-                                    onGeoToggle = {
-                                        isBottomGeoExpanded = !isBottomGeoExpanded
-                                        prefs.edit().putBoolean("pref_sub_geo_${bottomSecId}", isBottomGeoExpanded).apply()
-                                        safeReloadPreferences()
-                                        onRefreshNeeded()
-                                    },
-                                    isScrubExpanded = isBottomScrubExpanded,
-                                    onScrubToggle = {
-                                        isBottomScrubExpanded = !isBottomScrubExpanded
-                                        prefs.edit().putBoolean("pref_sub_scrub_${bottomSecId}", isBottomScrubExpanded).apply()
-                                    },
-                                    isGesturesExpanded = isBottomGesturesExpanded,
-                                    onGesturesToggle = {
-                                        isBottomGesturesExpanded = !isBottomGesturesExpanded
-                                        prefs.edit().putBoolean("pref_sub_gestures_${bottomSecId}", isBottomGesturesExpanded).apply()
-                                    },
-                                    customVectors = customVectors,
-                                    onRefreshNeeded = onRefreshNeeded
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            renderDeflectorOrderedSections(
+                currentOrder = currentOrder,
+                centerSecId = centerSecId,
+                unifiedSecId = unifiedSecId,
+                topSecId = topSecId,
+                bottomSecId = bottomSecId,
+                trackpadSecId = trackpadSecId,
+                isFlankUnified = isFlankUnified,
+                isLeft = isLeft,
+                context = context,
+                prefs = prefs,
+                dynamicActionTokens = dynamicActionTokens,
+                tokenLabelCache = tokenLabelCache,
+                customVectors = customVectors,
+                listState = listState,
+                coroutineScope = coroutineScope,
+                subBlueprintTarget = subBlueprintTarget,
+                onSubBlueprintToggle = { secId ->
+                    subBlueprintTarget = if (subBlueprintTarget == secId) null else secId
+                },
+                exp = expStates,
+                onMooringConfirm = { pendingMooringConfirm = it },
+                onRefreshNeeded = onRefreshNeeded
+            )
         }
     }
 
@@ -623,47 +338,10 @@ fun DeflectorTabBody(
         onDismiss = { pendingMooringConfirm = null }
     )
 
-    if (showOverridesDeck) {
-        Dialog(
-            onDismissRequest = { showOverridesDeck = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            DeckGlassCardSurface(
-                modifier = Modifier
-                    .fillMaxWidth(0.96f)
-                    .fillMaxHeight(0.85f)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "SYSTEM OVERRIDES",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = LightspeedStyle.colors.textPrimary
-                        )
-                        IconButton(onClick = { showOverridesDeck = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close", tint = LightspeedStyle.colors.textPrimary)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        SystemOverrideDeckContents(context, prefs)
-                    }
-                }
-            }
-        }
-    }
+    DeflectorOverridesDialog(
+        visible = showOverridesDeck,
+        context = context,
+        prefs = prefs,
+        onDismiss = { showOverridesDeck = false }
+    )
 }

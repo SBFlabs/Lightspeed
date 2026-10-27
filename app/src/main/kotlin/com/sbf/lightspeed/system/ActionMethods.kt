@@ -27,11 +27,16 @@ object ActionMethods {
     fun isMethodAction(token: String): Boolean {
         val c = canonical(token)
         return c == "system:split_screen" || c == "system:close_app" || c == "system:popup_window" ||
-                c == "system:scroll_to_top" || c == "system:scroll_to_bottom"
+                c == "system:scroll_to_top" || c == "system:scroll_to_bottom" || c == "system:back"
     }
 
     fun options(token: String): List<MethodOption> {
         return when (canonical(token)) {
+            "system:back" -> listOf(
+                MethodOption(AUTO, "Automatic", "Accessibility with Shizuku fallback"),
+                MethodOption(A11Y_ACTION, "Accessibility action", "performGlobalAction"),
+                MethodOption(SHIZUKU, "Shizuku", "Direct input injection / lsinputd")
+            )
             "system:split_screen" -> listOf(
                 MethodOption(AUTO, "Automatic", "current fallback chain"),
                 MethodOption(SHIZUKU, "Shizuku", ""),

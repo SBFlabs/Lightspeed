@@ -69,6 +69,7 @@ object LightspeedVocabulary {
         CORE_COOLING,              // Thermal schedule
         BATTERY_EXEMPTION,         // Universal battery exemption control deck
         SONIC_DECK,                // Multi-app sound mixer & sovereign focus manager
+        VISTA_DECK,                // Display wellness, brightness & visual optics deck
 
         // Flight control
         MASTER_FLIGHT,
@@ -136,6 +137,7 @@ object LightspeedVocabulary {
         Key.CORE_COOLING            to "System Reboot",
         Key.BATTERY_EXEMPTION       to "Battery Exemption Control",
         Key.SONIC_DECK              to "Sonic Deck",
+        Key.VISTA_DECK              to "Vista Deck",
 
         Key.SYSTEM_OVERRIDES        to "System Override",
 
@@ -199,6 +201,7 @@ object LightspeedVocabulary {
         Key.SYSTEM_OVERRIDES        to "Developer Options",
         Key.BATTERY_EXEMPTION       to "Battery Exemption Control",
         Key.SONIC_DECK              to "Universal Audio Control",
+        Key.VISTA_DECK              to "Display & Visual Optics Control",
 
         Key.CORE_COOLING            to "System Reboot",
 

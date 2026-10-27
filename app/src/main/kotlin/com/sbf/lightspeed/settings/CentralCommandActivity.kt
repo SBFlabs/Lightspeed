@@ -139,10 +139,7 @@ class CentralCommandActivity : ComponentActivity() {
         setContent {
             val snapshot by DeckThemeManager.snapshotFlow.collectAsState()
             val blurActive = isCrossWindowBlurActive
-            SideEffect {
-                // Coordinate the window-level blur with the active snapshot and cross-window blur state
-                snapshot
-                blurActive
+            androidx.compose.runtime.LaunchedEffect(snapshot, blurActive) {
                 applyWindowBlur()
             }
 
@@ -190,7 +187,10 @@ class CentralCommandActivity : ComponentActivity() {
             .putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
             .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, false)
             .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, false)
+            .putBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_LEFT, false)
+            .putBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_RIGHT, false)
             .apply()
+        com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(this)
         safeReloadPreferences()
     }
 

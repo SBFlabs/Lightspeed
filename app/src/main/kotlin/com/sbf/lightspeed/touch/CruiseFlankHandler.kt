@@ -2,6 +2,7 @@ package com.sbf.lightspeed
 
 import android.view.MotionEvent
 import com.sbf.lightspeed.system.ActionDispatcher
+import com.sbf.lightspeed.system.LightspeedHapticEngine
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.hypot
@@ -63,7 +64,7 @@ internal fun LightspeedCruiseOverlay.performStartCruiseFromFlank(isLeft: Boolean
         val normY = ((startRawY - startYArea) / usableHeight).coerceIn(0f, 1f)
         initialCatIndex = floor(normY * cachedCategories.size).toInt().coerceIn(0, cachedCategories.size - 1)
         activeCatIndex = initialCatIndex
-        val catLineH = usableHeight / cachedCategories.size
+        val catLineH = (usableHeight / cachedCategories.size) * categorySpacingScale()
         categoryVisualOffset = (hF / 2f) - (startYArea + (activeCatIndex * catLineH) + (catLineH / 2f))
     }
     uiHandler.removeCallbacks(neutralToCategoryRunnable)
@@ -76,6 +77,7 @@ internal fun LightspeedCruiseOverlay.performFlankTouchEvent(isLeft: Boolean, eve
     val rawY = event.rawY
     when (event.actionMasked) {
         MotionEvent.ACTION_DOWN -> {
+            isOpenedFromLeftFlank = isLeft
             startCruiseFromFlank(isLeft, rawX, rawY)
             return true
         }
@@ -154,14 +156,18 @@ internal fun LightspeedCruiseOverlay.performFlankTouchEvent(isLeft: Boolean, eve
                         }
                         
                         if (targetedPackage != null) {
-                            val density = resources.displayMetrics.density
                             val cx = width / 2f
                             val cy = height / 2f
-                            val rad0 = 310f * (density / 2.6f).coerceAtLeast(0.9f)
-                            val rad1 = 190f * (density / 2.6f).coerceAtLeast(0.9f)
+                            val unitScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getUnitScale(context)
+                            val customDiameterScale = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getCustomDiameterScale(context)
+                            val dGimbal = (unitScale / 2.6f) * customDiameterScale
+                            val rad0 = 310f * dGimbal
+                            val rad1 = 190f * dGimbal
                             val currentTrackRadius = if (activeGearRing == 0) rad0 else rad1
-                            val targetedX = if (isFlankAware && isOpenedFromLeftFlank) cx + currentTrackRadius else cx - currentTrackRadius
-                            val targetedY = cy
+                            val gearShape = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getGearShape(context)
+                            val targetAngleRad = Math.toRadians(targetFocusAngle.toDouble())
+                            val rotRad = Math.toRadians(gearRingRotations[activeGearRing].toDouble())
+                            val (targetedX, targetedY) = DeepSpaceGearGeometry.pointOnGearPerimeter(cx, cy, currentTrackRadius, targetAngleRad - rotRad, rotRad, gearShape)
 
                             triggerHyperdriveWarpLaunch(targetedX, targetedY) {
                                 ActionDispatcher.execute(service ?: context, targetedPackage)
@@ -208,7 +214,7 @@ internal fun LightspeedCruiseOverlay.performFlankTouchEvent(isLeft: Boolean, eve
                     val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
                     dismissOverlay()
                     if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
-                        triggerHardwareHaptic(25, 120)
+                        LightspeedHapticEngine.deflectorClick(context)
                         service?.triggerDeflectorsGlow() ?: triggerGlow()
                     }
                 } else {
@@ -246,7 +252,7 @@ internal fun LightspeedCruiseOverlay.processGyroscopeTouchPhysics(rawX: Float, r
         isCruising = false
         service?.updateWindowLayout(false) // CRITICAL DIRECTIVE: Disengage overlay window touch-trap immediately
         updateMetricsDimensions()
-        triggerHardwareHaptic(15, 80)
+        LightspeedHapticEngine.deflectorTick(context)
         invalidate()
         return
     }
@@ -264,7 +270,7 @@ internal fun LightspeedCruiseOverlay.processGyroscopeTouchPhysics(rawX: Float, r
     }
 
     if (previousRing != activeGearRing && activeGearRing != 2) {
-        triggerHardwareHaptic(20, 120) // Micro haptic tick on ring crossing
+        LightspeedHapticEngine.cockpitGearJump(context) // Micro haptic tick on ring crossing
     }
 
     // Modular 3D Cube Rotation Gate (Over-Swipe Carousel with Auto-Repeat Hold)
@@ -288,7 +294,7 @@ internal fun LightspeedCruiseOverlay.processGyroscopeTouchPhysics(rawX: Float, r
 
     // Rotational Axis Crank Math: Scale angular velocity by true kinematic arc-length and flight physics profile
     val prefs = prefs()
-    val physicsProfile = prefs.getString("pref_gear_physics_profile", "magnetic") ?: "magnetic"
+    val physicsProfile = prefs.getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_GEAR_PHYSICS_PROFILE, "magnetic") ?: "magnetic"
     val physicsMultiplier = when (physicsProfile) {
         "fluid" -> 1.45f
         "heavy" -> 0.72f

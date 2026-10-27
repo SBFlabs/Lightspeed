@@ -10,14 +10,40 @@ object PowerGrabHelper {
 
     fun findPowerDevice(): String? = "auto"
 
+    private fun resolveLsinputdPath(context: Context): String {
+        val nativeFile = java.io.File(context.applicationInfo.nativeLibraryDir, "liblsinputd.so")
+        if (nativeFile.exists() && nativeFile.length() > 0L) {
+            return nativeFile.absolutePath
+        }
+        val extracted = java.io.File(context.codeCacheDir, "liblsinputd.so")
+        if (!extracted.exists() || extracted.length() == 0L) {
+            try {
+                java.util.zip.ZipFile(context.applicationInfo.sourceDir).use { zip ->
+                    val entry = zip.getEntry("lib/arm64-v8a/liblsinputd.so")
+                        ?: zip.getEntry("lib/armeabi-v7a/liblsinputd.so")
+                    if (entry != null) {
+                        zip.getInputStream(entry).use { input ->
+                            extracted.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        extracted.setReadable(true, false)
+                        extracted.setExecutable(true, false)
+                    }
+                }
+            } catch (e: Exception) {
+                logSwallowed("PowerGrabHelper", "extractLsinputd", e)
+            }
+        }
+        return if (extracted.exists()) extracted.absolutePath else nativeFile.absolutePath
+    }
+
     fun start(context: Context): Process? {
         val devicePath = findPowerDevice()
         if (devicePath == null) {
             Log.w("PowerGrabHelper", "start: Aborting PowerGrabHelper start, no safe power device found")
             return null
         }
-        val nativeDir = context.applicationInfo.nativeLibraryDir
-        val cmd = "$nativeDir/liblsinputd.so $devicePath 3600"
+        val binPath = resolveLsinputdPath(context)
+        val cmd = "cp '$binPath' /data/local/tmp/lsinputd 2>/dev/null && chmod 755 /data/local/tmp/lsinputd && /data/local/tmp/lsinputd $devicePath 3600 || '$binPath' $devicePath 3600"
         val proc = ElevatedTaskCloser.execShizuku(cmd) ?: return null
         return InterceptingProcess(proc)
     }
@@ -36,6 +62,7 @@ object PowerGrabHelper {
     fun sendDown(proc: Process?) = sendCommand(proc, "DOWN")
     fun sendUp(proc: Process?) = sendCommand(proc, "UP")
     fun sendTap(proc: Process?) = sendCommand(proc, "TAP")
+    fun sendBack(proc: Process?) = sendCommand(proc, "BACK")
 
     private class InterceptingProcess(private val original: Process) : Process() {
         private val wrappedStream by lazy { LoggingInputStream(original.inputStream) }

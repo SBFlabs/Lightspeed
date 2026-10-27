@@ -48,13 +48,45 @@ object ElevatedTaskCloser {
 
     fun execShizukuArgv(vararg args: String): Process? = ShizukuExecHelper.execShizukuArgv(*args)
 
+    fun injectKeyEvent(keyCode: Int): Boolean = ShizukuExecHelper.injectKeyEvent(keyCode)
+
     fun closeTopApp(context: Context) {
         TopAppCloser.closeTopApp(context)
+    }
+
+    fun dismissPinnedPipTasks(): Boolean {
+        if (!isShizukuActive) return false
+        var dismissed = false
+        try {
+            val atm = getActivityTaskManager()
+            if (atm != null) {
+                val method = atm.javaClass.methods.firstOrNull {
+                    it.name == "removeRootTasksInWindowingModes" &&
+                        it.parameterTypes.size == 1 &&
+                        it.parameterTypes[0] == IntArray::class.java
+                }
+                if (method != null) {
+                    method.invoke(atm, intArrayOf(2)) // 2 = WINDOWING_MODE_PINNED
+                    dismissed = true
+                }
+            }
+        } catch (e: Exception) {
+            logSwallowed(TAG, "dismissPinnedPipTasks:atm", e)
+        }
+        try {
+            execShizuku(
+                "for id in \$(am stack list 2>/dev/null | grep -B 2 'mWindowingMode=pinned' | grep 'RootTask id=' | sed -E 's/.*RootTask id=([0-9]+).*/\\1/'); do am stack remove \"\$id\" 2>/dev/null; done"
+            )
+        } catch (e: Exception) {
+            logSwallowed(TAG, "dismissPinnedPipTasks:shell", e)
+        }
+        return dismissed
     }
 
     fun toastShizukuNeeded(context: Context, feature: String) { ShizukuExecHelper.toastShizukuNeeded(context, feature) }
 
     internal fun isSystem(pkg: String): Boolean = TaskInspector.isSystem(pkg)
+    fun isLauncherOrSystem(context: Context, pkg: String?): Boolean = TaskInspector.isLauncherOrSystem(context, pkg)
 
     fun switchToPreviousApp(context: Context) {
         AppSwitcherHelper.switchToPreviousApp(context)
@@ -444,11 +476,6 @@ object ElevatedTaskCloser {
 
     private fun showSplitAppPicker(context: Context) {
         SplitScreenManager.showSplitAppPicker(context)
-    }
-
-    @Deprecated("Use launchInPopup(context, style) instead")
-    fun launchInFreeform(context: Context) {
-        PopupLauncher.launchInFreeform(context)
     }
 
     fun launchInPopup(context: Context, style: String = LightspeedPreferences.POPUP_STYLE_NATIVE) {

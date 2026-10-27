@@ -68,8 +68,7 @@ internal fun CockpitGearPickerScreenContent(
     onFinish: () -> Unit
 ) {
     val activeSnapshot by DeckThemeManager.snapshotFlow.collectAsState()
-    SideEffect {
-        activeSnapshot
+    LaunchedEffect(activeSnapshot) {
         onApplyWindowBlur()
     }
 
@@ -126,6 +125,22 @@ internal fun CockpitGearPickerScreenContent(
         } else {
             if (selectedTokens.contains(token)) selectedTokens.remove(token)
             else selectedTokens.add(token)
+        }
+    }
+
+    val wizardResultLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val generatedToken = activity.extractShortcutToken(result.data!!)
+            if (generatedToken.isNotBlank()) {
+                LightspeedActionRegistry.labelCache[generatedToken] =
+                    com.sbf.lightspeed.system.LightspeedShortcutManager.resolveLabel(activity, generatedToken)
+                if (!LightspeedActionRegistry.allTokens.contains(generatedToken)) {
+                    LightspeedActionRegistry.allTokens.add(generatedToken)
+                }
+                handleTokenSelection(generatedToken)
+            }
         }
     }
 
@@ -270,7 +285,7 @@ internal fun CockpitGearPickerScreenContent(
                                 val wizardIntent = Intent(Intent.ACTION_CREATE_SHORTCUT).apply {
                                     setClassName(pkg, act)
                                 }
-                                shortcutConfigLauncher.launch(wizardIntent)
+                                wizardResultLauncher.launch(wizardIntent)
                             },
                             onSelectAttitudeBucket = { selectedAttitudeBucketForAppPicker = it },
                             onSelectActionMethod = { selectedActionMethodForAppPicker = it },

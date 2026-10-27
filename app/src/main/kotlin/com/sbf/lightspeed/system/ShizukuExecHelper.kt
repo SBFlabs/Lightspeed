@@ -5,7 +5,11 @@ import android.content.Context
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.widget.Toast
 import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuBinderWrapper
@@ -97,6 +101,110 @@ internal object ShizukuExecHelper {
         } catch (e: Exception) {
             Log.e(TAG, "execShizukuArgv error", e)
             null
+        }
+    }
+
+    fun injectKeyEvent(keyCode: Int): Boolean {
+        if (!ElevatedTaskCloser.isShizukuActive) return false
+        return try {
+            val rawBinder = SystemServiceHelper.getSystemService("input")
+                ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
+                ?: return false
+            val wrapped = ShizukuBinderWrapper(rawBinder)
+            val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
+            val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+            val inputManager = asInterface.invoke(null, wrapped) ?: return false
+
+            val injectMethod = inputManager.javaClass.methods.firstOrNull { it.name == "injectInputEvent" }
+            if (injectMethod != null) {
+                val now = SystemClock.uptimeMillis()
+                val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0)
+                val up = KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0)
+                // mode 0 = INJECT_INPUT_EVENT_MODE_ASYNC
+                injectMethod.invoke(inputManager, down, 0)
+                injectMethod.invoke(inputManager, up, 0)
+                true
+            } else {
+                execShizuku("input keyevent $keyCode") != null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Direct input injection failed, falling back to shell", e)
+            execShizuku("input keyevent $keyCode") != null
+        }
+    }
+
+    fun injectBack(context: Context? = null): Boolean {
+        val powerProc = LightspeedPowerKeyEngine.activeProc
+        if (powerProc != null) {
+            PowerGrabHelper.sendBack(powerProc)
+            return true
+        }
+        if (ElevatedTaskCloser.isShizukuActive) {
+            try {
+                val rawBinder = SystemServiceHelper.getSystemService("input")
+                    ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
+                if (rawBinder != null) {
+                    val wrapped = ShizukuBinderWrapper(rawBinder)
+                    val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
+                    val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+                    val inputManager = asInterface.invoke(null, wrapped)
+                    val injectMethod = inputManager?.javaClass?.methods?.firstOrNull { it.name == "injectInputEvent" }
+                    if (injectMethod != null) {
+                        val now = SystemClock.uptimeMillis()
+                        val down = KeyEvent(
+                            now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0, 0,
+                            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0,
+                            InputDevice.SOURCE_KEYBOARD
+                        )
+                        val up = KeyEvent(
+                            now, now + 15, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK, 0, 0,
+                            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0,
+                            InputDevice.SOURCE_KEYBOARD
+                        )
+                        injectMethod.invoke(inputManager, down, 0)
+                        injectMethod.invoke(inputManager, up, 0)
+                        return true
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Direct back input injection failed, falling back to shell", e)
+            }
+            return execShizuku("input keyevent 4") != null
+        }
+        return false
+    }
+
+    fun injectTapEvent(x: Float, y: Float): Boolean {
+        if (!ElevatedTaskCloser.isShizukuActive) return false
+        return try {
+            val rawBinder = SystemServiceHelper.getSystemService("input")
+                ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
+                ?: return false
+            val wrapped = ShizukuBinderWrapper(rawBinder)
+            val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
+            val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+            val inputManager = asInterface.invoke(null, wrapped) ?: return false
+
+            val injectMethod = inputManager.javaClass.methods.firstOrNull { it.name == "injectInputEvent" }
+            if (injectMethod != null) {
+                val now = SystemClock.uptimeMillis()
+                val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0).apply {
+                    source = InputDevice.SOURCE_TOUCHSCREEN
+                }
+                val up = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_UP, x, y, 0).apply {
+                    source = InputDevice.SOURCE_TOUCHSCREEN
+                }
+                injectMethod.invoke(inputManager, down, 0)
+                injectMethod.invoke(inputManager, up, 0)
+                down.recycle()
+                up.recycle()
+                true
+            } else {
+                execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Direct tap injection failed", e)
+            execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
         }
     }
 

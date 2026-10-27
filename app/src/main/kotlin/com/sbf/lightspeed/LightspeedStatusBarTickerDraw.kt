@@ -7,6 +7,22 @@ import android.graphics.Typeface
 import android.os.Build
 import android.os.SystemClock
 
+private val tickerFillPaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+    style = Paint.Style.FILL
+    letterSpacing = 0.05f
+}
+
+private val tickerOutlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    color = Color.argb(235, 6, 8, 14)
+    style = Paint.Style.STROKE
+    strokeJoin = Paint.Join.ROUND
+    strokeCap = Paint.Cap.ROUND
+    letterSpacing = 0.05f
+}
+
+private var cachedFontSetting: String? = null
+private var cachedTacticalTypeface: Typeface = Typeface.DEFAULT_BOLD
+
 internal fun LightspeedStatusBarOverlay.drawTelemetryTicker(
     canvas: Canvas,
     layout: HorizonRailLayout,
@@ -105,44 +121,41 @@ internal fun LightspeedStatusBarOverlay.drawTelemetryTicker(
 
     val textSizeDp = renderCache.textSizeDp
     val fontSetting = renderCache.fontSetting
-    val tacticalTypeface: Typeface = when {
-        fontSetting == "system_default" -> Typeface.DEFAULT_BOLD
-        fontSetting.startsWith("/") -> {
-            try {
-                Typeface.createFromFile(java.io.File(fontSetting))
-            } catch (_: Exception) {
-                Typeface.DEFAULT_BOLD
+    if (fontSetting != cachedFontSetting) {
+        cachedFontSetting = fontSetting
+        cachedTacticalTypeface = when {
+            fontSetting == "system_default" -> Typeface.DEFAULT_BOLD
+            fontSetting.startsWith("/") -> {
+                try {
+                    Typeface.createFromFile(java.io.File(fontSetting))
+                } catch (_: Exception) {
+                    Typeface.DEFAULT_BOLD
+                }
             }
-        }
-        else -> {
-            try {
-                Typeface.create(fontSetting, Typeface.BOLD)
-            } catch (_: Exception) {
-                Typeface.DEFAULT_BOLD
+            else -> {
+                try {
+                    Typeface.create(fontSetting, Typeface.BOLD)
+                } catch (_: Exception) {
+                    Typeface.DEFAULT_BOLD
+                }
             }
         }
     }
+    val tacticalTypeface = cachedTacticalTypeface
 
     val colorMode = renderCache.colorMode
-    val microTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    val microTextPaint = tickerFillPaint.apply {
         textSize = textSizeDp * d
         typeface = tacticalTypeface
-        letterSpacing = 0.05f
         color = if (colorMode == "inverted") layout.primaryColor else Color.WHITE
-        style = Paint.Style.FILL
     }
 
     val isContrastShield = renderCache.isContrastShield
     val microTextOutlinePaint = if (isContrastShield) {
-        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        tickerOutlinePaint.apply {
             textSize = textSizeDp * d
             typeface = tacticalTypeface
-            letterSpacing = 0.05f
-            color = Color.argb(235, 6, 8, 14)
-            style = Paint.Style.STROKE
             strokeWidth = (textSizeDp * 0.22f * d).coerceIn(1.5f * d, 3.2f * d)
-            strokeJoin = Paint.Join.ROUND
-            strokeCap = Paint.Cap.ROUND
         }
     } else null
 
@@ -217,7 +230,7 @@ internal fun LightspeedStatusBarOverlay.drawTelemetryTicker(
                 else -> clipLeft
             }
             val safeText = if (textW > availW) {
-                android.text.TextUtils.ellipsize(text, android.text.TextPaint(microTextPaint), availW, android.text.TextUtils.TruncateAt.END).toString()
+                android.text.TextUtils.ellipsize(text, microTextPaint, availW, android.text.TextUtils.TruncateAt.END).toString()
             } else text
 
             canvas.save()

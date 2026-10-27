@@ -1,16 +1,12 @@
 package com.sbf.lightspeed.system
-import androidx.compose.foundation.verticalScroll
 
 import android.accessibilityservice.AccessibilityService
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import android.graphics.PixelFormat
 import android.media.AudioManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -21,728 +17,263 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.Accessibility
-import androidx.compose.material.icons.filled.DoNotDisturbOn
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.AccessAlarm
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.ui.input.pointer.pointerInput
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import android.graphics.RuntimeShader
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.sbf.lightspeed.settings.DeckGlassCardSurface
+import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
+import com.sbf.lightspeed.system.sonic.SonicChannelRouter
+import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
+import com.sbf.lightspeed.ui.theme.DeckTheme
+import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import java.lang.ref.WeakReference
-import kotlin.math.roundToInt
 
+/**
+ * 12-Theme Optical Glass Acoustic Command Deck Modal.
+ *
+ * Provides a unified cockpit for:
+ * 1. Real-time Neural Voice Isolation & Film Dialogue Enhancement.
+ * 2. Master System Audio Streams & One-Tap Silence / DND controls.
+ * 3. Per-App Hardware Volume (0%..200%), Multi-Channel Device Routing & Always-On Audio Focus.
+ */
 object SonicDeckManager {
-    private var serviceRef: WeakReference<AccessibilityService>? = null
+
+    const val KEY_SONIC_VOICE_ISOLATION_STASHED = "pref_sonic_voice_isolation_stashed"
+
     private var composeView: ComposeView? = null
     private var windowManager: WindowManager? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
-    private var volumeReceiver: BroadcastReceiver? = null
 
-    // State flows
-    private val masterVolumeState = mutableFloatStateOf(0f)
+    fun isShowing(): Boolean = composeView != null
+
+    /**
+     * Master switch toggle handler.
+     * When disabled: stops Cinema AI voice isolation, resets per-app volume overrides
+     * to native unity (1.0f), and clears privileged audio routes.
+     * When re-enabled: restores voice isolation if previously active, re-enables volume
+     * monitoring, reapplies custom app volumes, and restores channel routing.
+     */
+    fun onMasterToggle(context: Context, enabled: Boolean) {
+        val appCtx = context.applicationContext ?: context
+        val prefs = appCtx.defaultPrefs()
+        if (!enabled) {
+            dismiss()
+
+            // 1. Stash and stop Cinema AI Voice Isolation
+            val wasVoiceActive = SonicVoiceIsolationEngine.isEnabled ||
+                prefs.getBoolean(LightspeedPreferences.KEY_SONIC_VOICE_ISOLATION_ENABLED, false)
+            prefs.edit().putBoolean(KEY_SONIC_VOICE_ISOLATION_STASHED, wasVoiceActive).apply()
+            SonicVoiceIsolationEngine.stop(appCtx)
+
+            // 2. Reset per-app volume overrides to native unity (1.0f) and stop active player interception
+            SonicAppVolumeEngine.stopMonitoring()
+
+            // 3. Reset privileged audio routing
+            SonicChannelRouter.teardown(appCtx)
+
+            // 4. Shut down the privileged service process itself so it stops holding RAM
+            SonicVoiceIsolationEngine.teardown(appCtx)
+        } else {
+            SonicVoiceIsolationEngine.ensureBound(appCtx)
+            // Re-enabling restores all back:
+            // 1. Restore Cinema AI Voice Isolation if previously stashed active
+            val shouldRestoreVoice = prefs.getBoolean(KEY_SONIC_VOICE_ISOLATION_STASHED, false)
+            if (shouldRestoreVoice) {
+                SonicVoiceIsolationEngine.start(appCtx)
+            }
+
+            // 2. Restore per-app volume monitoring and reapply custom volumes
+            SonicAppVolumeEngine.startMonitoring(appCtx)
+            SonicAppVolumeEngine.reapplyAllVolumesToUserService(appCtx)
+            SonicAppVolumeEngine.refreshActiveAudioPlayers(appCtx)
+
+            // 3. Restore privileged audio routing
+            SonicChannelRouter.reapplyPrivilegedRoutes(appCtx)
+        }
+    }
 
     fun show(service: AccessibilityService) {
-        if (composeView != null) return
-        serviceRef = WeakReference(service)
-        
-        windowManager = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        
-        composeView = ComposeView(service).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            setContent {
-                var isVisible by remember { mutableStateOf(false) }
-                LaunchedEffect(Unit) {
-                    isVisible = true
-                }
-                
-                SonicDeckContent(
-                    service = service,
-                    isVisible = isVisible,
-                    onDismiss = {
-                        isVisible = false
-                        postDelayed({ dismiss() }, 250)
+        val mainHandler = Handler(Looper.getMainLooper())
+        mainHandler.post {
+            if (composeView != null) return@post
+
+            val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
+            windowManager = wm
+
+            val view = ComposeView(service)
+            val owner = OverlayLifecycleOwner()
+            owner.attachToView(view)
+            owner.onCreate()
+            owner.onStart()
+            owner.onResume()
+            lifecycleOwner = owner
+
+            view.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            view.setContent {
+                LightspeedTheme(forceDark = true) {
+                    DeckTheme {
+                        SonicDeckDialog(
+                            service = service,
+                            isVisible = true,
+                            onDismiss = { dismiss() }
+                        )
                     }
-                )
+                }
             }
-        }
+            composeView = view
 
-        lifecycleOwner = OverlayLifecycleOwner()
-        lifecycleOwner?.attachToView(composeView!!)
-        lifecycleOwner?.onCreate()
-        lifecycleOwner?.onStart()
-        lifecycleOwner?.onResume()
-
-        @Suppress("DEPRECATION")
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-            WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
-            WindowManager.LayoutParams.FLAG_DIM_BEHIND,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.CENTER
-            dimAmount = 0.5f
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.CENTER
+                dimAmount = 0f
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    setFitInsetsTypes(0)
+                    setFitInsetsSides(0)
+                    setFitInsetsIgnoringVisibility(true)
+                }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                blurBehindRadius = 120
-            }
-        }
 
-        var added = false
-        try {
-            windowManager?.addView(composeView, params)
-            added = true
-        } catch (e: WindowManager.BadTokenException) {
-            android.util.Log.w("OmniscientAudioDock", "TYPE_ACCESSIBILITY_OVERLAY failed with BadTokenException; attempting TYPE_APPLICATION_OVERLAY fallback", e)
             try {
-                params.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                windowManager?.addView(composeView, params)
-                added = true
-            } catch (e2: Exception) {
-                android.util.Log.e("OmniscientAudioDock", "Failed to add window with TYPE_APPLICATION_OVERLAY fallback", e2)
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("OmniscientAudioDock", "Failed to add window", e)
-        }
-
-        if (!added) {
-            dismiss()
-            return
-        }
-
-        // Register Volume Receiver
-        val audioManager = service.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
-        masterVolumeState.floatValue = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
-        
-        volumeReceiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
-                if (intent.action == "android.media.VOLUME_CHANGED_ACTION") {
-                    val streamType = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_TYPE", -1)
-                    if (streamType == AudioManager.STREAM_MUSIC) {
-                        val currentVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1)
-                        if (currentVol != -1) {
-                            masterVolumeState.floatValue = currentVol.toFloat()
-                        }
-                    }
-                }
+                wm.addView(view, params)
+            } catch (e: Exception) {
+                logSwallowed("SonicDeckManager", "show.addView", e)
+                dismiss()
             }
         }
-        ContextCompat.registerReceiver(service, volumeReceiver, IntentFilter("android.media.VOLUME_CHANGED_ACTION"), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     fun dismiss(context: Context? = null) {
-        val ctx = context ?: serviceRef?.get()
-        // Unregister the volume receiver first
-        volumeReceiver?.let {
-            try { ctx?.unregisterReceiver(it) } catch (e: Exception) { logSwallowed("OmniscientAudioDockManager", "dismiss:189", e) }
-            volumeReceiver = null
-        }
-        composeView?.let { view ->
-            // Tear down Compose lifecycle before removing to release composition-held refs
-            lifecycleOwner?.onPause()
-            lifecycleOwner?.onStop()
-            lifecycleOwner?.onDestroy()
-            lifecycleOwner = null
-            // Clear content to dispose the composition and release all Composable-held state
-            view.setContent {}
-            try { windowManager?.removeView(view) } catch (e: Exception) { logSwallowed("OmniscientAudioDockManager", "dismiss:199", e) }
-            composeView = null
-        }
-        windowManager = null
-        serviceRef?.clear()
-        serviceRef = null
+        dismiss()
     }
 
-    private fun getPinnedApps(context: Context): Set<String> {
-        val prefs = context.defaultPrefs()
-        val set = prefs.getStringSet("pinned_audio_apps", null)
-        if (set != null) return set
-        // Backward-compat fallback from legacy isolated prefs file
-        val legacy = context.getSharedPreferences("lightspeed_audio_dock", Context.MODE_PRIVATE)
-        val legacySet = legacy.getStringSet("pinned_audio_apps", emptySet()) ?: emptySet()
-        if (legacySet.isNotEmpty()) {
-            prefs.edit().putStringSet("pinned_audio_apps", legacySet).apply()
-        }
-        return legacySet
-    }
-
-    private fun addPinnedApp(context: Context, pkg: String) {
-        val prefs = context.defaultPrefs()
-        val current = getPinnedApps(context).toMutableSet()
-        current.add(pkg)
-        prefs.edit().putStringSet("pinned_audio_apps", current).apply()
-        LightspeedAppSovereigntyEngine.armAppSovereignty(pkg)
-    }
-    
-    private fun removePinnedApp(context: Context, pkg: String) {
-        val prefs = context.defaultPrefs()
-        val current = getPinnedApps(context).toMutableSet()
-        current.remove(pkg)
-        prefs.edit().putStringSet("pinned_audio_apps", current).apply()
-    }
-
-    private fun getRawActiveAudioPackages(context: Context): List<String> {
-        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val pm = context.packageManager
-        val configs = audioManager.activePlaybackConfigurations
-        val pkgs = mutableListOf<String>()
-        
-        for (config in configs) {
-            try {
-                val getClientUidMethod = config.javaClass.getMethod("getClientUid")
-                val uid = getClientUidMethod.invoke(config) as Int
-                if (uid > 10000) { // Ignore system UIDs
-                    val packages = pm.getPackagesForUid(uid)
-                    if (packages != null) {
-                        pkgs.addAll(packages)
-                    }
+    fun dismiss() {
+        val mainHandler = Handler(Looper.getMainLooper())
+        mainHandler.post {
+            composeView?.let { view ->
+                try {
+                    lifecycleOwner?.onPause()
+                    lifecycleOwner?.onStop()
+                    lifecycleOwner?.onDestroy()
+                    lifecycleOwner = null
+                    view.setContent {}
+                    windowManager?.removeView(view)
+                } catch (e: Exception) {
+                    logSwallowed("SonicDeckManager", "dismiss.removeView", e)
                 }
-            } catch (e: Exception) { logSwallowed("OmniscientAudioDockManager", "getRawActiveAudioPackages:251", e) }
+                composeView = null
+            }
+            windowManager = null
         }
-        return pkgs.distinct()
     }
 
     @Composable
-    private fun SonicDeckContent(service: Context, isVisible: Boolean, onDismiss: () -> Unit) {
-        val audioManager = service.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val pm = service.packageManager
-        val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat() }
+    private fun SonicDeckDialog(
+        service: AccessibilityService,
+        isVisible: Boolean,
+        onDismiss: () -> Unit
+    ) {
+        val snapshot by DeckThemeManager.snapshotFlow.collectAsState()
+        val audioManager = remember { service.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
-        var activeAppsList by remember { mutableStateOf<List<ActiveAppInfo>>(emptyList()) }
-        var showAppSelector by remember { mutableStateOf(false) }
-
-        var refreshTrigger by remember { mutableIntStateOf(0) }
-        val stableSortSet = remember { mutableSetOf<String>() }
-
-        LaunchedEffect(Unit) {
-            LightspeedAppSovereigntyEngine.ensureShizukuPermission(service)
-        }
-        
-        LaunchedEffect(refreshTrigger) {
-            val activeControllers = LightspeedMediaManager.getActiveControllers(service)
-            val sessionPackages = activeControllers.map { it.packageName }
-            val rawPackages = getRawActiveAudioPackages(service)
-            val pinnedPackages = getPinnedApps(service)
-            
-            val mergedPackages = (sessionPackages + rawPackages + pinnedPackages).distinct()
-            
-            val apps = mergedPackages.mapNotNull { pkg ->
-                try {
-                    val appInfo = pm.getApplicationInfo(pkg, 0)
-                    val label = pm.getApplicationLabel(appInfo).toString()
-                    val icon = pm.getApplicationIcon(appInfo)
-                    ActiveAppInfo(pkg, label, icon)
-                } catch (e: Exception) {
-                    null
-                }
-            }
-            // Prevent jumping: keep unpinned items at the top until dock closes
-            stableSortSet.addAll(pinnedPackages)
-            activeAppsList = apps.sortedByDescending { it.pkg in stableSortSet }
-        }
-
-        val prefs = service.defaultPrefs()
-        var glassStyleIndex by remember { mutableIntStateOf(prefs.getInt("pref_glass_style", 0)) }
-        var dragAccumulator by remember { mutableFloatStateOf(0f) }
-        
-        val dynamicPrimary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).primary else Color(0xFF6366F1)
-        val dynamicSecondary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) androidx.compose.material3.dynamicDarkColorScheme(service).secondary else Color(0xFFEAB308)
-
-        val bgColor = Color(0xB3121212) // 70% opacity deep dark grey for the dock itself
-        
-
-        
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Transparent)
+                .background(Color.Black.copy(alpha = 0.65f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { onDismiss() },
+                    indication = null,
+                    onClick = onDismiss
+                ),
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
                 visible = isVisible,
-                enter = fadeIn(tween(250)) + scaleIn(tween(250, delayMillis = 50), initialScale = 0.9f),
-                exit = fadeOut(tween(200)) + scaleOut(tween(200), targetScale = 0.9f)
+                enter = fadeIn(tween(200)) + scaleIn(tween(250), initialScale = 0.94f),
+                exit = fadeOut(tween(150)) + scaleOut(tween(200), targetScale = 0.94f)
             ) {
-                Box(
+                DeckGlassCardSurface(
                     modifier = Modifier
-                        .fillMaxWidth(0.9f).heightIn(max = 750.dp)
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-                        .clip(RoundedCornerShape(36.dp))
-                        
-                        .background(bgColor)
-                        .border(
-                            1.5.dp,
-                            Brush.linearGradient(
-                                0.0f to Color.White.copy(alpha = 0.4f),
-                                0.2f to Color.White.copy(alpha = 0.05f),
-                                0.8f to Color.White.copy(alpha = 0.05f),
-                                1.0f to Color.White.copy(alpha = 0.2f)
-                            ),
-                            RoundedCornerShape(36.dp)
-                        )
+                        .widthIn(max = 380.dp)
+                        .fillMaxWidth(0.92f)
+                        .wrapContentHeight()
+                        .heightIn(max = 540.dp)
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                    snapshotOverride = snapshot,
+                    isFlyout = false
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .verticalScroll(androidx.compose.foundation.rememberScrollState())
-                            .padding(24.dp)
+                            .wrapContentHeight()
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SONIC_DECK).uppercase(),
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 4.sp
-                            )
-                        }
-                        
-                        Spacer(modifier = Modifier.height(36.dp))
-                        
-                        Text("MASTER MEDIA", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(24.dp)).padding(horizontal = 16.dp)) {
-                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, tint = Color.White.copy(alpha=0.8f), modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Slider(
-                                value = masterVolumeState.floatValue,
-                                onValueChange = { 
-                                    masterVolumeState.floatValue = it 
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, it.roundToInt(), 0)
-                                },
-                                valueRange = 0f..maxVolume,
-                                modifier = Modifier.weight(1f),
-                                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = dynamicPrimary, inactiveTrackColor = Color.White.copy(alpha=0.15f))
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text("${((masterVolumeState.floatValue / maxVolume) * 100).toInt()}%", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
-                        }
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        Text("SYSTEM STREAMS", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SystemVolumeRow("RINGER & NOTIFICATIONS", Icons.Default.Notifications, AudioManager.STREAM_RING, audioManager, Color(0xFF3B82F6))
-                            SystemVolumeRow("ALARMS", Icons.Default.AccessAlarm, AudioManager.STREAM_ALARM, audioManager, Color(0xFFF59E0B))
-                            SystemVolumeRow("VOICE CALLS", Icons.Default.Phone, AudioManager.STREAM_VOICE_CALL, audioManager, Color(0xFF10B981))
-                            SystemVolumeRow("ASSISTANT (GEMINI)", Icons.Default.Android, 11, audioManager, Color(0xFF8B5CF6))
-                            SystemVolumeRow("ACCESSIBILITY", Icons.Default.Accessibility, 10, audioManager, Color(0xFFEC4899))
-                        }
-                        
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("APP SOVEREIGNTY", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                            Text("+ ADD APP", color = dynamicPrimary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp, modifier = Modifier.clickable {
-                                showAppSelector = true
-                            }.padding(4.dp))
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        if (activeAppsList.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxWidth().height(80.dp).background(Color.White.copy(alpha=0.02f), RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(alpha=0.04f), RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
-                                Text("No Active Sessions", color = Color.White.copy(alpha = 0.3f), fontSize = 12.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
-                            }
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                val pinnedSet = remember(refreshTrigger) { getPinnedApps(service) }
-                                activeAppsList.forEach { app ->
-                                    androidx.compose.runtime.key(app.pkg) {
-                                        AppVolumeRow(service, app.pkg, app.name, app.icon, LightspeedAppSovereigntyEngine.getAppVolume(app.pkg), app.pkg in pinnedSet, dynamicPrimary) { isPinned ->
-                                            if (isPinned) addPinnedApp(service, app.pkg) else removePinnedApp(service, app.pkg)
-                                            refreshTrigger++
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(36.dp))
-
+                        // Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            DockActionButton(Modifier.weight(1f), "MUTE ALL", Icons.AutoMirrored.Filled.VolumeOff, Color(0xFFEF4444)) {}
-                            DockActionButton(Modifier.weight(1f), "DND", Icons.Default.DoNotDisturbOn, dynamicSecondary) {}
-                            DockActionButton(Modifier.weight(1f), "AutoEQ", Icons.Default.Tune, Color(0xFF10B981)) {}
-                        }
-                    }
-                }
-            }
-            
-            AnimatedVisibility(visible = showAppSelector, enter = fadeIn(), exit = fadeOut()) {
-                AppSelectorOverlay(pm = pm, onAppSelected = { pkg ->
-                    addPinnedApp(service, pkg)
-                    refreshTrigger++
-                    showAppSelector = false
-                }, onDismiss = { showAppSelector = false })
-            }
-        }
-    }
-}
-
-@Composable
-fun SystemVolumeRow(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, streamType: Int, audioManager: AudioManager, tint: Color) {
-    val maxVol = remember { audioManager.getStreamMaxVolume(streamType).toFloat().coerceAtLeast(1f) }
-    var vol by remember { mutableFloatStateOf(audioManager.getStreamVolume(streamType).toFloat()) }
-    
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(56.dp).background(Color.White.copy(alpha=0.08f), RoundedCornerShape(20.dp)).padding(horizontal = 16.dp)) {
-        Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.05f)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-            Slider(
-                value = vol,
-                onValueChange = { 
-                    vol = it 
-                    audioManager.setStreamVolume(streamType, it.roundToInt(), 0)
-                },
-                valueRange = 0f..maxVol,
-                modifier = Modifier.height(20.dp),
-                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = tint, inactiveTrackColor = Color.White.copy(alpha=0.1f))
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Text("${((vol / maxVol) * 100).toInt()}%", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-
-    @Composable
-    private fun AppSelectorOverlay(pm: PackageManager, onAppSelected: (String) -> Unit, onDismiss: () -> Unit) {
-        var searchQuery by remember { mutableStateOf("") }
-        var installedApps by remember { mutableStateOf<List<ActiveAppInfo>>(emptyList()) }
-
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-                val apps = packages.filter { pm.getLaunchIntentForPackage(it.packageName) != null }.map {
-                    ActiveAppInfo(it.packageName, pm.getApplicationLabel(it).toString(), pm.getApplicationIcon(it))
-                }.sortedBy { it.name.lowercase() }
-                installedApps = apps
-            }
-        }
-
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha=0.6f)).clickable { onDismiss() }, contentAlignment = Alignment.Center) {
-            Column(modifier = Modifier.fillMaxWidth(0.85f).fillMaxHeight(0.7f).clip(RoundedCornerShape(24.dp)).background(Color(0xFF1E1E1E)).padding(16.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null){}) {
-                Text("ADD PINNED APP", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                Spacer(modifier = Modifier.height(16.dp))
-                androidx.compose.foundation.lazy.LazyColumn {
-                    items(installedApps.size) { i ->
-                        val app = installedApps[i]
-                        val context = androidx.compose.ui.platform.LocalContext.current
-                        Row(modifier = Modifier.fillMaxWidth().clickable { onAppSelected(app.pkg) }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            val bmp = remember(app.icon) {
-                                val d = app.icon ?: context.packageManager.defaultActivityIcon
-                                if (d is android.graphics.drawable.BitmapDrawable && d.bitmap != null) d.bitmap else {
-                                    val b = android.graphics.Bitmap.createBitmap(if (d.intrinsicWidth>0) d.intrinsicWidth.coerceAtMost(144) else 1, if (d.intrinsicHeight>0) d.intrinsicHeight.coerceAtMost(144) else 1, android.graphics.Bitmap.Config.ARGB_8888)
-                                    val c = android.graphics.Canvas(b)
-                                    d.setBounds(0,0,c.width,c.height)
-                                    d.draw(c)
-                                    b
-                                }
+                            Text(
+                                text = "◈ SONIC COMMAND DECK ◈",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White.copy(alpha = 0.8f))
                             }
-                            androidx.compose.foundation.Image(bitmap = bmp.asImageBitmap(), contentDescription = null, modifier = Modifier.size(32.dp))
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(app.name, color = Color.White, fontSize = 14.sp)
                         }
+
+                        HorizontalDivider(color = Color(0x25FFFFFF))
+
+                        // Section 1: Dialogue & Neural Voice Isolation
+                        SonicDialogueSection(context = service, snapshot = snapshot)
+
+                        HorizontalDivider(color = Color(0x25FFFFFF))
+
+                        // Section 2: Master & System Streams
+                        SonicMasterStreamsSection(context = service, audioManager = audioManager, snapshot = snapshot)
+
+                        HorizontalDivider(color = Color(0x25FFFFFF))
+
+                        // Section 3: Per-App Mixer & Output Channel Sovereignty
+                        SonicAppMixerSection(context = service, snapshot = snapshot)
                     }
                 }
             }
         }
     }
-
-@Composable
-fun AppVolumeRow(context: Context, pkg: String, name: String, iconDrawable: android.graphics.drawable.Drawable?, initialVol: Float, isPinned: Boolean, tint: Color, onPinToggled: (Boolean) -> Unit) {
-    val coroutineScope = rememberCoroutineScope()
-    var vol by remember { mutableFloatStateOf(initialVol) }
-    var pinned by remember { mutableStateOf(isPinned) }
-    // focusLocked = true means THIS app is BLOCKED from stealing focus from others (apply to disruptive apps)
-    var focusLocked by remember { mutableStateOf(false) }
-    var isMuted by remember { mutableStateOf(false) }
-    var stateLoaded by remember { mutableStateOf(false) }
-
-    LaunchedEffect(pkg) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            focusLocked = LightspeedAppSovereigntyEngine.isAudioFocusLocked(pkg)
-            val muted = LightspeedAppSovereigntyEngine.isAppMuted(pkg)
-            val currentVol = LightspeedAppSovereigntyEngine.getAppVolume(pkg)
-            isMuted = muted
-            vol = if (muted) 0f else currentVol
-            stateLoaded = true
-        }
-    }
-
-    val rowBg = when {
-        focusLocked -> Color(0xFFEF4444).copy(alpha = 0.07f) // red tint for disruptive-locked apps
-        isMuted -> Color.White.copy(alpha = 0.04f)
-        else -> Color.White.copy(alpha = 0.08f)
-    }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(rowBg, RoundedCornerShape(24.dp))
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-    ) {
-        // App icon
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (iconDrawable != null) {
-                val bitmap = remember(iconDrawable) {
-                    if (iconDrawable is android.graphics.drawable.BitmapDrawable && iconDrawable.bitmap != null) {
-                        iconDrawable.bitmap
-                    } else {
-                        val bmp = android.graphics.Bitmap.createBitmap(
-                            if (iconDrawable.intrinsicWidth > 0) iconDrawable.intrinsicWidth.coerceAtMost(144) else 1,
-                            if (iconDrawable.intrinsicHeight > 0) iconDrawable.intrinsicHeight.coerceAtMost(144) else 1,
-                            android.graphics.Bitmap.Config.ARGB_8888
-                        )
-                        val canvas = android.graphics.Canvas(bmp)
-                        iconDrawable.setBounds(0, 0, canvas.width, canvas.height)
-                        iconDrawable.draw(canvas)
-                        bmp
-                    }
-                }
-                androidx.compose.foundation.Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = name,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Icon(androidx.compose.material.icons.Icons.Default.Android, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-            }
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        // App name + badges + slider
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    name,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                if (focusLocked) {
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        "NON-DUCKING",
-                        color = Color(0xFF10B981),
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-                if (isMuted) {
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        "MUTED",
-                        color = Color(0xFFEF4444),
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-            }
-
-            if (!stateLoaded) {
-                // Loading placeholder
-                Box(modifier = Modifier.fillMaxWidth().height(24.dp), contentAlignment = Alignment.CenterStart) {
-                    Text("...", color = Color.White.copy(alpha = 0.3f), fontSize = 10.sp)
-                }
-            } else {
-                Slider(
-                    value = vol,
-                    onValueChange = { newVol ->
-                        vol = newVol
-                        isMuted = newVol <= 0.05f
-                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            LightspeedAppSovereigntyEngine.setAppVolume(pkg, newVol, context)
-                        }
-                    },
-                    valueRange = 0f..1f,
-                    modifier = Modifier.height(24.dp),
-                    colors = SliderDefaults.colors(
-                        thumbColor = if (isMuted) Color(0xFFEF4444) else tint,
-                        activeTrackColor = if (isMuted) Color(0xFFEF4444) else tint,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.15f)
-                    )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(6.dp))
-
-        // Mute button
-        IconButton(
-            onClick = {
-                val newMuted = !isMuted
-                isMuted = newMuted
-                vol = if (newMuted) 0f else 0.8f
-                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                    LightspeedAppSovereigntyEngine.setAppMuted(pkg, newMuted, context)
-                }
-            },
-            modifier = Modifier
-                .size(34.dp)
-                .background(
-                    if (isMuted) Color(0xFFEF4444).copy(alpha = 0.2f) else Color.Transparent,
-                    CircleShape
-                )
-        ) {
-            Icon(
-                imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                contentDescription = if (isMuted) "Unmute" else "Mute",
-                tint = if (isMuted) Color(0xFFEF4444) else Color.White.copy(alpha = 0.5f),
-                modifier = Modifier.size(17.dp)
-            )
-        }
-
-        // Stealth / Sovereign Lock: protects this app so it plays simultaneously alongside any other app
-        IconButton(
-            onClick = {
-                val newLocked = !focusLocked
-                focusLocked = newLocked
-                coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                    LightspeedAppSovereigntyEngine.setAppStealthLocked(pkg, newLocked, context)
-                }
-            },
-            modifier = Modifier
-                .size(34.dp)
-                .background(
-                    if (focusLocked) Color(0xFF10B981).copy(alpha = 0.25f) else Color.Transparent,
-                    CircleShape
-                )
-        ) {
-            Icon(
-                imageVector = if (focusLocked)
-                    androidx.compose.material.icons.Icons.Filled.Lock
-                else
-                    androidx.compose.material.icons.Icons.Outlined.Lock,
-                contentDescription = if (focusLocked)
-                    "Non-Ducking Playback Active: Plays continuously without pausing or lowering volume"
-                else
-                    "Enable Non-Ducking Playback",
-                tint = if (focusLocked) Color(0xFF10B981) else Color.White.copy(alpha = 0.3f),
-                modifier = Modifier.size(17.dp)
-            )
-        }
-
-        // Pin button
-        IconButton(
-            onClick = {
-                pinned = !pinned
-                onPinToggled(pinned)
-            },
-            modifier = Modifier
-                .size(34.dp)
-                .background(
-                    if (pinned) tint.copy(alpha = 0.25f) else Color.Transparent,
-                    CircleShape
-                )
-        ) {
-            Icon(
-                androidx.compose.material.icons.Icons.Default.PushPin,
-                contentDescription = "Pin to Dock",
-                tint = if (pinned) tint else Color.White.copy(alpha = 0.3f),
-                modifier = Modifier.size(17.dp)
-            )
-        }
-    }
 }
-
-
-
-@Composable
-fun DockActionButton(modifier: Modifier, title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .height(72.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(color.copy(alpha = 0.08f))
-            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(24.dp))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(title, color = color, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-        }
-    }
-}
-
-data class ActiveAppInfo(val pkg: String, val name: String, val icon: android.graphics.drawable.Drawable?)

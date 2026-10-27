@@ -14,7 +14,65 @@ object TaskInspector {
 
     fun isSystem(pkg: String): Boolean {
         val p = pkg.lowercase()
-        return p.contains("launcher") || p.contains("quickstep") || p.contains("systemui")
+        return p.contains("launcher") || 
+               p.contains("quickstep") || 
+               p.contains("systemui") || 
+               p == "com.sec.android.app.launcher" || 
+               p.contains("android.app.taskedge") || 
+               p.contains("android.app.edgetouch") || 
+               p.contains("edgelighting") || 
+               p.contains("screensplit") || 
+               p.contains("freeform.sidebar")
+    }
+
+    fun isLauncherOrSystem(context: Context, pkg: String?): Boolean {
+        if (pkg.isNullOrBlank()) return true
+        if (pkg == context.packageName || pkg == "com.android.systemui") return true
+        if (isSystem(pkg)) return true
+        if (LightspeedOrientationEngine.isLauncherPackage(context, pkg)) return true
+        if (LightspeedForegroundTracker.getLauncherPackagesCached(context).contains(pkg)) return true
+        return false
+    }
+
+    fun isLauncherTask(context: Context, item: Any?): Boolean {
+        if (item == null) return false
+        try {
+            val actType = try {
+                item.javaClass.getField("activityType").getInt(item)
+            } catch (_: Exception) {
+                try {
+                    item.javaClass.getMethod("getActivityType").invoke(item) as? Int ?: 0
+                } catch (_: Exception) { 0 }
+            }
+            if (actType == 2 || actType == 3) return true
+
+            val baseIntentField = try { item.javaClass.getField("baseIntent") } catch (_: Exception) { null }
+            val intent = baseIntentField?.get(item) as? Intent
+            if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) return true
+            if (intent?.action == Intent.ACTION_MAIN && intent?.hasCategory(Intent.CATEGORY_HOME) == true) return true
+
+            val topActivityField = try { item.javaClass.getField("topActivity") } catch (_: Exception) { null }
+            val topActivity = topActivityField?.get(item) as? ComponentName
+            val realActivityField = try { item.javaClass.getField("realActivity") } catch (_: Exception) { null }
+            val realActivity = realActivityField?.get(item) as? ComponentName
+
+            val resolvedComp = realActivity ?: topActivity ?: intent?.component
+            val pkg = resolvedComp?.packageName ?: intent?.`package`
+
+            if (isLauncherOrSystem(context, pkg)) return true
+        } catch (e: Exception) {
+            Log.w(TAG, "isLauncherTask error", e)
+        }
+        return false
+    }
+
+    fun parseResumedActivityRecord(line: String): Triple<String, String, Int?>? {
+        val match = Regex("""ActivityRecord\{[^\}]*\s+([a-zA-Z0-9_.]+)/([^\s,}]+)\s+t(\d+)""").find(line)
+            ?: return null
+        val pkg = match.groupValues[1]
+        val act = match.groupValues[2]
+        val taskId = match.groupValues[3].toIntOrNull()
+        return Triple(pkg, act, taskId)
     }
 
     data class ForegroundTaskInfo(
@@ -30,10 +88,10 @@ object TaskInspector {
         var targetComponent: String? = null
 
         if (!ElevatedTaskCloser.isShizukuActive) {
-            fun isValid(p: String?) = !p.isNullOrBlank() && p != myPkg && p != "com.android.systemui" && !isSystem(p)
+            fun isValid(p: String?) = !p.isNullOrBlank() && p != myPkg && !isLauncherOrSystem(context, p)
             val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
             val rawLast = com.sbf.lightspeed.LightspeedAccessibilityService.lastAppPackage
-            val rawRoot = service?.rootInActiveWindow?.packageName?.toString()
+            val rawRoot = try { service?.rootInActiveWindow?.packageName?.toString() } catch (_: Exception) { null }
             val pkg = if (isValid(rawLast)) rawLast else if (isValid(rawRoot)) rawRoot else null
             Log.w(TAG, "A11Y foreground lookup: pkg=$pkg")
             val comp = pkg?.let { p ->
@@ -63,35 +121,36 @@ object TaskInspector {
                             val getListMethod = rawResult.javaClass.getMethod("getList")
                             val recentTasksList = getListMethod.invoke(rawResult) as? List<*>
                             if (!recentTasksList.isNullOrEmpty()) {
-                                for (item in recentTasksList) {
-                                    if (item == null) continue
-                                    val tId = item.javaClass.getField("taskId").getInt(item)
-                                    val baseIntentField = try { item.javaClass.getField("baseIntent") } catch (e: Exception) {
-                                        Log.w(TAG, "No baseIntent field in RecentTaskInfo", e)
-                                        null
-                                    }
-                                    val intent = baseIntentField?.get(item) as? Intent
-                                    val topActivityField = try { item.javaClass.getField("topActivity") } catch (e: Exception) {
-                                        Log.w(TAG, "No topActivity field in RecentTaskInfo", e)
-                                        null
-                                    }
-                                    val topActivity = topActivityField?.get(item) as? ComponentName
-                                    val realActivityField = try { item.javaClass.getField("realActivity") } catch (e: Exception) {
-                                        Log.w(TAG, "No realActivity field in RecentTaskInfo", e)
-                                        null
-                                    }
-                                    val realActivity = realActivityField?.get(item) as? ComponentName
+                                val topItem = recentTasksList[0]
+                                if (isLauncherTask(context, topItem)) {
+                                    Log.i(TAG, "Top recent task is launcher/system, no app in foreground")
+                                    return ForegroundTaskInfo(null, null, null)
+                                }
+                                val tId = topItem?.javaClass?.getField("taskId")?.getInt(topItem)
+                                val baseIntentField = try { topItem?.javaClass?.getField("baseIntent") } catch (e: Exception) {
+                                    Log.w(TAG, "No baseIntent field in RecentTaskInfo", e)
+                                    null
+                                }
+                                val intent = baseIntentField?.get(topItem) as? Intent
+                                val topActivityField = try { topItem?.javaClass?.getField("topActivity") } catch (e: Exception) {
+                                    Log.w(TAG, "No topActivity field in RecentTaskInfo", e)
+                                    null
+                                }
+                                val topActivity = topActivityField?.get(topItem) as? ComponentName
+                                val realActivityField = try { topItem?.javaClass?.getField("realActivity") } catch (e: Exception) {
+                                    Log.w(TAG, "No realActivity field in RecentTaskInfo", e)
+                                    null
+                                }
+                                val realActivity = realActivityField?.get(topItem) as? ComponentName
 
-                                    val resolvedComp = realActivity ?: topActivity ?: intent?.component
-                                    val pkg = resolvedComp?.packageName ?: intent?.`package`
+                                val resolvedComp = realActivity ?: topActivity ?: intent?.component
+                                val pkg = resolvedComp?.packageName ?: intent?.`package`
 
-                                    if (pkg != null && !isSystem(pkg) && pkg != myPkg && tId > 0) {
-                                        targetTaskId = tId
-                                        targetPkg = pkg
-                                        targetComponent = resolvedComp?.flattenToShortString()
-                                            ?: context.packageManager.getLaunchIntentForPackage(pkg)?.component?.flattenToShortString()
-                                        break
-                                    }
+                                if (pkg != null && !isLauncherOrSystem(context, pkg) && pkg != myPkg && tId != null && tId > 0) {
+                                    targetTaskId = tId
+                                    targetPkg = pkg
+                                    targetComponent = resolvedComp?.flattenToShortString()
+                                        ?: context.packageManager.getLaunchIntentForPackage(pkg)?.component?.flattenToShortString()
                                 }
                             }
                         }
@@ -104,27 +163,26 @@ object TaskInspector {
 
         if (targetTaskId == null && ElevatedTaskCloser.isShizukuActive) {
             try {
-                val process = ElevatedTaskCloser.execShizuku("dumpsys activity top 2>&1 | grep -E 'TASK|ACTIVITY|mResumedActivity|topResumedActivity'")
+                val process = ElevatedTaskCloser.execShizuku("dumpsys activity activities 2>&1 | grep -E -m 1 'topResumedActivity|mResumedActivity' || dumpsys window 2>&1 | grep -m 1 'mFocusedApp=ActivityRecord'")
                 process?.let { p ->
                     val text = p.readTextOrKill().orEmpty()
                     for (line in text.lineSequence()) {
-                        val tm = Regex("""TASK\s+.*?(?<![A-Za-z0-9])id=(\d+)""").find(line)
-                        if (tm != null && targetTaskId == null) {
-                            targetTaskId = tm.groupValues[1].toIntOrNull()
-                        }
-                        val am = Regex("""(ACTIVITY|mResumedActivity|topResumedActivity)\s+([a-zA-Z0-9_.]+)/([a-zA-Z0-9_.]+)""").find(line)
-                        if (am != null && targetPkg == null) {
-                            val pkg = am.groupValues[2]
-                            val act = am.groupValues[3]
-                            if (pkg != myPkg && !isSystem(pkg)) {
-                                targetPkg = pkg
-                                targetComponent = "$pkg/$act"
+                        val parsed = parseResumedActivityRecord(line)
+                        if (parsed != null) {
+                            val (pkg, act, tId) = parsed
+                            if (isLauncherOrSystem(context, pkg) || pkg == myPkg) {
+                                Log.i(TAG, "dumpsys top activity is launcher/system: $pkg")
+                                return ForegroundTaskInfo(null, null, null)
                             }
+                            targetTaskId = tId
+                            targetPkg = pkg
+                            targetComponent = "$pkg/$act"
+                            break
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "dumpsys activity top lookup failed", e)
+                Log.w(TAG, "dumpsys activity activities lookup failed", e)
             }
         }
 

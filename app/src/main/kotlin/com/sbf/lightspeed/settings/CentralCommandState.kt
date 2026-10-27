@@ -210,12 +210,17 @@ fun rememberCentralCommandState(
 
     val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
         if (isLeftFlankUnified) {
-            mapOf("left_unified" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UNIFIED_DEFLECTORS))
+            mapOf(
+                "left_center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
+                "left_unified" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UNIFIED_DEFLECTORS),
+                "left_trackpad" to "Cybernetic Trackpad"
+            )
         } else {
             mapOf(
                 "left_center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
                 "left_top" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UPPER_FLANK),
-                "left_bottom" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.LOWER_FLANK)
+                "left_bottom" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.LOWER_FLANK),
+                "left_trackpad" to "Cybernetic Trackpad"
             )
         }
     }
@@ -235,12 +240,17 @@ fun rememberCentralCommandState(
 
     val sectionTitles2 = remember(isRightFlankUnified, currentLanguageMode) {
         if (isRightFlankUnified) {
-            mapOf("unified" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UNIFIED_DEFLECTORS))
+            mapOf(
+                "center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
+                "unified" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UNIFIED_DEFLECTORS),
+                "trackpad" to "Cybernetic Trackpad"
+            )
         } else {
             mapOf(
                 "center" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CORE_ZONE),
                 "top" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.UPPER_FLANK),
-                "bottom" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.LOWER_FLANK)
+                "bottom" to LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.LOWER_FLANK),
+                "trackpad" to "Cybernetic Trackpad"
             )
         }
     }
@@ -275,6 +285,7 @@ fun rememberCentralCommandState(
                         isTelemetryExpanded = false
                         isTacticalHardwareExpanded = false
                         isRefuelingExpanded = false
+                        isSystemOverridesExpanded = false
                         isConfigVaultExpanded = false
                         isExperimentalLabsExpanded = false
                     }
@@ -305,6 +316,8 @@ fun rememberCentralCommandState(
                             if (pinned != "sensor_deck") isSensorDeckExpanded = false
                             if (pinned != "telemetry_indicators") isTelemetryExpanded = false
                             if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
+                            if (pinned != "synthetic_gravity") isSyntheticGravityExpanded = false
+                            if (pinned != "refueling_bay") isRefuelingExpanded = false
                             if (pinned != "system_overrides") isSystemOverridesExpanded = false
                             if (pinned != "config_vault") isConfigVaultExpanded = false
                             if (pinned != "experimental_labs") isExperimentalLabsExpanded = false
@@ -350,6 +363,7 @@ fun rememberCentralCommandState(
                     isTelemetryExpanded = allExpandedState
                     isTacticalHardwareExpanded = allExpandedState
                     isRefuelingExpanded = allExpandedState
+                    isSystemOverridesExpanded = allExpandedState
                     isConfigVaultExpanded = allExpandedState
                     isExperimentalLabsExpanded = allExpandedState
                     val anyRail = isHorizonRailGeomExpanded || isHorizonRailColorExpanded || isHorizonRailTextExpanded
@@ -361,6 +375,7 @@ fun rememberCentralCommandState(
                         .putBoolean("pref_section_telemetry_expanded", allExpandedState)
                         .putBoolean("pref_section_tactical_hardware_expanded", allExpandedState)
                         .putBoolean("pref_section_refueling_expanded", allExpandedState)
+                        .putBoolean("pref_section_system_overrides_expanded", allExpandedState)
                         .putBoolean("pref_section_backup_expanded", allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, allExpandedState)
                         .putBoolean("pref_statusbar_preview", allExpandedState && isStatusBarGeoExpanded)

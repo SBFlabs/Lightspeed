@@ -11,6 +11,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -183,6 +184,7 @@ fun DeckButton(
     isDestructive: Boolean = false,
     isEnabled: Boolean = true,
     snapshot: DeckThemeSnapshot = LocalDeckTheme.current,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 9.dp),
     content: @Composable RowScope.() -> Unit
 ) {
     val cornerRadius = (snapshot.cornerRadiusDp * 0.40f).coerceIn(8f, 14f).dp
@@ -193,6 +195,13 @@ fun DeckButton(
     val tintColor = if (isDestructive) MaterialTheme.colorScheme.error else opticalColors.readableTintColor
     val panelColor = opticalColors.panelColor
     val borderColor = if (isDestructive) MaterialTheme.colorScheme.error.copy(alpha = 0.60f) else opticalColors.borderColor
+
+    val contentColor = when {
+        !isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        isDestructive -> MaterialTheme.colorScheme.error
+        isActive -> tintColor
+        else -> Color.White.copy(alpha = 0.92f)
+    }
 
     val containerBrush = when {
         !isEnabled -> Brush.verticalGradient(listOf(panelColor.copy(alpha = 0.25f), panelColor.copy(alpha = 0.18f)))
@@ -208,24 +217,26 @@ fun DeckButton(
         else -> BorderStroke(borderWidth, borderColor.copy(alpha = 0.35f))
     }
 
-    Surface(
-        modifier = modifier
-            .clip(shape)
-            .border(currentBorder, shape)
-            .background(containerBrush)
-            .combinedClickable(
-                enabled = isEnabled,
-                onClick = onClick
-            ),
-        shape = shape,
-        color = Color.Transparent
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-            content = content
-        )
+    CompositionLocalProvider(LocalContentColor provides contentColor) {
+        Surface(
+            modifier = modifier
+                .clip(shape)
+                .border(currentBorder, shape)
+                .background(containerBrush)
+                .combinedClickable(
+                    enabled = isEnabled,
+                    onClick = onClick
+                ),
+            shape = shape,
+            color = Color.Transparent
+        ) {
+            Row(
+                modifier = Modifier.padding(contentPadding),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                content = content
+            )
+        }
     }
 }
 

@@ -48,6 +48,28 @@ object LightspeedIconManager {
     fun putCachedBitmap(key: String, bmp: Bitmap) { bitmapCache.put(key, bmp) }
     fun removeCachedBitmap(key: String): Bitmap? = bitmapCache.remove(key)
 
+    fun prewarmIcons(context: Context) {
+        managerScope.launch(Dispatchers.Default) {
+            try {
+                val pm = context.packageManager
+                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                val launchables = pm.queryIntentActivities(intent, 0)
+                for (resolveInfo in launchables.take(30)) {
+                    val pkg = resolveInfo.activityInfo.packageName
+                    if (getCachedBitmap(pkg) == null) {
+                        val dr = resolveInfo.loadIcon(pm)
+                        if (dr != null) {
+                            val bmp = convertDrawableToBitmap(dr, 120)
+                            if (bmp != null) {
+                                putCachedBitmap(pkg, bmp)
+                            }
+                        }
+                    }
+                }
+            } catch (_: Throwable) {}
+        }
+    }
+
     private var currentLoadedPack: String? = null
     private var isPackLoaded = false
 
@@ -268,6 +290,9 @@ object LightspeedIconManager {
         } catch (e: Exception) { logSwallowed(TAG, "clearManualOverride:268", e) }
     }
 
+    /** Retrieves the user's customized icon bitmap for this token if available. */
+    fun getCustomShortcutBitmap(context: Context, token: String): Bitmap? = loadCustomShortcutBitmap(context, token)
+
     private fun loadCustomShortcutBitmap(context: Context, token: String): Bitmap? {
         // Load for shortcut:/custom: tokens, AND for any app: token that was manually overridden
         val isShortcut = token.startsWith("shortcut:") || token.startsWith("custom:")
@@ -344,7 +369,14 @@ object LightspeedIconManager {
             return d
         }
 
-        if (tokenOrPkg.startsWith("shortcut:") || tokenOrPkg.startsWith("custom:")) {
+        val isShortcutToken = tokenOrPkg.startsWith("shortcut:") ||
+            tokenOrPkg.startsWith("custom:") ||
+            tokenOrPkg.startsWith("caller;") ||
+            tokenOrPkg.contains(";b64uri=") ||
+            tokenOrPkg.contains(";label=") ||
+            tokenOrPkg.contains("type=")
+
+        if (isShortcutToken) {
             val shortcutDrawable = LightspeedShortcutManager.resolveIconDrawable(context, tokenOrPkg)
             if (shortcutDrawable != null) {
                 val mutated = shortcutDrawable.constantState?.newDrawable()?.mutate() ?: shortcutDrawable.mutate()

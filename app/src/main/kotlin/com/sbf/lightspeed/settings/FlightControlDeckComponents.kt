@@ -58,9 +58,7 @@ fun FlightControlDeckCard(
         ) {
             val setFlightArmed: (Boolean) -> Unit = { armed ->
                 isArmed = armed
-                LightspeedPreferences.setMasterFlightArmed(context, armed)
-                LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
-                com.sbf.lightspeed.system.LightspeedFlightNotificationManager.update(context)
+                com.sbf.lightspeed.system.LightspeedMasterCutoff.setSystemArmed(context, armed)
                 onStateChanged()
             }
 
@@ -118,8 +116,8 @@ fun FlightControlDeckCard(
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            if (isArmed) "ARMED // All sensors & hangars live"
-                            else "STANDBY // Overlays detached",
+                            if (isArmed) "REACTOR ARMED // All systems active"
+                            else "REACTOR CUTOFF // Cold shutdown (tap to resurrect)",
                             fontSize = 11.sp,
                             color = if (isArmed) lsColors.accentOk else lsColors.accentAlert,
                             fontWeight = FontWeight.SemiBold
@@ -472,10 +470,9 @@ fun FlightControlDeckCard(
 
                 val pkg = context.packageName
                 val actions = listOf(
-                    "TOGGLE_DEFLECTORS", "ENABLE_DEFLECTORS", "DISABLE_DEFLECTORS",
-                    "TOGGLE_FLIGHT_MODE", "ENABLE_FLIGHT_MODE", "DISABLE_FLIGHT_MODE",
-                    "TOGGLE_LEFT_DEFLECTOR", "TOGGLE_RIGHT_DEFLECTOR",
-                    "TOGGLE_AUTO_ROTATE", "TOGGLE_SYNTHETIC_GRAVITY", "TRIGGER_WATCHDOG_REVIVAL"
+                    "TOGGLE_FLIGHT_MODE", "SET_FLIGHT_MODE",
+                    "TOGGLE_DEFLECTORS", "TOGGLE_LEFT_DEFLECTOR", "TOGGLE_RIGHT_DEFLECTOR", "SET_DEFLECTOR",
+                    "GRAVITY_OVERRIDE_360", "TOGGLE_AUTO_ROTATE", "RESET_GRAVITY"
                 )
                 var expandedDropdown by remember { mutableStateOf(false) }
                 var selectedAction by remember { mutableStateOf(actions[0]) }
@@ -483,9 +480,9 @@ fun FlightControlDeckCard(
 
                 val fullAction = "com.sbf.lightspeed.action.$selectedAction"
                 val commandText = when (selectedTab) {
-                    0 -> "adb shell am broadcast -a $fullAction -p$pkg"
-                    1 -> "am broadcast -a $fullAction -p$pkg"
-                    else -> "Action: $fullAction\nPackage:$pkg\nTarget: Broadcast Receiver"
+                    0 -> "adb shell am broadcast -a $fullAction -p $pkg"
+                    1 -> "am broadcast -a $fullAction -p $pkg"
+                    else -> "Action: $fullAction\nPackage: $pkg\nTarget: Broadcast Receiver"
                 }
 
                 // Action Dropdown

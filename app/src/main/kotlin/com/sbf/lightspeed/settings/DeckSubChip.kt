@@ -4,8 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +34,8 @@ fun DeckSubChip(
     text: String,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    trailingIcon: ImageVector? = null,
+    onTrailingIconClick: (() -> Unit)? = null,
     isActive: Boolean = false,
     isEnabled: Boolean = true,
     snapshot: DeckThemeSnapshot = LocalDeckTheme.current,
@@ -117,6 +121,24 @@ fun DeckSubChip(
                 color = contentColor,
                 maxLines = 1
             )
+            if (trailingIcon != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(contentColor.copy(alpha = 0.22f))
+                        .clickable(enabled = isEnabled) { onTrailingIconClick?.invoke() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = trailingIcon,
+                        contentDescription = "Information",
+                        tint = contentColor,
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
+            }
         }
     }
 }

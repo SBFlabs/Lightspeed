@@ -1,3 +1,8 @@
-• Fix Samsung One UI freeform crash by removing invalid shell flag.
-• Auto-arm TCL NXTPAPER global freeform settings via Shizuku.
-• Silence repeated Watchdog toggle-off FlightLog buffer spam.
+• Cybernetic Trackpad: floating cursor navigation with customizable acceleration, haptic feedback, and robot arm macro buttons.
+• Sonic Deck: per-app volume mixer, offline post background muffle, and privileged sonic service lifecycle management.
+• Vista Deck: unified brightness and display optics control with clean video override support.
+• Category Cruise: updated with new options in the HUD tab inside the Category Cruise edit menu.
+• Cockpit Hangar: overhauled layout, now tablet and horizontal/landscape screen friendly.
+• Master Stealth Cloak QS Tile: 1-tap cutoff for banking apps, plus long-press Cloak Matrix.
+• Astrogation Airlock: mindful launch pause now calculates both specific App Time and total Category Sector Time.
+• Single Quick Settings tile (Master Cloak); split per-ABI builds; new Share Lightspeed button.

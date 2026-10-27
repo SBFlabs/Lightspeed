@@ -23,8 +23,7 @@ import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 /**
- * Granular lockscreen overlay behavior selectors, phone call deflector suppressor,
- * and pinned-page settings gear alignment.
+ * Granular lockscreen overlay behavior selectors and phone call deflector suppressor.
  */
 @Composable
 fun SystemOverrideLockscreenSection(
@@ -307,52 +306,6 @@ fun SystemOverrideLockscreenSection(
                 text = "Status bar and sensor area are not affected.",
                 fontSize = 10.5.sp,
                 color = lsColors.textSecondary.copy(alpha = 0.75f)
-            )
-        }
-    }
-
-    var pinnedGearLeft by remember {
-        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_PINNED_GEAR_LEFT, false))
-    }
-
-    DeckCard(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(
-                    text = "Gear button on the left",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = lsColors.textPrimary
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Moves the pinned-page settings gear to the top left.",
-                    fontSize = 10.5.sp,
-                    color = lsColors.textSecondary.copy(alpha = 0.75f)
-                )
-            }
-            Switch(
-                checked = pinnedGearLeft,
-                onCheckedChange = { checked ->
-                    pinnedGearLeft = checked
-                    prefs.edit().putBoolean(LightspeedPreferences.KEY_PINNED_GEAR_LEFT, checked).apply()
-                    safeReloadPreferences()
-                },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = lsColors.textPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    uncheckedThumbColor = lsColors.textPrimary.copy(alpha = 0.75f),
-                    uncheckedTrackColor = lsColors.textPrimary.copy(alpha = 0.12f)
-                )
             )
         }
     }

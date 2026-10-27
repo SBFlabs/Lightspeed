@@ -227,13 +227,15 @@ class LightspeedLeftWingOverlay(
     private var highestYReached = 0f
     private var lowestYReached = 0f
     private var isScrubbing = false
+    private var scrubStartX = 0f
     private var isHoldFired = false
     private var currentGesture = "NONE"
     internal var activeZoneKey = "LEFT_CENTER"
     private var scrubType = "none"
 
-    private var initialScrubValue = 0
-    private var initialScrubTouchY = 0f
+    private var activeScrubBrightness = -1
+    private var activeScrubVolumePct = -1
+    private var activeScrubAccumulator = 0f
     private var currentRawY = 0f
     private var activeScrubActionKey: String? = null
     private var hudTitle = ""
@@ -247,9 +249,9 @@ class LightspeedLeftWingOverlay(
                 isHoldFired = true
                 if (action == "system:volume" || action == "system:brightness" || action == "system:screen_timeout" || action == "scrub:volume" || action == "scrub:brightness") {
                     isScrubbing = true
+                    scrubStartX = lastTouchRawX
                     scrubType = action
                     activeScrubActionKey = resolvedKey
-                    initialScrubTouchY = currentRawY
                     triggerHaptic(35, 180)
                     initScrubHud()
                     invalidate()
@@ -262,7 +264,15 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun triggerHaptic(durationMs: Long = 25, amplitude: Int = 140) {
-        LightspeedHapticEngine.vibrate(context, durationMs, amplitude)
+        val mode = context.defaultPrefs().getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "") ?: ""
+        if (mode == "off") return
+        if (mode == "jumps_only" && durationMs <= 20L) return
+        val effective = if (mode.isNotEmpty()) mode else (context.defaultPrefs().getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        if (durationMs > 25L || amplitude > 160) {
+            LightspeedHapticEngine.pulseClick(context, effective)
+        } else {
+            LightspeedHapticEngine.pulseTick(context, effective)
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -287,6 +297,9 @@ class LightspeedLeftWingOverlay(
                 isScrubbing = false
                 isHoldFired = false
                 currentGesture = "NONE"
+                activeScrubBrightness = -1
+                activeScrubVolumePct = -1
+                activeScrubAccumulator = 0f
 
                 activeZoneKey = when {
                     !isLockscreenPillOnly && topTouchBounds.contains(x, y) -> "LEFT_TOP"
@@ -337,8 +350,38 @@ class LightspeedLeftWingOverlay(
 
                 if (isScrubbing) {
                     uiHandler.removeCallbacks(holdRunnable)
-                    val dy = rawY - initialScrubTouchY
-                    handleScrubMotion(dy)
+
+                    val isVolume = scrubType == "scrub:volume" || scrubType == "system:volume"
+                    val isBrightness = scrubType == "scrub:brightness" || scrubType == "system:brightness"
+                    val isAudioDockEnabled = prefs.getBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, true) &&
+                        prefs.getBoolean(LightspeedPreferences.KEY_SONIC_DECK_LEFT_ENABLED, true)
+                    val isVistaDockEnabled = prefs.getBoolean(LightspeedPreferences.KEY_VISTA_DECK_ENABLED, true) &&
+                        prefs.getBoolean(LightspeedPreferences.KEY_VISTA_DECK_LEFT_ENABLED, true)
+
+                    val horizontalPull = kotlin.math.abs(rawX - scrubStartX)
+                    if (horizontalPull > 80f * density && ((isVolume && isAudioDockEnabled) || (isBrightness && isVistaDockEnabled))) {
+                        isScrubbing = false
+                        isCurrentlyTouched = false
+                        currentGesture = "NONE"
+                        activeScrubActionKey = null
+                        hudTitle = ""
+                        hudValue = ""
+                        activeScrubBrightness = -1
+                        activeScrubVolumePct = -1
+                        activeScrubAccumulator = 0f
+                        LightspeedStatusBarOverlay.dismissActionHud(0L)
+                        invalidate()
+                        if (isVolume) {
+                            (service as? LightspeedAccessibilityService)?.let { com.sbf.lightspeed.system.SonicDeckManager.show(it) }
+                        } else {
+                            (service as? LightspeedAccessibilityService)?.let { com.sbf.lightspeed.system.VistaDeckManager.show(it) }
+                        }
+                        return true
+                    }
+
+                    val dy = rawY - lastTouchRawY
+                    val pixelDelta = -dy
+                    handleIncrementalScrub(pixelDelta)
                     lastTouchRawX = rawX
                     lastTouchRawY = rawY
                     return true
@@ -366,10 +409,10 @@ class LightspeedLeftWingOverlay(
                         if (assignedScrub != "none" && deltaX > thresholdX_Scrub) {
                             currentGesture = "SCRUBBING"
                             isScrubbing = true
+                            scrubStartX = rawX
                             scrubType = assignedScrub
                             activeScrubActionKey = "pref_macro_action_${effectiveScrubZone}_SCRUBBING"
                             uiHandler.removeCallbacks(holdRunnable)
-                            initialScrubTouchY = rawY
                             triggerHaptic(65, 255)
                             initScrubHud()
                             invalidate()
@@ -439,6 +482,9 @@ class LightspeedLeftWingOverlay(
                     activeScrubActionKey = null
                     hudTitle = ""
                     hudValue = ""
+                    activeScrubBrightness = -1
+                    activeScrubVolumePct = -1
+                    activeScrubAccumulator = 0f
                     LightspeedStatusBarOverlay.dismissActionHud(1200L)
                     invalidate()
                     return true
@@ -476,6 +522,9 @@ class LightspeedLeftWingOverlay(
                 activeScrubActionKey = null
                 hudTitle = ""
                 hudValue = ""
+                activeScrubBrightness = -1
+                activeScrubVolumePct = -1
+                activeScrubAccumulator = 0f
                 invalidate()
                 return true
             }
@@ -516,11 +565,12 @@ class LightspeedLeftWingOverlay(
     }
 
     private fun initScrubHud() {
+        activeScrubAccumulator = 0f
         when (scrubType) {
             "system:volume", "scrub:volume" -> {
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
                 val res = CruiseScrubEngine.executeVolumeScrub(context, prefs, am, -1, 0)
-                initialScrubValue = res.currentValue
+                activeScrubVolumePct = res.currentValue
                 hudTitle = res.title
                 hudValue = res.value
                 dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
@@ -528,7 +578,7 @@ class LightspeedLeftWingOverlay(
             "system:brightness", "scrub:brightness" -> {
                 val res = CruiseScrubEngine.executeBrightnessScrub(context, prefs, -1, 0)
                 if (res != null) {
-                    initialScrubValue = res.currentValue
+                    activeScrubBrightness = res.currentValue
                     hudTitle = res.title
                     hudValue = res.value
                     dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
@@ -536,7 +586,6 @@ class LightspeedLeftWingOverlay(
             }
             "system:screen_timeout" -> {
                 val res = CruiseScrubEngine.executeTimeoutScrub(context, 0)
-                initialScrubValue = res.currentValue
                 hudTitle = res.title
                 hudValue = res.value
                 dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
@@ -559,42 +608,40 @@ class LightspeedLeftWingOverlay(
         )
     }
 
-    private fun handleScrubMotion(dy: Float) {
-        val density = resources.displayMetrics.density
-        val stepDistance = 28f * density
-        when (scrubType) {
-            "system:volume", "scrub:volume" -> {
-                val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-                val volResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_VOLUME_SCRUB_RESOLUTION, 100).coerceIn(5, 100)
-                val stepOffset = ((-dy / (stepDistance * 1.2f)) * (100f / volResolution.toFloat())).toInt()
-                val res = CruiseScrubEngine.executeVolumeScrub(context, prefs, am, initialScrubValue, stepOffset) {
-                    triggerHaptic(18, 110)
-                }
-                hudTitle = res.title
-                hudValue = res.value
-                dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
-                invalidate()
-            }
-            "system:brightness", "scrub:brightness" -> {
-                val brightResolution = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_RESOLUTION, 32).coerceIn(10, 254)
-                val brightStep = prefs.getInt(com.sbf.lightspeed.system.LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_STEP, (255f / brightResolution).roundToInt().coerceIn(1, 32))
-                val stepOffset = ((-dy / (stepDistance * 1.2f)) * (brightStep * 1.5f)).toInt()
-                val res = CruiseScrubEngine.executeBrightnessScrub(context, prefs, initialScrubValue, stepOffset, stepMultiplier = 1f) {
-                    triggerHaptic(14, 90)
-                }
-                if (res != null) {
+    private fun handleIncrementalScrub(pixelDelta: Float) {
+        activeScrubAccumulator += pixelDelta
+        val sensitivityThreshold = 28f
+
+        if (abs(activeScrubAccumulator) >= sensitivityThreshold) {
+            val steps = (activeScrubAccumulator / sensitivityThreshold).toInt()
+            activeScrubAccumulator %= sensitivityThreshold
+
+            when (scrubType) {
+                "system:volume", "scrub:volume" -> {
+                    val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+                    val res = CruiseScrubEngine.executeVolumeScrub(context, prefs, am, activeScrubVolumePct, steps) {
+                        triggerHaptic(18, 110)
+                    }
+                    activeScrubVolumePct = res.currentValue
                     hudTitle = res.title
                     hudValue = res.value
                     dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
                     invalidate()
                 }
-            }
-            "system:screen_timeout" -> {
-                val stepOffset = (-dy / (stepDistance * 1.5f)).toInt()
-                val currentIdx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
-                val targetIndex = (initialScrubValue + stepOffset).coerceIn(0, LightspeedTimeoutEngine.TIMEOUT_STEPS.lastIndex)
-                if (targetIndex != currentIdx) {
-                    val res = CruiseScrubEngine.executeTimeoutScrub(context, targetIndex - currentIdx) {
+                "system:brightness", "scrub:brightness" -> {
+                    val res = CruiseScrubEngine.executeBrightnessScrub(context, prefs, activeScrubBrightness, steps, stepMultiplier = 1f) {
+                        triggerHaptic(14, 90)
+                    }
+                    if (res != null) {
+                        activeScrubBrightness = res.currentValue
+                        hudTitle = res.title
+                        hudValue = res.value
+                        dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
+                        invalidate()
+                    }
+                }
+                "system:screen_timeout" -> {
+                    val res = CruiseScrubEngine.executeTimeoutScrub(context, steps) {
                         triggerHaptic(22, 140)
                     }
                     hudTitle = res.title

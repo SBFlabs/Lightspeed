@@ -39,25 +39,15 @@ object LightspeedKeyHudNav {
 
     fun startHudNav(context: Context) {
         val prefs = context.defaultPrefs()
-        val activeSetIndex = prefs.getInt("last_active_set_index", 0)
-        val setsOrderStr = prefs.getString("gear_sets_order", "0,1,2,3") ?: "0,1,2,3"
-        val setIds = setsOrderStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-        val currentSetId = setIds.getOrNull(activeSetIndex) ?: setIds.firstOrNull() ?: "0"
+        val setIds = CockpitGearRepository.getGearSetsOrder(context, isLeft = false)
+        val activeSetIndex = prefs.getInt(LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX, 0)
+            .coerceIn(0, (setIds.size - 1).coerceAtLeast(0))
+        val currentSetId = setIds.getOrNull(activeSetIndex) ?: "0"
+        navSetName = CockpitGearRepository.getGearSetNameById(context, currentSetId)
 
-        val rawName = prefs.getString("gear_set_${currentSetId}_name", "") ?: ""
-        navSetName = if (rawName.isEmpty() || rawName in listOf("SET A", "SET B", "SET C", "SET D", "SET")) {
-            when (currentSetId) {
-                "0" -> "POWER USER ANDROID"
-                "1" -> "MY APP STORES"
-                "2" -> "UTILITIES SECTOR"
-                "3" -> "ENTERTAINMENT DECK"
-                else -> "GEAR SET ${activeSetIndex + 1}"
-            }
-        } else rawName
-
-        val r0 = prefs.getString("gear_set_${currentSetId}_ring_0_packages", "") ?: ""
-        val r1 = prefs.getString("gear_set_${currentSetId}_ring_1_packages", "") ?: ""
-        val combined = (r0.split(",") + r1.split(","))
+        val r0 = CockpitGearRepository.getAppsForActiveGear(context, isLeft = false, activeSetIndex, 0)
+        val r1 = CockpitGearRepository.getAppsForActiveGear(context, isLeft = false, activeSetIndex, 1)
+        val combined = (r0 + r1)
             .map { it.trim() }
             .filter { it.isNotEmpty() && it != "none" }
             .distinct()

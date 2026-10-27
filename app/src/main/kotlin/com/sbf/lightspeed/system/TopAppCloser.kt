@@ -1,5 +1,6 @@
 package com.sbf.lightspeed.system
 
+import android.content.ComponentName
 import android.content.Context
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import android.content.Intent
@@ -19,6 +20,14 @@ internal object TopAppCloser {
         val frontPkg = LightspeedAccessibilityService.lastAppPackage
             ?: ElevatedTaskCloser.getTopForegroundTaskInfo(context).packageName
 
+        if (!frontPkg.isNullOrBlank() && TaskInspector.isLauncherOrSystem(context, frontPkg)) {
+            Log.i(TAG, "Foreground is launcher/system ($frontPkg), nothing to close")
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
         val assignedMethods = if (!frontPkg.isNullOrBlank()) {
             ActionMethods.getAssignedMethodsForApp(context, "system:close_app", frontPkg)
         } else {
@@ -34,6 +43,7 @@ internal object TopAppCloser {
 
         if (useShizuku && closeViaShizuku(context)) {
             Log.i(TAG, "Task dismissed and evicted from Recents via Shizuku")
+            com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onAppClosedFromRecents(context)
             com.sbf.lightspeed.LightspeedAccessibilityService.instance?.scheduleGeometryResync()
             return
         }
@@ -41,6 +51,7 @@ internal object TopAppCloser {
         if (useRecents) {
             val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
             if (service != null) {
+                com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onAppClosedFromRecents(context)
                 RecentsFallbackCloser.closeViaRecentsFallback(context, service)
             } else {
                 Handler(Looper.getMainLooper()).post {
@@ -63,59 +74,72 @@ internal object TopAppCloser {
             var targetPkg: String? = null
             var atm: Any? = null
 
-            // 2. Ultra-fast target resolution via direct IActivityTaskManager Binder (<2ms)
+            // 1. Ultra-fast target resolution via direct IActivityTaskManager Binder (<2ms)
             try {
                 atm = ElevatedTaskCloser.getActivityTaskManager()
 
-                    if (atm != null) {
-                        val getRecentTasksMethod = atm.javaClass.methods.firstOrNull { it.name == "getRecentTasks" }
-                        if (getRecentTasksMethod != null) {
-                            val paramsCount = getRecentTasksMethod.parameterTypes.size
-                            val rawResult = when (paramsCount) {
-                                2 -> getRecentTasksMethod.invoke(atm, 5, 0x0002 /* RECENT_IGNORE_UNAVAILABLE */)
-                                3 -> getRecentTasksMethod.invoke(atm, 5, 0x0002, 0)
-                                else -> null
-                            }
-                            if (rawResult != null) {
-                                val getListMethod = rawResult.javaClass.getMethod("getList")
-                                val recentTasksList = getListMethod.invoke(rawResult) as? List<*>
-                                if (!recentTasksList.isNullOrEmpty()) {
-                                    for (item in recentTasksList) {
-                                        if (item == null) continue
-                                        val tId = item.javaClass.getField("taskId").getInt(item)
-                                        val baseIntentField = try { item.javaClass.getField("baseIntent") } catch (_: Exception) { null }
-                                        val intent = baseIntentField?.get(item) as? Intent
-                                        val pkg = intent?.component?.packageName ?: intent?.`package`
-                                        if (pkg != null && !ElevatedTaskCloser.isSystem(pkg) && pkg != myPkg && tId > 0) {
-                                            targetTaskId = tId
-                                            targetPkg = pkg
-                                            break
-                                        }
+                if (atm != null) {
+                    val getRecentTasksMethod = atm.javaClass.methods.firstOrNull { it.name == "getRecentTasks" }
+                    if (getRecentTasksMethod != null) {
+                        val paramsCount = getRecentTasksMethod.parameterTypes.size
+                        val rawResult = when (paramsCount) {
+                            2 -> getRecentTasksMethod.invoke(atm, 5, 0x0002 /* RECENT_IGNORE_UNAVAILABLE */)
+                            3 -> getRecentTasksMethod.invoke(atm, 5, 0x0002, 0)
+                            else -> null
+                        }
+                        if (rawResult != null) {
+                            val getListMethod = rawResult.javaClass.getMethod("getList")
+                            val recentTasksList = getListMethod.invoke(rawResult) as? List<*>
+                            if (!recentTasksList.isNullOrEmpty()) {
+                                val topItem = recentTasksList[0]
+                                if (TaskInspector.isLauncherTask(context, topItem)) {
+                                    Log.i(TAG, "Top recent task is launcher/system, user is on home screen")
+                                    Handler(Looper.getMainLooper()).post {
+                                        Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
                                     }
+                                    return true
+                                }
+                                val tId = topItem?.javaClass?.getField("taskId")?.getInt(topItem)
+                                val baseIntentField = try { topItem?.javaClass?.getField("baseIntent") } catch (_: Exception) { null }
+                                val intent = baseIntentField?.get(topItem) as? Intent
+                                val topActivityField = try { topItem?.javaClass?.getField("topActivity") } catch (_: Exception) { null }
+                                val topActivity = topActivityField?.get(topItem) as? ComponentName
+                                val realActivityField = try { topItem?.javaClass?.getField("realActivity") } catch (_: Exception) { null }
+                                val realActivity = realActivityField?.get(topItem) as? ComponentName
+                                val resolvedComp = realActivity ?: topActivity ?: intent?.component
+                                val pkg = resolvedComp?.packageName ?: intent?.`package`
+
+                                if (pkg != null && !TaskInspector.isLauncherOrSystem(context, pkg) && pkg != myPkg && tId != null && tId > 0) {
+                                    targetTaskId = tId
+                                    targetPkg = pkg
                                 }
                             }
                         }
                     }
+                }
             } catch (e: Exception) {
                 Log.d(TAG, "Fast binder task lookup failed", e)
             }
 
-            // Fallback 1: Lightweight dumpsys activity top (reads only top frame in ~30ms)
+            // Fallback 1: Lightweight atomic topResumedActivity dump (~30ms)
             if (targetTaskId == null && targetPkg == null) {
-                val actProcess = ElevatedTaskCloser.execShizuku("dumpsys activity top 2>&1 | grep -E 'TASK|ACTIVITY' | head -n 4")
+                val actProcess = ElevatedTaskCloser.execShizuku("dumpsys activity activities 2>&1 | grep -E -m 1 'topResumedActivity|mResumedActivity' || dumpsys window 2>&1 | grep -m 1 'mFocusedApp=ActivityRecord'")
                 actProcess?.let { p ->
                     val text = p.readTextOrKill().orEmpty()
                     for (line in text.lineSequence()) {
-                        val tm = Regex("""TASK\s+.*?(?<![A-Za-z0-9])id=(\d+)""").find(line)
-                        if (tm != null && targetTaskId == null) {
-                            targetTaskId = tm.groupValues[1].toIntOrNull()
-                        }
-                        val am = Regex("""ACTIVITY\s+([a-zA-Z0-9_.]+)/""").find(line)
-                        if (am != null && targetPkg == null) {
-                            val pkg = am.groupValues[1]
-                            if (pkg != myPkg && !ElevatedTaskCloser.isSystem(pkg)) {
-                                targetPkg = pkg
+                        val parsed = TaskInspector.parseResumedActivityRecord(line)
+                        if (parsed != null) {
+                            val (pkg, _, tId) = parsed
+                            if (TaskInspector.isLauncherOrSystem(context, pkg) || pkg == myPkg) {
+                                Log.i(TAG, "topResumedActivity is launcher/system ($pkg), nothing to close")
+                                Handler(Looper.getMainLooper()).post {
+                                    Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
+                                }
+                                return true
                             }
+                            targetTaskId = tId
+                            targetPkg = pkg
+                            break
                         }
                     }
                 }
@@ -123,6 +147,18 @@ internal object TopAppCloser {
 
             if (targetTaskId == null && targetPkg == null) {
                 Log.i(TAG, "No foreground non-system app found to evict")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
+                }
+                return true
+            }
+
+            // HARD SAFETY LOCK: Never ever evict a launcher, system UI, or Lightspeed!
+            if (targetPkg == null || TaskInspector.isLauncherOrSystem(context, targetPkg) || targetPkg == myPkg) {
+                Log.w(TAG, "Safety lock prevented evicting protected package: $targetPkg (TaskId: $targetTaskId)")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
+                }
                 return true
             }
 
@@ -130,7 +166,7 @@ internal object TopAppCloser {
 
             var evicted = false
 
-            // 3. Ultra-fast direct Binder task eviction (<2ms)
+            // 2. Ultra-fast direct Binder task eviction (<2ms)
             if (targetTaskId != null && targetTaskId > 0 && atm != null) {
                 try {
                     val removeTask = atm.javaClass.getMethod("removeTask", Int::class.javaPrimitiveType)
@@ -142,7 +178,7 @@ internal object TopAppCloser {
                 }
             }
 
-            // 4. Secondary fallback: CLI remove (waits for the result)
+            // 3. Secondary fallback: CLI remove (waits for the result)
             if (!evicted && targetTaskId != null && targetTaskId > 0) {
                 try {
                     val cliProc = ElevatedTaskCloser.execShizuku("am task remove $targetTaskId 2>/dev/null || am stack remove $targetTaskId 2>/dev/null")
@@ -152,9 +188,9 @@ internal object TopAppCloser {
                 } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:223", e) }
             }
 
-            // 5. Ultimate fallback: force-stop (only when no task id was found, as before)
+            // 4. Ultimate fallback: force-stop (only when no task id was found, as before)
             var forceStopped = false
-            if (!evicted && targetPkg != null && (targetTaskId == null || targetTaskId <= 0)) {
+            if (!evicted && (targetTaskId == null || targetTaskId <= 0)) {
                 try {
                     val fsProc = ElevatedTaskCloser.execShizuku("am force-stop $targetPkg")
                     val fsCode = fsProc.waitForOrKill(3000L)

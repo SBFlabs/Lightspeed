@@ -3,14 +3,8 @@ package com.sbf.lightspeed.system
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
-import android.media.AudioManager
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
-import android.provider.Settings
 import android.util.Log
-import android.widget.Toast
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 
@@ -24,7 +18,13 @@ object ActionDispatcher {
 
     fun executeDirect(context: Context, token: String?) {
         if (token.isNullOrBlank() || token == "none") return
-        if (token.startsWith("shortcut:")) {
+        val isShortcut = token.startsWith("shortcut:") ||
+            token.startsWith("custom:") ||
+            token.startsWith("caller;") ||
+            token.contains(";b64uri=") ||
+            token.contains(";label=") ||
+            token.contains("type=")
+        if (isShortcut) {
             LightspeedShortcutManager.launch(context, token)
         } else {
             execute(context, token)
@@ -37,6 +37,16 @@ object ActionDispatcher {
         Log.i(TAG, "Executing action token: '$token' (raw: '$rawToken')")
 
         val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+
+        if (ActionDispatcherSonicDisplay.handleSonicOrDisplay(context, token, service)) {
+            return
+        }
+
+        if (token.startsWith("bot:macro_")) {
+            val botId = token.removePrefix("bot:macro_").toIntOrNull() ?: 1
+            com.sbf.lightspeed.system.bot.LightspeedBotEngine.playBot(context, botId)
+            return
+        }
 
         when {
             token == "system:gearset_nav" -> {
@@ -56,7 +66,7 @@ object ActionDispatcher {
                 ElevatedTaskCloser.launchInPopup(context, style)
             }
             token == "system:flashlight" -> {
-                toggleFlashlight(context)
+                ActionDispatcherSystemHelpers.toggleFlashlight(context)
             }
             token == "system:screenshot" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -143,46 +153,59 @@ object ActionDispatcher {
                 }
             }
             token == "system:back" -> {
-                service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+                val selected = ActionMethods.getSelected(context, "system:back")
+                if (ActionMethods.SHIZUKU in selected) {
+                    closeExecutor.execute {
+                        ShizukuExecHelper.injectBack(context)
+                    }
+                } else if (ActionMethods.A11Y_ACTION in selected) {
+                    service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+                } else {
+                    if (service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK) != true) {
+                        closeExecutor.execute {
+                            ShizukuExecHelper.injectBack(context)
+                        }
+                    }
+                }
             }
             token == "system:recents" -> {
-                openRecents(context, service)
+                ActionDispatcherSystemHelpers.openRecents(context, service)
             }
             token == "system:notifications" -> {
-                expandNotifications(context, service)
+                ActionDispatcherSystemHelpers.expandNotifications(context, service)
             }
             token == "system:quick_settings" -> {
-                expandQuickSettings(context, service)
+                ActionDispatcherSystemHelpers.expandQuickSettings(context, service)
             }
             token == "system:screen_timeout" -> {
                 LightspeedTimeoutEngine.cycleNext(context)
             }
             token == "system:media_play_pause" -> {
-                warnIfNoNotificationAccess(context)
+                ActionDispatcherSystemHelpers.warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.playPause(context)
             }
             token == "system:media_next" -> {
-                warnIfNoNotificationAccess(context)
+                ActionDispatcherSystemHelpers.warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.next(context)
             }
             token == "system:media_prev" -> {
-                warnIfNoNotificationAccess(context)
+                ActionDispatcherSystemHelpers.warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.previous(context)
             }
             token == "system:media_skip_forward" -> {
-                warnIfNoNotificationAccess(context)
+                ActionDispatcherSystemHelpers.warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.skipForward(context)
             }
             token == "system:media_skip_backward" -> {
-                warnIfNoNotificationAccess(context)
+                ActionDispatcherSystemHelpers.warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.skipBackward(context)
             }
             token == "system:media_scrubber" -> {
-                warnIfNoNotificationAccess(context)
+                ActionDispatcherSystemHelpers.warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.showScrubber(context)
             }
             token == "system:media_stop" -> {
-                warnIfNoNotificationAccess(context)
+                ActionDispatcherSystemHelpers.warnIfNoNotificationAccess(context)
                 LightspeedMediaManager.stop(context)
             }
             token == "system:refueling_bay" -> {
@@ -192,16 +215,11 @@ object ActionDispatcher {
                 try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:164", e) }
             }
             token == "system:glow_deflectors" -> {
-                com.sbf.lightspeed.LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
-            }
-            token == "system:omniscient_audio" || token == "system:sonic_deck" || token == "system:audio_dock" -> {
-                val svc = service ?: com.sbf.lightspeed.LightspeedAccessibilityService.instance
-                svc?.let { SonicDeckManager.show(it) }
+                LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
             }
             token == "system:tactical_flyout" -> {
                 TacticalFlyoutLauncher.launch(context)
             }
-
             token == "system:lens" -> {
                 TacticalFlyoutLauncher.launchLens(context)
             }
@@ -256,50 +274,6 @@ object ActionDispatcher {
             token == "system:core_cooling" -> {
                 LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
             }
-            token == "system:volume" -> {
-                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-                val showNative = LightspeedPreferences.isVolumeShowNativeSlider(context)
-                val flags = if (showNative) AudioManager.FLAG_SHOW_UI else 0
-                audioManager?.adjustSuggestedStreamVolume(
-                    AudioManager.ADJUST_SAME,
-                    AudioManager.USE_DEFAULT_STREAM_TYPE,
-                    flags
-                )
-                if (LightspeedPreferences.isHudVolumeEnabled(context)) {
-                    val cur = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
-                    val max = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
-                    val pct = kotlin.math.round(cur * 100f / max.coerceAtLeast(1)).toInt().coerceIn(0, 100)
-                    val volResolution = LightspeedPreferences.getVolumeScrubResolution(context)
-                    com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
-                        title = "MEDIA VOLUME",
-                        value = "$pct%",
-                        stepIndex = (pct * volResolution / 100).coerceIn(0, volResolution),
-                        totalSteps = volResolution
-                    )
-                }
-            }
-            token == "system:brightness" -> {
-                if (android.provider.Settings.System.canWrite(context)) {
-                    val current = try {
-                        android.provider.Settings.System.getInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS)
-                    } catch (_: Exception) { 128 }
-                    val steps = listOf(1, 51, 102, 153, 204, 255)
-                    val next = steps.firstOrNull { it > current + 10 } ?: steps.first()
-                    try {
-                        android.provider.Settings.System.putInt(context.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, next)
-                        if (LightspeedPreferences.isHudBrightnessEnabled(context)) {
-                            com.sbf.lightspeed.LightspeedStatusBarOverlay.showActionHud(
-                                title = "BRIGHTNESS",
-                                value = "${(next * 100 / 255)}%",
-                                stepIndex = (next * 10 / 255),
-                                totalSteps = 10
-                            )
-                        }
-                    } catch (e: Exception) { logSwallowed(TAG, "execute:270", e) }
-                } else {
-                    LightspeedTimeoutEngine.requestWriteSettingsPermission(context)
-                }
-            }
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")
                 context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
@@ -311,7 +285,12 @@ object ActionDispatcher {
                     try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:283", e) }
                 }
             }
-            token.startsWith("shortcut:") -> {
+            token.startsWith("shortcut:") ||
+            token.startsWith("custom:") ||
+            token.startsWith("caller;") ||
+            token.contains(";b64uri=") ||
+            token.contains(";label=") ||
+            token.contains("type=") -> {
                 val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
                 if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
                     ElevatedTaskCloser.execShizuku("input keyevent 82")
@@ -331,116 +310,6 @@ object ActionDispatcher {
                     Log.w(TAG, "Unhandled action token: $token")
                 }
             }
-        }
-    }
-
-    private fun openRecents(context: Context, service: AccessibilityService?) {
-        // 1. Primary: AccessibilityService GLOBAL_ACTION_RECENTS
-        val success = service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS) == true
-        if (success) {
-            Log.i(TAG, "Recents overview triggered via AccessibilityService")
-            return
-        }
-
-        // 2. Secondary: StatusBarManager.toggleRecentApps() reflection
-        try {
-            val statusBarService = context.getSystemService("statusbar")
-            val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
-            val method = statusBarManagerClass.getMethod("toggleRecentApps")
-            method.invoke(statusBarService)
-            Log.i(TAG, "Recents overview triggered via StatusBarManager.toggleRecentApps")
-            return
-        } catch (e: Exception) {
-            Log.d(TAG, "StatusBarManager fallback skipped: ${e.message}")
-        }
-
-        // 3. Tertiary: Shizuku Shell KEYCODE_APP_SWITCH (187)
-        try {
-            if (ElevatedTaskCloser.isShizukuActive) {
-                ElevatedTaskCloser.execShizuku("input keyevent 187").waitForOrKill()
-                Log.i(TAG, "Recents overview triggered via Shizuku KEYCODE_APP_SWITCH")
-                return
-            }
-        } catch (e: Exception) { logSwallowed(TAG, "openRecents:336", e) }
-
-        // 4. Quaternary: Asynchronous retry on Main Looper (in case WindowManager focus was transitioning)
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            val retryService = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-            retryService?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_RECENTS)
-        }, 30L)
-    }
-
-    private fun expandNotifications(context: Context, service: AccessibilityService?) {
-        try {
-            val statusBarService = context.getSystemService("statusbar")
-            val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
-            val method = statusBarManagerClass.getMethod("expandNotificationsPanel")
-            method.invoke(statusBarService)
-            return
-        } catch (e: Exception) { logSwallowed(TAG, "expandNotifications:352", e) }
-        service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
-    }
-
-    private fun expandQuickSettings(context: Context, service: AccessibilityService?) {
-        try {
-            val statusBarService = context.getSystemService("statusbar")
-            val statusBarManagerClass = Class.forName("android.app.StatusBarManager")
-            val method = statusBarManagerClass.getMethod("expandSettingsPanel")
-            method.invoke(statusBarService)
-            return
-        } catch (e: Exception) { logSwallowed(TAG, "expandQuickSettings:363", e) }
-        service?.performGlobalAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
-    }
-
-    private var isTorchOn = false
-    private var torchCallbackRegistered = false
-
-    private fun ensureTorchCallback(cameraManager: android.hardware.camera2.CameraManager) {
-        if (!torchCallbackRegistered) {
-            try {
-                cameraManager.registerTorchCallback(object : android.hardware.camera2.CameraManager.TorchCallback() {
-                    override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
-                        super.onTorchModeChanged(cameraId, enabled)
-                        isTorchOn = enabled
-                    }
-                }, null)
-                torchCallbackRegistered = true
-            } catch (e: Exception) { logSwallowed(TAG, "onTorchModeChanged:380", e) }
-        }
-    }
-
-    private var lastNoAccessToastMs: Long = 0L
-
-    private fun warnIfNoNotificationAccess(context: Context) {
-        try {
-            val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-            if (flat?.contains(context.packageName) == true || LightspeedNotificationListener.instance != null) {
-                return
-            }
-            val now = SystemClock.elapsedRealtime()
-            if (now - lastNoAccessToastMs >= 15000) {
-                lastNoAccessToastMs = now
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        context,
-                        "Media control needs Notification access. Allow it for this app in Android settings.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        } catch (_: Exception) {
-        }
-    }
-
-    private fun toggleFlashlight(context: Context) {
-        try {
-            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? android.hardware.camera2.CameraManager ?: return
-            ensureTorchCallback(cameraManager)
-            val cameraId = cameraManager.cameraIdList.firstOrNull() ?: return
-            isTorchOn = !isTorchOn
-            cameraManager.setTorchMode(cameraId, isTorchOn)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to toggle flashlight", e)
         }
     }
 }

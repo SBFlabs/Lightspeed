@@ -26,10 +26,10 @@ object LightspeedPreferencesDefaults {
         editor.putString(LightspeedPreferences.KEY_SUB_PINNED_LEFT_UNIFIED, "gestures")
         editor.putString("pref_sub_pinned_unified_2", "gestures")
 
-        editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_unified")
+        editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_0, "left_center,left_unified,left_trackpad")
         editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_1, "sensor_deck,telemetry_indicators,tactical_hardware,system_overrides,config_vault,experimental_labs")
         editor.putString("pref_tab_order_1", "sensor_deck,telemetry_indicators,tactical_hardware,system_overrides,config_vault,experimental_labs")
-        editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,unified")
+        editor.putString(LightspeedPreferences.KEY_TAB_SECTION_ORDER_2, "center,unified,trackpad")
         editor.putString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "top_line")
         editor.putString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none")
 

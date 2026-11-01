@@ -103,12 +103,12 @@ fun TrackpadGeometrySubSection(
         }
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text("3-BUTTON LAYOUT ORIENTATION", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                val orientations = listOf("arc" to "Radial Arc (Outward)", "edge" to "Edge Strip (Near Edge)")
+                val orientations = listOf("arc" to "Radial Arc", "edge" to "Edge Strip")
                 for ((id, label) in orientations) {
                     TrackpadPillButton(
                         text = label,
@@ -138,24 +138,20 @@ fun TrackpadGeometrySubSection(
 
             Text("CYBERNETIC CHASSIS STYLE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             val freeStyles = setOf("classic_arc", "angular", "floating", "gear_tooth")
-            val stylesRow1 = listOf(
+            val chassisStyles = listOf(
                 "classic_arc" to "Classic Arc",
                 "angular" to "Angular",
-                "floating" to "Floating"
-            )
-            val stylesRow2 = listOf(
+                "floating" to "Floating",
                 "gear_tooth" to "Gear Tooth",
                 "soft_wing" to "Soft Wing",
-                "liquid_glass" to "Liquid Glass"
-            )
-            val stylesRow3 = listOf(
+                "liquid_glass" to "Liquid Glass",
                 "delta" to "Delta",
                 "shield" to "Shield",
                 "minimal_arms" to "Minimal"
             )
-            for (rowStyles in listOf(stylesRow1, stylesRow2, stylesRow3)) {
+            for (chunk in chassisStyles.chunked(2)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for ((id, label) in rowStyles) {
+                    for ((id, label) in chunk) {
                         val isLocked = !isInfinity && id !in freeStyles
                         TrackpadPillButton(
                             text = label,
@@ -173,36 +169,52 @@ fun TrackpadGeometrySubSection(
                             modifier = Modifier.weight(1f)
                         )
                     }
+                    if (chunk.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
 
             Text("TACTICAL CURSOR SHAPE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                val freeCursors = setOf("crosshair", "pointer")
-                val cursorShapes = listOf(
+            val freeCursors = setOf("crosshair", "pointer")
+            val cursorRows = listOf(
+                listOf(
                     "crosshair" to "⊕ Cross",
                     "pointer" to "➤ Arrow",
-                    "ring" to "◎ Ring",
-                    "diamond" to "❖ Dmnd",
+                    "tactical_triangle" to "▲ Vector"
+                ),
+                listOf(
+                    "hud_ring" to "◎ HUD Ring",
+                    "cyber_bracket" to "⊏ Cyber",
+                    "stealth_dot" to "▪ Stealth"
+                ),
+                listOf(
+                    "ring" to "⭕ Ring",
+                    "diamond" to "❖ Diamond",
                     "dot" to "● Dot"
                 )
-                for ((id, label) in cursorShapes) {
-                    val isLocked = !isInfinity && id !in freeCursors
-                    TrackpadPillButton(
-                        text = label,
-                        isSelected = cursorShape == id && !isLocked,
-                        isLocked = isLocked,
-                        onClick = {
-                            if (isLocked) {
-                                promptInfinity()
-                            } else {
-                                cursorShape = id
-                                prefs.edit().putString(LightspeedBotContract.KEY_BOT_CURSOR_SHAPE, id).apply()
-                                LightspeedBotTrackpadOverlay.reload(context)
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
+            )
+
+            for (row in cursorRows) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    for ((id, label) in row) {
+                        val isLocked = !isInfinity && id !in freeCursors
+                        TrackpadPillButton(
+                            text = label,
+                            isSelected = cursorShape == id && !isLocked,
+                            isLocked = isLocked,
+                            onClick = {
+                                if (isLocked) {
+                                    promptInfinity()
+                                } else {
+                                    cursorShape = id
+                                    prefs.edit().putString(LightspeedBotContract.KEY_BOT_CURSOR_SHAPE, id).apply()
+                                    LightspeedBotTrackpadOverlay.reload(context)
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
 
@@ -368,7 +380,7 @@ fun TrackpadPhysicsSubSection(
         }
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val sensFormatted = String.format(Locale.US, "%.1fx", sensitivity)

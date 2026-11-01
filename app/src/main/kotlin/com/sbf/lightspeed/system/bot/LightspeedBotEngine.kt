@@ -11,6 +11,8 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedVolumeKeyEngine
 import com.sbf.lightspeed.system.ShizukuExecHelper
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlinx.coroutines.*
@@ -219,6 +221,45 @@ object LightspeedBotEngine {
         playJob = null
     }
 
+    /**
+     * Emergency Hardware Key Interception:
+     * Immediately stops active loop, macro replay, and cancels recording mode without saving.
+     * Triggered on Volume Up, Volume Down, or Power key presses, or screen off events.
+     * Returns true if any active automation or recording was cancelled.
+     */
+    fun cancelAllAutomationAndRecording(context: Context): Boolean {
+        var didCancel = false
+        if (isLooping) {
+            stopContinuousLoop()
+            didCancel = true
+        }
+        if (isReplaying) {
+            stopReplay()
+            didCancel = true
+        }
+        if (isRecording || LightspeedBotRecorderOverlay.isShowing) {
+            stopRecording(context, savedSteps = null)
+            didCancel = true
+        }
+        try {
+            LightspeedVolumeKeyEngine.stopAutoRepeat()
+        } catch (_: Throwable) {}
+        if (didCancel) {
+            try {
+                LightspeedHapticEngine.triggerConfirmation(context)
+                val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+                mainHandler.post {
+                    android.widget.Toast.makeText(
+                        context.applicationContext,
+                        "⚡ Macro / Recording cancelled by hardware key",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (_: Throwable) {}
+        }
+        return didCancel
+    }
+
     fun playBot(context: Context, botId: Int, onComplete: () -> Unit = {}) {
         if (isReplaying) {
             stopReplay()
@@ -231,10 +272,18 @@ object LightspeedBotEngine {
             onComplete()
             return
         }
+        val repeatPref = context.defaultPrefs().getInt("${LightspeedBotContract.KEY_BOT_MACRO_REPEAT_PREFIX}$botId", 1)
+        val repeatCount = if (repeatPref <= 0) 1 else repeatPref
         playJob = scope.launch {
             isReplaying = true
             try {
-                executeStepsSequence(context, steps)
+                for (rep in 0 until repeatCount) {
+                    if (!isActive || !isReplaying) break
+                    executeStepsSequence(context, steps, botId)
+                    if (rep < repeatCount - 1) {
+                        delay(200L)
+                    }
+                }
             } finally {
                 isReplaying = false
                 withContext(Dispatchers.Main) { onComplete() }
@@ -254,7 +303,7 @@ object LightspeedBotEngine {
                 loopIterationCount++
                 withContext(Dispatchers.Main) { onIteration(loopIterationCount) }
                 if (steps.isNotEmpty()) {
-                    executeStepsSequence(context, steps)
+                    executeStepsSequence(context, steps, botId)
                 } else {
                     // Default rapid auto-click at current cursor or center
                     val metrics = context.resources.displayMetrics
@@ -272,13 +321,27 @@ object LightspeedBotEngine {
         loopIterationCount = 0
     }
 
-    private suspend fun executeStepsSequence(context: Context, steps: List<BotStep>) {
+    private suspend fun executeStepsSequence(context: Context, steps: List<BotStep>, botId: Int = 1) {
         val metrics = context.resources.displayMetrics
         val screenW = metrics.widthPixels
         val screenH = metrics.heightPixels
 
-        for (step in steps) {
-            delay(step.delayMs)
+        val prefs = context.defaultPrefs()
+        val useRecordedDelay = prefs.getBoolean("${LightspeedBotContract.KEY_BOT_USE_RECORDED_DELAY_PREFIX}$botId", false)
+        val customStepDelay = prefs.getInt("${LightspeedBotContract.KEY_BOT_STEP_DELAY_MS_PREFIX}$botId", 60).coerceIn(0, 2000).toLong()
+
+        for ((stepIndex, step) in steps.withIndex()) {
+            // Step 0 always fires immediately — the delay was the user's pre-recording idle time
+            val effectiveDelay = if (stepIndex == 0) {
+                0L
+            } else if (useRecordedDelay) {
+                step.delayMs.coerceIn(0L, 5000L)
+            } else {
+                customStepDelay
+            }
+            if (effectiveDelay > 0L) {
+                delay(effectiveDelay)
+            }
 
             // 1. Accessibility Screen Reading matching: check if target node exists on screen
             var nodeClicked = false
@@ -288,18 +351,20 @@ object LightspeedBotEngine {
             if (root != null) {
                 val matchedNode = LightspeedBotScreenScanner.findSmartMatchingNode(root, step, screenW, screenH)
                 if (matchedNode != null) {
-                    val rect = Rect()
-                    matchedNode.getBoundsInScreen(rect)
-                    if (!rect.isEmpty) {
-                        val clickX = rect.centerX().toFloat()
-                        val clickY = rect.centerY().toFloat()
-                        if (ShizukuExecHelper.injectTapEvent(clickX, clickY)) {
-                            nodeClicked = true
-                        } else if (matchedNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                            nodeClicked = true
-                        } else if (service != null) {
-                            dispatchGestureTap(service, clickX, clickY)
-                            nodeClicked = true
+                    if (matchedNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        nodeClicked = true
+                    } else {
+                        val rect = Rect()
+                        matchedNode.getBoundsInScreen(rect)
+                        if (!rect.isEmpty) {
+                            val clickX = rect.centerX().toFloat()
+                            val clickY = rect.centerY().toFloat()
+                            if (ShizukuExecHelper.injectTapEvent(clickX, clickY)) {
+                                nodeClicked = true
+                            } else if (service != null) {
+                                dispatchGestureTap(service, clickX, clickY)
+                                nodeClicked = true
+                            }
                         }
                     }
                 }

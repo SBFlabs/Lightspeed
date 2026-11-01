@@ -256,7 +256,7 @@ fun PerimeterServicesDeckDialog(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             placeholder = { Text("Filter accessibility services...", fontSize = 12.sp, color = lsColors.textDisabled) },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             leadingIcon = {
                                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                             },

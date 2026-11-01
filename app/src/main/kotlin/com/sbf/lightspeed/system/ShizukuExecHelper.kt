@@ -208,6 +208,51 @@ internal object ShizukuExecHelper {
         }
     }
 
+    fun triggerCircleToSearch(context: Context) {
+        var handled = false
+        if (ElevatedTaskCloser.isShizukuActive) {
+            try {
+                val proc = execShizuku("cmd voiceinteraction show")
+                val exit = proc?.waitFor()
+                if (exit == 0) {
+                    handled = true
+                }
+            } catch (e: Exception) {
+                logSwallowed(TAG, "circleToSearch.voiceinteraction", e)
+            }
+            if (!handled) {
+                try {
+                    val proc = execShizuku("input keyevent --longpress KEYCODE_HOME || input keyevent 219")
+                    if (proc?.waitFor() == 0) {
+                        handled = true
+                    }
+                } catch (e: Exception) {
+                    logSwallowed(TAG, "circleToSearch.keyevent", e)
+                }
+            }
+        }
+        if (!handled) {
+            try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_VOICE_COMMAND).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                handled = true
+            } catch (_: Exception) {
+                try {
+                    val gIntent = context.packageManager.getLaunchIntentForPackage("com.google.android.googlequicksearchbox")
+                    if (gIntent != null) {
+                        gIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(gIntent)
+                        handled = true
+                    }
+                } catch (e: Exception) {
+                    logSwallowed(TAG, "circleToSearch.fallback", e)
+                }
+            }
+        }
+    }
+
     fun toastShizukuNeeded(context: Context, feature: String) {
         Handler(Looper.getMainLooper()).post {
             val msg = if (!Shizuku.pingBinder()) "$feature needs Shizuku, which isn't running. Start it, then try again." else "$feature needs Shizuku: authorize Lightspeed in your Shizuku app or fork"

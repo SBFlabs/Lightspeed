@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.view.WindowManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,11 +20,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogWindowProvider
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedIconManager
 import com.sbf.lightspeed.system.LightspeedPreferences
@@ -40,13 +46,19 @@ data class InstalledAppEntry(
 fun ConsciousAirlockAppPickerDialog(
     context: Context,
     prefs: SharedPreferences,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    prefKey: String = LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES,
+    title: String = "Select Gated Applications",
+    subtitleTemplate: (Int) -> String = { count -> "Selected: $count apps gated with 5s airlock" }
 ) {
     DeckDialog(onDismissRequest = onDismissRequest) {
         ConsciousAirlockAppPickerContent(
             context = context,
             prefs = prefs,
-            onDismissRequest = onDismissRequest
+            onDismissRequest = onDismissRequest,
+            prefKey = prefKey,
+            title = title,
+            subtitleTemplate = subtitleTemplate
         )
     }
 }
@@ -55,11 +67,24 @@ fun ConsciousAirlockAppPickerDialog(
 fun ConsciousAirlockAppPickerContent(
     context: Context,
     prefs: SharedPreferences,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    prefKey: String = LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES,
+    title: String = "Select Gated Applications",
+    subtitleTemplate: (Int) -> String = { count -> "Selected: $count apps gated with 5s airlock" }
 ) {
     val lsColors = LightspeedStyle.colors
+    val view = LocalView.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+        dialogWindow?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+        dialogWindow?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+    }
+
     var selectedApps by remember {
-        mutableStateOf(prefs.getStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, emptySet<String>()) ?: emptySet<String>())
+        mutableStateOf(prefs.getStringSet(prefKey, emptySet<String>()) ?: emptySet<String>())
     }
     var searchQuery by remember { mutableStateOf("") }
     var appsList by remember { mutableStateOf<List<InstalledAppEntry>>(emptyList()) }
@@ -70,12 +95,30 @@ fun ConsciousAirlockAppPickerContent(
             val pm = context.packageManager
             val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             val activities = pm.queryIntentActivities(intent, 0)
+            val recommendedPkgs = setOf(
+                "org.videolan.vlc",
+                "is.xyz.mpv",
+                "app.revanced.android.gms",
+                "com.google.android.youtube",
+                "com.mxtech.videoplayer.ad",
+                "com.mxtech.videoplayer.pro",
+                "com.netflix.mediaclient",
+                "com.amazon.avod.thirdpartyclient"
+            )
             activities.mapNotNull { resolveInfo ->
                 val pkg = resolveInfo.activityInfo?.packageName ?: return@mapNotNull null
                 val label = resolveInfo.loadLabel(pm)?.toString() ?: pkg
                 InstalledAppEntry(pkg, label)
             }.distinctBy { it.packageName }
-                .sortedBy { it.label.lowercase() }
+                .sortedWith(
+                    compareByDescending<InstalledAppEntry> {
+                        it.packageName in recommendedPkgs ||
+                        it.label.contains("player", ignoreCase = true) ||
+                        it.label.contains("vlc", ignoreCase = true) ||
+                        it.label.contains("video", ignoreCase = true) ||
+                        it.label.contains("mpv", ignoreCase = true)
+                    }.thenBy { it.label.lowercase() }
+                )
         }
         appsList = loaded
         isLoading = false
@@ -101,8 +144,8 @@ fun ConsciousAirlockAppPickerContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Select Gated Applications", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                    Text("Selected: ${selectedApps.size} apps gated with 5s airlock", fontSize = 10.sp, color = lsColors.textSecondary)
+                    Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                    Text(subtitleTemplate(selectedApps.size), fontSize = 10.sp, color = lsColors.textSecondary)
                 }
             }
 
@@ -110,7 +153,14 @@ fun ConsciousAirlockAppPickerContent(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text("Search installed apps...", fontSize = 11.sp, color = lsColors.textDisabled) },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .focusRequester(focusRequester)
+                    .clickable {
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    },
                 leadingIcon = {
                     Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 },
@@ -153,7 +203,7 @@ fun ConsciousAirlockAppPickerContent(
                                 LightspeedHapticEngine.tick(context)
                                 val next = if (isSelected) selectedApps - app.packageName else selectedApps + app.packageName
                                 selectedApps = next
-                                prefs.edit().putStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, next).apply()
+                                prefs.edit().putStringSet(prefKey, next).apply()
                             }
                         )
                     }

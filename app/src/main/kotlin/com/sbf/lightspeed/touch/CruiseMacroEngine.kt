@@ -71,7 +71,7 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
     }
 
     Log.d("GestureEngine", "Target Vector: [$zoneName] -> Action Value: $actionValue")
-    triggerHardwareHaptic(35, 160)
+    triggerDeflectorHaptic(isClick = true)
 
     // Disengage overlay window so incoming system window (Recents/Home/App) gets immediate focus
     dismissOverlay()

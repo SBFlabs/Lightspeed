@@ -2,6 +2,7 @@ package com.sbf.lightspeed.system.sonic
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -34,6 +35,7 @@ internal class SonicPrivilegedAudioPipeline(
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
     private var gtcrnProcessor: GtcrnProcessor? = null
+    @Volatile private var preferredOutputDevice: AudioDeviceInfo? = null
 
     companion object {
         private const val SAMPLE_RATE = 16000
@@ -168,6 +170,12 @@ internal class SonicPrivilegedAudioPipeline(
                 trackBuilder.setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             }
             val track = trackBuilder.build()
+            val targetDev = preferredOutputDevice
+            if (targetDev != null) {
+                try {
+                    track.preferredDevice = targetDev
+                } catch (_: Exception) {}
+            }
             audioTrack = track
 
             // 6. Initialize Neural Inference Engine
@@ -338,6 +346,13 @@ internal class SonicPrivilegedAudioPipeline(
             gtcrnProcessor?.close()
         } catch (e: Exception) { logSwallowed("SonicPrivilegedAudioPipeline", "stop:gtcrn", e) }
         gtcrnProcessor = null
+    }
+
+    fun setPreferredOutputDevice(device: AudioDeviceInfo?) {
+        preferredOutputDevice = device
+        try {
+            audioTrack?.preferredDevice = device
+        } catch (_: Exception) {}
     }
 
     fun isRunning(): Boolean = isRunning.get()

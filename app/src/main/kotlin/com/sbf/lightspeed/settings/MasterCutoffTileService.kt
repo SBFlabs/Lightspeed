@@ -42,3 +42,6 @@ class MasterCutoffTileService : TileService() {
         tile.updateTile()
     }
 }
+
+/** Alias for Master Stealth Cloak Tile Service */
+typealias MasterStealthCloakTileService = MasterCutoffTileService

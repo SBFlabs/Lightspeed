@@ -33,16 +33,17 @@
 ### 📦 Split Downloads
 - **Per-Architecture APKs**: Separate `arm64-v8a` and `armeabi-v7a` builds instead of one universal APK, so you only download the code your phone can run.
 
-Lightspeed is built by one person, runs 100% offline, and has no ads, no telemetry and no trackers. If it makes your phone nicer to use, here are a few easy ways to help:
-- **Show it off**: Post a screenshot or a short clip of your setup on Reddit, XDA, YouTube or in a group chat. One-thumb gestures look best in motion, and a single share can bring in someone who needed this.
-- **Tell one friend**: Know someone who loves tinkering with their Android? Send them the link.
-- **Star the repo**: A star on [GitHub](https://github.com/SBFlabs/Lightspeed) helps others discover the app.
-- **Tell me what you think**: Bugs, typos, ideas and wishes are all welcome. You can reach the issue tracker straight from Central Command.
-- **Buy me a coffee**: [buymeacoffee.com/sbflabs](https://buymeacoffee.com/sbflabs/e/579114) unlocks unlimited flight decks and all optical themes, and keeps development going.
+### 💙 Love Lightspeed? Help It Grow
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Lightspeed_∞-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/sbflabs/e/579114)
+
+- **Show it off**: Share a screenshot or video clip on Reddit, XDA, or group chats.
+- **Star the repo**: A star on [GitHub](https://github.com/SBFlabs/Lightspeed) helps more users discover Lightspeed.
+- **Buy me a coffee**: [buymeacoffee.com/sbflabs](https://buymeacoffee.com/sbflabs/e/579114) unlocks unlimited flight decks and keeps 100% offline development thriving.
 
 ---
 📖 **Full changelog:** [CHANGELOG.md](https://github.com/SBFlabs/Lightspeed/blob/master/CHANGELOG.md)  
 🛠️ **Code Refactoring:** Consolidated Quick Settings into one service, unified left/right deflector scrub tracking, simplified the video-override display logic, and split build outputs per CPU architecture.  
+
 🔑 **SHA-256 Checksums:**  
 - **`Lightspeed-v1.3.0-arm64-v8a.apk`**:  
   `7e343babdf8512ea19ed5e42661982b518eae8e92e1ae7c2913870deadac86f4`  

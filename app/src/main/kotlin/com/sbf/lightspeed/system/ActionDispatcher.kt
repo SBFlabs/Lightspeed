@@ -42,6 +42,16 @@ object ActionDispatcher {
             return
         }
 
+        if (token == "system:shields_down" || token == "action:shields_down" || token == "action:cold_shutdown") {
+            LightspeedMasterCutoff.setSystemArmed(context, false)
+            return
+        }
+
+        if (token == "system:pass_through_touch" || token == "action:pass_through_touch") {
+            LightspeedAccessibilityService.instance?.temporarilyPassThrough(5000L)
+            return
+        }
+
         if (token.startsWith("bot:macro_")) {
             val botId = token.removePrefix("bot:macro_").toIntOrNull() ?: 1
             com.sbf.lightspeed.system.bot.LightspeedBotEngine.playBot(context, botId)
@@ -273,6 +283,12 @@ object ActionDispatcher {
             }
             token == "system:core_cooling" -> {
                 LightspeedWatchdogEngine.executeCoreCoolingReboot(context)
+            }
+            token == "system:circle_to_search" || token == "action:circle_to_search" -> {
+                ShizukuExecHelper.triggerCircleToSearch(context)
+            }
+            token == "system:assistant" || token == "action:assistant" -> {
+                TacticalFlyoutLauncher.launchAssistant(context)
             }
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")

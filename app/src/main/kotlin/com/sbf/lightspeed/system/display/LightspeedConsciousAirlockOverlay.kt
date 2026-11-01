@@ -2,12 +2,14 @@ package com.sbf.lightspeed.system.display
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -15,10 +17,13 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -174,8 +179,9 @@ object LightspeedConsciousAirlockOverlay {
             } catch (_: Exception) { packageName.substringAfterLast('.') }
         }
 
-        val (categoryTitle, appTimeText, sectorTimeText) = remember {
-            val usageMap = LightspeedUsageStats.usageMillisByPackage(service, days = 1)
+        val hasUsageAccess = remember { LightspeedUsageStats.hasUsageAccess(service) }
+        val (categoryTitle, appTimeText, sectorTimeText) = remember(hasUsageAccess) {
+            val usageMap = if (hasUsageAccess) LightspeedUsageStats.usageMillisByPackage(service, days = 1) else emptyMap()
             val appMs = usageMap[packageName] ?: 0L
             val appMins = (appMs / 60000L).toInt()
             val appHrs = appMins / 60
@@ -320,18 +326,52 @@ object LightspeedConsciousAirlockOverlay {
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 16.sp
                             )
-                            Text(
-                                text = "App Time: $appTimeText",
-                                color = lsColors.accentWarn,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Sector Time ($categoryTitle): $sectorTimeText",
-                                color = lsColors.accentInfo,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            if (!hasUsageAccess) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(lsColors.accentDanger.copy(alpha = 0.15f))
+                                        .border(1.dp, lsColors.accentDanger.copy(alpha = 0.65f), RoundedCornerShape(6.dp))
+                                        .clickable {
+                                            try {
+                                                val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                }
+                                                service.startActivity(intent)
+                                            } catch (_: Exception) {}
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "Usage access permission needed for sector & app times",
+                                        color = lsColors.accentDanger,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Grant usage permission",
+                                        tint = lsColors.accentDanger,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "App Time: $appTimeText",
+                                    color = lsColors.accentWarn,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Sector Time ($categoryTitle): $sectorTimeText",
+                                    color = lsColors.accentInfo,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             Text(
                                 text = if (secondsLeft > 0) "Take a conscious breath... Are you sure you want to open this app?" else "Mindful pause complete. Ready to engage.",
                                 color = lsColors.textSecondary,
@@ -364,22 +404,56 @@ object LightspeedConsciousAirlockOverlay {
                         textAlign = TextAlign.Center
                     )
 
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "App Time: $appTimeText",
-                            color = lsColors.accentWarn,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Sector Time ($categoryTitle): $sectorTimeText",
-                            color = lsColors.accentInfo,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    if (!hasUsageAccess) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(lsColors.accentDanger.copy(alpha = 0.15f))
+                                .border(1.dp, lsColors.accentDanger.copy(alpha = 0.65f), RoundedCornerShape(6.dp))
+                                .clickable {
+                                    try {
+                                        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        service.startActivity(intent)
+                                    } catch (_: Exception) {}
+                                }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = "Usage access permission needed for sector & app times",
+                                color = lsColors.accentDanger,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Grant usage permission",
+                                tint = lsColors.accentDanger,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "App Time: $appTimeText",
+                                color = lsColors.accentWarn,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Sector Time ($categoryTitle): $sectorTimeText",
+                                color = lsColors.accentInfo,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
 
                     Box(

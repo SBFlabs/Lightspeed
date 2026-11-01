@@ -75,6 +75,43 @@ object LightspeedMasterCutoff {
                 LightspeedSmartPixelsOverlay.setEnabled(context, false)
             } catch (e: Exception) { logSwallowed(TAG, "cutoff:smartpixels", e) }
 
+            // 5b. Cloak Matrix: Hide Developer Options and USB Debugging if toggled
+            try {
+                if (prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, false)) {
+                    val curDev = Settings.Global.getInt(context.contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0)
+                    prefs.edit().putInt("pref_backup_dev_options", curDev).apply()
+                    try { Settings.Global.putInt(context.contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) } catch (_: Exception) {}
+                    if (ElevatedTaskCloser.isShizukuActive) {
+                        ElevatedTaskCloser.execShizuku("settings put global development_settings_enabled 0")
+                    }
+                }
+                if (prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, false)) {
+                    val curAdb = Settings.Global.getInt(context.contentResolver, Settings.Global.ADB_ENABLED, 0)
+                    prefs.edit().putInt("pref_backup_adb_enabled", curAdb).apply()
+                    try { Settings.Global.putInt(context.contentResolver, Settings.Global.ADB_ENABLED, 0) } catch (_: Exception) {}
+                    if (ElevatedTaskCloser.isShizukuActive) {
+                        ElevatedTaskCloser.execShizuku("settings put global adb_enabled 0")
+                    }
+                }
+                // External Shizuku automation token dispatch (shevery / Stellar / Shizuku-Next)
+                val shizukuToken = prefs.getString(LightspeedPreferences.KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN, "")?.trim()
+                if (!shizukuToken.isNullOrEmpty() && ShellArgGuard.isToken(shizukuToken)) {
+                    val stopIntent = android.content.Intent("moe.shizuku.manager.action.STOP").apply {
+                        putExtra("token", shizukuToken)
+                        setPackage("moe.shizuku.privileged.api")
+                    }
+                    try { context.sendBroadcast(stopIntent) } catch (_: Exception) {}
+                    if (ElevatedTaskCloser.isShizukuActive) {
+                        ElevatedTaskCloser.execShizukuArgv(
+                            "/system/bin/am", "broadcast",
+                            "-a", "moe.shizuku.manager.action.STOP",
+                            "-p", "moe.shizuku.privileged.api",
+                            "--es", "token", shizukuToken
+                        )
+                    }
+                }
+            } catch (e: Exception) { logSwallowed(TAG, "cutoff:dev_and_adb", e) }
+
             // 6. Conscious Airlock, Space Pods & Bot Overlays
             try {
                 LightspeedConsciousAirlockOverlay.dismiss()
@@ -171,6 +208,44 @@ object LightspeedMasterCutoff {
             }
 
             // Restore active states
+            try {
+                if (prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, false)) {
+                    val savedDev = prefs.getInt("pref_backup_dev_options", 1)
+                    if (savedDev == 1) {
+                        try { Settings.Global.putInt(context.contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 1) } catch (_: Exception) {}
+                        if (ElevatedTaskCloser.isShizukuActive) {
+                            ElevatedTaskCloser.execShizuku("settings put global development_settings_enabled 1")
+                        }
+                    }
+                }
+                if (prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, false)) {
+                    val savedAdb = prefs.getInt("pref_backup_adb_enabled", 1)
+                    if (savedAdb == 1) {
+                        try { Settings.Global.putInt(context.contentResolver, Settings.Global.ADB_ENABLED, 1) } catch (_: Exception) {}
+                        if (ElevatedTaskCloser.isShizukuActive) {
+                            ElevatedTaskCloser.execShizuku("settings put global adb_enabled 1")
+                        }
+                    }
+                }
+                // External Shizuku automation token resume / restart
+                val shizukuToken = prefs.getString(LightspeedPreferences.KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN, "")?.trim()
+                if (!shizukuToken.isNullOrEmpty() && ShellArgGuard.isToken(shizukuToken)) {
+                    val startIntent = android.content.Intent("moe.shizuku.manager.action.START").apply {
+                        putExtra("token", shizukuToken)
+                        setPackage("moe.shizuku.privileged.api")
+                    }
+                    try { context.sendBroadcast(startIntent) } catch (_: Exception) {}
+                    if (ElevatedTaskCloser.isShizukuActive) {
+                        ElevatedTaskCloser.execShizukuArgv(
+                            "/system/bin/am", "broadcast",
+                            "-a", "moe.shizuku.manager.action.START",
+                            "-p", "moe.shizuku.privileged.api",
+                            "--es", "token", shizukuToken
+                        )
+                    }
+                }
+            } catch (e: Exception) { logSwallowed(TAG, "resurrect:dev_and_adb", e) }
+
             LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
             LightspeedFlightNotificationManager.update(context)
         }

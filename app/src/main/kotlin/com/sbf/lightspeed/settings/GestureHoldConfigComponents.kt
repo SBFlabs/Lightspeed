@@ -55,7 +55,7 @@ fun GestureHoldDurationControl(
     var showHoldDialog by remember { mutableStateOf(false) }
 
     DeckSubChip(
-        text = "${currentHoldMs}ms ▾",
+        text = "${currentHoldMs}ms",
         icon = Icons.Default.Timer,
         isActive = true,
         snapshot = activeSnapshot,

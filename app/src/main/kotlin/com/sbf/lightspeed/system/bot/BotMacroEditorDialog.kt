@@ -4,14 +4,18 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AllInclusive
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +27,11 @@ import com.sbf.lightspeed.CockpitDialogActivity
 import com.sbf.lightspeed.settings.DeckButton
 import com.sbf.lightspeed.settings.DeckCard
 import com.sbf.lightspeed.settings.DeckDialog
+import com.sbf.lightspeed.settings.DeckSlider
+import com.sbf.lightspeed.settings.TrackpadPillButton
+import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedInfinityManager
+import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
 /**
@@ -33,10 +41,22 @@ class BotMacroEditorDialog : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LightspeedBotTrackpadOverlay.setSuspendedForDialog(true)
         val botId = intent?.getIntExtra(EXTRA_BOT_ID, 1)?.coerceIn(1, LightspeedBotContract.MAX_BOT_MACROS) ?: 1
 
         setContent {
             val lsColors = LightspeedStyle.colors
+            val prefs = remember { defaultPrefs() }
+            val buttonNumber = ((botId - 1) % 3) + 1
+            val isInfinityUnlocked = remember { LightspeedInfinityManager.isUnlocked(this@BotMacroEditorDialog) }
+            val repeatPrefKey = remember { "${LightspeedBotContract.KEY_BOT_MACRO_REPEAT_PREFIX}$botId" }
+            val useRecordedDelayPrefKey = remember { "${LightspeedBotContract.KEY_BOT_USE_RECORDED_DELAY_PREFIX}$botId" }
+            val stepDelayMsPrefKey = remember { "${LightspeedBotContract.KEY_BOT_STEP_DELAY_MS_PREFIX}$botId" }
+            var repeatCount by remember { mutableIntStateOf(prefs.getInt(repeatPrefKey, 1)) }
+            var useRecordedDelay by remember { mutableStateOf(prefs.getBoolean(useRecordedDelayPrefKey, false)) }
+            var customStepDelayMs by remember { mutableFloatStateOf(prefs.getInt(stepDelayMsPrefKey, 60).toFloat()) }
+            var showLoopWarningDialog by remember { mutableStateOf(false) }
+            var dontRemindLoopWarn by remember { mutableStateOf(false) }
             val activeScope = remember { LightspeedBotEngine.resolveActiveScope(this@BotMacroEditorDialog) }
             val scopeLabel = remember { LightspeedBotEngine.getActiveScopeDisplayLabel(this@BotMacroEditorDialog) }
             var steps by remember { mutableStateOf(LightspeedBotEngine.getMacroSteps(this, botId)) }
@@ -46,7 +66,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                 title = {
                     Column {
                         Text(
-                            text = "BUTTON #$botId MACRO & SCREEN CONDITIONS",
+                            text = "B$buttonNumber MACRO & SCREEN CONDITIONS",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = lsColors.textPrimary
@@ -152,59 +172,271 @@ class BotMacroEditorDialog : ComponentActivity() {
                             }
                         }
 
+                        // Macro Repeat Mode Selector: 1x, 2x, 5x, ∞ Loop
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "MACRO REPEAT MODE",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = lsColors.accentInfo
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val repeatModes = listOf(
+                                    1 to "1x",
+                                    2 to "2x",
+                                    5 to "5x",
+                                    -1 to "∞ Loop"
+                                )
+                                for ((count, label) in repeatModes) {
+                                    val isLocked = (count != 1 && !isInfinityUnlocked)
+                                    val isSelected = if (count == -1) isLooping else (repeatCount == count && !isLooping)
+                                    TrackpadPillButton(
+                                        text = label,
+                                        isSelected = isSelected,
+                                        isLocked = isLocked,
+                                        onClick = {
+                                            if (isLocked) {
+                                                LightspeedHapticEngine.triggerWarning(this@BotMacroEditorDialog)
+                                                startActivity(Intent(this@BotMacroEditorDialog, CockpitDialogActivity::class.java).apply {
+                                                    action = CockpitDialogActivity.ACTION_SHOW_INFINITY
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                                                })
+                                            } else {
+                                                if (count == -1) {
+                                                    if (LightspeedBotEngine.isLooping) {
+                                                        LightspeedBotEngine.stopContinuousLoop()
+                                                        isLooping = false
+                                                    } else {
+                                                        val isWarnDismissed = prefs.getBoolean(LightspeedBotContract.KEY_BOT_LOOP_WARN_DISMISSED, false)
+                                                        if (isWarnDismissed) {
+                                                            LightspeedBotEngine.startContinuousLoop(this@BotMacroEditorDialog, botId)
+                                                            isLooping = true
+                                                            finish()
+                                                        } else {
+                                                            showLoopWarningDialog = true
+                                                        }
+                                                    }
+                                                } else {
+                                                    if (isLooping) {
+                                                        LightspeedBotEngine.stopContinuousLoop()
+                                                        isLooping = false
+                                                    }
+                                                    repeatCount = count
+                                                    prefs.edit().putInt(repeatPrefKey, count).apply()
+                                                    LightspeedHapticEngine.tick(this@BotMacroEditorDialog)
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                            Row(
+                                modifier = Modifier.padding(top = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Shield,
+                                    contentDescription = null,
+                                    tint = lsColors.accentWarn,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = "Safety: Pressing Volume Up, Volume Down, or Power immediately cancels any active macro loop or recording.",
+                                    fontSize = 9.5.sp,
+                                    color = lsColors.accentWarn,
+                                    lineHeight = 12.5.sp
+                                )
+                            }
+                        }
+
+                        // Step Timing Selector: Custom Delay vs As Recorded
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "STEP TIMING INTER-DELAY",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = lsColors.accentInfo
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                TrackpadPillButton(
+                                    text = "Custom (${customStepDelayMs.toInt()}ms)",
+                                    isSelected = !useRecordedDelay,
+                                    isLocked = false,
+                                    onClick = {
+                                        useRecordedDelay = false
+                                        prefs.edit().putBoolean(useRecordedDelayPrefKey, false).apply()
+                                        LightspeedHapticEngine.tick(this@BotMacroEditorDialog)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TrackpadPillButton(
+                                    text = "As Recorded",
+                                    isSelected = useRecordedDelay,
+                                    isLocked = false,
+                                    onClick = {
+                                        useRecordedDelay = true
+                                        prefs.edit().putBoolean(useRecordedDelayPrefKey, true).apply()
+                                        LightspeedHapticEngine.tick(this@BotMacroEditorDialog)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            if (!useRecordedDelay) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    DeckSlider(
+                                        value = customStepDelayMs,
+                                        onValueChange = {
+                                            customStepDelayMs = it
+                                            prefs.edit().putInt(stepDelayMsPrefKey, it.toInt()).apply()
+                                        },
+                                        valueRange = 0f..2000f,
+                                        steps = 39,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${customStepDelayMs.toInt()} ms",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = lsColors.textPrimary
+                                    )
+                                }
+                            }
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             DeckButton(
-                                text = "Play",
-                                icon = Icons.Default.PlayArrow,
                                 onClick = {
                                     LightspeedBotEngine.playBot(this@BotMacroEditorDialog, botId)
                                     finish()
                                 },
-                                modifier = Modifier.weight(1f)
-                            )
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(15.dp), tint = lsColors.accent)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Play", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                            }
 
                             DeckButton(
-                                text = "Record",
-                                icon = Icons.Default.FiberManualRecord,
                                 onClick = {
                                     LightspeedBotEngine.startRecording(this@BotMacroEditorDialog, botId)
                                     finish()
                                 },
-                                modifier = Modifier.weight(1f)
-                            )
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(9.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(androidx.compose.ui.graphics.Color(0xFFFF3B30))
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Record", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                            }
 
                             DeckButton(
-                                text = if (isLooping) "Stop Loop" else "Loop",
-                                icon = Icons.Default.AllInclusive,
-                                isActive = isLooping,
                                 onClick = {
-                                    if (!LightspeedInfinityManager.isUnlocked(this@BotMacroEditorDialog)) {
-                                        startActivity(Intent(this@BotMacroEditorDialog, CockpitDialogActivity::class.java).apply {
-                                            action = CockpitDialogActivity.ACTION_SHOW_INFINITY
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                                        })
-                                        finish()
-                                    } else {
-                                        if (LightspeedBotEngine.isLooping) {
-                                            LightspeedBotEngine.stopContinuousLoop()
-                                            isLooping = false
-                                        } else {
+                                    steps = mutableListOf()
+                                    LightspeedBotEngine.saveMacroSteps(this@BotMacroEditorDialog, botId, emptyList(), activeScope)
+                                    LightspeedHapticEngine.tick(this@BotMacroEditorDialog)
+                                },
+                                modifier = Modifier.weight(1f),
+                                isDestructive = true,
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Clear", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                            }
+                        }
+
+                        if (showLoopWarningDialog) {
+                            DeckDialog(
+                                onDismissRequest = { showLoopWarningDialog = false },
+                                title = {
+                                    Text(
+                                        "INFINITE LOOP AUTOMATION",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = lsColors.textPrimary
+                                    )
+                                },
+                                text = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            "You are arming an infinite macro loop. This macro will repeat continuously until interrupted.\n\nPress Volume Up, Volume Down, or Power at any time for instant emergency cancel.",
+                                            fontSize = 11.sp,
+                                            color = lsColors.textSecondary
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable { dontRemindLoopWarn = !dontRemindLoopWarn }
+                                        ) {
+                                            Checkbox(
+                                                checked = dontRemindLoopWarn,
+                                                onCheckedChange = { dontRemindLoopWarn = it },
+                                                colors = CheckboxDefaults.colors(
+                                                    checkedColor = lsColors.accent,
+                                                    uncheckedColor = lsColors.textSecondary
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                "Don't remind me again",
+                                                fontSize = 10.5.sp,
+                                                color = lsColors.textPrimary
+                                            )
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            if (dontRemindLoopWarn) {
+                                                prefs.edit().putBoolean(LightspeedBotContract.KEY_BOT_LOOP_WARN_DISMISSED, true).apply()
+                                            }
+                                            showLoopWarningDialog = false
                                             LightspeedBotEngine.startContinuousLoop(this@BotMacroEditorDialog, botId)
                                             isLooping = true
                                             finish()
                                         }
+                                    ) {
+                                        Text("Start Loop", fontWeight = FontWeight.Bold, color = lsColors.accentWarn)
                                     }
                                 },
-                                modifier = Modifier.weight(1f)
+                                dismissButton = {
+                                    TextButton(onClick = { showLoopWarningDialog = false }) {
+                                        Text("Cancel", color = lsColors.textSecondary)
+                                    }
+                                }
                             )
                         }
 
                         if (steps.isEmpty()) {
                             Text(
-                                text = "No steps recorded yet. Long-press Button #$botId on the Cybernetic Trackpad (or tap Record above) to record taps, swipes, and screen elements.",
+                                text = "No steps recorded yet. Long-press B1/B2/B3 on the Cybernetic Trackpad (or tap Record above) to record taps, swipes, and screen elements.",
                                 fontSize = 11.sp,
                                 color = lsColors.textSecondary,
                                 modifier = Modifier.padding(vertical = 12.dp)
@@ -267,6 +499,11 @@ class BotMacroEditorDialog : ComponentActivity() {
                 }
             )
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        LightspeedBotTrackpadOverlay.setSuspendedForDialog(false)
     }
 
     companion object {

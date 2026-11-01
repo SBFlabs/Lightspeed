@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.system.ShellArgGuard
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.logSwallowed
@@ -223,51 +224,7 @@ fun FlightControlDeckCard(
                     )
                 }
 
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable {
-                            LightspeedHapticEngine.tick(context)
-                            showStyleLabDialog = true
-                        },
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        0.9.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = "Optical Style Lab (All 12 Live Themes)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = lsColors.textPrimary
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
+
             }
 
             // Row 3: Home Screen 1-Tap Shortcut Buttons
@@ -397,12 +354,17 @@ fun FlightControlDeckCard(
                 var isAutomationAllowed by remember(prefs) {
                     mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION, false))
                 }
+                var automationSecurityToken by remember(prefs) {
+                    mutableStateOf(prefs.getString(LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN, "") ?: "")
+                }
                 var showAutomationWarningDialog by remember { mutableStateOf(false) }
 
                 DisposableEffect(prefs) {
                     val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
                         if (key == LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION) {
                             isAutomationAllowed = prefs.getBoolean(LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION, false)
+                        } else if (key == LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN) {
+                            automationSecurityToken = prefs.getString(LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN, "") ?: ""
                         }
                     }
                     prefs.registerOnSharedPreferenceChangeListener(listener)
@@ -466,23 +428,55 @@ fun FlightControlDeckCard(
                     }
                 )
 
+                if (isAutomationAllowed) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            text = "External Automation Security Token",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = lsColors.textPrimary
+                        )
+                        Text(
+                            text = "Required extra 'token' for incoming external broadcasts (Tasker, MacroDroid, ADB)",
+                            fontSize = 9.sp,
+                            color = lsColors.textSecondary
+                        )
+                        OutlinedTextField(
+                            value = automationSecurityToken,
+                            onValueChange = { input ->
+                                val trimmed = input.trim()
+                                if (trimmed.isEmpty() || ShellArgGuard.isToken(trimmed)) {
+                                    automationSecurityToken = trimmed
+                                    prefs.edit().putString(LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN, trimmed).apply()
+                                }
+                            },
+                            placeholder = { Text("Leave blank to allow unauthenticated broadcast", fontSize = 10.sp, color = lsColors.textDisabled) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(fontSize = 11.sp, color = lsColors.textPrimary)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val pkg = context.packageName
                 val actions = listOf(
                     "TOGGLE_FLIGHT_MODE", "SET_FLIGHT_MODE",
                     "TOGGLE_DEFLECTORS", "TOGGLE_LEFT_DEFLECTOR", "TOGGLE_RIGHT_DEFLECTOR", "SET_DEFLECTOR",
-                    "GRAVITY_OVERRIDE_360", "TOGGLE_AUTO_ROTATE", "RESET_GRAVITY"
+                    "GRAVITY_OVERRIDE_360", "TOGGLE_AUTO_ROTATE", "RESET_GRAVITY", "STEALTH_CLOAK"
                 )
                 var expandedDropdown by remember { mutableStateOf(false) }
                 var selectedAction by remember { mutableStateOf(actions[0]) }
                 var selectedTab by remember { mutableIntStateOf(0) }
 
-                val fullAction = "com.sbf.lightspeed.action.$selectedAction"
+                val fullAction = if (selectedAction == "STEALTH_CLOAK") "com.sbf.lightspeed.ACTION_STEALTH_CLOAK" else "com.sbf.lightspeed.action.$selectedAction"
+                val tokenSuffix = if (automationSecurityToken.isNotBlank()) " --es token $automationSecurityToken" else ""
                 val commandText = when (selectedTab) {
-                    0 -> "adb shell am broadcast -a $fullAction -p $pkg"
-                    1 -> "am broadcast -a $fullAction -p $pkg"
-                    else -> "Action: $fullAction\nPackage: $pkg\nTarget: Broadcast Receiver"
+                    0 -> "adb shell am broadcast -a $fullAction -p $pkg$tokenSuffix"
+                    1 -> "am broadcast -a $fullAction -p $pkg$tokenSuffix"
+                    else -> if (automationSecurityToken.isNotBlank()) "Action: $fullAction\nPackage: $pkg\nExtra: token = $automationSecurityToken\nTarget: Broadcast Receiver" else "Action: $fullAction\nPackage: $pkg\nTarget: Broadcast Receiver"
                 }
 
                 // Action Dropdown

@@ -81,7 +81,8 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
         canvas.drawText(cat.label, textX, rowCenterY - textYOffset, paint)
 
         // Up arrow
-        val upColor = if (slot > 0) Color.argb(220, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(45, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
+        val effectiveAccent = ensureHighContrastColor(tintColor)
+        val upColor = if (slot > 0) Color.argb(235, Color.red(effectiveAccent), Color.green(effectiveAccent), Color.blue(effectiveAccent)) else Color.argb(45, Color.red(effectiveAccent), Color.green(effectiveAccent), Color.blue(effectiveAccent))
         paint.color = upColor
         editModeArrowPath.rewind()
         editModeArrowPath.moveTo(cxUp, rowCenterY - arrowSize)
@@ -91,7 +92,7 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
         canvas.drawPath(editModeArrowPath, paint)
 
         // Down arrow
-        val downColor = if (slot < numCategories - 1) Color.argb(220, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(45, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
+        val downColor = if (slot < numCategories - 1) Color.argb(235, Color.red(effectiveAccent), Color.green(effectiveAccent), Color.blue(effectiveAccent)) else Color.argb(45, Color.red(effectiveAccent), Color.green(effectiveAccent), Color.blue(effectiveAccent))
         paint.color = downColor
         editModeArrowPath.rewind()
         editModeArrowPath.moveTo(cxDown - arrowSize, rowCenterY - arrowSize)

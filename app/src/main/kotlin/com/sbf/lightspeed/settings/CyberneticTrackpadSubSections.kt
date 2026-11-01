@@ -32,17 +32,17 @@ fun TrackpadPillButton(
     val lsColors = LightspeedStyle.colors
     val containerColor = when {
         isLocked -> lsColors.accentGold.copy(alpha = 0.08f)
-        isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        isSelected -> lsColors.accent.copy(alpha = 0.28f)
         else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
     }
     val borderColor = when {
         isLocked -> lsColors.accentGold.copy(alpha = 0.45f)
-        isSelected -> MaterialTheme.colorScheme.primary
+        isSelected -> lsColors.accent
         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)
     }
     val textColor = when {
         isLocked -> lsColors.accentGold
-        isSelected -> MaterialTheme.colorScheme.primary
+        isSelected -> lsColors.accent
         else -> Color.White
     }
 

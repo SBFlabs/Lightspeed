@@ -7,6 +7,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PhoneInTalk
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,13 +56,13 @@ fun SystemOverrideLockscreenSection(
     var isCallDeflectorDropdownOpen by remember { mutableStateOf(false) }
 
     val lockscreenOptions = listOf(
-        "hide_deflectors" to "🙈 Hide Deflectors Only (Astrogation Core Active)",
-        "keep_active" to "🛡️ Keep Deflectors Active on Lock Screen",
-        "full_lockdown" to "🔒 Full Lockdown (Hide All Overlays)"
+        "hide_deflectors" to "Hide Deflectors Only (Astrogation Core Active)",
+        "keep_active" to "Keep Deflectors Active on Lock Screen",
+        "full_lockdown" to "Full Lockdown (Hide All Overlays)"
     )
     val binaryOptions = listOf(
-        "hide" to "🙈 Hide on Lock Screen (Recommended)",
-        "keep_active" to "🛡️ Keep Active on Lock Screen"
+        "hide" to "Hide on Lock Screen (Recommended)",
+        "keep_active" to "Keep Active on Lock Screen"
     )
 
     DeckCard(
@@ -77,11 +84,22 @@ fun SystemOverrideLockscreenSection(
                 color = lsColors.textSecondary.copy(alpha = 0.85f)
             )
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = "ℹ️ Note: Astrogation Core pill remains active in Hide Deflectors mode so you can launch tools or gears from the lock screen.",
-                fontSize = 10.5.sp,
-                color = LightspeedTokens.StatusSky
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = LightspeedTokens.StatusSky,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Astrogation Core pill remains active in Hide Deflectors mode so you can launch tools or gears from the lock screen.",
+                    fontSize = 10.5.sp,
+                    color = LightspeedTokens.StatusSky
+                )
+            }
 
             // 1. Kinetic Deflectors Dropdown
             Spacer(modifier = Modifier.height(8.dp))
@@ -90,7 +108,8 @@ fun SystemOverrideLockscreenSection(
             DeckDropdownAnchorBox { anchorWidth ->
                 OutlinedButton(
                     onClick = { isLockscreenDropdownOpen = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Row(
@@ -98,11 +117,24 @@ fun SystemOverrideLockscreenSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = lockscreenOptions.firstOrNull { it.first == currentLockscreenMode }?.second ?: "🙈 Hide Deflectors Only (Astrogation Core Active)",
-                            color = lsColors.textPrimary,
-                            fontSize = 11.5.sp
-                        )
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val icon = when (currentLockscreenMode) {
+                                "keep_active" -> Icons.Default.Visibility
+                                "full_lockdown" -> Icons.Default.Lock
+                                else -> Icons.Default.VisibilityOff
+                            }
+                            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            Text(
+                                text = lockscreenOptions.firstOrNull { it.first == currentLockscreenMode }?.second ?: "Hide Deflectors Only (Astrogation Core Active)",
+                                color = lsColors.textPrimary,
+                                fontSize = 11.5.sp,
+                                maxLines = 1
+                            )
+                        }
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -112,9 +144,15 @@ fun SystemOverrideLockscreenSection(
                     anchorWidth = anchorWidth
                 ) {
                     lockscreenOptions.forEach { (key, label) ->
+                        val menuIcon = when (key) {
+                            "keep_active" -> Icons.Default.Visibility
+                            "full_lockdown" -> Icons.Default.Lock
+                            else -> Icons.Default.VisibilityOff
+                        }
                         DropdownMenuItem(
-                            modifier = Modifier.heightIn(min = 44.dp),
-                            text = { Text(label, fontSize = 12.5.sp) },
+                            modifier = Modifier.height(42.dp),
+                            leadingIcon = { Icon(menuIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp)) },
+                            text = { Text(label, fontSize = 12.sp, maxLines = 1) },
                             onClick = {
                                 isLockscreenDropdownOpen = false
                                 currentLockscreenMode = key
@@ -133,7 +171,8 @@ fun SystemOverrideLockscreenSection(
             DeckDropdownAnchorBox { anchorWidth ->
                 OutlinedButton(
                     onClick = { isSensorDropdownOpen = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Row(
@@ -141,11 +180,20 @@ fun SystemOverrideLockscreenSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = binaryOptions.firstOrNull { it.first == currentSensorMode }?.second ?: "🙈 Hide on Lock Screen (Recommended)",
-                            color = lsColors.textPrimary,
-                            fontSize = 11.5.sp
-                        )
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val icon = if (currentSensorMode == "keep_active") Icons.Default.Visibility else Icons.Default.VisibilityOff
+                            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            Text(
+                                text = binaryOptions.firstOrNull { it.first == currentSensorMode }?.second ?: "Hide on Lock Screen (Recommended)",
+                                color = lsColors.textPrimary,
+                                fontSize = 11.5.sp,
+                                maxLines = 1
+                            )
+                        }
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -155,9 +203,11 @@ fun SystemOverrideLockscreenSection(
                     anchorWidth = anchorWidth
                 ) {
                     binaryOptions.forEach { (key, label) ->
+                        val menuIcon = if (key == "keep_active") Icons.Default.Visibility else Icons.Default.VisibilityOff
                         DropdownMenuItem(
-                            modifier = Modifier.heightIn(min = 44.dp),
-                            text = { Text(label, fontSize = 12.5.sp) },
+                            modifier = Modifier.height(42.dp),
+                            leadingIcon = { Icon(menuIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp)) },
+                            text = { Text(label, fontSize = 12.sp, maxLines = 1) },
                             onClick = {
                                 isSensorDropdownOpen = false
                                 currentSensorMode = key
@@ -176,7 +226,8 @@ fun SystemOverrideLockscreenSection(
             DeckDropdownAnchorBox { anchorWidth ->
                 OutlinedButton(
                     onClick = { isRailDropdownOpen = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Row(
@@ -184,11 +235,20 @@ fun SystemOverrideLockscreenSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = binaryOptions.firstOrNull { it.first == currentRailMode }?.second ?: "🙈 Hide on Lock Screen (Recommended)",
-                            color = lsColors.textPrimary,
-                            fontSize = 11.5.sp
-                        )
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val icon = if (currentRailMode == "keep_active") Icons.Default.Visibility else Icons.Default.VisibilityOff
+                            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            Text(
+                                text = binaryOptions.firstOrNull { it.first == currentRailMode }?.second ?: "Hide on Lock Screen (Recommended)",
+                                color = lsColors.textPrimary,
+                                fontSize = 11.5.sp,
+                                maxLines = 1
+                            )
+                        }
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -198,9 +258,11 @@ fun SystemOverrideLockscreenSection(
                     anchorWidth = anchorWidth
                 ) {
                     binaryOptions.forEach { (key, label) ->
+                        val menuIcon = if (key == "keep_active") Icons.Default.Visibility else Icons.Default.VisibilityOff
                         DropdownMenuItem(
-                            modifier = Modifier.heightIn(min = 44.dp),
-                            text = { Text(label, fontSize = 12.5.sp) },
+                            modifier = Modifier.height(42.dp),
+                            leadingIcon = { Icon(menuIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp)) },
+                            text = { Text(label, fontSize = 12.sp, maxLines = 1) },
                             onClick = {
                                 isRailDropdownOpen = false
                                 currentRailMode = key
@@ -219,7 +281,8 @@ fun SystemOverrideLockscreenSection(
             OutlinedButton(
                 onClick = { },
                 enabled = false,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(42.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Row(
@@ -227,11 +290,18 @@ fun SystemOverrideLockscreenSection(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "🚫 Disabled in Experimental Labs",
-                        color = lsColors.textDisabled,
-                        fontSize = 11.5.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Default.Block, contentDescription = null, tint = lsColors.textDisabled, modifier = Modifier.size(15.dp))
+                        Text(
+                            text = "Disabled in Experimental Labs",
+                            color = lsColors.textDisabled,
+                            fontSize = 11.5.sp,
+                            maxLines = 1
+                        )
+                    }
                     Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = lsColors.textDisabled)
                 }
             }
@@ -266,7 +336,8 @@ fun SystemOverrideLockscreenSection(
             DeckDropdownAnchorBox { anchorWidth ->
                 OutlinedButton(
                     onClick = { isCallDeflectorDropdownOpen = true },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Row(
@@ -274,11 +345,20 @@ fun SystemOverrideLockscreenSection(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = callDeflectorOptions.firstOrNull { it.first == currentCallDeflectorMode }?.second ?: LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE),
-                            color = lsColors.textPrimary,
-                            fontSize = 11.5.sp
-                        )
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val icon = if (currentCallDeflectorMode == "keep_active") Icons.Default.Shield else Icons.Default.VisibilityOff
+                            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            Text(
+                                text = callDeflectorOptions.firstOrNull { it.first == currentCallDeflectorMode }?.second ?: LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE),
+                                color = lsColors.textPrimary,
+                                fontSize = 11.5.sp,
+                                maxLines = 1
+                            )
+                        }
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -288,9 +368,11 @@ fun SystemOverrideLockscreenSection(
                     anchorWidth = anchorWidth
                 ) {
                     callDeflectorOptions.forEach { (key, label) ->
+                        val menuIcon = if (key == "keep_active") Icons.Default.Shield else Icons.Default.VisibilityOff
                         DropdownMenuItem(
-                            modifier = Modifier.heightIn(min = 44.dp),
-                            text = { Text(label, fontSize = 12.5.sp) },
+                            modifier = Modifier.height(42.dp),
+                            leadingIcon = { Icon(menuIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp)) },
+                            text = { Text(label, fontSize = 12.sp, maxLines = 1) },
                             onClick = {
                                 isCallDeflectorDropdownOpen = false
                                 currentCallDeflectorMode = key

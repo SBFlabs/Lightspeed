@@ -5,7 +5,137 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.1] - 2026-11-01
+
+### Fixed & Enhanced
+* **12-Theme Engine Unification & High-Contrast Stream Percentages (`SonicDeckSections.kt`, `SonicDeckManager.kt`, `VistaDeckManager.kt`, `ExpandedBrightnessWellnessSection.kt`, `scripts/check_theme.sh`)**:
+  * Unified header branding to "◈ SONIC DECK ◈" matching "◈ VISTA DECK ◈".
+  * Fixed invisible dark-on-dark percentage labels (Media, Ringtone, Notifications, Alarms, Voice Call) using high-contrast active theme tokens (`effectiveTintArgb` / `lsColors.textPrimary`).
+  * Enforced active 12-theme tokens across all switches (`DeckSwitch`) and sliders (`DeckSlider`) in both Sonic Deck and Vista Deck.
+  * Added automated theme compliance checks for Sonic and Vista Decks to `scripts/check_theme.sh`.
+* **Clean Storage Permission Footprint (`AndroidManifest.xml`)**:
+  * Completely removed `<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />`, `<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />`, and legacy storage permissions from the application manifest, keeping the app 100% free of external storage flags.
+* **Vista Command Deck Blueprint & Collapsible Architecture (`VistaDeckManager.kt`, `ExpandedBrightnessWellnessSection.kt`)**:
+  * **4-Accordion Modular Layout**: Split Vista Deck into 4 collapsible accordions matching `SonicDeckManager`:
+    * `brightness` ("Brightness & Video Override"): Master 1..100% slider, Video Override Latch toggle, Auto-Reset Trigger chips, Preserve Auto-Brightness on Scrub toggle, and Case Sensor Offset (-10%..+20%).
+    * `optics` ("Sub-Zero, Extra Dim & Smart Pixels"): Below 0% Scrub Target selector, hardware Extra Dim level slider, OLED Smart Pixels density, block size selector (1x1, 2x2, 4x4), and Record/Cast bypass toggle.
+    * `eyecare` ("Eye Care & Blue Light Filter"): Hardware amber shield toggle and Kelvin warmth temperature slider (2200K–5500K).
+    * `airlock` ("Astrogation Airlock & 20-20-20"): Conscious 5s Delay gated app launcher/count and periodic 20-20-20 screen-on eye rest reminder timer.
+  * **Blueprint Wireframe Reordering**: Connected the 4 section IDs (`brightness,optics,eyecare,airlock`) to `pref_vista_deck_section_order` and `pref_vista_deck_pinned_section` with interactive live reordering and pinning identical to Sonic Deck.
+* **Universal Hardware Key Emergency Cancel for Active Repeat/Loop Macros (`LightspeedKeyEngine.kt`, `LightspeedVolumeKeyEngine.kt`, `LightspeedBotEngine.kt`, `LightspeedPowerKeyEngine.kt`)**:
+  * Pressing **Power**, **Volume Up**, or **Volume Down** immediately halts any active repeat/loop execution across the entire application—including Volume Button Matrix auto-repeat (`LightspeedVolumeKeyEngine.stopAutoRepeat()`), Cybernetic Trackpad Bot continuous loops (`B1/B2/B3`), Robotic Arm repeats, and Bot macro recording mode.
+* **Bottom Sensor Area Live Preview & Quick Chips (`HudSensorGravityComponents.kt`, `GestureActionSubChips.kt`, `ActionDispatcher.kt`, `LightspeedSensorDeckTouchOverlay.kt`)**:
+  * Bottom Sensor Area geometry settings automatically activate the live visual calibration zone preview when expanded.
+  * Streamlined Brightness Scrub sub-chips to minimal row; added bottom sensor quick chips for Tactical Flyout Menu, Home, Recents, Previous App, Circle to Search, and Assistant (`system:assistant`).
+
+* **Samsung-Safe Hybrid Eye Care & Display Sovereignty (`LightspeedEyeCareEngine.kt`, `ExpandedBrightnessWellnessSection.kt`, `CruiseScrubEngine.kt`, `ConsciousAirlockAppPickerDialog.kt`)**:
+  * **Eliminated Samsung Display Blackout**: Detected Samsung hardware to write native `Settings.System.blue_light_filter` and map Kelvin (2200K–5500K) to `blue_light_filter_opacity` (0–10), completely omitting AOSP `night_display_*` writes on Samsung to stop the SurfaceFlinger 0.00 color matrix screen collapse.
+  * **Stage-2 Amber Boost**: Below 3000K down to 2200K, seamlessly blends in an overlay warm tint for deep night candlelight reading while keeping hardware mode 100% active.
+  * **Vista Deck Eye Care Accordion**: Replaced static cards with an animated collapsible accordion card displaying live status badges and expanding to reveal Kelvin slider and comfort zones.
+  * **Below 0% Scrub Isolation**: Below 0% brightness scrubs directly into the user's selected extreme action (Extra Dim, Smart Pixels, or Eye Care Kelvin drop) without confusing overlaps.
+  * **Above 100% Video Override Latch**: Scrubbing past 100% latches Video Override ON/OFF as a toggle; scrubbing down preserves the locked sovereignty window at any desired brightness level.
+  * **Recommended Media Players**: Prioritized detected media players (VLC, mpv, etc.) at the top of the app picker for auto-clearing override when dismissed.
+* **Sonic Deck Audio Routing with Voice Isolation & Background Muffler (`SonicPrivilegedAudioPipeline.kt`, `SonicIsolationUserService.kt`, `SonicAppMixerSection.kt`, `SonicDeckSettingsSheet.kt`, `SonicDeckManager.kt`, `SonicDeckSections.kt`)**:
+  * **Unified Voice Isolation & Output Sink Alignment**: Bound `preferredDevice` on `SonicPrivilegedAudioPipeline`'s low-latency output `AudioTrack` to dynamically mirror the selected audio target (Speaker vs. Headphones / Bluetooth / Wired), ensuring GTCRN neural voice-isolated audio physically routes to the user's chosen device without being trapped on the system default route.
+  * **Eliminated Loopback Exclusion Conflict**: Removed UID exclusion from loopback audio capture mixes when Voice Isolation is active, allowing routed apps to be captured, isolated, and background-muffled instead of bypassing the neural pipeline.
+  * **Dynamic Hardware Routing Arbitration**: Switched to direct hardware `ROUTE_FLAG_RENDER` AudioPolicy mixes only when Voice Isolation is disarmed, preventing dual-rendering conflicts while maintaining seamless per-app device routing.
+  * **Headphones & Bluetooth / Wired Fallback Synchronization**: Enhanced `SonicIsolationUserService.findTargetDevice` to seamlessly bridge Bluetooth and Wired headsets under the Headphones category, allowing fluid switching between Speaker and Headphones.
+  * **Branding & Dialogue Alignment**: Completely retired legacy "Cinema AI" terminology across all UI headers, tabs, settings cards, and blueprints in favor of "Voice Isolation & Background Muffler".
+
+### Added
+* **Bottom Sensor Area Edge Gestures (`HudSensorGravityComponents.kt`, `LightspeedAccessibilityOverlays.kt`, `LightspeedSensorDeckTouchOverlay.kt`, `LightspeedBackupEngine.kt`)**:
+  * Added "Bottom Sensor Area" sub-accordion in HUD Strip -> Sensor Area (disabled by default) mirroring the top Sensor Area.
+  * Configurable span, thickness, horizontal offset (X axis), vertical offset (Y axis), sensitivity, stealth idle glow, and landscape/tablet modes.
+  * Full gesture matrix: Tap, Double Tap, Swipe Left, Swipe Right, Swipe Up, Rebound Left/Right, Hold Modifiers, and Continuous Scrubbing.
+  * Lossless export and import support registered in `LightspeedBackupEngine`.
+
+### Fixed & Enhanced
+* **True "Finger-in-Space" Bidirectional Category Cruise (`LightspeedCruiseOverlaySpatial.kt`, `LightspeedCruiseOverlayDraw.kt`, `LightspeedCruiseOverlayPrimitives.kt`)**:
+  * Restored Bidirectional Spatial Mapping: Both Category Wheel and App Grid vertical positions derive directly from physical screen Y within an ergonomic band `[hF * 0.25f .. hF * 0.75f]` (`normY = ((rawY - (hF * 0.25f)) / (hF * 0.50f)).coerceIn(0f, 1f)`), eliminating the artificial Row 0 reset bug.
+  * Natural Seamless Re-entry: Entering near the bottom of a category opens near the bottom row. Moving upward to Row 0 and swiping back out to the Category Wheel lands precisely on the top category in a single fluid gesture.
+  * Moving Ambient Spotlight: Removed the artificial rectangular border box and "▶" arrow from the focused category. Centered the galactic ambient radial spotlight directly onto the active category's Y coordinate in Category Wheel and onto the active app icon's (X, Y) coordinate in App Grid.
+  * Subtle 10dp Horizontal Inward Lock: Added a 10dp directional inward lock at the crossing boundary from CATEGORY into GRID to prevent vertical jitter during layer transition while maintaining full spatial Y tracking inside both layers.
+* **Optical High-Contrast Legibility in Edit Mode & Streamlined App Menu (`LightspeedCruiseOverlayEditMode.kt`, `LightspeedCruiseOverlayEditRows.kt`, `LightspeedCruiseOverlayAppMenu.kt`)**:
+  * Dark Blur High Contrast: Introduced `ensureHighContrastColor` so "Page" / "HUD" tab labels, "▲" / "▼" category reorder arrows, and the "Save" button render in crisp bright cyan/accent (`#38BDF8`) and white on low-luminance themes like Dark Blur.
+  * Streamlined Long-Press App Menu: Removed redundant "Open" action from the pinned app context menu; menu now starts directly with "Split with...", "Split screen", "Pop-up window", "App info", "Change category", and "Uninstall".
+* **Symmetrized & Customized Deflector Tactile Engine (`LightspeedHapticEngine.kt`, `LightspeedLeftWingOverlay.kt`, `CruiseTouchHandler.kt`, `CruiseMacroGestureHandler.kt`, `DeflectorHoldGestureDispatcher.kt`, `HapticsSubSection.kt`)**:
+  * Flank Parity: Audited all touch-down, threshold-cross, hold-trigger, two-step corner, and release actions across Left and Right deflectors so both flanks invoke the exact same `LightspeedHapticEngine` methods with identical duration and amplitude.
+  * Granular Deflector Gesture Customization: Added collapsible "Customize Deflector Gesture Haptics" under Central Command with individual sliders for Tap (`pref_haptic_deflector_tap`), Single Swipe (`pref_haptic_deflector_swipe`), Two-Step Swipe (`pref_haptic_deflector_twostep`), Rebound Swipe (`pref_haptic_deflector_rebound`), Hold Modifier (`pref_haptic_deflector_hold`), and Deep Pull > 50% Screen (`pref_haptic_deflector_deep_pull`).
+  * Battery Saver Haptics in Tactile Engine: Added "Keep Haptics Alive in Battery Saver" switch directly beneath Haptic Pulse Throttle in `HapticsSubSection.kt`, synchronized with Core Cooling.
+* **Vista-Exclusive Wallpaper Export (`LightspeedActionRegistry.kt`, `CockpitGearPickerModels.kt`)**:
+  * Removed `action:save_wallpaper` ("Save Current Wallpaper") from the action selection menu and cockpit gear picker to eliminate clutter, while preserving the quick export button in Vista Deck.
+* **Category Cruise Vector Lock & Seamless Scrubbing (`CruiseTouchHandler.kt`, `CruiseFlankHandler.kt`, `LightspeedCruiseOverlaySpatial.kt`, `LightspeedCruiseOverlayDraw.kt`)**:
+  * Added Inward Horizontal Vector Lock (`abs(dx) > abs(dy) * 1.15f`): Sliding inward into a category locks category selection, preventing slight vertical jitter from accidentally switching categories at the threshold.
+  * 12.dp Vertical Hysteresis Detent: Applied a protective vertical detent around the center of the active category slot before adjacent slots can activate.
+  * Tactical Category Focus Indicator: Selected category pill in the Sector Wheel scales to 1.18x with a crisp 2.dp `lsColors.accent` border, leading "▶" focus indicator, and 0.45f dimming for unselected items.
+  * Seamless Multi-Category Re-entry: Freshly resets `gridEntryRawX`, `gridEntryRawY`, and dead-zone latch state on every `CruiseLayer.GRID` entry so Row 0 and Column 0 remain 100% reachable without lifting thumb.
+  * Space from Edge Offset Compensation: Grid hit-testing and wheel exit thresholds account for `pref_deflector_edge_offset` without premature wheel ejection or blocked edge items.
+* **Multi-Step Bot Macro Recording & Unified Deck Sliders (`LightspeedBotRecorderOverlay.kt`, `BotMacroEditorDialog.kt`, `LightspeedForegroundTracker.kt`)**:
+  * Unbroken Multi-Step Recording: Drawer, modal dialog, and `TYPE_WINDOW_STATE_CHANGED` events no longer abort or interrupt recording (e.g. AnkiDroid menu -> Statistics).
+  * Rapid 80ms Re-injection Settle: Restores click and touch interception within 80ms after simulated actions for rapid sequential tap capture.
+  * Custom Deck Theme Integration: Replaced all Material 3 purple sliders with `DeckSlider`, single-line action buttons (`maxLines = 1, softWrap = false`), and a crisp red recording indicator dot (`#FF3B30`).
+* **Astrogation Airlock & Dialog Soft Keyboard Focus (`ConsciousAirlockAppPickerDialog.kt`, `DeckControls.kt`)**:
+  * Resolved dialog window via `LocalView.current` and `DialogWindowProvider` to clear `FLAG_NOT_FOCUSABLE` and `FLAG_ALT_FOCUSABLE_IM`, setting `SOFT_INPUT_STATE_ALWAYS_VISIBLE` and `SOFT_INPUT_ADJUST_RESIZE`.
+  * Attached `FocusRequester` and `LocalSoftwareKeyboardController.current?.show()` so the keyboard reliably opens automatically on mobile displays.
+* **Stealth Cloak Quick Settings Matrix (`LightspeedTileCloakActivity.kt`, `MasterCutoffTileService.kt`, `LightspeedMasterCutoff.kt`)**:
+  * Integrated "Hide Developer Options while Cloaked" and "Hide USB Debugging while Cloaked" checkboxes directly into the QS Tile Cloak Activity dialog.
+  * Shizuku-backed instant application and restoration upon QS tile toggle.
+* **Tablet & High-Font-Scale Alignment (`ExpandedBrightnessWellnessSection.kt`, `SonicDeckManager.kt`, `SonicAppMixerSection.kt`)**:
+  * Unified Vista Deck section headers to theme tokens (`lsColors.accent` and `lsColors.textPrimary`), removing hardcoded yellow/green/orange headers.
+  * Kept Video Takeover pill single-line non-wrapping (`softWrap = false`).
+  * Upgraded Sonic Command Deck with 3 Quick Blueprint Tabs (`🎬 Cinema`, `🎧 Studio`, `🌙 Night Owl`) and locked Per-App Volume Mixer to the top.
+  * Converted per-app mixer items to clean two-line cards (app icon + name + % on row 1; full-width `DeckSlider` + actions on row 2) preventing app name truncation.
+## [1.3.1] - 2026-10-31
+
+### Fixed & Enhanced
+* **High-Font-Scale & Tablet UI Polish (`DeckControls.kt`, `ConsciousAirlockAppPickerDialog.kt`, `BatteryExemptionDeckDialog.kt`, `LightspeedTileCloakActivity.kt`, `WatchdogDefenseComponents.kt`)**:
+  * Fixed search bar text slicing at font scale > 1.15 by standardizing search fields to `heightIn(min = 52.dp)` across all dialogs.
+  * Tablet Adaptive Modals: Upgraded `DeckDialog` to `widthIn(min = 320.dp, max = 480.dp)` preventing squeezed dialogs on tablets and widescreen devices.
+* **Vista Command Deck (`VistaDeckManager.kt`, `ExpandedBrightnessWellnessSection.kt`, `LightspeedWallpaperExporter.kt`)**:
+  * Fixed Video Takeover header row badge clipping with weighted title layout and single-line badge pill (`118% · Video`).
+  * Added 3 Quick Blueprint Tabs (`☀ Daylight`, `🎬 Cinema`, `🌙 Night Owl`) for instant one-tap display environment shifts.
+  * Adaptive scrollable layout (`widthIn(min = 320.dp, max = 480.dp).heightIn(max = 680.dp)`) preventing any bottom control cutoff.
+  * Zero-Permission Wallpaper Exporter (`action:save_wallpaper` + quick button): Extracts Home and Lock wallpapers via Shizuku directly into `Pictures/Lightspeed/` with zero AndroidManifest storage permissions.
+* **Sonic Command Deck (`SonicDeckManager.kt`, `SonicDeckSections.kt`)**:
+  * Title thumb collision fix: Applied `Modifier.weight(1f).padding(end = 12.dp)` to Cinema Dialogue title column.
+  * Reorderable Sections: Moved Per-App Volume Mixer to the top of Sonic Deck by default, with `⬆/⬇` section reorder arrows to customize section order.
+* **Circle to Search / Screen Assist (`ActionDispatcher.kt`, `ShizukuExecHelper.kt`, `LightspeedActionRegistry.kt`, `ActionTokenResolver.kt`, `CockpitGearPickerModels.kt`)**:
+  * Added `"🔍 Circle to Search / Screen Assist"` (`action:circle_to_search`) to Action Selection menu under System / Navigation, invoking contextual voice interaction via Shizuku (`cmd voiceinteraction show`) with long-press Home/Assist fallback.
+* **Core Cooling & Battery Saver Tuner (`HudRefuelingBaySection.kt`, `LightspeedBatterySentinel.kt`, `LightspeedPreferencesRefuelingKeysContract.kt`, `LightspeedBackupEngine.kt`)**:
+  * "Keep Haptics Alive in Battery Saver": Overrides `vibration_disabled=false` inside `battery_saver_constants` so Android Battery Saver never kills tactical haptics.
+  * "Battery Saver Profile Tuner": 3 profiles (`Light Saver`, `Balanced`, `Extreme Cryo`) configuring launch boost, animations, standby, and night mode.
+  * "Charge Limit Sentinel": Selectable target charge limit (80% / 85% / 90%) with alerts and broadcast `com.sbf.lightspeed.ACTION_CHARGE_LIMIT_REACHED` upon reaching target percentage.
+* **OEM Diagnostics Report (`AboutFeedbackSection.kt`)**:
+  * Deduplicated manufacturer and brand string when identical (e.g. `samsung SM-S931U` instead of `samsung samsung SM-S931U`).
+  * Added active detection of OEM multi-window and freeform packages (`com.samsung.android.multiwindow`, `com.miui.freeform`, etc.).
+* **Tactile & Haptics Engine (`LightspeedCruiseOverlay.kt`, `CruiseTouchHandler.kt`, `CruiseMacroEngine.kt`, `CruiseMacroGestureHandler.kt`, `DeflectorHoldGestureDispatcher.kt`)**:
+  * Unified Deflector Gesture Haptics: Right Deflector gestures now strictly obey `KEY_DEFLECTOR_HAPTICS` and route through `deflectorClick` / `deflectorTick`, ensuring Central Command haptic slider controls both deflectors with 100% parity.
+* **Cybernetic Trackpad Bot Macros (`BotMacroEditorDialog.kt`, `LightspeedBotEngine.kt`, `LightspeedBotContract.kt`, `LightspeedKeyEngine.kt`)**:
+  * Added Inter-Step Timing selector: Toggle between "Custom Delay" (0ms..2000ms slider) and "As Recorded".
+  * Hardware Emergency Cancel: Pressing Volume Up, Volume Down, or Power immediately cancels any active macro loop or recording.
+  * Bot Macro Editor layout polish: 3 wide single-line buttons (`Play`, `Record`, `Clear`), repeat mode selector, and Infinite Loop safety warning dialog with "Don't remind me again" option.
+  * Added 4 new tactical cursor shapes: `tactical_triangle`, `hud_ring`, `cyber_bracket`, and `stealth_dot`.
+* **Category Cruise Scrubbing (`LightspeedCruiseOverlaySpatial.kt`)**:
+  * Capped 2-row vertical scrub distance to 34dp step threshold for swift, effortless switching between Row 0 and Row 1.
+  * Anchored Column 0 calculation to actual grid start X without deflector dead-zone clamping for instant highlight when moving thumb inward from the flank.
+* **Astrogation Airlock & App Picker (`LightspeedUsageStats.kt`, `ConsciousAirlockAppPickerDialog.kt`, `DeckControls.kt`)**:
+  * Midnight-reset usage stats: For `days == 1`, usage time is now calculated from local midnight (00:00:00) using `UsageStatsManager.queryEvents` instead of stale rolling 24h stats.
+  * IME Focus: Ensured app picker search field clears `FLAG_NOT_FOCUSABLE` and `FLAG_ALT_FOCUSABLE_IM` so soft keyboard opens immediately.
+* **Avionics & UI Polish (`SettingsContainerComponents.kt`, `CyberneticTrackpadAccordion.kt`, `CyberneticTrackpadCalibration.kt`, `TacticalFlyoutActivity.kt`, `DeepSpaceHangarControlsDraw.kt`)**:
+  * Fixed 3rd-degree nested sub-accordion width on 6.4" 360dp screens (Galaxy A24) by reducing compounded outer margins and padding.
+  * Boosted scrim opacity to `0.88f` and tuned high-contrast text across Cockpit Hangar, Tactical Flyout, and edit modes.
+  * Horizontally scrollable gesture sub-chips in `GestureComponents.kt` preventing control clipping on narrow displays.
+* **System Overrides & Stealth Cloak (`SystemOverrideComponents.kt`, `DeflectorTabBody.kt`, `SystemOverrideBackConflictCard.kt`, `HudConfigVaultSection.kt`, `LightspeedMasterCutoff.kt`, `LightspeedAutomationReceiver.kt`)**:
+  * Untangled monolithic System Overrides into 4 clean sub-accordions: Display & Screen, Audio & Volume, Power & Battery, Automation & Gestures.
+  * Added dismiss button to Edge Inset and Native Back Conflict info cards with preference persistence.
+  * Moved loud Config Vault import warning to confirmation dialog.
+  * Added Developer Options and USB Debugging state hide toggles to Master Stealth Cloak.
+  * Added External Automation Token support for Tasker / MacroDroid broadcast (`com.sbf.lightspeed.ACTION_STEALTH_CLOAK`).
+  * Added Doze Policy Inspector querying idle and battery optimization status.
+* **Navigation & Gesture Actions (`ActionTokenResolver.kt`, `LightspeedActionRegistry.kt`, `ActionDispatcher.kt`, `TopAppCloser.kt`, `TaskInspector.kt`, `LightspeedScrollHelper.kt`)**:
+  * Added action entries for "Shields Down" (Cold Shutdown) and "Pass-Through Touch Mode" (5s passthrough).
+  * Boosted simulated finger scroll fling velocity by 70% for natural kinetic inertia.
+  * Fixed Graceful Close false-positive closure of home launcher when triggered while on the home screen.
 
 ## [1.3.0] - 2026-10-27
 

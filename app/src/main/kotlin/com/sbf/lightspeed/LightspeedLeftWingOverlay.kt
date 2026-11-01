@@ -252,11 +252,11 @@ class LightspeedLeftWingOverlay(
                     scrubStartX = lastTouchRawX
                     scrubType = action
                     activeScrubActionKey = resolvedKey
-                    triggerHaptic(35, 180)
+                    LightspeedHapticEngine.deflectorHold(context)
                     initScrubHud()
                     invalidate()
                 } else {
-                    triggerHaptic(40, 200)
+                    LightspeedHapticEngine.deflectorHold(context)
                     performActionByName(action)
                 }
             }
@@ -267,11 +267,11 @@ class LightspeedLeftWingOverlay(
         val mode = context.defaultPrefs().getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "") ?: ""
         if (mode == "off") return
         if (mode == "jumps_only" && durationMs <= 20L) return
-        val effective = if (mode.isNotEmpty()) mode else (context.defaultPrefs().getString(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        // Route through domain-specific deflector functions so Infinix/MediaTek bypass applies
         if (durationMs > 25L || amplitude > 160) {
-            LightspeedHapticEngine.pulseClick(context, effective)
+            LightspeedHapticEngine.deflectorClick(context)
         } else {
-            LightspeedHapticEngine.pulseTick(context, effective)
+            LightspeedHapticEngine.deflectorTick(context)
         }
     }
 
@@ -370,6 +370,7 @@ class LightspeedLeftWingOverlay(
                         activeScrubVolumePct = -1
                         activeScrubAccumulator = 0f
                         LightspeedStatusBarOverlay.dismissActionHud(0L)
+                        LightspeedHapticEngine.deflectorDeepPull(context)
                         invalidate()
                         if (isVolume) {
                             (service as? LightspeedAccessibilityService)?.let { com.sbf.lightspeed.system.SonicDeckManager.show(it) }
@@ -445,10 +446,18 @@ class LightspeedLeftWingOverlay(
                 }
 
                 if (currentGesture != "NONE" && currentGesture != previousGesture) {
-                    if (previousGesture == "NONE" && com.sbf.lightspeed.system.LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) {
-                        triggerGlow(500L)
+                    if (previousGesture == "NONE") {
+                        if (com.sbf.lightspeed.system.LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) {
+                            triggerGlow(500L)
+                        }
+                        LightspeedHapticEngine.deflectorTick(context)
+                    } else {
+                        if (currentGesture.endsWith("_BACK") || currentGesture == "SWIPE_UP_DOWN" || currentGesture == "SWIPE_DOWN_UP") {
+                            LightspeedHapticEngine.deflectorRebound(context)
+                        } else {
+                            LightspeedHapticEngine.deflectorTwoStep(context)
+                        }
                     }
-                    triggerHaptic(18, 100)
                     if (!isHoldFired) {
                         uiHandler.removeCallbacks(holdRunnable)
                         val holdDuration = com.sbf.lightspeed.system.LightspeedPreferences.getGestureHoldDurationMs(context)
@@ -496,7 +505,15 @@ class LightspeedLeftWingOverlay(
                     if (isReturning || (currentGesture != "NONE" && maxExcursion >= (18f * density))) {
                         val action = getEffectiveAction(activeZoneKey, currentGesture, false)
                         if (action != "none") {
-                            triggerHaptic(25, 160)
+                            if (isReturning) {
+                                LightspeedHapticEngine.deflectorRebound(context)
+                            } else if (currentGesture.contains("_") && !currentGesture.startsWith("SWIPE_LEFT") && !currentGesture.startsWith("SWIPE_RIGHT")) {
+                                LightspeedHapticEngine.deflectorTwoStep(context)
+                            } else if (currentGesture == "SWIPE_RIGHT_UP" || currentGesture == "SWIPE_RIGHT_DOWN" || currentGesture == "SWIPE_UP_RIGHT" || currentGesture == "SWIPE_DOWN_RIGHT") {
+                                LightspeedHapticEngine.deflectorTwoStep(context)
+                            } else {
+                                LightspeedHapticEngine.deflectorSingleSwipe(context)
+                            }
                             performActionByName(action)
                         }
                     } else if (maxExcursion < (18f * density)) {
@@ -534,7 +551,7 @@ class LightspeedLeftWingOverlay(
 
     private fun handleTap() {
         if (activeZoneKey == "LEFT_CENTER") {
-            triggerHaptic(35, 180)
+            LightspeedHapticEngine.deflectorTap(context)
             (service as? LightspeedAccessibilityService)?.openCockpitFromLeft()
             return
         }
@@ -543,7 +560,7 @@ class LightspeedLeftWingOverlay(
             pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
             pendingTapRunnable = null
             lastTapTime = 0
-            triggerHaptic(30, 180)
+            LightspeedHapticEngine.deflectorTap(context)
             val action = getEffectiveAction(activeZoneKey, "DOUBLE_TAP", false)
             if (action != "none") {
                 performActionByName(action)
@@ -553,10 +570,10 @@ class LightspeedLeftWingOverlay(
             pendingTapRunnable = Runnable {
                 val action = getEffectiveAction(activeZoneKey, "TAP", false)
                 if (action != "none") {
-                    triggerHaptic(20, 120)
+                    LightspeedHapticEngine.deflectorTap(context)
                     performActionByName(action)
                 } else {
-                    triggerHaptic(25, 120)
+                    LightspeedHapticEngine.deflectorTap(context)
                     (service as? LightspeedAccessibilityService)?.triggerDeflectorsGlow() ?: triggerGlow()
                 }
             }

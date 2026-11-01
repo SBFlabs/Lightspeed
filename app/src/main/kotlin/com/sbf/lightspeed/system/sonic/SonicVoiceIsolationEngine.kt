@@ -22,22 +22,25 @@ import rikka.shizuku.Shizuku
 object SonicVoiceIsolationEngine {
 
     const val KEY_SONIC_PRESET = "pref_sonic_isolation_preset"
+    const val KEY_SONIC_CUSTOM_PROFILES = "pref_sonic_isolation_custom_profiles"
+    const val PRESET_MAX = "max"
+    const val PRESET_CUSTOM = "custom"
+
+    // Legacy presets kept for backwards-compatibility resolution
     const val PRESET_CINEMA = "cinema"
     const val PRESET_PODCAST = "podcast"
     const val PRESET_GAMING = "gaming"
-    const val PRESET_MAX = "max"
-    const val PRESET_CUSTOM = "custom"
 
     @Volatile var isEnabled: Boolean = false
         private set
 
-    @Volatile var activePreset: String = PRESET_CINEMA
+    @Volatile var activePreset: String = PRESET_MAX
         private set
 
     @Volatile var vocalBoostLevel: Float = 0.60f
         private set
 
-    @Volatile var backgroundMuffleLevel: Float = 0.65f
+    @Volatile var backgroundMuffleLevel: Float = 1.0f
         private set
 
     @Volatile var userService: ISonicIsolationUserService? = null
@@ -98,12 +101,12 @@ object SonicVoiceIsolationEngine {
         val appCtx = context.applicationContext ?: context
         appContext = appCtx
         val prefs = appCtx.defaultPrefs()
-        activePreset = prefs.getString(KEY_SONIC_PRESET, PRESET_CINEMA) ?: PRESET_CINEMA
+        activePreset = prefs.getString(KEY_SONIC_PRESET, PRESET_MAX) ?: PRESET_MAX
         var savedBoost = prefs.getFloat(LightspeedPreferences.KEY_SONIC_VOCAL_BOOST, 0.60f)
-        var savedMuffle = prefs.getFloat(LightspeedPreferences.KEY_SONIC_BACKGROUND_MUFFLE, 0.65f)
+        var savedMuffle = prefs.getFloat(LightspeedPreferences.KEY_SONIC_BACKGROUND_MUFFLE, 1.0f)
         if (savedBoost <= 0.001f && savedMuffle <= 0.001f) {
             savedBoost = 0.60f
-            savedMuffle = 0.65f
+            savedMuffle = 1.0f
         }
         vocalBoostLevel = savedBoost
         backgroundMuffleLevel = savedMuffle
@@ -164,14 +167,63 @@ object SonicVoiceIsolationEngine {
         }
     }
 
+    fun getCustomProfiles(context: Context): Map<String, Pair<Float, Float>> {
+        val jsonStr = context.defaultPrefs().getString(KEY_SONIC_CUSTOM_PROFILES, null) ?: return emptyMap()
+        return try {
+            val json = org.json.JSONObject(jsonStr)
+            val result = mutableMapOf<String, Pair<Float, Float>>()
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                val obj = json.getJSONObject(k)
+                val boost = obj.optDouble("boost", 0.6).toFloat()
+                val muffle = obj.optDouble("muffle", 1.0).toFloat()
+                result[k] = boost to muffle
+            }
+            result
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    fun saveCustomProfile(context: Context, name: String, boost: Float, muffle: Float) {
+        val current = getCustomProfiles(context).toMutableMap()
+        current[name] = boost to muffle
+        val json = org.json.JSONObject()
+        for ((k, v) in current) {
+            val obj = org.json.JSONObject()
+            obj.put("boost", v.first.toDouble())
+            obj.put("muffle", v.second.toDouble())
+            json.put(k, obj)
+        }
+        context.defaultPrefs().edit().putString(KEY_SONIC_CUSTOM_PROFILES, json.toString()).apply()
+    }
+
+    fun deleteCustomProfile(context: Context, name: String) {
+        val current = getCustomProfiles(context).toMutableMap()
+        current.remove(name)
+        val json = org.json.JSONObject()
+        for ((k, v) in current) {
+            val obj = org.json.JSONObject()
+            obj.put("boost", v.first.toDouble())
+            obj.put("muffle", v.second.toDouble())
+            json.put(k, obj)
+        }
+        context.defaultPrefs().edit().putString(KEY_SONIC_CUSTOM_PROFILES, json.toString()).apply()
+        if (activePreset == name) {
+            applyPreset(context, PRESET_MAX)
+        }
+    }
+
     fun applyPreset(context: Context, preset: String) {
         activePreset = preset
         val (boost, muffle) = when (preset) {
-            PRESET_CINEMA -> 0.60f to 0.65f
-            PRESET_PODCAST -> 0.75f to 0.85f
-            PRESET_GAMING -> 0.50f to 0.50f
             PRESET_MAX -> 1.00f to 1.00f
-            else -> vocalBoostLevel to backgroundMuffleLevel
+            PRESET_CUSTOM -> vocalBoostLevel to backgroundMuffleLevel
+            else -> {
+                val customMap = getCustomProfiles(context)
+                customMap[preset] ?: (vocalBoostLevel to backgroundMuffleLevel)
+            }
         }
         context.defaultPrefs().edit().putString(KEY_SONIC_PRESET, preset).apply()
         if (preset != PRESET_CUSTOM) {
@@ -189,7 +241,7 @@ object SonicVoiceIsolationEngine {
         appContext = appCtx
         isEnabled = true
         if (vocalBoostLevel <= 0.001f && backgroundMuffleLevel <= 0.001f) {
-            applyPreset(appCtx, PRESET_CINEMA)
+            applyPreset(appCtx, PRESET_MAX)
         }
         appCtx.defaultPrefs().edit().putBoolean(LightspeedPreferences.KEY_SONIC_VOICE_ISOLATION_ENABLED, true).apply()
 

@@ -134,6 +134,26 @@ object TacticalFlyoutLauncher {
         }
     }
 
+    fun launchAssistant(context: Context) {
+        val assistIntents = listOf(
+            Intent(Intent.ACTION_VOICE_COMMAND).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) },
+            Intent(Intent.ACTION_ASSIST).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        )
+        for (intent in assistIntents) {
+            try {
+                if (intent.resolveActivity(context.packageManager) != null) {
+                    context.startActivity(intent)
+                    LightspeedHapticEngine.click(context)
+                    return
+                }
+            } catch (e: Exception) {
+                logSwallowed("TacticalFlyoutLauncher", "launchAssistant", e)
+            }
+        }
+        // Fallback to Gemini if default assistant intent doesn't resolve
+        launchGemini(context)
+    }
+
     fun launchLens(context: Context) {
         val lensIntents = listOf(
             context.packageManager.getLaunchIntentForPackage("com.google.ar.lens"),

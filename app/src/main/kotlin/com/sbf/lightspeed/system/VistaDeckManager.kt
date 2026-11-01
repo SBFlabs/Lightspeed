@@ -14,15 +14,20 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -39,7 +45,15 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.ConsciousAirlockAppPickerContent
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
 import com.sbf.lightspeed.settings.DeckThemeManager
-import com.sbf.lightspeed.system.hud.ExpandedBrightnessWellnessSection
+import com.sbf.lightspeed.settings.BlueprintWireframeView
+import com.sbf.lightspeed.settings.CollapsibleSubSection
+import com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine
+import com.sbf.lightspeed.system.display.LightspeedEyeCareEngine
+import com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay
+import com.sbf.lightspeed.system.hud.VistaBrightnessSection
+import com.sbf.lightspeed.system.hud.VistaOpticsSection
+import com.sbf.lightspeed.system.hud.VistaEyeCareSection
+import com.sbf.lightspeed.system.hud.VistaAirlockSection
 import com.sbf.lightspeed.ui.theme.DeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
@@ -55,7 +69,28 @@ object VistaDeckManager {
     private var windowManager: WindowManager? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
 
+    private var windowParams: WindowManager.LayoutParams? = null
+
     fun isShowing(): Boolean = composeView != null
+
+    fun updateWindowFocusable(focusable: Boolean) {
+        val mainHandler = Handler(Looper.getMainLooper())
+        mainHandler.post {
+            val view = composeView ?: return@post
+            val wm = windowManager ?: return@post
+            val params = windowParams ?: return@post
+            if (focusable) {
+                params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+            } else {
+                params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            }
+            try {
+                wm.updateViewLayout(view, params)
+            } catch (e: Exception) {
+                logSwallowed("VistaDeckManager", "updateWindowFocusable", e)
+            }
+        }
+    }
 
     fun show(service: AccessibilityService) {
         val mainHandler = Handler(Looper.getMainLooper())
@@ -108,6 +143,7 @@ object VistaDeckManager {
                     setFitInsetsIgnoringVisibility(true)
                 }
             }
+            windowParams = params
 
             try {
                 wm.addView(view, params)
@@ -137,6 +173,7 @@ object VistaDeckManager {
                     logSwallowed("VistaDeckManager", "dismiss.removeView", e)
                 }
                 composeView = null
+                windowParams = null
             }
             windowManager = null
         }
@@ -149,7 +186,36 @@ object VistaDeckManager {
         onDismiss: () -> Unit
     ) {
         val snapshot by DeckThemeManager.snapshotFlow.collectAsState()
+        val prefs = service.defaultPrefs()
         var showAirlockPicker by remember { mutableStateOf(false) }
+        var showMediaFilterPicker by remember { mutableStateOf(false) }
+        LaunchedEffect(showAirlockPicker, showMediaFilterPicker) {
+            updateWindowFocusable(showAirlockPicker || showMediaFilterPicker)
+        }
+        var isBlueprintMode by remember { mutableStateOf(false) }
+        val tint = Color(snapshot.effectiveTintArgb.toInt())
+
+        val defaultSections = listOf("brightness", "optics", "airlock")
+        val sectionTitles = mapOf(
+            "brightness" to "Brightness and Beyond",
+            "optics" to "Optics & Eye Care",
+            "airlock" to "Astrogation Airlock & 20-20-20"
+        )
+        val savedOrderStr = prefs.getString("pref_vista_deck_section_order", "brightness,optics,airlock") ?: "brightness,optics,airlock"
+        var currentSectionOrder by remember(savedOrderStr) {
+            mutableStateOf(
+                savedOrderStr.split(",").filter { it in defaultSections }.let { list ->
+                    list + (defaultSections - list.toSet())
+                }
+            )
+        }
+        var pinnedSection by remember {
+            mutableStateOf(prefs.getString("pref_vista_deck_pinned_section", "brightness") ?: "brightness")
+        }
+
+        var isBrightnessExpanded by remember { mutableStateOf(prefs.getBoolean("pref_vista_sub_brightness_expanded", true)) }
+        var isOpticsExpanded by remember { mutableStateOf(prefs.getBoolean("pref_vista_sub_optics_expanded", true)) }
+        var isAirlockExpanded by remember { mutableStateOf(prefs.getBoolean("pref_vista_sub_airlock_expanded", true)) }
 
         Box(
             modifier = Modifier
@@ -169,10 +235,10 @@ object VistaDeckManager {
             ) {
                 DeckGlassCardSurface(
                     modifier = Modifier
-                        .widthIn(max = 380.dp)
+                        .widthIn(min = 320.dp, max = 480.dp)
                         .fillMaxWidth(0.92f)
                         .wrapContentHeight()
-                        .heightIn(max = 540.dp)
+                        .heightIn(max = 680.dp)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
                     snapshotOverride = snapshot,
                     isFlyout = false
@@ -183,6 +249,55 @@ object VistaDeckManager {
                             prefs = service.defaultPrefs(),
                             onDismissRequest = { showAirlockPicker = false }
                         )
+                    } else if (showMediaFilterPicker) {
+                        ConsciousAirlockAppPickerContent(
+                            context = service,
+                            prefs = service.defaultPrefs(),
+                            onDismissRequest = { showMediaFilterPicker = false },
+                            prefKey = LightspeedPreferences.KEY_VIDEO_OVERRIDE_PACKAGES,
+                            title = "Select Media Trigger Apps",
+                            subtitleTemplate = { count ->
+                                if (count == 0) "All apps trigger Auto-Reset on Recents Close"
+                                else "$count media apps trigger Auto-Reset on Recents Close"
+                            }
+                        )
+                    } else if (isBlueprintMode) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            BlueprintWireframeView(
+                                tabTitle = "VISTA DECK",
+                                sectionIds = currentSectionOrder,
+                                pinnedSectionId = pinnedSection,
+                                sectionTitles = sectionTitles,
+                                onMoveUp = { idx ->
+                                    if (idx > 0) {
+                                        val m = currentSectionOrder.toMutableList()
+                                        val item = m.removeAt(idx)
+                                        m.add(idx - 1, item)
+                                        currentSectionOrder = m
+                                        prefs.edit().putString("pref_vista_deck_section_order", m.joinToString(",")).apply()
+                                    }
+                                },
+                                onMoveDown = { idx ->
+                                    if (idx < currentSectionOrder.size - 1) {
+                                        val m = currentSectionOrder.toMutableList()
+                                        val item = m.removeAt(idx)
+                                        m.add(idx + 1, item)
+                                        currentSectionOrder = m
+                                        prefs.edit().putString("pref_vista_deck_section_order", m.joinToString(",")).apply()
+                                    }
+                                },
+                                onPinSection = { id ->
+                                    pinnedSection = id
+                                    prefs.edit().putString("pref_vista_deck_pinned_section", id).apply()
+                                },
+                                onExitBlueprint = { isBlueprintMode = false }
+                            )
+                        }
                     } else {
                         Column(
                             modifier = Modifier
@@ -190,7 +305,7 @@ object VistaDeckManager {
                                 .wrapContentHeight()
                                 .padding(16.dp)
                                 .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             // Header
                             Row(
@@ -200,7 +315,11 @@ object VistaDeckManager {
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable { isBlueprintMode = true }
+                                        .padding(4.dp)
                                 ) {
                                     Icon(
                                         Icons.Default.Brightness4,
@@ -209,10 +328,16 @@ object VistaDeckManager {
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
-                                        text = "◈ VISTA COMMAND DECK ◈",
+                                        text = "◈ VISTA DECK ◈",
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 13.sp
+                                    )
+                                    Icon(
+                                        Icons.Default.Tune,
+                                        contentDescription = "Edit Blueprint",
+                                        tint = tint.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                                 IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
@@ -222,11 +347,55 @@ object VistaDeckManager {
 
                             HorizontalDivider(color = Color(0x25FFFFFF))
 
-                            // Full Expanded Brightness & Display Wellness Suite
-                            ExpandedBrightnessWellnessSection(
-                                service = service,
-                                onOpenAirlockPicker = { showAirlockPicker = true }
-                            )
+                            currentSectionOrder.forEach { secId ->
+                                when (secId) {
+                                    "brightness" -> {
+                                        CollapsibleSubSection(
+                                            title = "Brightness and Beyond",
+                                            subtitle = null,
+                                            isExpanded = isBrightnessExpanded,
+                                            onToggle = {
+                                                isBrightnessExpanded = !isBrightnessExpanded
+                                                prefs.edit().putBoolean("pref_vista_sub_brightness_expanded", isBrightnessExpanded).apply()
+                                            }
+                                        ) {
+                                            VistaBrightnessSection(
+                                                service = service,
+                                                onOpenMediaOverridePicker = { showMediaFilterPicker = true }
+                                            )
+                                        }
+                                    }
+                                    "optics" -> {
+                                        CollapsibleSubSection(
+                                            title = "Optics & Eye Care",
+                                            subtitle = "Below 0% targets, Extra Dim, OLED Smart Pixels & Blue Light Filter",
+                                            isExpanded = isOpticsExpanded,
+                                            onToggle = {
+                                                isOpticsExpanded = !isOpticsExpanded
+                                                prefs.edit().putBoolean("pref_vista_sub_optics_expanded", isOpticsExpanded).apply()
+                                            }
+                                        ) {
+                                            VistaOpticsSection(service = service)
+                                        }
+                                    }
+                                    "airlock" -> {
+                                        CollapsibleSubSection(
+                                            title = "Astrogation Airlock & 20-20-20",
+                                            subtitle = "Mindful delay gate & screen-on eye rest breaks",
+                                            isExpanded = isAirlockExpanded,
+                                            onToggle = {
+                                                isAirlockExpanded = !isAirlockExpanded
+                                                prefs.edit().putBoolean("pref_vista_sub_airlock_expanded", isAirlockExpanded).apply()
+                                            }
+                                        ) {
+                                            VistaAirlockSection(
+                                                service = service,
+                                                onOpenAirlockPicker = { showAirlockPicker = true }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

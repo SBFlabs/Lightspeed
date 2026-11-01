@@ -78,5 +78,9 @@ object LightspeedForegroundTracker {
             LightspeedSmartPixelsOverlay.onForegroundPackageChanged(currentPkg)
             LightspeedConsciousAirlockOverlay.checkAndShowAirlock(service, currentPkg)
         }
+
+        if (com.sbf.lightspeed.system.bot.LightspeedBotRecorderOverlay.isShowing) {
+            com.sbf.lightspeed.system.bot.LightspeedBotRecorderOverlay.onWindowStateChanged(service)
+        }
     }
 }

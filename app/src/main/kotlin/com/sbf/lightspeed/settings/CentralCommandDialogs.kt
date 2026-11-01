@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedLanguageEngine
+import com.sbf.lightspeed.system.LightspeedVocabulary
 import com.sbf.lightspeed.system.LightspeedNotificationListener
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
@@ -212,6 +214,30 @@ fun ImportOptionsDialog(
                         Text("Paste JSON Text Directly", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = LightspeedStyle.colors.textPrimary)
                         Text("Paste backup payload from clipboard", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VAULT_IMPORT_WARNING),
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        lineHeight = 13.5.sp
+                    )
                 }
             }
         },

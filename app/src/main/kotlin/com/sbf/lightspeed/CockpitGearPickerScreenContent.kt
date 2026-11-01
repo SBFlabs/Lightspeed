@@ -181,7 +181,7 @@ internal fun CockpitGearPickerScreenContent(
     }
 
     val hasFallbackBackdrop = CentralCommandBackdropBlur.backdropBitmap != null
-    val scrimAlpha = if (hasFallbackBackdrop) (activeSnapshot.dimAmount * 0.45f) else activeSnapshot.dimAmount
+    val scrimAlpha = 0.88f
 
     Box(
         modifier = Modifier

@@ -66,6 +66,17 @@ object LightspeedKeyEngine {
      * Intercepts and processes hardware volume and power key events routed from LightspeedAccessibilityService.
      */
     fun onKeyEvent(context: Context, event: KeyEvent): Boolean {
+        // SAFETY INTERLOCK: Hardware Key Emergency Cancel for active macro loops or bot recording
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            val keyCode = event.keyCode
+            if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_POWER) {
+                LightspeedVolumeKeyEngine.stopAutoRepeat()
+                if (com.sbf.lightspeed.system.bot.LightspeedBotEngine.cancelAllAutomationAndRecording(context)) {
+                    return true
+                }
+            }
+        }
+
         val keyCode = event.keyCode
 
         // MODE C: POWER BUTTON ENGINE (Delegated)

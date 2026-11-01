@@ -37,6 +37,10 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
 
             trackingStateLocked = false
             categoryScrubbingEngaged = false
+            isCategoryVectorLocked = false
+            gridEntryRawX = rawX
+            gridEntryRawY = rawY
+            gridDeadZoneLatched = false
             maxVerticalDisplacement = 0f
             isCurrentlyTouched = true; invalidate()
             isHoldFired = false
@@ -84,7 +88,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                 // 1. Direct Lateral Swipe from rest -> Open Gears / Cockpit immediately
                 // Zero category flicker because NEUTRAL never painted categories on screen!
                 if (currentLayer == CruiseLayer.NEUTRAL &&
-                    !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX > (deltaY * 1.1f)) {
+                    !categoryScrubbingEngaged && deltaX > (14f * density) && deltaX >= (deltaY * 0.85f)) {
                     uiHandler.removeCallbacks(neutralToCategoryRunnable)
                     val cPrefs = prefs()
                     val setsList = getGearSetsOrder(isOpenedFromLeftFlank)
@@ -97,7 +101,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                         activeGearSetIndex = 0
                     }
                     currentLayer = CruiseLayer.FAVORITES_GEARS
-                    triggerHardwareHaptic(30, 180)
+                    triggerDeflectorHaptic(isClick = true)
                 }
 
                 // 2. Deliberate vertical movement -> Engage Category 3D Cylinder
@@ -111,6 +115,16 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                 if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
                     processGyroscopeTouchPhysics(rawX, rawY)
                 } else if (currentLayer == CruiseLayer.CATEGORY || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN) {
+                    if (currentLayer == CruiseLayer.CATEGORY) {
+                        val dx = rawX - lastTouchRawX
+                        val dy = rawY - lastTouchRawY
+                        val isInward = if (isOpenedFromLeftFlank) (dx > 0f) else (dx < 0f)
+                        if (isInward && abs(dx) > (abs(dy) * 1.15f)) {
+                            isCategoryVectorLocked = true
+                        } else if (abs(dy) > (abs(dx) * 1.05f)) {
+                            isCategoryVectorLocked = false
+                        }
+                    }
                     evaluateSpatialMetrics(rawX, rawY, rawX, rawY)
                 }
                 lastTouchRawX = rawX
@@ -211,7 +225,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                     val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
                     dismissOverlay()
                     if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
-                        triggerHardwareHaptic(25, 120)
+                        com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorTap(context)
                         service?.triggerDeflectorsGlow() ?: triggerGlow()
                     }
                 } else {
@@ -233,12 +247,20 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
             } else if (macroTrackingActive) {
                 macroTrackingActive = false
                 if (!isHoldFired && currentDetectedGesture != MacroGesture.NONE && currentDetectedGesture != MacroGesture.SCRUBBING) {
+                    val name = currentDetectedGesture.name
+                    if (name.endsWith("_BACK") || name == "SWIPE_UP_DOWN" || name == "SWIPE_DOWN_UP") {
+                        com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorRebound(context)
+                    } else if (name.contains("_UP") || name.contains("_DOWN") || name.contains("_LEFT") || name.contains("_RIGHT")) {
+                        com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorTwoStep(context)
+                    } else {
+                        com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorSingleSwipe(context)
+                    }
                     executeMacroAction(currentActiveZone, currentDetectedGesture)
                 } else if (!isHoldFired && currentDetectedGesture == MacroGesture.NONE) {
                     val duration = System.currentTimeMillis() - touchDownTime
                     val dist = hypot((rawX - touchDownRawX).toDouble(), (rawY - touchDownRawY).toDouble()).toFloat()
                     if (duration < 350 && dist < (20f * resources.displayMetrics.density)) {
-                        triggerHardwareHaptic(25, 120)
+                        com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorTap(context)
                         service?.triggerDeflectorsGlow() ?: triggerGlow()
                     }
                 }

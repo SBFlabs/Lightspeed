@@ -21,6 +21,12 @@ data class ScrubResult(
 
 object CruiseScrubEngine {
 
+    private var wasAboveCeilingZone = false
+
+    fun resetScrubState() {
+        wasAboveCeilingZone = false
+    }
+
     fun dispatchScrubHud(
         context: Context,
         prefs: SharedPreferences,
@@ -112,28 +118,72 @@ object CruiseScrubEngine {
             }
         } else currentBrightness
 
-        // Seamless Sub-Zero Dimming into Extra Dim
+        // Check bottom extreme mode configured by user ("extra_dim", "smart_pixels", "eye_care", or "none")
+        val bottomExtreme = prefs.getString(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_BOTTOM_EXTREME, LightspeedPreferences.SCRUB_EXTREME_NONE) ?: LightspeedPreferences.SCRUB_EXTREME_NONE
+
+        // Seamless Sub-Zero Dimming: route based on user choice
         val currentDimLevel = prefs.getInt(LightspeedPreferences.KEY_EXTRA_DIM_LEVEL, 0)
         if (curBright <= 3 && steps < 0) {
-            val newDimLevel = (currentDimLevel + (-steps * 10)).coerceIn(10, 90)
-            if (newDimLevel != currentDimLevel) {
-                com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, true, newDimLevel)
-                onHaptic?.invoke()
+            when (bottomExtreme) {
+                LightspeedPreferences.SCRUB_EXTREME_SMART_PIXELS -> {
+                    val curPat = prefs.getInt(LightspeedPreferences.KEY_SMART_PIXELS_PATTERN, 25)
+                    val newPat = (curPat + (-steps * 10)).coerceIn(15, 80)
+                    com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay.setEnabled(context, true, newPat)
+                    onHaptic?.invoke()
+                    return ScrubResult(
+                        title = "SMART PIXELS",
+                        value = "$newPat%",
+                        currentValue = 1,
+                        stepIndex = (newPat / 10),
+                        totalSteps = 8
+                    )
+                }
+                LightspeedPreferences.SCRUB_EXTREME_EYE_CARE -> {
+                    val curKelvin = prefs.getInt(LightspeedPreferences.KEY_EYE_CARE_TEMP, 3400)
+                    val newKelvin = (curKelvin - (-steps * 200)).coerceIn(2200, 5000)
+                    com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyEyeCare(context, true, newKelvin)
+                    onHaptic?.invoke()
+                    return ScrubResult(
+                        title = "EYE CARE",
+                        value = "${newKelvin}K",
+                        currentValue = 1,
+                        stepIndex = ((5000 - newKelvin) / 280),
+                        totalSteps = 10
+                    )
+                }
+                LightspeedPreferences.SCRUB_EXTREME_EXTRA_DIM -> {
+                    // Extra Dim
+                    val newDimLevel = (currentDimLevel + (-steps * 10)).coerceIn(10, 90)
+                    if (newDimLevel != currentDimLevel) {
+                        com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, true, newDimLevel)
+                        onHaptic?.invoke()
+                    }
+                    // Auto-sovereignty engaged sub-zero so media players cannot override Extra Dim
+                    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setVideoOverride(context, 0.004f)
+                    return ScrubResult(
+                        title = "EXTRA DIM",
+                        value = if (newDimLevel >= 90) "90% (MAX)" else "$newDimLevel%",
+                        currentValue = 1,
+                        stepIndex = (newDimLevel / 10),
+                        totalSteps = 10
+                    )
+                }
+                else -> {
+                    // None / Deselected: Clamp at 1% brightness with haptic feedback
+                    onHaptic?.invoke()
+                    return ScrubResult(
+                        title = "BRIGHTNESS",
+                        value = "1% (MIN)",
+                        currentValue = 1,
+                        stepIndex = 0,
+                        totalSteps = brightResolution
+                    )
+                }
             }
-            // Auto-sovereignty / video takeover engaged sub-zero (floor brightness) so media players cannot override Extra Dim:
-            com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setVideoOverride(context, 0.004f)
-            return ScrubResult(
-                title = "EXTRA DIM",
-                value = if (newDimLevel >= 90) "90% (MAX)" else "$newDimLevel%",
-                currentValue = 1,
-                stepIndex = (newDimLevel / 10),
-                totalSteps = 10
-            )
         } else if (currentDimLevel > 0 && steps > 0 && curBright <= 3) {
             val newDimLevel = (currentDimLevel - (steps * 10)).coerceIn(0, 90)
             if (newDimLevel == 0) {
                 com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, false, 0)
-                // Back in the standard range: release the overlay so native brightness is untouched
                 com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.clearVideoOverride(context)
             } else {
                 com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.applyExtraDim(context, true, newDimLevel)
@@ -149,34 +199,65 @@ object CruiseScrubEngine {
             )
         }
 
-        val maxBrightness = (255 * 1.20f).toInt()
-        val targetBrightness = (curBright + (steps * brightStep * stepMultiplier).toInt()).coerceIn(1, maxBrightness)
+        val isAccelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_ACCELERATION_ENABLED, true)
+        val accelRate = if (isAccelEnabled) {
+            val userRate = prefs.getInt(LightspeedPreferences.KEY_BRIGHTNESS_SCRUB_ACCELERATION_RATE, 15).coerceIn(5, 50) / 10f
+            // Exponential velocity curve: continuous large step deltas scale progressively
+            val absSteps = abs(steps)
+            1f + ((absSteps - 1).coerceAtLeast(0) * (userRate * 0.15f))
+        } else {
+            1f
+        }
 
-        if (targetBrightness > 255) {
-            // Video Override Boost Zone (101%..120%) - automagically engages sovereignty
-            val boostPct = targetBrightness / 255f
-            com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setSystemBrightness(context, 255)
-            com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setVideoOverride(context, 1.0f)
-            onHaptic?.invoke()
+        val delta = (steps * brightStep * stepMultiplier * accelRate).roundToInt()
+        val rawTargetBrightness = curBright + delta
+
+        val isVideoOverrideCurrentlyActive = com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.getActiveVideoOverride() != null
+
+        // Over-ceiling discrete trigger tunnel: scrubbing past 100% (rawTargetBrightness > 255)
+        // acts strictly as an entry tunnel that toggles the Brightness Override latch on/off.
+        // It does NOT act as a 100%..120% numeric slider range.
+        if (rawTargetBrightness > 255) {
+            // Edge-triggered toggle: only flip latch state on the transition from <=255 to >255
+            if (!wasAboveCeilingZone) {
+                wasAboveCeilingZone = true
+                val nextOverrideState = !isVideoOverrideCurrentlyActive
+                if (nextOverrideState) {
+                    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setSystemBrightness(context, 255)
+                    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setVideoOverride(context, 1.0f)
+                } else {
+                    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.clearVideoOverride(context)
+                }
+                onHaptic?.invoke()
+            }
+            val activeNow = com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.getActiveVideoOverride() != null
             return ScrubResult(
-                title = "⚡ VIDEO OVERRIDE",
-                value = "${(boostPct * 100).toInt()}%",
-                currentValue = targetBrightness,
-                stepIndex = (targetBrightness - 255),
-                totalSteps = (maxBrightness - 255)
+                title = "⚡ BRIGHTNESS OVERRIDE",
+                value = if (activeNow) "LATCHED ON" else "RELEASED",
+                currentValue = 255,
+                stepIndex = if (activeNow) 1 else 0,
+                totalSteps = 1
             )
         }
+
+        // Below or at 100% threshold: reset the crossing flag so crossing above 100% again can toggle
+        wasAboveCeilingZone = false
+
+        val targetBrightness = rawTargetBrightness.coerceIn(1, 255)
 
         val curSysBright = com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.getSystemBrightness(context)
         if (abs(targetBrightness - curSysBright) >= 1) {
             com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setSystemBrightness(context, targetBrightness)
+            if (isVideoOverrideCurrentlyActive) {
+                // If Video Override is latched ON, update overlay brightness to maintain sovereignty at the chosen level
+                val pct = (targetBrightness / 255f).coerceIn(0.01f, 1.0f)
+                com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setVideoOverride(context, pct)
+            }
             onHaptic?.invoke()
         }
 
-        // Standard range (1%..100%): never use the overlay, so native brightness / auto-brightness stay untouched
-        com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.clearVideoOverride(context)
         return ScrubResult(
-            title = "BRIGHTNESS",
+            title = if (isVideoOverrideCurrentlyActive) "⚡ BRIGHTNESS OVERRIDE" else "BRIGHTNESS",
             value = "${(targetBrightness * 100 / 255)}%",
             currentValue = targetBrightness,
             stepIndex = (targetBrightness * brightResolution / 255),

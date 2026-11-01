@@ -3,6 +3,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SETTINGS_DIR="$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/settings"
+DECK_FILES=(
+    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/SonicDeckManager.kt"
+    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/SonicDeckSections.kt"
+    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/SonicAppMixerSection.kt"
+    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/VistaDeckManager.kt"
+    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/hud/ExpandedBrightnessWellnessSection.kt"
+)
 
 echo "=== Lightspeed Theme Drift Guard ==="
 
@@ -37,6 +44,31 @@ if [ -n "$UNAPPROVED_CARDS" ]; then
     exit 1
 fi
 echo "✓ PASS: All Card instances in settings/ are strictly confined to DeckControls.kt, StyleLab, or documented coordinator containers"
+
+# Check 4: Sonic Deck, Vista Deck & ExpandedBrightnessWellnessSection 12-Theme Compliance
+UNAPPROVED_DECK_CARDS=$(grep -rn "[^a-zA-Z]Card(" "${DECK_FILES[@]}" || true)
+if [ -n "$UNAPPROVED_DECK_CARDS" ]; then
+    echo "❌ ERROR: Found unapproved raw Card( in Sonic/Vista Decks:"
+    echo "$UNAPPROVED_DECK_CARDS"
+    exit 1
+fi
+echo "✓ PASS: Sonic & Vista Decks strictly use 12-Theme optical glass containers (zero raw Card)"
+
+UNAPPROVED_DECK_SWITCHES=$(grep -rn "[^a-zA-Z]Switch(" "${DECK_FILES[@]}" || true)
+if [ -n "$UNAPPROVED_DECK_SWITCHES" ]; then
+    echo "❌ ERROR: Found unapproved raw Switch( in Sonic/Vista Decks (must use DeckSwitch):"
+    echo "$UNAPPROVED_DECK_SWITCHES"
+    exit 1
+fi
+echo "✓ PASS: Sonic & Vista Decks strictly use DeckSwitch for active theme consistency"
+
+UNAPPROVED_DECK_SLIDERS=$(grep -rn "[^a-zA-Z]Slider(" "${DECK_FILES[@]}" || true)
+if [ -n "$UNAPPROVED_DECK_SLIDERS" ]; then
+    echo "❌ ERROR: Found unapproved raw Slider( in Sonic/Vista Decks (must use DeckSlider):"
+    echo "$UNAPPROVED_DECK_SLIDERS"
+    exit 1
+fi
+echo "✓ PASS: Sonic & Vista Decks strictly use DeckSlider for active theme consistency"
 
 echo "=== All theme drift guard checks passed successfully! ==="
 exit 0

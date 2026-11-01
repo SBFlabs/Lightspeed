@@ -50,7 +50,7 @@ object LightspeedVolumeKeyEngine {
         }
     }
 
-    private fun stopAutoRepeat() {
+    fun stopAutoRepeat() {
         autoRepeatJob?.cancel()
         autoRepeatJob = null
     }
@@ -125,6 +125,14 @@ object LightspeedVolumeKeyEngine {
     }
 
     fun handleVolumeKeyEvent(context: Context, event: KeyEvent): Boolean {
+        // SAFETY INTERLOCK: Hardware Key Emergency Cancel
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            stopAutoRepeat()
+            if (com.sbf.lightspeed.system.bot.LightspeedBotEngine.cancelAllAutomationAndRecording(context)) {
+                return true
+            }
+        }
+
         val keyCode = event.keyCode
         val action = event.action
         val now = SystemClock.uptimeMillis()

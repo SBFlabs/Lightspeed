@@ -18,6 +18,7 @@ Lightspeed's Central Command provides a polished portal for configuring navigati
 
 [![Download Latest APK](https://img.shields.io/github/downloads/SBFlabs/Lightspeed/total?style=for-the-badge&logo=github&logoColor=white&label=Download%20APK&color=238636)](https://github.com/SBFlabs/Lightspeed/releases/latest)
 [![Add to Obtainium](https://img.shields.io/badge/Obtainium-Add_to_App-4A90E2?style=for-the-badge&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect?r=obtainium://app/%7B%22id%22%3A%22com.sbf.lightspeed%22%2C%22url%22%3A%22https%3A//github.com/SBFlabs/Lightspeed%22%2C%22author%22%3A%22SBF%20Labs%22%2C%22name%22%3A%22Lightspeed%22%2C%22additionalSettings%22%3A%22%7B%5C%22includePrereleases%5C%22%3A%20false%2C%20%5C%22fallbackToOlderReleases%5C%22%3A%20true%7D%22%7D)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Lightspeed_∞-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/sbflabs/e/579114)
 
 > [!TIP]
 > **Obtainium users:** Tapping **Add to Obtainium** on your device automatically imports Lightspeed pre-configured with **pre-releases disabled** (stable releases only). Every release published includes an official SHA-256 checksum in the release notes for cryptographic verification.
@@ -255,11 +256,13 @@ The remaining experimental features are unfinished or currently non-functional a
 
 Experimental features are best treated as exactly that: experiments. The **HUD STRIP swipe-down gesture** may require making the Sensor Area thicker and keeping the swipe-down distance roughly equal to its thickness, so that Android's native status-bar pull-down gesture is not triggered unintentionally.
 
-### 7. 🆕 Decks, Trackpad & Master Cloak (v1.3.0)
+### 7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.3.1)
 
-- **Cybernetic Trackpad**: Floating cursor navigation with customizable acceleration and haptics, plus robot-arm macro buttons.
-- **Sonic Deck**: Per-app volume mixer and offline voice isolation. It runs a privileged audio service through Shizuku that uses roughly 100–150 MB of RAM while enabled and is shut down when you turn it off.
-- **Vista Deck**: Unified brightness and display optics. Video Override only engages above 100% and below 1%, so the 1%–100% range stays pure native Android.
+- **Bottom Sensor Area**: Secondary edge gesture zone mirrored at the bottom edge with configurable span, thickness, offset, sensitivity, stealth idle glow, and full gesture action matrix.
+- **Circle to Search / Screen Assist**: Direct gesture mapping to trigger Google Circle to Search or your default Assistant / Screen context tool.
+- **Cybernetic Trackpad**: Floating cursor navigation with customizable acceleration and haptics, plus robot-arm macro buttons and universal hardware key emergency cancel.
+- **Sonic Deck**: Per-app volume mixer, multi-channel hardware routing, and neural voice isolation & background muffler with customizable acoustic presets and user profiles. Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
+- **Vista Deck**: Unified brightness and display optics with 4 collapsible accordions (Brightness & Video Override, Sub-Zero / Extra Dim / Smart Pixels, Samsung-safe Eye Care & Blue Light Filter, and Astrogation Airlock & 20-20-20). Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
 - **Astrogation Airlock**: The 5-second mindful pause shows both App Time and Sector Time (total time today in that app's category).
 - **Master Cloak Quick Settings tile**: Lightspeed's single Quick Settings tile. Tap to cloak or re-arm everything; long-press to choose other accessibility services to switch off alongside it.
 
@@ -462,6 +465,8 @@ Feature suggestions will be cataloged into the development backlog for future mi
 ---
 
 ## 💙 Free & Supporter Longevity Model
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-Lightspeed_∞-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/sbflabs/e/579114)
 
 The vast majority of Lightspeed is and will remain free forever. Core gesture navigation, app launching, deflectors, system overrides, and backup reliability have zero paywalls.
 

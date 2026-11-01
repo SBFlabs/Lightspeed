@@ -25,10 +25,12 @@ class LightspeedAutomationReceiver : BroadcastReceiver() {
         const val ACTION_GRAVITY_OVERRIDE_360 = "com.sbf.lightspeed.action.GRAVITY_OVERRIDE_360"
         const val ACTION_TOGGLE_AUTO_ROTATE = "com.sbf.lightspeed.action.TOGGLE_AUTO_ROTATE"
         const val ACTION_RESET_GRAVITY = "com.sbf.lightspeed.action.RESET_GRAVITY"
+        const val ACTION_STEALTH_CLOAK = "com.sbf.lightspeed.ACTION_STEALTH_CLOAK"
 
         const val EXTRA_ARMED = "armed"
         const val EXTRA_FLANK = "flank" // "left", "right", "both"
         const val EXTRA_STATE = "state" // boolean
+        const val EXTRA_TOKEN = "token"
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -37,6 +39,24 @@ class LightspeedAutomationReceiver : BroadcastReceiver() {
             var feedbackMessage: String? = null
 
             when (action) {
+                ACTION_STEALTH_CLOAK -> {
+                    val prefs = context.defaultPrefs()
+                    val isAutomationAllowed = prefs.getBoolean(LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION, false)
+                    if (!isAutomationAllowed) {
+                        android.util.Log.w("AutomationReceiver", "Rejected ACTION_STEALTH_CLOAK: KEY_ALLOW_EXTERNAL_AUTOMATION is disabled")
+                        return
+                    }
+                    val savedToken = prefs.getString(LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN, "").orEmpty().trim()
+                    val providedToken = intent.getStringExtra(EXTRA_TOKEN).orEmpty().trim()
+                    if (savedToken.isNotEmpty() && savedToken != providedToken) {
+                        android.util.Log.w("AutomationReceiver", "Rejected ACTION_STEALTH_CLOAK: Token mismatch")
+                        return
+                    }
+                    val currentlyArmed = LightspeedMasterCutoff.isSystemArmed(context)
+                    val targetArmed = if (intent.hasExtra(EXTRA_ARMED)) intent.getBooleanExtra(EXTRA_ARMED, !currentlyArmed) else !currentlyArmed
+                    LightspeedMasterCutoff.setSystemArmed(context, targetArmed)
+                    feedbackMessage = if (targetArmed) "// FLIGHT DECK // Armed ⚡" else "// FLIGHT DECK // Cloaked ⏸"
+                }
                 ACTION_GRAVITY_OVERRIDE_360 -> {
                     LightspeedOrientationManager.overrideTransient360(context)
                     return

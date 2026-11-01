@@ -51,7 +51,7 @@ internal fun LightspeedCruiseOverlay.processMacroGestureMove(rawX: Float, rawY: 
                 uiHandler.removeCallbacks(holdTimerRunnable)
                 aggregateScrubAccumulator = 0f
                 if (!isScrubEntranceHapticFired) {
-                    triggerHardwareHaptic(65, 255)
+                    triggerDeflectorHaptic(isClick = true)
                     isScrubEntranceHapticFired = true
                 }
                 when (assignedScrub) {
@@ -114,7 +114,7 @@ internal fun LightspeedCruiseOverlay.processMacroGestureMove(rawX: Float, rawY: 
         MacroGesture.SCRUBBING -> {
             uiHandler.removeCallbacks(holdTimerRunnable)
             if (!isScrubEntranceHapticFired) {
-                triggerHardwareHaptic(65, 255)
+                triggerDeflectorHaptic(isClick = true)
                 isScrubEntranceHapticFired = true
             }
 
@@ -131,6 +131,7 @@ internal fun LightspeedCruiseOverlay.processMacroGestureMove(rawX: Float, rawY: 
                 macroTrackingActive = false
                 isCruising = false
                 dismissOverlay()
+                com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorDeepPull(context)
                 LightspeedStatusBarOverlay.dismissActionHud(0L)
                 if (isVolume) {
                     service?.let { SonicDeckManager.show(it) }
@@ -153,8 +154,15 @@ internal fun LightspeedCruiseOverlay.processMacroGestureMove(rawX: Float, rawY: 
                 if (LightspeedPreferences.isDeflectorGlowOnGestureStep(context)) {
                     triggerGlow(500L)
                 }
+                com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorTick(context)
+            } else {
+                val name = currentDetectedGesture.name
+                if (name.endsWith("_BACK") || name == "SWIPE_UP_DOWN" || name == "SWIPE_DOWN_UP") {
+                    com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorRebound(context)
+                } else {
+                    com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorTwoStep(context)
+                }
             }
-            triggerHardwareHaptic(18, 100)
             resetHoldTimer()
         }
     }

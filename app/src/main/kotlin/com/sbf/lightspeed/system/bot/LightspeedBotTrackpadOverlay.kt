@@ -133,6 +133,25 @@ object LightspeedBotTrackpadOverlay {
         }
     }
 
+    fun setSuspendedForDialog(suspended: Boolean) {
+        val vis = if (suspended) View.GONE else View.VISIBLE
+        cursorCanvasView?.visibility = vis
+        leftFlankView?.let { v ->
+            if (suspended) v.retractInternal()
+            v.visibility = vis
+            v.postInvalidate()
+        }
+        rightFlankView?.let { v ->
+            if (suspended) v.retractInternal()
+            v.visibility = vis
+            v.postInvalidate()
+        }
+        if (suspended) {
+            isCursorActive = false
+            invalidateCursor()
+        }
+    }
+
     fun hide() {
         val wm = windowManager ?: return
         cursorCanvasView?.let { try { wm.removeView(it) } catch (_: Exception) {} ; cursorCanvasView = null }
@@ -186,6 +205,10 @@ object LightspeedBotTrackpadOverlay {
     internal fun executeArmTapHoldEdit(context: Context, isLeft: Boolean, armIndex: Int, onRetract: () -> Unit) {
         val botId = resolveBotId(isLeft, armIndex)
         LightspeedHapticEngine.heavyClick(context)
+        leftFlankView?.retractInternal()
+        rightFlankView?.retractInternal()
+        isCursorActive = false
+        invalidateCursor()
         onRetract()
         context.startActivity(Intent(context, BotMacroEditorDialog::class.java).apply {
             putExtra(BotMacroEditorDialog.EXTRA_BOT_ID, botId)
@@ -536,7 +559,7 @@ object LightspeedBotTrackpadOverlay {
                                     pendingTapArm = arm
                                     pendingTapUptime = now
                                     mainHandler.removeCallbacks(pendingTapExecuteRunnable)
-                                    mainHandler.postDelayed(pendingTapExecuteRunnable, 360L)
+                                    mainHandler.postDelayed(pendingTapExecuteRunnable, 160L)
                                 }
                             } else if (arm == null) {
                                 if (isDragging) {

@@ -187,10 +187,9 @@ fun DeflectorTabBody(
             }
         }
 
-        val hasSeenEdgeNotice = prefs.getBoolean("pref_has_seen_edge_sovereignty_tip", false)
-        var dismissedWarningSession by remember { mutableStateOf(false) }
-
-        val showEdgeSovereigntyNotice = !isNativeInsetsZeroed && ((exceedsEdgeThreshold && !dismissedWarningSession) || (!hasSeenEdgeNotice))
+        val isDismissedEdgeCard = prefs.getBoolean("pref_dismiss_edge_conflict_card", false)
+        var isEdgeNoticeDemoted by remember { mutableStateOf(isDismissedEdgeCard) }
+        val showEdgeSovereigntyNotice = !isNativeInsetsZeroed
 
         LazyColumn(
             state = listState,
@@ -223,32 +222,38 @@ fun DeflectorTabBody(
                     onStartupModeChange = { mode ->
                         startupMode = mode
                         prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_DEFAULT_STATE, mode).apply()
-                    }
+                    },
+                    context = context,
+                    prefs = prefs,
+                    onRefreshNeeded = onRefreshNeeded
                 )
             }
 
-            if (showEdgeSovereigntyNotice) {
+            if (showEdgeSovereigntyNotice && !isEdgeNoticeDemoted) {
                 item(key = "${secPrefix}edge_sovereignty_tip") {
                     EdgeSovereigntyNoticeCard(
                         exceedsEdgeThreshold = exceedsEdgeThreshold,
                         deflectorCoverageRatio = deflectorCoverageRatio,
                         totalDeflectorSpanDp = totalDeflectorSpanDp,
                         screenHeightDp = screenHeightDp,
+                        isDemoted = false,
+                        onToggleDemote = {
+                            isEdgeNoticeDemoted = true
+                            prefs.edit()
+                                .putBoolean("pref_has_seen_edge_sovereignty_tip", true)
+                                .putBoolean("pref_dismiss_edge_conflict_card", true)
+                                .apply()
+                        },
                         onDismiss = {
-                            dismissedWarningSession = true
-                            prefs.edit().putBoolean("pref_has_seen_edge_sovereignty_tip", true).apply()
+                            isEdgeNoticeDemoted = true
+                            prefs.edit()
+                                .putBoolean("pref_has_seen_edge_sovereignty_tip", true)
+                                .putBoolean("pref_dismiss_edge_conflict_card", true)
+                                .apply()
                         },
                         onOpenOverrides = { showOverridesDeck = true }
                     )
                 }
-            }
-
-            item {
-                DeflectorLandscapeGeometryCard(
-                    context = context,
-                    prefs = prefs,
-                    onRefreshNeeded = onRefreshNeeded
-                )
             }
 
             item {
@@ -330,6 +335,26 @@ fun DeflectorTabBody(
                 onMooringConfirm = { pendingMooringConfirm = it },
                 onRefreshNeeded = onRefreshNeeded
             )
+
+            if (showEdgeSovereigntyNotice && isEdgeNoticeDemoted) {
+                item(key = "${secPrefix}edge_sovereignty_tip_demoted") {
+                    EdgeSovereigntyNoticeCard(
+                        exceedsEdgeThreshold = exceedsEdgeThreshold,
+                        deflectorCoverageRatio = deflectorCoverageRatio,
+                        totalDeflectorSpanDp = totalDeflectorSpanDp,
+                        screenHeightDp = screenHeightDp,
+                        isDemoted = true,
+                        onToggleDemote = {
+                            isEdgeNoticeDemoted = false
+                            prefs.edit()
+                                .putBoolean("pref_dismiss_edge_conflict_card", false)
+                                .apply()
+                        },
+                        onDismiss = {},
+                        onOpenOverrides = { showOverridesDeck = true }
+                    )
+                }
+            }
         }
     }
 

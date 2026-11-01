@@ -32,6 +32,10 @@ internal fun LightspeedCruiseOverlay.performStartCruiseFromFlank(isLeft: Boolean
     isCruising = true
     isCurrentlyTouched = true
     categoryScrubbingEngaged = false
+    isCategoryVectorLocked = false
+    gridEntryRawX = startRawX
+    gridEntryRawY = startRawY
+    gridDeadZoneLatched = false
     maxVerticalDisplacement = 0f
     categoryVisualOffset = 0f
     entranceStartTime = System.currentTimeMillis()
@@ -119,6 +123,16 @@ internal fun LightspeedCruiseOverlay.performFlankTouchEvent(isLeft: Boolean, eve
                 if (currentLayer == CruiseLayer.FAVORITES_GEARS) {
                     processGyroscopeTouchPhysics(rawX, rawY)
                 } else if (currentLayer == CruiseLayer.CATEGORY || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN) {
+                    if (currentLayer == CruiseLayer.CATEGORY) {
+                        val dx = rawX - lastTouchRawX
+                        val dy = rawY - lastTouchRawY
+                        val isInward = if (isOpenedFromLeftFlank) (dx > 0f) else (dx < 0f)
+                        if (isInward && abs(dx) > (abs(dy) * 1.15f)) {
+                            isCategoryVectorLocked = true
+                        } else if (abs(dy) > (abs(dx) * 1.05f)) {
+                            isCategoryVectorLocked = false
+                        }
+                    }
                     evaluateSpatialMetrics(rawX, rawY, rawX, rawY)
                 }
                 lastTouchRawX = rawX

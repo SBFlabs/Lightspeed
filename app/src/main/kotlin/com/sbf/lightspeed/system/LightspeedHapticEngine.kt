@@ -9,6 +9,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import com.sbf.lightspeed.LightspeedAccessibilityService
 
 /**
  * High-performance centralized tactile and haptic feedback engine for Lightspeed.
@@ -36,11 +37,12 @@ object LightspeedHapticEngine {
 
     private fun getVibrator(context: Context): Vibrator? {
         return try {
+            val ctx = LightspeedAccessibilityService.instance ?: context
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                vm?.defaultVibrator ?: context.getSystemService(Vibrator::class.java)
+                val vm = ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator ?: ctx.getSystemService(Vibrator::class.java)
             } else {
-                context.getSystemService(Vibrator::class.java)
+                ctx.getSystemService(Vibrator::class.java)
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to obtain Vibrator service", e)
@@ -144,9 +146,29 @@ object LightspeedHapticEngine {
     }
 
     /**
+     * Returns true if this device is likely a MediaTek/Infinix/Transsion device
+     * whose vibrator is suppressed by USAGE_ASSISTANCE_SONIFICATION on silent mode.
+     * On such devices we must use USAGE_HARDWARE_FEEDBACK or a raw oneShot pulse.
+     */
+    private fun isMediaTekOrTranssion(): Boolean {
+        val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+        val brand = android.os.Build.BRAND.lowercase()
+        return manufacturer.contains("infinix") || manufacturer.contains("transsion") ||
+               manufacturer.contains("tecno") || manufacturer.contains("itel") ||
+               brand.contains("infinix") || brand.contains("transsion") ||
+               brand.contains("tecno") || brand.contains("itel")
+    }
+
+    private fun isSamsung(): Boolean {
+        val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+        val brand = android.os.Build.BRAND.lowercase()
+        return manufacturer.contains("samsung") || brand.contains("samsung")
+    }
+
+    /**
      * Direct vibration bypassing predefined effects to produce soft low-frequency pulses.
      */
-    private fun vibrateDirect(context: Context, durationMs: Long, amplitude: Int) {
+    fun vibrateDirect(context: Context, durationMs: Long, amplitude: Int) {
         try {
             val vibrator = getVibrator(context) ?: return
             if (!vibrator.hasVibrator()) return
@@ -169,34 +191,57 @@ object LightspeedHapticEngine {
     }
 
     fun pulseTick(context: Context, profile: String) {
+        val scale = getSystemScale(context)
         if (profile.startsWith("custom_")) {
             val pct = profile.removePrefix("custom_").toIntOrNull()?.coerceIn(0, 100) ?: 50
             if (pct <= 0) return
-            val duration = (10L + (18L * pct / 100f)).toLong()
-            val amp = (40 + (160 * pct / 100f)).toInt()
+            val rawDuration = (18L + (18L * pct / 100f))
+            val rawAmp = (140 + (115 * pct / 100f))
+            val duration = (rawDuration * scale).toLong().coerceIn(15L, 60L)
+            val amp = (rawAmp * scale).toInt().coerceIn(120, 255)
             vibrateDirect(context, durationMs = duration, amplitude = amp)
             return
         }
         when (profile) {
-            "soft_low_freq", "soft" -> vibrateDirect(context, durationMs = 12L, amplitude = 65)
-            "heavy" -> vibrate(context, durationMs = 24L, amplitude = 180)
-            else -> vibrate(context, durationMs = 15L, amplitude = 110)
+            "soft_low_freq", "soft" -> vibrateDirect(context, durationMs = (20L * scale).toLong().coerceIn(15L, 40L), amplitude = (140 * scale).toInt().coerceIn(100, 255))
+            "heavy" -> vibrate(context, durationMs = (35L * scale).toLong().coerceIn(25L, 60L), amplitude = (250 * scale).toInt().coerceIn(180, 255))
+            else -> vibrate(context, durationMs = (28L * scale).toLong().coerceIn(20L, 50L), amplitude = (220 * scale).toInt().coerceIn(160, 255))
         }
     }
 
     fun pulseClick(context: Context, profile: String) {
+        val scale = getSystemScale(context)
         if (profile.startsWith("custom_")) {
             val pct = profile.removePrefix("custom_").toIntOrNull()?.coerceIn(0, 100) ?: 50
             if (pct <= 0) return
-            val duration = (15L + (25L * pct / 100f)).toLong()
-            val amp = (60 + (195 * pct / 100f)).toInt()
+            val rawDuration = (22L + (20L * pct / 100f))
+            val rawAmp = (180 + (75 * pct / 100f))
+            val duration = (rawDuration * scale).toLong().coerceIn(20L, 65L)
+            val amp = (rawAmp * scale).toInt().coerceIn(150, 255)
             vibrateDirect(context, durationMs = duration, amplitude = amp)
             return
         }
         when (profile) {
-            "soft_low_freq", "soft" -> vibrateDirect(context, durationMs = 18L, amplitude = 90)
-            "heavy" -> vibrate(context, durationMs = 38L, amplitude = 220)
-            else -> vibrate(context, durationMs = 28L, amplitude = 170)
+            "soft_low_freq", "soft" -> vibrateDirect(context, durationMs = (25L * scale).toLong().coerceIn(20L, 45L), amplitude = (160 * scale).toInt().coerceIn(120, 255))
+            "heavy" -> vibrate(context, durationMs = (42L * scale).toLong().coerceIn(30L, 70L), amplitude = (255 * scale).toInt().coerceIn(220, 255))
+            else -> vibrate(context, durationMs = (32L * scale).toLong().coerceIn(25L, 55L), amplitude = (240 * scale).toInt().coerceIn(180, 255))
+        }
+    }
+
+    fun getSystemScale(context: Context): Float {
+        val profile = context.defaultPrefs().getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical"
+        if (profile == "off") return 0f
+        return when (profile) {
+            "soft_low_freq", "soft" -> 0.75f
+            "heavy" -> 1.25f
+            "tactical" -> 1.0f
+            else -> {
+                if (profile.startsWith("custom_")) {
+                    val pct = profile.removePrefix("custom_").toFloatOrNull()?.coerceIn(0f, 100f) ?: 50f
+                    // Scales cleanly between 0.65f and 1.25f when not Off
+                    0.65f + (pct / 100f) * 0.60f
+                } else 1.0f
+            }
         }
     }
 
@@ -260,7 +305,18 @@ object LightspeedHapticEngine {
 
         if (effective == "off" || effective == "jumps_only") return
         if (shouldThrottle(context)) return
-        pulseTick(context, effective)
+        // Route all pulses through USAGE_HARDWARE_FEEDBACK / vibrateDirect with minimum 22ms
+        val durationMs = when (effective) {
+            "soft_low_freq", "soft" -> 22L
+            "heavy" -> 35L
+            else -> 22L
+        }
+        val amplitude = when (effective) {
+            "soft_low_freq", "soft" -> 70
+            "heavy" -> 200
+            else -> 120
+        }
+        vibrateDirect(context, durationMs, amplitude)
     }
 
     fun deflectorClick(context: Context) {
@@ -268,7 +324,76 @@ object LightspeedHapticEngine {
         val deflectorPref = prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "") ?: ""
         val effective = if (deflectorPref.isNotEmpty()) deflectorPref else (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
         if (effective == "off") return
-        pulseClick(context, effective)
+        val durationMs = when (effective) {
+            "soft_low_freq", "soft" -> 28L
+            "heavy" -> 45L
+            else -> 32L
+        }
+        val amplitude = when (effective) {
+            "soft_low_freq", "soft" -> 100
+            "heavy" -> 230
+            else -> 180
+        }
+        vibrateDirect(context, durationMs, amplitude)
+    }
+
+    fun deflectorTap(context: Context) {
+        val prefs = context.defaultPrefs()
+        val pref = prefs.getString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TAP, "")?.takeIf { it.isNotEmpty() }
+            ?: prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        if (pref == "off" || pref == "jumps_only") return
+        if (shouldThrottle(context)) return
+        pulseClick(context, pref)
+    }
+
+    fun deflectorSingleSwipe(context: Context) {
+        val prefs = context.defaultPrefs()
+        val pref = prefs.getString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_SWIPE, "")?.takeIf { it.isNotEmpty() }
+            ?: prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        if (pref == "off") return
+        pulseClick(context, pref)
+    }
+
+    fun deflectorTwoStep(context: Context) {
+        val prefs = context.defaultPrefs()
+        val pref = prefs.getString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TWOSTEP, "")?.takeIf { it.isNotEmpty() }
+            ?: prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        if (pref == "off") return
+        pulseClick(context, pref)
+    }
+
+    fun deflectorRebound(context: Context) {
+        val prefs = context.defaultPrefs()
+        val pref = prefs.getString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_REBOUND, "")?.takeIf { it.isNotEmpty() }
+            ?: prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        if (pref == "off") return
+        pulseClick(context, pref)
+    }
+
+    fun deflectorHold(context: Context) {
+        val prefs = context.defaultPrefs()
+        val pref = prefs.getString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_HOLD, "")?.takeIf { it.isNotEmpty() }
+            ?: prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        if (pref == "off") return
+        pulseClick(context, pref)
+    }
+
+    fun deflectorDeepPull(context: Context) {
+        val prefs = context.defaultPrefs()
+        val pref = prefs.getString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_DEEP_PULL, "")?.takeIf { it.isNotEmpty() }
+            ?: prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, "")?.takeIf { it.isNotEmpty() }
+            ?: (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
+        if (pref == "off") return
+        when (pref) {
+            "soft_low_freq", "soft" -> vibrateDirect(context, durationMs = 28L, amplitude = 140)
+            "heavy" -> vibrate(context, durationMs = 55L, amplitude = 255)
+            else -> vibrate(context, durationMs = 45L, amplitude = 220)
+        }
     }
 
     // ==========================================
@@ -282,7 +407,17 @@ object LightspeedHapticEngine {
 
         if (effective == "off" || effective == "jumps_only") return
         if (shouldThrottle(context)) return
-        pulseTick(context, effective)
+        val durationMs = when (effective) {
+            "soft_low_freq", "soft" -> 22L
+            "heavy" -> 35L
+            else -> 28L
+        }
+        val amplitude = when (effective) {
+            "soft_low_freq", "soft" -> 160
+            "heavy" -> 255
+            else -> 220
+        }
+        vibrate(context, durationMs = durationMs, amplitude = amplitude)
     }
 
     fun centralCommandClick(context: Context) {
@@ -290,7 +425,23 @@ object LightspeedHapticEngine {
         val ccPref = prefs.getString(LightspeedPreferences.KEY_CENTRAL_COMMAND_HAPTICS, "") ?: ""
         val effective = if (ccPref.isNotEmpty()) ccPref else (prefs.getString(LightspeedPreferences.KEY_HAPTIC_PROFILE, "tactical") ?: "tactical")
         if (effective == "off") return
-        pulseClick(context, effective)
+        val durationMs = when (effective) {
+            "soft_low_freq", "soft" -> 28L
+            "heavy" -> 42L
+            else -> 35L
+        }
+        val amplitude = when (effective) {
+            "soft_low_freq", "soft" -> 180
+            "heavy" -> 255
+            else -> 240
+        }
+        vibrate(context, durationMs = durationMs, amplitude = amplitude)
+        try {
+            com.sbf.lightspeed.LightspeedCruiseOverlay.instance?.performHapticFeedback(
+                android.view.HapticFeedbackConstants.LONG_PRESS,
+                android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+            )
+        } catch (_: Exception) {}
     }
 
     // ==========================================

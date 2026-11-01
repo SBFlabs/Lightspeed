@@ -44,6 +44,17 @@ internal class IsolationIntensityMixer {
         val boost = vocalBoostLevel.coerceIn(0.0f, 1.0f)
         val muffle = backgroundMuffleLevel.coerceIn(0.0f, 1.0f)
 
+        // At 100% muffle, output 100% pure neural speech mask with zero dry background mix
+        if (muffle >= 0.999f) {
+            val userBoostGain = 1.0f + (boost * 1.512f)
+            val speechGain = ISOLATED_VOICE_COMPENSATION_GAIN * userBoostGain
+            for (i in 0 until hopSize) {
+                val speech = speechHop[i]
+                outputHop[i] = softLimit(speech * speechGain)
+            }
+            return
+        }
+
         val speechPresence = updateSpeechPresence(dryHop, speechHop, hopSize)
         val effectiveReduction = computeEffectiveBackgroundReduction(muffle, speechPresence)
         val backgroundGain = (1.0f - effectiveReduction).coerceIn(0.0f, 1.0f)

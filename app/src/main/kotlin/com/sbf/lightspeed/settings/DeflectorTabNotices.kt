@@ -8,8 +8,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,6 +32,8 @@ fun EdgeSovereigntyNoticeCard(
     deflectorCoverageRatio: Float,
     totalDeflectorSpanDp: Int,
     screenHeightDp: Int,
+    isDemoted: Boolean = false,
+    onToggleDemote: () -> Unit = {},
     onDismiss: () -> Unit,
     onOpenOverrides: () -> Unit
 ) {
@@ -36,6 +41,51 @@ fun EdgeSovereigntyNoticeCard(
     val noticeContainerColor = if (exceedsEdgeThreshold) LightspeedTokens.TacticalNoticeWarm.copy(alpha = 0.70f) else LightspeedTokens.TacticalNoticeDark.copy(alpha = 0.55f)
     val noticeBorderColor = if (exceedsEdgeThreshold) cautionAmber.copy(alpha = 0.50f) else LightspeedTokens.StatusCyanSoft.copy(alpha = 0.35f)
     val noticeAccentColor = if (exceedsEdgeThreshold) cautionAmber else LightspeedTokens.StatusCyanSoft
+
+    if (isDemoted) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+            border = BorderStroke(1.dp, LightspeedStyle.colors.textPrimary.copy(alpha = 0.08f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .clickable { onToggleDemote() }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (exceedsEdgeThreshold) Icons.Default.Warning else Icons.Default.Info,
+                        contentDescription = null,
+                        tint = LightspeedStyle.colors.textSecondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(
+                        text = "ANDROID EDGE GESTURE NOTICE (COLLAPSED)",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = LightspeedStyle.colors.textSecondary
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "Expand",
+                    tint = LightspeedStyle.colors.textSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+        return
+    }
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -50,6 +100,7 @@ fun EdgeSovereigntyNoticeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier.weight(1f).padding(end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -67,18 +118,22 @@ fun EdgeSovereigntyNoticeCard(
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
-                        color = noticeAccentColor
+                        color = noticeAccentColor,
+                        maxLines = 1
                     )
                 }
                 IconButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        onToggleDemote()
+                        onDismiss()
+                    },
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Dismiss",
-                        tint = LightspeedStyle.colors.textSecondary.copy(alpha = 0.7f),
-                        modifier = Modifier.size(14.dp)
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Collapse Notice",
+                        tint = LightspeedStyle.colors.textSecondary.copy(alpha = 0.85f),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -98,20 +153,22 @@ fun EdgeSovereigntyNoticeCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onOpenOverrides,
-                    modifier = Modifier.fillMaxWidth().height(34.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, cautionAmber.copy(alpha = 0.45f)),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = cautionAmber.copy(alpha = 0.12f),
                         contentColor = cautionAmber
                     ),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        "⚡ OPEN SYSTEM OVERRIDES (EDGE NEUTRALIZATION)",
+                        "OPEN SYSTEM OVERRIDES (EDGE NEUTRALIZATION)",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }

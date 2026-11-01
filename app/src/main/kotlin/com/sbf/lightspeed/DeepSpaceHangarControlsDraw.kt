@@ -161,7 +161,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
         textPaint.color = when {
             isLocked -> goldColor
             isSelected -> Color.WHITE
-            else -> Color.argb(190, 210, 228, 255)
+            else -> Color.argb(240, 230, 242, 255)
         }
         val displayLabel = if (isLocked && !label.startsWith("🔒")) "🔒 $label" else label
         canvas.drawText(displayLabel, rect.centerX(), rect.centerY() + 3.5f * d, textPaint)
@@ -317,10 +317,12 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             val ret3Rect = RectF(leftX + (retW + gap) * 2f, layout.sub2Y - 13f * d, leftX + (retW + gap) * 2f + retW, layout.sub2Y + 13f * d)
             val ret4Rect = RectF(rightX - retW, layout.sub2Y - 13f * d, rightX, layout.sub2Y + 13f * d)
             val reticleStyle = prefs.getString(LightspeedPreferences.KEY_GEAR_RETICLE_STYLE, "tactical") ?: "tactical"
+            val isCrossLocked = !isInfinityUnlocked
+            val isDiamondLocked = !isInfinityUnlocked
             drawPill(ret1Rect, "[ ] TACTICAL", reticleStyle == "tactical", m3Primary, 8.5f)
             drawPill(ret2Rect, "( ) CYBER", reticleStyle == "cyber", m3Primary, 8.5f)
-            drawPill(ret3Rect, "+ CROSS", reticleStyle == "cross", m3Primary, 8.5f)
-            drawPill(ret4Rect, "◇ DIAMOND", reticleStyle == "diamond", m3Primary, 8.5f)
+            drawPill(ret3Rect, "+ CROSS", !isCrossLocked && reticleStyle == "cross", m3Primary, 8.0f, isLocked = isCrossLocked)
+            drawPill(ret4Rect, "◇ DIAMOND", !isDiamondLocked && reticleStyle == "diamond", m3Primary, 8.0f, isLocked = isDiamondLocked)
 
             // Sub-row 3: Reticle Targeting Horizon
             val ori1Rect = RectF(leftX, layout.sub3Y - 13f * d, leftX + halfBtnW, layout.sub3Y + 13f * d)

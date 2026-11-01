@@ -157,6 +157,14 @@ object LightspeedPowerKeyEngine {
     }
 
     fun handlePowerKeyEvent(context: Context, event: KeyEvent, now: Long): Boolean {
+        // SAFETY INTERLOCK: Hardware Key Emergency Cancel
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            LightspeedVolumeKeyEngine.stopAutoRepeat()
+            if (com.sbf.lightspeed.system.bot.LightspeedBotEngine.cancelAllAutomationAndRecording(context)) {
+                return true
+            }
+        }
+
         if (!isPowerEnabled(context)) return false
 
         val doublePressWindowMs = getDoublePressWindowMs(context)

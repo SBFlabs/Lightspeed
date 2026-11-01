@@ -2,6 +2,7 @@ package com.sbf.lightspeed.settings
 
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
+import android.view.WindowManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -79,12 +80,14 @@ fun DeckDialog(
             val dialogWindow = (view.parent as? DialogWindowProvider)?.window
             dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
             dialogWindow?.setDimAmount(snapshot.dimAmount)
+            dialogWindow?.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+            dialogWindow?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
 
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.80f)
-                .widthIn(max = 350.dp)
+                .fillMaxWidth(0.90f)
+                .widthIn(min = 320.dp, max = 480.dp)
                 .padding(vertical = 20.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -285,4 +288,66 @@ fun DeckButton(
             letterSpacing = 0.4.sp
         )
     }
+}
+
+/**
+ * Tactical Deck Slider matching the active Lightspeed 12-theme accent color.
+ * Eliminates default Material3 purple tint.
+ */
+@Composable
+fun DeckSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    enabled: Boolean = true,
+    onValueChangeFinished: (() -> Unit)? = null
+) {
+    val lsColors = LightspeedStyle.colors
+    androidx.compose.material3.Slider(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        valueRange = valueRange,
+        steps = steps,
+        onValueChangeFinished = onValueChangeFinished,
+        colors = androidx.compose.material3.SliderDefaults.colors(
+            thumbColor = lsColors.accent,
+            activeTrackColor = lsColors.accent,
+            inactiveTrackColor = lsColors.accent.copy(alpha = 0.22f),
+            activeTickColor = Color.Transparent,
+            inactiveTickColor = Color.Transparent,
+            disabledThumbColor = lsColors.textDisabled,
+            disabledActiveTrackColor = lsColors.textDisabled.copy(alpha = 0.3f),
+            disabledInactiveTrackColor = lsColors.surface.copy(alpha = 0.3f)
+        )
+    )
+}
+
+/**
+ * Tactical Deck Switch matching the active Lightspeed theme colors.
+ */
+@Composable
+fun DeckSwitch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val lsColors = LightspeedStyle.colors
+    androidx.compose.material3.Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        colors = androidx.compose.material3.SwitchDefaults.colors(
+            checkedThumbColor = lsColors.textPrimary,
+            checkedTrackColor = lsColors.accent,
+            uncheckedThumbColor = lsColors.textSecondary,
+            uncheckedTrackColor = lsColors.surface,
+            uncheckedBorderColor = lsColors.accent.copy(alpha = 0.35f)
+        )
+    )
 }

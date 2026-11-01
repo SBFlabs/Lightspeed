@@ -77,7 +77,7 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
         if (actionValue.startsWith("bot:macro_")) {
             isHoldFired = true
             val botId = actionValue.removePrefix("bot:macro_").toIntOrNull() ?: 1
-            triggerHardwareHaptic(40, 200)
+            triggerDeflectorHaptic(isClick = true)
             dismissOverlay()
             LightspeedBotEngine.startRecording(context, botId)
             macroTrackingActive = false
@@ -92,7 +92,7 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
             aggregateScrubAccumulator = 0f
             scrubStartX = lastTouchRawX
             isScrubEntranceHapticFired = true
-            triggerHardwareHaptic(35, 180)
+            triggerDeflectorHaptic(isClick = true)
             when (actionValue) {
                 "system:volume", "scrub:volume" -> {
                     val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -125,7 +125,7 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
                 currentDetectedGesture = holdEquivalent
             }
             executeMacroAction(zone, holdEquivalent)
-            triggerHardwareHaptic(35, 160)
+            com.sbf.lightspeed.system.LightspeedHapticEngine.deflectorHold(context)
             macroTrackingActive = false
         }
     }

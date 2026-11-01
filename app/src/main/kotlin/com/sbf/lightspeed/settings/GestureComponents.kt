@@ -50,6 +50,7 @@ fun GestureMappingRow(
     labelCache: Map<String, String>,
     showMediaQuickAccess: Boolean = false,
     showToolsQuickAccess: Boolean = false,
+    showBottomSensorQuickAccess: Boolean = false,
     installedTools: List<TacticalToolItem> = emptyList(),
     badgeText: String? = null,
     customLeading: (@Composable () -> Unit)? = null,
@@ -108,6 +109,7 @@ fun GestureMappingRow(
 
     val hasControls = showMediaQuickAccess ||
             showToolsQuickAccess ||
+            showBottomSensorQuickAccess ||
             isHold ||
             isOrientationAction ||
             isMethodAction ||
@@ -234,64 +236,71 @@ fun GestureMappingRow(
                 }
             }
 
-            // Line 3: Dedicated Action Chips & Dropdowns (Wrapped FlowRow)
+            // Line 3: Dedicated Action Chips & Dropdowns (Horizontally scrollable with compact chip styling)
             if (hasControls) {
-                @OptIn(ExperimentalLayoutApi::class)
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // Hold Duration Customization Chip
-                    if (isHold) {
-                        GestureHoldDurationControl(context, prefs, key, activeSnapshot, opticalColors, readableTint)
+                if (currentRawValue == "system:brightness") {
+                    Box(modifier = Modifier.padding(top = 6.dp)) {
+                        GestureBrightnessDualRowControls(context, prefs, key, currentRawValue, activeSnapshot, opticalColors, readableTint)
                     }
-
-                    // Synthetic Gravity Mode Sub-Chip
-                    if (isOrientationAction) {
-                        GestureOrientationModeControl(context, currentRawValue, activeSnapshot)
+                } else if (currentRawValue == "system:volume") {
+                    Box(modifier = Modifier.padding(top = 6.dp)) {
+                        GestureVolumeDualRowControls(context, prefs, key, currentRawValue, activeSnapshot, opticalColors, readableTint)
                     }
-
-                    // Action Method Sub-Chip (Split Screen / Close App / Scroll)
-                    if (isMethodAction) {
-                        GestureActionMethodControl(context, currentRawValue, activeSnapshot, opticalColors, readableTint)
-                    }
-
-                    // Synthetic Gravity Assigned Apps Chip
-                    if (gravityBucket != null) {
-                        GestureGravityAppControl(context, prefs, gravityBucket, activeSnapshot)
-                    }
-
-                    // Quick Media Actions Dropdown Menu
-                    if (showMediaQuickAccess) {
-                        GestureMediaQuickAccessControl(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
-                    }
-
-                    // Quick Actions Dropdown Menu (Tactical Tools / Shortcuts)
-                    if (showToolsQuickAccess && installedTools.isNotEmpty()) {
-                        GestureToolsQuickAccessControl(context, prefs, key, currentRawValue, installedTools, { currentRawValue = it }, activeSnapshot)
-                    }
-
-                    // HUD Style & Controls for Scrubbers
-                    if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:brightness" || currentRawValue == "system:volume" || currentRawValue == "system:scroll_scrub") {
-                        if (currentRawValue == "system:brightness") {
-                            GestureBrightnessScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
-                            GestureBrightnessSubChips(context, prefs, activeSnapshot)
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Hold Duration Customization Chip
+                        if (isHold) {
+                            GestureHoldDurationControl(context, prefs, key, activeSnapshot, opticalColors, readableTint)
                         }
-                        if (currentRawValue == "system:volume") {
-                            GestureVolumeScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
-                            GestureVolumeSubChips(context, prefs, activeSnapshot)
-                        }
-                        GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
-                        GestureHudThemeToggleChip(prefs, activeSnapshot)
-                        GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
-                    }
 
-                    // Skip Duration Selector for Media Skip Actions
-                    if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {
-                        GestureMediaSkipDropdown(context, prefs, currentRawValue, activeSnapshot)
+                        // Synthetic Gravity Mode Sub-Chip
+                        if (isOrientationAction) {
+                            GestureOrientationModeControl(context, currentRawValue, activeSnapshot)
+                        }
+
+                        // Action Method Sub-Chip (Split Screen / Close App / Scroll)
+                        if (isMethodAction) {
+                            GestureActionMethodControl(context, currentRawValue, activeSnapshot, opticalColors, readableTint)
+                        }
+
+                        // Synthetic Gravity Assigned Apps Chip
+                        if (gravityBucket != null) {
+                            GestureGravityAppControl(context, prefs, gravityBucket, activeSnapshot)
+                        }
+
+                        // Quick Media Actions Dropdown Menu
+                        if (showMediaQuickAccess) {
+                            GestureMediaQuickAccessControl(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
+                        }
+
+                        // Quick Actions Dropdown Menu (Tactical Tools / Shortcuts)
+                        if (showToolsQuickAccess && installedTools.isNotEmpty()) {
+                            GestureToolsQuickAccessControl(context, prefs, key, currentRawValue, installedTools, { currentRawValue = it }, activeSnapshot)
+                        }
+
+                        // Bottom Sensor Area Quick Access Chips
+                        if (showBottomSensorQuickAccess) {
+                            GestureBottomSensorSubChips(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
+                        }
+
+                        // HUD Style & Controls for Screen Timeout / Scroll Scrub
+                        if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:scroll_scrub") {
+                            GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
+                            GestureHudThemeToggleChip(prefs, activeSnapshot)
+                            GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
+                        }
+
+                        // Skip Duration Selector for Media Skip Actions
+                        if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {
+                            GestureMediaSkipDropdown(context, prefs, currentRawValue, activeSnapshot)
+                        }
                     }
                 }
             }

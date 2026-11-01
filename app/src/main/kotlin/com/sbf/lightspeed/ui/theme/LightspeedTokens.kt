@@ -20,7 +20,9 @@ data class LightspeedColors(
     val accentGold: Color,
     val accentInfo: Color,
     val accentDanger: Color,
-    val accentAlert: Color
+    val accentAlert: Color,
+    val accent: Color = accentInfo,
+    val surface: Color = dialogSurface
 )
 
 val DarkLightspeedColors = LightspeedColors(

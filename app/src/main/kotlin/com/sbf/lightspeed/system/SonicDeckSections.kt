@@ -3,6 +3,10 @@ package com.sbf.lightspeed.system
 import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioManager
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,15 +20,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.settings.DeckSlider
+import com.sbf.lightspeed.settings.DeckSwitch
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
 import com.sbf.lightspeed.system.sonic.SonicChannelRouter
 import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun SonicDialogueSection(
     context: Context,
@@ -34,16 +44,20 @@ internal fun SonicDialogueSection(
     var activePreset by remember { mutableStateOf(SonicVoiceIsolationEngine.activePreset) }
     var vocalBoost by remember { mutableFloatStateOf(SonicVoiceIsolationEngine.vocalBoostLevel) }
     var bgMuffle by remember { mutableFloatStateOf(SonicVoiceIsolationEngine.backgroundMuffleLevel) }
-    val tint = Color(snapshot.tintArgb.toInt())
+    var customProfiles by remember { mutableStateOf(SonicVoiceIsolationEngine.getCustomProfiles(context)) }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var profileNameInput by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val tint = Color(snapshot.effectiveTintArgb.toInt())
 
-    val presets = remember {
-        listOf(
-            SonicVoiceIsolationEngine.PRESET_CINEMA to "Cinema",
-            SonicVoiceIsolationEngine.PRESET_PODCAST to "Podcast",
-            SonicVoiceIsolationEngine.PRESET_GAMING to "Gaming",
-            SonicVoiceIsolationEngine.PRESET_MAX to "Max",
-            SonicVoiceIsolationEngine.PRESET_CUSTOM to "Custom"
-        )
+    LaunchedEffect(showSaveDialog) {
+        SonicDeckManager.updateWindowFocusable(showSaveDialog)
+        if (showSaveDialog) {
+            kotlinx.coroutines.delay(100)
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -52,11 +66,15 @@ internal fun SonicDialogueSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Icon(Icons.Default.GraphicEq, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
-                Text("CINEMA DIALOGUE & AI ISOLATION", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("VOICE ISOLATION & BACKGROUND MUFFLER", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
-            Switch(
+            DeckSwitch(
                 checked = isEnabled,
                 onCheckedChange = {
                     isEnabled = it
@@ -69,39 +87,206 @@ internal fun SonicDialogueSection(
             )
         }
 
-        // 5 Acoustic Presets Row
+        // Horizontal Scrollable Acoustic Presets Row (MAX, Custom, + User Saved Profiles)
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            for ((presetId, label) in presets) {
-                val isSelected = activePreset == presetId
+            // 1. MAX Preset
+            val isMaxSelected = activePreset == SonicVoiceIsolationEngine.PRESET_MAX
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (isMaxSelected) tint.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.06f))
+                    .border(
+                        width = if (isMaxSelected) 1.dp else 0.6.dp,
+                        color = if (isMaxSelected) tint else Color.White.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .clickable {
+                        activePreset = SonicVoiceIsolationEngine.PRESET_MAX
+                        SonicVoiceIsolationEngine.applyPreset(context, SonicVoiceIsolationEngine.PRESET_MAX)
+                        vocalBoost = SonicVoiceIsolationEngine.vocalBoostLevel
+                        bgMuffle = SonicVoiceIsolationEngine.backgroundMuffleLevel
+                    }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "MAX",
+                    fontSize = 9.sp,
+                    fontWeight = if (isMaxSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isMaxSelected) Color.White else Color.White.copy(alpha = 0.75f)
+                )
+            }
+
+            // 2. Custom Preset with HOLD ↗ to save
+            val isCustomSelected = activePreset == SonicVoiceIsolationEngine.PRESET_CUSTOM
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (isCustomSelected) tint.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.06f))
+                    .border(
+                        width = if (isCustomSelected) 1.dp else 0.6.dp,
+                        color = if (isCustomSelected) tint else Color.White.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .combinedClickable(
+                        onClick = {
+                            activePreset = SonicVoiceIsolationEngine.PRESET_CUSTOM
+                            SonicVoiceIsolationEngine.applyPreset(context, SonicVoiceIsolationEngine.PRESET_CUSTOM)
+                            vocalBoost = SonicVoiceIsolationEngine.vocalBoostLevel
+                            bgMuffle = SonicVoiceIsolationEngine.backgroundMuffleLevel
+                        },
+                        onLongClick = {
+                            profileNameInput = ""
+                            showSaveDialog = true
+                        }
+                    )
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Custom",
+                        fontSize = 9.sp,
+                        fontWeight = if (isCustomSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isCustomSelected) Color.White else Color.White.copy(alpha = 0.75f)
+                    )
+                    Text(
+                        text = "HOLD ↗",
+                        fontSize = 6.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isCustomSelected) tint else Color.White.copy(alpha = 0.45f)
+                    )
+                }
+            }
+
+            // 3. Dynamic User Saved Custom Profiles
+            for ((profileName, values) in customProfiles) {
+                val isProfSelected = activePreset == profileName
                 Box(
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxHeight()
                         .clip(RoundedCornerShape(6.dp))
-                        .background(if (isSelected) tint.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.06f))
-                        .border(
-                            width = if (isSelected) 1.dp else 0.6.dp,
-                            color = if (isSelected) tint else Color.White.copy(alpha = 0.18f),
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .clickable {
-                            activePreset = presetId
-                            SonicVoiceIsolationEngine.applyPreset(context, presetId)
+                        .background(if (isProfSelected) tint.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.06f))
+                    .border(
+                        width = if (isProfSelected) 1.dp else 0.6.dp,
+                        color = if (isProfSelected) tint else Color.White.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .combinedClickable(
+                        onClick = {
+                            activePreset = profileName
+                            SonicVoiceIsolationEngine.applyPreset(context, profileName)
+                            vocalBoost = SonicVoiceIsolationEngine.vocalBoostLevel
+                            bgMuffle = SonicVoiceIsolationEngine.backgroundMuffleLevel
+                        },
+                        onLongClick = {
+                            // Long press on saved profile deletes it
+                            SonicVoiceIsolationEngine.deleteCustomProfile(context, profileName)
+                            customProfiles = SonicVoiceIsolationEngine.getCustomProfiles(context)
+                            activePreset = SonicVoiceIsolationEngine.activePreset
                             vocalBoost = SonicVoiceIsolationEngine.vocalBoostLevel
                             bgMuffle = SonicVoiceIsolationEngine.backgroundMuffleLevel
                         }
-                        .padding(vertical = 5.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        fontSize = 9.5.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f),
-                        textAlign = TextAlign.Center
                     )
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = profileName,
+                    fontSize = 9.sp,
+                    fontWeight = if (isProfSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isProfSelected) Color.White else Color.White.copy(alpha = 0.75f),
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+
+        // Inline Save Custom Profile Dialog
+        if (showSaveDialog) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .border(0.6.dp, tint.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .padding(8.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "SAVE PROFILE (${(vocalBoost * 100).toInt()}% Boost / ${(bgMuffle * 100).toInt()}% Muffle)",
+                        color = tint,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    OutlinedTextField(
+                        value = profileNameInput,
+                        onValueChange = { if (it.length <= 16) profileNameInput = it },
+                        placeholder = { Text("Profile Name (max 16 chars)", fontSize = 9.sp, color = Color.White.copy(alpha = 0.4f)) },
+                        singleLine = true,
+                        supportingText = {
+                            Text(
+                                "${profileNameInput.length}/16",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.End,
+                                fontSize = 7.5.sp,
+                                color = Color.White.copy(alpha = 0.5f)
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = tint,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                            cursorColor = tint
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = { showSaveDialog = false },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text("Cancel", color = Color.White.copy(alpha = 0.7f), fontSize = 9.sp)
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Button(
+                            onClick = {
+                                val cleanName = profileNameInput.trim()
+                                if (cleanName.isNotBlank() && cleanName != "MAX" && cleanName != "Custom") {
+                                    SonicVoiceIsolationEngine.saveCustomProfile(context, cleanName, vocalBoost, bgMuffle)
+                                    customProfiles = SonicVoiceIsolationEngine.getCustomProfiles(context)
+                                    activePreset = cleanName
+                                    SonicVoiceIsolationEngine.applyPreset(context, cleanName)
+                                    showSaveDialog = false
+                                }
+                            },
+                            enabled = profileNameInput.trim().isNotBlank(),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = tint)
+                        ) {
+                            Text("Save", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
@@ -110,7 +295,7 @@ internal fun SonicDialogueSection(
             Text("Vocal Boost: +${(vocalBoost * 8.0f).toInt()}dB", color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
             Text("${(vocalBoost * 100).toInt()}%", color = tint, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
-        Slider(
+        DeckSlider(
             value = vocalBoost,
             onValueChange = {
                 vocalBoost = it
@@ -124,7 +309,7 @@ internal fun SonicDialogueSection(
             Text("Film Background Muffle", color = Color.White.copy(alpha = 0.85f), fontSize = 10.sp)
             Text("${(bgMuffle * 100).toInt()}%", color = tint, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         }
-        Slider(
+        DeckSlider(
             value = bgMuffle,
             onValueChange = {
                 bgMuffle = it
@@ -142,7 +327,7 @@ internal fun SonicMasterStreamsSection(
     audioManager: AudioManager,
     snapshot: DeckThemeSnapshot
 ) {
-    val tint = Color(snapshot.tintArgb.toInt())
+    val tint = Color(snapshot.effectiveTintArgb.toInt())
 
     fun readStreamRatio(stream: Int, fallbackMax: Float): Float {
         val max = try { audioManager.getStreamMaxVolume(stream).toFloat().coerceAtLeast(1f) } catch (_: Exception) { fallbackMax }
@@ -270,6 +455,7 @@ private fun StreamSliderRow(
     tint: Color,
     onValueChange: (Float) -> Unit
 ) {
+    val lsColors = com.sbf.lightspeed.ui.theme.LightspeedStyle.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -281,14 +467,14 @@ private fun StreamSliderRow(
             fontSize = 10.sp,
             modifier = Modifier.width(105.dp)
         )
-        Slider(
+        DeckSlider(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f).height(22.dp)
         )
         Text(
             text = "${(value * 100).toInt()}%",
-            color = tint,
+            color = if (tint != Color.Unspecified) tint else lsColors.textPrimary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.End,

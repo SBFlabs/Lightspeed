@@ -54,6 +54,10 @@ object LightspeedBotContract {
     const val KEY_BOT_TRACKPAD_ACTIVE_MACRO = "pref_bot_trackpad_active_macro"
     const val KEY_BOT_ACTIVE_LOOP_CADENCE_MS = "pref_bot_active_loop_cadence_ms"
     const val KEY_BOT_TRACKPAD_SIZE_DP = "pref_bot_trackpad_size_dp"
+    const val KEY_BOT_MACRO_REPEAT_PREFIX = "pref_bot_macro_repeat_" // + botId -> 1, 2, 5, or -1 (infinite loop)
+    const val KEY_BOT_USE_RECORDED_DELAY_PREFIX = "pref_bot_use_rec_delay_" // Boolean, default false
+    const val KEY_BOT_STEP_DELAY_MS_PREFIX = "pref_bot_step_delay_ms_" // Int, default 60 (range 0..2000)
+    const val KEY_BOT_LOOP_WARN_DISMISSED = "pref_bot_loop_warn_dismissed" // Boolean, default false
 
     const val MAX_BOT_MACROS = 10
 }

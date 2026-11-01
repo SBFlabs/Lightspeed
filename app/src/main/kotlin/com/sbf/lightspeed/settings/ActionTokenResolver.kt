@@ -61,6 +61,12 @@ object ActionTokenResolver {
         "system:gravity_override_landscape"                    -> "system:gravity_override_landscape"
         "system:gravity_override_sensor_portrait", "system:orientation_sensor_portrait", "orientation_sensor_portrait" -> "system:gravity_override_sensor_portrait"
         "system:central_command", "central_command"             -> "system:central_command"
+        "action:shields_down", "action:cold_shutdown", "cold_shutdown", "shields_down", "system:shields_down" -> "system:shields_down"
+        "action:pass_through_touch", "pass_through_touch", "system:pass_through_touch" -> "system:pass_through_touch"
+        "action:sonic_deck", "sonic_deck" -> "system:omniscient_audio"
+        "action:vista_deck", "vista_deck" -> "system:vista_deck"
+        "action:circle_to_search", "circle_to_search", "system:circle_to_search" -> "system:circle_to_search"
+        "action:assistant", "assistant", "system:assistant", "ACTION_ASSISTANT" -> "system:assistant"
         else -> raw ?: "none"
     }
 
@@ -81,6 +87,17 @@ object ActionTokenResolver {
             cleanKey == "pref_macro_action_STATUSBAR_SWIPE_RIGHT_HOLD" -> "system:popup_window"
             cleanKey == "pref_macro_action_STATUSBAR_SWIPE_LEFT_HOLD" -> "system:split_screen"
             cleanKey == "pref_macro_action_STATUSBAR_SWIPE_DOWN" -> "system:notifications"
+
+            // BOTTOM SENSOR DECK DEFAULTS
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_DOUBLE_TAP" -> "system:gravity_reset"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_DOUBLE_TAP_HOLD" -> "system:screen_timeout"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_TAP" -> "system:scroll_to_bottom"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_TAP_HOLD" -> "system:home"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_RIGHT" -> "system:core_watchdog"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_LEFT" -> "system:perimeter_watchdog"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_RIGHT_HOLD" -> "system:popup_window"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_LEFT_HOLD" -> "system:split_screen"
+            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_UP" -> "system:recents"
 
             // LEFT FLANK DEFAULTS (LEFT_UNIFIED, LEFT_TOP, LEFT_BOTTOM)
             cleanKey.contains("LEFT_") -> when {
@@ -130,6 +147,8 @@ object ActionTokenResolver {
             token == "system:back" -> "Back"
             token == "system:split_screen" -> "Split Screen"
             token == "system:popup_window" || token == "system:freeform" -> "Pop-up Window"
+            token == "system:circle_to_search" || token == "action:circle_to_search" -> "🔍 Circle to Search / Screen Assist"
+            token == "system:assistant" || token == "action:assistant" -> "🤖 Assistant (Voice Command / Screen Assist)"
 
             token == "system:flashlight" -> "External Torch"
             token == "system:screenshot" -> "Take Screenshot"
@@ -186,7 +205,10 @@ object ActionTokenResolver {
             token == "system:battery_exemption" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.BATTERY_EXEMPTION)
             token == "system:central_command" -> "Central Command (Cockpit Deck)"
             token == "system:omniscient_audio" || token == "system:audio_dock" || token == "system:sonic_deck" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.SONIC_DECK)
-            token == "system:vista_deck" || token == "system:display_dock" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VISTA_DECK)
+            token == "system:vista_deck" || token == "system:display_dock" || token == "action:vista_deck" -> LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VISTA_DECK)
+            token == "system:tactical_flyout" || token == "action:tactical_flyout" -> "⚡ Tactical Flyout Menu"
+            token == "system:shields_down" || token == "action:shields_down" || token == "action:cold_shutdown" -> "Master Stealth Cloak (Cold Shutdown)"
+            token == "system:pass_through_touch" || token == "action:pass_through_touch" -> "Pass-Through Touch Mode (5s)"
             token == "system:smart_pixels_toggle" -> "OLED Smart Pixels (Toggle)"
             token == "system:eye_care_toggle" -> "Eye Care Blue Light (Toggle)"
             token == "system:extra_dim_toggle" -> "Extra Dim (Toggle)"

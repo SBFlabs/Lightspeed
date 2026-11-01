@@ -379,7 +379,7 @@ fun CompactAccordionSection(
                         },
                         onLongClick = { onLongToggle?.invoke() }
                     )
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -414,7 +414,7 @@ fun CompactAccordionSection(
                 )
             }
             AnimatedVisibility(visible = isExpanded) {
-                Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 10.dp)) {
                     content()
                 }
             }
@@ -449,7 +449,7 @@ fun CollapsibleSubSection(
                         LightspeedHapticEngine.centralCommandClick(context)
                         onToggle()
                     }
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -496,7 +496,7 @@ fun CollapsibleSubSection(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 4.dp),
+                        .padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 2.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     content()
@@ -516,6 +516,7 @@ fun HazardAccordionSection(
     content: @Composable () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
+    val context = LocalContext.current
     val cautionAmber = lsColors.accentWarn
     val deepBlack = LightspeedTokens.TacticalDeepBlack
     val hazardStripePath = remember { androidx.compose.ui.graphics.Path() }
@@ -566,7 +567,10 @@ fun HazardAccordionSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onToggle() }
+                    .clickable {
+                        LightspeedHapticEngine.centralCommandClick(context)
+                        onToggle()
+                    }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

@@ -11,9 +11,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +47,11 @@ fun SystemOverrideBackConflictCard(
 ) {
     val lsColors = LightspeedStyle.colors
 
-    if (edgeGestureScale > 0.01f) {
+    var isDismissed by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_DISMISS_SYS_OVERRIDE_CONFLICT_CARD, false))
+    }
+
+    if (!isDismissed && edgeGestureScale > 0.01f) {
         DeckCard(
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
@@ -49,21 +59,44 @@ fun SystemOverrideBackConflictCard(
                 .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "NATIVE BACK CONFLICT (${(edgeGestureScale * 100).toInt()}% SENSITIVITY)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.error,
-                        letterSpacing = 0.5.sp
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "NATIVE BACK CONFLICT (${(edgeGestureScale * 100).toInt()}% SENSITIVITY)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.error,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            isDismissed = true
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_DISMISS_SYS_OVERRIDE_CONFLICT_CARD, true).apply()
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = lsColors.textSecondary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(

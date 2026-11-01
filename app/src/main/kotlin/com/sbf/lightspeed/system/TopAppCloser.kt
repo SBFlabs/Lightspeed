@@ -17,8 +17,18 @@ internal object TopAppCloser {
         Log.i(TAG, "closeTopApp() invoked")
         ElevatedTaskCloser.exemptHiddenApis()
 
-        val frontPkg = LightspeedAccessibilityService.lastAppPackage
-            ?: ElevatedTaskCloser.getTopForegroundTaskInfo(context).packageName
+        val service = LightspeedAccessibilityService.instance
+        val activeWindowPkg = try { service?.rootInActiveWindow?.packageName?.toString() } catch (_: Exception) { null }
+        if (!activeWindowPkg.isNullOrBlank() && TaskInspector.isLauncherOrSystem(context, activeWindowPkg)) {
+            Log.i(TAG, "Current active window is launcher/system ($activeWindowPkg), nothing to close")
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, "Nothing to close here", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+
+        val fgInfo = ElevatedTaskCloser.getTopForegroundTaskInfo(context)
+        val frontPkg = fgInfo.packageName ?: LightspeedAccessibilityService.lastAppPackage
 
         if (!frontPkg.isNullOrBlank() && TaskInspector.isLauncherOrSystem(context, frontPkg)) {
             Log.i(TAG, "Foreground is launcher/system ($frontPkg), nothing to close")
@@ -41,11 +51,14 @@ internal object TopAppCloser {
         val useRecents = auto || ActionMethods.RECENTS_DISMISS in methods
         Log.w(TAG, "close methods=$methods useShizuku=$useShizuku useRecents=$useRecents")
 
-        if (useShizuku && closeViaShizuku(context)) {
-            Log.i(TAG, "Task dismissed and evicted from Recents via Shizuku")
-            com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onAppClosedFromRecents(context)
-            com.sbf.lightspeed.LightspeedAccessibilityService.instance?.scheduleGeometryResync()
-            return
+        if (useShizuku) {
+            val closedPkgHolder = arrayOfNulls<String>(1)
+            if (closeViaShizuku(context, closedPkgHolder)) {
+                Log.i(TAG, "Task dismissed and evicted from Recents via Shizuku: ${closedPkgHolder[0]}")
+                com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.onAppClosedFromRecents(context, closedPkgHolder[0])
+                com.sbf.lightspeed.LightspeedAccessibilityService.instance?.scheduleGeometryResync()
+                return
+            }
         }
 
         if (useRecents) {
@@ -66,7 +79,7 @@ internal object TopAppCloser {
         }
     }
 
-    private fun closeViaShizuku(context: Context): Boolean {
+    private fun closeViaShizuku(context: Context, outPkg: Array<String?>? = null): Boolean {
         return try {
             val myPkg = context.packageName
 
@@ -199,7 +212,11 @@ internal object TopAppCloser {
                 } catch (e: Exception) { logSwallowed(TAG, "closeViaShizuku:230", e) }
             }
 
-            evicted || forceStopped
+            val success = evicted || forceStopped
+            if (success && outPkg != null && outPkg.isNotEmpty()) {
+                outPkg[0] = targetPkg
+            }
+            success
         } catch (e: Exception) {
             Log.e(TAG, "closeViaShizuku error", e)
             false

@@ -67,7 +67,26 @@ fun HapticDomainSliderRow(
         selectedKey = newKey
         sliderVal = keyToSliderVal(newKey)
         onSelect(newKey)
-        LightspeedHapticEngine.pulseClick(context, newKey)
+        if (newKey != "off") {
+            // Direct strong preview pulse (28ms..42ms with 220..255 amplitude) bypassing cooldown
+            val duration = when (newKey) {
+                "soft", "soft_low_freq" -> 28L
+                "heavy" -> 42L
+                else -> 35L
+            }
+            val amplitude = when (newKey) {
+                "soft", "soft_low_freq" -> 220
+                "heavy" -> 255
+                else -> 240
+            }
+            LightspeedHapticEngine.vibrate(context, durationMs = duration, amplitude = amplitude)
+            try {
+                com.sbf.lightspeed.LightspeedCruiseOverlay.instance?.performHapticFeedback(
+                    android.view.HapticFeedbackConstants.LONG_PRESS,
+                    android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+                )
+            } catch (_: Exception) {}
+        }
     }
 
     Column(
@@ -138,7 +157,8 @@ fun HapticDomainSliderRow(
                 }
                 if (newKey != selectedKey) {
                     selectedKey = newKey
-                    LightspeedHapticEngine.pulseTick(context, newKey)
+                    // Strong preview tick pulse bypassing cooldown while dragging slider
+                    LightspeedHapticEngine.vibrate(context, durationMs = 28L, amplitude = 220)
                 }
             },
             onValueChangeFinished = {

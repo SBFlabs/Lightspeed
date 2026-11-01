@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CallSplit
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -133,6 +136,9 @@ fun DeflectorUnifiedSection(
                             CollapsibleSubSection(
                                 title = "Sensor Geometry",
                                 subtitle = "Independent height, touch reach & stealth glow",
+                                icon = {
+                                    Icon(Icons.Default.Straighten, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                },
                                 isExpanded = isGeoExpanded,
                                 onToggle = onGeoToggle
                             ) {
@@ -175,6 +181,9 @@ fun DeflectorUnifiedSection(
                             CollapsibleSubSection(
                                 title = "Separate Deflector Controls",
                                 subtitle = if (sepCount == 0) "All gestures tied in Unified Matrix" else "$sepCount unlinked dual control vector(s)",
+                                icon = {
+                                    Icon(Icons.Default.CallSplit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                },
                                 isExpanded = isScrubExpanded,
                                 onToggle = onScrubToggle
                             ) {
@@ -390,6 +399,9 @@ fun DeflectorUnifiedSection(
                             CollapsibleSubSection(
                                 title = "Unified Gesture Matrix",
                                 subtitle = if (unifiedCount == 0) "All gestures unlinked into Separate Controls" else "$unifiedCount unified full-flank vector(s)",
+                                icon = {
+                                    Icon(Icons.Default.GridView, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                },
                                 isExpanded = isGesturesExpanded,
                                 onToggle = onGesturesToggle
                             ) {

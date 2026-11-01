@@ -634,6 +634,101 @@ object LightspeedBotTrackpadDraw {
                 strokePaint.alpha = 250
                 canvas.drawCircle(cursorX, cursorY, 6f * density, strokePaint)
             }
+            "tactical_triangle" -> {
+                // Downward-pointing HUD Vector Triangle
+                val triPath = cachedArrowPath
+                triPath.rewind()
+                val triSize = 13f * density
+                triPath.moveTo(cursorX, cursorY)
+                triPath.lineTo(cursorX - triSize * 0.9f, cursorY - triSize * 1.5f)
+                triPath.lineTo(cursorX + triSize * 0.9f, cursorY - triSize * 1.5f)
+                triPath.close()
+
+                glowPaint.style = Paint.Style.STROKE
+                glowPaint.strokeWidth = 4f * density
+                glowPaint.color = tint
+                glowPaint.alpha = 90
+                canvas.drawPath(triPath, glowPaint)
+
+                bgPaint.style = Paint.Style.FILL
+                bgPaint.color = theme.panelColorArgb.toInt()
+                bgPaint.alpha = 220
+                canvas.drawPath(triPath, bgPaint)
+
+                strokePaint.style = Paint.Style.STROKE
+                strokePaint.strokeWidth = 1.6f * density
+                strokePaint.color = Color.WHITE
+                strokePaint.alpha = 245
+                canvas.drawPath(triPath, strokePaint)
+
+                nodePaint.style = Paint.Style.FILL
+                nodePaint.color = tint
+                canvas.drawCircle(cursorX, cursorY, 2.2f * density, nodePaint)
+            }
+            "hud_ring" -> {
+                // Segmented Combat Flight Ring with Crosshairs
+                val ringR = 14f * density
+                strokePaint.style = Paint.Style.STROKE
+                strokePaint.strokeWidth = 1.8f * density
+                strokePaint.color = accent
+                strokePaint.alpha = 240
+                val rRect = RectF(cursorX - ringR, cursorY - ringR, cursorX + ringR, cursorY + ringR)
+                canvas.drawArc(rRect, 30f, 60f, false, strokePaint)
+                canvas.drawArc(rRect, 150f, 60f, false, strokePaint)
+                canvas.drawArc(rRect, 270f, 60f, false, strokePaint)
+
+                canvas.drawLine(cursorX, cursorY - ringR * 1.35f, cursorX, cursorY - ringR * 0.45f, strokePaint)
+                canvas.drawLine(cursorX, cursorY + ringR * 0.45f, cursorX, cursorY + ringR * 1.35f, strokePaint)
+                canvas.drawLine(cursorX - ringR * 1.35f, cursorY, cursorX - ringR * 0.45f, cursorY, strokePaint)
+                canvas.drawLine(cursorX + ringR * 0.45f, cursorY, cursorX + ringR * 1.35f, cursorY, strokePaint)
+
+                nodePaint.style = Paint.Style.FILL
+                nodePaint.color = tint
+                canvas.drawCircle(cursorX, cursorY, 2.2f * density, nodePaint)
+            }
+            "cyber_bracket" -> {
+                // Cybernetic Targeting Corners
+                val bSize = 13f * density
+                val bArm = 6f * density
+                strokePaint.style = Paint.Style.STROKE
+                strokePaint.strokeWidth = 2f * density
+                strokePaint.color = tint
+                strokePaint.alpha = 250
+                // Top-Left corner
+                canvas.drawLine(cursorX - bSize, cursorY - bSize, cursorX - bSize + bArm, cursorY - bSize, strokePaint)
+                canvas.drawLine(cursorX - bSize, cursorY - bSize, cursorX - bSize, cursorY - bSize + bArm, strokePaint)
+                // Top-Right corner
+                canvas.drawLine(cursorX + bSize, cursorY - bSize, cursorX + bSize - bArm, cursorY - bSize, strokePaint)
+                canvas.drawLine(cursorX + bSize, cursorY - bSize, cursorX + bSize, cursorY - bSize + bArm, strokePaint)
+                // Bottom-Left corner
+                canvas.drawLine(cursorX - bSize, cursorY + bSize, cursorX - bSize + bArm, cursorY + bSize, strokePaint)
+                canvas.drawLine(cursorX - bSize, cursorY + bSize, cursorX - bSize, cursorY + bSize - bArm, strokePaint)
+                // Bottom-Right corner
+                canvas.drawLine(cursorX + bSize, cursorY + bSize, cursorX + bSize - bArm, cursorY + bSize, strokePaint)
+                canvas.drawLine(cursorX + bSize, cursorY + bSize, cursorX + bSize, cursorY + bSize - bArm, strokePaint)
+
+                nodePaint.style = Paint.Style.FILL
+                nodePaint.color = Color.WHITE
+                canvas.drawCircle(cursorX, cursorY, 2f * density, nodePaint)
+            }
+            "stealth_dot" -> {
+                // Micro Precision Dot with Target Ring
+                glowPaint.style = Paint.Style.FILL
+                glowPaint.color = tint
+                glowPaint.alpha = 80
+                canvas.drawCircle(cursorX, cursorY, 8f * density, glowPaint)
+
+                nodePaint.style = Paint.Style.FILL
+                nodePaint.color = Color.WHITE
+                nodePaint.alpha = 255
+                canvas.drawCircle(cursorX, cursorY, 3f * density, nodePaint)
+
+                strokePaint.style = Paint.Style.STROKE
+                strokePaint.strokeWidth = 1f * density
+                strokePaint.color = accent
+                strokePaint.alpha = 210
+                canvas.drawCircle(cursorX, cursorY, 6f * density, strokePaint)
+            }
             else -> {
                 // Default "crosshair" Tactical Reticle
                 strokePaint.style = Paint.Style.STROKE

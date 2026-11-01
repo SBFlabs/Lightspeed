@@ -17,6 +17,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.system.logSwallowed
@@ -35,11 +36,64 @@ import kotlin.math.roundToInt
  */
 class LightspeedSensorDeckTouchOverlay(
     context: Context,
-    private val service: AccessibilityService
+    private val service: AccessibilityService,
+    private val isBottom: Boolean = false
 ) : View(context) {
 
     private val prefs = service.defaultPrefs()
     private val uiHandler = Handler(Looper.getMainLooper())
+    private val macroPrefix = if (isBottom) "pref_macro_action_BOTTOM_STATUSBAR_" else "pref_macro_action_STATUSBAR_"
+    private val defaultMacroBase = if (isBottom) "pref_macro_action_BOTTOM_STATUSBAR" else "pref_macro_action_STATUSBAR"
+
+    private val previewPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    private val previewTextPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = android.graphics.Paint.Align.CENTER
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+    }
+    private val previewRect = android.graphics.RectF()
+
+    init {
+        setWillNotDraw(false)
+    }
+
+    override fun onDraw(canvas: android.graphics.Canvas) {
+        super.onDraw(canvas)
+        if (isBottom) {
+            val isPreview = prefs.getBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, false)
+            val transparencyPct = prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_TRANSPARENCY, 0)
+            val density = resources.displayMetrics.density
+            val wF = width.toFloat()
+            val hF = height.toFloat()
+
+            if (isPreview) {
+                val m3Primary = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    context.resources.getColor(android.R.color.system_accent1_300, context.theme)
+                } else {
+                    android.graphics.Color.parseColor("#90CAF9")
+                }
+                previewPaint.style = android.graphics.Paint.Style.FILL
+                previewPaint.color = android.graphics.Color.argb(120, android.graphics.Color.red(m3Primary), android.graphics.Color.green(m3Primary), android.graphics.Color.blue(m3Primary))
+                previewRect.set(0f, 0f, wF, hF)
+                canvas.drawRoundRect(previewRect, 8f * density, 8f * density, previewPaint)
+
+                previewPaint.style = android.graphics.Paint.Style.STROKE
+                previewPaint.strokeWidth = 2f * density
+                previewPaint.color = android.graphics.Color.WHITE
+                previewRect.set(1f * density, 1f * density, wF - 1f * density, hF - 1f * density)
+                canvas.drawRoundRect(previewRect, 8f * density, 8f * density, previewPaint)
+
+                previewTextPaint.textSize = 10f * density
+                previewTextPaint.color = android.graphics.Color.WHITE
+                canvas.drawText("✦ SENSOR AREA (BOTTOM EDGE)", wF / 2f, (hF / 2f) + 3.5f * density, previewTextPaint)
+            } else if (transparencyPct > 0) {
+                val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
+                previewPaint.style = android.graphics.Paint.Style.FILL
+                previewPaint.color = android.graphics.Color.argb(alpha, 255, 255, 255)
+                previewRect.set(0f, 0f, wF, hF)
+                canvas.drawRoundRect(previewRect, 4f * density, 4f * density, previewPaint)
+            }
+        }
+    }
 
     private var startRawX = 0f
     private var startRawY = 0f
@@ -142,7 +196,7 @@ class LightspeedSensorDeckTouchOverlay(
     }
 
     private fun initScrubStateAndHud(scrubType: String) {
-        val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR"
+        val fallbackKey = activeScrubActionKey ?: defaultMacroBase
 
         when (scrubType) {
             "system:screen_timeout" -> {
@@ -192,7 +246,7 @@ class LightspeedSensorDeckTouchOverlay(
             val steps = (scrubAccumulator / stepThreshold).toInt()
             scrubAccumulator %= stepThreshold
 
-            val fallbackKey = activeScrubActionKey ?: "pref_macro_action_STATUSBAR"
+            val fallbackKey = activeScrubActionKey ?: defaultMacroBase
 
             when (activeScrubType) {
                 "system:screen_timeout" -> {
@@ -236,7 +290,7 @@ class LightspeedSensorDeckTouchOverlay(
 
     private val holdRunnable = Runnable {
         val gestureKey = if (currentGesture != SensorGesture.NONE) currentGesture.name else if (isSecondTapInSequence) "DOUBLE_TAP" else "TAP"
-        val holdActionKey = "pref_macro_action_STATUSBAR_${gestureKey}_HOLD"
+        val holdActionKey = "${macroPrefix}${gestureKey}_HOLD"
         val defaultHold = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(holdActionKey)
         val configuredHold = prefs.getString(holdActionKey, defaultHold) ?: defaultHold
         val (action, resolvedKey) = if (configuredHold != "none") {
@@ -285,12 +339,14 @@ class LightspeedSensorDeckTouchOverlay(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val isSensorEnabled = prefs.getBoolean("pref_statusbar_enabled", false)
+        val enabledKey = if (isBottom) LightspeedPreferences.KEY_BOTTOM_STATUSBAR_ENABLED else LightspeedPreferences.KEY_STATUSBAR_ENABLED
+        val isSensorEnabled = prefs.getBoolean(enabledKey, false)
         if (!isSensorEnabled) return false
         if (isNotificationShadeOrQsActive()) return false
 
         val density = resources.displayMetrics.density
-        val sensPref = prefs.getInt("pref_statusbar_sensitivity", 25)
+        val sensKey = if (isBottom) LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SENSITIVITY else LightspeedPreferences.KEY_STATUSBAR_SENSITIVITY
+        val sensPref = prefs.getInt(sensKey, 25)
         val threshold = (sensPref * 0.5f * density).coerceAtLeast(10f * density)
 
         when (event.actionMasked) {
@@ -366,23 +422,33 @@ class LightspeedSensorDeckTouchOverlay(
                 val rawDy = event.rawY - startRawY
                 val dist = hypot(rawDx, rawDy)
 
-                // Downward Pull: Expand Android notification shade if enabled
-                val isSwipeDownNotificationsEnabled = prefs.getBoolean(
-                    com.sbf.lightspeed.system.LightspeedPreferences.KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS,
-                    false
-                )
-                if (isSwipeDownNotificationsEnabled && !isDownwardPullFired && rawDy > threshold * 0.5f && rawDy > abs(rawDx) * 0.8f) {
-                    if (!isNotificationShadeOrQsActive()) {
-                        isDownwardPullFired = true
+                if (!isBottom) {
+                    // Downward Pull: Expand Android notification shade if enabled
+                    val isSwipeDownNotificationsEnabled = prefs.getBoolean(
+                        com.sbf.lightspeed.system.LightspeedPreferences.KEY_STATUSBAR_SWIPE_DOWN_NOTIFICATIONS,
+                        false
+                    )
+                    if (isSwipeDownNotificationsEnabled && !isDownwardPullFired && rawDy > threshold * 0.5f && rawDy > abs(rawDx) * 0.8f) {
+                        if (!isNotificationShadeOrQsActive()) {
+                            isDownwardPullFired = true
+                            uiHandler.removeCallbacks(holdRunnable)
+                            pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
+                            pendingTapRunnable = null
+                            isHorizontalEngaged = false
+                            currentGesture = SensorGesture.SWIPE_DOWN
+                            triggerHaptic(25, 140)
+                            service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+                        }
+                        return true
+                    }
+                } else {
+                    // Bottom Sensor Area: detect upward swipe
+                    if (!isHorizontalEngaged && -rawDy > threshold * 0.8f && -rawDy > abs(rawDx) * 0.8f) {
+                        currentGesture = SensorGesture.SWIPE_UP
                         uiHandler.removeCallbacks(holdRunnable)
                         pendingTapRunnable?.let { uiHandler.removeCallbacks(it) }
                         pendingTapRunnable = null
-                        isHorizontalEngaged = false
-                        currentGesture = SensorGesture.SWIPE_DOWN
-                        triggerHaptic(25, 140)
-                        service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
                     }
-                    return true
                 }
 
                 val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
@@ -451,7 +517,7 @@ class LightspeedSensorDeckTouchOverlay(
 
                 if (currentGesture != SensorGesture.NONE) {
                     isSecondTapInSequence = false
-                    val actionKey = "pref_macro_action_STATUSBAR_${currentGesture.name}"
+                    val actionKey = "${macroPrefix}${currentGesture.name}"
                     val defaultGestureAction = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(actionKey)
                     val action = prefs.getString(actionKey, defaultGestureAction) ?: defaultGestureAction
                     if (action != "none") {
@@ -488,22 +554,26 @@ class LightspeedSensorDeckTouchOverlay(
     }
 
     private fun handleTapSequence() {
+        val doubleTapKey = "${macroPrefix}DOUBLE_TAP"
+        val doubleTapHoldKey = "${macroPrefix}DOUBLE_TAP_HOLD"
+        val singleTapKey = "${macroPrefix}TAP"
+
         if (isSecondTapInSequence) {
             isSecondTapInSequence = false
             lastTapTime = 0L
-            val defaultDoubleTap = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey("pref_macro_action_STATUSBAR_DOUBLE_TAP")
-            val doubleTapAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", defaultDoubleTap) ?: defaultDoubleTap
+            val defaultDoubleTap = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(doubleTapKey)
+            val doubleTapAction = prefs.getString(doubleTapKey, defaultDoubleTap) ?: defaultDoubleTap
             if (doubleTapAction != "none") {
                 triggerHaptic(30, 180)
                 performActionByName(doubleTapAction)
             }
         } else {
-            val defaultDoubleTap = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey("pref_macro_action_STATUSBAR_DOUBLE_TAP")
-            val doubleTapAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP", defaultDoubleTap) ?: defaultDoubleTap
-            val defaultDoubleTapHold = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey("pref_macro_action_STATUSBAR_DOUBLE_TAP_HOLD")
-            val doubleTapHoldAction = prefs.getString("pref_macro_action_STATUSBAR_DOUBLE_TAP_HOLD", defaultDoubleTapHold) ?: defaultDoubleTapHold
-            val defaultSingleTap = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey("pref_macro_action_STATUSBAR_TAP")
-            val singleTapAction = prefs.getString("pref_macro_action_STATUSBAR_TAP", defaultSingleTap) ?: defaultSingleTap
+            val defaultDoubleTap = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(doubleTapKey)
+            val doubleTapAction = prefs.getString(doubleTapKey, defaultDoubleTap) ?: defaultDoubleTap
+            val defaultDoubleTapHold = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(doubleTapHoldKey)
+            val doubleTapHoldAction = prefs.getString(doubleTapHoldKey, defaultDoubleTapHold) ?: defaultDoubleTapHold
+            val defaultSingleTap = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(singleTapKey)
+            val singleTapAction = prefs.getString(singleTapKey, defaultSingleTap) ?: defaultSingleTap
 
             val hasDoubleTapAction = (doubleTapAction != "none" || doubleTapHoldAction != "none")
             if (hasDoubleTapAction) {

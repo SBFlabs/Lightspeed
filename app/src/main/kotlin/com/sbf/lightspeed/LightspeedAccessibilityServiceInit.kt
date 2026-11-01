@@ -35,6 +35,7 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     LightspeedWatchdogEngine.registerFastTriggers(this)
     LightspeedOrientationManager.killConflictingTools(this)
     LightspeedGuardHelper.start(this)
+    LightspeedBatterySentinel.init(this)
 
     val initPrefs = defaultPrefs()
     initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()

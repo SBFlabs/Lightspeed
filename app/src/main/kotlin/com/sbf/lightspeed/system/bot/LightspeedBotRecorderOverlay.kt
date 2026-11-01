@@ -31,6 +31,8 @@ object LightspeedBotRecorderOverlay {
     private const val MAX_RECORDED_STEPS = 40
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
+    val isShowing: Boolean get() = overlayView != null
+    val isRecording: Boolean get() = isShowing && LightspeedBotEngine.isRecording
     private var stopButton: TextView? = null
     private var scopeSubtitleView: TextView? = null
     private var targetsCanvasView: SmartTargetsCanvasView? = null
@@ -218,11 +220,23 @@ object LightspeedBotRecorderOverlay {
         }
         scopeSubtitleView = scopeBadge
 
+        val safetyNotice = TextView(service).apply {
+            text = "🛡 Safety: Pressing Volume or Power cancels recording"
+            setTextColor(0xFFFF8888.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.0f)
+            gravity = Gravity.CENTER
+            setPadding((8f * density).toInt(), (3f * density).toInt(), (8f * density).toInt(), (3f * density).toInt())
+        }
+
         topHeader.addView(topBar)
         topHeader.addView(scopeBadge, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = (5f * density).toInt() })
+        topHeader.addView(safetyNotice, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = (3f * density).toInt() })
 
         val barParams = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -278,7 +292,7 @@ object LightspeedBotRecorderOverlay {
                 }
                 MotionEvent.ACTION_UP -> {
                     val now = SystemClock.uptimeMillis()
-                    if (now - lastStepRecordedUptime < 240L) {
+                    if (now - lastStepRecordedUptime < 80L) {
                         return@setOnTouchListener true
                     }
                     if (recordedSteps.size >= MAX_RECORDED_STEPS) {
@@ -289,7 +303,7 @@ object LightspeedBotRecorderOverlay {
                     val upX = event.rawX
                     val upY = event.rawY
                     val duration = (now - downTime).coerceIn(40L, 1200L)
-                    val delay = (now - lastActionUptime).coerceIn(120L, 5000L)
+                    val delay = if (recordedSteps.isEmpty()) 0L else (now - lastActionUptime).coerceIn(120L, 5000L)
                     lastActionUptime = now
                     lastStepRecordedUptime = now
 
@@ -350,6 +364,20 @@ object LightspeedBotRecorderOverlay {
         stopButton = null
         scopeSubtitleView = null
         targetsCanvasView = null
+    }
+
+    /**
+     * Resynchronizes screen UI target detection when navigation drawers, dialogs,
+     * or context menus open without aborting active macro recording.
+     */
+    fun onWindowStateChanged(service: LightspeedAccessibilityService) {
+        if (!isShowing) return
+        try {
+            detectedTargets = LightspeedBotScreenScanner.scanScreenTargets(service)
+            val scopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
+            scopeSubtitleView?.text = "◈ $scopeLabel • ${detectedTargets.size} UI TARGETS"
+            targetsCanvasView?.invalidate()
+        } catch (_: Exception) {}
     }
 
     @SuppressLint("SetTextI18n")
@@ -445,7 +473,8 @@ object LightspeedBotRecorderOverlay {
                 LightspeedBotEngine.injectTapOrDispatch(service, tapX, tapY)
             }
 
-            val settleMs = (if (isSwipe) duration else 60L) + 180L
+            // Immediately restore touch interception within 80ms for multi-step recording
+            val settleMs = (if (isSwipe) duration else 30L) + 50L
             root.postDelayed({
                 if (overlayView === root) {
                     // Re-scan active window for new Burger Menu / Dialog / Menu items before restoring touchable overlay
@@ -461,6 +490,6 @@ object LightspeedBotRecorderOverlay {
                 lastStepRecordedUptime = SystemClock.uptimeMillis()
                 isForwardingTouch = false
             }, settleMs)
-        }, 55L)
+        }, 35L)
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.system.LightspeedBatterySentinel
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.safeReloadPreferences
@@ -40,6 +41,7 @@ fun HapticsSubSection(
     onRefreshNeeded: () -> Unit = {}
 ) {
     var isCentralCommandExpanded by remember { mutableStateOf(false) }
+    var isCustomDeflectorHapticsExpanded by remember { mutableStateOf(false) }
     var isCockpitExpanded by remember { mutableStateOf(false) }
     var isCruiseExpanded by remember { mutableStateOf(false) }
 
@@ -69,6 +71,9 @@ fun HapticsSubSection(
 
             // 2. Throttle Cooldown Slider
             HapticThrottleCooldownCard(context, prefs)
+
+            // 2b. Keep Haptics Alive in Battery Saver
+            KeepHapticsAliveCard(context, prefs, onRefreshNeeded)
 
             // 3. Central Command Sub-Accordion
             CollapsibleSubSection(
@@ -103,6 +108,95 @@ fun HapticsSubSection(
                         prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_HAPTICS, key).apply()
                         safeReloadPreferences()
                         onRefreshNeeded()
+                    }
+
+                    // Collapsible sub-card: Customize Deflector Gesture Haptics
+                    CollapsibleSubSection(
+                        title = "Customize Deflector Gesture Haptics",
+                        subtitle = "Individual tactile profiles for Tap, Swipes, Hold and Deep Pull",
+                        icon = { Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(14.dp)) },
+                        isExpanded = isCustomDeflectorHapticsExpanded,
+                        onToggle = { isCustomDeflectorHapticsExpanded = !isCustomDeflectorHapticsExpanded }
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            HapticDomainSliderRow(
+                                context = context,
+                                prefs = prefs,
+                                title = "Tap",
+                                subtitle = "Deflector quick tap and double-tap haptic",
+                                currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TAP,
+                                options = LightspeedHapticEngine.EXTENDED_PROFILES
+                            ) { key ->
+                                prefs.edit().putString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TAP, key).apply()
+                                safeReloadPreferences()
+                                onRefreshNeeded()
+                            }
+
+                            HapticDomainSliderRow(
+                                context = context,
+                                prefs = prefs,
+                                title = "Single Swipe",
+                                subtitle = "Single lateral or vertical edge flick release",
+                                currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_SWIPE,
+                                options = LightspeedHapticEngine.EXTENDED_PROFILES
+                            ) { key ->
+                                prefs.edit().putString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_SWIPE, key).apply()
+                                safeReloadPreferences()
+                                onRefreshNeeded()
+                            }
+
+                            HapticDomainSliderRow(
+                                context = context,
+                                prefs = prefs,
+                                title = "Two-Step Swipe",
+                                subtitle = "L-shaped two-step corner swipe gestures",
+                                currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TWOSTEP,
+                                options = LightspeedHapticEngine.EXTENDED_PROFILES
+                            ) { key ->
+                                prefs.edit().putString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_TWOSTEP, key).apply()
+                                safeReloadPreferences()
+                                onRefreshNeeded()
+                            }
+
+                            HapticDomainSliderRow(
+                                context = context,
+                                prefs = prefs,
+                                title = "Rebound Swipe",
+                                subtitle = "In-and-out return rebound flick gestures",
+                                currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_REBOUND,
+                                options = LightspeedHapticEngine.EXTENDED_PROFILES
+                            ) { key ->
+                                prefs.edit().putString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_REBOUND, key).apply()
+                                safeReloadPreferences()
+                                onRefreshNeeded()
+                            }
+
+                            HapticDomainSliderRow(
+                                context = context,
+                                prefs = prefs,
+                                title = "Hold Modifier",
+                                subtitle = "Long-press hold engagement haptic pulse",
+                                currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_HOLD,
+                                options = LightspeedHapticEngine.EXTENDED_PROFILES
+                            ) { key ->
+                                prefs.edit().putString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_HOLD, key).apply()
+                                safeReloadPreferences()
+                                onRefreshNeeded()
+                            }
+
+                            HapticDomainSliderRow(
+                                context = context,
+                                prefs = prefs,
+                                title = "Deep Pull > 50% Screen",
+                                subtitle = "Tactile surge when pulling inward to trigger Vista / Sonic Deck",
+                                currentKey = LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_DEEP_PULL,
+                                options = LightspeedHapticEngine.EXTENDED_PROFILES
+                            ) { key ->
+                                prefs.edit().putString(LightspeedPreferences.KEY_HAPTIC_DEFLECTOR_DEEP_PULL, key).apply()
+                                safeReloadPreferences()
+                                onRefreshNeeded()
+                            }
+                        }
                     }
 
                     HapticDomainSliderRow(
@@ -265,6 +359,53 @@ private fun HapticThrottleCooldownCard(context: Context, prefs: SharedPreference
                     LightspeedHapticEngine.tick(context)
                 })
             }
+        }
+    }
+}
+
+@Composable
+private fun KeepHapticsAliveCard(
+    context: Context,
+    prefs: SharedPreferences,
+    onRefreshNeeded: () -> Unit
+) {
+    var keepHaptics by remember {
+        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_KEEP_HAPTICS_IN_BATTERY_SAVER, true))
+    }
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    text = "Keep Haptics Alive in Battery Saver",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LightspeedStyle.colors.textPrimary
+                )
+                Text(
+                    text = "Forces vibration_disabled=false so Android Battery Saver never kills tactical vibrations",
+                    fontSize = 10.5.sp,
+                    color = LightspeedStyle.colors.textSecondary,
+                    lineHeight = 13.5.sp
+                )
+            }
+            Switch(
+                checked = keepHaptics,
+                onCheckedChange = { checked ->
+                    keepHaptics = checked
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_KEEP_HAPTICS_IN_BATTERY_SAVER, checked).apply()
+                    LightspeedBatterySentinel.setKeepHapticsAlive(context, checked)
+                    onRefreshNeeded()
+                },
+                modifier = Modifier.height(24.dp)
+            )
         }
     }
 }

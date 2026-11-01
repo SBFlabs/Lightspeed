@@ -2,7 +2,7 @@ package com.sbf.lightspeed.system
 
 import android.util.Log
 
-internal object ShellArgGuard {
+object ShellArgGuard {
     private const val TAG = "ShellArgGuard"
 
     private val PACKAGE_REGEX = Regex("""^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$""")
@@ -11,6 +11,13 @@ internal object ShellArgGuard {
     private val FLAGS_REGEX = Regex("""^0x[0-9a-fA-F]{1,8}$""")
     private val PHONE_REGEX = Regex("""^\+?[0-9*#]{1,32}$""")
     private val EXTRA_KEY_REGEX = Regex("""^[A-Za-z0-9_.:\-]{1,100}$""")
+    private val TOKEN_REGEX = Regex("""^[A-Za-z0-9_.:\-]{1,128}$""")
+
+    fun isToken(value: String): Boolean {
+        return TOKEN_REGEX.matches(value).also { valid ->
+            if (!valid) Log.w(TAG, "ShellArgGuard rejected token: $value")
+        }
+    }
 
     fun isPackage(value: String): Boolean {
         return PACKAGE_REGEX.matches(value).also { valid ->

@@ -56,7 +56,7 @@ fun CyberneticTrackpadAccordion(
             )
         }
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // Master Flank Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),

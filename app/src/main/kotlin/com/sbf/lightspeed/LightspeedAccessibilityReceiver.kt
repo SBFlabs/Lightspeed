@@ -65,6 +65,7 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
+                    com.sbf.lightspeed.system.bot.LightspeedBotEngine.cancelAllAutomationAndRecording(this@registerSystemStateReceiver)
                     hideBaySleepBlackout()
                     com.sbf.lightspeed.system.LightspeedOrientationManager.onScreenOff(this@registerSystemStateReceiver)
                     com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOff(this@registerSystemStateReceiver)
@@ -205,6 +206,10 @@ internal fun LightspeedAccessibilityService.teardown() {
     sensorTouchOverlayView?.let {
         try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:169", e) }
         sensorTouchOverlayView = null
+    }
+    bottomSensorTouchOverlayView?.let {
+        try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:bottomSensor", e) }
+        bottomSensorTouchOverlayView = null
     }
     notchOverlayView?.let {
         try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:173", e) }

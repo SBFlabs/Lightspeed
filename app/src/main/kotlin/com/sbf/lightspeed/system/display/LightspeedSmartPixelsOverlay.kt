@@ -243,6 +243,7 @@ object LightspeedSmartPixelsOverlay {
             isDither = false
         }
         private var shader: BitmapShader? = null
+        private var cachedPatternBitmap: Bitmap? = null
 
         init {
             isClickable = false
@@ -251,9 +252,12 @@ object LightspeedSmartPixelsOverlay {
         }
 
         fun updatePattern(pct: Int, shiftX: Int, shiftY: Int) {
+            val oldBmp = cachedPatternBitmap
             val bmp = createPatternBitmap(pct, shiftX, shiftY)
+            cachedPatternBitmap = bmp
             shader = BitmapShader(bmp, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
             paint.shader = shader
+            oldBmp?.recycle()
             invalidate()
         }
 

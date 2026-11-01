@@ -139,6 +139,15 @@ object InstalledTacticalToolsScanner {
         // 3. Cockpit & Hardware Quick Tools
         // =========================================================================
 
+        // Tactical Flyout Menu
+        tools.add(
+            TacticalToolItem(
+                token = LightspeedPreferences.ACTION_TACTICAL_FLYOUT,
+                label = "Tactical Flyout Menu",
+                category = "Cockpit Tools"
+            )
+        )
+
         // Flashlight / Torch (Built-in)
         tools.add(
             TacticalToolItem(

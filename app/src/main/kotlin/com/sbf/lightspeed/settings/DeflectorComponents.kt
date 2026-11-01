@@ -96,7 +96,10 @@ fun DeflectorMasterCard(
     isEnabled: Boolean,
     onToggle: (Boolean) -> Unit,
     startupMode: String,
-    onStartupModeChange: (String) -> Unit
+    onStartupModeChange: (String) -> Unit,
+    context: Context? = null,
+    prefs: SharedPreferences? = null,
+    onRefreshNeeded: (() -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
     DeckCard(
@@ -105,8 +108,8 @@ fun DeflectorMasterCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -114,7 +117,7 @@ fun DeflectorMasterCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
                         .background(
                             if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
@@ -126,16 +129,16 @@ fun DeflectorMasterCard(
                         imageVector = if (isEnabled) Icons.Default.Shield else Icons.Default.Security,
                         contentDescription = null,
                         tint = if (isEnabled) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             flankName,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.5.sp,
+                            fontSize = 13.5.sp,
                             color = lsColors.textPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -162,14 +165,15 @@ fun DeflectorMasterCard(
                         }
                     }
                     Text(
-                        if (isEnabled) "Flank touch sensors armed and responsive" else "Touch capture muted along screen edge",
-                        fontSize = 11.5.sp,
+                        if (isEnabled) "Armed and responsive" else "Touch capture muted along edge",
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
                 }
                 Switch(
                     checked = isEnabled,
                     onCheckedChange = { onToggle(it) },
+                    modifier = Modifier.height(24.dp),
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = lsColors.textPrimary,
                         checkedTrackColor = MaterialTheme.colorScheme.primary,
@@ -181,70 +185,146 @@ fun DeflectorMasterCard(
                 )
             }
 
-            // Startup state preference block (Full width description with selectable chips underneath)
             HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    "Startup Default State",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = lsColors.textPrimary
-                )
-                Text(
-                    if (startupMode == "standby_by_default")
-                        "Starts in Standby (Muted) on service boot. Stays dormant until manually armed."
-                    else
-                        "Automatically armed and responsive when service boots.",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    lineHeight = 15.sp
-                )
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val isAlwaysArmed = startupMode != "standby_by_default"
+                if (maxWidth >= 380.dp) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Startup Default",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = lsColors.textPrimary
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(
+                                selected = isAlwaysArmed,
+                                onClick = { onStartupModeChange("always_armed") },
+                                label = { Text("Armed on Boot", fontSize = 10.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.height(28.dp)
+                            )
+                            FilterChip(
+                                selected = !isAlwaysArmed,
+                                onClick = { onStartupModeChange("standby_by_default") },
+                                label = { Text("Off by Default", fontSize = 10.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.height(28.dp)
+                            )
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            "STARTUP DEFAULT STATE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = lsColors.textPrimary.copy(alpha = 0.8f)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            FilterChip(
+                                selected = isAlwaysArmed,
+                                onClick = { onStartupModeChange("always_armed") },
+                                label = {
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        Text("Armed on Boot", fontSize = 10.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                                    }
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f).height(28.dp)
+                            )
+                            FilterChip(
+                                selected = !isAlwaysArmed,
+                                onClick = { onStartupModeChange("standby_by_default") },
+                                label = {
+                                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        Text("Off by Default", fontSize = 10.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                                    }
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f).height(28.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val isAlwaysArmed = startupMode != "standby_by_default"
-                    FilterChip(
-                        selected = isAlwaysArmed,
-                        onClick = { onStartupModeChange("always_armed") },
-                        label = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Armed on Boot", fontSize = 11.5.sp, fontWeight = if (isAlwaysArmed) FontWeight.Bold else FontWeight.Normal)
-                            }
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilterChip(
-                        selected = !isAlwaysArmed,
-                        onClick = { onStartupModeChange("standby_by_default") },
-                        label = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Off by Default", fontSize = 11.5.sp, fontWeight = if (!isAlwaysArmed) FontWeight.Bold else FontWeight.Normal)
-                            }
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+            if (context != null && prefs != null) {
+                HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
+                var landscapeMode by remember {
+                    mutableStateOf(prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE, LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM) ?: LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.ScreenRotation, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            Text("Landscape Geometry", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val modes = listOf(
+                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_AUTO, "Auto (0.45×)"),
+                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM, "Custom Scale"),
+                            Pair(LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_FIXED, "Fixed 1:1")
+                        )
+                        modes.forEach { (modeKey, label) ->
+                            val isSelected = landscapeMode == modeKey
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    landscapeMode = modeKey
+                                    prefs.edit().putString(LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE, modeKey).apply()
+                                    safeReloadPreferences()
+                                    onRefreshNeeded?.invoke()
+                                },
+                                label = {
+                                    Text(
+                                        label,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.weight(1f).height(28.dp)
+                            )
+                        }
+                    }
                 }
             }
         }

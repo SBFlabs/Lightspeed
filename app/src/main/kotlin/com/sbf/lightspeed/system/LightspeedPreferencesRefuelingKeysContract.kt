@@ -28,4 +28,8 @@ interface LightspeedPreferencesRefuelingKeysContract {
     val KEY_REFUELING_CLOCK_FONT: String get() = "pref_refueling_clock_font"
     val KEY_REFUELING_SHOW_ALARM: String get() = "pref_refueling_show_alarm"
     val KEY_CAPSULE_WIDGET_ID: String get() = "pref_capsule_widget_id"
+    val KEY_KEEP_HAPTICS_IN_BATTERY_SAVER: String get() = "pref_keep_haptics_in_battery_saver"
+    val KEY_BATTERY_SAVER_PROFILE: String get() = "pref_battery_saver_profile"
+    val KEY_CHARGE_LIMIT_SENTINEL_ENABLED: String get() = "pref_charge_limit_sentinel_enabled"
+    val KEY_CHARGE_LIMIT_PERCENTAGE: String get() = "pref_charge_limit_percentage"
 }

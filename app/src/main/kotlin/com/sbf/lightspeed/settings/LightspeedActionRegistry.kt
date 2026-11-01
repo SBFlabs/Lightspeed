@@ -36,7 +36,6 @@ object LightspeedActionRegistry {
     fun getBaseTokens(): List<String> = listOf(
         "none",
         // 1. Navigation & Multitasking
-        "action_enter_gearset_nav",
         "system:previous_app",
         "system:close_app",
         "system:recents",
@@ -44,6 +43,9 @@ object LightspeedActionRegistry {
         "system:back",
         "system:split_screen",
         "system:popup_window",
+        "system:circle_to_search",
+        "system:assistant",
+        "system:tactical_flyout",
 
         // 2. Hardware & System Controls
         "system:flashlight",
@@ -92,6 +94,8 @@ object LightspeedActionRegistry {
         "system:vocal_isolation_toggle",
         "system:volume_hud_show",
         "system:vista_deck",
+        "system:shields_down",
+        "system:pass_through_touch",
 
         // 7. Tactical Bot Macros (Clean-Room Gesture Bot)
         "bot:macro_1",

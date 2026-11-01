@@ -1,1 +1,1 @@
-Ultra-fast offline gesture launcher & cruise overlay workspace for Android.
+100% offline one-thumb gesture overlay, app drawer, trackpad & Shizuku toolkit.

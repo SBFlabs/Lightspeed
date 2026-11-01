@@ -254,15 +254,15 @@ fun DisplayWellnessSection(
             }
         }
 
-        // 4. Mindful 5s Airlock Card
+        // 4. Astrogation Airlock (Conscious 5s Delay) Card
         DeckCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.LockClock, contentDescription = null, tint = lsColors.accentAlert, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("MINDFUL 5s AIRLOCK", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
-                        Text("${airlockApps.size} apps gated with breathing interlock", fontSize = 10.sp, color = lsColors.textSecondary)
+                        Text("ASTROGATION AIRLOCK (5s DELAY)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text("${airlockApps.size} apps gated with conscious pause", fontSize = 10.sp, color = lsColors.textSecondary)
                     }
                 }
                 Switch(

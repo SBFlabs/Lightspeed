@@ -327,6 +327,7 @@
                 <action android:name="com.sbf.lightspeed.action.GRAVITY_OVERRIDE_360" />
                 <action android:name="com.sbf.lightspeed.action.TOGGLE_AUTO_ROTATE" />
                 <action android:name="com.sbf.lightspeed.action.RESET_GRAVITY" />
+                <action android:name="com.sbf.lightspeed.ACTION_STEALTH_CLOAK" />
             </intent-filter>
         </receiver>
 

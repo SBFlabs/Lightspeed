@@ -153,8 +153,8 @@ object LightspeedVocabulary {
         Key.FLIGHT_BLACKBOX         to "Flight Blackbox",
 
         Key.CALL_DEFLECTOR_MODE_TITLE       to "Comms Channel Deflector Protocol",
-        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to "🛡️ Maintain Active Deflectors During Comms",
-        Key.CALL_DEFLECTOR_MODE_HIDE        to "🙈 Cloak Deflectors During Comms",
+        Key.CALL_DEFLECTOR_MODE_KEEP_ACTIVE to "Maintain Active Deflectors During Comms",
+        Key.CALL_DEFLECTOR_MODE_HIDE        to "Cloak Deflectors During Comms",
     )
 
     // ─── Clear Comms dictionary ──────────────────────────────────────────────

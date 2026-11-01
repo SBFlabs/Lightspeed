@@ -18,6 +18,11 @@ object LightspeedPreferences :
 
     // Master Flight Deck & Deflector Keys
     const val KEY_ALLOW_EXTERNAL_AUTOMATION = "key_allow_external_automation"
+    const val KEY_CLOAK_HIDE_DEV_OPTIONS = "pref_cloak_hide_dev_options"
+    const val KEY_CLOAK_HIDE_USB_DEBUGGING = "pref_cloak_hide_usb_debugging"
+    const val KEY_STEALTH_CLOAK_TOKEN = "pref_stealth_cloak_token"
+    const val KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN = "pref_cloak_shizuku_toggle_token"
+    const val KEY_DISMISS_SYS_OVERRIDE_CONFLICT_CARD = "pref_dismiss_sys_override_conflict_card"
     const val KEY_MASTER_FLIGHT_ARMED = "pref_master_flight_armed"
     const val KEY_FLIGHT_NOTIFICATION_ENABLED = "pref_flight_notification_enabled"
     const val KEY_DEFLECTOR_LEFT_ENABLED = "pref_deflector_left_enabled"
@@ -35,7 +40,7 @@ object LightspeedPreferences :
     const val KEY_DEFLECTOR_GLOW_DURATION = "pref_deflector_glow_duration"
     const val KEY_CENTRAL_COMMAND_LONG_PRESS_ACTION = "pref_central_command_long_press_action"
 
-    // Status Bar Keys
+    // Status Bar Keys (Top Sensor Area)
     const val KEY_STATUSBAR_ENABLED = "pref_statusbar_enabled"
     const val KEY_STATUSBAR_SPAN = "pref_statusbar_span"
     const val KEY_STATUSBAR_SPAN_LANDSCAPE = "pref_statusbar_span_landscape"
@@ -46,6 +51,19 @@ object LightspeedPreferences :
     const val KEY_STATUSBAR_OFFSET_Y = "pref_statusbar_offset_y"
     const val KEY_STATUSBAR_SENSITIVITY = "pref_statusbar_sensitivity"
     const val KEY_STATUSBAR_TRANSPARENCY = "pref_statusbar_transparency"
+
+    // Bottom Sensor Area Keys
+    const val KEY_BOTTOM_STATUSBAR_ENABLED = "pref_bottom_statusbar_enabled"
+    const val KEY_BOTTOM_STATUSBAR_SPAN = "pref_bottom_statusbar_span"
+    const val KEY_BOTTOM_STATUSBAR_SPAN_LANDSCAPE = "pref_bottom_statusbar_span_landscape"
+    const val KEY_BOTTOM_STATUSBAR_THICKNESS = "pref_bottom_statusbar_thickness"
+    const val KEY_BOTTOM_STATUSBAR_THICKNESS_LANDSCAPE = "pref_bottom_statusbar_thickness_landscape"
+    const val KEY_BOTTOM_STATUSBAR_OFFSET_X = "pref_bottom_statusbar_offset_x"
+    const val KEY_BOTTOM_STATUSBAR_OFFSET_X_LANDSCAPE = "pref_bottom_statusbar_offset_x_landscape"
+    const val KEY_BOTTOM_STATUSBAR_OFFSET_Y = "pref_bottom_statusbar_offset_y"
+    const val KEY_BOTTOM_STATUSBAR_SENSITIVITY = "pref_bottom_statusbar_sensitivity"
+    const val KEY_BOTTOM_STATUSBAR_TRANSPARENCY = "pref_bottom_statusbar_transparency"
+    const val KEY_BOTTOM_STATUSBAR_PREVIEW = "pref_bottom_statusbar_preview"
 
     // Cockpit & Gears Keys
     const val KEY_GEAR_SETS_ORDER = "gear_sets_order"
@@ -170,6 +188,8 @@ object LightspeedPreferences :
 
     // Action Tokens
     const val ACTION_TACTICAL_FLYOUT = "system:tactical_flyout"
+    const val ACTION_ASSISTANT = "system:assistant"
+    const val ACTION_CIRCLE_TO_SEARCH = "system:circle_to_search"
     const val ACTION_LENS = "system:lens"
     const val ACTION_QR_SCANNER = "system:qr_scanner"
     const val ACTION_CHATGPT = "system:chatgpt"
@@ -189,6 +209,8 @@ object LightspeedPreferences :
     const val KEY_VOLUME_SHOW_NATIVE_SLIDER = "pref_volume_show_native_slider"
     const val KEY_BRIGHTNESS_SCRUB_STEP = "pref_brightness_scrub_step"
     const val KEY_BRIGHTNESS_SCRUB_RESOLUTION = "pref_brightness_scrub_resolution"
+    const val KEY_BRIGHTNESS_SCRUB_ACCELERATION_ENABLED = "pref_brightness_scrub_acceleration_enabled"
+    const val KEY_BRIGHTNESS_SCRUB_ACCELERATION_RATE = "pref_brightness_scrub_acceleration_rate"
     const val KEY_VOLUME_SCRUB_STEP = "pref_volume_scrub_step"
     const val KEY_VOLUME_SCRUB_RESOLUTION = "pref_volume_scrub_resolution"
     const val KEY_HUD_STYLE_DEFAULT = "pref_macro_hud_style_default"
@@ -236,6 +258,7 @@ object LightspeedPreferences :
     const val KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX = "pref_sonic_audio_focus_"
     const val KEY_SONIC_PINNED_APPS = "pref_sonic_pinned_apps"
     const val KEY_SONIC_IGNORED_APPS = "pref_sonic_ignored_apps"
+    const val KEY_SONIC_ROUTING_BYPASS_WARNING_DISMISSED = "pref_sonic_routing_bypass_warning_dismissed"
 
     // Display, Eye Care, Smart Pixels & Mindful Airlock
     const val KEY_EXTRA_DIM_ENABLED = "pref_extra_dim_enabled"
@@ -243,6 +266,9 @@ object LightspeedPreferences :
     const val KEY_EYE_CARE_ENABLED = "pref_eye_care_enabled"
     const val KEY_EYE_CARE_TEMP = "pref_eye_care_temp"
     const val KEY_EYE_CARE_MODE = "pref_eye_care_mode"
+    const val KEY_BRIGHTNESS_PRESERVE_AUTO_MODE = "pref_brightness_preserve_auto_mode"
+    const val KEY_BRIGHTNESS_SENSOR_OFFSET_PCT = "pref_brightness_sensor_offset_pct"
+    const val KEY_VIDEO_OVERRIDE_PACKAGES = "pref_video_override_packages"
     const val KEY_EYE_REST_REMINDER_ENABLED = "pref_eye_rest_reminder_enabled"
     const val KEY_EYE_REST_INTERVAL_MIN = "pref_eye_rest_interval_min"
     const val KEY_EYE_REST_STRENGTH = "pref_eye_rest_strength"
@@ -251,6 +277,7 @@ object LightspeedPreferences :
     const val KEY_SMART_PIXELS_ENABLED = "pref_smart_pixels_enabled"
     const val KEY_SMART_PIXELS_PATTERN = "pref_smart_pixels_pattern"
     const val KEY_SMART_PIXELS_DISABLE_ON_CAST = "pref_smart_pixels_disable_on_cast"
+    const val KEY_SMART_PIXELS_BLOCK_SIZE = "pref_smart_pixels_block_size"
     const val KEY_CONSCIOUS_AIRLOCK_ENABLED = "pref_conscious_airlock_enabled"
     const val KEY_CONSCIOUS_DELAY_PACKAGES = "pref_conscious_delay_packages"
 
@@ -259,8 +286,14 @@ object LightspeedPreferences :
     const val KEY_CRUISE_HAPTICS = "pref_cruise_haptics"
     const val KEY_GESTURE_SCRUB_HAPTICS = "pref_gesture_scrub_haptics"
     const val KEY_HAPTIC_COOLDOWN_MS = "pref_haptic_cooldown_ms"
-    const val DEFAULT_HAPTIC_COOLDOWN_MS = 45
+    const val DEFAULT_HAPTIC_COOLDOWN_MS = 20
     const val KEY_DEFLECTOR_HAPTICS = "pref_deflector_haptics"
+    const val KEY_HAPTIC_DEFLECTOR_TAP = "pref_haptic_deflector_tap"
+    const val KEY_HAPTIC_DEFLECTOR_SWIPE = "pref_haptic_deflector_swipe"
+    const val KEY_HAPTIC_DEFLECTOR_TWOSTEP = "pref_haptic_deflector_twostep"
+    const val KEY_HAPTIC_DEFLECTOR_REBOUND = "pref_haptic_deflector_rebound"
+    const val KEY_HAPTIC_DEFLECTOR_HOLD = "pref_haptic_deflector_hold"
+    const val KEY_HAPTIC_DEFLECTOR_DEEP_PULL = "pref_haptic_deflector_deep_pull"
     const val KEY_CENTRAL_COMMAND_HAPTICS = "pref_central_command_haptics"
     const val KEY_COCKPIT_HAPTICS = "pref_cockpit_haptics"
     const val KEY_COCKPIT_GEAR_JUMP_HAPTICS = "pref_cockpit_gear_jump_haptics"

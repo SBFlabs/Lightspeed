@@ -27,7 +27,26 @@ data class DeckThemeSnapshot(
     val usesSystemDynamicColor: Boolean,
     val minApiForFullEffect: Int,
     val freeTier: Boolean
-)
+) {
+    /**
+     * Resolves an accent/tint color guaranteed to have legible contrast against dark glass backgrounds.
+     * When stealth themes ("blur", "dark") specify a near-black tint for the glass backplane,
+     * this falls back to a bright silver specular accent (#CFD8DC) so text, icons, percentages,
+     * and sliders remain crisp and visible.
+     */
+    val effectiveTintArgb: Long
+        get() {
+            val tR = ((tintArgb ushr 16) and 0xFF).toInt()
+            val tG = ((tintArgb ushr 8) and 0xFF).toInt()
+            val tB = (tintArgb and 0xFF).toInt()
+            val tintLum = (tR * 299 + tG * 587 + tB * 114) / 1000
+            return if (tintLum < 65) {
+                0xFFCFD8DCL
+            } else {
+                tintArgb
+            }
+        }
+}
 
 object DeckStylePresets {
     val PRISM = DeckThemeSnapshot(

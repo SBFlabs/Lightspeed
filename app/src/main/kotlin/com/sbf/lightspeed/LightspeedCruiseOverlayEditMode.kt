@@ -13,6 +13,22 @@ import com.sbf.lightspeed.system.defaultPrefs
 
 private val editModeArrowPath = Path()
 
+/**
+ * Ensures optical readability on dark / low-luminance themes (like Dark Blur).
+ * If the luminance of the color is below 0.5f, returns bright cyan/accent (0xFF38BDF8).
+ */
+internal fun ensureHighContrastColor(colorArgb: Int): Int {
+    val r = Color.red(colorArgb) / 255f
+    val g = Color.green(colorArgb) / 255f
+    val b = Color.blue(colorArgb) / 255f
+    val luminance = 0.299f * r + 0.587f * g + 0.114f * b
+    return if (luminance < 0.5f) {
+        0xFF38BDF8.toInt()
+    } else {
+        colorArgb
+    }
+}
+
 /** Category Cruise name-spacing presets (percent of the default row height). */
 internal val CATEGORY_SPACING_OPTIONS = listOf(70 to "TIGHT", 100 to "NORMAL", 130 to "WIDE", 160 to "WIDER")
 
@@ -203,8 +219,8 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
     val tabFontMetrics = paint.fontMetrics
     val tabTextYOffset = (tabFontMetrics.descent + tabFontMetrics.ascent) / 2f
 
-    val m3Accent = tintColor
-    val unselectedTabColor = Color.argb(140, Color.red(m3Accent), Color.green(m3Accent), Color.blue(m3Accent))
+    val m3Accent = ensureHighContrastColor(tintColor)
+    val unselectedTabColor = Color.argb(160, 200, 225, 255)
 
     // "Page" tab
     paint.color = if (editModeTab == EditModeTab.PAGE) m3Accent else unselectedTabColor
@@ -271,7 +287,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = 8.5f * dp
             paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
-            paint.color = if (isSelected) Color.WHITE else Color.argb(180, 220, 230, 255)
+            paint.color = if (isSelected) Color.WHITE else 0xFFE2E8F0.toInt()
             val pfm = paint.fontMetrics
             val pTextY = pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f)
             canvas.drawText(optLabel, pRect.centerX(), pTextY, paint)
@@ -281,7 +297,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
         paint.textAlign = Paint.Align.LEFT
         paint.textSize = 9f * dp
         paint.typeface = android.graphics.Typeface.DEFAULT
-        paint.color = Color.argb(140, 180, 200, 240)
+        paint.color = 0xFFE2E8F0.toInt()
         val gearNoteY = gearPillY + gearPillH + (18f * dp)
         val gearNoteText = if (isGearLeft) "Pinned-page settings gear anchored at top-left corner." else "Pinned-page settings gear anchored at top-right corner."
         canvas.drawText(gearNoteText, bounds.left + 12f * dp, gearNoteY, paint)
@@ -316,7 +332,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = 7.5f * dp
             paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
-            paint.color = if (isSelected) Color.WHITE else Color.argb(180, 220, 230, 255)
+            paint.color = if (isSelected) Color.WHITE else 0xFFE2E8F0.toInt()
             val pfm = paint.fontMetrics
             canvas.drawText(label, pRect.centerX(), pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f), paint)
         }
@@ -349,7 +365,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = 8f * dp
             paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
-            paint.color = if (isSelected) Color.WHITE else Color.argb(180, 220, 230, 255)
+            paint.color = if (isSelected) Color.WHITE else 0xFFE2E8F0.toInt()
             val pfm = paint.fontMetrics
             canvas.drawText(label, pRect.centerX(), pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f), paint)
         }
@@ -401,7 +417,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
         canvas.drawText("Default", bounds.left + (btnW * 2.5f), btnRowCenterY - btnTextYOffset, paint)
 
         // "Save"
-        paint.color = tintColor
+        paint.color = m3Accent
         canvas.drawText("Save", bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
     } else {
         // Vertical divider before Save
@@ -412,7 +428,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
         val btnTextYOffset = (btnFontMetrics.descent + btnFontMetrics.ascent) / 2f
 
         // "Save"
-        paint.color = tintColor
+        paint.color = m3Accent
         canvas.drawText("Save", bounds.left + (btnW * 3.5f), btnRowCenterY - btnTextYOffset, paint)
     }
 

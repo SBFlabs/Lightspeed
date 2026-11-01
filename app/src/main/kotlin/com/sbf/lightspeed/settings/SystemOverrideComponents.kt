@@ -1,8 +1,10 @@
 package com.sbf.lightspeed.settings
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,7 +24,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sbf.lightspeed.system.ElevatedTaskCloser
+import com.sbf.lightspeed.system.LightspeedBatteryExemptionActivity
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.ShizukuGate
 import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
@@ -84,6 +88,15 @@ fun SystemOverrideDeckContents(
     var animationScale by remember { mutableFloatStateOf(1.0f) }
     var longPressDelay by remember { mutableFloatStateOf(400f) }
 
+    var isTouchExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_override_touch", false)) }
+    var isDisplayExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_override_display", false)) }
+    var isLockscreenExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sub_override_lockscreen", false)) }
+
+    val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as? PowerManager }
+    var isDeviceIdle by remember { mutableStateOf(powerManager?.isDeviceIdleMode == true) }
+    var isIgnoringBattery by remember { mutableStateOf(powerManager?.isIgnoringBatteryOptimizations(context.packageName) == true) }
+    var isInteractive by remember { mutableStateOf(powerManager?.isInteractive == true) }
+
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
@@ -101,7 +114,7 @@ fun SystemOverrideDeckContents(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Header
         Row(
@@ -163,7 +176,7 @@ fun SystemOverrideDeckContents(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
                 .clickable {
                     val next = !accOnly
                     accOnly = next
@@ -212,105 +225,140 @@ fun SystemOverrideDeckContents(
             )
         }
 
-        // Tactical Native Back Conflict Neutralization Card
-        SystemOverrideBackConflictCard(
-            context = context,
-            prefs = prefs,
-            edgeGestureScale = edgeGestureScale,
-            isShizukuActive = isShizukuActive,
-            scope = scope,
-            onScaleChanged = { edgeGestureScale = it }
-        )
-
-        OverrideSliderRow(
-            context = context,
-            prefs = prefs,
-            sliderKey = "sys_override_edge_gesture",
-            defaultValue = 1.0f,
-            icon = Icons.Default.VerticalDistribute,
-            title = "Native Edge Gesture Sovereignty",
-            subtitle = "Force back-gesture insets to 0 to allow Lightspeed full edge control",
-            value = edgeGestureScale,
-            valueRange = 0.0f..2.0f,
-            steps = 19,
-            isEnabled = isShizukuActive,
-            onValueChange = { edgeGestureScale = it },
-            onValueChangeFinished = {
-                if (!isShizukuActive) return@OverrideSliderRow
-                LightspeedHapticEngine.tick(context)
-                prefs.edit().putFloat("sys_override_edge_gesture", edgeGestureScale).apply()
-                scope.launch(Dispatchers.IO) {
-                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left ${edgeGestureScale}")
-                    ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_right ${edgeGestureScale}")
-                }
-            }
-        )
-
-        // Lockscreen Overlay Policies
-        SystemOverrideLockscreenSection(prefs = prefs)
-
         HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
 
-        // Animation Speeds
-        OverrideSliderRow(
-            context = context,
-            prefs = prefs,
-            sliderKey = "sys_override_animation_speed",
-            defaultValue = 1.0f,
-            icon = Icons.Default.Speed,
-            title = "Animation Speeds",
-            subtitle = "Global master scale & Window/Transition/Animator subdomains",
-            value = animationScale,
-            valueRange = 0.0f..2.0f,
-            steps = 19,
-            isEnabled = isShizukuActive,
-            onValueChange = { animationScale = it },
-            onValueChangeFinished = {
-                if (!isShizukuActive) return@OverrideSliderRow
-                LightspeedHapticEngine.tick(context)
-                scope.launch(Dispatchers.IO) {
-                    ElevatedTaskCloser.execShizuku("settings put global window_animation_scale ${animationScale}")
-                    ElevatedTaskCloser.execShizuku("settings put global transition_animation_scale ${animationScale}")
-                    ElevatedTaskCloser.execShizuku("settings put global animator_duration_scale ${animationScale}")
-                }
+        // (1) Touches
+        CollapsibleSubSection(
+            title = "Touches",
+            subtitle = "Native edge gesture neutralization & custom long-press delay",
+            icon = { Icon(Icons.Default.TouchApp, contentDescription = null, tint = lsColors.accentWarn, modifier = Modifier.size(18.dp)) },
+            isExpanded = isTouchExpanded,
+            onToggle = {
+                isTouchExpanded = !isTouchExpanded
+                prefs.edit().putBoolean("pref_sub_override_touch", isTouchExpanded).apply()
             }
-        )
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SystemOverrideBackConflictCard(
+                    context = context,
+                    prefs = prefs,
+                    edgeGestureScale = edgeGestureScale,
+                    isShizukuActive = isShizukuActive,
+                    scope = scope,
+                    onScaleChanged = { edgeGestureScale = it }
+                )
 
-        HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
+                OverrideSliderRow(
+                    context = context,
+                    prefs = prefs,
+                    sliderKey = "sys_override_edge_gesture",
+                    defaultValue = 1.0f,
+                    icon = Icons.Default.VerticalDistribute,
+                    title = "Native Edge Gesture Sovereignty",
+                    subtitle = "Force back-gesture insets to 0 to allow Lightspeed full edge control",
+                    value = edgeGestureScale,
+                    valueRange = 0.0f..2.0f,
+                    steps = 19,
+                    isEnabled = isShizukuActive,
+                    onValueChange = { edgeGestureScale = it },
+                    onValueChangeFinished = {
+                        if (!isShizukuActive) return@OverrideSliderRow
+                        LightspeedHapticEngine.tick(context)
+                        prefs.edit().putFloat("sys_override_edge_gesture", edgeGestureScale).apply()
+                        scope.launch(Dispatchers.IO) {
+                            ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_left ${edgeGestureScale}")
+                            ElevatedTaskCloser.execShizuku("settings put secure back_gesture_inset_scale_right ${edgeGestureScale}")
+                        }
+                    }
+                )
 
-        // Display Metrics & Font Scale (with 15-second countdown guard)
-        SystemOverrideDisplayMetrics(
-            context = context,
-            prefs = prefs,
-            isShizukuActive = isShizukuActive,
-            scope = scope
-        )
-
-        HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
-
-        // Custom Long-Press Delay
-        OverrideSliderRow(
-            context = context,
-            prefs = prefs,
-            sliderKey = "sys_override_long_press_delay",
-            defaultValue = 400f,
-            icon = Icons.Default.TouchApp,
-            title = "Long-Press Delay",
-            subtitle = "Override system-wide touch latency (Settings.Secure.LONG_PRESS_TIMEOUT)",
-            value = longPressDelay,
-            valueRange = 150f..1000f,
-            steps = 84, // 10ms increments
-            valueFormatter = { "${it.toInt()} ms" },
-            isEnabled = isShizukuActive,
-            onValueChange = { longPressDelay = it },
-            onValueChangeFinished = {
-                if (!isShizukuActive) return@OverrideSliderRow
-                LightspeedHapticEngine.tick(context)
-                scope.launch(Dispatchers.IO) {
-                    ElevatedTaskCloser.execShizuku("settings put secure long_press_timeout ${longPressDelay.toInt()}")
-                }
+                OverrideSliderRow(
+                    context = context,
+                    prefs = prefs,
+                    sliderKey = "sys_override_long_press_delay",
+                    defaultValue = 400f,
+                    icon = Icons.Default.TouchApp,
+                    title = "Long-Press Delay",
+                    subtitle = "Override system-wide touch latency (Settings.Secure.LONG_PRESS_TIMEOUT)",
+                    value = longPressDelay,
+                    valueRange = 150f..1000f,
+                    steps = 84, // 10ms increments
+                    valueFormatter = { "${it.toInt()} ms" },
+                    isEnabled = isShizukuActive,
+                    onValueChange = { longPressDelay = it },
+                    onValueChangeFinished = {
+                        if (!isShizukuActive) return@OverrideSliderRow
+                        LightspeedHapticEngine.tick(context)
+                        scope.launch(Dispatchers.IO) {
+                            ElevatedTaskCloser.execShizuku("settings put secure long_press_timeout ${longPressDelay.toInt()}")
+                        }
+                    }
+                )
             }
-        )
+        }
+
+        // (2) Display & Animations
+        CollapsibleSubSection(
+            title = "Display & Animations",
+            subtitle = "Animation speed, display DPI & font scale",
+            icon = { Icon(Icons.Default.Tune, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(18.dp)) },
+            isExpanded = isDisplayExpanded,
+            onToggle = {
+                isDisplayExpanded = !isDisplayExpanded
+                prefs.edit().putBoolean("pref_sub_override_display", isDisplayExpanded).apply()
+            }
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SystemOverrideDisplayMetrics(
+                    context = context,
+                    prefs = prefs,
+                    isShizukuActive = isShizukuActive,
+                    scope = scope
+                )
+
+                HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.08f), thickness = 0.8.dp)
+
+                OverrideSliderRow(
+                    context = context,
+                    prefs = prefs,
+                    sliderKey = "sys_override_animation_speed",
+                    defaultValue = 1.0f,
+                    icon = Icons.Default.Speed,
+                    title = "Animation Speeds",
+                    subtitle = "Global master scale & Window/Transition/Animator subdomains",
+                    value = animationScale,
+                    valueRange = 0.0f..2.0f,
+                    steps = 19,
+                    isEnabled = isShizukuActive,
+                    onValueChange = { animationScale = it },
+                    onValueChangeFinished = {
+                        if (!isShizukuActive) return@OverrideSliderRow
+                        LightspeedHapticEngine.tick(context)
+                        scope.launch(Dispatchers.IO) {
+                            ElevatedTaskCloser.execShizuku("settings put global window_animation_scale ${animationScale}")
+                            ElevatedTaskCloser.execShizuku("settings put global transition_animation_scale ${animationScale}")
+                            ElevatedTaskCloser.execShizuku("settings put global animator_duration_scale ${animationScale}")
+                        }
+                    }
+                )
+            }
+        }
+
+        // (3) Lock Screen & Phone Call Protocols
+        CollapsibleSubSection(
+            title = "Lock Screen & Phone Call Protocols",
+            subtitle = "Lockscreen overlay behavior & during phone calls",
+            icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp)) },
+            isExpanded = isLockscreenExpanded,
+            onToggle = {
+                isLockscreenExpanded = !isLockscreenExpanded
+                prefs.edit().putBoolean("pref_sub_override_lockscreen", isLockscreenExpanded).apply()
+            }
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SystemOverrideLockscreenSection(prefs = prefs)
+            }
+        }
     }
 }
 

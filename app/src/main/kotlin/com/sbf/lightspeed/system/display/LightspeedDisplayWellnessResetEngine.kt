@@ -67,12 +67,19 @@ object LightspeedDisplayWellnessResetEngine {
      */
     fun setSystemBrightness(context: Context, brightnessInt: Int) {
         val cr = context.contentResolver
-        val clampedInt = brightnessInt.coerceIn(1, 255)
+        val prefs = context.defaultPrefs()
+        val preserveAuto = prefs.getBoolean(LightspeedPreferences.KEY_BRIGHTNESS_PRESERVE_AUTO_MODE, false)
+        val offsetPct = prefs.getInt(LightspeedPreferences.KEY_BRIGHTNESS_SENSOR_OFFSET_PCT, 0).coerceIn(-10, 20)
+        
+        val offsetInt = (255 * (offsetPct / 100f)).roundToInt()
+        val clampedInt = (brightnessInt + offsetInt).coerceIn(1, 255)
         val clampedFloat = (clampedInt / 255f).coerceIn(0.004f, 1.0f)
 
         try {
             if (Settings.System.canWrite(context)) {
-                Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+                if (!preserveAuto) {
+                    Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+                }
                 Settings.System.putInt(cr, Settings.System.SCREEN_BRIGHTNESS, clampedInt)
                 try {
                     Settings.System.putFloat(cr, "screen_brightness_float", clampedFloat)
@@ -171,28 +178,44 @@ object LightspeedDisplayWellnessResetEngine {
 
     fun onScreenOff(context: Context) {
         val prefs = context.defaultPrefs()
-        val mode = prefs.getString(LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_MODE, LightspeedPreferences.AUTO_RESET_OFF)
-        if (mode == LightspeedPreferences.AUTO_RESET_SCREEN_OFF ||
-            mode == LightspeedPreferences.AUTO_RESET_APP_SWITCH ||
-            mode == LightspeedPreferences.AUTO_RESET_RECENTS_CLOSE) {
+        val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_ENABLED, false)
+        if (!isEnabled) return
+        val triggers = prefs.getStringSet(
+            LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_TRIGGERS,
+            setOf(LightspeedPreferences.AUTO_RESET_SCREEN_OFF)
+        ) ?: emptySet()
+        if (triggers.contains(LightspeedPreferences.AUTO_RESET_SCREEN_OFF)) {
             resetAutoBrightness(context)
         }
     }
 
     fun onAppSwitch(context: Context) {
         val prefs = context.defaultPrefs()
-        val mode = prefs.getString(LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_MODE, LightspeedPreferences.AUTO_RESET_OFF)
-        if (mode == LightspeedPreferences.AUTO_RESET_APP_SWITCH ||
-            mode == LightspeedPreferences.AUTO_RESET_RECENTS_CLOSE) {
+        val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_ENABLED, false)
+        if (!isEnabled) return
+        val triggers = prefs.getStringSet(
+            LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_TRIGGERS,
+            setOf(LightspeedPreferences.AUTO_RESET_SCREEN_OFF)
+        ) ?: emptySet()
+        if (triggers.contains(LightspeedPreferences.AUTO_RESET_APP_SWITCH)) {
             resetAutoBrightness(context)
         }
     }
 
-    fun onAppClosedFromRecents(context: Context) {
+    fun onAppClosedFromRecents(context: Context, closedPkg: String? = null) {
         val prefs = context.defaultPrefs()
-        val mode = prefs.getString(LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_MODE, LightspeedPreferences.AUTO_RESET_OFF)
-        if (mode == LightspeedPreferences.AUTO_RESET_RECENTS_CLOSE) {
-            resetAutoBrightness(context)
+        val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_ENABLED, false)
+        if (!isEnabled) return
+        val triggers = prefs.getStringSet(
+            LightspeedPreferences.KEY_BRIGHTNESS_AUTO_RESET_TRIGGERS,
+            setOf(LightspeedPreferences.AUTO_RESET_SCREEN_OFF)
+        ) ?: emptySet()
+        if (triggers.contains(LightspeedPreferences.AUTO_RESET_RECENTS_CLOSE)) {
+            val filterApps = prefs.getStringSet(LightspeedPreferences.KEY_VIDEO_OVERRIDE_PACKAGES, emptySet()) ?: emptySet()
+            // Strictly filtered: only reset if the closed app is in the configured media filter list
+            if (filterApps.isNotEmpty() && closedPkg != null && filterApps.contains(closedPkg)) {
+                resetAutoBrightness(context)
+            }
         }
     }
 }

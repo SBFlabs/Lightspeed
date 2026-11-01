@@ -111,6 +111,7 @@ internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedP
     } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "setupStatusBarOverlay:109", e) }
 
     setupSensorTouchOverlay(prefs)
+    setupBottomSensorTouchOverlay(prefs)
 }
 
 internal fun LightspeedAccessibilityService.setupSensorTouchOverlay(prefs: SharedPreferences) {
@@ -191,6 +192,87 @@ internal fun LightspeedAccessibilityService.updateSensorTouchOverlayFromPrefs(pr
         try {
             windowManager?.updateViewLayout(sensorTouchOverlayView, sensorTouchWindowParams)
         } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateSensorTouchOverlayFromPrefs:191", e) }
+    }
+}
+
+internal fun LightspeedAccessibilityService.setupBottomSensorTouchOverlay(prefs: SharedPreferences) {
+    val enabled = prefs.getBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_ENABLED, false)
+    val isPreview = prefs.getBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, false)
+    if (!enabled && !isPreview) return
+
+    val screenW = resources.displayMetrics.widthPixels.toFloat()
+    val density = resources.displayMetrics.density
+    val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val spanPref = if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN_LANDSCAPE, 320) else prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN, 200)
+    val spanPx = if (spanPref >= 1000) screenW else (spanPref * density).coerceIn(50f * density, screenW)
+    val sensorOffsetX = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X_LANDSCAPE, 0) else prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X, 0)) * density
+    val thicknessDp = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_THICKNESS_LANDSCAPE, 35) else prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_THICKNESS, 35)).coerceIn(10, 52)
+    val sensorHeight = thicknessDp * density
+    val sensorOffsetY = (prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_Y, 0) * density).coerceAtLeast(0f)
+
+    val sensorLeft = (((screenW - spanPx) / 2f) + sensorOffsetX).coerceIn(0f, screenW - spanPx)
+
+    @Suppress("DEPRECATION")
+    val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+
+    bottomSensorTouchWindowParams = WindowManager.LayoutParams(
+        spanPx.toInt().coerceAtLeast(1),
+        sensorHeight.toInt().coerceAtLeast(1),
+        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        flags,
+        PixelFormat.TRANSLUCENT
+    ).apply {
+        gravity = Gravity.BOTTOM or Gravity.START
+        x = sensorLeft.toInt()
+        y = sensorOffsetY.toInt()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+    }
+
+    bottomSensorTouchOverlayView = LightspeedSensorDeckTouchOverlay(this, this, isBottom = true)
+    try {
+        windowManager?.addView(bottomSensorTouchOverlayView, bottomSensorTouchWindowParams)
+    } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "setupBottomSensorTouchOverlay", e) }
+}
+
+internal fun LightspeedAccessibilityService.updateBottomSensorTouchOverlayFromPrefs(prefs: SharedPreferences) {
+    val enabled = prefs.getBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_ENABLED, false)
+    val isPreview = prefs.getBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, false)
+    if (!enabled && !isPreview) {
+        bottomSensorTouchOverlayView?.let {
+            try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateBottomSensorTouchOverlayFromPrefs", e) }
+            bottomSensorTouchOverlayView = null
+        }
+        return
+    }
+
+    val screenW = resources.displayMetrics.widthPixels.toFloat()
+    val density = resources.displayMetrics.density
+    val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val spanPref = if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN_LANDSCAPE, 320) else prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN, 200)
+    val spanPx = if (spanPref >= 1000) screenW else (spanPref * density).coerceIn(50f * density, screenW)
+    val sensorOffsetX = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X_LANDSCAPE, 0) else prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X, 0)) * density
+    val thicknessDp = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_THICKNESS_LANDSCAPE, 35) else prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_THICKNESS, 35)).coerceIn(10, 52)
+    val sensorHeight = thicknessDp * density
+    val sensorOffsetY = (prefs.getInt(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_Y, 0) * density).coerceAtLeast(0f)
+
+    val sensorLeft = (((screenW - spanPx) / 2f) + sensorOffsetX).coerceIn(0f, screenW - spanPx)
+
+    if (bottomSensorTouchOverlayView == null) {
+        setupBottomSensorTouchOverlay(prefs)
+    } else {
+        bottomSensorTouchWindowParams.width = spanPx.toInt().coerceAtLeast(1)
+        bottomSensorTouchWindowParams.height = sensorHeight.toInt().coerceAtLeast(1)
+        bottomSensorTouchWindowParams.x = sensorLeft.toInt()
+        bottomSensorTouchWindowParams.y = sensorOffsetY.toInt()
+        try {
+            windowManager?.updateViewLayout(bottomSensorTouchOverlayView, bottomSensorTouchWindowParams)
+        } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateBottomSensorTouchOverlayFromPrefs", e) }
     }
 }
 
@@ -336,8 +418,8 @@ internal fun LightspeedAccessibilityService.setOverlaysVisible(visible: Boolean)
 internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isLocked: Boolean? = null, currentPkg: String? = null) {
     val prefs = defaultPrefs()
 
-    // 0. Master Flight Deck Standby Guard: If disarmed, dismantle all overlays instantly
-    if (!LightspeedPreferences.isMasterFlightArmed(this)) {
+    // 0. Master Flight Deck Standby Guard: If disarmed or in pass-through touch mode, dismantle all overlays instantly
+    if (!LightspeedPreferences.isMasterFlightArmed(this) || isPassThroughActive) {
         statusBarOverlayView?.visibility = View.GONE
         notchOverlayView?.visibility = View.GONE
         sensorTouchOverlayView?.visibility = View.GONE
@@ -395,6 +477,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     statusBarOverlayView?.visibility = if (hideRailOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()) View.GONE else View.VISIBLE
     notchOverlayView?.visibility = if (shouldHideTopHud) View.GONE else View.VISIBLE
     sensorTouchOverlayView?.visibility = if (shouldHideTopHud || hideSensorOnLock) View.GONE else View.VISIBLE
+    bottomSensorTouchOverlayView?.visibility = if (hideSensorOnLock || isRefueling || isInfinixStandby || isDoze || isSuppressedByOrientation()) View.GONE else View.VISIBLE
 
     val isPillOnlyLock = effectiveLocked && lockscreenMode == "hide_deflectors"
     val isFullLockdown = effectiveLocked && lockscreenMode == "full_lockdown"
@@ -437,6 +520,7 @@ internal fun LightspeedAccessibilityService.resyncOverlayMetrics() {
     statusBarOverlayView?.updateRenderCache()
     updateStatusBarOverlayFromPrefs(prefs)
     updateSensorTouchOverlayFromPrefs(prefs)
+    updateBottomSensorTouchOverlayFromPrefs(prefs)
     notchOverlayView?.updateNotchMetrics()
     overlayView?.postInvalidate()
     leftWingOverlayView?.postInvalidate()

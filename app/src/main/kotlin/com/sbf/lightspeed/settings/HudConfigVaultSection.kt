@@ -99,13 +99,6 @@ fun HudConfigVaultSection(
                 }
             }
 
-            Text(
-                text = LightspeedLanguageEngine.resolve(LightspeedVocabulary.Key.VAULT_IMPORT_WARNING),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-
             // Reset Card
             Row(
                 modifier = Modifier

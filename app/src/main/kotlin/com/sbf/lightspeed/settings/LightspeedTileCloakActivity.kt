@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -44,6 +46,8 @@ import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
+import com.sbf.lightspeed.system.ShellArgGuard
+import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
@@ -108,8 +112,13 @@ private fun CloakMatrixContent(
 ) {
     val lsColors = LightspeedStyle.colors
     val pm = context.packageManager
+    val prefs = remember { context.defaultPrefs() }
     val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
     val isShizukuActive = ElevatedTaskCloser.isShizukuActive
+
+    var hideDevOptions by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, false)) }
+    var hideUsbDebugging by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, false)) }
+    var isInterlocksExpanded by rememberSaveable { mutableStateOf(false) }
 
     var cloakedServicesSet by remember {
         mutableStateOf(LightspeedPreferences.getCloakedAccessibilityServices(context))
@@ -155,7 +164,7 @@ private fun CloakMatrixContent(
             .fillMaxSize()
             .padding(14.dp)
     ) {
-        // 1. Header
+        // 1. Header (Fixed at top)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -208,117 +217,243 @@ private fun CloakMatrixContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 2. Telemetry Status Chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = (if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn).copy(alpha = 0.12f),
-                border = BorderStroke(1.dp, (if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn).copy(alpha = 0.35f)),
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn)
-                    )
-                    Text(
-                        text = if (isShizukuActive) "SHIZUKU ACTIVE" else "SHIZUKU INACTIVE",
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Monospace,
-                        color = if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn
-                    )
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = lsColors.accentInfo.copy(alpha = 0.12f),
-                border = BorderStroke(1.dp, lsColors.accentInfo.copy(alpha = 0.35f)),
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(lsColors.accentInfo)
-                    )
-                    Text(
-                        text = "EDGE BACK RECOVERY: 1.0",
-                        fontSize = 9.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Monospace,
-                        color = lsColors.accentInfo
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 3. Explanatory Subtitle
-        Text(
-            text = "Services selected below will be silently disabled together with Lightspeed when tapping the Master QS Tile, keeping banking and security apps completely clear of accessibility flags. Native back gestures restore to 1.0 immediately.",
-            fontSize = 10.5.sp,
-            color = lsColors.textSecondary.copy(alpha = 0.85f),
-            lineHeight = 14.sp
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 4. Search Bar
-        if (thirdPartyServices.size > 3) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Filter accessibility services...", fontSize = 11.sp, color = lsColors.textDisabled) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(16.dp))
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear", tint = lsColors.textDisabled, modifier = Modifier.size(14.dp))
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(10.dp),
-                textStyle = LocalTextStyle.current.copy(fontSize = 11.5.sp, color = lsColors.textPrimary),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = lsColors.accentInfo,
-                    unfocusedBorderColor = lsColors.textPrimary.copy(alpha = 0.15f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
-                )
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // 5. Services List
+        // Single Unified Scrollable LazyColumn for all content
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // 2. Telemetry Status Chips
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = (if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn).copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, (if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn).copy(alpha = 0.35f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn)
+                            )
+                            Text(
+                                text = if (isShizukuActive) "SHIZUKU ACTIVE" else "SHIZUKU INACTIVE",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = FontFamily.Monospace,
+                                color = if (isShizukuActive) lsColors.accentOk else lsColors.accentWarn
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = lsColors.accentInfo.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, lsColors.accentInfo.copy(alpha = 0.35f)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(lsColors.accentInfo)
+                            )
+                            Text(
+                                text = "EDGE BACK RECOVERY: 1.0",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = FontFamily.Monospace,
+                                color = lsColors.accentInfo
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 3. Explanatory Subtitle
+            item {
+                Text(
+                    text = "Services selected below will be silently disabled together with Lightspeed when tapping the Master QS Tile, keeping banking and security apps completely clear of accessibility flags. Native back gestures restore to 1.0 immediately.",
+                    fontSize = 10.5.sp,
+                    color = lsColors.textSecondary.copy(alpha = 0.85f),
+                    lineHeight = 14.sp
+                )
+            }
+
+            // 4. System Cloak Interlocks (Collapsible Card, collapsed by default)
+            item {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
+                    border = BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    isInterlocksExpanded = !isInterlocksExpanded
+                                    LightspeedHapticEngine.tick(context)
+                                },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "SYSTEM CLOAK INTERLOCKS",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace,
+                                color = lsColors.accentInfo
+                            )
+                            Icon(
+                                imageVector = if (isInterlocksExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (isInterlocksExpanded) "Collapse" else "Expand",
+                                tint = lsColors.accentInfo,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        if (isInterlocksExpanded) {
+                            // 1. Hide Developer Options
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val next = !hideDevOptions
+                                        hideDevOptions = next
+                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, next).apply()
+                                        LightspeedHapticEngine.tick(context)
+                                    },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = "Hide Developer Options while Cloaked",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = lsColors.textPrimary
+                                    )
+                                    Text(
+                                        text = "Sets development_settings_enabled = 0; restores on uncloak",
+                                        fontSize = 9.sp,
+                                        color = lsColors.textSecondary
+                                    )
+                                }
+                                Checkbox(
+                                    checked = hideDevOptions,
+                                    onCheckedChange = {
+                                        hideDevOptions = it
+                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, it).apply()
+                                        LightspeedHapticEngine.tick(context)
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = lsColors.accentWarn,
+                                        uncheckedColor = lsColors.textSecondary
+                                    )
+                                )
+                            }
+
+                            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
+
+                            // 2. Hide USB Debugging
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val next = !hideUsbDebugging
+                                        hideUsbDebugging = next
+                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, next).apply()
+                                        LightspeedHapticEngine.tick(context)
+                                    },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = "Hide USB Debugging while Cloaked",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = lsColors.textPrimary
+                                    )
+                                    Text(
+                                        text = "Sets adb_enabled = 0; restores on uncloak",
+                                        fontSize = 9.sp,
+                                        color = lsColors.textSecondary
+                                    )
+                                }
+                                Checkbox(
+                                    checked = hideUsbDebugging,
+                                    onCheckedChange = {
+                                        hideUsbDebugging = it
+                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, it).apply()
+                                        LightspeedHapticEngine.tick(context)
+                                    },
+                                    colors = CheckboxDefaults.colors(
+                                        checkedColor = lsColors.accentWarn,
+                                        uncheckedColor = lsColors.textSecondary
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 5. Search Bar
+            if (thirdPartyServices.size > 3) {
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Filter accessibility services...", fontSize = 11.sp, color = lsColors.textDisabled) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 52.dp),
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null, tint = lsColors.accentInfo, modifier = Modifier.size(16.dp))
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = lsColors.textDisabled, modifier = Modifier.size(14.dp))
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        textStyle = LocalTextStyle.current.copy(fontSize = 11.5.sp, color = lsColors.textPrimary),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = lsColors.accentInfo,
+                            unfocusedBorderColor = lsColors.textPrimary.copy(alpha = 0.15f),
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                        )
+                    )
+                }
+            }
+
+            // 6. Services Items
             if (filteredServices.isEmpty()) {
                 item {
                     Surface(
@@ -488,7 +623,7 @@ private fun CloakMatrixContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 6. Action Button
+        // 6. Action Button (Fixed at bottom)
         Button(
             onClick = onDismiss,
             modifier = Modifier

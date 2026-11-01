@@ -14,9 +14,7 @@ object TaskInspector {
 
     fun isSystem(pkg: String): Boolean {
         val p = pkg.lowercase()
-        return p.contains("launcher") || 
-               p.contains("quickstep") || 
-               p.contains("systemui") || 
+        return p == "com.android.systemui" ||
                p == "com.sec.android.app.launcher" || 
                p.contains("android.app.taskedge") || 
                p.contains("android.app.edgetouch") || 
@@ -27,10 +25,12 @@ object TaskInspector {
 
     fun isLauncherOrSystem(context: Context, pkg: String?): Boolean {
         if (pkg.isNullOrBlank()) return true
-        if (pkg == context.packageName || pkg == "com.android.systemui") return true
+        if (pkg == context.packageName || pkg.startsWith("com.sbf.lightspeed")) return true
+        if (pkg == "com.android.systemui") return true
+        if (pkg == "com.android.settings") return false
+        val defaultHome = LightspeedOrientationEngine.getDefaultLauncherPackage(context)
+        if (!defaultHome.isNullOrBlank() && pkg == defaultHome) return true
         if (isSystem(pkg)) return true
-        if (LightspeedOrientationEngine.isLauncherPackage(context, pkg)) return true
-        if (LightspeedForegroundTracker.getLauncherPackagesCached(context).contains(pkg)) return true
         return false
     }
 
@@ -88,11 +88,15 @@ object TaskInspector {
         var targetComponent: String? = null
 
         if (!ElevatedTaskCloser.isShizukuActive) {
-            fun isValid(p: String?) = !p.isNullOrBlank() && p != myPkg && !isLauncherOrSystem(context, p)
             val service = com.sbf.lightspeed.LightspeedAccessibilityService.instance
-            val rawLast = com.sbf.lightspeed.LightspeedAccessibilityService.lastAppPackage
             val rawRoot = try { service?.rootInActiveWindow?.packageName?.toString() } catch (_: Exception) { null }
-            val pkg = if (isValid(rawLast)) rawLast else if (isValid(rawRoot)) rawRoot else null
+            if (!rawRoot.isNullOrBlank() && isLauncherOrSystem(context, rawRoot)) {
+                Log.i(TAG, "Active root is launcher/system ($rawRoot), no top app")
+                return ForegroundTaskInfo(null, null, null)
+            }
+            fun isValid(p: String?) = !p.isNullOrBlank() && p != myPkg && !isLauncherOrSystem(context, p)
+            val rawLast = com.sbf.lightspeed.LightspeedAccessibilityService.lastAppPackage
+            val pkg = if (isValid(rawRoot)) rawRoot else if (isValid(rawLast)) rawLast else null
             Log.w(TAG, "A11Y foreground lookup: pkg=$pkg")
             val comp = pkg?.let { p ->
                 try {

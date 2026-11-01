@@ -85,7 +85,7 @@ fun SonicDeckSettingsSheet(
                     Icon(Icons.Default.GraphicEq, contentDescription = null, tint = lsColors.accentOk, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text("NEURAL CINEMA ISOLATION", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text("VOICE ISOLATION & BACKGROUND MUFFLER", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
                         Text("ONNX-powered GTCRN speech stem isolation", fontSize = 10.sp, color = lsColors.textSecondary)
                     }
                 }
@@ -149,7 +149,7 @@ fun SonicDeckSettingsSheet(
                             Text(pkg.substringAfterLast('.'), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = lsColors.textPrimary)
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 DeckButton(
-                                    text = if (appRoute == SonicChannelRouter.ROUTE_SPEAKER) "SPK" else if (appRoute == SonicChannelRouter.ROUTE_BLUETOOTH) "BT" else "DEF",
+                                    text = if (appRoute == SonicChannelRouter.ROUTE_SPEAKER) "SPK" else if (appRoute == SonicChannelRouter.ROUTE_BLUETOOTH || appRoute == SonicChannelRouter.ROUTE_WIRED) "HEADPHONES" else "DEF",
                                     onClick = {
                                         val next = when (appRoute) {
                                             SonicChannelRouter.ROUTE_DEFAULT -> SonicChannelRouter.ROUTE_SPEAKER

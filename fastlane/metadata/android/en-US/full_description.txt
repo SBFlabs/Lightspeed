@@ -2,8 +2,11 @@ Lightspeed is an ultra-fast offline gesture launcher and cruise overlay workspac
 
 Key Features:
 • Zero-Latency Cruise Overlay: Fluid accessibility overlay with tactile edge deflectors, dynamic telemetry HUD, and rapid app launching.
-• First-Launch Ignition Flow: Guided accessibility ignition and instant Shizuku auto-arming for zero-friction setup.
-• Cockpit Hangar: Dual-gear app selector with dynamic collimator reticles and tactile physics.
-• Tactical App Drawer: Velocity-based cruise flyout and instant category navigation.
+• Cockpit Hangar: Dual-gear app selector with dynamic collimator reticles, tactile physics, and customizable gear sets.
+• Tactical App Drawer: Velocity-based cruise flyout, 3D cylinder navigation, and instant category scrubbing.
+• Cybernetic Trackpad: Precision floating cursor navigation with customizable robot arm buttons, smart screen condition matching, and automated macro replay.
+• Sonic Deck: Per-app floating volume mixer, real-time voice isolation, and dynamic device audio routing.
+• Vista Deck & Display Wellness: Safe hardware system brightness scrub, boost-zone video override, extra dim floor, and screen timeout controls.
+• Master Stealth Cloak: One-tap Quick Settings emergency cutoff to dismiss overlays, restore native back gestures, reset volume, and disable accessibility for banking apps.
 • 100% Offline & Private: Zero network permissions, zero telemetry, zero analytics, zero external network dependencies.
-• Rule of Two & Infinity License: Core dual sets, themes, and reticles free forever. Founder Infinity tier unlockable offline via cryptographic license key.
+• Rule of Two & Infinity License: Core features, dual sets, themes, and reticles free forever. Founder Infinity tier unlockable offline via cryptographic license key.

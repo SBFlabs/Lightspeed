@@ -17,8 +17,8 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 
 object LightspeedScrollHelper {
     private const val TAG = "LightspeedScrollHelper"
-    private const val SWIPE_DURATION_MS = 220L
-    private const val SWIPE_GAP_MS = 200L
+    private const val SWIPE_DURATION_MS = 130L
+    private const val SWIPE_GAP_MS = 140L
 
     private val handler = Handler(Looper.getMainLooper())
     private var activeStepRunnable: StepRunnable? = null
@@ -385,8 +385,8 @@ object LightspeedScrollHelper {
         if (width <= 0f || height <= 0f) return
 
         val centerX = width * 0.5f
-        val startY = if (toBottom) height * 0.85f else height * 0.35f
-        val endY = if (toBottom) height * 0.35f else height * 0.85f
+        val startY = if (toBottom) height * 0.88f else height * 0.18f
+        val endY = if (toBottom) height * 0.18f else height * 0.88f
 
         val path = Path().apply {
             moveTo(centerX, startY)

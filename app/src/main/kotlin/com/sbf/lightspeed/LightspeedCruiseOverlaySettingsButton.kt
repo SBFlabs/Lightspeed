@@ -30,20 +30,39 @@ internal fun LightspeedCruiseOverlay.drawSettingsButton(canvas: Canvas, paint: P
     val tintColor = snapshot.tintArgb.toInt()
     val borderColor = snapshot.borderColorArgb.toInt()
 
+    val gearColor = 0xFFF8FAFC.toInt()
+
     paint.style = Paint.Style.FILL
-    paint.color = Color.argb(55, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
+    paint.color = Color.argb(80, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
     canvas.drawCircle(cx, cy, 20f * dp, paint)
 
+    // Subtle dark halo shadow for maximum visibility on all backgrounds
     paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 1.6f * dp
-    paint.color = Color.argb(210, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
+    paint.strokeWidth = 3.2f * dp
+    paint.color = Color.argb(160, 0, 0, 0)
     canvas.drawCircle(cx, cy, 7f * dp, paint)
 
     paint.style = Paint.Style.STROKE
-    paint.strokeWidth = 1.6f * dp
-    paint.color = Color.argb(210, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
+    paint.strokeWidth = 1.8f * dp
+    paint.color = gearColor
+    canvas.drawCircle(cx, cy, 7f * dp, paint)
+
     val r1 = 10f * dp
     val r2 = 13f * dp
+    // Draw halo under gear teeth
+    paint.strokeWidth = 3.2f * dp
+    paint.color = Color.argb(160, 0, 0, 0)
+    for (i in 0 until 8) {
+        val angle = i * (kotlin.math.PI / 4.0)
+        val startX = cx + (r1 * cos(angle)).toFloat()
+        val startY = cy + (r1 * sin(angle)).toFloat()
+        val endX = cx + (r2 * cos(angle)).toFloat()
+        val endY = cy + (r2 * sin(angle)).toFloat()
+        canvas.drawLine(startX, startY, endX, endY, paint)
+    }
+
+    paint.strokeWidth = 1.8f * dp
+    paint.color = gearColor
     for (i in 0 until 8) {
         val angle = i * (kotlin.math.PI / 4.0)
         val startX = cx + (r1 * cos(angle)).toFloat()

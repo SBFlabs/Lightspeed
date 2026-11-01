@@ -148,6 +148,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal fun triggerHardwareHaptic(durationMs: Long, amplitude: Int) {
         LightspeedHapticEngine.vibrate(context, durationMs, amplitude)
     }
+
+    internal fun triggerDeflectorHaptic(isClick: Boolean = false) {
+        if (isClick) {
+            LightspeedHapticEngine.deflectorClick(context)
+        } else {
+            LightspeedHapticEngine.deflectorTick(context)
+        }
+    }
     internal var lastPermissionToastTime = 0L
     internal var overScrollBoundaryAccumulator = 0f
     internal var settingsCategoryAppended = false
@@ -208,6 +216,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var categoryVisualOffset = 0f
     internal var entranceStartTime = 0L
     internal var snapAnimator: ValueAnimator? = null
+    internal var isCategoryVectorLocked = false
+    internal var gridEntryRawX = 0f
+    internal var gridEntryRawY = 0f
+    internal var gridDeadZoneLatched = false
 
     internal var cachedApps = listOf<LightspeedDataBridge.LaunchTarget>()
     internal var placedAppsList = mutableListOf<PlacedItem>()
@@ -368,6 +380,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        instance = this
         cachedPrefs = prefs()
         cachedPrefs!!.registerOnSharedPreferenceChangeListener(prefChangeListener)
         updateRenderCache()
@@ -388,6 +401,9 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         glowDelegate.cancel()
         cachedPrefs?.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
         cachedPrefs = null
+        if (instance === this) {
+            instance = null
+        }
         super.onDetachedFromWindow()
     }
 
@@ -471,6 +487,10 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     companion object {
+        @Volatile
+        var instance: LightspeedCruiseOverlay? = null
+            internal set
+
         fun loadAgslSource(context: Context): String {
             return try {
                 context.assets.open("shaders/deflector_pill.agsl").bufferedReader().use { it.readText() }

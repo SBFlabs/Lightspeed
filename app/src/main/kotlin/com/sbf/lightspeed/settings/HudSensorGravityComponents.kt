@@ -183,6 +183,157 @@ fun HudSensorDeckSection(
                     }
                 )
             }
+
+            // 4. Bottom Sensor Area
+            var isBottomSensorExpanded by rememberSaveable {
+                mutableStateOf(prefs.getBoolean("pref_sub_bottom_statusbar_expanded", false))
+            }
+            var isBottomGeoExpanded by rememberSaveable {
+                mutableStateOf(prefs.getBoolean("pref_sub_bottom_statusbar_geo", false))
+            }
+            var isBottomGesturesExpanded by rememberSaveable {
+                mutableStateOf(prefs.getBoolean("pref_sub_bottom_statusbar_gestures", false))
+            }
+
+            val bottomSpanKey = if (isLandscape) LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN_LANDSCAPE else LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN
+            val defaultBottomSpan = if (isLandscape) 320 else 200
+            val bottomThicknessKey = if (isLandscape) LightspeedPreferences.KEY_BOTTOM_STATUSBAR_THICKNESS_LANDSCAPE else LightspeedPreferences.KEY_BOTTOM_STATUSBAR_THICKNESS
+            val defaultBottomThickness = 35
+            val bottomOffsetXKey = if (isLandscape) LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X_LANDSCAPE else LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X
+            val defaultBottomOffsetX = 0
+
+            // Automatic Live Trigger Zone Preview while Bottom Sensor Geometry/Calibration is open
+            val shouldPreviewBottom = isExpanded && isBottomSensorExpanded && isBottomGeoExpanded
+            DisposableEffect(shouldPreviewBottom) {
+                prefs.edit().putBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, shouldPreviewBottom).apply()
+                safeReloadPreferences()
+                onDispose {
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, false).apply()
+                    safeReloadPreferences()
+                }
+            }
+
+            CollapsibleSubSection(
+                title = "Bottom Sensor Area",
+                subtitle = "Bottom-edge sensor zone for taps, swipes & continuous scrub",
+                icon = {
+                    Icon(
+                        imageVector = Icons.Outlined.TouchApp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                isExpanded = isBottomSensorExpanded,
+                onToggle = {
+                    isBottomSensorExpanded = !isBottomSensorExpanded
+                    prefs.edit().putBoolean("pref_sub_bottom_statusbar_expanded", isBottomSensorExpanded).apply()
+                }
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PrefToggleRow(
+                        prefs = prefs,
+                        prefKey = LightspeedPreferences.KEY_BOTTOM_STATUSBAR_ENABLED,
+                        defaultVal = false,
+                        title = "Enable Bottom Sensor Area",
+                        subtitle = "Bottom-edge touch target overlay with continuous scrub support",
+                        onChanged = {
+                            safeReloadPreferences()
+                            onRefreshNeeded()
+                        }
+                    )
+
+                    // Sub: Bottom Geometry & Sensitivity
+                    CollapsibleSubSection(
+                        title = "Geometry & Sensitivity",
+                        subtitle = "Span, thickness, horizontal & vertical offsets",
+                        isExpanded = isBottomGeoExpanded,
+                        onToggle = {
+                            isBottomGeoExpanded = !isBottomGeoExpanded
+                            prefs.edit().putBoolean("pref_sub_bottom_statusbar_geo", isBottomGeoExpanded).apply()
+                        }
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = if (isLandscape) "✦ Bottom Sensor Calibration: LANDSCAPE (Tablet Mode)" else "✦ Bottom Sensor Calibration: PORTRAIT (Phone Mode)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (isLandscape) {
+                                        "Calibrating bottom sensor deck in landscape tablet mode."
+                                    } else {
+                                        "Calibrating bottom sensor deck in portrait phone mode. Rotate to landscape to calibrate tablet mode."
+                                    },
+                                    fontSize = 10.5.sp,
+                                    color = lsColors.textPrimary.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                        PrefDottedSliderRow(context, prefs, bottomSpanKey, "", "Span (≥1000 = Full Width)", 50, 1080, 10, defaultBottomSpan)
+                        PrefDottedSliderRow(context, prefs, bottomThicknessKey, "", "Thickness", 10, 52, 2, defaultBottomThickness)
+                        PrefDottedSliderRow(context, prefs, bottomOffsetXKey, "", "Horizontal Offset (X Axis)", -300, 300, 5, defaultBottomOffsetX)
+                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_Y, "", "Vertical Offset from Bottom (Y Axis)", -100, 200, 5, 0)
+                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SENSITIVITY, "", "Touch Sensitivity", 10, 100, 5, 25)
+                        PrefDottedSliderRow(context, prefs, LightspeedPreferences.KEY_BOTTOM_STATUSBAR_TRANSPARENCY, "", "Stealth Idle Glow", 0, 100, 5, 0)
+                    }
+
+                    // Sub: Bottom Gestures & Macros
+                    CollapsibleSubSection(
+                        title = "Gestures & Macros",
+                        subtitle = "Tap, double-tap, swipe left/right/up with Hold Modifiers & Scrub",
+                        isExpanded = isBottomGesturesExpanded,
+                        onToggle = {
+                            isBottomGesturesExpanded = !isBottomGesturesExpanded
+                            prefs.edit().putBoolean("pref_sub_bottom_statusbar_gestures", isBottomGesturesExpanded).apply()
+                        }
+                    ) {
+                        val bottomVectors = listOf(
+                            "TAP" to ("Tap" to ArrowDirection.TAP),
+                            "DOUBLE_TAP" to ("Tap (Double)" to ArrowDirection.DOUBLE_TAP),
+                            "SWIPE_UP" to ("Swipe Up" to ArrowDirection.SWIPE_UP),
+                            "SWIPE_LEFT" to ("Swipe Left" to ArrowDirection.SWIPE_LEFT),
+                            "SWIPE_RIGHT" to ("Swipe Right" to ArrowDirection.SWIPE_RIGHT),
+                            "SWIPE_LEFT_BACK" to ("Rebound Left" to ArrowDirection.LEFT_BACK),
+                            "SWIPE_RIGHT_BACK" to ("Rebound Right" to ArrowDirection.RIGHT_BACK)
+                        )
+
+                        bottomVectors.forEach { (vectorKey, pairInfo) ->
+                            val (vectorTitle, arrowEnum) = pairInfo
+                            GestureMappingRow(
+                                context = context,
+                                prefs = prefs,
+                                direction = arrowEnum,
+                                isHold = false,
+                                keyResName = "pref_macro_action_BOTTOM_STATUSBAR_${vectorKey}",
+                                defaultTitle = vectorTitle,
+                                options = dynamicActionTokens,
+                                labelCache = tokenLabelCache,
+                                showBottomSensorQuickAccess = true
+                            )
+                            GestureMappingRow(
+                                context = context,
+                                prefs = prefs,
+                                direction = arrowEnum,
+                                isHold = true,
+                                keyResName = "pref_macro_action_BOTTOM_STATUSBAR_${vectorKey}_HOLD",
+                                defaultTitle = "$vectorTitle + Hold Modifier",
+                                options = dynamicActionTokens,
+                                labelCache = tokenLabelCache,
+                                showBottomSensorQuickAccess = true
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

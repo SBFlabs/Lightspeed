@@ -227,6 +227,7 @@ fun ClippedFallbackBlurLayer(
     val screenLocation = remember { IntArray(2) }
     var screenOffset by remember { mutableStateOf(IntOffset.Zero) }
     var boxSize by remember { mutableStateOf(IntSize.Zero) }
+    var lastUpdateUptimeMs by remember { mutableStateOf(0L) }
 
     val effectiveRadius = (blurRadiusPx * 0.35f).coerceIn(2f, 60f)
     val primaryBlurEffect = remember(effectiveRadius) {
@@ -242,11 +243,19 @@ fun ClippedFallbackBlurLayer(
             .fillMaxSize()
             .onSizeChanged { boxSize = it }
             .onGloballyPositioned { coords ->
-                view.getLocationOnScreen(screenLocation)
-                val posInWindow = coords.positionInWindow()
-                val screenX = screenLocation[0] + posInWindow.x.roundToInt()
-                val screenY = screenLocation[1] + posInWindow.y.roundToInt()
-                screenOffset = IntOffset(screenX, screenY)
+                val now = android.os.SystemClock.uptimeMillis()
+                // Only recompute position if card offset changed or at most once every 32ms during scroll
+                if (screenOffset == IntOffset.Zero || (now - lastUpdateUptimeMs) > 32L) {
+                    view.getLocationOnScreen(screenLocation)
+                    val posInWindow = coords.positionInWindow()
+                    val screenX = screenLocation[0] + posInWindow.x.roundToInt()
+                    val screenY = screenLocation[1] + posInWindow.y.roundToInt()
+                    val newOffset = IntOffset(screenX, screenY)
+                    if (newOffset != screenOffset) {
+                        screenOffset = newOffset
+                        lastUpdateUptimeMs = now
+                    }
+                }
             }
     ) {
         if (boxSize.width > 0 && boxSize.height > 0) {

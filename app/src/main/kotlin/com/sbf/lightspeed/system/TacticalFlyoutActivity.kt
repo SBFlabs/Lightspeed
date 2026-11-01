@@ -51,7 +51,7 @@ class TacticalFlyoutActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setDimAmount(0.65f)
+        window.setDimAmount(0.88f)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         setContent {
             LightspeedTheme(forceDark = true) {
@@ -95,7 +95,7 @@ fun TacticalFlyoutContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.65f))
+            .background(Color.Black.copy(alpha = 0.88f))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null

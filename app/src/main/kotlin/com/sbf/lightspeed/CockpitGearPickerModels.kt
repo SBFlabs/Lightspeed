@@ -126,7 +126,7 @@ fun buildFlatItemsList(
     }
 
     // 1. System Actions (Organized by Subcategories)
-    val systemActions = filtered.filter { it.startsWith("system:") || it == "action_enter_gearset_nav" }
+    val systemActions = filtered.filter { it.startsWith("system:") }
     if (systemActions.isNotEmpty()) {
         val sysKey = "category:system"
         val isExpanded = expandedSubsections.contains(sysKey) || searchQuery.isNotBlank()
@@ -136,7 +136,19 @@ fun buildFlatItemsList(
                 Triple(
                     "sys_nav",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.NAVIGATION),
-                    listOf("action_enter_gearset_nav", "system:previous_app", "system:close_app", "system:recents", "system:home", "system:back", "system:split_screen", "system:popup_window")
+                    listOf(
+                        "system:previous_app",
+                        "system:close_app",
+                        "system:recents",
+                        "system:home",
+                        "system:back",
+                        "system:split_screen",
+                        "system:popup_window",
+                        "system:circle_to_search",
+                        "system:assistant",
+                        "system:pass_through_touch",
+                        "system:tactical_flyout"
+                    )
                 ),
                 Triple(
                     "sys_hw",
@@ -161,6 +173,8 @@ fun buildFlatItemsList(
                     "sys_tactical",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SHIP_MAINTENANCE),
                     listOf(
+                        "system:vista_deck",
+                        "system:shields_down",
                         "system:power_menu",
                         "system:refueling_bay",
                         "system:core_cooling",
@@ -602,7 +616,7 @@ fun buildFlatItemsList(
     }
 
     // 2. Apps and Shortcuts grouped by package
-    val nonSystem = filtered.filter { !it.startsWith("system:") && it != "action_enter_gearset_nav" }
+    val nonSystem = filtered.filter { !it.startsWith("system:") }
     val appMap = mutableMapOf<String, MutableList<String>>()
     nonSystem.forEach { token ->
         val pkg = when {

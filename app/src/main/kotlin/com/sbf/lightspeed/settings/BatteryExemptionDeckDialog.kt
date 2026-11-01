@@ -301,7 +301,7 @@ fun BatteryExemptionDeckDialog(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             placeholder = { Text("Search apps by name or package...", fontSize = 11.5.sp, color = lsColors.textDisabled) },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                             leadingIcon = {
                                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                             },

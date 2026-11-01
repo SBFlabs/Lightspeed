@@ -189,7 +189,7 @@ fun LightspeedInfinityDialog(
                                 codeInput = it.uppercase()
                                 errorMessage = null
                             },
-                            placeholder = { Text("LSINF-XXXX-YYYY", fontSize = 11.sp, color = lsColors.textDisabled) },
+                            placeholder = { Text("LSINF-XXXXXXXX-...", fontSize = 11.sp, color = lsColors.textDisabled) },
                             singleLine = true,
                             modifier = Modifier.weight(1f),
                             textStyle = androidx.compose.ui.text.TextStyle(
@@ -232,8 +232,8 @@ fun LightspeedInfinityDialog(
 
                     Button(
                         onClick = {
-                            if (LightspeedInfinityManager.isLockedOut()) {
-                                val secs = LightspeedInfinityManager.getRemainingLockoutSeconds()
+                            if (LightspeedInfinityManager.isLockedOut(context)) {
+                                val secs = LightspeedInfinityManager.getRemainingLockoutSeconds(context)
                                 errorMessage = "Too many attempts. Locked for ${secs}s."
                                 return@Button
                             }

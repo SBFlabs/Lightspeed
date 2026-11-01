@@ -126,6 +126,15 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
     canvas.drawColor(Color.argb(bgAlpha, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel)))
     drawCosmicStarfield(canvas, w, h, density, 0.7f)
 
+    // Ambient radial spotlight centered on currently focused app icon's (X, Y) coordinate
+    val focusedPlaced = placedAppsList.find { it.app == activeItem }
+    if (focusedPlaced != null) {
+        val scroll = if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset
+        val spotX = focusedPlaced.bounds.centerX()
+        val spotY = focusedPlaced.bounds.centerY() - scroll
+        drawGalacticNebula(canvas, spotX, spotY, 150f * density, if (themeBorder != 0) themeBorder else themePanel, 0.75f)
+    }
+
     textPaint.textAlign = Paint.Align.CENTER
     canvas.save(); canvas.clipRect(0f, 0f, w, h)
     canvas.translate(0f, -(if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset))
@@ -136,10 +145,12 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
             highlightPaint.color = Color.argb(160, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel))
             canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
 
+            // Crisp bright accent ring/glow around currently focused app icon
+            val accentColor = if (themeBorder != 0) themeBorder else themePanel
             highlightPaint.style = Paint.Style.STROKE
-            highlightPaint.strokeWidth = 2.2f * density
-            highlightPaint.color = themeBorder
-            canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
+            highlightPaint.strokeWidth = 3.5f * density
+            highlightPaint.color = accentColor
+            canvas.drawRoundRect(b.left + 3f, b.top + 3f, b.right - 3f, b.bottom - 3f, 18f, 18f, highlightPaint)
 
             textPaint.color = Color.WHITE
             textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD

@@ -25,12 +25,18 @@ object LightspeedBackupEngine {
         LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW,
         LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW,
         LightspeedPreferences.KEY_STATUSBAR_PREVIEW,
+        LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW,
         LightspeedPreferences.KEY_NOTCH_TEST_BEACON,
         LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW,
         com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_LEFT,
         com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_RIGHT,
         "pref_is_infinity_unlocked",
         "pref_active_infinity_code",
+        "pref_infinity_failed_attempts",
+        "pref_infinity_lockout_timestamp",
+        LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN,
+        LightspeedPreferences.KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN,
+        LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION,
     )
 
     private val RESTRICTED_SYSTEM_STATE_KEYS = setOf(
@@ -47,7 +53,12 @@ object LightspeedBackupEngine {
         key in TRANSIENT_KEYS ||
         key.startsWith("key_last_crash") ||
         key == "key_has_unreported_crash" ||
-        key == "key_allow_external_automation"
+        key == "key_allow_external_automation" ||
+        key.endsWith("_dismissed") ||
+        key.endsWith("_demoted") ||
+        key.endsWith("_warning_dismissed") ||
+        key.startsWith("pref_suppress_") ||
+        key.startsWith("pref_dismiss_")
 
     private fun migrateFromV1(editor: android.content.SharedPreferences.Editor) {
         // Schema migration hooks for v1 -> v2 backups
@@ -328,7 +339,7 @@ object LightspeedBackupEngine {
                         } else if (existingVal is Float || key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
                             val floatVal = value.toFloatOrNull()
                             if (floatVal != null) editor.putFloat(key, floatVal) else editor.putString(key, value)
-                        } else if (existingVal is Int || key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE || key == LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_FORWARD_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_BACKWARD_SECONDS) {
+                        } else if (existingVal is Int || key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_bottom_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE || key == LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_FORWARD_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_BACKWARD_SECONDS || key == LightspeedPreferences.KEY_CHARGE_LIMIT_PERCENTAGE) {
                             val intVal = value.toIntOrNull()
                             if (intVal != null) editor.putInt(key, intVal) else editor.putString(key, value)
                         } else if (existingVal is Long || key.endsWith("_time") || key.endsWith("_timestamp")) {

@@ -10,6 +10,7 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -17,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
 import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.settings.BlueprintWireframeView
+import com.sbf.lightspeed.settings.CollapsibleSubSection
 import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
 import com.sbf.lightspeed.system.sonic.SonicChannelRouter
 import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
@@ -64,11 +72,32 @@ object SonicDeckManager {
     private var windowManager: WindowManager? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
 
+    private var windowParams: WindowManager.LayoutParams? = null
+
     fun isShowing(): Boolean = composeView != null
+
+    fun updateWindowFocusable(focusable: Boolean) {
+        val mainHandler = Handler(Looper.getMainLooper())
+        mainHandler.post {
+            val view = composeView ?: return@post
+            val wm = windowManager ?: return@post
+            val params = windowParams ?: return@post
+            if (focusable) {
+                params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+            } else {
+                params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            }
+            try {
+                wm.updateViewLayout(view, params)
+            } catch (e: Exception) {
+                logSwallowed("SonicDeckManager", "updateWindowFocusable", e)
+            }
+        }
+    }
 
     /**
      * Master switch toggle handler.
-     * When disabled: stops Cinema AI voice isolation, resets per-app volume overrides
+     * When disabled: stops voice isolation, resets per-app volume overrides
      * to native unity (1.0f), and clears privileged audio routes.
      * When re-enabled: restores voice isolation if previously active, re-enables volume
      * monitoring, reapplies custom app volumes, and restores channel routing.
@@ -79,7 +108,7 @@ object SonicDeckManager {
         if (!enabled) {
             dismiss()
 
-            // 1. Stash and stop Cinema AI Voice Isolation
+            // 1. Stash and stop Voice Isolation
             val wasVoiceActive = SonicVoiceIsolationEngine.isEnabled ||
                 prefs.getBoolean(LightspeedPreferences.KEY_SONIC_VOICE_ISOLATION_ENABLED, false)
             prefs.edit().putBoolean(KEY_SONIC_VOICE_ISOLATION_STASHED, wasVoiceActive).apply()
@@ -96,7 +125,7 @@ object SonicDeckManager {
         } else {
             SonicVoiceIsolationEngine.ensureBound(appCtx)
             // Re-enabling restores all back:
-            // 1. Restore Cinema AI Voice Isolation if previously stashed active
+            // 1. Restore Voice Isolation if previously stashed active
             val shouldRestoreVoice = prefs.getBoolean(KEY_SONIC_VOICE_ISOLATION_STASHED, false)
             if (shouldRestoreVoice) {
                 SonicVoiceIsolationEngine.start(appCtx)
@@ -164,6 +193,8 @@ object SonicDeckManager {
                 }
             }
 
+            windowParams = params
+
             try {
                 wm.addView(view, params)
             } catch (e: Exception) {
@@ -192,6 +223,7 @@ object SonicDeckManager {
                     logSwallowed("SonicDeckManager", "dismiss.removeView", e)
                 }
                 composeView = null
+                windowParams = null
             }
             windowManager = null
         }
@@ -204,7 +236,32 @@ object SonicDeckManager {
         onDismiss: () -> Unit
     ) {
         val snapshot by DeckThemeManager.snapshotFlow.collectAsState()
+        val prefs = service.defaultPrefs()
         val audioManager = remember { service.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+        var isBlueprintMode by remember { mutableStateOf(false) }
+        val tint = Color(snapshot.effectiveTintArgb.toInt())
+
+        val defaultSections = listOf("mixer", "dialogue", "streams")
+        val sectionTitles = mapOf(
+            "mixer" to "Per-App Audio Mixer & Routing",
+            "dialogue" to "Voice Isolation & Background Muffler",
+            "streams" to "Master & System Streams"
+        )
+        val savedOrderStr = prefs.getString("pref_sonic_deck_section_order", "mixer,dialogue,streams") ?: "mixer,dialogue,streams"
+        var currentSectionOrder by remember(savedOrderStr) {
+            mutableStateOf(
+                savedOrderStr.split(",").filter { it in defaultSections }.let { list ->
+                    list + (defaultSections - list.toSet())
+                }
+            )
+        }
+        var pinnedSection by remember {
+            mutableStateOf(prefs.getString("pref_sonic_deck_pinned_section", "mixer") ?: "mixer")
+        }
+
+        var isMixerExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sonic_sub_mixer_expanded", true)) }
+        var isDialogueExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sonic_sub_dialogue_expanded", true)) }
+        var isStreamsExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sonic_sub_streams_expanded", true)) }
 
         Box(
             modifier = Modifier
@@ -224,53 +281,144 @@ object SonicDeckManager {
             ) {
                 DeckGlassCardSurface(
                     modifier = Modifier
-                        .widthIn(max = 380.dp)
+                        .widthIn(min = 320.dp, max = 480.dp)
                         .fillMaxWidth(0.92f)
                         .wrapContentHeight()
-                        .heightIn(max = 540.dp)
+                        .heightIn(max = 680.dp)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
                     snapshotOverride = snapshot,
                     isFlyout = false
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .wrapContentHeight()
-                            .padding(16.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Header
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    if (isBlueprintMode) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            Text(
-                                text = "◈ SONIC COMMAND DECK ◈",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                            BlueprintWireframeView(
+                                tabTitle = "SONIC DECK",
+                                sectionIds = currentSectionOrder,
+                                pinnedSectionId = pinnedSection,
+                                sectionTitles = sectionTitles,
+                                onMoveUp = { idx ->
+                                    if (idx > 0) {
+                                        val m = currentSectionOrder.toMutableList()
+                                        val item = m.removeAt(idx)
+                                        m.add(idx - 1, item)
+                                        currentSectionOrder = m
+                                        prefs.edit().putString("pref_sonic_deck_section_order", m.joinToString(",")).apply()
+                                    }
+                                },
+                                onMoveDown = { idx ->
+                                    if (idx < currentSectionOrder.size - 1) {
+                                        val m = currentSectionOrder.toMutableList()
+                                        val item = m.removeAt(idx)
+                                        m.add(idx + 1, item)
+                                        currentSectionOrder = m
+                                        prefs.edit().putString("pref_sonic_deck_section_order", m.joinToString(",")).apply()
+                                    }
+                                },
+                                onPinSection = { id ->
+                                    pinnedSection = id
+                                    prefs.edit().putString("pref_sonic_deck_pinned_section", id).apply()
+                                },
+                                onExitBlueprint = { isBlueprintMode = false }
                             )
-                            IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White.copy(alpha = 0.8f))
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                                .padding(16.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable { isBlueprintMode = true }
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.VolumeUp,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "◈ SONIC DECK ◈",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                    Icon(
+                                        Icons.Default.Tune,
+                                        contentDescription = "Edit Blueprint",
+                                        tint = tint.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White.copy(alpha = 0.8f))
+                                }
+                            }
+
+                            HorizontalDivider(color = Color(0x25FFFFFF))
+
+                            currentSectionOrder.forEach { secId ->
+                                when (secId) {
+                                    "mixer" -> {
+                                        CollapsibleSubSection(
+                                            title = "Per-App Audio Mixer & Routing",
+                                            subtitle = "Hardware gain (0..200%) & multi-channel routing",
+                                            isExpanded = isMixerExpanded,
+                                            onToggle = {
+                                                isMixerExpanded = !isMixerExpanded
+                                                prefs.edit().putBoolean("pref_sonic_sub_mixer_expanded", isMixerExpanded).apply()
+                                            }
+                                        ) {
+                                            SonicAppMixerSection(context = service, snapshot = snapshot)
+                                        }
+                                    }
+                                    "dialogue" -> {
+                                        CollapsibleSubSection(
+                                            title = "Voice Isolation & Background Muffler",
+                                            subtitle = "Real-time speech clarity & background sound muffle",
+                                            isExpanded = isDialogueExpanded,
+                                            onToggle = {
+                                                isDialogueExpanded = !isDialogueExpanded
+                                                prefs.edit().putBoolean("pref_sonic_sub_dialogue_expanded", isDialogueExpanded).apply()
+                                            }
+                                        ) {
+                                            SonicDialogueSection(context = service, snapshot = snapshot)
+                                        }
+                                    }
+                                    "streams" -> {
+                                        CollapsibleSubSection(
+                                            title = "Master & System Streams",
+                                            subtitle = "Media, Ring, Notification, Alarm, Voice Call & System",
+                                            isExpanded = isStreamsExpanded,
+                                            onToggle = {
+                                                isStreamsExpanded = !isStreamsExpanded
+                                                prefs.edit().putBoolean("pref_sonic_sub_streams_expanded", isStreamsExpanded).apply()
+                                            }
+                                        ) {
+                                            SonicMasterStreamsSection(context = service, audioManager = audioManager, snapshot = snapshot)
+                                        }
+                                    }
+                                }
                             }
                         }
-
-                        HorizontalDivider(color = Color(0x25FFFFFF))
-
-                        // Section 1: Dialogue & Neural Voice Isolation
-                        SonicDialogueSection(context = service, snapshot = snapshot)
-
-                        HorizontalDivider(color = Color(0x25FFFFFF))
-
-                        // Section 2: Master & System Streams
-                        SonicMasterStreamsSection(context = service, audioManager = audioManager, snapshot = snapshot)
-
-                        HorizontalDivider(color = Color(0x25FFFFFF))
-
-                        // Section 3: Per-App Mixer & Output Channel Sovereignty
-                        SonicAppMixerSection(context = service, snapshot = snapshot)
                     }
                 }
             }

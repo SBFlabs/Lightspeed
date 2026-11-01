@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -157,8 +159,6 @@ fun HudExperimentalLabsSection(
                                 } else {
                                     val targetKey = if (trackpadFlankLeft) com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_LEFT_ENABLED else com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_RIGHT_ENABLED
                                     ed.putBoolean(targetKey, true)
-                                    val flankKey = if (trackpadFlankLeft) "left" else "right"
-                                    ed.putBoolean("pref_accordion_trackpad_$flankKey", true)
                                 }
                                 ed.apply()
                                 com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
@@ -242,7 +242,7 @@ fun HudExperimentalLabsSection(
                 Text(
                     text = "⚠ Uses extra RAM and battery: runs a separate background audio service while enabled.",
                     fontSize = 11.sp,
-                    color = androidx.compose.ui.graphics.Color(0xFFFF5252),
+                    color = lsColors.accentDanger,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                 )
                 if (showSonicPowerWarning) {
@@ -260,7 +260,7 @@ fun HudExperimentalLabsSection(
                                 text = "⚠ Power & memory usage",
                                 fontSize = 15.sp,
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                                color = androidx.compose.ui.graphics.Color(0xFFFF5252)
+                                color = lsColors.accentDanger
                             )
                         },
                         text = {
@@ -303,6 +303,21 @@ fun HudExperimentalLabsSection(
                         subtitle = "Pull inward from right deflector during volume scrub to launch Sonic Deck.",
                         onChanged = { onRefreshNeeded() }
                     )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedButton(
+                    onClick = {
+                        val svc = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+                        if (svc != null) {
+                            com.sbf.lightspeed.system.SonicDeckManager.show(svc)
+                        } else {
+                            android.widget.Toast.makeText(context, "Accessibility Service is not active", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Launch Sonic Deck ↗", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -349,6 +364,21 @@ fun HudExperimentalLabsSection(
                         subtitle = "Pull inward from right deflector during brightness scrub to launch Vista Deck.",
                         onChanged = { onRefreshNeeded() }
                     )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedButton(
+                    onClick = {
+                        val svc = com.sbf.lightspeed.LightspeedAccessibilityService.instance
+                        if (svc != null) {
+                            com.sbf.lightspeed.system.VistaDeckManager.show(svc)
+                        } else {
+                            android.widget.Toast.makeText(context, "Accessibility Service is not active", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Launch Vista Deck ↗", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 

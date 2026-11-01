@@ -61,12 +61,16 @@ class LightspeedAccessibilityService : AccessibilityService() {
     internal var statusBarOverlayView: LightspeedStatusBarOverlay? = null
     internal lateinit var statusBarWindowParams: WindowManager.LayoutParams
 
-    // Sensor Deck Touch Overlay
+    // Sensor Deck Touch Overlay (Top)
     internal var sensorTouchOverlayView: LightspeedSensorDeckTouchOverlay? = null
     internal lateinit var sensorTouchWindowParams: WindowManager.LayoutParams
     @Volatile
     var isNotificationShadeActive: Boolean = false
         internal set
+
+    // Bottom Sensor Deck Touch Overlay
+    internal var bottomSensorTouchOverlayView: LightspeedSensorDeckTouchOverlay? = null
+    internal lateinit var bottomSensorTouchWindowParams: WindowManager.LayoutParams
 
     // Dedicated Notch Pill Overlay
     internal var notchOverlayView: LightspeedNotchOverlay? = null
@@ -143,6 +147,10 @@ class LightspeedAccessibilityService : AccessibilityService() {
             updateStatusBarOverlayFromPrefs(prefs)
             updateSensorTouchOverlayFromPrefs(prefs)
             statusBarOverlayView?.postInvalidate()
+        }
+        if (key != null && (key.startsWith("pref_bottom_statusbar_") || key.startsWith("pref_macro_action_BOTTOM_STATUSBAR"))) {
+            updateBottomSensorTouchOverlayFromPrefs(prefs)
+            bottomSensorTouchOverlayView?.postInvalidate()
         }
         if (key != null && (key.startsWith("pref_notch_") || key.startsWith("pref_telemetry_"))) {
             notchOverlayView?.postInvalidate()
@@ -244,6 +252,18 @@ class LightspeedAccessibilityService : AccessibilityService() {
         overlayView?.post {
             overlayView?.openHangarFromFlank(isLeftFlank = true)
         }
+    }
+
+    var isPassThroughActive = false
+
+    fun temporarilyPassThrough(durationMs: Long = 5000L) {
+        isPassThroughActive = true
+        updateOverlaysVisibility()
+        android.widget.Toast.makeText(this, "Pass-Through Touch Active (5s)", android.widget.Toast.LENGTH_SHORT).show()
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            isPassThroughActive = false
+            updateOverlaysVisibility()
+        }, durationMs)
     }
 
     fun triggerDeflectorsGlow(durationMs: Long = -1L) = triggerDeflectorsGlowInternal(durationMs)

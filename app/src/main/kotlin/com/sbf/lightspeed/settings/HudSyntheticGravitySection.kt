@@ -38,6 +38,7 @@ fun HudSyntheticGravitySection(
     onRefreshNeeded: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
+    val cautionAmber = lsColors.accentWarn
     var isAutoRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isAutoRotateEnabled(context)) }
     var isFaceRotateActive by remember { mutableStateOf(LightspeedOrientationEngine.isFaceRotateEnabled(context)) }
     var selectedAttitudeBucketForAppPicker by remember { mutableStateOf<LightspeedOrientationEngine.AttitudeBucket?>(null) }
@@ -64,6 +65,62 @@ fun HudSyntheticGravitySection(
 
     val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
     val (gravityTitle, gravitySub) = LightspeedLanguageEngine.resolvePair(LightspeedVocabulary.Key.GRAVITY_ENGINE, currentLanguageMode)
+    var showGravityInfoDialog by remember { mutableStateOf(false) }
+
+    if (showGravityInfoDialog) {
+        DeckDialog(
+            onDismissRequest = { showGravityInfoDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "SYNTHETIC GRAVITY ENGINE",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = lsColors.textPrimary,
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "• Overview: Automates device orientation per application (Strict Portrait, Sensor Portrait 0°/180°, Landscape, or 360° Gyro). Manual gesture triggers override these rules on demand. Bucket app assignments are synchronized with the customization options in the Action Selection Menu.",
+                        fontSize = 11.5.sp,
+                        color = lsColors.textSecondary.copy(alpha = 0.95f),
+                        lineHeight = 15.5.sp
+                    )
+                    Text(
+                        text = "• Recommended: Manual Actions Preferred: Keep this automatic engine toggled OFF for 0% battery usage and clean transitions. We recommend mapping orientation actions ('Force Landscape', 'Force Portrait', '360° Gyro') directly to Deflector gestures or launching them from the System Actions menu on demand.",
+                        fontSize = 11.5.sp,
+                        color = lsColors.textSecondary.copy(alpha = 0.95f),
+                        lineHeight = 15.5.sp
+                    )
+                    Text(
+                        text = "• Action Independence: Actions from the Action Selection Menu operate completely independently from this toggle, acting as transient manual overrides that yield automatically back upon switching apps or screen-off. Turning this toggle OFF disables per-app automation buckets only; manual gestures STILL work on demand at all times.",
+                        fontSize = 11.5.sp,
+                        color = lsColors.textSecondary.copy(alpha = 0.95f),
+                        lineHeight = 15.5.sp
+                    )
+                }
+            },
+            confirmButton = {
+                DeckButton(
+                    text = "GOT IT",
+                    onClick = { showGravityInfoDialog = false },
+                    isActive = true
+                )
+            }
+        )
+    }
 
     CompactAccordionSection(
         title = gravityTitle,
@@ -76,37 +133,23 @@ fun HudSyntheticGravitySection(
                 modifier = Modifier.size(20.dp)
             )
         },
+        headerTrailing = {
+            IconButton(
+                onClick = { showGravityInfoDialog = true },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Gravity Information",
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        },
         isExpanded = isExpanded,
         onToggle = onToggle
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Introductory Clarifying Note
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Automates device orientation per application (Strict Portrait, Sensor Portrait 0°/180°, Landscape, or 360° Gyro). Manual gesture triggers override these rules on demand. Bucket app assignments are synchronized with the customization options in the Action Selection Menu.",
-                        fontSize = 11.sp,
-                        color = lsColors.textSecondary.copy(alpha = 0.9f),
-                        lineHeight = 14.5.sp
-                    )
-                }
-            }
-
             // 0. Permission Warning Interlock
             val hasPermission = remember(context) {
                 LightspeedOrientationEngine.hasPermission(context)
@@ -146,82 +189,6 @@ fun HudSyntheticGravitySection(
                                 lineHeight = 13.sp
                             )
                         }
-                    }
-                }
-            }
-
-            val cautionAmber = lsColors.accentWarn
-            var showActionsIndependenceDialog by remember { mutableStateOf(false) }
-            if (showActionsIndependenceDialog) {
-                DeckDialog(
-                    onDismissRequest = { showActionsIndependenceDialog = false },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.PriorityHigh,
-                            contentDescription = null,
-                            tint = cautionAmber,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    },
-                    title = {
-                        Text(
-                            text = "ACTION INDEPENDENCE",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = lsColors.textPrimary,
-                            textAlign = TextAlign.Center
-                        )
-                    },
-                    text = {
-                        Text(
-                            text = "• Transient Actions: Actions from the Action Selection Menu (such as 'Transient Sensor Portrait', 'Transient Landscape', 'Transient Portrait', and '360° Gyro') operate completely independently from this toggle.\n\n• Yields to Automation: They act as transient manual overrides that yield automatically back to the Synthetic Gravity Engine rules upon switching apps or screen-off, preventing hard-locks.\n\n• Toggle Scope: Turning this Synthetic Gravity Engine toggle OFF disables per-app automation buckets only. Manual gestures and action menu triggers will STILL work on demand at all times.",
-                            fontSize = 12.5.sp,
-                            color = lsColors.textSecondary.copy(alpha = 0.9f),
-                            lineHeight = 18.sp,
-                            textAlign = TextAlign.Start
-                        )
-                    },
-                    confirmButton = {
-                        DeckButton(
-                            text = "UNDERSTOOD",
-                            onClick = { showActionsIndependenceDialog = false },
-                            isActive = true
-                        )
-                    }
-                )
-            }
-
-            // Operational Recommendation: Manual Actions Preferred
-            DeckCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lightbulb,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp).padding(top = 2.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Recommended: Manual Actions Preferred",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.5.sp,
-                            color = lsColors.textPrimary
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "Keep this automatic engine toggled OFF for 0% battery usage and clean transitions. We recommend mapping the orientation actions ('Force Landscape', 'Force Portrait', '360° Gyro') directly to Deflector gestures or launching them from the System Actions menu on demand.",
-                            fontSize = 11.sp,
-                            color = lsColors.textSecondary.copy(alpha = 0.9f),
-                            lineHeight = 14.5.sp
-                        )
                     }
                 }
             }
@@ -281,7 +248,7 @@ fun HudSyntheticGravitySection(
                                         .clip(CircleShape)
                                         .background(cautionAmber.copy(alpha = 0.15f))
                                         .border(0.8.dp, cautionAmber.copy(alpha = 0.4f), CircleShape)
-                                        .clickable { showActionsIndependenceDialog = true },
+                                        .clickable { showGravityInfoDialog = true },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

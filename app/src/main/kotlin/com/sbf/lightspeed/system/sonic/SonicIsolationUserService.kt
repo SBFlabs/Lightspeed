@@ -127,10 +127,12 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
         val app = appContext ?: shell
         ShellAttributionContext.installShellAttribution(shell)
         synchronized(this) {
+            rebuildRoutingPolicy()
             if (pipeline == null) {
-                pipeline = SonicPrivilegedAudioPipeline(shell, app, mixer) {
+                val newPipe = SonicPrivilegedAudioPipeline(shell, app, mixer) {
                     activeRoutedUids.keys.toSet()
                 }
+                pipeline = newPipe
             }
             pipeline?.start()
         }
@@ -140,6 +142,8 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
         synchronized(this) {
             pipeline?.stop()
             pipeline = null
+            // When pipeline stops, restore raw hardware RENDER routing policies if any apps are routed
+            rebuildRoutingPolicy()
         }
     }
 
@@ -278,9 +282,10 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
 
     private fun updatePipelineExclusions() {
         synchronized(this) {
-            if (pipeline?.isRunning() == true) {
-                pipeline?.stop()
-                pipeline?.start()
+            val pipe = pipeline
+            if (pipe != null && pipe.isRunning()) {
+                pipe.stop()
+                pipe.start()
             }
         }
     }
@@ -473,7 +478,11 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
                 it.type == 26 /* BLE_HEADSET */ ||
                 it.type == 27 /* BLE_SPEAKER */ ||
                 it.type == 30 /* BLE_BROADCAST */ ||
-                it.type == 23 /* HEARING_AID */
+                it.type == 23 /* HEARING_AID */ ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_USB_DEVICE
             } ?: outputs.firstOrNull {
                 it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
             }
@@ -483,7 +492,11 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
                 it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
                 it.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
                 it.type == 12 /* TYPE_USB_ACCESSORY */ ||
-                it.type == 13 /* TYPE_DOCK */
+                it.type == 13 /* TYPE_DOCK */ ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == 26 /* BLE_HEADSET */
+            } ?: outputs.firstOrNull {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
             }
             else -> null
         }

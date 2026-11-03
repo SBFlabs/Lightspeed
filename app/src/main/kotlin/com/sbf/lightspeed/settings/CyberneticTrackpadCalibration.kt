@@ -51,6 +51,7 @@ fun TrackpadGeometrySubSection(
     val dpadOpacityKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_DPAD_OPACITY_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_DPAD_OPACITY_RIGHT
     val armsOpacityKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_ARMS_OPACITY_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_ARMS_OPACITY_RIGHT
     val styleKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_STYLE_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_STYLE_RIGHT
+    val colorModeKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_RIGHT
     val orientationKey = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_ORIENTATION_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_ORIENTATION_RIGHT
 
     var isSubExpanded by remember {
@@ -63,25 +64,24 @@ fun TrackpadGeometrySubSection(
         mutableStateOf(prefs.getBoolean("pref_sub_trackpad_three_arms_$flankKey", true))
     }
     var trackpadStyle by remember { mutableStateOf(prefs.getString(styleKey, "classic_arc") ?: "classic_arc") }
+    var trackpadColorMode by remember {
+        mutableStateOf(
+            prefs.getString(colorModeKey, LightspeedBotContract.COLOR_MODE_HYBRID_FUSION)
+                ?: LightspeedBotContract.COLOR_MODE_HYBRID_FUSION
+        )
+    }
     var trackpadOrientation by remember { mutableStateOf(prefs.getString(orientationKey, "arc") ?: "arc") }
     var cursorShape by remember { mutableStateOf(prefs.getString(LightspeedBotContract.KEY_BOT_CURSOR_SHAPE, "crosshair") ?: "crosshair") }
-
-    // Automatic Live Trigger Zone Preview while Geometry & Calibration is open
-    val shouldPreview = isParentExpanded && isSubExpanded
-    DisposableEffect(shouldPreview) {
-        prefs.edit().putBoolean(previewKey, shouldPreview).apply()
-        LightspeedBotTrackpadOverlay.reload(context)
-        onDispose {
-            prefs.edit().putBoolean(previewKey, false).apply()
-            LightspeedBotTrackpadOverlay.reload(context)
-        }
-    }
 
     // Auto-reload overlay when any trackpad slider changes
     DisposableEffect(prefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key != null && (key.startsWith("pref_bot_trackpad_") || key.contains("trackpad"))) {
                 LightspeedBotTrackpadOverlay.reload(context)
+            }
+            if (key == colorModeKey) {
+                trackpadColorMode = prefs.getString(colorModeKey, LightspeedBotContract.COLOR_MODE_HYBRID_FUSION)
+                    ?: LightspeedBotContract.COLOR_MODE_HYBRID_FUSION
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(listener)
@@ -136,46 +136,29 @@ fun TrackpadGeometrySubSection(
                 } catch (_: Exception) {}
             }
 
-            Text("CYBERNETIC CHASSIS STYLE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
-            val freeStyles = setOf("classic_arc", "angular", "floating", "gear_tooth")
-            val chassisStyles = listOf(
-                "classic_arc" to "Classic Arc",
-                "angular" to "Angular",
-                "floating" to "Floating",
-                "gear_tooth" to "Gear Tooth",
-                "soft_wing" to "Soft Wing",
-                "liquid_glass" to "Liquid Glass",
-                "delta" to "Delta",
-                "shield" to "Shield",
-                "minimal_arms" to "Minimal"
+            Text("COLOR ENGINE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            val colorModes = listOf(
+                LightspeedBotContract.COLOR_MODE_THEME_12 to "◈ 12-Theme",
+                LightspeedBotContract.COLOR_MODE_M3_DYNAMIC to "🎨 Material 3",
+                LightspeedBotContract.COLOR_MODE_HYBRID_FUSION to "⚡ Hybrid Fusion"
             )
-            for (chunk in chassisStyles.chunked(2)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for ((id, label) in chunk) {
-                        val isLocked = !isInfinity && id !in freeStyles
-                        TrackpadPillButton(
-                            text = label,
-                            isSelected = trackpadStyle == id && !isLocked,
-                            isLocked = isLocked,
-                            onClick = {
-                                if (isLocked) {
-                                    promptInfinity()
-                                } else {
-                                    trackpadStyle = id
-                                    prefs.edit().putString(styleKey, id).apply()
-                                    LightspeedBotTrackpadOverlay.reload(context)
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    if (chunk.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                for ((modeId, modeLabel) in colorModes) {
+                    TrackpadPillButton(
+                        text = modeLabel,
+                        isSelected = trackpadColorMode == modeId,
+                        onClick = {
+                            trackpadColorMode = modeId
+                            prefs.edit().putString(colorModeKey, modeId).apply()
+                            LightspeedBotTrackpadOverlay.activeFlankIsLeft = isLeft
+                            LightspeedBotTrackpadOverlay.reload(context)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            Text("TACTICAL CURSOR SHAPE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            Text("CURSOR SHAPE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
             val freeCursors = setOf("crosshair", "pointer")
             val cursorRows = listOf(
                 listOf(
@@ -214,6 +197,45 @@ fun TrackpadGeometrySubSection(
                             },
                             modifier = Modifier.weight(1f)
                         )
+                    }
+                }
+            }
+
+            Text("TRACKPAD STYLE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+            val freeStyles = setOf("classic_arc", "angular", "floating", "gear_tooth")
+            val chassisStyles = listOf(
+                "classic_arc" to "Classic Arc",
+                "angular" to "Angular",
+                "floating" to "Floating",
+                "gear_tooth" to "Gear Tooth",
+                "soft_wing" to "Soft Wing",
+                "liquid_glass" to "Glass",
+                "delta" to "Delta",
+                "shield" to "Shield",
+                "minimal_arms" to "Minimal"
+            )
+            for (chunk in chassisStyles.chunked(2)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for ((id, label) in chunk) {
+                        val isLocked = !isInfinity && id !in freeStyles
+                        TrackpadPillButton(
+                            text = label,
+                            isSelected = trackpadStyle == id && !isLocked,
+                            isLocked = isLocked,
+                            onClick = {
+                                if (isLocked) {
+                                    promptInfinity()
+                                } else {
+                                    trackpadStyle = id
+                                    prefs.edit().putString(styleKey, id).apply()
+                                    LightspeedBotTrackpadOverlay.reload(context)
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (chunk.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }

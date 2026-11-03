@@ -3,10 +3,18 @@ package com.sbf.lightspeed.settings
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,6 +23,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -253,6 +262,7 @@ fun GestureScrubActionMenu(
                     "system:volume" -> "Volume (Media Stream)"
                     "system:brightness" -> "Screen Brightness"
                     "system:scroll_scrub" -> "Scroll Scrubbing"
+                    "system:media_scrubber" -> "Media Timeline Scrubber (HUD)"
                     "system:scroll_to_top" -> "Scroll to Top"
                     "system:scroll_to_bottom" -> "Scroll to Bottom"
                     else -> labelCache[opt] ?: opt
@@ -272,28 +282,128 @@ fun GestureScrubActionMenu(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GestureHudThemeToggleChip(
+    context: Context? = null,
     prefs: SharedPreferences,
+    key: String? = null,
+    currentRawValue: String? = null,
     activeSnapshot: DeckThemeSnapshot
 ) {
-    var useCentralTheme by remember {
-        mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_HUD_USE_CENTRAL_THEME, true))
+    val actualContext = context ?: LocalContext.current
+    val lsColors = LightspeedStyle.colors
+    var colorMode by remember(key, currentRawValue) {
+        mutableStateOf(LightspeedPreferences.resolveHudColorMode(prefs, key, currentRawValue))
     }
-    DeckSubChip(
-        text = if (useCentralTheme) "Theme: Deck 12-Style" else "Theme: Classic Dark",
-        icon = Icons.Default.Palette,
-        isActive = useCentralTheme,
-        snapshot = activeSnapshot,
-        onClick = {
-            val next = !useCentralTheme
-            useCentralTheme = next
-            prefs.edit().putBoolean(LightspeedPreferences.KEY_HUD_USE_CENTRAL_THEME, next).apply()
-            try {
-                LightspeedAccessibilityService.instance?.reloadPreferences()
-            } catch (e: Exception) {
-                logSwallowed("GestureActionDropdowns", "HudThemeToggle", e)
+    var showColorEngineMenu by remember { mutableStateOf(false) }
+
+    // Live reactivity: listen to SharedPreferences changes immediately
+    DisposableEffect(prefs, key, currentRawValue) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, prefKey ->
+            if (prefKey == null ||
+                prefKey == LightspeedPreferences.KEY_HUD_COLOR_MODE ||
+                prefKey == LightspeedPreferences.KEY_HUD_USE_CENTRAL_THEME ||
+                prefKey.startsWith("pref_macro_hud_color_mode_") ||
+                prefKey.startsWith("pref_hud_color_mode_")
+            ) {
+                colorMode = LightspeedPreferences.resolveHudColorMode(prefs, key, currentRawValue)
             }
         }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    val modeShort = when (colorMode) {
+        LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC -> "Material 3"
+        LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION -> "Hybrid"
+        else -> "12-Theme"
+    }
+
+    val colorModes = listOf(
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12, "◈ 12-Theme", "12-Theme"),
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, "🎨 Material 3", "Material 3"),
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, "⚡ Hybrid Fusion", "Hybrid Fusion")
     )
+
+    Box {
+        DeckSubChip(
+            text = "Color Engine: $modeShort ▾",
+            icon = Icons.Default.Palette,
+            isActive = true,
+            snapshot = activeSnapshot,
+            onClick = {
+                colorMode = LightspeedPreferences.resolveHudColorMode(prefs, key, currentRawValue)
+                showColorEngineMenu = true
+            }
+        )
+
+        DeckThemedDropdownMenu(
+            expanded = showColorEngineMenu,
+            onDismissRequest = { showColorEngineMenu = false },
+            snapshotOverride = activeSnapshot
+        ) {
+            colorModes.forEachIndexed { index, (modeId, modeLabel, modeSimpleTitle) ->
+                val isSelected = colorMode == modeId
+                if (index > 0) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        modifier = Modifier.padding(horizontal = 10.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = {
+                                colorMode = modeId
+                                LightspeedPreferences.saveHudColorMode(prefs, key, currentRawValue, modeId)
+                                LightspeedHapticEngine.tick(actualContext)
+                                try {
+                                    LightspeedAccessibilityService.instance?.reloadPreferences()
+                                } catch (e: Exception) {
+                                    logSwallowed("GestureActionDropdowns", "HudColorEngineSelect", e)
+                                }
+                                showColorEngineMenu = false
+                            },
+                            onLongClick = {
+                                colorMode = modeId
+                                LightspeedPreferences.applyColorModeToAllSurfaces(actualContext, prefs, modeId)
+                                LightspeedHapticEngine.heavyClick(actualContext)
+                                Toast.makeText(
+                                    actualContext,
+                                    "✦ Applied $modeSimpleTitle to all flight surfaces",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                showColorEngineMenu = false
+                            }
+                        )
+                        .padding(horizontal = 14.dp, vertical = 9.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = if (isSelected) "✓ $modeLabel" else modeLabel,
+                            fontSize = 12.5.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else lsColors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "HOLD TO APPLY TO ALL ↗",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = (if (isSelected) MaterialTheme.colorScheme.primary else lsColors.textSecondary).copy(alpha = 0.75f),
+                            letterSpacing = 0.4.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

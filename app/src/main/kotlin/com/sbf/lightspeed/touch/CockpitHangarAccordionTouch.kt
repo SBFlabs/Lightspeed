@@ -347,6 +347,33 @@ internal fun LightspeedCruiseOverlay.handleCockpitHangarAccordionTouch(
                 invalidate()
                 return true
             }
+
+            // Sub-row 4: 3-Way Color Engine Selector
+            val colW = (deckW - (gap * 2f)) / 3f
+            val col1Rect = RectF(leftX, layout.sub4Y - 14f * d, leftX + colW, layout.sub4Y + 14f * d)
+            val col2Rect = RectF(leftX + colW + gap, layout.sub4Y - 14f * d, leftX + colW * 2f + gap, layout.sub4Y + 14f * d)
+            val col3Rect = RectF(rightX - colW, layout.sub4Y - 14f * d, rightX, layout.sub4Y + 14f * d)
+            if (col1Rect.contains(x, y)) {
+                prefs.edit().putString(LightspeedPreferences.KEY_COCKPIT_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12).apply()
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.flush()
+                triggerHardwareHaptic(20, 120)
+                invalidate()
+                return true
+            }
+            if (col2Rect.contains(x, y)) {
+                prefs.edit().putString(LightspeedPreferences.KEY_COCKPIT_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC).apply()
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.flush()
+                triggerHardwareHaptic(20, 120)
+                invalidate()
+                return true
+            }
+            if (col3Rect.contains(x, y)) {
+                prefs.edit().putString(LightspeedPreferences.KEY_COCKPIT_COLOR_MODE, LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION).apply()
+                com.sbf.lightspeed.system.CockpitGimbalConfigCache.flush()
+                triggerHardwareHaptic(20, 120)
+                invalidate()
+                return true
+            }
         }
     }
     return false

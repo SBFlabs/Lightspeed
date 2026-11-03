@@ -197,7 +197,8 @@ class LightspeedStatusBarOverlay(
         val value: String,
         val stepIndex: Int,
         val totalSteps: Int,
-        val style: String
+        val style: String,
+        val colorMode: String? = null
     )
 
     internal var currentTransientHudState: TransientHudState? = null
@@ -209,7 +210,8 @@ class LightspeedStatusBarOverlay(
         stepIndex: Int = -1,
         totalSteps: Int = 0,
         durationMs: Long = 1800L,
-        style: String = "canopy_droppod"
+        style: String = "canopy_droppod",
+        colorMode: String? = null
     ) {
         uiHandler.post {
             val wasHidden = visibility != View.VISIBLE
@@ -218,7 +220,7 @@ class LightspeedStatusBarOverlay(
             }
             transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
             transientDismissRunnable = null
-            currentTransientHudState = TransientHudState(title, value, stepIndex, totalSteps, style)
+            currentTransientHudState = TransientHudState(title, value, stepIndex, totalSteps, style, colorMode)
             expandForHud()
             postInvalidate()
 
@@ -391,10 +393,11 @@ class LightspeedStatusBarOverlay(
             stepIndex: Int = -1,
             totalSteps: Int = 0,
             durationMs: Long = 1800L,
-            style: String = "canopy_droppod"
+            style: String = "canopy_droppod",
+            colorMode: String? = null
         ): Boolean {
             val inst = activeInstance ?: return false
-            inst.displayTransientHud(title, value, stepIndex, totalSteps, durationMs, style)
+            inst.displayTransientHud(title, value, stepIndex, totalSteps, durationMs, style, colorMode)
             return true
         }
 

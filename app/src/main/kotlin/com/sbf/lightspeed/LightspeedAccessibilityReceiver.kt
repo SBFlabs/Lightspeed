@@ -178,6 +178,9 @@ internal fun LightspeedAccessibilityService.teardown() {
     LightspeedKeyEngine.reset()
     com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
     com.sbf.lightspeed.system.LightspeedOrientationManager.stopActiveSensorPortraitDriver()
+    try {
+        rikka.shizuku.Shizuku.removeBinderReceivedListener(shizukuBinderReceivedListener)
+    } catch (_: Exception) {}
     displayManager?.unregisterDisplayListener(displayListener)
     rotationContentObserver?.let {
         try { contentResolver.unregisterContentObserver(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:145", e) }
@@ -192,6 +195,7 @@ internal fun LightspeedAccessibilityService.teardown() {
         mediaScrubberOverlayView = null
     }
     overlayView?.let {
+        it.dataBridge.destroy()
         try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "teardown:157", e) }
         overlayView = null
     }
@@ -228,4 +232,14 @@ internal fun LightspeedAccessibilityService.teardown() {
     handler.removeCallbacks(baySleepRaiseRunnable)
     com.sbf.lightspeed.system.SonicDeckManager.dismiss(this)
     com.sbf.lightspeed.system.VistaDeckManager.dismiss(this)
+    com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine.stopMonitoring()
+    com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.hide()
+    com.sbf.lightspeed.system.bot.LightspeedBotEngine.cancelAllAutomationAndRecording(this)
+    com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.onServiceDestroyed(this)
+    com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay.onServiceDestroyed(this)
+    com.sbf.lightspeed.system.display.LightspeedEyeRestMonitor.stopEyeRestMonitoring()
+    com.sbf.lightspeed.system.display.LightspeedEyeRestOverlay.dismiss()
+    com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.clearVideoOverride(this)
+    com.sbf.lightspeed.system.display.LightspeedConsciousAirlockOverlay.dismiss()
+    com.sbf.lightspeed.system.LightspeedSpacePodOverlay.hide()
 }

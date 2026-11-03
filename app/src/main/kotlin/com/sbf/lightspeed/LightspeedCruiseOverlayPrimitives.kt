@@ -121,6 +121,7 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
     val snapshot = DeckThemeManager.getSnapshot(context)
     val themePanel = snapshot.panelColorArgb.toInt()
     val themeBorder = snapshot.borderColorArgb.toInt()
+    val focusAccent = categoryAccentOverride() ?: (if (themeBorder != 0) themeBorder else themePanel)
 
     val bgAlpha = (snapshot.panelAlpha * 210f).toInt().coerceIn(160, 230)
     canvas.drawColor(Color.argb(bgAlpha, Color.red(themePanel), Color.green(themePanel), Color.blue(themePanel)))
@@ -132,7 +133,7 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
         val scroll = if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset
         val spotX = focusedPlaced.bounds.centerX()
         val spotY = focusedPlaced.bounds.centerY() - scroll
-        drawGalacticNebula(canvas, spotX, spotY, 150f * density, if (themeBorder != 0) themeBorder else themePanel, 0.75f)
+        drawGalacticNebula(canvas, spotX, spotY, 150f * density, focusAccent, 0.75f)
     }
 
     textPaint.textAlign = Paint.Align.CENTER
@@ -146,7 +147,7 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
             canvas.drawRoundRect(b.left + 4f, b.top + 4f, b.right - 4f, b.bottom - 4f, 18f, 18f, highlightPaint)
 
             // Crisp bright accent ring/glow around currently focused app icon
-            val accentColor = if (themeBorder != 0) themeBorder else themePanel
+            val accentColor = focusAccent
             highlightPaint.style = Paint.Style.STROKE
             highlightPaint.strokeWidth = 3.5f * density
             highlightPaint.color = accentColor

@@ -20,6 +20,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.sbf.lightspeed.LightspeedAccessibilityService
+import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 
 /**
  * Native Full-Screen Overlay for recording per-window / per-app Bot actions and Smart UI Targets.
@@ -67,8 +69,10 @@ object LightspeedBotRecorderOverlay {
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             if (!smartDetectEnabled) return
+            val palette = DeckThemeManager.getSnapshot(context).resolveCanvasPalette()
+            tagBgPaint.color = palette.glassFillArgb
             for (t in detectedTargets) {
-                val accent = if (t.isMenuOrNav) 0xFF00E5FF.toInt() else 0xFFFF9E44.toInt()
+                val accent = if (t.isMenuOrNav) palette.primaryAccentArgb else 0xFFFF9E44.toInt()
                 tmpRectF.set(
                     t.bounds.left.toFloat(),
                     t.bounds.top.toFloat(),
@@ -163,16 +167,17 @@ object LightspeedBotRecorderOverlay {
         }
         stopButton = btn
 
+        val palette = DeckThemeManager.getSnapshot(service).resolveCanvasPalette()
         val detectBg = GradientDrawable().apply {
-            setColor(0xEE0F1B29.toInt())
+            setColor(palette.glassFillArgb)
             cornerRadius = 20f * density
-            setStroke((1.3f * density).toInt(), 0xFF00E5FF.toInt())
+            setStroke((1.3f * density).toInt(), palette.primaryAccentArgb)
         }
 
         val detectBtn = TextView(service).apply {
             background = detectBg
             text = if (smartDetectEnabled) "⌖ UI DETECT: ON" else "⌖ UI DETECT: OFF"
-            setTextColor(if (smartDetectEnabled) 0xFF00E5FF.toInt() else 0xFF94A3B8.toInt())
+            setTextColor(if (smartDetectEnabled) palette.primaryAccentArgb else 0xFF94A3B8.toInt())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
             paint.isFakeBoldText = true
             gravity = Gravity.CENTER
@@ -180,9 +185,9 @@ object LightspeedBotRecorderOverlay {
         }
 
         val cancelBg = GradientDrawable().apply {
-            setColor(0xEE1A1D24.toInt())
+            setColor(palette.glassFillArgb)
             cornerRadius = 20f * density
-            setStroke((1.2f * density).toInt(), 0x99FFFFFF.toInt())
+            setStroke((1.2f * density).toInt(), palette.glassBorderArgb)
         }
 
         val cancelBtn = TextView(service).apply {
@@ -206,14 +211,14 @@ object LightspeedBotRecorderOverlay {
         ).apply { marginStart = (6f * density).toInt() })
 
         val scopeBadgeBg = GradientDrawable().apply {
-            setColor(0xD80A0F1D.toInt())
+            setColor(palette.glassFillArgb)
             cornerRadius = 12f * density
-            setStroke((1f * density).toInt(), 0x5500E5FF)
+            setStroke((1f * density).toInt(), palette.glassBorderArgb)
         }
         val scopeBadge = TextView(service).apply {
             background = scopeBadgeBg
             text = "◈ $scopeLabel • ${detectedTargets.size} UI TARGETS"
-            setTextColor(0xFFBAE6FD.toInt())
+            setTextColor(palette.primaryAccentArgb)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f)
             gravity = Gravity.CENTER
             setPadding((10f * density).toInt(), (4f * density).toInt(), (10f * density).toInt(), (4f * density).toInt())
@@ -271,7 +276,7 @@ object LightspeedBotRecorderOverlay {
                         detectRect.contains(rx, ry) -> {
                             smartDetectEnabled = !smartDetectEnabled
                             detectBtn.text = if (smartDetectEnabled) "⌖ UI DETECT: ON" else "⌖ UI DETECT: OFF"
-                            detectBtn.setTextColor(if (smartDetectEnabled) 0xFF00E5FF.toInt() else 0xFF94A3B8.toInt())
+                            detectBtn.setTextColor(if (smartDetectEnabled) palette.primaryAccentArgb else 0xFF94A3B8.toInt())
                             canvasView.invalidate()
                         }
                         cancelRect.contains(rx, ry) -> LightspeedBotEngine.stopRecording(context, null)

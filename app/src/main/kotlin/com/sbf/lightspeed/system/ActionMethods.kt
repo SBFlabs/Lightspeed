@@ -58,7 +58,7 @@ object ActionMethods {
                 MethodOption(SCROLL_POSITION, "Scroll to position", "direct position jump"),
                 MethodOption(SCROLL_PAGE, "Page scroll", "repeated page up/down"),
                 MethodOption(SCROLL_STEP, "Step scroll", "repeated directional scroll"),
-                MethodOption(SCROLL_SWIPE, "Swipe gesture", "simulated finger swipes")
+                MethodOption(SCROLL_SWIPE, "Swipe gesture", "simulated finger swipe")
             )
             else -> emptyList()
         }

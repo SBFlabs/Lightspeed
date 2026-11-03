@@ -37,50 +37,57 @@ fun GestureVolumeDualRowControls(
     currentRawValue: String,
     activeSnapshot: DeckThemeSnapshot,
     opticalColors: OpticalSurfaceColors,
-    readableTint: Color
+    readableTint: Color,
+    extraRow1Content: (@Composable RowScope.() -> Unit)? = null
 ) {
-    val scrollState = rememberScrollState()
+    val row1Scroll = rememberScrollState()
+    val row2Scroll = rememberScrollState()
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Column(
-            modifier = Modifier.wrapContentWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        // Row 1: Core Scrubber Controls (HUD Toggle, Native Toggle, Resolution, HUD Style + any contextual gesture chips)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(row1Scroll),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Row 1: HUD Style, Toggle, and Sonic Deck launcher (3 chips)
-            Row(
-                modifier = Modifier.wrapContentWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GestureVolumeScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
-                GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
-            }
+            extraRow1Content?.invoke(this)
+            GestureVolumeScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
+            GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
+        }
 
-            // Row 2: Native slider toggle, Palette toggle, Haptics selector, and Sonic Deck (4 chips)
-            Row(
-                modifier = Modifier.wrapContentWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                DeckSubChip(
-                    text = "Sonic Deck ⚙",
-                    icon = Icons.Default.GraphicEq,
-                    isActive = false,
-                    snapshot = activeSnapshot,
-                    onClick = {
-                        val a11y = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-                        if (a11y != null) {
-                            SonicDeckManager.show(a11y)
-                        }
+        // Row 2: Color Engine dropdown, Haptics selector, and Sonic Deck launcher
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(row2Scroll),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GestureHudThemeToggleChip(
+                context = context,
+                prefs = prefs,
+                key = key,
+                currentRawValue = currentRawValue,
+                activeSnapshot = activeSnapshot
+            )
+            GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
+            DeckSubChip(
+                text = "Sonic Deck ⚙",
+                icon = Icons.Default.GraphicEq,
+                isActive = false,
+                snapshot = activeSnapshot,
+                onClick = {
+                    val a11y = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+                    if (a11y != null) {
+                        SonicDeckManager.show(a11y)
                     }
-                )
-                GestureHudThemeToggleChip(prefs, activeSnapshot)
-                GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
-            }
+                }
+            )
         }
     }
 }
@@ -93,34 +100,107 @@ fun GestureBrightnessDualRowControls(
     currentRawValue: String,
     activeSnapshot: DeckThemeSnapshot,
     opticalColors: OpticalSurfaceColors,
-    readableTint: Color
+    readableTint: Color,
+    extraRow1Content: (@Composable RowScope.() -> Unit)? = null
 ) {
-    val scrollState = rememberScrollState()
+    val row1Scroll = rememberScrollState()
+    val row2Scroll = rememberScrollState()
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scrollState),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // Core Scrubber HUD Toggle, Resolution, HUD Style, Theme Toggle, Haptics, and Vista Deck launcher
-        GestureBrightnessScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
-        GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
-        GestureHudThemeToggleChip(prefs, activeSnapshot)
-        GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
-        DeckSubChip(
-            text = "Vista Deck ⚙",
-            icon = Icons.Default.Brightness4,
-            isActive = false,
-            snapshot = activeSnapshot,
-            onClick = {
-                val a11y = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-                if (a11y != null) {
-                    VistaDeckManager.show(a11y)
+        // Row 1: Core Scrubber Controls (HUD Toggle, Resolution, HUD Style + any contextual gesture chips)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(row1Scroll),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            extraRow1Content?.invoke(this)
+            GestureBrightnessScrubControls(context, prefs, activeSnapshot, opticalColors, readableTint)
+            GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
+        }
+
+        // Row 2: Color Engine dropdown, Haptics selector, and Vista Deck launcher
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(row2Scroll),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GestureHudThemeToggleChip(
+                context = context,
+                prefs = prefs,
+                key = key,
+                currentRawValue = currentRawValue,
+                activeSnapshot = activeSnapshot
+            )
+            GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
+            DeckSubChip(
+                text = "Vista Deck ⚙",
+                icon = Icons.Default.Brightness4,
+                isActive = false,
+                snapshot = activeSnapshot,
+                onClick = {
+                    val a11y = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+                    if (a11y != null) {
+                        VistaDeckManager.show(a11y)
+                    }
                 }
-            }
-        )
+            )
+        }
+    }
+}
+
+@Composable
+fun GestureGenericScrubDualRowControls(
+    context: Context,
+    prefs: SharedPreferences,
+    key: String,
+    currentRawValue: String,
+    activeSnapshot: DeckThemeSnapshot,
+    readableTint: Color,
+    extraRow1Content: (@Composable RowScope.() -> Unit)? = null
+) {
+    val row1Scroll = rememberScrollState()
+    val row2Scroll = rememberScrollState()
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        // Row 1: HUD Style + any contextual gesture chips (Hold, Method, Navigation Bar, etc.)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(row1Scroll),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            extraRow1Content?.invoke(this)
+            GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
+        }
+
+        // Row 2: Color Engine dropdown and Haptics selector
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(row2Scroll),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GestureHudThemeToggleChip(
+                context = context,
+                prefs = prefs,
+                key = key,
+                currentRawValue = currentRawValue,
+                activeSnapshot = activeSnapshot
+            )
+            GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
+        }
     }
 }
 

@@ -109,13 +109,15 @@ object LightspeedVolumeKeyEngine {
             val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
             val pct = ((cur.toFloat() / max.toFloat()) * 100).roundToInt().coerceIn(0, 100)
             val hudStyle = prefs.getString(LightspeedPreferences.KEY_HUD_STYLE_DEFAULT, LightspeedPreferences.DEFAULT_HUD_STYLE) ?: LightspeedPreferences.DEFAULT_HUD_STYLE
+            val hudColorMode = LightspeedPreferences.resolveHudColorMode(prefs, actionToken = "system:volume")
             LightspeedStatusBarOverlay.showActionHud(
                 title = "MEDIA VOLUME",
                 value = "$pct%",
                 stepIndex = cur,
                 totalSteps = max,
                 durationMs = 1800L,
-                style = hudStyle
+                style = hudStyle,
+                colorMode = hudColorMode
             )
             return true
         } else if (cleanSuppression) {

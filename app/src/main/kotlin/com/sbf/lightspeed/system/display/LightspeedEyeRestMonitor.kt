@@ -105,7 +105,7 @@ object LightspeedEyeRestMonitor {
         mainHandler.postDelayed(runnable, 10_000L)
     }
 
-    private fun stopEyeRestMonitoring() {
+    fun stopEyeRestMonitoring() {
         reminderRunnable?.let { mainHandler.removeCallbacks(it) }
         reminderRunnable = null
     }

@@ -118,9 +118,10 @@ object LightspeedHudHorizonRenderer {
         topY: Float,
         primaryColor: Int,
         d: Float,
-        useCentralTheme: Boolean = true
+        useCentralTheme: Boolean = true,
+        colorMode: String = if (useCentralTheme) LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 else LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
     ) {
-        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d, colorMode)
         val hasGauge = totalSteps > 0 && stepIndex >= 0
         val cardW = 324f * d
         val cardH = 88f * d
@@ -136,9 +137,9 @@ object LightspeedHudHorizonRenderer {
         val tG = Color.green(spec.tintColor)
         val tB = Color.blue(spec.tintColor)
         val pA = (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
-        val r = Color.red(primaryColor)
-        val g = Color.green(primaryColor)
-        val b = Color.blue(primaryColor)
+        val r = tR
+        val g = tG
+        val b = tB
 
         val path = createChamferedPath(rect, chamfer)
 
@@ -235,7 +236,7 @@ object LightspeedHudHorizonRenderer {
         canvas.drawText(subLabel, rect.right - (16f * d), rect.top + (18f * d), subTextPaint)
 
         // 5. Header Telemetry
-        headerTextPaint.color = primaryColor
+        headerTextPaint.color = spec.tintColor
         headerTextPaint.textSize = 9.5f * d
         headerTextPaint.textAlign = Paint.Align.LEFT
         val maxHeaderW = rect.width() - (36f * d) - subW - (12f * d)
@@ -274,11 +275,11 @@ object LightspeedHudHorizonRenderer {
             val fillW = barW * fraction
             if (fillW > 0f) {
                 fillRect.set(barLeft, barY, barLeft + fillW, barY + barH)
-                val fillKey = gradKey4f(barLeft, barY, barLeft + fillW, barY, primaryColor)
+                val fillKey = gradKey4f(barLeft, barY, barLeft + fillW, barY, spec.tintColor)
                 if (fillKey != horizonFillKey) {
                     horizonFillShader = LinearGradient(
                         barLeft, barY, barLeft + fillW, barY,
-                        intArrayOf(Color.argb(180, r, g, b), primaryColor),
+                        intArrayOf(Color.argb(180, r, g, b), spec.tintColor),
                         null,
                         Shader.TileMode.CLAMP
                     )

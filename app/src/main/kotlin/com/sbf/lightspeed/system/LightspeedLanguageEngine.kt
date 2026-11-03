@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  *  │             │ subtitle so newcomers can orient themselves.              │
  *  ├─────────────┼──────────────────────────────────────────────────────────┤
  *  │ CLEAR_COMMS │ Plain Android language. "Gesture Sidebars", "Status Bar  │
- *  │             │ Strip", "Dynamic Island HUD", "Progress Rail", etc.      │
+ *  │             │ Strip", "Orbital Capsule HUD", "Progress Rail", etc.     │
  *  └─────────────┴──────────────────────────────────────────────────────────┘
  *
  * In the future, additional real-language locales (Arabic, Chinese, …) are

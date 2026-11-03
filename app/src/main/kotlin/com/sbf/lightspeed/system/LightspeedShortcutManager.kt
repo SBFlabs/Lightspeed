@@ -659,7 +659,7 @@ object LightspeedShortcutManager {
                             context.startActivity(launchIntent)
                             return true
                         } catch (e: Exception) {
-                            Log.d(TAG, "Activity launch failed for $uri: ${e.message}, trying broadcast/service")
+                            Log.d(TAG, "Activity launch failed: ${e.message}, trying broadcast/service")
                         }
 
                         // 2. Try sending as Broadcast

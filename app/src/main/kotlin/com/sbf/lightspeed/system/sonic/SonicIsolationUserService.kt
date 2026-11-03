@@ -23,7 +23,8 @@ import java.util.concurrent.ConcurrentHashMap
  * 3. Privileged per-app volume & LoudnessEnhancer control via UID 2000 IPlayer proxies
  *    (adapted from Volume++, MIT License).
  */
-class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
+@Keep
+class SonicIsolationUserService @Keep constructor() : ISonicIsolationUserService.Stub() {
 
     private val mixer = IsolationIntensityMixer()
     private var pipeline: SonicPrivilegedAudioPipeline? = null
@@ -121,7 +122,17 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
 
     override fun startPipeline() {
         if (shellContext == null) {
-            initialize("com.sbf.lightspeed.nightly")
+            val fallbackPkg = try {
+                val sys = getSystemContext()
+                if (sys?.packageManager?.getPackageInfo("com.sbf.lightspeed.nightly", 0) != null) {
+                    "com.sbf.lightspeed.nightly"
+                } else {
+                    "com.sbf.lightspeed"
+                }
+            } catch (_: Throwable) {
+                "com.sbf.lightspeed"
+            }
+            initialize(fallbackPkg)
         }
         val shell = shellContext ?: return
         val app = appContext ?: shell
@@ -256,13 +267,15 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
 
     @Synchronized
     override fun setAppRoute(uid: Int, route: String) {
-        if (route.isBlank() || route == SonicChannelRouter.ROUTE_DEFAULT) {
-            activeRoutedUids.remove(uid)
+        val changed = if (route.isBlank() || route == SonicChannelRouter.ROUTE_DEFAULT) {
+            activeRoutedUids.remove(uid) != null
         } else {
-            activeRoutedUids[uid] = route
+            activeRoutedUids.put(uid, route) != route
         }
-        rebuildRoutingPolicy()
-        updatePipelineExclusions()
+        if (changed) {
+            rebuildRoutingPolicy()
+            updatePipelineExclusions()
+        }
     }
 
     @Synchronized
@@ -275,9 +288,12 @@ class SonicIsolationUserService() : ISonicIsolationUserService.Stub() {
 
     @Synchronized
     override fun clearAllAppRoutes() {
+        val hadRoutes = activeRoutedUids.isNotEmpty() || activeRoutingPolicy != null
         activeRoutedUids.clear()
-        unregisterRoutingPolicy()
-        updatePipelineExclusions()
+        if (hadRoutes) {
+            unregisterRoutingPolicy()
+            updatePipelineExclusions()
+        }
     }
 
     private fun updatePipelineExclusions() {

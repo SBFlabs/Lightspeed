@@ -81,6 +81,8 @@ object LightspeedBackTapEngine : SensorEventListener {
     private val tapTimestamps = mutableListOf<Long>()
     private var pendingDoubleTapJob: Job? = null
     private var lastPeakTime = 0L
+    @Volatile private var isReceiverRegistered = false
+    @Volatile private var cachedThreshold = DEFAULT_THRESHOLD
 
     // Live Impulse stream for UI calibration meter
     var onLiveImpulseListener: ((currentZ: Float, threshold: Float, crossed: Boolean) -> Unit)? = null
@@ -124,29 +126,36 @@ object LightspeedBackTapEngine : SensorEventListener {
             wakeLock?.setReferenceCounted(false)
         } catch (e: Exception) { logSwallowed(TAG, "init:104", e) }
 
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_ON)
-            addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(Intent.ACTION_BATTERY_CHANGED)
-            addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+        if (!isReceiverRegistered) {
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_SCREEN_ON)
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_BATTERY_CHANGED)
+                addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+            }
+            try {
+                appContext?.let {
+                    ContextCompat.registerReceiver(it, stateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+                    isReceiverRegistered = true
+                }
+            } catch (e: Exception) { logSwallowed(TAG, "registerReceiver", e) }
         }
-        try {
-            appContext?.let { ContextCompat.registerReceiver(it, stateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED) }
-        } catch (e: Exception) { logSwallowed(TAG, "registerReceiver", e) }
 
+        appContext?.let { cachedThreshold = getThreshold(it) }
         isScreenOn = powerManager?.isInteractive ?: true
         checkFailsafeStatus()
         evaluateMonitoringState()
     }
 
     fun reloadPreferences() {
+        appContext?.let { cachedThreshold = getThreshold(it) }
         checkFailsafeStatus()
         evaluateMonitoringState()
     }
 
     fun getThreshold(context: Context): Float {
         val prefs = context.defaultPrefs()
-        return try {
+        val resolved = try {
             if (prefs.contains(LightspeedPreferences.KEY_BACK_TAP_THRESHOLD)) {
                 try {
                     prefs.getFloat(LightspeedPreferences.KEY_BACK_TAP_THRESHOLD, DEFAULT_THRESHOLD)
@@ -159,6 +168,8 @@ object LightspeedBackTapEngine : SensorEventListener {
         } catch (_: Exception) {
             DEFAULT_THRESHOLD
         }
+        cachedThreshold = resolved
+        return resolved
     }
 
     fun startLiveSampling(context: Context) {
@@ -287,8 +298,7 @@ object LightspeedBackTapEngine : SensorEventListener {
         if (event == null || event.sensor.type != Sensor.TYPE_LINEAR_ACCELERATION) return
 
         val zAccel = abs(event.values.getOrNull(2) ?: 0f)
-        val ctx = appContext ?: return
-        val threshold = getThreshold(ctx)
+        val threshold = cachedThreshold
         val crossed = zAccel >= threshold
 
         onLiveImpulseListener?.invoke(zAccel, threshold, crossed)
@@ -311,55 +321,57 @@ object LightspeedBackTapEngine : SensorEventListener {
 
         if (doubleAction == null && tripleAction == null) return
 
-        // Prune timestamps older than window
-        tapTimestamps.removeAll { now - it > TRIPLE_TAP_MAX_WINDOW_MS }
-        tapTimestamps.add(now)
+        synchronized(tapTimestamps) {
+            // Prune timestamps older than window
+            tapTimestamps.removeAll { now - it > TRIPLE_TAP_MAX_WINDOW_MS }
+            tapTimestamps.add(now)
 
-        when (tapTimestamps.size) {
-            1 -> {
-                // First tap in sequence: wait for subsequent taps
-            }
-            2 -> {
-                val dt = tapTimestamps[1] - tapTimestamps[0]
-                if (dt in 150L..DOUBLE_TAP_MAX_WINDOW_MS) {
-                    if (tripleAction != null) {
-                        // Delay double tap execution briefly to check if a 3rd tap arrives
-                        pendingDoubleTapJob?.cancel()
-                        pendingDoubleTapJob = engineScope.launch {
-                            delay(TAP_DISAMBIGUATION_DELAY_MS)
-                            if (doubleAction != null) {
-                                executeTapAction(doubleAction, isTriple = false)
+            when (tapTimestamps.size) {
+                1 -> {
+                    // First tap in sequence: wait for subsequent taps
+                }
+                2 -> {
+                    val dt = tapTimestamps[1] - tapTimestamps[0]
+                    if (dt in 150L..DOUBLE_TAP_MAX_WINDOW_MS) {
+                        if (tripleAction != null) {
+                            // Delay double tap execution briefly to check if a 3rd tap arrives
+                            pendingDoubleTapJob?.cancel()
+                            pendingDoubleTapJob = engineScope.launch {
+                                delay(TAP_DISAMBIGUATION_DELAY_MS)
+                                if (doubleAction != null) {
+                                    executeTapAction(doubleAction, isTriple = false)
+                                }
+                                resetState()
                             }
+                        } else if (doubleAction != null) {
+                            executeTapAction(doubleAction, isTriple = false)
                             resetState()
                         }
-                    } else if (doubleAction != null) {
-                        executeTapAction(doubleAction, isTriple = false)
+                    } else {
+                        // Tap spacing outside valid window -> treat this as first tap of new sequence
+                        tapTimestamps.clear()
+                        tapTimestamps.add(now)
+                    }
+                }
+                3 -> {
+                    val dtTotal = tapTimestamps[2] - tapTimestamps[0]
+                    val dtLast = tapTimestamps[2] - tapTimestamps[1]
+                    if (dtTotal <= TRIPLE_TAP_MAX_WINDOW_MS && dtLast in 150L..DOUBLE_TAP_MAX_WINDOW_MS) {
+                        pendingDoubleTapJob?.cancel()
+                        pendingDoubleTapJob = null
+                        if (tripleAction != null) {
+                            executeTapAction(tripleAction, isTriple = true)
+                        } else if (doubleAction != null) {
+                            executeTapAction(doubleAction, isTriple = false)
+                        }
+                        resetState()
+                    } else {
                         resetState()
                     }
-                } else {
-                    // Tap spacing outside valid window -> treat this as first tap of new sequence
-                    tapTimestamps.clear()
-                    tapTimestamps.add(now)
                 }
-            }
-            3 -> {
-                val dtTotal = tapTimestamps[2] - tapTimestamps[0]
-                val dtLast = tapTimestamps[2] - tapTimestamps[1]
-                if (dtTotal <= TRIPLE_TAP_MAX_WINDOW_MS && dtLast in 150L..DOUBLE_TAP_MAX_WINDOW_MS) {
-                    pendingDoubleTapJob?.cancel()
-                    pendingDoubleTapJob = null
-                    if (tripleAction != null) {
-                        executeTapAction(tripleAction, isTriple = true)
-                    } else if (doubleAction != null) {
-                        executeTapAction(doubleAction, isTriple = false)
-                    }
-                    resetState()
-                } else {
+                else -> {
                     resetState()
                 }
-            }
-            else -> {
-                resetState()
             }
         }
     }
@@ -371,11 +383,15 @@ object LightspeedBackTapEngine : SensorEventListener {
         } else {
             LightspeedHapticEngine.click(ctx)
         }
-        ActionDispatcher.dispatch(actionToken, ctx)
+        engineScope.launch(Dispatchers.Main) {
+            ActionDispatcher.dispatch(actionToken, ctx)
+        }
     }
 
     private fun resetState() {
-        tapTimestamps.clear()
+        synchronized(tapTimestamps) {
+            tapTimestamps.clear()
+        }
         pendingDoubleTapJob?.cancel()
         pendingDoubleTapJob = null
     }
@@ -386,9 +402,12 @@ object LightspeedBackTapEngine : SensorEventListener {
         engineScope.cancel()
         engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         stopMonitoring()
-        try {
-            appContext?.unregisterReceiver(stateReceiver)
-        } catch (e: Exception) { logSwallowed("LightspeedBackTapEngine", "destroy:391", e) }
+        if (isReceiverRegistered) {
+            try {
+                appContext?.unregisterReceiver(stateReceiver)
+            } catch (e: Exception) { logSwallowed("LightspeedBackTapEngine", "destroy:391", e) }
+            isReceiverRegistered = false
+        }
         appContext = null
         sensorManager = null
         linearAccelSensor = null

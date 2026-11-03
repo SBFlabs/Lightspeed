@@ -15,6 +15,7 @@ import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedVolumeKeyEngine
 import com.sbf.lightspeed.system.ShizukuExecHelper
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.system.logSwallowed
 import kotlinx.coroutines.*
 import org.json.JSONArray
 
@@ -305,9 +306,11 @@ object LightspeedBotEngine {
                 if (steps.isNotEmpty()) {
                     executeStepsSequence(context, steps, botId)
                 } else {
-                    // Default rapid auto-click at current cursor or center
+                    // Rapid auto-click at active trackpad cursor position (or screen center fallback)
                     val metrics = context.resources.displayMetrics
-                    ShizukuExecHelper.injectTapEvent(metrics.widthPixels / 2f, metrics.heightPixels / 2f)
+                    val cx = LightspeedBotTrackpadOverlay.cursorX.takeIf { it > 0f } ?: (metrics.widthPixels / 2f)
+                    val cy = LightspeedBotTrackpadOverlay.cursorY.takeIf { it > 0f } ?: (metrics.heightPixels / 2f)
+                    injectTapOrDispatch(context, cx, cy)
                 }
                 delay(cadence)
             }
@@ -359,12 +362,8 @@ object LightspeedBotEngine {
                         if (!rect.isEmpty) {
                             val clickX = rect.centerX().toFloat()
                             val clickY = rect.centerY().toFloat()
-                            if (ShizukuExecHelper.injectTapEvent(clickX, clickY)) {
-                                nodeClicked = true
-                            } else if (service != null) {
-                                dispatchGestureTap(service, clickX, clickY)
-                                nodeClicked = true
-                            }
+                            injectTapOrDispatch(context, clickX, clickY)
+                            nodeClicked = true
                         }
                     }
                 }
@@ -377,11 +376,9 @@ object LightspeedBotEngine {
                 if (step.stepType == BotStep.TYPE_SWIPE) {
                     val endX = step.endXRatio * screenW
                     val endY = step.endYRatio * screenH
-                    dispatchGestureSwipe(service, pxX, pxY, endX, endY, step.durationMs)
+                    injectSwipeOrDispatch(context, pxX, pxY, endX, endY, step.durationMs)
                 } else {
-                    if (!ShizukuExecHelper.injectTapEvent(pxX, pxY) && service != null) {
-                        dispatchGestureTap(service, pxX, pxY)
-                    }
+                    injectTapOrDispatch(context, pxX, pxY)
                 }
             }
         }
@@ -439,35 +436,108 @@ object LightspeedBotEngine {
     }
 
     fun injectTapOrDispatch(context: Context, x: Float, y: Float) {
-        if (!ShizukuExecHelper.injectTapEvent(x, y)) {
-            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-            if (service != null) dispatchGestureTap(service, x, y)
+        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = 85L) {
+            if (!ShizukuExecHelper.injectTapEvent(x, y)) {
+                val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+                if (service != null) dispatchGestureTap(service, x, y)
+            }
         }
     }
 
     fun injectDoubleTapOrDispatch(context: Context, x: Float, y: Float) {
-        injectTapOrDispatch(context, x, y)
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            injectTapOrDispatch(context, x, y)
-        }, 110L)
+        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = 210L) {
+            if (!ShizukuExecHelper.injectTapEvent(x, y)) {
+                val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+                if (service != null) dispatchGestureTap(service, x, y)
+            }
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (!ShizukuExecHelper.injectTapEvent(x, y)) {
+                    val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+                    if (service != null) dispatchGestureTap(service, x, y)
+                }
+            }, 110L)
+        }
     }
 
     fun injectLongPressOrDispatch(context: Context, x: Float, y: Float, duration: Long = 600L) {
-        val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-        if (service != null) {
-            val path = Path().apply { moveTo(x, y) }
-            val stroke = GestureDescription.StrokeDescription(path, 0, duration)
-            val gesture = GestureDescription.Builder().addStroke(stroke).build()
-            service.dispatchGesture(gesture, null, null)
-        } else {
-            // Fallback tap if accessibility service unreachable
-            ShizukuExecHelper.injectTapEvent(x, y)
+        LightspeedBotTrackpadOverlay.performWithPassThrough(x, y, holdMs = duration + 80L) {
+            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+            if (service != null) {
+                val path = Path().apply { moveTo(x, y) }
+                val stroke = GestureDescription.StrokeDescription(path, 0, duration)
+                val gesture = GestureDescription.Builder().addStroke(stroke).build()
+                service.dispatchGesture(gesture, null, null)
+            } else {
+                // Fallback tap if accessibility service unreachable
+                ShizukuExecHelper.injectTapEvent(x, y)
+            }
         }
     }
 
     fun injectSwipeOrDispatch(context: Context, startX: Float, startY: Float, endX: Float, endY: Float, duration: Long) {
-        val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
-        dispatchGestureSwipe(service, startX, startY, endX, endY, duration)
+        val clampedDuration = duration.coerceIn(50L, 1000L)
+        LightspeedBotTrackpadOverlay.performWithPassThrough(startX, startY, endX, endY, holdMs = clampedDuration + 80L) {
+            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+            dispatchGestureSwipe(service, startX, startY, endX, endY, clampedDuration)
+        }
+    }
+
+    fun injectHoldAndDragOrDispatch(
+        context: Context,
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        dragDuration: Long = 400L,
+        holdBeforeDragMs: Long = 450L
+    ) {
+        val totalMs = holdBeforeDragMs + dragDuration
+        LightspeedBotTrackpadOverlay.performWithPassThrough(startX, startY, endX, endY, holdMs = totalMs + 80L) {
+            val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+            if (service != null) {
+                dispatchGestureHoldAndDrag(service, startX, startY, endX, endY, dragDuration, holdBeforeDragMs)
+            } else {
+                dispatchGestureSwipe(service, startX, startY, endX, endY, dragDuration)
+            }
+        }
+    }
+
+    private fun dispatchGestureHoldAndDrag(
+        service: AccessibilityService,
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        dragDuration: Long,
+        holdBeforeDragMs: Long
+    ) {
+        val pathHold = Path().apply { moveTo(startX, startY) }
+        val pathDrag = Path().apply {
+            moveTo(startX, startY)
+            lineTo(endX, endY)
+        }
+        val clampedDragDuration = dragDuration.coerceIn(150L, 1000L)
+        val clampedHoldDuration = holdBeforeDragMs.coerceIn(300L, 800L)
+
+        val holdStroke = GestureDescription.StrokeDescription(pathHold, 0L, clampedHoldDuration, true)
+        val gestureHold = GestureDescription.Builder().addStroke(holdStroke).build()
+
+        service.dispatchGesture(gestureHold, object : AccessibilityService.GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                try {
+                    val dragStroke = holdStroke.continueStroke(pathDrag, 0L, clampedDragDuration, false)
+                    val gestureDrag = GestureDescription.Builder().addStroke(dragStroke).build()
+                    service.dispatchGesture(gestureDrag, null, null)
+                } catch (e: Exception) {
+                    logSwallowed(TAG, "continueStroke holdAndDrag failed", e)
+                    dispatchGestureSwipe(service, startX, startY, endX, endY, clampedDragDuration)
+                }
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                Log.w(TAG, "HoldAndDrag hold stroke cancelled")
+            }
+        }, null)
     }
 
     private fun dispatchGestureTap(service: AccessibilityService, x: Float, y: Float) {

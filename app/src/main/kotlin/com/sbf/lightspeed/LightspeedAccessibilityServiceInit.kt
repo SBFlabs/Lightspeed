@@ -112,6 +112,10 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     }
 
     try {
+        overlayView?.let { old ->
+            old.dataBridge.destroy()
+            try { windowManager?.removeView(old) } catch (_: Exception) {}
+        }
         overlayView = LightspeedCruiseOverlay(this)
         windowManager?.addView(overlayView, windowParams)
         overlayView?.post { overlayView?.updateMetricsDimensions() }
@@ -135,6 +139,9 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     }
 
     try {
+        leftWingOverlayView?.let { old ->
+            try { windowManager?.removeView(old) } catch (_: Exception) {}
+        }
         leftWingOverlayView = LightspeedLeftWingOverlay(this, this)
         windowManager?.addView(leftWingOverlayView, leftWingWindowParams)
         leftWingOverlayView?.post { leftWingOverlayView?.updateMetricsDimensions() }
@@ -158,9 +165,7 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
         SonicVoiceIsolationEngine.initialize(this)
         SonicChannelRouter.applyRoutingRules(this)
         try {
-            rikka.shizuku.Shizuku.addBinderReceivedListenerSticky {
-                SonicVoiceIsolationEngine.ensureBound(this)
-            }
+            rikka.shizuku.Shizuku.addBinderReceivedListenerSticky(shizukuBinderReceivedListener)
         } catch (_: Exception) {}
     }
     LightspeedEyeCareEngine.init(this)

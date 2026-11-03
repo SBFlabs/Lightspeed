@@ -76,11 +76,12 @@ object SonicVoiceIsolationEngine {
                         binder.initialize(ctx.packageName)
                         binder.setVocalBoostLevel(vocalBoostLevel)
                         binder.setBackgroundMuffleLevel(backgroundMuffleLevel)
+                        SonicChannelRouter.reapplyPrivilegedRoutes(ctx)
+                        SonicChannelRouter.reconcileAudioFocusState(ctx)
+                        SonicAppVolumeEngine.reapplyAllVolumesToUserService(ctx)
                         if (isEnabled) {
                             binder.startPipeline()
                         }
-                        SonicChannelRouter.reapplyPrivilegedRoutes(ctx)
-                        SonicAppVolumeEngine.reapplyAllVolumesToUserService(ctx)
                     }
                 } catch (e: Exception) {
                     logSwallowed("SonicVoiceIsolationEngine", "onServiceConnected", e)
@@ -243,7 +244,10 @@ object SonicVoiceIsolationEngine {
         if (vocalBoostLevel <= 0.001f && backgroundMuffleLevel <= 0.001f) {
             applyPreset(appCtx, PRESET_MAX)
         }
-        appCtx.defaultPrefs().edit().putBoolean(LightspeedPreferences.KEY_SONIC_VOICE_ISOLATION_ENABLED, true).apply()
+        appCtx.defaultPrefs().edit()
+            .putBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, true)
+            .putBoolean(LightspeedPreferences.KEY_SONIC_VOICE_ISOLATION_ENABLED, true)
+            .apply()
 
         ensureBound(appCtx)
         return try {

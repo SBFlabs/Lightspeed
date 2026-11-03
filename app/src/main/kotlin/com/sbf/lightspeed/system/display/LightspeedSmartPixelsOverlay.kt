@@ -173,6 +173,10 @@ object LightspeedSmartPixelsOverlay {
 
             registerCaptureListeners(service, wm)
 
+            if (overlayView != null && overlayView?.context !== service) {
+                overlayView = null
+            }
+
             if (overlayView == null) {
                 val v = SmartPixelView(service, patternPct, currentShift, currentShift).apply {
                     alpha = 0f
@@ -215,6 +219,20 @@ object LightspeedSmartPixelsOverlay {
                 overlayView = null
             }
         }
+    }
+
+    fun onServiceDestroyed(service: Context?) {
+        shiftJob?.cancel()
+        shiftJob = null
+        val ctx = service ?: overlayView?.context
+        val wm = try { ctx?.getSystemService(Context.WINDOW_SERVICE) as? WindowManager } catch (_: Exception) { null }
+        if (ctx != null && wm != null) {
+            unregisterCaptureListeners(ctx, wm)
+        }
+        overlayView?.let { v ->
+            try { wm?.removeView(v) } catch (_: Exception) {}
+        }
+        overlayView = null
     }
 
     private fun startBurnInShift() {

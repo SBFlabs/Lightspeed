@@ -18,8 +18,15 @@ object LightspeedPreferences :
 
     // Master Flight Deck & Deflector Keys
     const val KEY_ALLOW_EXTERNAL_AUTOMATION = "key_allow_external_automation"
+    const val KEY_CLOAK_DISABLE_EXTRA_DIM = "pref_cloak_disable_extra_dim"
+    const val KEY_CLOAK_DISABLE_EYE_CARE = "pref_cloak_disable_eye_care"
+    const val KEY_CLOAK_DISABLE_SMART_PIXELS = "pref_cloak_disable_smart_pixels"
+    const val KEY_CLOAK_SUSPEND_SONIC_DECK = "pref_cloak_suspend_sonic_deck"
     const val KEY_CLOAK_HIDE_DEV_OPTIONS = "pref_cloak_hide_dev_options"
     const val KEY_CLOAK_HIDE_USB_DEBUGGING = "pref_cloak_hide_usb_debugging"
+    const val KEY_CLOAK_STOP_SHIZUKU = "pref_cloak_stop_shizuku"
+    const val KEY_CLOAK_SHIZUKU_FORK = "pref_cloak_shizuku_fork"
+    const val KEY_CLOAK_SHIZUKU_WATCHDOG_TOGGLE = "pref_cloak_shizuku_watchdog_toggle"
     const val KEY_STEALTH_CLOAK_TOKEN = "pref_stealth_cloak_token"
     const val KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN = "pref_cloak_shizuku_toggle_token"
     const val KEY_DISMISS_SYS_OVERRIDE_CONFLICT_CARD = "pref_dismiss_sys_override_conflict_card"
@@ -84,6 +91,10 @@ object LightspeedPreferences :
     const val GEAR_SHAPE_TECH = "tech"
     const val KEY_GEAR_DPI_INDEPENDENT = "pref_gear_dpi_independent"
     const val KEY_GEAR_CUSTOM_DIAMETER_SCALE = "pref_gear_custom_diameter_scale"
+    const val KEY_COCKPIT_COLOR_MODE = "pref_cockpit_color_mode"
+    const val COCKPIT_COLOR_MODE_THEME_12 = "theme_12"
+    const val COCKPIT_COLOR_MODE_M3_DYNAMIC = "m3_dynamic"
+    const val COCKPIT_COLOR_MODE_HYBRID_FUSION = "hybrid_fusion"
 
     // Pop-up Window & Split Picker Keys
     const val KEY_POPUP_STYLE = "pref_popup_style"
@@ -206,6 +217,120 @@ object LightspeedPreferences :
     const val KEY_HUD_BRIGHTNESS_ENABLED = "pref_hud_brightness_enabled"
     const val KEY_HUD_VOLUME_ENABLED = "pref_hud_volume_enabled"
     const val KEY_HUD_USE_CENTRAL_THEME = "pref_hud_use_central_theme"
+    const val KEY_HUD_COLOR_MODE = "pref_hud_color_mode"
+
+    fun resolveHudColorMode(
+        prefs: SharedPreferences,
+        gestureActionKey: String? = null,
+        actionToken: String? = null
+    ): String {
+        if (!gestureActionKey.isNullOrBlank() && !actionToken.isNullOrBlank()) {
+            val cleanToken = actionToken.replace(":", "_")
+            val baseHudKey = gestureActionKey.replace("pref_macro_action_", "pref_macro_hud_color_mode_")
+            val specificActionKey = "${baseHudKey}_$cleanToken"
+            val modeForAction = prefs.getString(specificActionKey, null)
+            if (!modeForAction.isNullOrBlank()) return modeForAction
+        }
+        if (!actionToken.isNullOrBlank()) {
+            val cleanToken = actionToken.replace(":", "_")
+            val specificTokenKey = "pref_hud_color_mode_$cleanToken"
+            val modeForToken = prefs.getString(specificTokenKey, null)
+            if (!modeForToken.isNullOrBlank()) return modeForToken
+        }
+        if (!gestureActionKey.isNullOrBlank()) {
+            val baseHudKey = gestureActionKey.replace("pref_macro_action_", "pref_macro_hud_color_mode_")
+            val modeForGesture = prefs.getString(baseHudKey, null)
+            if (!modeForGesture.isNullOrBlank()) return modeForGesture
+        }
+        val saved = prefs.getString(KEY_HUD_COLOR_MODE, null)
+        if (!saved.isNullOrBlank()) return saved
+        return if (prefs.getBoolean(KEY_HUD_USE_CENTRAL_THEME, true)) {
+            COCKPIT_COLOR_MODE_THEME_12
+        } else {
+            COCKPIT_COLOR_MODE_M3_DYNAMIC
+        }
+    }
+
+    fun saveHudColorMode(
+        prefs: SharedPreferences,
+        gestureActionKey: String? = null,
+        actionToken: String? = null,
+        mode: String
+    ) {
+        val editor = prefs.edit()
+        if (!gestureActionKey.isNullOrBlank()) {
+            val baseHudKey = gestureActionKey.replace("pref_macro_action_", "pref_macro_hud_color_mode_")
+            editor.putString(baseHudKey, mode)
+            if (!actionToken.isNullOrBlank()) {
+                val cleanToken = actionToken.replace(":", "_")
+                editor.putString("${baseHudKey}_$cleanToken", mode)
+            }
+        }
+        if (!actionToken.isNullOrBlank()) {
+            val cleanToken = actionToken.replace(":", "_")
+            editor.putString("pref_hud_color_mode_$cleanToken", mode)
+        }
+        if (gestureActionKey.isNullOrBlank() && actionToken.isNullOrBlank()) {
+            editor.putString(KEY_HUD_COLOR_MODE, mode)
+            editor.putBoolean(KEY_HUD_USE_CENTRAL_THEME, mode != COCKPIT_COLOR_MODE_M3_DYNAMIC)
+        }
+        editor.apply()
+    }
+
+    fun applyColorModeToAllSurfaces(
+        context: Context,
+        prefs: SharedPreferences,
+        mode: String
+    ) {
+        val editor = prefs.edit()
+        // 1. Global HUD
+        editor.putString(KEY_HUD_COLOR_MODE, mode)
+        editor.putBoolean(KEY_HUD_USE_CENTRAL_THEME, mode != COCKPIT_COLOR_MODE_M3_DYNAMIC)
+
+        // 2. All HUD color mode keys in prefs
+        for (key in prefs.all.keys) {
+            if (key.startsWith("pref_macro_hud_color_mode_") || key.startsWith("pref_hud_color_mode_")) {
+                editor.putString(key, mode)
+            }
+        }
+        // Explicitly write common scrubber tokens
+        val standardTokens = listOf(
+            "system_volume", "system_brightness", "system_screen_timeout",
+            "system_scroll_scrub", "scrub_volume", "scrub_brightness", "system_media_seek"
+        )
+        for (token in standardTokens) {
+            editor.putString("pref_hud_color_mode_$token", mode)
+        }
+
+        // 3. Cockpit
+        editor.putString(KEY_COCKPIT_COLOR_MODE, mode)
+
+        // 4. Category Cruise
+        editor.putString(KEY_CATEGORY_CRUISE_COLOR_MODE, mode)
+
+        // 5. Trackpad Left & Right
+        editor.putString(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_LEFT, mode)
+        editor.putString(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_RIGHT, mode)
+
+        editor.apply()
+
+        CockpitGimbalConfigCache.flush()
+        try {
+            com.sbf.lightspeed.LightspeedAccessibilityService.instance?.reloadPreferences()
+        } catch (e: Exception) {
+            logSwallowed("LightspeedPreferences", "ApplyAllReloadService", e)
+        }
+        try {
+            com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
+        } catch (e: Exception) {
+            logSwallowed("LightspeedPreferences", "ApplyAllReloadBot", e)
+        }
+        try {
+            com.sbf.lightspeed.LightspeedCruiseOverlay.instance?.invalidate()
+        } catch (e: Exception) {
+            logSwallowed("LightspeedPreferences", "ApplyAllInvalidateCruise", e)
+        }
+    }
     const val KEY_VOLUME_SHOW_NATIVE_SLIDER = "pref_volume_show_native_slider"
     const val KEY_BRIGHTNESS_SCRUB_STEP = "pref_brightness_scrub_step"
     const val KEY_BRIGHTNESS_SCRUB_RESOLUTION = "pref_brightness_scrub_resolution"
@@ -233,6 +358,13 @@ object LightspeedPreferences :
     const val KEY_SECTION_LEFT_BOTTOM_EXPANDED = "pref_section_left_bottom_expanded"
     const val KEY_SECTION_TELEMETRY_EXPANDED = "pref_section_telemetry_expanded"
     const val KEY_SECTION_TACTICAL_HARDWARE_EXPANDED = "pref_section_tactical_hardware_expanded"
+    const val KEY_SECTION_REFUELING_EXPANDED = "pref_section_refueling_expanded"
+    const val KEY_SECTION_BACKUP_EXPANDED = "pref_section_backup_expanded"
+    const val KEY_SECTION_SYSTEM_OVERRIDES_EXPANDED = "pref_section_system_overrides_expanded"
+    const val KEY_SECTION_CENTER_EXPANDED = "pref_section_center_expanded"
+    const val KEY_SECTION_TOP_EXPANDED = "pref_section_top_expanded"
+    const val KEY_SECTION_BOTTOM_EXPANDED = "pref_section_bottom_expanded"
+    const val KEY_SECTION_RIGHT_UNIFIED_EXPANDED = "pref_section_right_unified_expanded"
     const val KEY_CORE_COOLING_ENABLED = "pref_core_cooling_enabled"
     const val KEY_CORE_COOLING_SCHEDULE = "pref_core_cooling_schedule"
     const val KEY_CORE_COOLING_DAY_OF_WEEK = "pref_core_cooling_day_of_week"

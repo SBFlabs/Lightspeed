@@ -151,13 +151,16 @@ object LightspeedConsciousAirlockOverlay {
 
     fun dismiss() {
         mainHandler.post {
-            val v = composeView ?: return@post
-            try {
-                windowManager?.removeView(v)
-            } catch (_: Exception) {}
-            composeView = null
+            val v = composeView
+            if (v != null) {
+                try {
+                    windowManager?.removeView(v)
+                } catch (_: Exception) {}
+                composeView = null
+            }
             lifecycleOwner?.onDestroy()
             lifecycleOwner = null
+            windowManager = null
         }
     }
 
@@ -171,7 +174,7 @@ object LightspeedConsciousAirlockOverlay {
         val lsColors = LightspeedStyle.colors
         val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         var secondsLeft by remember { mutableIntStateOf(5) }
-        val appLabel = remember {
+        val appLabel = remember(packageName) {
             try {
                 val pm = service.packageManager
                 val info = pm.getApplicationInfo(packageName, 0)
@@ -180,55 +183,60 @@ object LightspeedConsciousAirlockOverlay {
         }
 
         val hasUsageAccess = remember { LightspeedUsageStats.hasUsageAccess(service) }
-        val (categoryTitle, appTimeText, sectorTimeText) = remember(hasUsageAccess) {
-            val usageMap = if (hasUsageAccess) LightspeedUsageStats.usageMillisByPackage(service, days = 1) else emptyMap()
-            val appMs = usageMap[packageName] ?: 0L
-            val appMins = (appMs / 60000L).toInt()
-            val appHrs = appMins / 60
-            val appRemMins = appMins % 60
-            val appFormatted = if (appHrs > 0) "${appHrs}h ${appRemMins}m today" else "${appMins}m today"
+        val telemetryTriple by produceState(
+            initialValue = Triple("Other", "0m today", "0m today"),
+            key1 = packageName,
+            key2 = hasUsageAccess
+        ) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val usageMap = if (hasUsageAccess) LightspeedUsageStats.usageMillisByPackage(service, days = 1) else emptyMap()
+                val appMs = usageMap[packageName] ?: 0L
+                val appMins = (appMs / 60000L).toInt()
+                val appHrs = appMins / 60
+                val appRemMins = appMins % 60
+                val appFormatted = if (appHrs > 0) "${appHrs}h ${appRemMins}m today" else "${appMins}m today"
 
-            // Resolve Category (Sector)
-            val pm = service.packageManager
-            val appInfo = try { pm.getApplicationInfo(packageName, 0) } catch (_: Exception) { null }
-            val overrideCat = LightspeedPreferences.getAppCategoryOverride(service, packageName)
-            val catId = if (overrideCat != null && LightspeedDataBridge.DRAWER_CATEGORIES.any { it.id == overrideCat }) {
-                overrideCat
-            } else if (appInfo != null) {
-                LightspeedAppCategorizer.categorize(appInfo, packageName, appLabel)
-            } else {
-                "other"
-            }
-
-            val categoryNode = LightspeedDataBridge.DRAWER_CATEGORIES.firstOrNull { it.id == catId }
-            val catLabel = categoryNode?.label ?: "Other"
-
-            // Compute total time across all packages in this sector
-            var sectorMs = 0L
-            for ((pkg, ms) in usageMap) {
-                val pkgAppInfo = try { pm.getApplicationInfo(pkg, 0) } catch (_: Exception) { null }
-                val pkgOverride = LightspeedPreferences.getAppCategoryOverride(service, pkg)
-                val targetCat = if (pkgOverride != null && LightspeedDataBridge.DRAWER_CATEGORIES.any { it.id == pkgOverride }) {
-                    pkgOverride
-                } else if (pkgAppInfo != null) {
-                    val lbl = try { pm.getApplicationLabel(pkgAppInfo).toString() } catch (_: Exception) { pkg }
-                    LightspeedAppCategorizer.categorize(pkgAppInfo, pkg, lbl)
+                val pm = service.packageManager
+                val appInfo = try { pm.getApplicationInfo(packageName, 0) } catch (_: Exception) { null }
+                val overrideCat = LightspeedPreferences.getAppCategoryOverride(service, packageName)
+                val catId = if (overrideCat != null && LightspeedDataBridge.DRAWER_CATEGORIES.any { it.id == overrideCat }) {
+                    overrideCat
+                } else if (appInfo != null) {
+                    LightspeedAppCategorizer.categorize(appInfo, packageName, appLabel)
                 } else {
                     "other"
                 }
 
-                if (targetCat == catId) {
-                    sectorMs += ms
+                val categoryNode = LightspeedDataBridge.DRAWER_CATEGORIES.firstOrNull { it.id == catId }
+                val catLabel = categoryNode?.label ?: "Other"
+
+                var sectorMs = 0L
+                for ((pkg, ms) in usageMap) {
+                    val pkgAppInfo = try { pm.getApplicationInfo(pkg, 0) } catch (_: Exception) { null }
+                    val pkgOverride = LightspeedPreferences.getAppCategoryOverride(service, pkg)
+                    val targetCat = if (pkgOverride != null && LightspeedDataBridge.DRAWER_CATEGORIES.any { it.id == pkgOverride }) {
+                        pkgOverride
+                    } else if (pkgAppInfo != null) {
+                        val lbl = try { pm.getApplicationLabel(pkgAppInfo).toString() } catch (_: Exception) { pkg }
+                        LightspeedAppCategorizer.categorize(pkgAppInfo, pkg, lbl)
+                    } else {
+                        "other"
+                    }
+
+                    if (targetCat == catId) {
+                        sectorMs += ms
+                    }
                 }
+
+                val secMins = (sectorMs / 60000L).toInt()
+                val secHrs = secMins / 60
+                val secRemMins = secMins % 60
+                val sectorFormatted = if (secHrs > 0) "${secHrs}h ${secRemMins}m today" else "${secMins}m today"
+
+                Triple(catLabel, appFormatted, sectorFormatted)
             }
-
-            val secMins = (sectorMs / 60000L).toInt()
-            val secHrs = secMins / 60
-            val secRemMins = secMins % 60
-            val sectorFormatted = if (secHrs > 0) "${secHrs}h ${secRemMins}m today" else "${secMins}m today"
-
-            Triple(catLabel, appFormatted, sectorFormatted)
         }
+        val (categoryTitle, appTimeText, sectorTimeText) = telemetryTriple
 
         LaunchedEffect(Unit) {
             while (secondsLeft > 0) {

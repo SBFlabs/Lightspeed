@@ -6,8 +6,9 @@ import com.sbf.lightspeed.settings.resolveCanvasPalette
 import kotlin.math.*
 
 /**
- * High-Precision Aerospace Canvas Drawing Engine for the Cybernetic Half-Circle Trackpad,
- * 3-Segment Contoured Radial Wedge / Edge Strip Buttons, and Tactical Cursor (< 390 lines).
+ * High-Precision Aerospace Canvas Drawing Engine for the Cybernetic Half-Circle Trackpad
+ * and 3-Segment Contoured Radial Wedge / Edge Strip Buttons (< 535 lines).
+ * Tactical Cursor rendering is modularized into [LightspeedBotCursorDraw].
  */
 object LightspeedBotTrackpadDraw {
 
@@ -20,19 +21,25 @@ object LightspeedBotTrackpadDraw {
         textAlign = Paint.Align.CENTER
     }
 
-    // Reusable cached paths and rects for zero-allocation 120Hz rendering
+    // Reusable cached paths, rects, and points for zero-allocation 120Hz rendering
     private val cachedTrackpadPath = Path()
     private val cachedWedgePath = Path()
     private val cachedArcRect = RectF()
     private val cachedOuterRect = RectF()
     private val cachedInnerRect = RectF()
-    private val cachedArrowPath = Path()
-    private val cachedDiamondPath = Path()
+    private val cachedSegRect = RectF()
+    private val cachedGearRect = RectF()
+    private val cachedNodePoint = PointF()
+
+    private val ANGLES_1 = listOf(0f)
+    private val ANGLES_2 = listOf(-42f, 42f)
+    private val ANGLES_3 = listOf(-56f, 0f, 56f)
+    private val WEDGE_SPANS = listOf(-84f to 50f, -25f to 50f, 34f to 50f)
 
     private fun getAngles(armCount: Int): List<Float> = when (armCount.coerceIn(1, 3)) {
-        1 -> listOf(0f)
-        2 -> listOf(-42f, 42f)
-        else -> listOf(-56f, 0f, 56f)
+        1 -> ANGLES_1
+        2 -> ANGLES_2
+        else -> ANGLES_3
     }
 
     fun getArmNodeCenter(
@@ -51,7 +58,8 @@ object LightspeedBotTrackpadDraw {
             val edgeX = if (isLeft) 22f * density else wF - (22f * density)
             val segH = (radiusPx * 0.68f).coerceAtLeast(36f * density)
             val offsetIdx = (armIdx - 1).toFloat()
-            return PointF(edgeX, centerY + (offsetIdx * segH))
+            cachedNodePoint.set(edgeX, centerY + (offsetIdx * segH))
+            return cachedNodePoint
         }
 
         val angles = getAngles(armCount)
@@ -60,7 +68,8 @@ object LightspeedBotTrackpadDraw {
         val midReach = radiusPx + (4.5f * density) + ((armReachPx - 4.5f * density) * 0.52f * deployProgress.coerceIn(0.1f, 1f))
         val x = if (isLeft) (midReach * cos(rad)).toFloat() else (wF - (midReach * cos(rad)).toFloat())
         val y = centerY + (midReach * sin(rad)).toFloat()
-        return PointF(x, y)
+        cachedNodePoint.set(x, y)
+        return cachedNodePoint
     }
 
     fun hitTestArm(
@@ -223,14 +232,17 @@ object LightspeedBotTrackpadDraw {
         density: Float,
         alphaFactor: Float = 1f,
         style: String = "classic_arc",
-        orientation: String = "arc"
+        orientation: String = "arc",
+        context: android.content.Context? = null,
+        colorMode: String = LightspeedBotContract.COLOR_MODE_HYBRID_FUSION,
+        isHoldActive: Boolean = false
     ) {
         val currentRadius = radiusPx * deployProgress.coerceIn(0.05f, 1f)
         val dir = if (isLeft) 1f else -1f
         val edgeStripOffset = if (orientation == "edge") 44f * density else 0f
         val originX = if (isLeft) edgeStripOffset else (wF - edgeStripOffset)
         val clampedAlpha = alphaFactor.coerceIn(0.05f, 1f)
-        val palette = theme.resolveCanvasPalette()
+        val palette = theme.resolveCanvasPalette(context, colorMode)
         val innerCol = palette.panelInnerArgb
         val outerCol = palette.panelOuterArgb
         val borderCol = palette.borderArgb
@@ -239,15 +251,15 @@ object LightspeedBotTrackpadDraw {
 
         val trackpadPath = buildTrackpadPath(style, isLeft, originX, centerY, currentRadius, dir)
 
-        // 1. 12-Theme Glass Radial Gradient Dome Body
+        // 1. Optical Glass Radial Gradient Dome Body
         bgPaint.style = Paint.Style.FILL
         bgPaint.shader = RadialGradient(
             originX + dir * (currentRadius * 0.35f),
             centerY,
             currentRadius * 1.15f,
             intArrayOf(
-                Color.argb((Color.alpha(innerCol) * clampedAlpha).toInt().coerceIn(40, 250), Color.red(innerCol), Color.green(innerCol), Color.blue(innerCol)),
-                Color.argb((Color.alpha(outerCol) * clampedAlpha).toInt().coerceIn(50, 252), Color.red(outerCol), Color.green(outerCol), Color.blue(outerCol))
+                Color.argb((Color.alpha(innerCol) * clampedAlpha).toInt().coerceIn(45, 250), Color.red(innerCol), Color.green(innerCol), Color.blue(innerCol)),
+                Color.argb((Color.alpha(outerCol) * clampedAlpha).toInt().coerceIn(55, 252), Color.red(outerCol), Color.green(outerCol), Color.blue(outerCol))
             ),
             floatArrayOf(0f, 1f),
             Shader.TileMode.CLAMP
@@ -255,19 +267,49 @@ object LightspeedBotTrackpadDraw {
         canvas.drawPath(trackpadPath, bgPaint)
         bgPaint.shader = null
 
-        // 2. Outer Dual-Tone Theme Glow Seam around Trackpad Dome
+        // 2. Outer Dual-Tone Neon Glow Seam around Trackpad Dome
         glowPaint.style = Paint.Style.STROKE
-        glowPaint.strokeWidth = 6.0f * density
-        glowPaint.color = secCol
-        glowPaint.alpha = ((85 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255)
+        glowPaint.strokeWidth = 6.2f * density
+        glowPaint.shader = LinearGradient(
+            originX, centerY - currentRadius,
+            originX, centerY + currentRadius,
+            intArrayOf(
+                Color.argb(((95 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255), Color.red(tintCol), Color.green(tintCol), Color.blue(tintCol)),
+                Color.argb(((95 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255), Color.red(secCol), Color.green(secCol), Color.blue(secCol))
+            ),
+            null,
+            Shader.TileMode.CLAMP
+        )
         canvas.drawPath(trackpadPath, glowPaint)
+        glowPaint.shader = null
 
-        // 3. Crisp Bright Inner & Outer Bevel Rim
+        // 3. Crisp Dual-Tone Bevel Rim
         strokePaint.style = Paint.Style.STROKE
         strokePaint.strokeWidth = 2.2f * density
-        strokePaint.color = borderCol
-        strokePaint.alpha = ((245 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255)
+        strokePaint.shader = LinearGradient(
+            originX, centerY - currentRadius,
+            originX, centerY + currentRadius,
+            intArrayOf(
+                Color.argb(((248 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255), Color.red(tintCol), Color.green(tintCol), Color.blue(tintCol)),
+                Color.argb(((248 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255), Color.red(borderCol), Color.green(borderCol), Color.blue(borderCol)),
+                Color.argb(((248 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255), Color.red(secCol), Color.green(secCol), Color.blue(secCol))
+            ),
+            floatArrayOf(0f, 0.5f, 1f),
+            Shader.TileMode.CLAMP
+        )
         canvas.drawPath(trackpadPath, strokePaint)
+        strokePaint.shader = null
+
+        // 3b. Style-specific inner specular highlight ("liquid_glass" & "shield")
+        if (style == "liquid_glass" || style == "shield") {
+            val innerR = currentRadius * 0.86f
+            cachedArcRect.set(originX - innerR, centerY - innerR, originX + innerR, centerY + innerR)
+            strokePaint.strokeWidth = (if (style == "liquid_glass") 2.0f else 1.2f) * density
+            strokePaint.color = if (style == "liquid_glass") Color.WHITE else tintCol
+            strokePaint.alpha = ((if (style == "liquid_glass") 115 else 95) * deployProgress * clampedAlpha).toInt().coerceIn(0, 255)
+            if (isLeft) canvas.drawArc(cachedArcRect, -72f, if (style == "liquid_glass") 75f else 144f, false, strokePaint)
+            else canvas.drawArc(cachedArcRect, 108f, if (style == "liquid_glass") 75f else 144f, false, strokePaint)
+        }
 
         // 4. Center Collimator Crosshair (+) matching mockups
         val crossCX = if (abs(thumbX - originX) > 8f * density) thumbX else (originX + dir * (currentRadius * 0.46f))
@@ -276,7 +318,7 @@ object LightspeedBotTrackpadDraw {
         val gap = 2.8f * density
         strokePaint.strokeWidth = 1.4f * density
         strokePaint.color = Color.WHITE
-        strokePaint.alpha = ((200 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255)
+        strokePaint.alpha = ((210 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255)
         canvas.drawLine(crossCX - arm, crossCY, crossCX - gap, crossCY, strokePaint)
         canvas.drawLine(crossCX + gap, crossCY, crossCX + arm, crossCY, strokePaint)
         canvas.drawLine(crossCX, crossCY - arm, crossCX, crossCY - gap, strokePaint)
@@ -285,7 +327,22 @@ object LightspeedBotTrackpadDraw {
         nodePaint.style = Paint.Style.FILL
         nodePaint.color = tintCol
         nodePaint.alpha = ((255 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255)
-        canvas.drawCircle(crossCX, crossCY, 2.0f * density, nodePaint)
+        canvas.drawCircle(crossCX, crossCY, 2.1f * density, nodePaint)
+
+        if (isHoldActive) {
+            val holdR = 11.5f * density
+            glowPaint.style = Paint.Style.STROKE
+            glowPaint.strokeWidth = 3.2f * density
+            glowPaint.color = tintCol
+            glowPaint.alpha = ((220 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255)
+            canvas.drawCircle(crossCX, crossCY, holdR, glowPaint)
+
+            strokePaint.style = Paint.Style.STROKE
+            strokePaint.strokeWidth = 1.6f * density
+            strokePaint.color = Color.WHITE
+            strokePaint.alpha = ((255 * deployProgress) * clampedAlpha).toInt().coerceIn(0, 255)
+            canvas.drawCircle(crossCX, crossCY, holdR, strokePaint)
+        }
     }
 
     fun drawRobotArms(
@@ -306,14 +363,16 @@ object LightspeedBotTrackpadDraw {
         armReachPx: Float = 52f * density,
         alphaFactor: Float = 1f,
         style: String = "classic_arc",
-        orientation: String = "arc"
+        orientation: String = "arc",
+        context: android.content.Context? = null,
+        colorMode: String = LightspeedBotContract.COLOR_MODE_HYBRID_FUSION
     ) {
         if (deployProgress < 0.2f) return
         val clampedAlpha = alphaFactor.coerceIn(0.05f, 1f)
         val count = armCount.coerceIn(1, 3)
         val dir = if (isLeft) 1f else -1f
         val originX = if (isLeft) 0f else wF
-        val palette = theme.resolveCanvasPalette()
+        val palette = theme.resolveCanvasPalette(context, colorMode)
         val innerCol = palette.panelInnerArgb
         val outerCol = palette.panelOuterArgb
         val panelCol = innerCol
@@ -321,12 +380,41 @@ object LightspeedBotTrackpadDraw {
         val tintCol = palette.primaryAccentArgb
         val secCol = palette.secondaryAccentArgb
 
-        // 1. Edge Strip Orientation (3 Contiguous Beveled Segments along screen edge)
+        // 1. Edge Strip Orientation (1:1 Mockup Contoured Vertical Dock + 3 Segmented Bays)
         if (orientation == "edge") {
             val stripW = 42f * density
             val segH = (radiusPx * 0.68f).coerceAtLeast(36f * density)
             val left = if (isLeft) 2f * density else (wF - stripW)
             val right = if (isLeft) stripW else (wF - 2f * density)
+            val dockTop = centerY - segH * 1.5f
+            val dockBottom = centerY + segH * 1.5f
+            cachedOuterRect.set(left, dockTop, right, dockBottom)
+
+            // Contoured outer housing shell
+            bgPaint.style = Paint.Style.FILL
+            bgPaint.shader = LinearGradient(
+                left, dockTop, right, dockBottom,
+                intArrayOf(
+                    Color.argb((Color.alpha(innerCol) * clampedAlpha).toInt().coerceIn(60, 250), Color.red(innerCol), Color.green(innerCol), Color.blue(innerCol)),
+                    Color.argb((Color.alpha(outerCol) * clampedAlpha).toInt().coerceIn(70, 252), Color.red(outerCol), Color.green(outerCol), Color.blue(outerCol))
+                ),
+                null, Shader.TileMode.CLAMP
+            )
+            canvas.drawRoundRect(cachedOuterRect, 14f * density, 14f * density, bgPaint)
+            bgPaint.shader = null
+
+            // Outer housing neon glow + crisp border
+            glowPaint.style = Paint.Style.STROKE
+            glowPaint.strokeWidth = 4.5f * density
+            glowPaint.color = tintCol
+            glowPaint.alpha = (75 * clampedAlpha).toInt().coerceIn(0, 255)
+            canvas.drawRoundRect(cachedOuterRect, 14f * density, 14f * density, glowPaint)
+
+            strokePaint.style = Paint.Style.STROKE
+            strokePaint.strokeWidth = 1.8f * density
+            strokePaint.color = borderCol
+            strokePaint.alpha = (235 * clampedAlpha).toInt().coerceIn(0, 255)
+            canvas.drawRoundRect(cachedOuterRect, 14f * density, 14f * density, strokePaint)
 
             for (i in 0 until count) {
                 val armIndex = i + 1
@@ -335,25 +423,29 @@ object LightspeedBotTrackpadDraw {
                 val isThisRec = isRecording && recordingBotId == botId
                 val isHovered = (hoveredArm == armIndex)
                 val cy = centerY + ((i - 1) * segH)
-                val segRect = RectF(left, cy - segH * 0.47f, right, cy + segH * 0.47f)
+                cachedSegRect.set(left + 2.5f * density, cy - segH * 0.45f, right - 2.5f * density, cy + segH * 0.45f)
 
-                bgPaint.style = Paint.Style.FILL
-                bgPaint.color = if (isHovered) tintCol else panelCol
-                bgPaint.alpha = ((if (isHovered) 165 else 235) * clampedAlpha).toInt().coerceIn(0, 255)
-                canvas.drawRoundRect(segRect, 9f * density, 9f * density, bgPaint)
-
-                val seamColor = when {
-                    isThisRec -> 0xFFFF3333.toInt()
-                    isHovered || hasSteps -> tintCol
-                    else -> borderCol
+                if (isHovered || hasSteps || isThisRec) {
+                    bgPaint.style = Paint.Style.FILL
+                    bgPaint.color = when {
+                        isThisRec -> 0xFFFF3333.toInt()
+                        isHovered -> tintCol
+                        else -> secCol
+                    }
+                    bgPaint.alpha = ((if (isHovered) 155 else 65) * clampedAlpha).toInt().coerceIn(0, 255)
+                    canvas.drawRoundRect(cachedSegRect, 10f * density, 10f * density, bgPaint)
                 }
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = (if (isHovered || hasSteps) 2.0f else 1.4f) * density
-                strokePaint.color = seamColor
-                strokePaint.alpha = (245 * clampedAlpha).toInt().coerceIn(0, 255)
-                canvas.drawRoundRect(segRect, 9f * density, 9f * density, strokePaint)
 
-                drawButtonGlyphAndLabel(canvas, segRect.centerX(), segRect.centerY(), armIndex, isThisRec, isHovered, hasSteps, density, clampedAlpha)
+                // Glowing horizontal divider seam between buttons
+                if (i > 0) {
+                    val divY = cy - segH * 0.5f
+                    strokePaint.strokeWidth = 1.2f * density
+                    strokePaint.color = tintCol
+                    strokePaint.alpha = (150 * clampedAlpha).toInt().coerceIn(0, 255)
+                    canvas.drawLine(left + 5f * density, divY, right - 5f * density, divY, strokePaint)
+                }
+
+                drawButtonGlyphAndLabel(canvas, cachedSegRect.centerX(), cachedSegRect.centerY(), armIndex, botId, isThisRec, isHovered, hasSteps, tintCol, density, clampedAlpha)
             }
             return
         }
@@ -361,16 +453,26 @@ object LightspeedBotTrackpadDraw {
         val rInner = radiusPx + (5f * density)
         val rOuter = radiusPx + (armReachPx * deployProgress.coerceIn(0.2f, 1f))
 
+        // 1b. Outer Orbital Guide Horizon Arc (Signature mockup horizon framing the 3 arms)
+        val horizonR = rOuter + (6.5f * density)
+        cachedGearRect.set(originX - horizonR, centerY - horizonR, originX + horizonR, centerY + horizonR)
+        strokePaint.style = Paint.Style.STROKE
+        strokePaint.strokeWidth = 1.1f * density
+        strokePaint.color = tintCol
+        strokePaint.alpha = (95 * clampedAlpha).toInt().coerceIn(0, 255)
+        if (isLeft) canvas.drawArc(cachedGearRect, -84f, 168f, false, strokePaint)
+        else canvas.drawArc(cachedGearRect, 96f, 168f, false, strokePaint)
+
         // 2. Outer Gear Ring Backing when style == "gear_tooth" or "shield"
         if (style == "gear_tooth" || style == "shield") {
             val gearOuterR = rOuter + (9f * density)
-            val gearRect = RectF(originX - gearOuterR, centerY - gearOuterR, originX + gearOuterR, centerY + gearOuterR)
+            cachedGearRect.set(originX - gearOuterR, centerY - gearOuterR, originX + gearOuterR, centerY + gearOuterR)
             strokePaint.style = Paint.Style.STROKE
             strokePaint.strokeWidth = 2.0f * density
             strokePaint.color = borderCol
-            strokePaint.alpha = (180 * clampedAlpha).toInt().coerceIn(0, 255)
-            if (isLeft) canvas.drawArc(gearRect, -88f, 176f, false, strokePaint)
-            else canvas.drawArc(gearRect, 92f, 176f, false, strokePaint)
+            strokePaint.alpha = (185 * clampedAlpha).toInt().coerceIn(0, 255)
+            if (isLeft) canvas.drawArc(cachedGearRect, -88f, 176f, false, strokePaint)
+            else canvas.drawArc(cachedGearRect, 92f, 176f, false, strokePaint)
 
             if (style == "gear_tooth") {
                 strokePaint.strokeWidth = 5.5f * density
@@ -385,27 +487,26 @@ object LightspeedBotTrackpadDraw {
             }
         }
 
-        // 3. Minimal Outer Orbital Arc Track when style == "minimal_arms"
-        if (style == "minimal_arms") {
+        // 3. Minimal / Floating Outer Orbital Arc Track
+        if (style == "minimal_arms" || style == "floating") {
             val midR = (rInner + rOuter) * 0.5f
-            val arcRect = RectF(originX - midR, centerY - midR, originX + midR, centerY + midR)
+            cachedArcRect.set(originX - midR, centerY - midR, originX + midR, centerY + midR)
             glowPaint.style = Paint.Style.STROKE
-            glowPaint.strokeWidth = 10f * density
+            glowPaint.strokeWidth = 9f * density
             glowPaint.color = tintCol
-            glowPaint.alpha = (45 * clampedAlpha).toInt().coerceIn(0, 255)
-            if (isLeft) canvas.drawArc(arcRect, -82f, 164f, false, glowPaint)
-            else canvas.drawArc(arcRect, 98f, 164f, false, glowPaint)
+            glowPaint.alpha = (48 * clampedAlpha).toInt().coerceIn(0, 255)
+            if (isLeft) canvas.drawArc(cachedArcRect, -82f, 164f, false, glowPaint)
+            else canvas.drawArc(cachedArcRect, 98f, 164f, false, glowPaint)
 
             strokePaint.style = Paint.Style.STROKE
             strokePaint.strokeWidth = 1.6f * density
             strokePaint.color = borderCol
             strokePaint.alpha = (195 * clampedAlpha).toInt().coerceIn(0, 255)
-            if (isLeft) canvas.drawArc(arcRect, -82f, 164f, false, strokePaint)
-            else canvas.drawArc(arcRect, 98f, 164f, false, strokePaint)
+            if (isLeft) canvas.drawArc(cachedArcRect, -82f, 164f, false, strokePaint)
+            else canvas.drawArc(cachedArcRect, 98f, 164f, false, strokePaint)
         }
 
         // 4. Draw the 3 Contoured Radial Wedge / Capsule Segments (B1, B2, B3)
-        val wedgeSpans = listOf(-84f to 50f, -25f to 50f, 34f to 50f)
         for (i in 0 until count) {
             val armIndex = i + 1
             val botId = activeBotIds.getOrElse(i) { armIndex }
@@ -413,6 +514,8 @@ object LightspeedBotTrackpadDraw {
             val isThisRec = isRecording && recordingBotId == botId
             val isHovered = (hoveredArm == armIndex)
             val nodeCenter = getArmNodeCenter(i, count, isLeft, centerY, radiusPx, deployProgress, wF, density, armReachPx, orientation)
+            val nodeCenterX = nodeCenter.x
+            val nodeCenterY = nodeCenter.y
 
             val seamColor = when {
                 isThisRec -> 0xFFFF3333.toInt()
@@ -422,44 +525,44 @@ object LightspeedBotTrackpadDraw {
             }
 
             if (style == "minimal_arms" || style == "floating") {
-                val podR = (if (style == "floating") 21f else 19f) * density
+                val podR = (if (style == "floating") 21.5f else 19.5f) * density
                 glowPaint.style = Paint.Style.FILL
                 glowPaint.color = seamColor
-                glowPaint.alpha = ((if (isHovered || isThisRec) 95 else 45) * clampedAlpha).toInt().coerceIn(0, 255)
-                canvas.drawCircle(nodeCenter.x, nodeCenter.y, podR * 1.25f, glowPaint)
+                glowPaint.alpha = ((if (isHovered || isThisRec) 100 else 50) * clampedAlpha).toInt().coerceIn(0, 255)
+                canvas.drawCircle(nodeCenterX, nodeCenterY, podR * 1.25f, glowPaint)
 
                 bgPaint.style = Paint.Style.FILL
                 bgPaint.color = panelCol
                 bgPaint.alpha = (238 * clampedAlpha).toInt().coerceIn(0, 255)
                 if (style == "floating") {
-                    val rRect = RectF(nodeCenter.x - podR * 1.15f, nodeCenter.y - podR * 0.85f, nodeCenter.x + podR * 1.15f, nodeCenter.y + podR * 0.85f)
-                    canvas.drawRoundRect(rRect, 11f * density, 11f * density, bgPaint)
+                    cachedSegRect.set(nodeCenterX - podR * 1.15f, nodeCenterY - podR * 0.88f, nodeCenterX + podR * 1.15f, nodeCenterY + podR * 0.88f)
+                    canvas.drawRoundRect(cachedSegRect, 12f * density, 12f * density, bgPaint)
                     strokePaint.style = Paint.Style.STROKE
                     strokePaint.strokeWidth = 2.0f * density
                     strokePaint.color = seamColor
                     strokePaint.alpha = (245 * clampedAlpha).toInt().coerceIn(0, 255)
-                    canvas.drawRoundRect(rRect, 11f * density, 11f * density, strokePaint)
+                    canvas.drawRoundRect(cachedSegRect, 12f * density, 12f * density, strokePaint)
                 } else {
-                    canvas.drawCircle(nodeCenter.x, nodeCenter.y, podR, bgPaint)
+                    canvas.drawCircle(nodeCenterX, nodeCenterY, podR, bgPaint)
                     strokePaint.style = Paint.Style.STROKE
                     strokePaint.strokeWidth = 2.0f * density
                     strokePaint.color = seamColor
                     strokePaint.alpha = (245 * clampedAlpha).toInt().coerceIn(0, 255)
-                    canvas.drawCircle(nodeCenter.x, nodeCenter.y, podR, strokePaint)
+                    canvas.drawCircle(nodeCenterX, nodeCenterY, podR, strokePaint)
                 }
             } else {
-                val (startDeg, sweepDeg) = wedgeSpans.getOrElse(i) { -25f to 50f }
+                val (startDeg, sweepDeg) = WEDGE_SPANS.getOrElse(i) { -25f to 50f }
                 val wedgePath = buildWedgeSegmentPath(isLeft, originX, centerY, rInner, rOuter, startDeg, sweepDeg, style)
 
-                // Wedge 12-theme glass gradient fill
+                // Wedge glass gradient fill
                 bgPaint.style = Paint.Style.FILL
                 bgPaint.shader = RadialGradient(
-                    nodeCenter.x, nodeCenter.y, (rOuter - rInner).coerceAtLeast(16f),
+                    nodeCenterX, nodeCenterY, (rOuter - rInner).coerceAtLeast(16f),
                     intArrayOf(
-                        if (isHovered) Color.argb((210 * clampedAlpha).toInt(), Color.red(tintCol), Color.green(tintCol), Color.blue(tintCol))
-                        else Color.argb((Color.alpha(innerCol) * clampedAlpha).toInt().coerceIn(50, 250), Color.red(innerCol), Color.green(innerCol), Color.blue(innerCol)),
-                        if (hasSteps) Color.argb((220 * clampedAlpha).toInt(), Color.red(secCol) / 2 + Color.red(outerCol) / 2, Color.green(secCol) / 2 + Color.green(outerCol) / 2, Color.blue(secCol) / 2 + Color.blue(outerCol) / 2)
-                        else Color.argb((Color.alpha(outerCol) * clampedAlpha).toInt().coerceIn(60, 252), Color.red(outerCol), Color.green(outerCol), Color.blue(outerCol))
+                        if (isHovered) Color.argb((215 * clampedAlpha).toInt(), Color.red(tintCol), Color.green(tintCol), Color.blue(tintCol))
+                        else Color.argb((Color.alpha(innerCol) * clampedAlpha).toInt().coerceIn(55, 250), Color.red(innerCol), Color.green(innerCol), Color.blue(innerCol)),
+                        if (hasSteps) Color.argb((225 * clampedAlpha).toInt(), Color.red(secCol) / 2 + Color.red(outerCol) / 2, Color.green(secCol) / 2 + Color.green(outerCol) / 2, Color.blue(secCol) / 2 + Color.blue(outerCol) / 2)
+                        else Color.argb((Color.alpha(outerCol) * clampedAlpha).toInt().coerceIn(65, 252), Color.red(outerCol), Color.green(outerCol), Color.blue(outerCol))
                     ),
                     floatArrayOf(0f, 1f),
                     Shader.TileMode.CLAMP
@@ -470,19 +573,19 @@ object LightspeedBotTrackpadDraw {
                 // Outer Neon Glow Seam
                 glowPaint.style = Paint.Style.STROKE
                 glowPaint.strokeWidth = 4.8f * density
-                glowPaint.color = seamColor
-                glowPaint.alpha = ((if (isHovered || hasSteps || isThisRec) 105 else 60) * clampedAlpha).toInt().coerceIn(0, 255)
+                glowPaint.color = if (armIndex == 2) secCol else seamColor
+                glowPaint.alpha = ((if (isHovered || hasSteps || isThisRec) 110 else 65) * clampedAlpha).toInt().coerceIn(0, 255)
                 canvas.drawPath(wedgePath, glowPaint)
 
                 // Crisp Bright Seam Outline
                 strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = (if (isHovered || hasSteps) 2.1f else 1.6f) * density
+                strokePaint.strokeWidth = (if (isHovered || hasSteps) 2.2f else 1.7f) * density
                 strokePaint.color = seamColor
-                strokePaint.alpha = (245 * clampedAlpha).toInt().coerceIn(0, 255)
+                strokePaint.alpha = (248 * clampedAlpha).toInt().coerceIn(0, 255)
                 canvas.drawPath(wedgePath, strokePaint)
             }
 
-            drawButtonGlyphAndLabel(canvas, nodeCenter.x, nodeCenter.y, armIndex, isThisRec, isHovered, hasSteps, density, clampedAlpha)
+            drawButtonGlyphAndLabel(canvas, nodeCenterX, nodeCenterY, armIndex, botId, isThisRec, isHovered, hasSteps, tintCol, density, clampedAlpha)
         }
     }
 
@@ -491,32 +594,62 @@ object LightspeedBotTrackpadDraw {
         cx: Float,
         cy: Float,
         armIndex: Int,
+        botId: Int,
         isRecording: Boolean,
         isHovered: Boolean,
         hasSteps: Boolean,
+        tintCol: Int,
         density: Float,
         clampedAlpha: Float
     ) {
-        val glyph = when {
-            isRecording -> "●"
-            armIndex == 1 -> "↶"
-            armIndex == 2 -> "⌂"
-            else -> "❐"
-        }
-        val label = if (isRecording) "REC" else "B$armIndex"
-
-        textPaint.color = when {
+        val iconColor = when {
             isRecording -> 0xFFFF4444.toInt()
-            isHovered || hasSteps -> Color.WHITE
-            else -> 0xFFD0DCFF.toInt()
+            isHovered -> Color.WHITE
+            hasSteps -> tintCol
+            else -> Color.WHITE
         }
-        textPaint.alpha = (250 * clampedAlpha).toInt().coerceIn(0, 255)
-        textPaint.textSize = 11.5f * density
-        canvas.drawText(glyph, cx, cy - (1.5f * density), textPaint)
+        val alphaInt = (250 * clampedAlpha).toInt().coerceIn(0, 255)
+        val iconY = cy - (4.2f * density)
 
-        textPaint.textSize = 8.2f * density
-        textPaint.alpha = (215 * clampedAlpha).toInt().coerceIn(0, 255)
-        canvas.drawText(label, cx, cy + (9.5f * density), textPaint)
+        strokePaint.style = Paint.Style.STROKE
+        strokePaint.strokeWidth = 1.6f * density
+        strokePaint.strokeCap = Paint.Cap.ROUND
+        strokePaint.strokeJoin = Paint.Join.ROUND
+        strokePaint.color = iconColor
+        strokePaint.alpha = alphaInt
+
+        if (isRecording) {
+            nodePaint.style = Paint.Style.FILL
+            nodePaint.color = 0xFFFF4444.toInt()
+            nodePaint.alpha = alphaInt
+            canvas.drawCircle(cx, iconY, 4.2f * density, nodePaint)
+        } else if (hasSteps) {
+            // Crisp Vector Play Triangle (▶) — Recorded Macro Ready to Play
+            val r = 4.2f * density
+            cachedWedgePath.reset()
+            cachedWedgePath.moveTo(cx - r * 0.7f, iconY - r * 0.85f)
+            cachedWedgePath.lineTo(cx + r * 0.95f, iconY)
+            cachedWedgePath.lineTo(cx - r * 0.7f, iconY + r * 0.85f)
+            cachedWedgePath.close()
+            nodePaint.style = Paint.Style.FILL
+            nodePaint.color = iconColor
+            nodePaint.alpha = alphaInt
+            canvas.drawPath(cachedWedgePath, nodePaint)
+        } else {
+            // Crisp Vector Programmable Macro Node (Target Ring + Center Dot) — Hold to Record
+            val r = 4.0f * density
+            canvas.drawCircle(cx, iconY, r, strokePaint)
+            nodePaint.style = Paint.Style.FILL
+            nodePaint.color = iconColor
+            nodePaint.alpha = alphaInt
+            canvas.drawCircle(cx, iconY, 1.4f * density, nodePaint)
+        }
+
+        val label = if (isRecording) "REC" else "B$botId"
+        textPaint.color = iconColor
+        textPaint.alpha = (225 * clampedAlpha).toInt().coerceIn(0, 255)
+        textPaint.textSize = 7.2f * density
+        canvas.drawText(label, cx, cy + (9.2f * density), textPaint)
     }
 
     fun drawTacticalCursor(
@@ -527,247 +660,23 @@ object LightspeedBotTrackpadDraw {
         loopCount: Int,
         theme: DeckThemeSnapshot,
         density: Float,
-        cursorShape: String = "crosshair"
+        cursorShape: String = "crosshair",
+        context: android.content.Context? = null,
+        colorMode: String = LightspeedBotContract.COLOR_MODE_HYBRID_FUSION,
+        isHoldActive: Boolean = false
     ) {
-        if (cursorX.isNaN() || cursorY.isNaN()) return
-        val palette = theme.resolveCanvasPalette()
-        val accent = palette.borderArgb
-        val tint = palette.primaryAccentArgb
-        val r = 22f * density
-
-        when (cursorShape) {
-            "pointer" -> {
-                // Sleek Glowing Neon Arrow Pointer (tip at cursorX, cursorY)
-                val arrowPath = cachedArrowPath
-                arrowPath.rewind()
-                arrowPath.moveTo(cursorX, cursorY)
-                arrowPath.lineTo(cursorX, cursorY + 24f * density)
-                arrowPath.lineTo(cursorX + 6.5f * density, cursorY + 18.5f * density)
-                arrowPath.lineTo(cursorX + 11.5f * density, cursorY + 27.5f * density)
-                arrowPath.lineTo(cursorX + 15.5f * density, cursorY + 25.5f * density)
-                arrowPath.lineTo(cursorX + 10.5f * density, cursorY + 16.5f * density)
-                arrowPath.lineTo(cursorX + 18f * density, cursorY + 16.5f * density)
-                arrowPath.close()
-                glowPaint.style = Paint.Style.STROKE
-                glowPaint.strokeWidth = 5f * density
-                glowPaint.color = tint
-                glowPaint.alpha = 110
-                canvas.drawPath(arrowPath, glowPaint)
-
-                bgPaint.style = Paint.Style.FILL
-                bgPaint.color = theme.panelColorArgb.toInt()
-                bgPaint.alpha = 235
-                canvas.drawPath(arrowPath, bgPaint)
-
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 1.8f * density
-                strokePaint.color = Color.WHITE
-                strokePaint.alpha = 250
-                canvas.drawPath(arrowPath, strokePaint)
-            }
-            "ring" -> {
-                // Dual Glowing Laser Ring + Center Dot
-                glowPaint.style = Paint.Style.STROKE
-                glowPaint.strokeWidth = 6f * density
-                glowPaint.color = tint
-                glowPaint.alpha = 90
-                canvas.drawCircle(cursorX, cursorY, 16f * density, glowPaint)
-
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 2f * density
-                strokePaint.color = accent
-                strokePaint.alpha = 245
-                canvas.drawCircle(cursorX, cursorY, 16f * density, strokePaint)
-
-                strokePaint.strokeWidth = 1.2f * density
-                strokePaint.color = Color.WHITE
-                strokePaint.alpha = 180
-                canvas.drawCircle(cursorX, cursorY, 8f * density, strokePaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = tint
-                nodePaint.alpha = 255
-                canvas.drawCircle(cursorX, cursorY, 3f * density, nodePaint)
-            }
-            "diamond" -> {
-                // Faceted Tactical Diamond Collimator
-                val d = 20f * density
-                val dmPath = cachedDiamondPath
-                dmPath.rewind()
-                dmPath.moveTo(cursorX, cursorY - d)
-                dmPath.lineTo(cursorX + d, cursorY)
-                dmPath.lineTo(cursorX, cursorY + d)
-                dmPath.lineTo(cursorX - d, cursorY)
-                dmPath.close()
-                glowPaint.style = Paint.Style.STROKE
-                glowPaint.strokeWidth = 5f * density
-                glowPaint.color = tint
-                glowPaint.alpha = 90
-                canvas.drawPath(dmPath, glowPaint)
-
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 1.8f * density
-                strokePaint.color = accent
-                strokePaint.alpha = 245
-                canvas.drawPath(dmPath, strokePaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = Color.WHITE
-                nodePaint.alpha = 255
-                canvas.drawCircle(cursorX, cursorY, 2.8f * density, nodePaint)
-            }
-            "dot" -> {
-                // Minimal Precision Neon Dot with Halo
-                glowPaint.style = Paint.Style.FILL
-                glowPaint.color = tint
-                glowPaint.alpha = 95
-                canvas.drawCircle(cursorX, cursorY, 12f * density, glowPaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = tint
-                nodePaint.alpha = 240
-                canvas.drawCircle(cursorX, cursorY, 6f * density, nodePaint)
-
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 1.6f * density
-                strokePaint.color = Color.WHITE
-                strokePaint.alpha = 250
-                canvas.drawCircle(cursorX, cursorY, 6f * density, strokePaint)
-            }
-            "tactical_triangle" -> {
-                // Downward-pointing HUD Vector Triangle
-                val triPath = cachedArrowPath
-                triPath.rewind()
-                val triSize = 13f * density
-                triPath.moveTo(cursorX, cursorY)
-                triPath.lineTo(cursorX - triSize * 0.9f, cursorY - triSize * 1.5f)
-                triPath.lineTo(cursorX + triSize * 0.9f, cursorY - triSize * 1.5f)
-                triPath.close()
-
-                glowPaint.style = Paint.Style.STROKE
-                glowPaint.strokeWidth = 4f * density
-                glowPaint.color = tint
-                glowPaint.alpha = 90
-                canvas.drawPath(triPath, glowPaint)
-
-                bgPaint.style = Paint.Style.FILL
-                bgPaint.color = theme.panelColorArgb.toInt()
-                bgPaint.alpha = 220
-                canvas.drawPath(triPath, bgPaint)
-
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 1.6f * density
-                strokePaint.color = Color.WHITE
-                strokePaint.alpha = 245
-                canvas.drawPath(triPath, strokePaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = tint
-                canvas.drawCircle(cursorX, cursorY, 2.2f * density, nodePaint)
-            }
-            "hud_ring" -> {
-                // Segmented Combat Flight Ring with Crosshairs
-                val ringR = 14f * density
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 1.8f * density
-                strokePaint.color = accent
-                strokePaint.alpha = 240
-                val rRect = RectF(cursorX - ringR, cursorY - ringR, cursorX + ringR, cursorY + ringR)
-                canvas.drawArc(rRect, 30f, 60f, false, strokePaint)
-                canvas.drawArc(rRect, 150f, 60f, false, strokePaint)
-                canvas.drawArc(rRect, 270f, 60f, false, strokePaint)
-
-                canvas.drawLine(cursorX, cursorY - ringR * 1.35f, cursorX, cursorY - ringR * 0.45f, strokePaint)
-                canvas.drawLine(cursorX, cursorY + ringR * 0.45f, cursorX, cursorY + ringR * 1.35f, strokePaint)
-                canvas.drawLine(cursorX - ringR * 1.35f, cursorY, cursorX - ringR * 0.45f, cursorY, strokePaint)
-                canvas.drawLine(cursorX + ringR * 0.45f, cursorY, cursorX + ringR * 1.35f, cursorY, strokePaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = tint
-                canvas.drawCircle(cursorX, cursorY, 2.2f * density, nodePaint)
-            }
-            "cyber_bracket" -> {
-                // Cybernetic Targeting Corners
-                val bSize = 13f * density
-                val bArm = 6f * density
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 2f * density
-                strokePaint.color = tint
-                strokePaint.alpha = 250
-                // Top-Left corner
-                canvas.drawLine(cursorX - bSize, cursorY - bSize, cursorX - bSize + bArm, cursorY - bSize, strokePaint)
-                canvas.drawLine(cursorX - bSize, cursorY - bSize, cursorX - bSize, cursorY - bSize + bArm, strokePaint)
-                // Top-Right corner
-                canvas.drawLine(cursorX + bSize, cursorY - bSize, cursorX + bSize - bArm, cursorY - bSize, strokePaint)
-                canvas.drawLine(cursorX + bSize, cursorY - bSize, cursorX + bSize, cursorY - bSize + bArm, strokePaint)
-                // Bottom-Left corner
-                canvas.drawLine(cursorX - bSize, cursorY + bSize, cursorX - bSize + bArm, cursorY + bSize, strokePaint)
-                canvas.drawLine(cursorX - bSize, cursorY + bSize, cursorX - bSize, cursorY + bSize - bArm, strokePaint)
-                // Bottom-Right corner
-                canvas.drawLine(cursorX + bSize, cursorY + bSize, cursorX + bSize - bArm, cursorY + bSize, strokePaint)
-                canvas.drawLine(cursorX + bSize, cursorY + bSize, cursorX + bSize, cursorY + bSize - bArm, strokePaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = Color.WHITE
-                canvas.drawCircle(cursorX, cursorY, 2f * density, nodePaint)
-            }
-            "stealth_dot" -> {
-                // Micro Precision Dot with Target Ring
-                glowPaint.style = Paint.Style.FILL
-                glowPaint.color = tint
-                glowPaint.alpha = 80
-                canvas.drawCircle(cursorX, cursorY, 8f * density, glowPaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = Color.WHITE
-                nodePaint.alpha = 255
-                canvas.drawCircle(cursorX, cursorY, 3f * density, nodePaint)
-
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.strokeWidth = 1f * density
-                strokePaint.color = accent
-                strokePaint.alpha = 210
-                canvas.drawCircle(cursorX, cursorY, 6f * density, strokePaint)
-            }
-            else -> {
-                // Default "crosshair" Tactical Reticle
-                strokePaint.style = Paint.Style.STROKE
-                strokePaint.color = accent
-                strokePaint.strokeWidth = 1.8f * density
-                strokePaint.alpha = 245
-
-                val bracketGap = 8f * density
-                val bracketRect = RectF(cursorX - r, cursorY - r, cursorX + r, cursorY + r)
-                canvas.drawArc(bracketRect, 25f, 40f, false, strokePaint)
-                canvas.drawArc(bracketRect, 115f, 40f, false, strokePaint)
-                canvas.drawArc(bracketRect, 205f, 40f, false, strokePaint)
-                canvas.drawArc(bracketRect, 295f, 40f, false, strokePaint)
-
-                canvas.drawLine(cursorX - (r * 1.35f), cursorY, cursorX - bracketGap, cursorY, strokePaint)
-                canvas.drawLine(cursorX + bracketGap, cursorY, cursorX + (r * 1.35f), cursorY, strokePaint)
-                canvas.drawLine(cursorX, cursorY - (r * 1.35f), cursorX, cursorY - bracketGap, strokePaint)
-                canvas.drawLine(cursorX, cursorY + bracketGap, cursorX, cursorY + (r * 1.35f), strokePaint)
-
-                nodePaint.style = Paint.Style.FILL
-                nodePaint.color = tint
-                nodePaint.alpha = 255
-                canvas.drawCircle(cursorX, cursorY, 2.5f * density, nodePaint)
-            }
-        }
-
-        if (isLooping) {
-            val badgeX = cursorX + (22f * density)
-            val badgeY = cursorY - (22f * density)
-            nodePaint.color = 0xEEFF3333.toInt()
-            canvas.drawCircle(badgeX, badgeY, 13f * density, nodePaint)
-
-            strokePaint.color = Color.WHITE
-            strokePaint.strokeWidth = 1.2f * density
-            canvas.drawCircle(badgeX, badgeY, 13f * density, strokePaint)
-
-            textPaint.textSize = 9f * density
-            textPaint.color = Color.WHITE
-            canvas.drawText("$loopCount", badgeX, badgeY + (3.2f * density), textPaint)
-        }
+        LightspeedBotCursorDraw.drawTacticalCursor(
+            canvas = canvas,
+            cursorX = cursorX,
+            cursorY = cursorY,
+            isLooping = isLooping,
+            loopCount = loopCount,
+            theme = theme,
+            density = density,
+            cursorShape = cursorShape,
+            context = context,
+            colorMode = colorMode,
+            isHoldActive = isHoldActive
+        )
     }
 }

@@ -39,7 +39,10 @@ object SonicChannelRouter {
         if (route == ROUTE_DEFAULT) {
             prefs.edit().remove(key).apply()
         } else {
-            prefs.edit().putString(key, route).apply()
+            prefs.edit()
+                .putBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, true)
+                .putString(key, route)
+                .apply()
         }
         applyRouteForPackage(appCtx, packageName, route)
     }
@@ -58,25 +61,27 @@ object SonicChannelRouter {
             enabled
         ).apply()
 
-        // Sync with unified LightspeedAppSovereigntyEngine
+        // Sync with unified LightspeedAppSovereigntyEngine (appop stays "allow"; never "ignore")
         LightspeedAppSovereigntyEngine.setAppStealthLocked(packageName, enabled, appCtx)
+        syncMultiAudioFocus(appCtx)
+    }
 
-        if (ElevatedTaskCloser.isShizukuActive) {
-            // AppOps TAKE_AUDIO_FOCUS: "ignore" isolates the app from audio focus ducking/pausing; "allow" restores default behavior
-            val mode = if (enabled) "ignore" else "allow"
-            val quoted = "'" + packageName.replace("'", "'\\''") + "'"
-            val uid = try {
-                appCtx.packageManager.getApplicationInfo(packageName, 0).uid
-            } catch (_: Exception) {
-                -1
-            }
-            val uidCmd = if (uid > 0) "cmd appops set --uid $uid TAKE_AUDIO_FOCUS $mode; " else ""
-            val multiFocusCmd = if (enabled) "; settings put system multi_audio_focus_enabled 1; settings put global multi_audio_focus_enabled 1" else ""
-            ElevatedTaskCloser.execShizuku("${uidCmd}cmd appops set $quoted TAKE_AUDIO_FOCUS $mode$multiFocusCmd")
-            try {
-                SonicVoiceIsolationEngine.userService?.setMultiAudioFocus(enabled)
-            } catch (_: Exception) {}
-        }
+    /**
+     * Multi-audio-focus must be on only while at least one app is locked or a per-app route is active,
+     * and off otherwise so normal apps keep standard focus behavior.
+     */
+    fun syncMultiAudioFocus(context: Context) {
+        val prefs = context.defaultPrefs()
+        val anyLocked = LightspeedAppSovereigntyEngine.getStealthLockedApps(context).isNotEmpty()
+        val anyRoute = prefs.all.keys.any { it.startsWith(LightspeedPreferences.KEY_SONIC_CHANNEL_ROUTING_PREFIX) }
+        LightspeedAppSovereigntyEngine.setMultiAudioFocus(anyLocked || anyRoute)
+    }
+
+    /** Repairs stale focus appops and the multi-focus flag; call on boot and whenever Shizuku or Sonic connects. */
+    fun reconcileAudioFocusState(context: Context) {
+        val appCtx = context.applicationContext ?: context
+        LightspeedAppSovereigntyEngine.reconcileFocusAppOps(appCtx)
+        syncMultiAudioFocus(appCtx)
     }
 
     fun getPinnedApps(context: Context): Set<String> {
@@ -144,6 +149,7 @@ object SonicChannelRouter {
         SonicVoiceIsolationEngine.initialize(appCtx)
         SonicVoiceIsolationEngine.ensureBound(appCtx)
         reapplyPrivilegedRoutes(appCtx)
+        reconcileAudioFocusState(appCtx)
     }
 
     fun reapplyPrivilegedRoutes(context: Context? = null) {

@@ -49,6 +49,8 @@ fun getCustomVectorsForFlank(isLeft: Boolean): List<Pair<String, Pair<String, Ar
 class DeflectorSectionExpansionStates(
     val isCenterExpanded: Boolean,
     val onCenterToggle: () -> Unit,
+    val isCenterGeoExpanded: Boolean,
+    val onCenterGeoToggle: () -> Unit,
     val isUnifiedExpanded: Boolean,
     val onUnifiedToggle: () -> Unit,
     val isTopExpanded: Boolean,
@@ -82,6 +84,7 @@ fun buildDeflectorExpansionStates(
     topSecId: String,
     bottomSecId: String,
     isCenterExpanded: Boolean,
+    isCenterGeoExpanded: Boolean,
     isUnifiedExpanded: Boolean,
     isTopExpanded: Boolean,
     isBottomExpanded: Boolean,
@@ -97,6 +100,7 @@ fun buildDeflectorExpansionStates(
     prefs: SharedPreferences,
     toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit,
     onSetCenterExpanded: (Boolean) -> Unit,
+    onSetCenterGeoExpanded: (Boolean) -> Unit,
     onSetUnifiedExpanded: (Boolean) -> Unit,
     onSetTopExpanded: (Boolean) -> Unit,
     onSetBottomExpanded: (Boolean) -> Unit,
@@ -116,6 +120,13 @@ fun buildDeflectorExpansionStates(
         onCenterToggle = {
             toggleSection(tabIndex, centerSecId, isCenterExpanded, onSetCenterExpanded)
             prefs.edit().putBoolean("pref_section_${centerSecId}_expanded", !isCenterExpanded).apply()
+            safeReloadPreferences()
+            onRefreshNeeded()
+        },
+        isCenterGeoExpanded = isCenterGeoExpanded,
+        onCenterGeoToggle = {
+            onSetCenterGeoExpanded(!isCenterGeoExpanded)
+            prefs.edit().putBoolean("pref_sub_geo_${centerSecId}", !isCenterGeoExpanded).apply()
             safeReloadPreferences()
             onRefreshNeeded()
         },
@@ -246,6 +257,8 @@ fun LazyListScope.renderDeflectorOrderedSections(
                             context = context,
                             prefs = prefs,
                             isLeft = isLeft,
+                            isGeoExpanded = exp.isCenterGeoExpanded,
+                            onGeoToggle = exp.onCenterGeoToggle,
                             onRefreshNeeded = onRefreshNeeded
                         )
                     }

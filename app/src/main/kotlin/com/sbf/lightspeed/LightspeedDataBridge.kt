@@ -13,7 +13,9 @@ import androidx.core.content.ContextCompat
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
-class LightspeedDataBridge(private val context: Context) {
+class LightspeedDataBridge(rawContext: Context) {
+
+    private val context: Context = rawContext.applicationContext ?: rawContext
 
     data class CategoryNode(val id: String, val label: String)
 
@@ -99,32 +101,35 @@ class LightspeedDataBridge(private val context: Context) {
     }
 
     fun refreshCacheAsync(onComplete: (() -> Unit)? = null) {
-        executor.execute {
-            val pm = context.packageManager
-            val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
-                addCategory(Intent.CATEGORY_LAUNCHER)
-            }
-            val resolveList: List<ResolveInfo> = pm.queryIntentActivities(mainIntent, 0)
-            val newCache = mutableMapOf<String, MutableList<LaunchTarget>>()
-            categories.forEach { newCache[it.id] = mutableListOf() }
+        if (executor.isShutdown) return
+        try {
+            executor.execute {
+                val pm = context.packageManager
+                val mainIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                }
+                val resolveList: List<ResolveInfo> = pm.queryIntentActivities(mainIntent, 0)
+                val newCache = mutableMapOf<String, MutableList<LaunchTarget>>()
+                categories.forEach { newCache[it.id] = mutableListOf() }
 
-            for (resolveInfo in resolveList) {
-                val appInfo = resolveInfo.activityInfo.applicationInfo
-                val pkg = resolveInfo.activityInfo.packageName
-                val actv = resolveInfo.activityInfo.name
-                val label = resolveInfo.loadLabel(pm)?.toString() ?: pkg
+                for (resolveInfo in resolveList) {
+                    val appInfo = resolveInfo.activityInfo.applicationInfo
+                    val pkg = resolveInfo.activityInfo.packageName
+                    val actv = resolveInfo.activityInfo.name
+                    val label = resolveInfo.loadLabel(pm)?.toString() ?: pkg
 
-                val overrideCat = com.sbf.lightspeed.system.LightspeedPreferences.getAppCategoryOverride(context, pkg)
-                val isValidCategory = overrideCat != null && categories.any { it.id == overrideCat }
-                val assignedCat = if (isValidCategory) overrideCat!! else LightspeedAppCategorizer.categorize(appInfo, pkg, label)
-                val targetList = newCache[assignedCat] ?: newCache.getOrPut("other") { mutableListOf() }
-                targetList.add(LaunchTarget(label, pkg, actv))
+                    val overrideCat = com.sbf.lightspeed.system.LightspeedPreferences.getAppCategoryOverride(context, pkg)
+                    val isValidCategory = overrideCat != null && categories.any { it.id == overrideCat }
+                    val assignedCat = if (isValidCategory) overrideCat!! else LightspeedAppCategorizer.categorize(appInfo, pkg, label)
+                    val targetList = newCache[assignedCat] ?: newCache.getOrPut("other") { mutableListOf() }
+                    targetList.add(LaunchTarget(label, pkg, actv))
+                }
+                newCache.forEach { (cat, list) ->
+                    appCache[cat] = list.sortedBy { it.label.lowercase() }
+                }
+                onComplete?.invoke()
             }
-            newCache.forEach { (cat, list) ->
-                appCache[cat] = list.sortedBy { it.label.lowercase() }
-            }
-            onComplete?.invoke()
-        }
+        } catch (_: Exception) {}
     }
 
     private fun registerPackageReceiver() {
@@ -141,7 +146,19 @@ class LightspeedDataBridge(private val context: Context) {
             addAction(Intent.ACTION_PACKAGE_REPLACED)
             addDataScheme("package")
         }
-        ContextCompat.registerReceiver(context.applicationContext, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    fun destroy() {
+        packageReceiver?.let { receiver ->
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: Exception) {}
+        }
+        packageReceiver = null
+        try {
+            executor.shutdownNow()
+        } catch (_: Exception) {}
     }
 
 }

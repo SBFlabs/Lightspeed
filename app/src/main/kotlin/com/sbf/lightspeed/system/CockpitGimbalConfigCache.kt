@@ -3,6 +3,9 @@ package com.sbf.lightspeed.system
 import android.content.Context
 import android.content.SharedPreferences
 import com.sbf.lightspeed.DeepSpaceGearGeometry
+import com.sbf.lightspeed.settings.CanvasThemePalette
+import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 
 /**
  * High-performance in-memory cache for Cockpit Gimbal & Reticle configuration.
@@ -17,6 +20,9 @@ object CockpitGimbalConfigCache {
     @Volatile private var cachedDpiIndependent: Boolean? = null
     @Volatile private var cachedCustomDiameterScale: Float? = null
     @Volatile private var cachedUnitScale: Float? = null
+    @Volatile private var cachedColorMode: String? = null
+    @Volatile var lastResolvedPalette: CanvasThemePalette? = null
+        private set
 
     private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == null ||
@@ -24,7 +30,9 @@ object CockpitGimbalConfigCache {
             key == LightspeedPreferences.KEY_COCKPIT_RETICLE_ORIENTATION ||
             key == LightspeedPreferences.KEY_GEAR_SHAPE ||
             key == LightspeedPreferences.KEY_GEAR_DPI_INDEPENDENT ||
-            key == LightspeedPreferences.KEY_GEAR_CUSTOM_DIAMETER_SCALE
+            key == LightspeedPreferences.KEY_GEAR_CUSTOM_DIAMETER_SCALE ||
+            key == LightspeedPreferences.KEY_COCKPIT_COLOR_MODE ||
+            key == LightspeedPreferences.KEY_DECK_STYLE
         ) {
             flush()
         }
@@ -49,6 +57,27 @@ object CockpitGimbalConfigCache {
         cachedDpiIndependent = null
         cachedCustomDiameterScale = null
         cachedUnitScale = null
+        cachedColorMode = null
+        lastResolvedPalette = null
+    }
+
+    fun getColorMode(context: Context): String {
+        cachedColorMode?.let { return it }
+        ensureListener(context)
+        val v = context.defaultPrefs().getString(
+            LightspeedPreferences.KEY_COCKPIT_COLOR_MODE,
+            LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION
+        ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION
+        cachedColorMode = v
+        return v
+    }
+
+    fun resolveCockpitPalette(context: Context): CanvasThemePalette {
+        val snapshot = DeckThemeManager.getSnapshot(context)
+        val mode = getColorMode(context)
+        val p = snapshot.resolveCanvasPalette(context, mode)
+        lastResolvedPalette = p
+        return p
     }
 
     fun getReticleStyle(context: Context): String {

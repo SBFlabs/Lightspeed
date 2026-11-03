@@ -181,7 +181,8 @@ class LightspeedSensorDeckTouchOverlay(
             "system:screen_timeout", "ACTION_SCREEN_TIMEOUT", "screen_timeout",
             "system:volume", "ACTION_VOLUME", "volume", "scrub:volume",
             "system:brightness", "ACTION_BRIGHTNESS", "brightness", "scrub:brightness",
-            "system:scroll_scrub", "ACTION_SCROLL_SCRUB", "scroll_scrub", "scrub:scroll"
+            "system:scroll_scrub", "ACTION_SCROLL_SCRUB", "scroll_scrub", "scrub:scroll",
+            "system:media_scrubber", "ACTION_MEDIA_SCRUBBER", "media_scrubber"
         )
     }
 
@@ -191,6 +192,7 @@ class LightspeedSensorDeckTouchOverlay(
             "system:volume", "ACTION_VOLUME", "volume", "scrub:volume" -> "system:volume"
             "system:brightness", "ACTION_BRIGHTNESS", "brightness", "scrub:brightness" -> "system:brightness"
             "system:scroll_scrub", "ACTION_SCROLL_SCRUB", "scroll_scrub", "scrub:scroll" -> "system:scroll_scrub"
+            "system:media_scrubber", "ACTION_MEDIA_SCRUBBER", "media_scrubber" -> "system:media_scrubber"
             else -> action
         }
     }
@@ -230,6 +232,9 @@ class LightspeedSensorDeckTouchOverlay(
                 scrubHudTitle = "SCROLL SCRUB"
                 scrubHudValue = "ACTIVE"
                 CruiseScrubEngine.dispatchScrubHud(context, prefs, scrubType, fallbackKey, scrubHudTitle, scrubHudValue, 1, 1)
+            }
+            "system:media_scrubber" -> {
+                com.sbf.lightspeed.system.LightspeedMediaManager.showScrubber(context)
             }
         }
     }
@@ -283,6 +288,10 @@ class LightspeedSensorDeckTouchOverlay(
                     scrubCurrentValue = 1
                     scrubHudValue = if (steps > 0) "▲ SCROLL UP" else "▼ SCROLL DOWN"
                     CruiseScrubEngine.dispatchScrubHud(context, prefs, activeScrubType, fallbackKey, "SCROLL SCRUB", scrubHudValue, 1, 1)
+                }
+                "system:media_scrubber" -> {
+                    triggerHaptic(14, 90)
+                    com.sbf.lightspeed.system.LightspeedMediaManager.stepHardwareScrubber(context, isForward = steps > 0)
                 }
             }
         }

@@ -253,7 +253,7 @@
         <!-- Master QS Tile Cloak Matrix Configuration -->
         <activity
             android:name=".settings.LightspeedTileCloakActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="${appName} Cloak Matrix"
             android:theme="@style/Theme.Lightspeed.Floating"
             android:excludeFromRecents="true"
@@ -374,7 +374,7 @@
         <!-- 1-Tap Shortcut Trampoline Activity for Home Screen and Launcher shortcuts -->
         <activity
             android:name=".LightspeedToggleActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true"
             android:noHistory="true"

@@ -174,11 +174,14 @@ object LightspeedEyeRestOverlay {
 
     fun dismiss() {
         mainHandler.post {
-            val v = composeView ?: return@post
-            try { windowManager?.removeView(v) } catch (_: Exception) {}
-            composeView = null
+            val v = composeView
+            if (v != null) {
+                try { windowManager?.removeView(v) } catch (_: Exception) {}
+                composeView = null
+            }
             lifecycleOwner?.onDestroy()
             lifecycleOwner = null
+            windowManager = null
         }
     }
 

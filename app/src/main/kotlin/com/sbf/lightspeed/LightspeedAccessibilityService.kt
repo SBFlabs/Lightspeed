@@ -87,6 +87,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
     internal var orientationAnchorView: View? = null
     internal var orientationAnchorParams: WindowManager.LayoutParams? = null
 
+    internal val shizukuBinderReceivedListener = rikka.shizuku.Shizuku.OnBinderReceivedListener {
+        try {
+            com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.ensureBound(applicationContext)
+        } catch (_: Exception) {}
+    }
+
     // Refueling Bay Sleep Blackout Overlay
     internal var baySleepBlackoutView: View? = null
     internal var baySleepBlackoutParams: WindowManager.LayoutParams? = null
@@ -163,7 +169,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
         if (key == LightspeedPreferences.KEY_MASTER_FLIGHT_ARMED ||
             key == LightspeedPreferences.KEY_DEFLECTOR_LEFT_ENABLED ||
-            key == LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED) {
+            key == LightspeedPreferences.KEY_DEFLECTOR_RIGHT_ENABLED ||
+            key == LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW ||
+            key == LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW) {
             updateOverlaysVisibility()
             LightspeedFlightNotificationManager.update(this)
         }

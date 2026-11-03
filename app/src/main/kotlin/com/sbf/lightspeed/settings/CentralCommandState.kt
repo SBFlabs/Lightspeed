@@ -51,19 +51,19 @@ fun rememberCentralCommandState(
     val blueprintTabTargetState = rememberSaveable { mutableStateOf<Int?>(null) }
 
     // Left Deflector Accordion States
-    val isLeftCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_center" else prefs.getBoolean("pref_section_left_center_expanded", true)) }
+    val isLeftCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_center" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_LEFT_CENTER_EXPANDED, true)) }
     var isLeftCenterExpanded by isLeftCenterExpandedState
-    val isLeftTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_top" || pinnedSection0.startsWith("left_top_") else prefs.getBoolean("pref_section_left_top_expanded", false)) }
+    val isLeftTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_top" || pinnedSection0.startsWith("left_top_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_LEFT_TOP_EXPANDED, false)) }
     var isLeftTopExpanded by isLeftTopExpandedState
-    val isLeftBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_bottom" || pinnedSection0.startsWith("left_bottom_") else prefs.getBoolean("pref_section_left_bottom_expanded", false)) }
+    val isLeftBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_bottom" || pinnedSection0.startsWith("left_bottom_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_LEFT_BOTTOM_EXPANDED, false)) }
     var isLeftBottomExpanded by isLeftBottomExpandedState
-    val isLeftFlankUnifiedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sidebar_left_link_flank_actions", true)) }
+    val isLeftFlankUnifiedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_LINK_FLANK, true)) }
     val isLeftFlankUnified by isLeftFlankUnifiedState
-    val isLeftUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_unified" || pinnedSection0.startsWith("left_unified_") else prefs.getBoolean("pref_section_left_unified_expanded", true)) }
+    val isLeftUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "all_expanded") true else if (tabMode0 == "all_collapsed") false else if (tabMode0 == "custom_pinned") pinnedSection0 == "left_unified" || pinnedSection0.startsWith("left_unified_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_LEFT_UNIFIED_EXPANDED, true)) }
     var isLeftUnifiedExpanded by isLeftUnifiedExpandedState
 
     // Left Deflector Sub-Section States
-    val isLeftCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", true)) }
+    val isLeftCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_left_center", false)) }
     val isLeftUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_geo" else prefs.getBoolean("pref_sub_geo_left_unified", false)) }
     val isLeftUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_scrub" else prefs.getBoolean("pref_sub_scrub_left_unified", false)) }
     val isLeftUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_unified_gestures" else prefs.getBoolean("pref_sub_gestures_left_unified", true)) }
@@ -75,19 +75,19 @@ fun rememberCentralCommandState(
     val isLeftBottomGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode0 == "custom_pinned" && pinnedSection0.contains("_")) pinnedSection0 == "left_bottom_gestures" else prefs.getBoolean("pref_sub_gestures_left_bottom", true)) }
 
     // HUD Strip Accordion States
-    val isSensorDeckExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean("pref_section_statusbar_expanded", false)) }
+    val isSensorDeckExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "sensor_deck" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SENSOR_DECK_EXPANDED, false)) }
     var isSensorDeckExpanded by isSensorDeckExpandedState
     val isSyntheticGravityExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "synthetic_gravity" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, false)) }
     var isSyntheticGravityExpanded by isSyntheticGravityExpandedState
-    val isTelemetryExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean("pref_section_telemetry_expanded", false)) }
+    val isTelemetryExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "telemetry_indicators" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_TELEMETRY_EXPANDED, false)) }
     var isTelemetryExpanded by isTelemetryExpandedState
-    val isTacticalHardwareExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean("pref_section_tactical_hardware_expanded", false)) }
+    val isTacticalHardwareExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "tactical_hardware" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_TACTICAL_HARDWARE_EXPANDED, false)) }
     var isTacticalHardwareExpanded by isTacticalHardwareExpandedState
-    val isRefuelingExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "refueling_bay" else prefs.getBoolean("pref_section_refueling_expanded", false)) }
+    val isRefuelingExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "refueling_bay" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_REFUELING_EXPANDED, false)) }
     var isRefuelingExpanded by isRefuelingExpandedState
-    val isConfigVaultExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean("pref_section_backup_expanded", false)) }
+    val isConfigVaultExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "config_vault" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_BACKUP_EXPANDED, false)) }
     var isConfigVaultExpanded by isConfigVaultExpandedState
-    val isSystemOverridesExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "system_overrides" else prefs.getBoolean("pref_section_system_overrides_expanded", false)) }
+    val isSystemOverridesExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "system_overrides" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_SYSTEM_OVERRIDES_EXPANDED, false)) }
     var isSystemOverridesExpanded by isSystemOverridesExpandedState
     val isExperimentalLabsExpandedState = rememberSaveable { mutableStateOf(if (tabMode1 == "all_expanded") true else if (tabMode1 == "all_collapsed") false else if (tabMode1 == "custom_pinned") pinnedSection1 == "experimental_labs" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, false)) }
     var isExperimentalLabsExpanded by isExperimentalLabsExpandedState
@@ -153,15 +153,15 @@ fun rememberCentralCommandState(
     }
 
     // Right Deflector Accordion States
-    val isCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean("pref_section_center_expanded", true)) }
+    val isCenterExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "center" else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_CENTER_EXPANDED, true)) }
     var isCenterExpanded by isCenterExpandedState
-    val isTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" || pinnedSection2.startsWith("top_") else prefs.getBoolean("pref_section_top_expanded", false)) }
+    val isTopExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "top" || pinnedSection2.startsWith("top_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_TOP_EXPANDED, false)) }
     var isTopExpanded by isTopExpandedState
-    val isBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" || pinnedSection2.startsWith("bottom_") else prefs.getBoolean("pref_section_bottom_expanded", false)) }
+    val isBottomExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "bottom" || pinnedSection2.startsWith("bottom_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_BOTTOM_EXPANDED, false)) }
     var isBottomExpanded by isBottomExpandedState
     val isRightFlankUnifiedState = rememberSaveable { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_LINK_FLANK, true)) }
     val isRightFlankUnified by isRightFlankUnifiedState
-    val isRightUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" || pinnedSection2.startsWith("unified_") else prefs.getBoolean("pref_section_right_unified_expanded", true)) }
+    val isRightUnifiedExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "all_expanded") true else if (tabMode2 == "all_collapsed") false else if (tabMode2 == "custom_pinned") pinnedSection2 == "unified" || pinnedSection2.startsWith("unified_") else prefs.getBoolean(LightspeedPreferences.KEY_SECTION_RIGHT_UNIFIED_EXPANDED, true)) }
     var isRightUnifiedExpanded by isRightUnifiedExpandedState
 
     // Dual Watchdog Sub-Section States
@@ -169,7 +169,7 @@ fun rememberCentralCommandState(
     val isOuterWatchdogExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_outer_watchdog_labs", true)) }
 
     // Right Deflector Sub-Section States
-    val isCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", true)) }
+    val isCenterGeoExpandedState = rememberSaveable { mutableStateOf(prefs.getBoolean("pref_sub_geo_center", false)) }
     val isRightUnifiedGeoExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_geo" else prefs.getBoolean("pref_sub_geo_right_unified", false)) }
     val isRightUnifiedScrubExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_scrub" else prefs.getBoolean("pref_sub_scrub_right_unified", false)) }
     val isRightUnifiedGesturesExpandedState = rememberSaveable { mutableStateOf(if (tabMode2 == "custom_pinned" && pinnedSection2.contains("_")) pinnedSection2 == "unified_gestures" else prefs.getBoolean("pref_sub_gestures_right_unified", true)) }
@@ -349,12 +349,16 @@ fun rememberCentralCommandState(
                     isLeftTopExpanded = allExpandedState
                     isLeftBottomExpanded = allExpandedState
                     isLeftUnifiedExpanded = allExpandedState
+                    val leftGeoActive = allExpandedState && (
+                        isLeftCenterGeoExpandedState.value ||
+                        (if (isLeftFlankUnified) isLeftUnifiedGeoExpandedState.value else isLeftTopGeoExpandedState.value || isLeftBottomGeoExpandedState.value)
+                    )
                     prefs.edit()
-                        .putBoolean("pref_section_left_center_expanded", allExpandedState)
-                        .putBoolean("pref_section_left_top_expanded", allExpandedState)
-                        .putBoolean("pref_section_left_bottom_expanded", allExpandedState)
-                        .putBoolean("pref_section_left_unified_expanded", allExpandedState)
-                        .putBoolean("pref_sidebar_left_preview", allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_CENTER_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_TOP_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_BOTTOM_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_LEFT_UNIFIED_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, leftGeoActive)
                         .apply()
                 }
                 1 -> {
@@ -370,15 +374,15 @@ fun rememberCentralCommandState(
                     val notchActive = allExpandedState && isNotchCalibExpanded
                     val railActive = allExpandedState && anyRail
                     prefs.edit()
-                        .putBoolean("pref_section_statusbar_expanded", allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_SENSOR_DECK_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_SYNTHETIC_GRAVITY_EXPANDED, allExpandedState)
-                        .putBoolean("pref_section_telemetry_expanded", allExpandedState)
-                        .putBoolean("pref_section_tactical_hardware_expanded", allExpandedState)
-                        .putBoolean("pref_section_refueling_expanded", allExpandedState)
-                        .putBoolean("pref_section_system_overrides_expanded", allExpandedState)
-                        .putBoolean("pref_section_backup_expanded", allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_TELEMETRY_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_TACTICAL_HARDWARE_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_REFUELING_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_SYSTEM_OVERRIDES_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_BACKUP_EXPANDED, allExpandedState)
                         .putBoolean(LightspeedPreferences.KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED, allExpandedState)
-                        .putBoolean("pref_statusbar_preview", allExpandedState && isStatusBarGeoExpanded)
+                        .putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, allExpandedState && isStatusBarGeoExpanded)
                         .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, notchActive)
                         .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, railActive)
                         .apply()
@@ -389,12 +393,16 @@ fun rememberCentralCommandState(
                     isTopExpanded = allExpandedState
                     isBottomExpanded = allExpandedState
                     isRightUnifiedExpanded = allExpandedState
+                    val rightGeoActive = allExpandedState && (
+                        isCenterGeoExpandedState.value ||
+                        (if (isRightFlankUnified) isRightUnifiedGeoExpandedState.value else isTopGeoExpandedState.value || isBottomGeoExpandedState.value)
+                    )
                     prefs.edit()
-                        .putBoolean("pref_section_center_expanded", allExpandedState)
-                        .putBoolean("pref_section_top_expanded", allExpandedState)
-                        .putBoolean("pref_section_bottom_expanded", allExpandedState)
-                        .putBoolean("pref_section_right_unified_expanded", allExpandedState)
-                        .putBoolean("pref_sidebar_preview", allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_CENTER_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_TOP_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_BOTTOM_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SECTION_RIGHT_UNIFIED_EXPANDED, allExpandedState)
+                        .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, rightGeoActive)
                         .apply()
                 }
             }

@@ -90,9 +90,10 @@ object LightspeedHudDialRenderer {
         cy: Float,
         primaryColor: Int,
         d: Float,
-        useCentralTheme: Boolean = true
+        useCentralTheme: Boolean = true,
+        colorMode: String = if (useCentralTheme) LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 else LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
     ) {
-        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d, colorMode)
         val hasGauge = totalSteps > 0 && stepIndex >= 0
         val radius = 64f * d
         glassFillPaint.shader = null
@@ -107,9 +108,9 @@ object LightspeedHudDialRenderer {
         val tG = Color.green(spec.tintColor)
         val tB = Color.blue(spec.tintColor)
         val pA = (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
-        val r = Color.red(primaryColor)
-        val g = Color.green(primaryColor)
-        val b = Color.blue(primaryColor)
+        val r = tR
+        val g = tG
+        val b = tB
 
         // Outer Glow (Central Command Engine)
         if (spec.glowStrength > 0.05f) {
@@ -172,7 +173,7 @@ object LightspeedHudDialRenderer {
             val y2 = cy + (tickOuter * sin(angleRad)).toFloat()
 
             specularPaint.strokeWidth = if (isCardinal) 1.6f * d else 1.0f * d
-            specularPaint.color = if (isCardinal) primaryColor else Color.argb(60, 255, 255, 255)
+            specularPaint.color = if (isCardinal) spec.tintColor else Color.argb(60, 255, 255, 255)
             canvas.drawLine(x1, y1, x2, y2, specularPaint)
         }
 
@@ -195,7 +196,7 @@ object LightspeedHudDialRenderer {
             // Active glowing energy arc
             if (activeSweep > 0f) {
                 gaugeFillStrokePaint.strokeWidth = 3.5f * d
-                gaugeFillStrokePaint.color = primaryColor
+                gaugeFillStrokePaint.color = spec.tintColor
                 canvas.drawArc(arcRect, startAngle, activeSweep, false, gaugeFillStrokePaint)
 
                 // Tachyon orbital lock bead at current position
@@ -220,7 +221,7 @@ object LightspeedHudDialRenderer {
         canvas.drawLine(cx, cy + (5f * d), cx, cy + (14f * d), specularPaint)
 
         // 6. Monospace Telemetry Readout
-        headerTextPaint.color = primaryColor
+        headerTextPaint.color = spec.tintColor
         headerTextPaint.textSize = 9f * d
         headerTextPaint.textAlign = Paint.Align.CENTER
         val maxTitleW = (radius * 2f) - (14f * d)

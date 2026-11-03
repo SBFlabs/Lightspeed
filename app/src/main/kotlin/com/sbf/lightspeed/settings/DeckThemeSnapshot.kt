@@ -361,12 +361,45 @@ data class CanvasThemePalette(
     val primaryAccentArgb: Int,
     val secondaryAccentArgb: Int,
     val borderArgb: Int
-)
+) {
+    val glassFillArgb: Int get() = panelInnerArgb
+    val glassBorderArgb: Int get() = borderArgb
+}
 
-fun DeckThemeSnapshot.resolveCanvasPalette(context: android.content.Context? = null): CanvasThemePalette {
-    if (styleId == "adaptive" && usesSystemDynamicColor &&
-        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && context != null
-    ) {
+fun DeckThemeSnapshot.resolveCanvasPalette(
+    context: android.content.Context? = null,
+    colorMode: String = "theme_12"
+): CanvasThemePalette {
+    val isSPlus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S && context != null
+
+    // Full Material 3 Dynamic Wallpaper Mode ("m3_dynamic")
+    if (colorMode == "m3_dynamic") {
+        if (isSPlus && context != null) {
+            try {
+                val p = context.getColor(android.R.color.system_accent1_300)
+                val s = context.getColor(android.R.color.system_accent3_300)
+                val bgIn = context.getColor(android.R.color.system_neutral1_800)
+                val bgOut = context.getColor(android.R.color.system_neutral1_900)
+                val bdr = context.getColor(android.R.color.system_accent1_200)
+                return CanvasThemePalette(
+                    panelInnerArgb = (bgIn and 0x00FFFFFF) or (0xE4 shl 24),
+                    panelOuterArgb = (bgOut and 0x00FFFFFF) or (0xF0 shl 24),
+                    primaryAccentArgb = p or (0xFF shl 24),
+                    secondaryAccentArgb = s or (0xFF shl 24),
+                    borderArgb = bdr or (0xFF shl 24)
+                )
+            } catch (_: Exception) {}
+        }
+        return CanvasThemePalette(
+            panelInnerArgb = 0xE41A2234.toInt(),
+            panelOuterArgb = 0xF0101522.toInt(),
+            primaryAccentArgb = 0xFF8AB4F8.toInt(),
+            secondaryAccentArgb = 0xFFC58AF9.toInt(),
+            borderArgb = 0xFFA8C7FA.toInt()
+        )
+    }
+
+    if (styleId == "adaptive" && usesSystemDynamicColor && isSPlus && context != null) {
         try {
             val p = context.getColor(android.R.color.system_accent1_300)
             val s = context.getColor(android.R.color.system_accent2_300)
@@ -437,11 +470,49 @@ fun DeckThemeSnapshot.resolveCanvasPalette(context: android.content.Context? = n
         primaryAccent
     }
 
-    return CanvasThemePalette(
+    val basePalette = CanvasThemePalette(
         panelInnerArgb = panelInner,
         panelOuterArgb = panelOuter,
         primaryAccentArgb = primaryAccent,
         secondaryAccentArgb = secondaryAccent,
         borderArgb = resolvedBorder
     )
+
+    // Hybrid Fusion Mode ("hybrid_fusion"): Genius Merge of 12-Theme Optical Glass + M3 Dynamic Neon Seams
+    if (colorMode == "hybrid_fusion") {
+        var m3Accent = 0xFF7C4DFF.toInt()
+        var m3Tertiary = 0xFF00E5FF.toInt()
+        if (isSPlus && context != null) {
+            try {
+                m3Accent = context.getColor(android.R.color.system_accent1_300) or (0xFF shl 24)
+                m3Tertiary = context.getColor(android.R.color.system_accent3_300) or (0xFF shl 24)
+            } catch (_: Exception) {}
+        }
+        val m3R = (m3Accent shr 16) and 0xFF
+        val m3G = (m3Accent shr 8) and 0xFF
+        val m3B = m3Accent and 0xFF
+
+        val fusedInR = (inR * 0.78f + m3R * 0.22f).toInt().coerceIn(0, 255)
+        val fusedInG = (inG * 0.78f + m3G * 0.22f).toInt().coerceIn(0, 255)
+        val fusedInB = (inB * 0.78f + m3B * 0.22f).toInt().coerceIn(0, 255)
+        val fusedInner = (inAlpha shl 24) or (fusedInR shl 16) or (fusedInG shl 8) or fusedInB
+
+        val bR = (resolvedBorder shr 16) and 0xFF
+        val bG = (resolvedBorder shr 8) and 0xFF
+        val bB = resolvedBorder and 0xFF
+        val fusedBorderR = (bR * 0.40f + m3R * 0.60f).toInt().coerceIn(0, 255)
+        val fusedBorderG = (bG * 0.40f + m3G * 0.60f).toInt().coerceIn(0, 255)
+        val fusedBorderB = (bB * 0.40f + m3B * 0.60f).toInt().coerceIn(0, 255)
+        val fusedBorder = (0xFF shl 24) or (fusedBorderR shl 16) or (fusedBorderG shl 8) or fusedBorderB
+
+        return CanvasThemePalette(
+            panelInnerArgb = fusedInner,
+            panelOuterArgb = panelOuter,
+            primaryAccentArgb = m3Accent,
+            secondaryAccentArgb = if (primaryAccent != 0xFFFFFFFF.toInt()) primaryAccent else m3Tertiary,
+            borderArgb = fusedBorder
+        )
+    }
+
+    return basePalette
 }

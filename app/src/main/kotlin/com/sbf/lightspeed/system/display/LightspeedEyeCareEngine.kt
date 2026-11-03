@@ -173,6 +173,10 @@ object LightspeedEyeCareEngine {
             return
         }
 
+        if (overlayView != null && overlayView?.context !== service) {
+            overlayView = null
+        }
+
         if (overlayView == null) {
             val v = View(service).apply {
                 isClickable = false
@@ -219,6 +223,16 @@ object LightspeedEyeCareEngine {
         }
 
         overlayView?.setBackgroundColor(finalColor)
+    }
+
+    fun onServiceDestroyed(service: Context?) {
+        overlayView?.let { v ->
+            try {
+                val wm = (service ?: v.context).getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+                wm?.removeView(v)
+            } catch (_: Exception) {}
+        }
+        overlayView = null
     }
 
     // --- Eye Rest Reminder Delegation ---

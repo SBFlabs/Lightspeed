@@ -19,8 +19,8 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
     numCategories: Int,
     dp: Float
 ) {
-    val tintColor = snapshot.tintArgb.toInt()
-    val borderColor = snapshot.borderColorArgb.toInt()
+    val tintColor = categoryAccentOverride() ?: snapshot.tintArgb.toInt()
+    val borderColor = categoryBorderOverride() ?: snapshot.borderColorArgb.toInt()
     val textSize = (actualRowH * 0.38f).coerceIn(10f * dp, 12.5f * dp)
     paint.style = Paint.Style.FILL
     paint.textSize = textSize

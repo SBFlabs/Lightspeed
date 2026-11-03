@@ -84,6 +84,9 @@ internal fun LightspeedCruiseOverlay.processMacroGestureMove(rawX: Float, rawY: 
                         scrubHudValue = "ACTIVE"
                         dispatchScrubHud(scrubHudTitle, scrubHudValue, 1, 1)
                     }
+                    "system:media_scrubber" -> {
+                        com.sbf.lightspeed.system.LightspeedMediaManager.showScrubber(context)
+                    }
                 }
                 invalidate()
             } else if (deltaY < (-25f * density)) {

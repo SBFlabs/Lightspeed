@@ -56,7 +56,7 @@ internal fun LightspeedStatusBarOverlay.drawSensorDebugArea(
     val isSensorEnabled = renderCache.isSensorEnabled
     val isExpanded = renderCache.isExpanded
     val isPreview  = renderCache.isPreview
-    val isReview = isSensorEnabled && isPreview
+    val isReview = isPreview
     val transparencyPct = renderCache.transparencyPct
 
     val spanPref = renderCache.spanPref
@@ -86,7 +86,7 @@ internal fun LightspeedStatusBarOverlay.drawSensorDebugArea(
         hudTextPaint.textSize = 10f * d
         hudTextPaint.color = Color.WHITE
         canvas.drawText("✦ SENSOR AREA (TOP EDGE)", sensorLeft + (spanPx / 2f), sensorTop + (sensorHeight / 2f) + 3.5f * d, hudTextPaint)
-    } else if (transparencyPct > 0) {
+    } else if (isSensorEnabled && transparencyPct > 0) {
         val alpha = (transparencyPct * 2.55f).toInt().coerceIn(10, 255)
         debugPaint.style = Paint.Style.FILL
         debugPaint.color = Color.argb((alpha * 0.4f).toInt(), Color.red(m3Primary), Color.green(m3Primary), Color.blue(m3Primary))
@@ -108,9 +108,10 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
     screenW: Float,
     m3Primary: Int
 ) {
-    val useCentralTheme = prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_USE_CENTRAL_THEME, true)
     val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
     if (navState != null && navState.isActive) {
+        val hudColorMode = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudColorMode(prefs, actionToken = "system:gear_nav")
+        val useCentralTheme = hudColorMode != com.sbf.lightspeed.system.LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
         val topY = (renderCache.thicknessDp * d) + (8f * d)
         val hudCenterY = topY + (72f * d)
         LightspeedHudRenderer.renderHud(
@@ -125,11 +126,15 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
             topY = topY,
             primaryColor = m3Primary,
             density = d,
-            useCentralTheme = useCentralTheme
+            useCentralTheme = useCentralTheme,
+            colorMode = hudColorMode
         )
     } else {
         val transientHud = currentTransientHudState
         if (transientHud != null) {
+            val hudColorMode = transientHud.colorMode
+                ?: com.sbf.lightspeed.system.LightspeedPreferences.resolveHudColorMode(prefs)
+            val useCentralTheme = hudColorMode != com.sbf.lightspeed.system.LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
             val topY = (renderCache.thicknessDp * d) + (8f * d)
             val hudCenterY = topY + (72f * d)
             LightspeedHudRenderer.renderHud(
@@ -144,7 +149,8 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
                 topY = topY,
                 primaryColor = m3Primary,
                 density = d,
-                useCentralTheme = useCentralTheme
+                useCentralTheme = useCentralTheme,
+                colorMode = hudColorMode
             )
         }
     }

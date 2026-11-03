@@ -70,10 +70,6 @@ fun HudSensorDeckSection(
                 title = "Enable Sensor Area Gestures",
                 subtitle = "Top-edge gesture detection",
                 onChanged = {
-                    val isEnabled = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_ENABLED, false)
-                    if (isStatusBarGeoExpanded) {
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, isEnabled).apply()
-                    }
                     safeReloadPreferences()
                     onRefreshNeeded()
                 }
@@ -202,17 +198,6 @@ fun HudSensorDeckSection(
             val bottomOffsetXKey = if (isLandscape) LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X_LANDSCAPE else LightspeedPreferences.KEY_BOTTOM_STATUSBAR_OFFSET_X
             val defaultBottomOffsetX = 0
 
-            // Automatic Live Trigger Zone Preview while Bottom Sensor Geometry/Calibration is open
-            val shouldPreviewBottom = isExpanded && isBottomSensorExpanded && isBottomGeoExpanded
-            DisposableEffect(shouldPreviewBottom) {
-                prefs.edit().putBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, shouldPreviewBottom).apply()
-                safeReloadPreferences()
-                onDispose {
-                    prefs.edit().putBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, false).apply()
-                    safeReloadPreferences()
-                }
-            }
-
             CollapsibleSubSection(
                 title = "Bottom Sensor Area",
                 subtitle = "Bottom-edge sensor zone for taps, swipes & continuous scrub",
@@ -228,6 +213,8 @@ fun HudSensorDeckSection(
                 onToggle = {
                     isBottomSensorExpanded = !isBottomSensorExpanded
                     prefs.edit().putBoolean("pref_sub_bottom_statusbar_expanded", isBottomSensorExpanded).apply()
+                    safeReloadPreferences()
+                    onRefreshNeeded()
                 }
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -251,6 +238,8 @@ fun HudSensorDeckSection(
                         onToggle = {
                             isBottomGeoExpanded = !isBottomGeoExpanded
                             prefs.edit().putBoolean("pref_sub_bottom_statusbar_geo", isBottomGeoExpanded).apply()
+                            safeReloadPreferences()
+                            onRefreshNeeded()
                         }
                     ) {
                         Surface(

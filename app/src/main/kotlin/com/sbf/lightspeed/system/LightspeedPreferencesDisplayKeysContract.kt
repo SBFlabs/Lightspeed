@@ -23,6 +23,7 @@ interface LightspeedPreferencesDisplayKeysContract {
     val KEY_PINNED_GEAR_LEFT: String get() = "pref_pinned_gear_left"
     val KEY_CATEGORY_CRUISE_SPACING_PERCENT: String get() = "pref_category_cruise_spacing_percent"
     val DEFAULT_CATEGORY_CRUISE_SPACING_PERCENT: Int get() = 100
+    val KEY_CATEGORY_CRUISE_COLOR_MODE: String get() = "pref_category_cruise_color_mode"
     val KEY_CATEGORY_CRUISE_PHYSICS_PROFILE: String get() = "pref_category_cruise_physics_profile"
     val KEY_LOCKSCREEN_HORIZON_RAIL_MODE: String get() = "pref_lockscreen_horizon_rail_mode"
     val KEY_LOCKSCREEN_SENSOR_DECK_MODE: String get() = "pref_lockscreen_sensor_deck_mode"

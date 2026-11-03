@@ -50,6 +50,7 @@ object CruiseScrubEngine {
         if (showHud) {
             val fallbackKey = actionKey ?: "pref_macro_action_SCRUBBING"
             val hudStyle = LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, scrubType)
+            val hudColorMode = LightspeedPreferences.resolveHudColorMode(prefs, fallbackKey, scrubType)
 
             LightspeedStatusBarOverlay.showActionHud(
                 title = title,
@@ -57,7 +58,8 @@ object CruiseScrubEngine {
                 stepIndex = stepIndex,
                 totalSteps = totalSteps,
                 durationMs = 0L,
-                style = hudStyle
+                style = hudStyle,
+                colorMode = hudColorMode
             )
         }
     }
@@ -359,6 +361,9 @@ internal fun LightspeedCruiseOverlay.executeLinearScrubTrack(zone: TouchZone, pi
                 scrubHudValue = if (steps > 0) "▲ SCROLL UP" else "▼ SCROLL DOWN"
                 dispatchScrubHud(scrubHudTitle, scrubHudValue, 1, 1)
                 invalidate()
+            }
+            "system:media_scrubber" -> {
+                com.sbf.lightspeed.system.LightspeedMediaManager.stepHardwareScrubber(context, isForward = steps > 0)
             }
         }
     }

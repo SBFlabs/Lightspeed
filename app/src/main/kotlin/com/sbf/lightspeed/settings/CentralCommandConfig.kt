@@ -139,45 +139,135 @@ fun CentralCommandMatrixFields(
         }
     }
 
-    // Auto-hide / auto-show preview on tab swipe (only when settled, never during scroll animation)
-    LaunchedEffect(state.pagerState) {
-        snapshotFlow {
-            if (state.pagerState.isScrollInProgress) {
-                null
-            } else {
-                val page = state.pagerState.currentPage
-                val leftActive = page == 0 && (
-                    state.isLeftCenterExpandedState.value ||
-                    (if (state.isLeftFlankUnifiedState.value) state.isLeftUnifiedExpandedState.value else state.isLeftTopExpandedState.value || state.isLeftBottomExpandedState.value)
-                )
-                val canopyActive = page == 1 && state.isSensorDeckExpandedState.value && state.isStatusBarGeoExpandedState.value
-                val rightActive = page == 2 && (
-                    state.isCenterExpandedState.value ||
-                    (if (state.isRightFlankUnifiedState.value) state.isRightUnifiedExpandedState.value else state.isTopExpandedState.value || state.isBottomExpandedState.value)
-                )
-                val anyRail = state.isHorizonRailGeomExpandedState.value || state.isHorizonRailColorExpandedState.value || state.isHorizonRailTextExpandedState.value
-                val notchActive = page == 1 && state.isTelemetryExpandedState.value && state.isNotchCalibExpandedState.value
-                val railActive = page == 1 && state.isTelemetryExpandedState.value && anyRail
-                CentralCommandPreviewState(leftActive, canopyActive, rightActive, notchActive, railActive)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val isWindowFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
+    var isActivityResumed by remember { mutableStateOf(true) }
+    var subAccordionPrefTick by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(lifecycleOwner, prefs) {
+        fun clearAllPreviews() {
+            prefs.edit()
+                .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, false)
+                .putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
+                .putBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, false)
+                .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, false)
+                .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false)
+                .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
+                .putBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_LEFT, false)
+                .putBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_RIGHT, false)
+                .apply()
+            com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
+        }
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> isActivityResumed = true
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE,
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                    isActivityResumed = false
+                    clearAllPreviews()
+                }
+                else -> {}
             }
         }
-            .filterNotNull()
+        val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key != null && (key.startsWith("pref_sub_") || key.startsWith("pref_accordion_trackpad_") || key.startsWith("pref_bot_trackpad_"))) {
+                subAccordionPrefTick++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        prefs.registerOnSharedPreferenceChangeListener(prefListener)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
+            clearAllPreviews()
+        }
+    }
+
+    // Auto-hide / auto-show preview strictly when parent accordion AND geometry sub-accordion are open AND in focus
+    LaunchedEffect(state.pagerState, isActivityResumed, isWindowFocused) {
+        snapshotFlow {
+            val tick = subAccordionPrefTick
+            val inFocus = isActivityResumed && isWindowFocused && !state.pagerState.isScrollInProgress
+            val page = state.pagerState.currentPage
+
+            val leftActive = inFocus && page == 0 && (
+                (state.isLeftCenterExpandedState.value && state.isLeftCenterGeoExpandedState.value) ||
+                (if (state.isLeftFlankUnifiedState.value) {
+                    state.isLeftUnifiedExpandedState.value && state.isLeftUnifiedGeoExpandedState.value
+                } else {
+                    (state.isLeftTopExpandedState.value && state.isLeftTopGeoExpandedState.value) ||
+                    (state.isLeftBottomExpandedState.value && state.isLeftBottomGeoExpandedState.value)
+                })
+            )
+            val canopyActive = inFocus && page == 1 &&
+                state.isSensorDeckExpandedState.value &&
+                state.isStatusBarGeoExpandedState.value
+            val bottomCanopyActive = inFocus && page == 1 &&
+                state.isSensorDeckExpandedState.value &&
+                prefs.getBoolean("pref_sub_bottom_statusbar_expanded", false) &&
+                prefs.getBoolean("pref_sub_bottom_statusbar_geo", false)
+            val rightActive = inFocus && page == 2 && (
+                (state.isCenterExpandedState.value && state.isCenterGeoExpandedState.value) ||
+                (if (state.isRightFlankUnifiedState.value) {
+                    state.isRightUnifiedExpandedState.value && state.isRightUnifiedGeoExpandedState.value
+                } else {
+                    (state.isTopExpandedState.value && state.isTopGeoExpandedState.value) ||
+                    (state.isBottomExpandedState.value && state.isBottomGeoExpandedState.value)
+                })
+            )
+            val trackpadLeftActive = inFocus && page == 0 &&
+                prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_LEFT_ENABLED, false) &&
+                prefs.getBoolean("pref_accordion_trackpad_left", false) &&
+                prefs.getBoolean("pref_sub_trackpad_geo_left", false)
+            val trackpadRightActive = inFocus && page == 2 &&
+                prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_RIGHT_ENABLED, false) &&
+                prefs.getBoolean("pref_accordion_trackpad_right", false) &&
+                prefs.getBoolean("pref_sub_trackpad_geo_right", false)
+
+            val anyRail = state.isHorizonRailGeomExpandedState.value || state.isHorizonRailColorExpandedState.value || state.isHorizonRailTextExpandedState.value
+            val notchActive = inFocus && page == 1 && state.isTelemetryExpandedState.value && state.isNotchCalibExpandedState.value
+            val railActive = inFocus && page == 1 && state.isTelemetryExpandedState.value && anyRail
+            @Suppress("UNUSED_VARIABLE")
+            val _ignore = tick
+            CentralCommandPreviewState(
+                left = leftActive,
+                canopy = canopyActive,
+                bottomCanopy = bottomCanopyActive,
+                right = rightActive,
+                notch = notchActive,
+                rail = railActive,
+                trackpadLeft = trackpadLeftActive,
+                trackpadRight = trackpadRightActive
+            )
+        }
             .distinctUntilChanged()
             .collect { target ->
                 val curLeft = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, false)
                 val curCanopy = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
+                val curBottomCanopy = prefs.getBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, false)
                 val curRight = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, false)
                 val curNotch = prefs.getBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, false)
                 val curRail = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
+                val curTpLeft = prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_LEFT, false)
+                val curTpRight = prefs.getBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_RIGHT, false)
 
-                if (curLeft != target.left || curCanopy != target.canopy || curRight != target.right || curNotch != target.notch || curRail != target.rail) {
+                if (curLeft != target.left || curCanopy != target.canopy || curBottomCanopy != target.bottomCanopy ||
+                    curRight != target.right || curNotch != target.notch || curRail != target.rail ||
+                    curTpLeft != target.trackpadLeft || curTpRight != target.trackpadRight
+                ) {
                     prefs.edit()
                         .putBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, target.left)
                         .putBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, target.canopy)
+                        .putBoolean(LightspeedPreferences.KEY_BOTTOM_STATUSBAR_PREVIEW, target.bottomCanopy)
                         .putBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, target.right)
                         .putBoolean(LightspeedPreferences.KEY_NOTCH_TEST_BEACON, target.notch)
                         .putBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, target.rail)
+                        .putBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_LEFT, target.trackpadLeft)
+                        .putBoolean(com.sbf.lightspeed.system.bot.LightspeedBotContract.KEY_BOT_TRACKPAD_PREVIEW_RIGHT, target.trackpadRight)
                         .apply()
+                    if (curTpLeft != target.trackpadLeft || curTpRight != target.trackpadRight) {
+                        com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.reload(context)
+                    }
                 }
             }
     }
@@ -187,7 +277,6 @@ fun CentralCommandMatrixFields(
         var isA11yActive by remember {
             mutableStateOf(com.sbf.lightspeed.system.LightspeedWatchdogEngine.isAccessibilityServiceEnabled(context))
         }
-        val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
         DisposableEffect(lifecycleOwner) {
             val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
                 if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
@@ -614,8 +703,11 @@ fun CentralCommandMatrixFields(
 private data class CentralCommandPreviewState(
     val left: Boolean,
     val canopy: Boolean,
+    val bottomCanopy: Boolean,
     val right: Boolean,
     val notch: Boolean,
-    val rail: Boolean
+    val rail: Boolean,
+    val trackpadLeft: Boolean,
+    val trackpadRight: Boolean
 )
 

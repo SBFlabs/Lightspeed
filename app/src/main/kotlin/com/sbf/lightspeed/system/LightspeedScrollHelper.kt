@@ -310,7 +310,7 @@ object LightspeedScrollHelper {
         private val canCheckBoundary: Boolean,
         private val initialPackage: String?
     ) : Runnable {
-        private val maxSwipes = 3
+        private val maxSwipes = 1
         var swipeCount = 0
         @Volatile
         var isCancelled = false

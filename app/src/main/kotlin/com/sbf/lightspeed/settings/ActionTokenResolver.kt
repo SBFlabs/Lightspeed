@@ -73,65 +73,8 @@ object ActionTokenResolver {
     /**
      * Resolves the default pre-assigned action token for a given gesture preference key.
      */
-    fun getDefaultActionForGestureKey(key: String): String {
-        val cleanKey = key.substringAfterLast(":string/")
-
-        return when {
-            // STATUSBAR / SENSOR DECK DEFAULTS
-            cleanKey == "pref_macro_action_STATUSBAR_DOUBLE_TAP" -> "system:gravity_reset"
-            cleanKey == "pref_macro_action_STATUSBAR_DOUBLE_TAP_HOLD" -> "system:screen_timeout"
-            cleanKey == "pref_macro_action_STATUSBAR_TAP" -> "system:scroll_to_top"
-            cleanKey == "pref_macro_action_STATUSBAR_TAP_HOLD" -> "system:gravity_override_360"
-            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_RIGHT" -> "system:core_watchdog"
-            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_LEFT" -> "system:perimeter_watchdog"
-            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_RIGHT_HOLD" -> "system:popup_window"
-            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_LEFT_HOLD" -> "system:split_screen"
-            cleanKey == "pref_macro_action_STATUSBAR_SWIPE_DOWN" -> "system:notifications"
-
-            // BOTTOM SENSOR DECK DEFAULTS
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_DOUBLE_TAP" -> "system:gravity_reset"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_DOUBLE_TAP_HOLD" -> "system:screen_timeout"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_TAP" -> "system:scroll_to_bottom"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_TAP_HOLD" -> "system:home"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_RIGHT" -> "system:core_watchdog"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_LEFT" -> "system:perimeter_watchdog"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_RIGHT_HOLD" -> "system:popup_window"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_LEFT_HOLD" -> "system:split_screen"
-            cleanKey == "pref_macro_action_BOTTOM_STATUSBAR_SWIPE_UP" -> "system:recents"
-
-            // LEFT FLANK DEFAULTS (LEFT_UNIFIED, LEFT_TOP, LEFT_BOTTOM)
-            cleanKey.contains("LEFT_") -> when {
-                cleanKey.endsWith("_SWIPE_RIGHT") -> "system:back"
-                cleanKey.endsWith("_SWIPE_RIGHT_HOLD") -> "system:close_app"
-                cleanKey.endsWith("_SWIPE_DOWN") -> "system:auto_rotate_toggle"
-                cleanKey.endsWith("_SWIPE_DOWN_UP") -> "system:recents"
-                cleanKey.endsWith("_SWIPE_UP") -> "system:gravity_override_360"
-                cleanKey.endsWith("_SWIPE_UP_DOWN") -> "system:home"
-                cleanKey.endsWith("_SWIPE_RIGHT_UP") -> "system:screenshot"
-                cleanKey.endsWith("_SWIPE_RIGHT_DOWN") -> "system:notifications"
-                cleanKey.endsWith("_SWIPE_RIGHT_DOWN_HOLD") -> "system:quick_settings"
-                cleanKey.contains("BOTTOM") && (cleanKey.endsWith("_TAP_HOLD") || cleanKey.endsWith("_SCRUBBING")) -> "system:brightness"
-                cleanKey.endsWith("_TAP_HOLD") -> "system:volume"
-                cleanKey.endsWith("_SCRUBBING") -> "system:volume"
-                else -> "none"
-            }
-
-            // RIGHT FLANK DEFAULTS (UNIFIED, TOP, BOTTOM)
-            cleanKey.endsWith("_SWIPE_LEFT") -> "system:back"
-            cleanKey.endsWith("_SWIPE_LEFT_HOLD") -> "system:close_app"
-            cleanKey.endsWith("_SWIPE_DOWN") -> "system:home"
-            cleanKey.endsWith("_SWIPE_UP") -> "system:recents"
-            cleanKey.endsWith("_SWIPE_LEFT_DOWN") -> "system:notifications"
-            cleanKey.endsWith("_SWIPE_LEFT_DOWN_HOLD") -> "system:quick_settings"
-            cleanKey.endsWith("_SWIPE_LEFT_UP") -> "system:previous_app"
-            cleanKey.endsWith("_SWIPE_UP_DOWN") -> "system:refueling_bay"
-            cleanKey.contains("BOTTOM") && (cleanKey.endsWith("_TAP_HOLD") || cleanKey.endsWith("_SCRUBBING")) -> "system:volume"
-            cleanKey.endsWith("_TAP_HOLD") -> "system:brightness"
-            cleanKey.endsWith("_SCRUBBING") -> "system:brightness"
-
-            else -> "none"
-        }
-    }
+    fun getDefaultActionForGestureKey(key: String): String =
+        com.sbf.lightspeed.system.LightspeedPreferencesDefaults.getDefaultActionForGestureKey(key)
 
     /**
      * Resolves human-readable labels for system and app tokens.

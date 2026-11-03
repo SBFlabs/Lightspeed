@@ -53,7 +53,10 @@ object SonicAppVolumeEngine {
     fun setAppVolume(context: Context, packageName: String, volume: Float) {
         val clamped = volume.coerceIn(0.0f, 2.0f)
         packageVolumeCache[packageName] = clamped
-        context.defaultPrefs().edit().putFloat(LightspeedPreferences.KEY_PER_APP_VOLUME_PREFIX + packageName, clamped).apply()
+        context.defaultPrefs().edit()
+            .putBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, true)
+            .putFloat(LightspeedPreferences.KEY_PER_APP_VOLUME_PREFIX + packageName, clamped)
+            .apply()
         SonicVoiceIsolationEngine.ensureBound(context)
         try {
             SonicVoiceIsolationEngine.userService?.setPackageVolume(packageName, clamped)

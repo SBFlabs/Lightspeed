@@ -180,9 +180,30 @@ private fun LightspeedCruiseOverlay.handleHudTabTap(
         }
     }
 
-    // Category Cruise name spacing pills
+    // Color Engine pills (second option)
     val gearNoteY = gearPillY + gearPillH + (18f * dp)
-    val spacingPillY = gearNoteY + (22f * dp) + (10f * dp)
+    val colorPillY = gearNoteY + (22f * dp) + (10f * dp)
+    if (y in (colorPillY - 4f * dp)..(colorPillY + gearPillH + 4f * dp)) {
+        val pillSpacing = 4f * dp
+        val margin = 10f * dp
+        val count = CATEGORY_COLOR_ENGINE_OPTIONS.size
+        val pillW = (bounds.width() - (margin * 2f) - pillSpacing * (count - 1)) / count
+        for (i in 0 until count) {
+            val pLeft = bounds.left + margin + (i * (pillW + pillSpacing))
+            if (x in pLeft..(pLeft + pillW)) {
+                val modeId = CATEGORY_COLOR_ENGINE_OPTIONS[i].first
+                triggerHardwareHaptic(20, 100)
+                context.defaultPrefs().edit()
+                    .putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_COLOR_MODE, modeId)
+                    .apply()
+                invalidate()
+                return
+            }
+        }
+    }
+
+    // Category Cruise name spacing pills
+    val spacingPillY = colorPillY + gearPillH + (22f * dp) + (10f * dp)
     if (y in (spacingPillY - 4f * dp)..(spacingPillY + gearPillH + 4f * dp)) {
         val pillSpacing = 4f * dp
         val margin = 10f * dp

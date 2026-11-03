@@ -45,12 +45,16 @@
 -keep class com.sbf.lightspeed.** extends android.app.Activity { void <init>(...); }
 -keep class com.sbf.lightspeed.** extends android.app.Service { void <init>(...); }
 
-# ── Shizuku IPC ─────────────────────────────────────────────────────────────────
+# ── Shizuku IPC & Privileged Sonic UserService + ONNX Runtime JNI ───────────────
 -keep class rikka.shizuku.** { *; }
 -keep class dev.rikka.shizuku.** { *; }
 -dontwarn rikka.shizuku.**
 -dontwarn dev.rikka.shizuku.**
 -keepclassmembers class * implements android.os.IInterface { *; }
+-keep class com.sbf.lightspeed.system.sonic.SonicIsolationUserService { *; }
+-keep class com.sbf.lightspeed.system.sonic.ISonicIsolationUserService** { *; }
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
 
 
 # ── Data/value classes used in token parsing ─────────────────────────────────────

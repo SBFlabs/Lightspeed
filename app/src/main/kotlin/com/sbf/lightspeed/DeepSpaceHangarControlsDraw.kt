@@ -26,6 +26,7 @@ internal data class HangarLayoutMetrics(
     val sub1Y: Float,
     val sub2Y: Float,
     val sub3Y: Float,
+    val sub4Y: Float,
     val bottomCtrlY: Float,
     val openAccordion: Int,
     val gimbalCx: Float,
@@ -52,15 +53,16 @@ internal fun computeHangarLayoutMetrics(
     val rBayY = r0Y + 36f * d
     val rAccY = rBayY + 36f * d
 
-    val rowStep = if (isLandscape) 31f * d else 34f * d
+    val rowStep = if (isLandscape) 29f * d else 32f * d
     val sub1Y = rAccY + rowStep
     val sub2Y = sub1Y + rowStep
     val sub3Y = sub2Y + rowStep
+    val sub4Y = sub3Y + rowStep
 
     val bottomCtrlY = when (openAccordion) {
         0 -> sub3Y
         1 -> sub3Y
-        2 -> sub3Y
+        2 -> sub4Y
         else -> rAccY
     }
 
@@ -101,6 +103,7 @@ internal fun computeHangarLayoutMetrics(
         sub1Y = sub1Y,
         sub2Y = sub2Y,
         sub3Y = sub3Y,
+        sub4Y = sub4Y,
         bottomCtrlY = bottomCtrlY,
         openAccordion = openAccordion,
         gimbalCx = gimbalCx,
@@ -372,6 +375,16 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             drawPill(diamPlusRect, "+", false)
             val dpiLabel = if (isDpiIndep) "◈ DPI: INDEP" else "DPI: SYS"
             drawPill(dpiToggleRect, dpiLabel, isDpiIndep)
+
+            // Sub-row 4: 3-Way Color Engine Selector (12-Theme / Material 3 / Hybrid Fusion)
+            val colorMode = com.sbf.lightspeed.system.CockpitGimbalConfigCache.getColorMode(context)
+            val colW = (deckW - (gap * 2f)) / 3f
+            val col1Rect = RectF(leftX, layout.sub4Y - 13f * d, leftX + colW, layout.sub4Y + 13f * d)
+            val col2Rect = RectF(leftX + colW + gap, layout.sub4Y - 13f * d, leftX + colW * 2f + gap, layout.sub4Y + 13f * d)
+            val col3Rect = RectF(rightX - colW, layout.sub4Y - 13f * d, rightX, layout.sub4Y + 13f * d)
+            drawPill(col1Rect, "◈ 12-THEME", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12, m3Primary, 8.4f)
+            drawPill(col2Rect, "🎨 M3 DYNAMIC", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, m3Primary, 8.4f)
+            drawPill(col3Rect, "⚡ HYBRID", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, m3Primary, 8.4f)
         }
     }
 

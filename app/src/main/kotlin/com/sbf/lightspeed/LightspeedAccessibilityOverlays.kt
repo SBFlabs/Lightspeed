@@ -43,6 +43,9 @@ internal fun LightspeedAccessibilityService.setupNotchOverlay() {
         }
     }
 
+    notchOverlayView?.let { old ->
+        try { windowManager?.removeView(old) } catch (_: Exception) {}
+    }
     notchOverlayView = LightspeedNotchOverlay(this)
     try {
         windowManager?.addView(notchOverlayView, notchWindowParams)
@@ -50,18 +53,20 @@ internal fun LightspeedAccessibilityService.setupNotchOverlay() {
 }
 
 internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedPreferences) {
-    val enabled = prefs.getBoolean("pref_statusbar_enabled", false)
+    val enabled = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_ENABLED, false)
+    val isStatusBarPreview = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
     val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "top_line") ?: "top_line"
     val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
     val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
     val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
 
-    if (!enabled && !isRailRoutingActive && !isRailPreview) return
+    if (!enabled && !isStatusBarPreview && !isRailRoutingActive && !isRailPreview) return
 
     val screenWidthPx = resources.displayMetrics.widthPixels
     val density = resources.displayMetrics.density
     val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val sensorThicknessDp = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS_LANDSCAPE, 35) else prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS, 35)).coerceIn(10, 52)
+    val sensorOffsetYDp = prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_Y, 0).coerceAtLeast(0)
     val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
     val maxRails = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
     val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
@@ -78,7 +83,7 @@ internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedP
         }
     } else baseRailHeightDp
 
-    val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, textHeightDp) else textHeightDp
+    val effectiveHeightDp = if (enabled || isStatusBarPreview) maxOf(sensorThicknessDp + sensorOffsetYDp, textHeightDp) else textHeightDp
     val heightPx = (effectiveHeightDp * density).toInt()
 
     @Suppress("DEPRECATION")
@@ -105,6 +110,9 @@ internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedP
         }
     }
 
+    statusBarOverlayView?.let { old ->
+        try { windowManager?.removeView(old) } catch (_: Exception) {}
+    }
     statusBarOverlayView = LightspeedStatusBarOverlay(this, this)
     try {
         windowManager?.addView(statusBarOverlayView, statusBarWindowParams)
@@ -115,7 +123,7 @@ internal fun LightspeedAccessibilityService.setupStatusBarOverlay(prefs: SharedP
 }
 
 internal fun LightspeedAccessibilityService.setupSensorTouchOverlay(prefs: SharedPreferences) {
-    val enabled = prefs.getBoolean("pref_statusbar_enabled", false)
+    val enabled = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_ENABLED, false)
     if (!enabled) return
 
     val screenW = resources.displayMetrics.widthPixels.toFloat()
@@ -153,6 +161,9 @@ internal fun LightspeedAccessibilityService.setupSensorTouchOverlay(prefs: Share
         }
     }
 
+    sensorTouchOverlayView?.let { old ->
+        try { windowManager?.removeView(old) } catch (_: Exception) {}
+    }
     sensorTouchOverlayView = LightspeedSensorDeckTouchOverlay(this, this)
     try {
         windowManager?.addView(sensorTouchOverlayView, sensorTouchWindowParams)
@@ -234,6 +245,9 @@ internal fun LightspeedAccessibilityService.setupBottomSensorTouchOverlay(prefs:
         }
     }
 
+    bottomSensorTouchOverlayView?.let { old ->
+        try { windowManager?.removeView(old) } catch (_: Exception) {}
+    }
     bottomSensorTouchOverlayView = LightspeedSensorDeckTouchOverlay(this, this, isBottom = true)
     try {
         windowManager?.addView(bottomSensorTouchOverlayView, bottomSensorTouchWindowParams)
@@ -278,12 +292,13 @@ internal fun LightspeedAccessibilityService.updateBottomSensorTouchOverlayFromPr
 
 internal fun LightspeedAccessibilityService.updateStatusBarOverlayFromPrefs(prefs: SharedPreferences) {
     val enabled = prefs.getBoolean("pref_statusbar_enabled", false)
+    val isStatusBarPreview = prefs.getBoolean(LightspeedPreferences.KEY_STATUSBAR_PREVIEW, false)
     val dlRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_DOWNLOADS_ROUTING, "top_line") ?: "top_line"
     val mediaRouting = prefs.getString(LightspeedPreferences.KEY_RAIL_MEDIA_ROUTING, "none") ?: "none"
     val isRailRoutingActive = dlRouting == "top_line" || dlRouting == "both" || mediaRouting == "top_line" || mediaRouting == "both"
     val isRailPreview = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_PREVIEW, false)
 
-    if (!enabled && !isRailRoutingActive && !isRailPreview) {
+    if (!enabled && !isStatusBarPreview && !isRailRoutingActive && !isRailPreview) {
         statusBarOverlayView?.let {
             try { windowManager?.removeView(it) } catch (e: Exception) { logSwallowed("LightspeedAccessibilityOverlays", "updateStatusBarOverlayFromPrefs:204", e) }
             statusBarOverlayView = null
@@ -295,6 +310,7 @@ internal fun LightspeedAccessibilityService.updateStatusBarOverlayFromPrefs(pref
     val screenWidthPx = resources.displayMetrics.widthPixels
     val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val sensorThicknessDp = (if (isLandscape) prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS_LANDSCAPE, 35) else prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_THICKNESS, 35)).coerceIn(10, 52)
+    val sensorOffsetYDp = prefs.getInt(LightspeedPreferences.KEY_STATUSBAR_OFFSET_Y, 0).coerceAtLeast(0)
     val railThicknessDp = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_THICKNESS, 2).coerceIn(1, 6)
     val maxRails = prefs.getInt(LightspeedPreferences.KEY_HORIZON_RAIL_MAX_COUNT, 2).coerceIn(1, 3)
     val isRailText = prefs.getBoolean(LightspeedPreferences.KEY_HORIZON_RAIL_TEXT_ENABLED, true)
@@ -311,7 +327,7 @@ internal fun LightspeedAccessibilityService.updateStatusBarOverlayFromPrefs(pref
         }
     } else baseRailHeightDp
 
-    val effectiveHeightDp = if (enabled) maxOf(sensorThicknessDp, textHeightDp) else textHeightDp
+    val effectiveHeightDp = if (enabled || isStatusBarPreview) maxOf(sensorThicknessDp + sensorOffsetYDp, textHeightDp) else textHeightDp
     val heightPx = (effectiveHeightDp * density).toInt()
 
     if (statusBarOverlayView == null) {
@@ -412,6 +428,7 @@ internal fun LightspeedAccessibilityService.setOverlaysVisible(visible: Boolean)
     leftWingOverlayView?.visibility = v
     statusBarOverlayView?.visibility = v
     sensorTouchOverlayView?.visibility = v
+    bottomSensorTouchOverlayView?.visibility = v
     notchOverlayView?.visibility = v
 }
 
@@ -423,6 +440,7 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
         statusBarOverlayView?.visibility = View.GONE
         notchOverlayView?.visibility = View.GONE
         sensorTouchOverlayView?.visibility = View.GONE
+        bottomSensorTouchOverlayView?.visibility = View.GONE
         overlayView?.visibility = View.GONE
         leftWingOverlayView?.visibility = View.GONE
         mediaScrubberOverlayView?.visibility = View.GONE
@@ -430,14 +448,12 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
         return
     }
 
-    val hideOnLockAndDock = prefs.getBoolean(LightspeedPreferences.KEY_HIDE_ON_LOCKSCREEN_AND_DOCK, true)
     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
     val effectiveLocked = isLocked ?: (keyguardManager?.isKeyguardLocked == true)
     val isRefueling = LightspeedRefuelingActivity.isActive
     val isTranssionSysUi = currentPkg != null && (currentPkg == "com.android.systemui" || currentPkg == "com.transsion.systemui" || currentPkg == "com.infinix.systemui")
     val isInfinixStandby = currentPkg != null && (currentPkg.contains("standby") || currentPkg.contains("aod") || currentPkg == "com.transsion.aod" || currentPkg == "com.infinix.aod" || currentPkg == "com.transsion.aod.app")
     val isDoze = isTranssionSysUi && !effectiveLocked && (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive == false
-    val isSystemUiActive = !effectiveLocked && (if (currentPkg != null) isTranssionSysUi else isNotificationShadeActive)
 
     val lockscreenMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_DEFLECTOR_MODE, "hide_deflectors") ?: "hide_deflectors"
     val lockscreenRailMode = prefs.getString(LightspeedPreferences.KEY_LOCKSCREEN_HORIZON_RAIL_MODE, "hide") ?: "hide"
@@ -488,10 +504,12 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     // Kinetic Deflectors (Left & Right Flank Wings / Edge Gesture Controls)
     val isLeftDeflectorEnabled = LightspeedPreferences.isLeftDeflectorEnabled(this)
     val isRightDeflectorEnabled = LightspeedPreferences.isRightDeflectorEnabled(this)
+    val isLeftPreview = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_PREVIEW, false)
+    val isRightPreview = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, false)
     val isOrientationSuppressed = isSuppressedByOrientation()
 
-    val leftVisibility = if (isLeftDeflectorEnabled && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
-    val rightVisibility = if (isRightDeflectorEnabled && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
+    val leftVisibility = if ((isLeftDeflectorEnabled || isLeftPreview) && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
+    val rightVisibility = if ((isRightDeflectorEnabled || isRightPreview) && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
 
 
     overlayView?.visibility = rightVisibility

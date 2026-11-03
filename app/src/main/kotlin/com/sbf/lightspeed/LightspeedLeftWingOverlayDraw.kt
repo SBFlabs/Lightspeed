@@ -54,7 +54,7 @@ internal fun LightspeedLeftWingOverlay.handleDraw(canvas: Canvas, superCall: () 
         centerTransparency = centerTransparency,
         topTransparency = topTransparency,
         bottomTransparency = bottomTransparency,
-        isReview = isPreview && (isTopExpanded || isCenterExpanded || isBottomExpanded),
+        isReview = isPreview,
         m3Primary = m3Primary,
         glowStyle = glowStyle,
         isGlowEnabled = isGlowEnabled,

@@ -26,7 +26,8 @@ internal fun DeepSpaceRenderer.drawSpaceshipGimbalRingImpl(
         val outerR = trackRadius + trackWidth / 2f
 
         val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.snapshotFlow.value
-        val palette = snapshot.resolveCanvasPalette(null)
+        val palette = com.sbf.lightspeed.system.CockpitGimbalConfigCache.lastResolvedPalette
+            ?: snapshot.resolveCanvasPalette(null)
         val primaryCol = if (m3Primary != 0) m3Primary else palette.primaryAccentArgb
         val secCol = palette.secondaryAccentArgb
         val panelIn = palette.panelInnerArgb

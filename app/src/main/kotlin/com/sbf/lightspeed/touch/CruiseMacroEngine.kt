@@ -1,21 +1,15 @@
 package com.sbf.lightspeed
 
-import android.util.Log
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.LightspeedPreferencesDefaults
 
 private fun getDefaultMacroAction(gestureName: String, isLeft: Boolean): String {
     val prefix = if (isLeft) "pref_macro_action_LEFT_UNIFIED_" else "pref_macro_action_UNIFIED_"
-    val defaultVal = com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(prefix + gestureName)
+    val defaultVal = LightspeedPreferencesDefaults.getDefaultActionForGestureKey(prefix + gestureName)
     if (defaultVal != "none") return defaultVal
     return when (gestureName) {
-        "SWIPE_LEFT", "SWIPE_RIGHT" -> "system:back"
-        "SWIPE_UP" -> if (isLeft) "system:gravity_override_360" else "system:recents"
-        "SWIPE_DOWN" -> if (isLeft) "system:auto_rotate_toggle" else "system:home"
         "SWIPE_LEFT_BACK", "SWIPE_RIGHT_BACK" -> "system:previous_app"
-        "TAP" -> "action_enter_gearset_nav"
-        "SWIPE_LEFT_HOLD", "SWIPE_RIGHT_HOLD" -> "system:close_app"
-        "TAP_HOLD" -> if (isLeft) "system:volume" else "system:brightness"
         else -> "none"
     }
 }
@@ -45,14 +39,14 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
         val isLeftGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = true, leftGesture)
         val leftZone = if (isLeftUnified && isLeftGestureUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
         val explicitAction = prefs.getString("pref_macro_action_${leftZone}_$leftGesture", null)
-        if (!explicitAction.isNullOrEmpty() && explicitAction != "none") {
+        if (!explicitAction.isNullOrEmpty()) {
             explicitAction
         } else {
             // Mirror right deflector or fallback to intuitive defaults
             val isRightGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gesture.name)
             val rightZone = if (isFlankUnified && isRightGestureUnified) "UNIFIED" else zoneName
             val rightAction = prefs.getString("pref_macro_action_${rightZone}_${gesture.name}", null)
-            if (!rightAction.isNullOrEmpty() && rightAction != "none") {
+            if (!rightAction.isNullOrEmpty()) {
                 rightAction
             } else {
                 getDefaultMacroAction(leftGesture, isLeft = true)
@@ -63,14 +57,13 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
         val dynamicZone = if (isFlankUnified && isGestureUnified) "UNIFIED" else zoneName
         val actionKey = "pref_macro_action_${dynamicZone}_${gesture.name}"
         val explicit = prefs.getString(actionKey, null)
-        if (!explicit.isNullOrEmpty() && explicit != "none") {
+        if (!explicit.isNullOrEmpty()) {
             explicit
         } else {
             getDefaultMacroAction(gesture.name, isLeft = false)
         }
     }
 
-    Log.d("GestureEngine", "Target Vector: [$zoneName] -> Action Value: $actionValue")
     triggerDeflectorHaptic(isClick = true)
 
     // Disengage overlay window so incoming system window (Recents/Home/App) gets immediate focus

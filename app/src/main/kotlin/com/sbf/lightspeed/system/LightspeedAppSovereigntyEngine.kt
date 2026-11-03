@@ -121,23 +121,70 @@ object LightspeedAppSovereigntyEngine {
         }
     }
 
+    /**
+     * Enables or disables Android's multi-audio-focus mode so locked apps can play alongside others.
+     * Uses the bound Sonic privileged service when available and always persists the system setting
+     * through Shizuku, because direct IAudioService reflection is blocked by hidden-API enforcement.
+     */
     fun setMultiAudioFocus(enabled: Boolean): Boolean {
-        return try {
-            val audioService = getPrivilegedAudioService() ?: return false
-            val m = audioService.javaClass.getMethod("setMultiAudioFocusEnabled", Boolean::class.javaPrimitiveType)
-            m.invoke(audioService, enabled)
-            Log.i(TAG, "Native Multi Audio Focus set to: $enabled")
-            true
+        var applied = false
+        try {
+            val svc = com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.userService
+            if (svc != null) {
+                svc.setMultiAudioFocus(enabled)
+                applied = true
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "setMultiAudioFocus error", e)
-            false
+            Log.w(TAG, "setMultiAudioFocus via user service error", e)
+        }
+        if (ElevatedTaskCloser.isShizukuActive) {
+            val v = if (enabled) 1 else 0
+            ElevatedTaskCloser.execShizuku(
+                "settings put system multi_audio_focus_enabled $v; settings put global multi_audio_focus_enabled $v"
+            )
+            applied = true
+        }
+        Log.i(TAG, "Multi Audio Focus set to: $enabled (applied=$applied)")
+        return applied
+    }
+
+    /**
+     * Builds the appops command that sets TAKE_AUDIO_FOCUS for both the app uid and package.
+     * Never uses "ignore": a denied focus request makes focus-respecting players (ExoPlayer) pause themselves.
+     * Unlocked apps are restored to an explicit "allow" (not "default"): on-device testing showed the system
+     * focus hardening check denies requests while the appop is merely "default".
+     */
+    private fun focusAppOpCmd(ctx: Context?, pkg: String, mode: String): String {
+        val uid = try { ctx?.packageManager?.getApplicationInfo(pkg, 0)?.uid ?: -1 } catch (_: Exception) { -1 }
+        val uidCmd = if (uid > 0) "cmd appops set --uid $uid TAKE_AUDIO_FOCUS $mode; " else ""
+        return "${uidCmd}cmd appops set ${shellSingleQuote(pkg)} TAKE_AUDIO_FOCUS $mode"
+    }
+
+    /**
+     * Repairs stale audio-focus appops. Every package Lightspeed has ever configured gets its
+     * TAKE_AUDIO_FOCUS reset to explicit allow unless it is currently locked. Runs on boot and Shizuku connect.
+     */
+    fun reconcileFocusAppOps(context: Context) {
+        if (!ElevatedTaskCloser.isShizukuActive) return
+        try {
+            val prefs = context.defaultPrefs()
+            val locked = getStealthLockedApps(context)
+            val touched = prefs.all.keys
+                .filter { it.startsWith(LightspeedPreferences.KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX) }
+                .map { it.removePrefix(LightspeedPreferences.KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX) }
+                .toSet()
+            for (pkg in touched + locked) {
+                if (pkg in locked) armAppSovereignty(pkg, context) else disarmAppSovereignty(pkg, context)
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "reconcileFocusAppOps error", e)
         }
     }
 
-    fun armAppSovereignty(pkg: String) {
+    fun armAppSovereignty(pkg: String, ctx: Context? = null) {
         try {
             ElevatedTaskCloser.execShizuku(
-                "cmd appops set ${shellSingleQuote(pkg)} TAKE_AUDIO_FOCUS allow; " +
+                "${focusAppOpCmd(ctx, pkg, "allow")}; " +
                 "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO allow; " +
                 "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO_PARTIAL allow; " +
                 "dumpsys deviceidle whitelist ${shellSingleQuote("+$pkg")}"
@@ -148,10 +195,10 @@ object LightspeedAppSovereigntyEngine {
         }
     }
 
-    fun disarmAppSovereignty(pkg: String) {
+    fun disarmAppSovereignty(pkg: String, ctx: Context? = null) {
         try {
             ElevatedTaskCloser.execShizuku(
-                "cmd appops set ${shellSingleQuote(pkg)} TAKE_AUDIO_FOCUS default; " +
+                "${focusAppOpCmd(ctx, pkg, "allow")}; " +
                 "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO default; " +
                 "cmd appops set ${shellSingleQuote(pkg)} CONTROL_AUDIO_PARTIAL default"
             )
@@ -357,20 +404,17 @@ object LightspeedAppSovereigntyEngine {
                     .putBoolean(LightspeedPreferences.KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX + pkg, true)
                     .apply()
                 stealthLockedApps.add(pkg)
-                armAppSovereignty(pkg)
+                armAppSovereignty(pkg, ctx)
                 setMultiAudioFocus(true)
-                ctx.showToast("${pkg.label()}: 🔒 Non-ducking Playback ON (won't pause or lower volume)")
+                ctx.showToast("${pkg.label()}: 🔒 Plays alongside other apps (won't be paused by them)")
             } else {
                 current.remove(pkg)
                 prefs.edit().putStringSet(PREF_STEALTH_LOCKED_APPS, current)
                     .putBoolean(LightspeedPreferences.KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX + pkg, false)
                     .apply()
                 stealthLockedApps.remove(pkg)
-                disarmAppSovereignty(pkg)
-                if (current.isEmpty()) {
-                    setMultiAudioFocus(false)
-                }
-                ctx.showToast("${pkg.label()}: 🔓 Standard audio focus restored")
+                disarmAppSovereignty(pkg, ctx)
+                ctx.showToast("${pkg.label()}: 🔓 Standard audio focus restored. Tip: Restart other media apps if they still don't pause.")
             }
         } else {
             if (isLocked) {

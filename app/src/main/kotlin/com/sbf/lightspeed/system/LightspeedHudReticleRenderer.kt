@@ -66,9 +66,10 @@ object LightspeedHudReticleRenderer {
         cy: Float,
         primaryColor: Int,
         d: Float,
-        useCentralTheme: Boolean = true
+        useCentralTheme: Boolean = true,
+        colorMode: String = if (useCentralTheme) LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 else LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
     ) {
-        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d, colorMode)
         val hasGauge = totalSteps > 0 && stepIndex >= 0
         val radius = 56f * d
         val outerRadius = radius + (14f * d)

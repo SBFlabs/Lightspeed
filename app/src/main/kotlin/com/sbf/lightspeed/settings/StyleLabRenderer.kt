@@ -310,7 +310,7 @@ fun StyleLabCardPreview(
             Spacer(modifier = Modifier.width(7.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                 Text(
-                    text = "Control Center",
+                    text = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,

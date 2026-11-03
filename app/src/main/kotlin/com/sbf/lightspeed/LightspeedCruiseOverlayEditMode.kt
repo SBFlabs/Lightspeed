@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.provider.Settings
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedUsageStats
 import com.sbf.lightspeed.system.defaultPrefs
@@ -31,6 +32,39 @@ internal fun ensureHighContrastColor(colorArgb: Int): Int {
 
 /** Category Cruise name-spacing presets (percent of the default row height). */
 internal val CATEGORY_SPACING_OPTIONS = listOf(70 to "TIGHT", 100 to "NORMAL", 130 to "WIDE", 160 to "WIDER")
+
+/**
+ * Category Cruise color engine modes. Independent from every HUD / Cybernetic / gear-set color engine.
+ * Drives: focused-app spotlight + ring, focused-category nebula, the ✦ star beacon and the edit panel accent.
+ * The central pill (Core Astrogation) is intentionally excluded.
+ */
+internal val CATEGORY_COLOR_ENGINE_OPTIONS = listOf(
+    LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 to "12-THEME",
+    LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC to "MATERIAL 3",
+    LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION to "HYBRID"
+)
+
+internal fun LightspeedCruiseOverlay.categoryColorMode(): String =
+    context.defaultPrefs().getString(
+        LightspeedPreferences.KEY_CATEGORY_CRUISE_COLOR_MODE,
+        LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+    ) ?: LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12
+
+/** Accent ARGB for Category Cruise highlights, or null in 12-Theme mode (keep legacy per-element theme colors). */
+internal fun LightspeedCruiseOverlay.categoryAccentOverride(): Int? {
+    val mode = categoryColorMode()
+    if (mode == LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12) return null
+    return com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
+        .resolveCanvasPalette(context, mode).primaryAccentArgb
+}
+
+/** Border ARGB for Category Cruise panels & dividers, or null if using 12-theme borders. */
+internal fun LightspeedCruiseOverlay.categoryBorderOverride(): Int? {
+    val mode = categoryColorMode()
+    if (mode != LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC) return null
+    return com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
+        .resolveCanvasPalette(context, mode).borderArgb
+}
 
 /** Live multiplier applied to the Category Cruise row height (1.0 = default spacing). */
 internal fun LightspeedCruiseOverlay.categorySpacingScale(): Float =
@@ -186,11 +220,17 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
     // Theme-driven optical styling
     val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
     val cornerRadius = (snapshot.cornerRadiusDp * 0.65f).coerceIn(10f, 24f) * dp
-    val tintColor = snapshot.tintArgb.toInt()
-    val borderColor = snapshot.borderColorArgb.toInt()
+    val tintColor = categoryAccentOverride() ?: snapshot.tintArgb.toInt()
+    val borderOverride = categoryBorderOverride()
+    val borderColor = borderOverride ?: snapshot.borderColorArgb.toInt()
 
-    // 1-4. Full 12-theme optical flyout surface (shadow, dense substrate, light deflection, specular cap & border)
-    drawDeckThemedFlyoutSurface(canvas, bounds, snapshot, cornerRadius, dp, paint)
+    // 1-4. Full optical flyout surface (incorporates dynamic M3 border in Material 3 mode)
+    val effectiveSnapshot = if (borderOverride != null) {
+        snapshot.copy(borderColorArgb = (borderOverride.toLong() and 0xFFFFFFFFL))
+    } else {
+        snapshot
+    }
+    drawDeckThemedFlyoutSurface(canvas, bounds, effectiveSnapshot, cornerRadius, dp, paint)
 
     // Tab strip at top
     val tabRowBottom = bounds.top + actualRowH
@@ -241,7 +281,7 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
     }
 
     if (editModeTab == EditModeTab.PAGE) {
-        drawEditModeCategoryRows(canvas, paint, bounds, snapshot, actualRowH, tabRowBottom, numCategories, dp)
+        drawEditModeCategoryRows(canvas, paint, bounds, effectiveSnapshot, actualRowH, tabRowBottom, numCategories, dp)
     } else {
         // HUD Options tab
         val dp = resources.displayMetrics.density
@@ -302,8 +342,42 @@ internal fun LightspeedCruiseOverlay.drawEditModePanel(canvas: Canvas, paint: Pa
         val gearNoteText = if (isGearLeft) "Pinned-page settings gear anchored at top-left corner." else "Pinned-page settings gear anchored at top-right corner."
         canvas.drawText(gearNoteText, bounds.left + 12f * dp, gearNoteY, paint)
 
+        // Color Engine section (second option)
+        val colorSectionY = gearNoteY + (22f * dp)
+        paint.style = Paint.Style.FILL
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = 10f * dp
+        paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+        paint.color = Color.argb(220, 200, 220, 255)
+        canvas.drawText("COLOR ENGINE", bounds.left + 12f * dp, colorSectionY, paint)
+
+        val currentColorMode = categoryColorMode()
+        val colorPillY = colorSectionY + (10f * dp)
+        val colorCount = CATEGORY_COLOR_ENGINE_OPTIONS.size
+        val colorPillW = (bounds.width() - (margin * 2f) - pillSpacing * (colorCount - 1)) / colorCount
+        for (i in 0 until colorCount) {
+            val (value, label) = CATEGORY_COLOR_ENGINE_OPTIONS[i]
+            val isSelected = (currentColorMode == value)
+            val pLeft = bounds.left + margin + (i * (colorPillW + pillSpacing))
+            val pRect = RectF(pLeft, colorPillY, pLeft + colorPillW, colorPillY + gearPillH)
+            paint.style = Paint.Style.FILL
+            paint.color = if (isSelected) Color.argb(180, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor)) else Color.argb(35, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1f * dp
+            paint.color = if (isSelected) tintColor else Color.argb(60, 255, 255, 255)
+            canvas.drawRoundRect(pRect, 6f * dp, 6f * dp, paint)
+            paint.style = Paint.Style.FILL
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = 7.5f * dp
+            paint.typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+            paint.color = if (isSelected) Color.WHITE else 0xFFE2E8F0.toInt()
+            val pfm = paint.fontMetrics
+            canvas.drawText(label, pRect.centerX(), pRect.centerY() - ((pfm.descent + pfm.ascent) / 2f), paint)
+        }
+
         // Category Cruise name spacing section
-        val spacingSectionY = gearNoteY + (22f * dp)
+        val spacingSectionY = colorPillY + gearPillH + (22f * dp)
         paint.textSize = 10f * dp
         paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
         paint.color = Color.argb(220, 200, 220, 255)

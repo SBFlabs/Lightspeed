@@ -9,6 +9,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Straighten
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +30,8 @@ fun DeflectorPillStylingContent(
     context: Context,
     prefs: SharedPreferences,
     isLeft: Boolean,
+    isGeoExpanded: Boolean = false,
+    onGeoToggle: () -> Unit = {},
     onRefreshNeeded: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
@@ -106,20 +110,35 @@ fun DeflectorPillStylingContent(
         val landscapeMode = prefs.getString(LightspeedPreferences.KEY_DEFLECTOR_LANDSCAPE_MODE, LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM) ?: LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM
         val isCustomLandscape = landscapeMode == LightspeedPreferences.DEFLECTOR_LANDSCAPE_MODE_CUSTOM
 
-        if (isLandscape && isCustomLandscape) {
-            val defaultLandscapeH = (prefs.getInt("${prefix}_height", 70) * 0.45f).toInt().coerceAtLeast(30)
-            val defaultLandscapeY = (prefs.getInt("${prefix}_y_offset", 0) * 0.5f).toInt()
-            PrefDottedSliderRow(context, prefs, "${prefix}_height_landscape", "", "Deflector Span (Height) [Landscape]", 30, 800, 10, defaultLandscapeH)
-            PrefDottedSliderRow(context, prefs, "${prefix}_touch_width", "", "Touch Vector Reach", 0, 100, 1, 10)
-            PrefDottedSliderRow(context, prefs, "${prefix}_y_offset_landscape", "", "Deflector Alignment Offset [Landscape]", -300, 300, 10, defaultLandscapeY)
-            PrefDottedSliderRow(context, prefs, "${prefix}_x_offset", "", "Distance From Screen Edge", 0, 100, 1, 0)
-            PrefDottedSliderRow(context, prefs, "${prefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 35)
-        } else {
-            PrefDottedSliderRow(context, prefs, "${prefix}_height", "", "Deflector Span (Height)", 50, 1000, 10, 70)
-            PrefDottedSliderRow(context, prefs, "${prefix}_touch_width", "", "Touch Vector Reach", 0, 100, 1, 10)
-            PrefDottedSliderRow(context, prefs, "${prefix}_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
-            PrefDottedSliderRow(context, prefs, "${prefix}_x_offset", "", "Distance From Screen Edge", 0, 100, 1, 0)
-            PrefDottedSliderRow(context, prefs, "${prefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 35)
+        CollapsibleSubSection(
+            title = "Sensor Geometry",
+            subtitle = "Span, touch reach, alignment & stealth glow",
+            icon = {
+                Icon(
+                    imageVector = Icons.Outlined.Straighten,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            isExpanded = isGeoExpanded,
+            onToggle = onGeoToggle
+        ) {
+            if (isLandscape && isCustomLandscape) {
+                val defaultLandscapeH = (prefs.getInt("${prefix}_height", 70) * 0.45f).toInt().coerceAtLeast(30)
+                val defaultLandscapeY = (prefs.getInt("${prefix}_y_offset", 0) * 0.5f).toInt()
+                PrefDottedSliderRow(context, prefs, "${prefix}_height_landscape", "", "Deflector Span (Height) [Landscape]", 30, 800, 10, defaultLandscapeH)
+                PrefDottedSliderRow(context, prefs, "${prefix}_touch_width", "", "Touch Vector Reach", 0, 100, 1, 10)
+                PrefDottedSliderRow(context, prefs, "${prefix}_y_offset_landscape", "", "Deflector Alignment Offset [Landscape]", -300, 300, 10, defaultLandscapeY)
+                PrefDottedSliderRow(context, prefs, "${prefix}_x_offset", "", "Distance From Screen Edge", 0, 100, 1, 0)
+                PrefDottedSliderRow(context, prefs, "${prefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 35)
+            } else {
+                PrefDottedSliderRow(context, prefs, "${prefix}_height", "", "Deflector Span (Height)", 50, 1000, 10, 70)
+                PrefDottedSliderRow(context, prefs, "${prefix}_touch_width", "", "Touch Vector Reach", 0, 100, 1, 10)
+                PrefDottedSliderRow(context, prefs, "${prefix}_y_offset", "", "Deflector Alignment Offset", -300, 300, 10, 0)
+                PrefDottedSliderRow(context, prefs, "${prefix}_x_offset", "", "Distance From Screen Edge", 0, 100, 1, 0)
+                PrefDottedSliderRow(context, prefs, "${prefix}_transparency", "", "Stealth Idle Glow", 0, 100, 5, 35)
+            }
         }
 
         if (glowEnabled) {

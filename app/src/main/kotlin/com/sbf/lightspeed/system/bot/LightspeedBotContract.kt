@@ -35,6 +35,11 @@ object LightspeedBotContract {
     const val KEY_BOT_TRACKPAD_ARMS_RIGHT = "pref_bot_trackpad_arms_right" // 1..3 (default 3)
     const val KEY_BOT_TRACKPAD_STYLE_LEFT = "pref_bot_trackpad_style_left" // style id
     const val KEY_BOT_TRACKPAD_STYLE_RIGHT = "pref_bot_trackpad_style_right" // style id
+    const val KEY_BOT_TRACKPAD_COLOR_MODE_LEFT = "pref_bot_trackpad_color_mode_left" // "theme_12", "m3_dynamic", "hybrid_fusion"
+    const val KEY_BOT_TRACKPAD_COLOR_MODE_RIGHT = "pref_bot_trackpad_color_mode_right" // "theme_12", "m3_dynamic", "hybrid_fusion"
+    const val COLOR_MODE_THEME_12 = "theme_12"
+    const val COLOR_MODE_M3_DYNAMIC = "m3_dynamic"
+    const val COLOR_MODE_HYBRID_FUSION = "hybrid_fusion"
     const val KEY_BOT_TRACKPAD_ORIENTATION_LEFT = "pref_bot_trackpad_orientation_left" // "arc" or "edge"
     const val KEY_BOT_TRACKPAD_ORIENTATION_RIGHT = "pref_bot_trackpad_orientation_right" // "arc" or "edge"
     const val KEY_BOT_TRACKPAD_RADIUS_LEFT = "pref_bot_trackpad_radius_left" // 50..110 dp (default 72)

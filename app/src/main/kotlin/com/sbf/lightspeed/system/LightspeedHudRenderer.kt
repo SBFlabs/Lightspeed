@@ -94,10 +94,11 @@ object LightspeedHudRenderer {
         d: Float,
         withSpecularShimmer: Boolean = true,
         rimWidth: Float = 1.4f,
-        useCentralTheme: Boolean = true
+        useCentralTheme: Boolean = true,
+        colorMode: String = if (useCentralTheme) LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 else LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
     ): Path {
-        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
-        val finalChamfer = if (useCentralTheme) spec.cornerRadiusPx else chamfer
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d, colorMode)
+        val finalChamfer = if (spec.isCentralTheme) spec.cornerRadiusPx else chamfer
         val path = createChamferedPath(rect, finalChamfer)
 
         // Outer Glow (Central Command Engine)
@@ -204,7 +205,8 @@ object LightspeedHudRenderer {
         primaryColor: Int,
         density: Float,
         isLeftFlank: Boolean = false,
-        useCentralTheme: Boolean = true
+        useCentralTheme: Boolean = true,
+        colorMode: String = if (useCentralTheme) LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 else LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
     ) {
         headerTextPaint.textAlign = Paint.Align.CENTER
         valueTextPaint.textAlign = Paint.Align.CENTER
@@ -212,19 +214,19 @@ object LightspeedHudRenderer {
 
         when (style) {
             "cockpit_reticle" -> LightspeedHudReticleRenderer.drawCockpitReticle(
-                canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, useCentralTheme
+                canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, useCentralTheme, colorMode
             )
             "edge_blade" -> LightspeedHudBladeRenderer.drawEdgeBlade(
-                canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, isLeftFlank, useCentralTheme
+                canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, isLeftFlank, useCentralTheme, colorMode
             )
             "quantum_horizon" -> LightspeedHudHorizonRenderer.drawQuantumHorizon(
-                canvas, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme
+                canvas, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme, colorMode
             )
             "tachyon_dial" -> LightspeedHudDialRenderer.drawTachyonDial(
-                canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, useCentralTheme
+                canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, useCentralTheme, colorMode
             )
             else -> drawCanopyDropPod(
-                canvas, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme
+                canvas, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme, colorMode
             )
         }
     }
@@ -239,9 +241,10 @@ object LightspeedHudRenderer {
         topY: Float,
         primaryColor: Int,
         d: Float,
-        useCentralTheme: Boolean = true
+        useCentralTheme: Boolean = true,
+        colorMode: String = if (useCentralTheme) LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 else LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
     ) {
-        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d, colorMode)
         val hasGauge = totalSteps > 0 && stepIndex >= 0
         val cardW = 316f * d
         val cardH = if (hasGauge) 86f * d else 64f * d
@@ -249,7 +252,7 @@ object LightspeedHudRenderer {
         canopyCardRect.set(cx - cardW / 2f, topY, cx + cardW / 2f, topY + cardH)
         val rect = canopyCardRect
         resetSharedPaints()
-        drawGlassCard(canvas, rect, chamfer, primaryColor, d, withSpecularShimmer = true, useCentralTheme = useCentralTheme)
+        drawGlassCard(canvas, rect, chamfer, primaryColor, d, withSpecularShimmer = true, useCentralTheme = useCentralTheme, colorMode = colorMode)
 
         val tR = Color.red(spec.tintColor)
         val tG = Color.green(spec.tintColor)

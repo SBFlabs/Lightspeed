@@ -236,15 +236,52 @@ fun GestureMappingRow(
                 }
             }
 
-            // Line 3: Dedicated Action Chips & Dropdowns (Horizontally scrollable with compact chip styling)
+            // Line 3: Dedicated Action Chips & Dropdowns (2-row layout for Scrub actions, compact horizontal scroll otherwise)
             if (hasControls) {
+                val contextualGestureChips: @Composable RowScope.() -> Unit = {
+                    if (isHold) {
+                        GestureHoldDurationControl(context, prefs, key, activeSnapshot, opticalColors, readableTint)
+                    }
+                    if (isOrientationAction) {
+                        GestureOrientationModeControl(context, currentRawValue, activeSnapshot)
+                    }
+                    if (isMethodAction) {
+                        GestureActionMethodControl(context, currentRawValue, activeSnapshot, opticalColors, readableTint)
+                    }
+                    if (gravityBucket != null) {
+                        GestureGravityAppControl(context, prefs, gravityBucket, activeSnapshot)
+                    }
+                    if (showMediaQuickAccess) {
+                        GestureMediaQuickAccessControl(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
+                    }
+                    if (showToolsQuickAccess && installedTools.isNotEmpty()) {
+                        GestureToolsQuickAccessControl(context, prefs, key, currentRawValue, installedTools, { currentRawValue = it }, activeSnapshot)
+                    }
+                    if (showBottomSensorQuickAccess) {
+                        GestureBottomSensorSubChips(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
+                    }
+                }
+
                 if (currentRawValue == "system:brightness") {
                     Box(modifier = Modifier.padding(top = 6.dp)) {
-                        GestureBrightnessDualRowControls(context, prefs, key, currentRawValue, activeSnapshot, opticalColors, readableTint)
+                        GestureBrightnessDualRowControls(
+                            context, prefs, key, currentRawValue, activeSnapshot, opticalColors, readableTint,
+                            extraRow1Content = contextualGestureChips
+                        )
                     }
                 } else if (currentRawValue == "system:volume") {
                     Box(modifier = Modifier.padding(top = 6.dp)) {
-                        GestureVolumeDualRowControls(context, prefs, key, currentRawValue, activeSnapshot, opticalColors, readableTint)
+                        GestureVolumeDualRowControls(
+                            context, prefs, key, currentRawValue, activeSnapshot, opticalColors, readableTint,
+                            extraRow1Content = contextualGestureChips
+                        )
+                    }
+                } else if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:scroll_scrub") {
+                    Box(modifier = Modifier.padding(top = 6.dp)) {
+                        GestureGenericScrubDualRowControls(
+                            context, prefs, key, currentRawValue, activeSnapshot, readableTint,
+                            extraRow1Content = contextualGestureChips
+                        )
                     }
                 } else {
                     Row(
@@ -255,47 +292,7 @@ fun GestureMappingRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Hold Duration Customization Chip
-                        if (isHold) {
-                            GestureHoldDurationControl(context, prefs, key, activeSnapshot, opticalColors, readableTint)
-                        }
-
-                        // Synthetic Gravity Mode Sub-Chip
-                        if (isOrientationAction) {
-                            GestureOrientationModeControl(context, currentRawValue, activeSnapshot)
-                        }
-
-                        // Action Method Sub-Chip (Split Screen / Close App / Scroll)
-                        if (isMethodAction) {
-                            GestureActionMethodControl(context, currentRawValue, activeSnapshot, opticalColors, readableTint)
-                        }
-
-                        // Synthetic Gravity Assigned Apps Chip
-                        if (gravityBucket != null) {
-                            GestureGravityAppControl(context, prefs, gravityBucket, activeSnapshot)
-                        }
-
-                        // Quick Media Actions Dropdown Menu
-                        if (showMediaQuickAccess) {
-                            GestureMediaQuickAccessControl(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
-                        }
-
-                        // Quick Actions Dropdown Menu (Tactical Tools / Shortcuts)
-                        if (showToolsQuickAccess && installedTools.isNotEmpty()) {
-                            GestureToolsQuickAccessControl(context, prefs, key, currentRawValue, installedTools, { currentRawValue = it }, activeSnapshot)
-                        }
-
-                        // Bottom Sensor Area Quick Access Chips
-                        if (showBottomSensorQuickAccess) {
-                            GestureBottomSensorSubChips(context, prefs, key, currentRawValue, { currentRawValue = it }, activeSnapshot)
-                        }
-
-                        // HUD Style & Controls for Screen Timeout / Scroll Scrub
-                        if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:scroll_scrub") {
-                            GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
-                            GestureHudThemeToggleChip(prefs, activeSnapshot)
-                            GestureScrubHapticsSelector(context, prefs, activeSnapshot, readableTint)
-                        }
+                        contextualGestureChips()
 
                         // Skip Duration Selector for Media Skip Actions
                         if (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward") {

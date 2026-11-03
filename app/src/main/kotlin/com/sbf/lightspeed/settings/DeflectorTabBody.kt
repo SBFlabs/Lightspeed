@@ -56,6 +56,7 @@ fun DeflectorTabBody(
     var showUnifyTemplateDialog by showUnifyTemplateDialogState
 
     var isCenterExpanded by isCenterExpandedState
+    var isCenterGeoExpanded by isCenterGeoExpandedState
     var isUnifiedExpanded by isUnifiedExpandedState
     var isUnifiedGeoExpanded by isUnifiedGeoExpandedState
     var isUnifiedGesturesExpanded by isUnifiedGesturesExpandedState
@@ -281,6 +282,7 @@ fun DeflectorTabBody(
                 topSecId = topSecId,
                 bottomSecId = bottomSecId,
                 isCenterExpanded = isCenterExpanded,
+                isCenterGeoExpanded = isCenterGeoExpanded,
                 isUnifiedExpanded = isUnifiedExpanded,
                 isTopExpanded = isTopExpanded,
                 isBottomExpanded = isBottomExpanded,
@@ -296,6 +298,7 @@ fun DeflectorTabBody(
                 prefs = prefs,
                 toggleSection = toggleSection,
                 onSetCenterExpanded = { isCenterExpanded = it },
+                onSetCenterGeoExpanded = { isCenterGeoExpanded = it },
                 onSetUnifiedExpanded = { isUnifiedExpanded = it },
                 onSetTopExpanded = { isTopExpanded = it },
                 onSetBottomExpanded = { isBottomExpanded = it },

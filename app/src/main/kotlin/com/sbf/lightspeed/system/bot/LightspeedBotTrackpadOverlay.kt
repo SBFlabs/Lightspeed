@@ -13,6 +13,7 @@ import android.view.*
 import android.widget.Toast
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 import com.sbf.lightspeed.system.*
 import com.sbf.lightspeed.system.display.createFullDisplayOverlayParams
 import kotlin.math.*
@@ -34,6 +35,83 @@ object LightspeedBotTrackpadOverlay {
     var cursorX = 540f
     var cursorY = 1100f
     var isCursorActive = false
+    var activeFlankIsLeft = false
+    var isDomeHoldActive = false
+    @Volatile
+    var isInjectingPassThrough = false
+        private set
+
+    private val restoreTouchabilityRunnable = Runnable {
+        setFlankPassThroughTouchable(false)
+    }
+
+    private fun isPointInViewScreenBounds(view: View?, rawX: Float, rawY: Float): Boolean {
+        val v = view ?: return false
+        if (!v.isAttachedToWindow || v.visibility != View.VISIBLE || v.width <= 0 || v.height <= 0) return false
+        val loc = IntArray(2)
+        v.getLocationOnScreen(loc)
+        val left = loc[0].toFloat() - 8f
+        val top = loc[1].toFloat() - 8f
+        val right = left + v.width + 16f
+        val bottom = top + v.height + 16f
+        return rawX in left..right && rawY in top..bottom
+    }
+
+    fun isPointOverTrackpadWindow(rawX: Float, rawY: Float): Boolean {
+        return isPointInViewScreenBounds(leftFlankView, rawX, rawY) ||
+            isPointInViewScreenBounds(rightFlankView, rawX, rawY)
+    }
+
+    private fun setFlankPassThroughTouchable(passThrough: Boolean) {
+        isInjectingPassThrough = passThrough
+        val wm = windowManager ?: return
+        leftFlankView?.let { v ->
+            if (v.isAttachedToWindow) {
+                try { wm.updateViewLayout(v, v.createLayoutParams(passThrough)) } catch (_: Exception) {}
+            }
+        }
+        rightFlankView?.let { v ->
+            if (v.isAttachedToWindow) {
+                try { wm.updateViewLayout(v, v.createLayoutParams(passThrough)) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    /**
+     * Temporarily makes trackpad overlay windows pass-through (FLAG_NOT_TOUCHABLE) so injected
+     * cursor taps, long-presses, and swipes pass straight through to the app underneath without
+     * ever triggering TrackpadFlankView in a loop.
+     */
+    fun performWithPassThrough(
+        x: Float,
+        y: Float,
+        endX: Float = x,
+        endY: Float = y,
+        holdMs: Long = 90L,
+        action: () -> Unit
+    ) {
+        mainHandler.post {
+            mainHandler.removeCallbacks(restoreTouchabilityRunnable)
+            val overlapsTrackpad = isPointOverTrackpadWindow(x, y) || isPointOverTrackpadWindow(endX, endY)
+            setFlankPassThroughTouchable(true)
+            val preDelayMs = if (overlapsTrackpad) 28L else 0L
+            if (preDelayMs > 0L) {
+                mainHandler.postDelayed({
+                    try {
+                        action()
+                    } finally {
+                        mainHandler.postDelayed(restoreTouchabilityRunnable, holdMs.coerceAtLeast(60L))
+                    }
+                }, preDelayMs)
+            } else {
+                try {
+                    action()
+                } finally {
+                    mainHandler.postDelayed(restoreTouchabilityRunnable, holdMs.coerceAtLeast(60L))
+                }
+            }
+        }
+    }
 
     private var cursorCanvasView: View? = null
     private var leftFlankView: TrackpadFlankView? = null
@@ -222,6 +300,13 @@ object LightspeedBotTrackpadOverlay {
             super.onDraw(canvas)
             if (!isCursorActive) return
             val cursorShape = prefs.getString(LightspeedBotContract.KEY_BOT_CURSOR_SHAPE, "crosshair") ?: "crosshair"
+            val colorModeKey = if (activeFlankIsLeft) {
+                LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_LEFT
+            } else {
+                LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_RIGHT
+            }
+            val colorMode = prefs.getString(colorModeKey, LightspeedBotContract.COLOR_MODE_HYBRID_FUSION)
+                ?: LightspeedBotContract.COLOR_MODE_HYBRID_FUSION
             LightspeedBotTrackpadDraw.drawTacticalCursor(
                 canvas = canvas,
                 cursorX = cursorX,
@@ -230,7 +315,10 @@ object LightspeedBotTrackpadOverlay {
                 loopCount = LightspeedBotEngine.loopIterationCount,
                 theme = DeckThemeManager.getSnapshot(context),
                 density = resources.displayMetrics.density,
-                cursorShape = cursorShape
+                cursorShape = cursorShape,
+                context = context,
+                colorMode = colorMode,
+                isHoldActive = isDomeHoldActive
             )
         }
     }
@@ -240,7 +328,8 @@ object LightspeedBotTrackpadOverlay {
         private val prefs = context.defaultPrefs()
         private val density = resources.displayMetrics.density
 
-        private var isDeployed = false
+        internal var isDeployed = false
+            private set
         private var deployProgress = 0f
         private var deployedOnThisTouch = false
         private var touchDownUptime = 0L
@@ -256,7 +345,7 @@ object LightspeedBotTrackpadOverlay {
         private var pendingTapArm: Int? = null
         private var pendingTapUptime = 0L
 
-        private var domeLongPressFired = false
+        private var domeHoldEngaged = false
         private var isDragging = false
         private var isDragCandidate = false
         private var dragStartX = 0f
@@ -281,12 +370,13 @@ object LightspeedBotTrackpadOverlay {
 
         private val domeHoldRunnable = Runnable {
             if (hoveredArm == null && isDeployed) {
-                domeLongPressFired = true
-                LightspeedHapticEngine.heavyClick(context)
-                LightspeedBotEngine.injectLongPressOrDispatch(context, cursorX, cursorY, 650L)
-                isDragging = true
+                domeHoldEngaged = true
+                isDomeHoldActive = true
                 dragStartX = cursorX
                 dragStartY = cursorY
+                LightspeedHapticEngine.heavyClick(context)
+                invalidate()
+                invalidateCursor()
             }
         }
 
@@ -328,12 +418,18 @@ object LightspeedBotTrackpadOverlay {
             return prefs.getString(key, "classic_arc") ?: "classic_arc"
         }
 
+        private fun getColorMode(): String {
+            val key = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_COLOR_MODE_RIGHT
+            return prefs.getString(key, LightspeedBotContract.COLOR_MODE_HYBRID_FUSION)
+                ?: LightspeedBotContract.COLOR_MODE_HYBRID_FUSION
+        }
+
         private fun getOrientation(): String {
             val key = if (isLeft) LightspeedBotContract.KEY_BOT_TRACKPAD_ORIENTATION_LEFT else LightspeedBotContract.KEY_BOT_TRACKPAD_ORIENTATION_RIGHT
             return prefs.getString(key, "arc") ?: "arc"
         }
 
-        fun createLayoutParams(): WindowManager.LayoutParams {
+        fun createLayoutParams(passThrough: Boolean = isInjectingPassThrough): WindowManager.LayoutParams {
             val dm = resources.displayMetrics
             val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             val landscapeMode = prefs.getString(
@@ -381,7 +477,8 @@ object LightspeedBotTrackpadOverlay {
                 (dm.heightPixels - totalRadiusPx).coerceAtLeast(dm.heightPixels / 2f)
             )
 
-            val w = if (isDeployed) ((dpadRadiusDp + armReachDp + 44f) * density).toInt() else (touchWidthDp * density).toInt()
+            val edgeExtraDp = if (getOrientation() == "edge") 44f else 0f
+            val w = if (isDeployed) ((dpadRadiusDp + armReachDp + 44f + edgeExtraDp) * density).toInt() else (touchWidthDp * density).toInt()
             val h = if (isDeployed) (totalRadiusPx * 2f).toInt() else triggerH
             val yPos = if (isDeployed) {
                 (safeDpadCenterY - totalRadiusPx).toInt().coerceAtLeast(0)
@@ -389,9 +486,12 @@ object LightspeedBotTrackpadOverlay {
                 ((dm.heightPixels * (posY / 100f)) - (triggerH / 2f)).toInt().coerceIn(0, (dm.heightPixels - triggerH).coerceAtLeast(0))
             }
 
+            val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            val finalFlags = if (passThrough) (baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) else baseFlags
+
             return WindowManager.LayoutParams(
                 w, h, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                finalFlags,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or (if (isLeft) Gravity.START else Gravity.END)
@@ -403,6 +503,7 @@ object LightspeedBotTrackpadOverlay {
         }
 
         private fun deploy() {
+            activeFlankIsLeft = isLeft
             if (isDeployed) return
             isDeployed = true; isCursorActive = true; deployProgress = 1f
             mainHandler.removeCallbacks(lingerRunnable)
@@ -421,6 +522,7 @@ object LightspeedBotTrackpadOverlay {
 
         internal fun extendLingerIfDeployed() {
             if (isDeployed) {
+                activeFlankIsLeft = isLeft
                 isCursorActive = true
                 armLingerTimer()
                 invalidate()
@@ -431,7 +533,18 @@ object LightspeedBotTrackpadOverlay {
         private fun retract() {
             if (!isDeployed) return
             mainHandler.removeCallbacks(armHoldRunnable)
-            isDeployed = false; isCursorActive = false; deployProgress = 0f; hoveredArm = null; isSecondPressEdit = false
+            mainHandler.removeCallbacks(domeHoldRunnable)
+            isDeployed = false; deployProgress = 0f; hoveredArm = null; isSecondPressEdit = false
+            domeHoldEngaged = false
+            isDomeHoldActive = false
+            // Keep the shared cursor alive if the opposite flank is still deployed.
+            val other = if (isLeft) rightFlankView else leftFlankView
+            if (other != null && other.isDeployed) {
+                activeFlankIsLeft = other.isLeft
+                isCursorActive = true
+            } else {
+                isCursorActive = false
+            }
             if (isAttachedToWindow) {
                 try {
                     windowManager?.updateViewLayout(this, createLayoutParams())
@@ -450,6 +563,11 @@ object LightspeedBotTrackpadOverlay {
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouchEvent(event: MotionEvent): Boolean {
+            // Ignore synthetic injected touch events (from cursor tap/swipe/loop or Shizuku IInputManager)
+            // so the cursor never triggers the trackpad dome in a self-tapping loop.
+            if (isInjectingPassThrough || event.deviceId <= 0) {
+                return false
+            }
             val now = SystemClock.uptimeMillis()
             val wF = width.toFloat()
             val centerY = height / 2f
@@ -464,10 +582,13 @@ object LightspeedBotTrackpadOverlay {
                     downRawX = event.rawX; downRawY = event.rawY
                     lastTouchX = event.rawX; lastTouchY = event.rawY
                     holdFiredForCurrentTouch = false
-                    domeLongPressFired = false
+                    domeHoldEngaged = false
+                    isDomeHoldActive = false
                     isSecondPressEdit = false
                     isDragging = false
                     isDragCandidate = false
+                    dragStartX = cursorX
+                    dragStartY = cursorY
                     mainHandler.removeCallbacks(lingerRunnable)
                     mainHandler.removeCallbacks(armHoldRunnable)
                     mainHandler.removeCallbacks(domeHoldRunnable)
@@ -495,10 +616,8 @@ object LightspeedBotTrackpadOverlay {
                             val isDoubleTapCandidate = (now - lastDomeTapUpUptime) <= 350L
                             if (isDoubleTapCandidate) {
                                 isDragCandidate = true
-                                dragStartX = cursorX
-                                dragStartY = cursorY
                             }
-                            mainHandler.postDelayed(domeHoldRunnable, 450L)
+                            mainHandler.postDelayed(domeHoldRunnable, 420L)
                         }
                         invalidate()
                     }
@@ -521,10 +640,10 @@ object LightspeedBotTrackpadOverlay {
                             isSecondPressEdit = false
                         }
                         if (hoveredArm == null) {
-                            if (totalMove > (12f * density) && !domeLongPressFired) {
+                            if (!domeHoldEngaged && totalMove > (14f * density)) {
                                 mainHandler.removeCallbacks(domeHoldRunnable)
                             }
-                            if (isDragCandidate && totalMove > (8f * density)) {
+                            if ((domeHoldEngaged || isDragCandidate) && totalMove > (8f * density)) {
                                 isDragging = true
                             }
                             if (!holdFiredForCurrentTouch) {
@@ -563,26 +682,41 @@ object LightspeedBotTrackpadOverlay {
                                 }
                             } else if (arm == null) {
                                 if (isDragging) {
-                                    // Drag & Move finished
+                                    // Long tap and drag (or double-tap drag) finished!
                                     val dragDist = hypot((cursorX - dragStartX).toDouble(), (cursorY - dragStartY).toDouble()).toFloat()
                                     if (dragDist > (10f * density)) {
                                         LightspeedHapticEngine.click(context)
-                                        val swipeDuration = (now - touchDownUptime).coerceIn(120L, 800L)
-                                        LightspeedBotEngine.injectSwipeOrDispatch(context, dragStartX, dragStartY, cursorX, cursorY, swipeDuration)
+                                        val swipeDuration = (now - touchDownUptime).coerceIn(200L, 800L)
+                                        if (domeHoldEngaged) {
+                                            // Long tap and drag = Hold and drag!
+                                            LightspeedBotEngine.injectHoldAndDragOrDispatch(context, dragStartX, dragStartY, cursorX, cursorY, swipeDuration)
+                                        } else {
+                                            // Double-tap drag = Quick swipe / drag
+                                            LightspeedBotEngine.injectSwipeOrDispatch(context, dragStartX, dragStartY, cursorX, cursorY, swipeDuration)
+                                        }
+                                    } else if (domeHoldEngaged) {
+                                        // Held long-press but drag distance was negligible -> execute Long Tap
+                                        LightspeedHapticEngine.click(context)
+                                        LightspeedBotEngine.injectLongPressOrDispatch(context, cursorX, cursorY, 600L)
                                     }
                                     isDragging = false
                                     isDragCandidate = false
+                                    domeHoldEngaged = false
+                                    isDomeHoldActive = false
                                     lastDomeTapUpUptime = 0L
-                                } else if (domeLongPressFired) {
-                                    // Long press already injected on hold timer
-                                    domeLongPressFired = false
+                                } else if (domeHoldEngaged) {
+                                    // Long tap and then lift finger = Long Tap!
+                                    LightspeedHapticEngine.click(context)
+                                    LightspeedBotEngine.injectLongPressOrDispatch(context, cursorX, cursorY, 600L)
+                                    domeHoldEngaged = false
+                                    isDomeHoldActive = false
                                     lastDomeTapUpUptime = 0L
-                                } else if ((now - lastDomeTapUpUptime) <= 350L && totalMove <= (12f * density) && holdDuration < 280L) {
+                                } else if ((now - lastDomeTapUpUptime) <= 350L && totalMove <= (14f * density) && holdDuration < 400L) {
                                     // Double Tap on dome
                                     LightspeedHapticEngine.click(context)
                                     LightspeedBotEngine.injectDoubleTapOrDispatch(context, cursorX, cursorY)
                                     lastDomeTapUpUptime = 0L
-                                } else if (totalMove <= (12f * density) && holdDuration < 280L) {
+                                } else if (totalMove <= (14f * density) && holdDuration < 400L) {
                                     // Single Tap on dome
                                     LightspeedHapticEngine.click(context)
                                     LightspeedBotEngine.injectTapOrDispatch(context, cursorX, cursorY)
@@ -594,17 +728,19 @@ object LightspeedBotTrackpadOverlay {
                         isSecondPressEdit = false
                         isDragging = false
                         isDragCandidate = false
-                        domeLongPressFired = false
+                        domeHoldEngaged = false
+                        isDomeHoldActive = false
                         hoveredArm = null
-                        invalidate(); armLingerTimer()
+                        invalidate(); invalidateCursor(); armLingerTimer()
                     } else {
                         deployedOnThisTouch = false
                         isSecondPressEdit = false
                         isDragging = false
                         isDragCandidate = false
-                        domeLongPressFired = false
+                        domeHoldEngaged = false
+                        isDomeHoldActive = false
                         hoveredArm = null
-                        invalidate()
+                        invalidate(); invalidateCursor()
                     }
                     return true
                 }
@@ -627,20 +763,21 @@ object LightspeedBotTrackpadOverlay {
 
                 if (alphaFactor <= 0f && !preview) return
 
+                val palette = theme.resolveCanvasPalette(context, getColorMode())
                 val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
                 if (preview) {
                     p.style = android.graphics.Paint.Style.FILL
-                    p.color = theme.tintArgb.toInt()
+                    p.color = palette.primaryAccentArgb
                     p.alpha = ((140 * alphaFactor.coerceAtLeast(0.25f))).toInt().coerceIn(0, 255)
                     canvas.drawRoundRect(android.graphics.RectF(0f, 0f, wF, height.toFloat()), 4f * density, 4f * density, p)
                     p.style = android.graphics.Paint.Style.STROKE
                     p.strokeWidth = 2f * density
-                    p.color = theme.borderColorArgb.toInt()
+                    p.color = palette.borderArgb
                     p.alpha = ((240 * alphaFactor.coerceAtLeast(0.25f))).toInt().coerceIn(0, 255)
                     canvas.drawRoundRect(android.graphics.RectF(1f * density, 1f * density, wF - (1f * density), height.toFloat() - (1f * density)), 4f * density, 4f * density, p)
                 } else {
                     p.style = android.graphics.Paint.Style.FILL
-                    p.color = theme.borderColorArgb.toInt()
+                    p.color = palette.borderArgb
                     p.alpha = ((65 * alphaFactor)).toInt().coerceIn(0, 255)
                     val rect = if (isLeft) android.graphics.RectF(0f, 0f, 6f * density, height.toFloat())
                     else android.graphics.RectF(wF - (6f * density), 0f, wF, height.toFloat())
@@ -652,6 +789,7 @@ object LightspeedBotTrackpadOverlay {
             val radiusPx = getDpadRadiusPx()
             val armReachPx = getArmReachPx()
             val style = getStyle()
+            val colorMode = getColorMode()
             val orientation = getOrientation()
             val armCount = 3
 
@@ -674,7 +812,10 @@ object LightspeedBotTrackpadOverlay {
                 wF = wF, theme = theme, density = density,
                 alphaFactor = dpadAlphaFactor,
                 style = style,
-                orientation = orientation
+                orientation = orientation,
+                context = context,
+                colorMode = colorMode,
+                isHoldActive = domeHoldEngaged
             )
 
             LightspeedBotTrackpadDraw.drawRobotArms(
@@ -686,7 +827,9 @@ object LightspeedBotTrackpadOverlay {
                 wF = wF, theme = theme, density = density, armReachPx = armReachPx,
                 alphaFactor = armsAlphaFactor,
                 style = style,
-                orientation = orientation
+                orientation = orientation,
+                context = context,
+                colorMode = colorMode
             )
         }
     }

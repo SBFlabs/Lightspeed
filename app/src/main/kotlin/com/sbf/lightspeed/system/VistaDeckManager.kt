@@ -189,10 +189,27 @@ object VistaDeckManager {
         val prefs = service.defaultPrefs()
         var showAirlockPicker by remember { mutableStateOf(false) }
         var showMediaFilterPicker by remember { mutableStateOf(false) }
-        LaunchedEffect(showAirlockPicker, showMediaFilterPicker) {
-            updateWindowFocusable(showAirlockPicker || showMediaFilterPicker)
-        }
         var isBlueprintMode by remember { mutableStateOf(false) }
+        LaunchedEffect(showAirlockPicker, showMediaFilterPicker, isBlueprintMode) {
+            val focusable = showAirlockPicker || showMediaFilterPicker || isBlueprintMode
+            updateWindowFocusable(focusable)
+            if (focusable) {
+                composeView?.isFocusableInTouchMode = true
+                composeView?.requestFocus()
+                composeView?.setOnKeyListener { _, keyCode, event ->
+                    if (keyCode == android.view.KeyEvent.KEYCODE_BACK && event.action == android.view.KeyEvent.ACTION_UP) {
+                        when {
+                            showAirlockPicker -> { showAirlockPicker = false; true }
+                            showMediaFilterPicker -> { showMediaFilterPicker = false; true }
+                            isBlueprintMode -> { isBlueprintMode = false; true }
+                            else -> false
+                        }
+                    } else false
+                }
+            } else {
+                composeView?.setOnKeyListener(null)
+            }
+        }
         val tint = Color(snapshot.effectiveTintArgb.toInt())
 
         val defaultSections = listOf("brightness", "optics", "airlock")
@@ -213,9 +230,9 @@ object VistaDeckManager {
             mutableStateOf(prefs.getString("pref_vista_deck_pinned_section", "brightness") ?: "brightness")
         }
 
-        var isBrightnessExpanded by remember { mutableStateOf(prefs.getBoolean("pref_vista_sub_brightness_expanded", true)) }
-        var isOpticsExpanded by remember { mutableStateOf(prefs.getBoolean("pref_vista_sub_optics_expanded", true)) }
-        var isAirlockExpanded by remember { mutableStateOf(prefs.getBoolean("pref_vista_sub_airlock_expanded", true)) }
+        var isBrightnessExpanded by remember { mutableStateOf(pinnedSection == "brightness" || prefs.getBoolean("pref_vista_sub_brightness_expanded", true)) }
+        var isOpticsExpanded by remember { mutableStateOf(pinnedSection == "optics" || prefs.getBoolean("pref_vista_sub_optics_expanded", true)) }
+        var isAirlockExpanded by remember { mutableStateOf(pinnedSection == "airlock" || prefs.getBoolean("pref_vista_sub_airlock_expanded", true)) }
 
         Box(
             modifier = Modifier
@@ -294,6 +311,11 @@ object VistaDeckManager {
                                 onPinSection = { id ->
                                     pinnedSection = id
                                     prefs.edit().putString("pref_vista_deck_pinned_section", id).apply()
+                                    when (id) {
+                                        "brightness" -> { isBrightnessExpanded = true; prefs.edit().putBoolean("pref_vista_sub_brightness_expanded", true).apply() }
+                                        "optics" -> { isOpticsExpanded = true; prefs.edit().putBoolean("pref_vista_sub_optics_expanded", true).apply() }
+                                        "airlock" -> { isAirlockExpanded = true; prefs.edit().putBoolean("pref_vista_sub_airlock_expanded", true).apply() }
+                                    }
                                 },
                                 onExitBlueprint = { isBlueprintMode = false }
                             )

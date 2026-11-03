@@ -6,9 +6,10 @@ import android.content.pm.PackageManager
 import rikka.shizuku.Shizuku
 
 object ShizukuGate {
-    private const val PREF_NAME = "shizuku_gate"
-    private const val KEY_MODE = "mode"
-    private const val KEY_DENIED = "denied"
+    private const val LEGACY_PREF_NAME = "shizuku_gate"
+    private const val LEGACY_KEY_MODE = "mode"
+    const val KEY_SHIZUKU_GATE_MODE = "pref_shizuku_gate_mode"
+    const val KEY_SHIZUKU_GATE_DENIED = "pref_shizuku_gate_denied"
     const val MODE_UNSET = 0
     const val MODE_FULL = 1
     const val MODE_ACCESSIBILITY_ONLY = 2
@@ -25,15 +26,24 @@ object ShizukuGate {
 
     fun init(context: Context) {
         if (prefs == null) {
-            prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            val defaultPrefs = context.applicationContext.defaultPrefs()
+            if (!defaultPrefs.contains(KEY_SHIZUKU_GATE_MODE)) {
+                val legacy = context.applicationContext.getSharedPreferences(LEGACY_PREF_NAME, Context.MODE_PRIVATE)
+                if (legacy.contains(LEGACY_KEY_MODE)) {
+                    defaultPrefs.edit()
+                        .putInt(KEY_SHIZUKU_GATE_MODE, legacy.getInt(LEGACY_KEY_MODE, MODE_UNSET))
+                        .apply()
+                }
+            }
+            prefs = defaultPrefs
         }
     }
 
-    fun getMode(): Int = prefs?.getInt(KEY_MODE, MODE_UNSET) ?: MODE_UNSET
-    fun setMode(mode: Int) { prefs?.edit()?.putInt(KEY_MODE, mode)?.apply() }
+    fun getMode(): Int = prefs?.getInt(KEY_SHIZUKU_GATE_MODE, MODE_UNSET) ?: MODE_UNSET
+    fun setMode(mode: Int) { prefs?.edit()?.putInt(KEY_SHIZUKU_GATE_MODE, mode)?.apply() }
     fun isAccessibilityOnly(): Boolean = getMode() == MODE_ACCESSIBILITY_ONLY
-    private fun isDenied(): Boolean = prefs?.getBoolean(KEY_DENIED, false) ?: false
-    private fun setDenied(value: Boolean) { prefs?.edit()?.putBoolean(KEY_DENIED, value)?.apply() }
+    private fun isDenied(): Boolean = prefs?.getBoolean(KEY_SHIZUKU_GATE_DENIED, false) ?: false
+    private fun setDenied(value: Boolean) { prefs?.edit()?.putBoolean(KEY_SHIZUKU_GATE_DENIED, value)?.apply() }
 
     fun requestIfAllowed(): Boolean {
         if (getMode() == MODE_UNSET) return false

@@ -42,9 +42,10 @@ sealed class PickerRowItem {
         val token: String,
         val label: String,
         val isCustomizable: Boolean = false,
-        val isExpanded: Boolean = false
+        val isExpanded: Boolean = false,
+        val categoryKey: String = ""
     ) : PickerRowItem() {
-        override val key = "action_$token"
+        override val key = "action_${categoryKey}_$token"
     }
 
     data class SystemCustomizationOption(
@@ -203,7 +204,7 @@ fun buildFlatItemsList(
                 Triple(
                     "sys_scrub",
                     com.sbf.lightspeed.system.LightspeedLanguageEngine.resolvePair(com.sbf.lightspeed.system.LightspeedVocabulary.Key.GESTURE_SCRUBBERS),
-                    listOf("system:screen_timeout", "system:volume", "system:brightness")
+                    listOf("system:screen_timeout", "system:volume", "system:brightness", "system:media_scrubber")
                 )
             )
 
@@ -247,7 +248,7 @@ fun buildFlatItemsList(
                                     gravityBucket != null
                             val customKey = "customization:$token"
                             val isCustomExpanded = expandedSubsections.contains(customKey)
-                            list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded))
+                            list.add(PickerRowItem.SystemAction(token, labelCache[token] ?: token, isCustomizable, isCustomExpanded, catKey))
 
                             if (isCustomizable && isCustomExpanded) {
                                 if (com.sbf.lightspeed.system.ActionMethods.isMethodAction(token) && context != null) {

@@ -1,6 +1,5 @@
 package com.sbf.lightspeed.system.bot
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,14 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sbf.lightspeed.CockpitDialogActivity
 import com.sbf.lightspeed.settings.DeckButton
 import com.sbf.lightspeed.settings.DeckCard
 import com.sbf.lightspeed.settings.DeckDialog
 import com.sbf.lightspeed.settings.DeckSlider
 import com.sbf.lightspeed.settings.TrackpadPillButton
 import com.sbf.lightspeed.system.LightspeedHapticEngine
-import com.sbf.lightspeed.system.LightspeedInfinityManager
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
@@ -48,7 +45,6 @@ class BotMacroEditorDialog : ComponentActivity() {
             val lsColors = LightspeedStyle.colors
             val prefs = remember { defaultPrefs() }
             val buttonNumber = ((botId - 1) % 3) + 1
-            val isInfinityUnlocked = remember { LightspeedInfinityManager.isUnlocked(this@BotMacroEditorDialog) }
             val repeatPrefKey = remember { "${LightspeedBotContract.KEY_BOT_MACRO_REPEAT_PREFIX}$botId" }
             val useRecordedDelayPrefKey = remember { "${LightspeedBotContract.KEY_BOT_USE_RECORDED_DELAY_PREFIX}$botId" }
             val stepDelayMsPrefKey = remember { "${LightspeedBotContract.KEY_BOT_STEP_DELAY_MS_PREFIX}$botId" }
@@ -194,20 +190,12 @@ class BotMacroEditorDialog : ComponentActivity() {
                                     -1 to "∞ Loop"
                                 )
                                 for ((count, label) in repeatModes) {
-                                    val isLocked = (count != 1 && !isInfinityUnlocked)
                                     val isSelected = if (count == -1) isLooping else (repeatCount == count && !isLooping)
                                     TrackpadPillButton(
                                         text = label,
                                         isSelected = isSelected,
-                                        isLocked = isLocked,
                                         onClick = {
-                                            if (isLocked) {
-                                                LightspeedHapticEngine.triggerWarning(this@BotMacroEditorDialog)
-                                                startActivity(Intent(this@BotMacroEditorDialog, CockpitDialogActivity::class.java).apply {
-                                                    action = CockpitDialogActivity.ACTION_SHOW_INFINITY
-                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                                                })
-                                            } else {
+                                            run {
                                                 if (count == -1) {
                                                     if (LightspeedBotEngine.isLooping) {
                                                         LightspeedBotEngine.stopContinuousLoop()

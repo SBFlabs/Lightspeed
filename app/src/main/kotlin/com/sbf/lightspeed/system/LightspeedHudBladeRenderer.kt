@@ -44,9 +44,10 @@ object LightspeedHudBladeRenderer {
         primaryColor: Int,
         d: Float,
         isLeftFlank: Boolean,
-        useCentralTheme: Boolean = true
+        useCentralTheme: Boolean = true,
+        colorMode: String = if (useCentralTheme) LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12 else LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
     ) {
-        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d)
+        val spec = LightspeedHudThemeHelper.resolveSpec(useCentralTheme, primaryColor, d, colorMode)
         val hasGauge = totalSteps > 0 && stepIndex >= 0
         val cardW = 236f * d
         val cardH = 78f * d
@@ -59,7 +60,8 @@ object LightspeedHudBladeRenderer {
             canvas, rect, chamfer, primaryColor, d,
             withSpecularShimmer = false,
             rimWidth = 1.3f,
-            useCentralTheme = useCentralTheme
+            useCentralTheme = useCentralTheme,
+            colorMode = colorMode
         )
 
         val tR = Color.red(spec.tintColor)

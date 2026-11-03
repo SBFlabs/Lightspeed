@@ -259,9 +259,25 @@ object SonicDeckManager {
             mutableStateOf(prefs.getString("pref_sonic_deck_pinned_section", "mixer") ?: "mixer")
         }
 
-        var isMixerExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sonic_sub_mixer_expanded", true)) }
-        var isDialogueExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sonic_sub_dialogue_expanded", true)) }
-        var isStreamsExpanded by remember { mutableStateOf(prefs.getBoolean("pref_sonic_sub_streams_expanded", true)) }
+        var isMixerExpanded by remember { mutableStateOf(pinnedSection == "mixer" || prefs.getBoolean("pref_sonic_sub_mixer_expanded", true)) }
+        var isDialogueExpanded by remember { mutableStateOf(pinnedSection == "dialogue" || prefs.getBoolean("pref_sonic_sub_dialogue_expanded", true)) }
+        var isStreamsExpanded by remember { mutableStateOf(pinnedSection == "streams" || prefs.getBoolean("pref_sonic_sub_streams_expanded", true)) }
+
+        LaunchedEffect(isBlueprintMode) {
+            updateWindowFocusable(isBlueprintMode)
+            if (isBlueprintMode) {
+                composeView?.isFocusableInTouchMode = true
+                composeView?.requestFocus()
+                composeView?.setOnKeyListener { _, keyCode, event ->
+                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP && isBlueprintMode) {
+                        isBlueprintMode = false
+                        true
+                    } else false
+                }
+            } else {
+                composeView?.setOnKeyListener(null)
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -322,6 +338,11 @@ object SonicDeckManager {
                                 onPinSection = { id ->
                                     pinnedSection = id
                                     prefs.edit().putString("pref_sonic_deck_pinned_section", id).apply()
+                                    when (id) {
+                                        "mixer" -> { isMixerExpanded = true; prefs.edit().putBoolean("pref_sonic_sub_mixer_expanded", true).apply() }
+                                        "dialogue" -> { isDialogueExpanded = true; prefs.edit().putBoolean("pref_sonic_sub_dialogue_expanded", true).apply() }
+                                        "streams" -> { isStreamsExpanded = true; prefs.edit().putBoolean("pref_sonic_sub_streams_expanded", true).apply() }
+                                    }
                                 },
                                 onExitBlueprint = { isBlueprintMode = false }
                             )

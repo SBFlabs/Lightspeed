@@ -37,6 +37,7 @@ object LightspeedBackupEngine {
         LightspeedPreferences.KEY_STEALTH_CLOAK_TOKEN,
         LightspeedPreferences.KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN,
         LightspeedPreferences.KEY_ALLOW_EXTERNAL_AUTOMATION,
+        ShizukuGate.KEY_SHIZUKU_GATE_DENIED,
     )
 
     private val RESTRICTED_SYSTEM_STATE_KEYS = setOf(
@@ -51,6 +52,7 @@ object LightspeedBackupEngine {
     private fun isExcludedKey(key: String): Boolean =
         key.startsWith("pending_") ||
         key in TRANSIENT_KEYS ||
+        key in RESTRICTED_SYSTEM_STATE_KEYS ||
         key.startsWith("key_last_crash") ||
         key == "key_has_unreported_crash" ||
         key == "key_allow_external_automation" ||
@@ -431,6 +433,10 @@ object LightspeedBackupEngine {
                 LightspeedPreferences.refreshDeckGlassStyle(context)
                 LightspeedPreferences.refreshDeckBackdropStyle(context)
                 LightspeedPreferences.refreshLiquidGlassConfig(context)
+                LightspeedLanguageEngine.init(context)
+                com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.init(context)
+                com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay.init(context)
+                LightspeedBackTapEngine.reloadPreferences()
                 BackdropBlurModeManager.init(context)
                 DeckThemeManager.refresh(context)
                 LightspeedAccessibilityService.instance?.overlayView?.let { overlay ->
@@ -530,10 +536,21 @@ object LightspeedBackupEngine {
     fun resetToDefaults(context: Context) {
         val prefs = context.defaultPrefs()
         prefs.edit().clear().commit()
+        try {
+            java.io.File(context.filesDir, "shortcut_icons").deleteRecursively()
+        } catch (e: Exception) { logSwallowed(TAG, "resetToDefaults:icons", e) }
         LightspeedPreferences.initializeDefaults(context)
         CockpitGearRepository.clearCache()
+        CockpitGimbalConfigCache.flush()
         LightspeedShortcutManager.clearMemoryCache()
         LightspeedIconManager.clearCache()
+        LightspeedPreferences.refreshDeckGlassStyle(context)
+        LightspeedPreferences.refreshDeckBackdropStyle(context)
+        LightspeedPreferences.refreshLiquidGlassConfig(context)
+        LightspeedLanguageEngine.init(context)
+        com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.init(context)
+        com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay.init(context)
+        LightspeedBackTapEngine.reloadPreferences()
         DeckThemeManager.refresh(context)
         BackdropBlurModeManager.init(context)
         LightspeedAccessibilityService.instance?.overlayView?.let { overlay ->
@@ -547,6 +564,7 @@ object LightspeedBackupEngine {
                 }
             }
         }
+        safeReloadPreferences()
         Log.i(TAG, "All preferences reset to default values")
     }
 

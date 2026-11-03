@@ -139,11 +139,13 @@ object LightspeedTimeoutEngine {
     }
 
     fun showTimeoutHud(context: Context, stepIndex: Int, label: String) {
+        val colorMode = LightspeedPreferences.resolveHudColorMode(context.defaultPrefs(), actionToken = "system:screen_timeout")
         val shown = LightspeedStatusBarOverlay.showActionHud(
             title = "SHIP GOES DARK IN",
             value = label,
             stepIndex = stepIndex,
-            totalSteps = TIMEOUT_STEPS.size
+            totalSteps = TIMEOUT_STEPS.size,
+            colorMode = colorMode
         )
         if (!shown) {
             Toast.makeText(context, "Ship goes dark in: $label", Toast.LENGTH_SHORT).show()

@@ -39,11 +39,13 @@ object ActionDispatcherSonicDisplay {
                     val max = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
                     val pct = kotlin.math.round(cur * 100f / max.coerceAtLeast(1)).toInt().coerceIn(0, 100)
                     val volResolution = LightspeedPreferences.getVolumeScrubResolution(context)
+                    val volColorMode = LightspeedPreferences.resolveHudColorMode(context.defaultPrefs(), actionToken = "system:volume")
                     LightspeedStatusBarOverlay.showActionHud(
                         title = "MEDIA VOLUME",
                         value = "$pct%",
                         stepIndex = (pct * volResolution / 100).coerceIn(0, volResolution),
-                        totalSteps = volResolution
+                        totalSteps = volResolution,
+                        colorMode = volColorMode
                     )
                 }
                 return true
@@ -56,11 +58,13 @@ object ActionDispatcherSonicDisplay {
                     try {
                         com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.setSystemBrightness(context, next)
                         if (LightspeedPreferences.isHudBrightnessEnabled(context)) {
+                            val brightColorMode = LightspeedPreferences.resolveHudColorMode(context.defaultPrefs(), actionToken = "system:brightness")
                             LightspeedStatusBarOverlay.showActionHud(
                                 title = "BRIGHTNESS",
                                 value = "${(next * 100 / 255)}%",
                                 stepIndex = (next * 10 / 255),
-                                totalSteps = 10
+                                totalSteps = 10,
+                                colorMode = brightColorMode
                             )
                         }
                     } catch (e: Exception) {

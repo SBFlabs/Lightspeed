@@ -14,7 +14,6 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.media.AudioManager
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -23,7 +22,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
-import android.view.accessibility.AccessibilityNodeInfo
 import com.sbf.lightspeed.system.ActionDispatcher
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedTimeoutEngine
@@ -702,7 +700,7 @@ class LightspeedLeftWingOverlay(
             val rightEffectiveZone = if (isRightUnified && isRightGestureUnified && (rightZone == "TOP" || rightZone == "BOTTOM")) "UNIFIED" else rightZone
             val key = if (isHold) "pref_macro_action_${rightEffectiveZone}_${rightGesture}_HOLD" else "pref_macro_action_${rightEffectiveZone}_$rightGesture"
             val explicit = prefs.getString(key, null)
-            val action = if (!explicit.isNullOrEmpty() && explicit != "none") explicit else com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(key)
+            val action = if (!explicit.isNullOrEmpty()) explicit else com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(key)
             return action to key
         } else {
             val gestureKey = if (isHold) "${gesture}_HOLD" else gesture
@@ -710,7 +708,7 @@ class LightspeedLeftWingOverlay(
             val dynamicZone = if (isFlankUnified && isGestureUnified && (zoneKey == "LEFT_TOP" || zoneKey == "LEFT_BOTTOM")) "LEFT_UNIFIED" else zoneKey
             val key = if (isHold) "pref_macro_action_${dynamicZone}_${gesture}_HOLD" else "pref_macro_action_${dynamicZone}_$gesture"
             val explicit = prefs.getString(key, null)
-            val action = if (!explicit.isNullOrEmpty() && explicit != "none") explicit else com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(key)
+            val action = if (!explicit.isNullOrEmpty()) explicit else com.sbf.lightspeed.settings.LightspeedActionRegistry.getDefaultActionForGestureKey(key)
             return action to key
         }
     }
@@ -725,13 +723,5 @@ class LightspeedLeftWingOverlay(
             return
         }
         ActionDispatcher.execute(service, actionKey)
-    }
-
-    private fun scrollToTop() {
-        com.sbf.lightspeed.system.LightspeedScrollHelper.scroll(service, toBottom = false)
-    }
-
-    private fun collectScrollableNodes(node: AccessibilityNodeInfo, list: MutableList<AccessibilityNodeInfo>) {
-        com.sbf.lightspeed.system.LightspeedScrollHelper.collectScrollableNodes(node, list, toBottom = false)
     }
 }

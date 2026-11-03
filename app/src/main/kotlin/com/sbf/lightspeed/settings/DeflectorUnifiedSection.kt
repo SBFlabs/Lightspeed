@@ -243,7 +243,7 @@ fun DeflectorUnifiedSection(
                                                 isHold = false,
                                                 keyResName = "pref_macro_action_${macroPrefix}TOP_SCRUBBING",
                                                 defaultTitle = "Upper · Inward Sweep",
-                                                options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout", "system:scroll_scrub"),
+                                                options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout", "system:scroll_scrub", "system:media_scrubber"),
                                                 labelCache = tokenLabelCache
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
@@ -254,7 +254,7 @@ fun DeflectorUnifiedSection(
                                                 isHold = false,
                                                 keyResName = "pref_macro_action_${macroPrefix}BOTTOM_SCRUBBING",
                                                 defaultTitle = "Lower · Inward Sweep",
-                                                options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout", "system:scroll_scrub"),
+                                                options = listOf("none", "system:volume", "system:brightness", "system:screen_timeout", "system:scroll_scrub", "system:media_scrubber"),
                                                 labelCache = tokenLabelCache
                                             )
                                             Spacer(modifier = Modifier.height(6.dp))
@@ -454,7 +454,7 @@ fun DeflectorUnifiedSection(
                                             isHold = false,
                                             keyResName = "pref_macro_action_${macroPrefix}TOP_SCRUBBING",
                                             defaultTitle = "Linked Inward Sweep (Scrubbing)",
-                                            options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout", "system:scroll_scrub"),
+                                            options = listOf("none", "system:brightness", "system:volume", "system:screen_timeout", "system:scroll_scrub", "system:media_scrubber"),
                                             labelCache = tokenLabelCache,
                                             showMooringRope = true,
                                             isMooringTied = true,

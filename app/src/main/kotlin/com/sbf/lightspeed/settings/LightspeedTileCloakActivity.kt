@@ -1,14 +1,11 @@
 package com.sbf.lightspeed.settings
 
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,8 +42,8 @@ import com.sbf.lightspeed.system.ElevatedTaskCloser
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedWatchdogEngine
-import com.sbf.lightspeed.system.ShellArgGuard
 import com.sbf.lightspeed.system.defaultPrefs
+import com.sbf.lightspeed.ui.theme.DeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
@@ -57,9 +53,8 @@ import com.sbf.lightspeed.ui.theme.LightspeedTokens
  *
  * Triggered by long-pressing the Lightspeed Master Quick Settings tile
  * (via android.service.quicksettings.action.QS_TILE_PREFERENCES).
- * Allows the user to select which installed Accessibility Services to automatically
- * cloak (disable) alongside Lightspeed to bypass banking app security blocks or
- * facilitate seamless Nightly/Stable switching.
+ * Allows the user to select which subsystems and installed Accessibility Services
+ * to automatically cloak (disable) alongside Lightspeed.
  */
 class LightspeedTileCloakActivity : ComponentActivity() {
 
@@ -68,40 +63,83 @@ class LightspeedTileCloakActivity : ComponentActivity() {
 
         setContent {
             LightspeedTheme(forceDark = true) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.65f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { finish() }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
+                DeckTheme {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(0.94f)
-                            .fillMaxHeight(0.85f)
-                            .widthIn(max = 440.dp)
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.65f))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = {}
-                            )
+                                onClick = { finish() }
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        DeckGlassCardSurface(
-                            modifier = Modifier.fillMaxSize()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.94f)
+                                .fillMaxHeight(0.86f)
+                                .widthIn(max = 440.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {}
+                                )
                         ) {
-                            CloakMatrixContent(
-                                context = this@LightspeedTileCloakActivity,
-                                onDismiss = { finish() }
-                            )
+                            DeckGlassCardSurface(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                CloakMatrixContent(
+                                    context = this@LightspeedTileCloakActivity,
+                                    onDismiss = { finish() }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CloakChecklistItem(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val lsColors = LightspeedStyle.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                text = title,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = lsColors.textPrimary
+            )
+            Text(
+                text = subtitle,
+                fontSize = 9.sp,
+                color = lsColors.textSecondary,
+                lineHeight = 12.sp
+            )
+        }
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = CheckboxDefaults.colors(
+                checkedColor = lsColors.accentWarn,
+                uncheckedColor = lsColors.textSecondary
+            )
+        )
     }
 }
 
@@ -116,9 +154,17 @@ private fun CloakMatrixContent(
     val a11yManager = remember { context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager }
     val isShizukuActive = ElevatedTaskCloser.isShizukuActive
 
+    var disableExtraDim by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EXTRA_DIM, true)) }
+    var disableEyeCare by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EYE_CARE, false)) }
+    var disableSmartPixels by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_SMART_PIXELS, true)) }
+    var suspendSonicDeck by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_SUSPEND_SONIC_DECK, true)) }
     var hideDevOptions by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, false)) }
     var hideUsbDebugging by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, false)) }
-    var isInterlocksExpanded by rememberSaveable { mutableStateOf(false) }
+    var stopShizuku by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_STOP_SHIZUKU, false)) }
+    var shizukuFork by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_CLOAK_SHIZUKU_FORK, "auto") ?: "auto") }
+    var toggleWatchdog by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_SHIZUKU_WATCHDOG_TOGGLE, true)) }
+    var shizukuToken by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN, "") ?: "") }
+    var isInterlocksExpanded by rememberSaveable { mutableStateOf(true) }
 
     var cloakedServicesSet by remember {
         mutableStateOf(LightspeedPreferences.getCloakedAccessibilityServices(context))
@@ -198,7 +244,7 @@ private fun CloakMatrixContent(
                         color = lsColors.textPrimary
                     )
                     Text(
-                        text = "Stealth Accessibility Coordination",
+                        text = "Single-Tap Cloak Checklist & Service Guard",
                         fontSize = 10.sp,
                         color = lsColors.textSecondary
                     )
@@ -289,24 +335,22 @@ private fun CloakMatrixContent(
             // 3. Explanatory Subtitle
             item {
                 Text(
-                    text = "Services selected below will be silently disabled together with Lightspeed when tapping the Master QS Tile, keeping banking and security apps completely clear of accessibility flags. Native back gestures restore to 1.0 immediately.",
+                    text = "Choose exactly what happens when you tap the Master QS Tile. Checked items are turned off during Cloak and automatically restored when you tap the tile again.",
                     fontSize = 10.5.sp,
                     color = lsColors.textSecondary.copy(alpha = 0.85f),
                     lineHeight = 14.sp
                 )
             }
 
-            // 4. System Cloak Interlocks (Collapsible Card, collapsed by default)
+            // 4. System Cloak Interlocks Accordion (Full Checklist)
             item {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
-                    border = BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f)),
-                    modifier = Modifier.fillMaxWidth()
+                DeckCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -319,7 +363,7 @@ private fun CloakMatrixContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "SYSTEM CLOAK INTERLOCKS",
+                                text = "SYSTEM CLOAK INTERLOCKS (CHECKLIST)",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace,
@@ -334,86 +378,172 @@ private fun CloakMatrixContent(
                         }
 
                         if (isInterlocksExpanded) {
-                            // 1. Hide Developer Options
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val next = !hideDevOptions
-                                        hideDevOptions = next
-                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, next).apply()
-                                        LightspeedHapticEngine.tick(context)
-                                    },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = "Hide Developer Options while Cloaked",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = lsColors.textPrimary
-                                    )
-                                    Text(
-                                        text = "Sets development_settings_enabled = 0; restores on uncloak",
-                                        fontSize = 9.sp,
-                                        color = lsColors.textSecondary
-                                    )
+                            // 1. Extra Dim Overlay (Lightspeed feature -> ON by default)
+                            CloakChecklistItem(
+                                title = "Turn Off Extra Dim Overlay while Cloaked",
+                                subtitle = "Lightspeed overlay window (ON by default; restores level on uncloak)",
+                                checked = disableExtraDim,
+                                onCheckedChange = {
+                                    disableExtraDim = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EXTRA_DIM, it).apply()
+                                    LightspeedHapticEngine.tick(context)
                                 }
-                                Checkbox(
-                                    checked = hideDevOptions,
-                                    onCheckedChange = {
-                                        hideDevOptions = it
-                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, it).apply()
-                                        LightspeedHapticEngine.tick(context)
-                                    },
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = lsColors.accentWarn,
-                                        uncheckedColor = lsColors.textSecondary
-                                    )
-                                )
-                            }
+                            )
 
                             HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
 
-                            // 2. Hide USB Debugging
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val next = !hideUsbDebugging
-                                        hideUsbDebugging = next
-                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, next).apply()
-                                        LightspeedHapticEngine.tick(context)
-                                    },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            // 2. Eye Care / Blue Light Filter (Native hardware matrix -> OFF by default)
+                            CloakChecklistItem(
+                                title = "Turn Off Eye Care (Blue Light Filter) while Cloaked",
+                                subtitle = "Native hardware warmth doesn't trigger banking apps (OFF by default)",
+                                checked = disableEyeCare,
+                                onCheckedChange = {
+                                    disableEyeCare = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EYE_CARE, it).apply()
+                                    LightspeedHapticEngine.tick(context)
+                                }
+                            )
+
+                            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
+
+                            // 3. Smart Pixels & Video Override (ON by default)
+                            CloakChecklistItem(
+                                title = "Turn Off Smart Pixels & Video Override",
+                                subtitle = "Removes OLED pixel mesh & brightness lock overlays while cloaked",
+                                checked = disableSmartPixels,
+                                onCheckedChange = {
+                                    disableSmartPixels = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_SMART_PIXELS, it).apply()
+                                    LightspeedHapticEngine.tick(context)
+                                }
+                            )
+
+                            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
+
+                            // 4. Suspend Sonic Deck & Audio Loopback (ON by default)
+                            CloakChecklistItem(
+                                title = "Suspend Sonic Deck & Audio Loopback",
+                                subtitle = "Releases AudioPolicy for side-by-side Nightly/Stable testing; restores on uncloak",
+                                checked = suspendSonicDeck,
+                                onCheckedChange = {
+                                    suspendSonicDeck = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_SUSPEND_SONIC_DECK, it).apply()
+                                    LightspeedHapticEngine.tick(context)
+                                }
+                            )
+
+                            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
+
+                            // 5. Hide Developer Options
+                            CloakChecklistItem(
+                                title = "Hide Developer Options while Cloaked",
+                                subtitle = "Sets development_settings_enabled = 0 via WRITE_SECURE_SETTINGS; restores on uncloak",
+                                checked = hideDevOptions,
+                                onCheckedChange = {
+                                    hideDevOptions = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, it).apply()
+                                    LightspeedHapticEngine.tick(context)
+                                }
+                            )
+
+                            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
+
+                            // 6. Hide USB / Wireless Debugging
+                            CloakChecklistItem(
+                                title = "Hide USB / Wireless Debugging while Cloaked",
+                                subtitle = "Sets adb_enabled = 0 via WRITE_SECURE_SETTINGS; restores on uncloak",
+                                checked = hideUsbDebugging,
+                                onCheckedChange = {
+                                    hideUsbDebugging = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, it).apply()
+                                    LightspeedHapticEngine.tick(context)
+                                }
+                            )
+
+                            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
+
+                            // 7. Stop Shizuku / Fork Server on Cloak
+                            CloakChecklistItem(
+                                title = "Stop Shizuku / Fork Server while Cloaked",
+                                subtitle = "Dispatches STOP / START intents to Shizuku-Next or Shevery",
+                                checked = stopShizuku,
+                                onCheckedChange = {
+                                    stopShizuku = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_STOP_SHIZUKU, it).apply()
+                                    LightspeedHapticEngine.tick(context)
+                                }
+                            )
+
+                            if (stopShizuku) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
                                     Text(
-                                        text = "Hide USB Debugging while Cloaked",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = lsColors.textPrimary
+                                        text = "TARGET SHIZUKU FORK",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = lsColors.accentInfo
                                     )
-                                    Text(
-                                        text = "Sets adb_enabled = 0; restores on uncloak",
-                                        fontSize = 9.sp,
-                                        color = lsColors.textSecondary
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        val forks = listOf(
+                                            "auto" to "Auto / Both",
+                                            "shizuku_next" to "Shizuku-Next",
+                                            "shevery" to "Shevery"
+                                        )
+                                        forks.forEach { (id, label) ->
+                                            TrackpadPillButton(
+                                                text = label,
+                                                isSelected = shizukuFork == id,
+                                                onClick = {
+                                                    shizukuFork = id
+                                                    prefs.edit().putString(LightspeedPreferences.KEY_CLOAK_SHIZUKU_FORK, id).apply()
+                                                    LightspeedHapticEngine.tick(context)
+                                                },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+
+                                    if (shizukuFork == "auto" || shizukuFork == "shizuku_next") {
+                                        CloakChecklistItem(
+                                            title = "Pause Shizuku-Next Watchdog while Cloaked",
+                                            subtitle = "Sends WATCHDOG_OFF on cloak and WATCHDOG_ON on uncloak",
+                                            checked = toggleWatchdog,
+                                            onCheckedChange = {
+                                                toggleWatchdog = it
+                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_SHIZUKU_WATCHDOG_TOGGLE, it).apply()
+                                                LightspeedHapticEngine.tick(context)
+                                            }
+                                        )
+                                    }
+
+                                    OutlinedTextField(
+                                        value = shizukuToken,
+                                        onValueChange = {
+                                            shizukuToken = it.trim()
+                                            prefs.edit().putString(LightspeedPreferences.KEY_CLOAK_SHIZUKU_TOGGLE_TOKEN, it.trim()).apply()
+                                        },
+                                        placeholder = {
+                                            Text(
+                                                "Auth Token (optional if 'Require auth token' is off)",
+                                                fontSize = 10.sp,
+                                                color = lsColors.textDisabled
+                                            )
+                                        },
+                                        label = {
+                                            Text("Broadcast Auth Token (--es auth)", fontSize = 10.sp)
+                                        },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textStyle = LocalTextStyle.current.copy(fontSize = 11.sp, color = lsColors.textPrimary)
                                     )
                                 }
-                                Checkbox(
-                                    checked = hideUsbDebugging,
-                                    onCheckedChange = {
-                                        hideUsbDebugging = it
-                                        prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, it).apply()
-                                        LightspeedHapticEngine.tick(context)
-                                    },
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = lsColors.accentWarn,
-                                        uncheckedColor = lsColors.textSecondary
-                                    )
-                                )
                             }
                         }
                     }
@@ -456,11 +586,9 @@ private fun CloakMatrixContent(
             // 6. Services Items
             if (filteredServices.isEmpty()) {
                 item {
-                    Surface(
+                    DeckCard(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                        border = BorderStroke(1.dp, lsColors.textPrimary.copy(alpha = 0.08f))
+                        tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                     ) {
                         Text(
                             text = if (searchQuery.isBlank()) "No external Accessibility Services detected.\nLightspeed will be cloaked alone." else "No matching services found.",
@@ -501,7 +629,7 @@ private fun CloakMatrixContent(
                         }
                     }
 
-                    Surface(
+                    DeckCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
@@ -514,12 +642,7 @@ private fun CloakMatrixContent(
                                     Toast.LENGTH_SHORT
                                 ).show()
                             },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isCloaked) lsColors.accentWarn.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isCloaked) lsColors.accentWarn.copy(alpha = 0.45f) else lsColors.textPrimary.copy(alpha = 0.08f)
-                        )
+                        tint = if (isCloaked) lsColors.accentWarn.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
                     ) {
                         Row(
                             modifier = Modifier
@@ -596,9 +719,9 @@ private fun CloakMatrixContent(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            Switch(
+                            DeckSwitch(
                                 checked = isCloaked,
-                                onCheckedChange = { checked ->
+                                onCheckedChange = {
                                     val nowCloaked = LightspeedPreferences.toggleCloakedAccessibilityService(context, componentId)
                                     cloakedServicesSet = LightspeedPreferences.getCloakedAccessibilityServices(context)
                                     LightspeedHapticEngine.tick(context)
@@ -607,13 +730,7 @@ private fun CloakMatrixContent(
                                         if (nowCloaked) "Will cloak $sLabel with Lightspeed" else "Uncloaked $sLabel",
                                         Toast.LENGTH_SHORT
                                     ).show()
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = lsColors.accentWarn,
-                                    checkedTrackColor = lsColors.accentWarn.copy(alpha = 0.35f),
-                                    uncheckedThumbColor = lsColors.textDisabled,
-                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
+                                }
                             )
                         }
                     }
@@ -623,16 +740,12 @@ private fun CloakMatrixContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 6. Action Button (Fixed at bottom)
-        Button(
+        // 7. Action Button (Fixed at bottom)
+        DeckButton(
             onClick = onDismiss,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(42.dp),
-            shape = RoundedCornerShape(10.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+                .height(42.dp)
         ) {
             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))

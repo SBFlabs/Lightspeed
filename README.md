@@ -256,15 +256,16 @@ The remaining experimental features are unfinished or currently non-functional a
 
 Experimental features are best treated as exactly that: experiments. The **HUD STRIP swipe-down gesture** may require making the Sensor Area thicker and keeping the swipe-down distance roughly equal to its thickness, so that Android's native status-bar pull-down gesture is not triggered unintentionally.
 
-### 7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.3.1)
+### 7. 🆕 Decks, Trackpad, Sensor Areas & Master Cloak (v1.3.2)
 
+- **3-Way Color Engine (`12-Theme`, `Material 3`, `Hybrid`)**: Choose between 12-Theme, Material 3 (Dynamic Wallpaper), and Hybrid color modes independently across Category Cruise (in the HUD edit tab), Cockpit Gear Sets, Cybernetic Trackpad & Cursor, and each individual Scrubber HUD (Brightness, Volume, Screen Timeout, Media Seek, Scroll Scrub), with a **Hold to Apply to All** (`HOLD ↗`) universal mode latch.
+- **Cybernetic Trackpad**: Floating cursor navigation with customizable acceleration and haptics, robot-arm macro buttons, and polished chassis geometry (including the **Glass** style). Macro repeat modes (`1x`, `2x`, `5x`, `∞ Loop`) in the Bot Macro Editor are completely unlocked for all users, with seamless dual-flank cursor handoff and universal hardware key emergency cancel.
+- **Master Cloak Quick Settings Tile**: Lightspeed's single Quick Settings tile. Tap to cloak or re-arm everything; long-press to choose other accessibility services to switch off alongside it. Expanded 7-item checklist now supports stopping/restarting `Shizuku-Next` and `Shevery` (with auth token support), pausing Shizuku-Next Watchdog, and suspending Sonic Deck audio loopback while cloaked for conflict-free banking app stealth.
+- **Vista Deck**: Unified brightness and display optics with 3 collapsible accordions (`Brightness and Beyond`, `Optics & Eye Care`, and `Astrogation Airlock & 20-20-20`). Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
+- **Sonic Deck**: Per-app volume mixer, multi-channel hardware routing, and neural voice isolation & background muffler with customizable acoustic presets and user profiles. Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
 - **Bottom Sensor Area**: Secondary edge gesture zone mirrored at the bottom edge with configurable span, thickness, offset, sensitivity, stealth idle glow, and full gesture action matrix.
 - **Circle to Search / Screen Assist**: Direct gesture mapping to trigger Google Circle to Search or your default Assistant / Screen context tool.
-- **Cybernetic Trackpad**: Floating cursor navigation with customizable acceleration and haptics, plus robot-arm macro buttons and universal hardware key emergency cancel.
-- **Sonic Deck**: Per-app volume mixer, multi-channel hardware routing, and neural voice isolation & background muffler with customizable acoustic presets and user profiles. Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
-- **Vista Deck**: Unified brightness and display optics with 4 collapsible accordions (Brightness & Video Override, Sub-Zero / Extra Dim / Smart Pixels, Samsung-safe Eye Care & Blue Light Filter, and Astrogation Airlock & 20-20-20). Built into the 12-Theme Command Domain with interactive Blueprint wireframe reordering.
 - **Astrogation Airlock**: The 5-second mindful pause shows both App Time and Sector Time (total time today in that app's category).
-- **Master Cloak Quick Settings tile**: Lightspeed's single Quick Settings tile. Tap to cloak or re-arm everything; long-press to choose other accessibility services to switch off alongside it.
 
 ---
 
@@ -435,7 +436,7 @@ Lightspeed has been developed with substantial assistance from modern AI tools. 
 
 Different models are used for different parts of the development process:
 
-- **Claude Sonnet 4.6 and Claude Sonnet 5.5** — primarily used for **refactoring plans, feature planning, and architectural planning**, helping analyze the structure of the project and determine how larger changes should be approached.
+- **Gemini Argon 4** and **Claude Sonnet 4.6/5.5** — primarily used for **refactoring plans, feature planning, and architectural planning**, helping analyze the structure of the project and determine how larger changes should be approached.
 - **Gemini Flash 3.6 through 3.8** — primarily used for **execution**, including implementing planned features, modifying code, and carrying out development tasks based on the architectural direction. It is also frequently used on its own for **small bug fixes and straightforward feature implementations** that do not require the larger planning models.
 - **Gemini Pro 3.1** — used occasionally, and generally as a fallback, for **feature planning, refactoring plans, and architectural planning** when the primary planning-model quota is unavailable or exhausted.
 
@@ -448,6 +449,15 @@ AI made it possible to turn that idea into a functioning project while making th
 The use of AI is therefore part of the project's development story, not something being hidden or presented as conventional software-development experience. The resulting source code remains the final authority on what Lightspeed actually does, and real-device testing remains essential—particularly for Android accessibility behavior, OEM-specific system implementations, battery management, task handling, and other areas where behavior can vary significantly between devices.
 
 The project continues to go through regular refactoring cycles as features are added and the codebase evolves. The intention is not simply to make Lightspeed work, but to keep its implementation understandable and maintainable as it grows.
+
+### Tested Devices
+
+Real-device testing is done on the following hardware:
+
+- **Infinix Note 50s 5G+ (Global)** — a highly modified mid-range Chinese OEM with aggressive battery management. Dimensity 7300 Ultimate, 8 GB RAM, Android 16.
+- **Samsung Galaxy A24** — a mid-range device running One UI 8.5. Helio G99, 6 GB RAM, Android 16.
+- **Lenovo Tab One (aka Lenovo Tab K9)** — an entry-level, near-stock OEM tablet. Helio G85, 4 GB RAM, Android 15.
+- **TCL NXTPAPER 11 Plus** — a budget or low-midrange, near-stock OEM tablet. Helio G100, 8 GB RAM, Android 15.
 
 ---
 

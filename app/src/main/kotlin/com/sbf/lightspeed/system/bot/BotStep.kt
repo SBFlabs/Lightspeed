@@ -19,7 +19,9 @@ data class BotStep(
     val text: String? = null,
     val contentDescription: String? = null,
     val className: String? = null,
-    val packageName: String? = null
+    val packageName: String? = null,
+    val useElementTarget: Boolean = false,
+    val windowId: String? = null
 ) {
     companion object {
         const val TYPE_TAP = "tap"
@@ -27,6 +29,15 @@ data class BotStep(
         const val TYPE_DELAY = "delay"
 
         fun fromJson(json: JSONObject): BotStep {
+            val viewId = json.optString("viewId").takeIf { !it.isNullOrBlank() }
+            val text = json.optString("text").takeIf { !it.isNullOrBlank() }
+            val desc = json.optString("desc").takeIf { !it.isNullOrBlank() }
+            val hasElementMeta = viewId != null || desc != null || text != null
+            val useElem = if (json.has("useElem")) {
+                json.optBoolean("useElem", hasElementMeta)
+            } else {
+                hasElementMeta
+            }
             return BotStep(
                 stepType = json.optString("stepType", TYPE_TAP),
                 xRatio = json.optDouble("xRatio", 0.0).toFloat(),
@@ -35,11 +46,13 @@ data class BotStep(
                 endYRatio = json.optDouble("endYRatio", 0.0).toFloat(),
                 delayMs = json.optLong("delayMs", 150L),
                 durationMs = json.optLong("durationMs", 50L),
-                viewIdResourceName = json.optString("viewId").takeIf { !it.isNullOrBlank() },
-                text = json.optString("text").takeIf { !it.isNullOrBlank() },
-                contentDescription = json.optString("desc").takeIf { !it.isNullOrBlank() },
+                viewIdResourceName = viewId,
+                text = text,
+                contentDescription = desc,
                 className = json.optString("class").takeIf { !it.isNullOrBlank() },
-                packageName = json.optString("pkg").takeIf { !it.isNullOrBlank() }
+                packageName = json.optString("pkg").takeIf { !it.isNullOrBlank() },
+                useElementTarget = useElem,
+                windowId = json.optString("winId").takeIf { !it.isNullOrBlank() }
             )
         }
     }
@@ -58,6 +71,8 @@ data class BotStep(
             contentDescription?.let { put("desc", it) }
             className?.let { put("class", it) }
             packageName?.let { put("pkg", it) }
+            put("useElem", useElementTarget)
+            windowId?.let { put("winId", it) }
         }
     }
 }

@@ -16,6 +16,11 @@ import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.resolveCanvasPalette
 import com.sbf.lightspeed.system.*
 import com.sbf.lightspeed.system.display.createFullDisplayOverlayParams
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlin.math.*
 
 /**
@@ -118,6 +123,7 @@ object LightspeedBotTrackpadOverlay {
     private var rightFlankView: TrackpadFlankView? = null
     private var windowManager: WindowManager? = null
     internal val mainHandler = Handler(Looper.getMainLooper())
+    private val trackpadScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     fun init(context: Context) = reload(context)
 
@@ -240,6 +246,11 @@ object LightspeedBotTrackpadOverlay {
 
     internal fun invalidateCursor() { cursorCanvasView?.postInvalidateOnAnimation() }
 
+    fun refreshMacroButtonsState() {
+        leftFlankView?.refreshHasStepsFlags()
+        rightFlankView?.refreshHasStepsFlags()
+    }
+
     internal fun resolveBotId(isLeft: Boolean, armIndex: Int): Int {
         val base = if (isLeft) 0 else 3
         return (base + armIndex.coerceIn(1, 3)).coerceIn(1, LightspeedBotContract.MAX_BOT_MACROS)
@@ -248,6 +259,7 @@ object LightspeedBotTrackpadOverlay {
     internal fun executeArmShortTap(context: Context, isLeft: Boolean, armIndex: Int) {
         val botId = resolveBotId(isLeft, armIndex)
         LightspeedHapticEngine.click(context)
+        (if (isLeft) leftFlankView else rightFlankView)?.extendLingerIfDeployed()
         if (LightspeedBotEngine.isLooping) {
             LightspeedBotEngine.stopContinuousLoop()
             invalidateCursor()
@@ -257,16 +269,7 @@ object LightspeedBotTrackpadOverlay {
             LightspeedBotEngine.stopReplay()
             return
         }
-        val steps = LightspeedBotEngine.getMacroSteps(context, botId)
-        if (steps.isNotEmpty()) {
-            LightspeedBotEngine.playBot(context, botId)
-        } else {
-            Toast.makeText(
-                context,
-                "Button B$armIndex: Long-press to record • Tap+Hold to edit",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        LightspeedBotEngine.playBot(context, botId)
     }
 
     internal fun executeArmLongPressRecord(context: Context, isLeft: Boolean, armIndex: Int, onRetract: () -> Unit) {
@@ -288,8 +291,11 @@ object LightspeedBotTrackpadOverlay {
         isCursorActive = false
         invalidateCursor()
         onRetract()
+        val (pkg, win) = LightspeedBotEngine.resolveActiveScope(context)
         context.startActivity(Intent(context, BotMacroEditorDialog::class.java).apply {
             putExtra(BotMacroEditorDialog.EXTRA_BOT_ID, botId)
+            putExtra(BotMacroEditorDialog.EXTRA_TARGET_PACKAGE, pkg)
+            putExtra(BotMacroEditorDialog.EXTRA_TARGET_WINDOW_ID, win)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         })
     }
@@ -352,21 +358,70 @@ object LightspeedBotTrackpadOverlay {
         private var dragStartY = 0f
         private var lastDomeTapUpUptime = 0L
 
-        private fun getScreenBounds(): Pair<Float, Float> {
-            val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && wm != null) {
-                val bounds = wm.maximumWindowMetrics.bounds
-                return Pair(bounds.width().toFloat(), bounds.height().toFloat())
+        private var refreshJob: Job? = null
+        private var cachedHasStepsFlags = listOf(false, false, false)
+
+        internal fun refreshHasStepsFlags() {
+            val appContext = context.applicationContext
+            refreshJob?.cancel()
+            refreshJob = trackpadScope.launch {
+                val botIds = (1..3).map { resolveBotId(isLeft, it) }
+                val flags = botIds.map { LightspeedBotEngine.getPlaybackMacroSteps(appContext, it).isNotEmpty() }
+                mainHandler.post {
+                    cachedHasStepsFlags = flags
+                    invalidate()
+                }
             }
-            val dm = android.util.DisplayMetrics()
-            @Suppress("DEPRECATION")
-            wm?.defaultDisplay?.getRealMetrics(dm)
-            val w = if (dm.widthPixels > 0) dm.widthPixels.toFloat() else resources.displayMetrics.widthPixels.toFloat()
-            val h = if (dm.heightPixels > 0) dm.heightPixels.toFloat() else resources.displayMetrics.heightPixels.toFloat()
-            return Pair(w, h)
+        }
+
+        private fun getScreenBounds(): Pair<Float, Float> {
+            val dm = resources.displayMetrics
+            return Pair(dm.widthPixels.toFloat(), dm.heightPixels.toFloat())
         }
 
         private val lingerRunnable = Runnable { retract() }
+
+        private var streamedDownTime = 0L
+        private var isStreamingShizukuDrag = false
+        private var lastInjectedMoveUptime = 0L
+        @Volatile
+        private var pendingStreamX = 0f
+        @Volatile
+        private var pendingStreamY = 0f
+        @Volatile
+        private var isMoveInjectionQueued = false
+
+        private fun dispatchStreamedMove(cx: Float, cy: Float) {
+            val uptime = SystemClock.uptimeMillis()
+            pendingStreamX = cx
+            pendingStreamY = cy
+            if (uptime - lastInjectedMoveUptime < 8L) {
+                if (!isMoveInjectionQueued) {
+                    isMoveInjectionQueued = true
+                    val delayMs = (8L - (uptime - lastInjectedMoveUptime)).coerceAtLeast(1L)
+                    mainHandler.postDelayed({
+                        if (isStreamingShizukuDrag) {
+                            val flushNow = SystemClock.uptimeMillis()
+                            val fx = pendingStreamX
+                            val fy = pendingStreamY
+                            lastInjectedMoveUptime = flushNow
+                            val dt = streamedDownTime
+                            trackpadScope.launch(Dispatchers.Default) {
+                                ShizukuExecHelper.injectPointerMove(dt, flushNow, fx, fy)
+                            }
+                        }
+                        isMoveInjectionQueued = false
+                    }, delayMs)
+                }
+                return
+            }
+
+            lastInjectedMoveUptime = uptime
+            val dt = streamedDownTime
+            trackpadScope.launch(Dispatchers.Default) {
+                ShizukuExecHelper.injectPointerMove(dt, uptime, cx, cy)
+            }
+        }
 
         private val domeHoldRunnable = Runnable {
             if (hoveredArm == null && isDeployed) {
@@ -375,6 +430,21 @@ object LightspeedBotTrackpadOverlay {
                 dragStartX = cursorX
                 dragStartY = cursorY
                 LightspeedHapticEngine.heavyClick(context)
+
+                if (ElevatedTaskCloser.isShizukuActive) {
+                    val dt = SystemClock.uptimeMillis()
+                    streamedDownTime = dt
+                    isStreamingShizukuDrag = true
+                    lastInjectedMoveUptime = dt
+                    val sx = dragStartX
+                    val sy = dragStartY
+                    trackpadScope.launch(Dispatchers.Default) {
+                        ShizukuExecHelper.injectPointerDown(dt, sx, sy)
+                    }
+                } else {
+                    isStreamingShizukuDrag = false
+                }
+
                 invalidate()
                 invalidateCursor()
             }
@@ -506,6 +576,7 @@ object LightspeedBotTrackpadOverlay {
             activeFlankIsLeft = isLeft
             if (isDeployed) return
             isDeployed = true; isCursorActive = true; deployProgress = 1f
+            refreshHasStepsFlags()
             mainHandler.removeCallbacks(lingerRunnable)
             if (isAttachedToWindow) {
                 try {
@@ -524,6 +595,7 @@ object LightspeedBotTrackpadOverlay {
             if (isDeployed) {
                 activeFlankIsLeft = isLeft
                 isCursorActive = true
+                refreshHasStepsFlags()
                 armLingerTimer()
                 invalidate()
                 invalidateCursor()
@@ -534,6 +606,16 @@ object LightspeedBotTrackpadOverlay {
             if (!isDeployed) return
             mainHandler.removeCallbacks(armHoldRunnable)
             mainHandler.removeCallbacks(domeHoldRunnable)
+            if (isStreamingShizukuDrag) {
+                val upNow = SystemClock.uptimeMillis()
+                val dt = streamedDownTime
+                val fx = cursorX
+                val fy = cursorY
+                trackpadScope.launch(Dispatchers.Default) {
+                    ShizukuExecHelper.injectPointerUp(dt, upNow, fx, fy)
+                }
+                isStreamingShizukuDrag = false
+            }
             isDeployed = false; deployProgress = 0f; hoveredArm = null; isSecondPressEdit = false
             domeHoldEngaged = false
             isDomeHoldActive = false
@@ -598,6 +680,7 @@ object LightspeedBotTrackpadOverlay {
                         deploy()
                     } else {
                         deployedOnThisTouch = false
+                        refreshHasStepsFlags()
                         hoveredArm = LightspeedBotTrackpadDraw.hitTestArm(
                             event.x, event.y, armCount, isLeft, centerY, radiusPx, deployProgress, wF, density, armReachPx, orientation
                         )
@@ -654,6 +737,9 @@ object LightspeedBotTrackpadOverlay {
                                 cursorX = (cursorX + (dx * accel * sensitivity)).coerceIn(0f, screenW)
                                 cursorY = (cursorY + (dy * accel * sensitivity)).coerceIn(0f, screenH)
                                 thumbX = event.x.coerceIn(0f, wF); thumbY = event.y.coerceIn(0f, height.toFloat())
+                                if (isStreamingShizukuDrag) {
+                                    dispatchStreamedMove(cursorX, cursorY)
+                                }
                                 invalidate(); invalidateCursor()
                             }
                         }
@@ -663,6 +749,16 @@ object LightspeedBotTrackpadOverlay {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     mainHandler.removeCallbacks(armHoldRunnable)
                     mainHandler.removeCallbacks(domeHoldRunnable)
+                    if (event.actionMasked == MotionEvent.ACTION_CANCEL && isStreamingShizukuDrag) {
+                        val upNow = SystemClock.uptimeMillis()
+                        val dt = streamedDownTime
+                        val fx = cursorX
+                        val fy = cursorY
+                        trackpadScope.launch(Dispatchers.Default) {
+                            ShizukuExecHelper.injectPointerUp(dt, upNow, fx, fy)
+                        }
+                        isStreamingShizukuDrag = false
+                    }
                     if (isDeployed && !holdFiredForCurrentTouch) {
                         if (!deployedOnThisTouch) {
                             val totalMove = hypot((event.rawX - downRawX).toDouble(), (event.rawY - downRawY).toDouble()).toFloat()
@@ -686,18 +782,40 @@ object LightspeedBotTrackpadOverlay {
                                     val dragDist = hypot((cursorX - dragStartX).toDouble(), (cursorY - dragStartY).toDouble()).toFloat()
                                     if (dragDist > (10f * density)) {
                                         LightspeedHapticEngine.click(context)
-                                        val swipeDuration = (now - touchDownUptime).coerceIn(200L, 800L)
-                                        if (domeHoldEngaged) {
-                                            // Long tap and drag = Hold and drag!
-                                            LightspeedBotEngine.injectHoldAndDragOrDispatch(context, dragStartX, dragStartY, cursorX, cursorY, swipeDuration)
+                                        if (isStreamingShizukuDrag) {
+                                            val upNow = SystemClock.uptimeMillis()
+                                            val dt = streamedDownTime
+                                            val fx = cursorX
+                                            val fy = cursorY
+                                            trackpadScope.launch(Dispatchers.Default) {
+                                                ShizukuExecHelper.injectPointerUp(dt, upNow, fx, fy)
+                                            }
+                                            isStreamingShizukuDrag = false
                                         } else {
-                                            // Double-tap drag = Quick swipe / drag
-                                            LightspeedBotEngine.injectSwipeOrDispatch(context, dragStartX, dragStartY, cursorX, cursorY, swipeDuration)
+                                            val swipeDuration = (now - touchDownUptime).coerceIn(200L, 800L)
+                                            if (domeHoldEngaged) {
+                                                // Long tap and drag = Hold and drag!
+                                                LightspeedBotEngine.injectHoldAndDragOrDispatch(context, dragStartX, dragStartY, cursorX, cursorY, swipeDuration)
+                                            } else {
+                                                // Double-tap drag = Quick swipe / drag
+                                                LightspeedBotEngine.injectSwipeOrDispatch(context, dragStartX, dragStartY, cursorX, cursorY, swipeDuration)
+                                            }
                                         }
                                     } else if (domeHoldEngaged) {
                                         // Held long-press but drag distance was negligible -> execute Long Tap
                                         LightspeedHapticEngine.click(context)
-                                        LightspeedBotEngine.injectLongPressOrDispatch(context, cursorX, cursorY, 600L)
+                                        if (isStreamingShizukuDrag) {
+                                            val upNow = SystemClock.uptimeMillis()
+                                            val dt = streamedDownTime
+                                            val fx = cursorX
+                                            val fy = cursorY
+                                            trackpadScope.launch(Dispatchers.Default) {
+                                                ShizukuExecHelper.injectPointerUp(dt, upNow, fx, fy)
+                                            }
+                                            isStreamingShizukuDrag = false
+                                        } else {
+                                            LightspeedBotEngine.injectLongPressOrDispatch(context, cursorX, cursorY, 600L)
+                                        }
                                     }
                                     isDragging = false
                                     isDragCandidate = false
@@ -707,7 +825,18 @@ object LightspeedBotTrackpadOverlay {
                                 } else if (domeHoldEngaged) {
                                     // Long tap and then lift finger = Long Tap!
                                     LightspeedHapticEngine.click(context)
-                                    LightspeedBotEngine.injectLongPressOrDispatch(context, cursorX, cursorY, 600L)
+                                    if (isStreamingShizukuDrag) {
+                                        val upNow = SystemClock.uptimeMillis()
+                                        val dt = streamedDownTime
+                                        val fx = cursorX
+                                        val fy = cursorY
+                                        trackpadScope.launch(Dispatchers.Default) {
+                                            ShizukuExecHelper.injectPointerUp(dt, upNow, fx, fy)
+                                        }
+                                        isStreamingShizukuDrag = false
+                                    } else {
+                                        LightspeedBotEngine.injectLongPressOrDispatch(context, cursorX, cursorY, 600L)
+                                    }
                                     domeHoldEngaged = false
                                     isDomeHoldActive = false
                                     lastDomeTapUpUptime = 0L
@@ -802,7 +931,7 @@ object LightspeedBotTrackpadOverlay {
             val armsAlphaFactor = (armsOpacityPct / 100f).coerceIn(0.05f, 1f)
 
             val botIds = (1..3).map { resolveBotId(isLeft, it) }
-            val hasStepsFlags = botIds.map { LightspeedBotEngine.getMacroSteps(context, it).isNotEmpty() }
+            val hasStepsFlags = cachedHasStepsFlags
 
             LightspeedBotTrackpadDraw.drawHalfCircleTrackpad(
                 canvas = canvas, isLeft = isLeft, centerY = centerY, radiusPx = radiusPx,

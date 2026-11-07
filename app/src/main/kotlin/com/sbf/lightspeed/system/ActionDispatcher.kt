@@ -99,25 +99,25 @@ object ActionDispatcher {
                 val intent = Intent(context, LightspeedPerimeterActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:73", e) }
+                try { context.startActivity(intent, LightspeedShortcutManager.createLaunchBundle(context)) } catch (e: Exception) { logSwallowed(TAG, "execute:73", e) }
             }
             token == "system:core_watchdog" -> {
                 val intent = Intent(context, LightspeedCoreWatchdogActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:79", e) }
+                try { context.startActivity(intent, LightspeedShortcutManager.createLaunchBundle(context)) } catch (e: Exception) { logSwallowed(TAG, "execute:79", e) }
             }
             token == "system:central_command" -> {
                 val intent = Intent(context, com.sbf.lightspeed.MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:85", e) }
+                try { context.startActivity(intent, LightspeedShortcutManager.createLaunchBundle(context)) } catch (e: Exception) { logSwallowed(TAG, "execute:85", e) }
             }
             token == "system:battery_exemption" -> {
                 val intent = Intent(context, LightspeedBatteryExemptionActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
-                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:91", e) }
+                try { context.startActivity(intent, LightspeedShortcutManager.createLaunchBundle(context)) } catch (e: Exception) { logSwallowed(TAG, "execute:91", e) }
             }
             token == "system:close_app" -> {
                 closeExecutor.execute {
@@ -159,7 +159,7 @@ object ActionDispatcher {
                         addCategory(Intent.CATEGORY_HOME)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    try { context.startActivity(homeIntent) } catch (e: Exception) { logSwallowed(TAG, "execute:121", e) }
+                    try { context.startActivity(homeIntent, LightspeedShortcutManager.createLaunchBundle(context)) } catch (e: Exception) { logSwallowed(TAG, "execute:121", e) }
                 }
             }
             token == "system:back" -> {
@@ -222,7 +222,7 @@ object ActionDispatcher {
                 val intent = Intent(context, com.sbf.lightspeed.LightspeedRefuelingActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                 }
-                try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:164", e) }
+                try { context.startActivity(intent, LightspeedShortcutManager.createLaunchBundle(context)) } catch (e: Exception) { logSwallowed(TAG, "execute:164", e) }
             }
             token == "system:glow_deflectors" -> {
                 LightspeedAccessibilityService.instance?.triggerDeflectorsGlow()
@@ -292,14 +292,7 @@ object ActionDispatcher {
             }
             token.startsWith("app:") -> {
                 val pkg = token.removePrefix("app:")
-                context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-                    val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                    if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
-                        ElevatedTaskCloser.execShizuku("input keyevent 82")
-                    }
-                    try { context.startActivity(intent) } catch (e: Exception) { logSwallowed(TAG, "execute:283", e) }
-                }
+                LightspeedShortcutManager.launchApp(context, pkg)
             }
             token.startsWith("shortcut:") ||
             token.startsWith("custom:") ||
@@ -314,15 +307,7 @@ object ActionDispatcher {
                 LightspeedShortcutManager.launch(context, token)
             }
             else -> {
-                val launchIntent = context.packageManager.getLaunchIntentForPackage(token)
-                if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-                    val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                    if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
-                        ElevatedTaskCloser.execShizuku("input keyevent 82")
-                    }
-                    try { context.startActivity(launchIntent) } catch (e: Exception) { logSwallowed(TAG, "execute:301", e) }
-                } else {
+                if (!LightspeedShortcutManager.launchApp(context, token)) {
                     Log.w(TAG, "Unhandled action token: $token")
                 }
             }

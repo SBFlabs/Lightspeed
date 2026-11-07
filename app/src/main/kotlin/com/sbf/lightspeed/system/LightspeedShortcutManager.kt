@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
+import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
@@ -19,7 +20,9 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Process
+import android.view.Display
 import android.util.Base64
 import android.util.Log
 import java.io.File
@@ -545,6 +548,56 @@ object LightspeedShortcutManager {
         } catch (_: Exception) { null }
     }
 
+    fun createLaunchBundle(context: Context): Bundle {
+        return ActivityOptions.makeBasic().apply {
+            setLaunchDisplayId(Display.DEFAULT_DISPLAY)
+            if (Build.VERSION.SDK_INT >= 34) {
+                setPendingIntentCreatorBackgroundActivityStartMode(
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                )
+            }
+        }.toBundle()
+    }
+
+    fun launchApp(context: Context, packageName: String): Boolean {
+        if (packageName.isBlank()) return false
+        val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+        if (km?.isKeyguardLocked == true && ElevatedTaskCloser.isShizukuActive) {
+            ElevatedTaskCloser.execShizuku("input keyevent 82")
+        }
+
+        // 1. Privileged Shizuku Launch (Direct Immunity against OEM/Vulkan BAL restrictions)
+        if (ShizukuGate.isShizukuUsable(context)) {
+            val shizukuSuccess = ShizukuShortcutLauncher.launchAppPrivileged(context, packageName)
+            if (shizukuSuccess) return true
+        }
+
+        // 2. Standard Launch with BAL-Immune ActivityOptions
+        val options = createLaunchBundle(context)
+        val pm = context.packageManager
+        val launchIntent = pm.getLaunchIntentForPackage(packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        }
+
+        if (launchIntent != null) {
+            try {
+                context.startActivity(launchIntent, options)
+                return true
+            } catch (e: Exception) {
+                Log.w(TAG, "Standard startActivity failed for $packageName", e)
+            }
+        }
+
+        // 3. Fallback to Shizuku if standard launch threw
+        if (ShizukuGate.isShizukuUsable(context)) {
+            return ShizukuShortcutLauncher.launchAppPrivileged(context, packageName)
+        }
+
+        return false
+    }
+
+    fun launchToken(context: Context, token: String): Boolean = launch(context, token)
+
     fun launch(context: Context, token: String): Boolean {
         if (token.isBlank() || token == "none") return false
         val parsed = parseToken(token)
@@ -570,12 +623,9 @@ object LightspeedShortcutManager {
                     launched = ShizukuShortcutLauncher.launchElevatedHomeShortcut(context, parsed)
                 }
 
-                // 3. Fallback: Standard package launcher intent
+                // 3. Fallback: Standard package launcher intent with BAL immunity and Shizuku fallback
                 if (!launched) {
-                    context.packageManager.getLaunchIntentForPackage(parsed.packageName)?.let {
-                        it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        try { context.startActivity(it); launched = true } catch (e: Exception) { logSwallowed(TAG, "launch:530", e) }
-                    }
+                    launched = launchApp(context, parsed.packageName)
                 }
                 return launched
             }
@@ -586,8 +636,9 @@ object LightspeedShortcutManager {
                         setClassName(parsed.packageName, parsed.activityName)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
+                    val options = createLaunchBundle(context)
                     try {
-                        context.startActivity(intent)
+                        context.startActivity(intent, options)
                         return true
                     } catch (_: Exception) {
                         try {
@@ -595,7 +646,7 @@ object LightspeedShortcutManager {
                                 setClassName(parsed.packageName, parsed.activityName)
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
-                            context.startActivity(shortcutIntent)
+                            context.startActivity(shortcutIntent, options)
                             return true
                         } catch (e: Exception) {
                             if (ElevatedTaskCloser.isShizukuActive) {
@@ -649,14 +700,14 @@ object LightspeedShortcutManager {
                                 val innerIntent = Intent.parseUri(decodedInner, Intent.URI_INTENT_SCHEME).apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
-                                context.startActivity(innerIntent)
+                                context.startActivity(innerIntent, createLaunchBundle(context))
                                 return true
                             } catch (e: Exception) { logSwallowed(TAG, "launch:601", e) }
                         }
 
-                        // 1. Try starting as Activity
+                        // 1. Try starting as Activity with BAL immunity
                         try {
-                            context.startActivity(launchIntent)
+                            context.startActivity(launchIntent, createLaunchBundle(context))
                             return true
                         } catch (e: Exception) {
                             Log.d(TAG, "Activity launch failed: ${e.message}, trying broadcast/service")
@@ -696,12 +747,9 @@ object LightspeedShortcutManager {
             }
 
             else -> {
-                // Try standard package launch
+                // Try standard package launch with BAL immunity and Shizuku fallback
                 if (parsed.packageName.isNotBlank()) {
-                    context.packageManager.getLaunchIntentForPackage(parsed.packageName)?.let {
-                        it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        try { context.startActivity(it); return true } catch (e: Exception) { logSwallowed(TAG, "launch:649", e) }
-                    }
+                    return launchApp(context, parsed.packageName)
                 }
                 return false
             }

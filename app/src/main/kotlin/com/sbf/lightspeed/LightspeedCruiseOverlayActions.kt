@@ -10,11 +10,7 @@ internal fun LightspeedCruiseOverlay.persistActiveGearSetIndex() {
 }
 
 internal fun LightspeedCruiseOverlay.executeLaunch(target: LightspeedDataBridge.LaunchTarget) {
-    val launchIntent = context.packageManager.getLaunchIntentForPackage(target.packageName)
-    if (launchIntent != null) {
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try { context.startActivity(launchIntent) } catch (e: Exception) { logSwallowed("LightspeedCruiseOverlayActions", "executeLaunch:15", e) }
-    }
+    com.sbf.lightspeed.system.LightspeedShortcutManager.launchApp(context, target.packageName)
 }
 
 internal fun LightspeedCruiseOverlay.resolveCleanAppLabel(itemToken: String): String {
@@ -23,17 +19,19 @@ internal fun LightspeedCruiseOverlay.resolveCleanAppLabel(itemToken: String): St
 
 internal fun LightspeedCruiseOverlay.launchLauncherSettings() {
     dismissOverlay()
-    try {
-        val settingsIntent = Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+    uiHandler.postDelayed({
+        try {
+            val settingsIntent = Intent(context, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+            }
+            context.startActivity(settingsIntent, com.sbf.lightspeed.system.LightspeedShortcutManager.createLaunchBundle(context))
+        } catch (_: Exception) {
+            val alternativeIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+            }
+            alternativeIntent?.let { context.startActivity(it, com.sbf.lightspeed.system.LightspeedShortcutManager.createLaunchBundle(context)) }
         }
-        context.startActivity(settingsIntent)
-    } catch (_: Exception) {
-        val alternativeIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-        }
-        alternativeIntent?.let { context.startActivity(it) }
-    }
+    }, 45L)
 }
 
 internal fun LightspeedCruiseOverlay.dismissOverlay() {
@@ -174,7 +172,7 @@ internal fun LightspeedCruiseOverlay.triggerHyperdriveWarpLaunch(focalX: Float, 
 
     uiHandler.postDelayed({
         deepSpaceRenderer.reactorRenderer.cancelWarp()
-        dismissOverlay()
         onLaunch()
+        uiHandler.postDelayed({ dismissOverlay() }, 60L)
     }, 130L)
 }

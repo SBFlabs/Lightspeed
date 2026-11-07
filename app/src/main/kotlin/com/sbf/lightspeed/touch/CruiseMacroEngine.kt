@@ -67,7 +67,7 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
     triggerDeflectorHaptic(isClick = true)
 
     // Disengage overlay window so incoming system window (Recents/Home/App) gets immediate focus
-    dismissOverlay()
-
+    
     ActionDispatcher.execute(service ?: context, actionValue)
+    uiHandler.postDelayed({ dismissOverlay() }, 60L)
 }

@@ -35,8 +35,10 @@ object LightspeedBotRecorderOverlay {
     private var overlayView: View? = null
     val isShowing: Boolean get() = overlayView != null
     val isRecording: Boolean get() = isShowing && LightspeedBotEngine.isRecording
-    private var stopButton: TextView? = null
-    private var scopeSubtitleView: TextView? = null
+    private var controlPodView: View? = null
+    private var recIndicatorView: TextView? = null
+    private var windowBadgeView: TextView? = null
+    private var saveButtonView: TextView? = null
     private var targetsCanvasView: SmartTargetsCanvasView? = null
     private val recordedSteps = mutableListOf<BotStep>()
     private var detectedTargets = listOf<LightspeedBotScreenScanner.DetectedUiTarget>()
@@ -45,6 +47,8 @@ object LightspeedBotRecorderOverlay {
     private var lastStepRecordedUptime: Long = 0L
     @Volatile
     private var isForwardingTouch: Boolean = false
+    private var isScopeLocked: Boolean = false
+    private var lockedScopeLabel: String = ""
 
     private class SmartTargetsCanvasView(context: Context) : View(context) {
         private val density = context.resources.displayMetrics.density
@@ -114,11 +118,17 @@ object LightspeedBotRecorderOverlay {
         lastStepRecordedUptime = 0L
         isForwardingTouch = false
 
-        // Scan underlying screen elements BEFORE adding our overlay window
-        val scopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
+        // Scan underlying screen elements and lock scope BEFORE adding our overlay window
+        val (scopePkg, scopeWin) = LightspeedBotEngine.resolveActiveScope(service)
+        LightspeedBotEngine.recordingScopePkg = scopePkg
+        LightspeedBotEngine.recordingScopeWindow = scopeWin
+        lockedScopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
+        isScopeLocked = scopePkg != "global" && scopePkg.isNotBlank() && scopeWin.isNotBlank() && scopeWin != "Main"
         detectedTargets = LightspeedBotScreenScanner.scanScreenTargets(service)
 
         val density = service.resources.displayMetrics.density
+        val screenW = service.resources.displayMetrics.widthPixels.toFloat().coerceAtLeast(1f)
+        val screenH = service.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         val root = FrameLayout(service)
 
         // 0. Smart Target Highlight Canvas Layer
@@ -139,163 +149,238 @@ object LightspeedBotRecorderOverlay {
         }
         root.background = borderDrawable
 
-        // 2. Native Floating Top Header (Buttons + Per-Window Scope & Target Telemetry)
-        val topHeader = LinearLayout(service).apply {
+        // 2. Native Floating Draggable Control Pod (Compact 2-Row Layout)
+        val palette = DeckThemeManager.getSnapshot(service).resolveCanvasPalette()
+        val controlPod = LinearLayout(service).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
+            background = GradientDrawable().apply {
+                setColor(0xF412151C.toInt())
+                cornerRadius = 14f * density
+                setStroke((1.5f * density).toInt(), palette.glassBorderArgb)
+            }
+            setPadding((12f * density).toInt(), (8f * density).toInt(), (12f * density).toInt(), (8f * density).toInt())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                elevation = 12f * density
+            }
         }
+        controlPodView = controlPod
 
-        val topBar = LinearLayout(service).apply {
+        // Row 1: ⠿ (Drag Handle) + ● REC (N) + 🔒 <Window ID>
+        val row1 = LinearLayout(service).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            gravity = Gravity.CENTER_VERTICAL
         }
 
-        val pillBg = GradientDrawable().apply {
-            setColor(0xEE121418.toInt())
-            cornerRadius = 20f * density
-            setStroke((1.5f * density).toInt(), 0xFFFF4444.toInt())
+        val dragHandle = TextView(service).apply {
+            text = "⠿"
+            setTextColor(0xFF94A3B8.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            paint.isFakeBoldText = true
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, (6f * density).toInt(), 0)
         }
 
-        val btn = TextView(service).apply {
-            background = pillBg
-            text = "■ SAVE B$botId (0)"
-            setTextColor(0xFFFF5555.toInt())
+        val recIndicator = TextView(service).apply {
+            text = "● REC (0)"
+            setTextColor(0xFFFF4444.toInt())
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
             paint.isFakeBoldText = true
-            gravity = Gravity.CENTER
-            setPadding((13f * density).toInt(), (8f * density).toInt(), (13f * density).toInt(), (8f * density).toInt())
+            isSingleLine = true
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, (6f * density).toInt(), 0)
         }
-        stopButton = btn
+        recIndicatorView = recIndicator
 
-        val palette = DeckThemeManager.getSnapshot(service).resolveCanvasPalette()
+        val windowBadge = TextView(service).apply {
+            text = "🔒 $lockedScopeLabel"
+            setTextColor(palette.primaryAccentArgb)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f)
+            paint.isFakeBoldText = true
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER_VERTICAL or Gravity.END
+        }
+        windowBadgeView = windowBadge
+
+        row1.addView(dragHandle, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+        row1.addView(recIndicator, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+        row1.addView(windowBadge, LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            1f
+        ))
+
+        // Row 2: Three equal-height non-wrapping pills: [ ⌖ UI: ON/OFF ], [ ⏹ SAVE ], and [ ✕ CANCEL ]
+        val row2 = LinearLayout(service).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
         val detectBg = GradientDrawable().apply {
             setColor(palette.glassFillArgb)
-            cornerRadius = 20f * density
-            setStroke((1.3f * density).toInt(), palette.primaryAccentArgb)
+            cornerRadius = 8f * density
+            setStroke((1.2f * density).toInt(), palette.primaryAccentArgb)
         }
-
         val detectBtn = TextView(service).apply {
             background = detectBg
-            text = if (smartDetectEnabled) "⌖ UI DETECT: ON" else "⌖ UI DETECT: OFF"
+            text = if (smartDetectEnabled) "⌖ UI: ON" else "⌖ UI: OFF"
             setTextColor(if (smartDetectEnabled) palette.primaryAccentArgb else 0xFF94A3B8.toInt())
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
             paint.isFakeBoldText = true
+            isSingleLine = true
             gravity = Gravity.CENTER
-            setPadding((12f * density).toInt(), (8f * density).toInt(), (12f * density).toInt(), (8f * density).toInt())
+            setPadding((4f * density).toInt(), 0, (4f * density).toInt(), 0)
         }
+
+        val saveBg = GradientDrawable().apply {
+            setColor(0xEE121418.toInt())
+            cornerRadius = 8f * density
+            setStroke((1.4f * density).toInt(), 0xFFFF4444.toInt())
+        }
+        val saveBtn = TextView(service).apply {
+            background = saveBg
+            text = "⏹ SAVE"
+            setTextColor(0xFFFF5555.toInt())
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            paint.isFakeBoldText = true
+            isSingleLine = true
+            gravity = Gravity.CENTER
+            setPadding((4f * density).toInt(), 0, (4f * density).toInt(), 0)
+        }
+        saveButtonView = saveBtn
 
         val cancelBg = GradientDrawable().apply {
             setColor(palette.glassFillArgb)
-            cornerRadius = 20f * density
+            cornerRadius = 8f * density
             setStroke((1.2f * density).toInt(), palette.glassBorderArgb)
         }
-
         val cancelBtn = TextView(service).apply {
             background = cancelBg
             text = "✕ CANCEL"
             setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
             paint.isFakeBoldText = true
+            isSingleLine = true
             gravity = Gravity.CENTER
-            setPadding((12f * density).toInt(), (8f * density).toInt(), (12f * density).toInt(), (8f * density).toInt())
+            setPadding((4f * density).toInt(), 0, (4f * density).toInt(), 0)
         }
 
-        topBar.addView(btn)
-        topBar.addView(detectBtn, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { marginStart = (6f * density).toInt() })
-        topBar.addView(cancelBtn, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { marginStart = (6f * density).toInt() })
+        val btnH = (32f * density).toInt()
+        val btnGap = (5f * density).toInt()
 
-        val scopeBadgeBg = GradientDrawable().apply {
-            setColor(palette.glassFillArgb)
-            cornerRadius = 12f * density
-            setStroke((1f * density).toInt(), palette.glassBorderArgb)
-        }
-        val scopeBadge = TextView(service).apply {
-            background = scopeBadgeBg
-            text = "◈ $scopeLabel • ${detectedTargets.size} UI TARGETS"
-            setTextColor(palette.primaryAccentArgb)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f)
-            gravity = Gravity.CENTER
-            setPadding((10f * density).toInt(), (4f * density).toInt(), (10f * density).toInt(), (4f * density).toInt())
-        }
-        scopeSubtitleView = scopeBadge
+        row2.addView(detectBtn, LinearLayout.LayoutParams(0, btnH, 1f).apply { marginEnd = btnGap })
+        row2.addView(saveBtn, LinearLayout.LayoutParams(0, btnH, 1f).apply { marginEnd = btnGap })
+        row2.addView(cancelBtn, LinearLayout.LayoutParams(0, btnH, 1f))
 
-        val safetyNotice = TextView(service).apply {
-            text = "🛡 Safety: Pressing Volume or Power cancels recording"
-            setTextColor(0xFFFF8888.toInt())
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.0f)
-            gravity = Gravity.CENTER
-            setPadding((8f * density).toInt(), (3f * density).toInt(), (8f * density).toInt(), (3f * density).toInt())
-        }
-
-        topHeader.addView(topBar)
-        topHeader.addView(scopeBadge, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
+        controlPod.addView(row1, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = (5f * density).toInt() })
-        topHeader.addView(safetyNotice, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
+        ))
+        controlPod.addView(row2, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = (3f * density).toInt() })
+        ).apply { topMargin = (7f * density).toInt() })
 
-        val barParams = FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
+        val podWidth = (320f * density).toInt().coerceAtMost((screenW - 20f * density).toInt())
+        val podParams = FrameLayout.LayoutParams(
+            podWidth,
             FrameLayout.LayoutParams.WRAP_CONTENT
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            topMargin = (42f * density).toInt()
+            topMargin = (44f * density).toInt()
         }
-        root.addView(topHeader, barParams)
+        root.addView(controlPod, podParams)
 
         var downX = 0f
         var downY = 0f
         var downTime = 0L
 
+        var isDraggingPod = false
+        var podTouchStartX = 0f
+        var podTouchStartY = 0f
+        var podInitialTranslationX = 0f
+        var podInitialTranslationY = 0f
+        var hasMovedPod = false
+
         root.setOnTouchListener { _, event ->
             if (isForwardingTouch) return@setOnTouchListener true
 
-            val headerRect = Rect()
-            topHeader.getGlobalVisibleRect(headerRect)
-            if (headerRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
-                if (event.actionMasked == MotionEvent.ACTION_UP) {
-                    val saveRect = Rect()
-                    btn.getGlobalVisibleRect(saveRect)
-                    val detectRect = Rect()
-                    detectBtn.getGlobalVisibleRect(detectRect)
-                    val cancelRect = Rect()
-                    cancelBtn.getGlobalVisibleRect(cancelRect)
-                    val rx = event.rawX.toInt()
-                    val ry = event.rawY.toInt()
-                    when {
-                        saveRect.contains(rx, ry) -> LightspeedBotEngine.stopRecording(context, recordedSteps.toList())
-                        detectRect.contains(rx, ry) -> {
-                            smartDetectEnabled = !smartDetectEnabled
-                            detectBtn.text = if (smartDetectEnabled) "⌖ UI DETECT: ON" else "⌖ UI DETECT: OFF"
-                            detectBtn.setTextColor(if (smartDetectEnabled) palette.primaryAccentArgb else 0xFF94A3B8.toInt())
-                            canvasView.invalidate()
-                        }
-                        cancelRect.contains(rx, ry) -> LightspeedBotEngine.stopRecording(context, null)
-                    }
-                }
-                return@setOnTouchListener true
-            }
-
-            val screenW = service.resources.displayMetrics.widthPixels.toFloat().coerceAtLeast(1f)
-            val screenH = service.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
+            val podRect = Rect()
+            controlPod.getGlobalVisibleRect(podRect)
+            val rx = event.rawX.toInt()
+            val ry = event.rawY.toInt()
 
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    if (podRect.contains(rx, ry)) {
+                        isDraggingPod = true
+                        podTouchStartX = event.rawX
+                        podTouchStartY = event.rawY
+                        podInitialTranslationX = controlPod.translationX
+                        podInitialTranslationY = controlPod.translationY
+                        hasMovedPod = false
+                        return@setOnTouchListener true
+                    }
+                    isDraggingPod = false
                     downX = event.rawX
                     downY = event.rawY
                     downTime = SystemClock.uptimeMillis()
                     true
                 }
+                MotionEvent.ACTION_MOVE -> {
+                    if (isDraggingPod) {
+                        val dx = event.rawX - podTouchStartX
+                        val dy = event.rawY - podTouchStartY
+                        if (!hasMovedPod && (Math.hypot(dx.toDouble(), dy.toDouble()) > 6f * density)) {
+                            hasMovedPod = true
+                        }
+                        if (hasMovedPod) {
+                            val minX = -(controlPod.left).toFloat()
+                            val maxX = (screenW - controlPod.right).toFloat()
+                            val minY = -(controlPod.top).toFloat()
+                            val maxY = (screenH - controlPod.bottom).toFloat()
+                            controlPod.translationX = (podInitialTranslationX + dx).coerceIn(minX, maxX)
+                            controlPod.translationY = (podInitialTranslationY + dy).coerceIn(minY, maxY)
+                        }
+                        return@setOnTouchListener true
+                    }
+                    true
+                }
                 MotionEvent.ACTION_UP -> {
+                    if (isDraggingPod) {
+                        isDraggingPod = false
+                        if (!hasMovedPod) {
+                            val saveRect = Rect()
+                            saveBtn.getGlobalVisibleRect(saveRect)
+                            val detectRect = Rect()
+                            detectBtn.getGlobalVisibleRect(detectRect)
+                            val cancelRect = Rect()
+                            cancelBtn.getGlobalVisibleRect(cancelRect)
+
+                            when {
+                                saveRect.contains(rx, ry) -> {
+                                    LightspeedBotEngine.stopRecording(context, recordedSteps.toList())
+                                }
+                                detectRect.contains(rx, ry) -> {
+                                    smartDetectEnabled = !smartDetectEnabled
+                                    detectBtn.text = if (smartDetectEnabled) "⌖ UI: ON" else "⌖ UI: OFF"
+                                    detectBtn.setTextColor(if (smartDetectEnabled) palette.primaryAccentArgb else 0xFF94A3B8.toInt())
+                                    targetsCanvasView?.invalidate()
+                                }
+                                cancelRect.contains(rx, ry) -> {
+                                    LightspeedBotEngine.stopRecording(context, null)
+                                }
+                            }
+                        }
+                        return@setOnTouchListener true
+                    }
+
                     val now = SystemClock.uptimeMillis()
                     if (now - lastStepRecordedUptime < 80L) {
                         return@setOnTouchListener true
@@ -320,7 +405,6 @@ object LightspeedBotRecorderOverlay {
                         service = service,
                         root = root,
                         botId = botId,
-                        btn = btn,
                         isSwipe = isSwipe,
                         downX = downX,
                         downY = downY,
@@ -331,6 +415,10 @@ object LightspeedBotRecorderOverlay {
                         delay = delay,
                         duration = duration
                     )
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    isDraggingPod = false
                     true
                 }
                 else -> true
@@ -366,9 +454,14 @@ object LightspeedBotRecorderOverlay {
             try { windowManager?.removeView(v) } catch (_: Exception) {}
             overlayView = null
         }
-        stopButton = null
-        scopeSubtitleView = null
+        controlPodView = null
+        recIndicatorView = null
+        windowBadgeView = null
+        saveButtonView = null
         targetsCanvasView = null
+        isScopeLocked = false
+        lockedScopeLabel = ""
+        LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
     }
 
     /**
@@ -379,8 +472,6 @@ object LightspeedBotRecorderOverlay {
         if (!isShowing) return
         try {
             detectedTargets = LightspeedBotScreenScanner.scanScreenTargets(service)
-            val scopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
-            scopeSubtitleView?.text = "◈ $scopeLabel • ${detectedTargets.size} UI TARGETS"
             targetsCanvasView?.invalidate()
         } catch (_: Exception) {}
     }
@@ -390,7 +481,6 @@ object LightspeedBotRecorderOverlay {
         service: LightspeedAccessibilityService,
         root: View,
         botId: Int,
-        btn: TextView,
         isSwipe: Boolean,
         downX: Float,
         downY: Float,
@@ -423,21 +513,49 @@ object LightspeedBotRecorderOverlay {
                 isForwardingTouch = false
                 return@postDelayed
             }
-            val node = if (matchedTarget == null) {
-                try {
-                    LightspeedBotEngine.findSmallestNodeAt(service.rootInActiveWindow, downX, downY)
-                } catch (_: Exception) {
-                    null
-                }
-            } else null
+            val rootNode = LightspeedBotScreenScanner.resolveUnderlyingAppWindow(service)?.root ?: service.rootInActiveWindow
+            val hitNode = try {
+                LightspeedBotScreenScanner.findDeepestNodeAt(rootNode, downX, downY)
+            } catch (_: Exception) {
+                null
+            }
 
-            val viewId = matchedTarget?.viewIdResourceName ?: node?.viewIdResourceName
-            val text = matchedTarget?.text ?: node?.text?.toString()
-            val contentDesc = matchedTarget?.contentDescription ?: node?.contentDescription?.toString()
-            val cls = matchedTarget?.className ?: node?.className?.toString()
-            val pkg = matchedTarget?.packageName ?: node?.packageName?.toString()
-            val tapX = matchedTarget?.bounds?.centerX()?.toFloat() ?: downX
-            val tapY = matchedTarget?.bounds?.centerY()?.toFloat() ?: downY
+            // Prefer interactive leaf widget (Button, ImageButton, ImageView, TextView) over parent layout containers
+            val effectiveTarget = if (matchedTarget != null && LightspeedBotScreenScanner.isLayoutContainer(matchedTarget.className) &&
+                hitNode != null && !LightspeedBotScreenScanner.isLayoutContainer(hitNode.className?.toString())
+            ) {
+                null
+            } else {
+                matchedTarget
+            }
+
+            val targetNode = if (effectiveTarget == null) hitNode else null
+            val viewId = effectiveTarget?.viewIdResourceName ?: targetNode?.viewIdResourceName
+            val text = effectiveTarget?.text ?: targetNode?.text?.toString()
+            val contentDesc = effectiveTarget?.contentDescription ?: targetNode?.contentDescription?.toString()
+            val cls = effectiveTarget?.className ?: targetNode?.className?.toString()
+
+            // Only lock scope on Step 1 if not already locked! NEVER overwrite once locked.
+            val tappedPkg = targetNode?.packageName?.toString() ?: effectiveTarget?.packageName
+            val ownPkg = service.packageName
+            if (!isScopeLocked && !tappedPkg.isNullOrBlank() && tappedPkg != ownPkg && tappedPkg != "com.android.systemui" &&
+                !com.sbf.lightspeed.system.LightspeedForegroundTracker.isInputMethodPackage(service, tappedPkg)
+            ) {
+                LightspeedBotEngine.recordingScopePkg = tappedPkg
+                val winId = LightspeedBotScreenScanner.resolveActiveWindowId(service)
+                LightspeedBotEngine.recordingScopeWindow = winId
+                lockedScopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
+                isScopeLocked = true
+                windowBadgeView?.text = "🔒 $lockedScopeLabel"
+            }
+
+            val pkg = LightspeedBotEngine.recordingScopePkg
+            val winId = LightspeedBotEngine.recordingScopeWindow
+            val tapX = effectiveTarget?.bounds?.centerX()?.toFloat() ?: downX
+            val tapY = effectiveTarget?.bounds?.centerY()?.toFloat() ?: downY
+
+            val hasElementMeta = !viewId.isNullOrBlank() || !contentDesc.isNullOrBlank() || !text.isNullOrBlank()
+            val isElementBound = !isSwipe && hasElementMeta
 
             val step = if (isSwipe) {
                 BotStep(
@@ -452,7 +570,9 @@ object LightspeedBotRecorderOverlay {
                     text = text,
                     contentDescription = contentDesc,
                     className = cls,
-                    packageName = pkg
+                    packageName = pkg,
+                    useElementTarget = false,
+                    windowId = winId
                 )
             } else {
                 BotStep(
@@ -465,12 +585,15 @@ object LightspeedBotRecorderOverlay {
                     text = text,
                     contentDescription = contentDesc,
                     className = cls,
-                    packageName = pkg
+                    packageName = pkg,
+                    useElementTarget = isElementBound,
+                    windowId = winId
                 )
             }
 
             recordedSteps.add(step)
-            btn.text = "■ SAVE B$botId (${recordedSteps.size})"
+            recIndicatorView?.text = "● REC (${recordedSteps.size})"
+            saveButtonView?.text = "⏹ SAVE (${recordedSteps.size})"
 
             if (isSwipe) {
                 LightspeedBotEngine.injectSwipeOrDispatch(service, downX, downY, upX, upY, duration)
@@ -484,8 +607,6 @@ object LightspeedBotRecorderOverlay {
                 if (overlayView === root) {
                     // Re-scan active window for new Burger Menu / Dialog / Menu items before restoring touchable overlay
                     detectedTargets = LightspeedBotScreenScanner.scanScreenTargets(service)
-                    val scopeLabel = LightspeedBotEngine.getActiveScopeDisplayLabel(service)
-                    scopeSubtitleView?.text = "◈ $scopeLabel • ${detectedTargets.size} UI TARGETS"
                     targetsCanvasView?.invalidate()
                     try {
                         lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()

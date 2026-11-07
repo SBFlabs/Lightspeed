@@ -40,6 +40,11 @@ class BotMacroEditorDialog : ComponentActivity() {
         super.onCreate(savedInstanceState)
         LightspeedBotTrackpadOverlay.setSuspendedForDialog(true)
         val botId = intent?.getIntExtra(EXTRA_BOT_ID, 1)?.coerceIn(1, LightspeedBotContract.MAX_BOT_MACROS) ?: 1
+        val targetPkg = intent?.getStringExtra(EXTRA_TARGET_PACKAGE)?.takeIf { it.isNotBlank() }
+            ?: LightspeedBotEngine.lastResolvedPkg
+        val targetWin = intent?.getStringExtra(EXTRA_TARGET_WINDOW_ID)?.takeIf { it.isNotBlank() }
+            ?: LightspeedBotEngine.lastResolvedWindow
+        val boundScope = targetPkg to targetWin
 
         setContent {
             val lsColors = LightspeedStyle.colors
@@ -48,15 +53,76 @@ class BotMacroEditorDialog : ComponentActivity() {
             val repeatPrefKey = remember { "${LightspeedBotContract.KEY_BOT_MACRO_REPEAT_PREFIX}$botId" }
             val useRecordedDelayPrefKey = remember { "${LightspeedBotContract.KEY_BOT_USE_RECORDED_DELAY_PREFIX}$botId" }
             val stepDelayMsPrefKey = remember { "${LightspeedBotContract.KEY_BOT_STEP_DELAY_MS_PREFIX}$botId" }
+            val scopePrefKey = remember {
+                "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_win_${boundScope.first}_${boundScope.second}"
+            }
             var repeatCount by remember { mutableIntStateOf(prefs.getInt(repeatPrefKey, 1)) }
             var useRecordedDelay by remember { mutableStateOf(prefs.getBoolean(useRecordedDelayPrefKey, false)) }
             var customStepDelayMs by remember { mutableFloatStateOf(prefs.getInt(stepDelayMsPrefKey, 60).toFloat()) }
             var showLoopWarningDialog by remember { mutableStateOf(false) }
             var dontRemindLoopWarn by remember { mutableStateOf(false) }
-            val activeScope = remember { LightspeedBotEngine.resolveActiveScope(this@BotMacroEditorDialog) }
-            val scopeLabel = remember { LightspeedBotEngine.getActiveScopeDisplayLabel(this@BotMacroEditorDialog) }
-            var steps by remember { mutableStateOf(LightspeedBotEngine.getMacroSteps(this, botId)) }
+            var selectedScope by remember {
+                mutableStateOf(
+                    prefs.getString(scopePrefKey, LightspeedBotContract.SCOPE_THIS_WINDOW)
+                        ?: LightspeedBotContract.SCOPE_THIS_WINDOW
+                )
+            }
+            var steps by remember {
+                mutableStateOf(
+                    LightspeedBotEngine.getMacroSteps(
+                        this@BotMacroEditorDialog,
+                        botId,
+                        boundScope,
+                        selectedScope
+                    )
+                )
+            }
             var isLooping by remember { mutableStateOf(LightspeedBotEngine.isLooping) }
+
+            fun persistSteps(updated: List<BotStep>) {
+                steps = updated.toMutableList()
+                LightspeedBotEngine.saveMacroSteps(
+                    this@BotMacroEditorDialog,
+                    botId,
+                    updated,
+                    boundScope,
+                    selectedScope
+                )
+            }
+
+            fun onScopeChanged(newScope: String) {
+                selectedScope = newScope
+                prefs.edit().putString(scopePrefKey, newScope).apply()
+                if (newScope == LightspeedBotContract.SCOPE_THIS_APP) {
+                    prefs.edit().putString(
+                        "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_app_${boundScope.first}",
+                        LightspeedBotContract.SCOPE_THIS_APP
+                    ).apply()
+                } else if (newScope == LightspeedBotContract.SCOPE_GLOBAL) {
+                    prefs.edit().putString(
+                        "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_global",
+                        LightspeedBotContract.SCOPE_GLOBAL
+                    ).apply()
+                }
+                var loaded = LightspeedBotEngine.getMacroSteps(
+                    this@BotMacroEditorDialog,
+                    botId,
+                    boundScope,
+                    newScope
+                )
+                if (loaded.isEmpty() && steps.isNotEmpty()) {
+                    LightspeedBotEngine.saveMacroSteps(
+                        this@BotMacroEditorDialog,
+                        botId,
+                        steps,
+                        boundScope,
+                        newScope
+                    )
+                    loaded = steps
+                }
+                steps = loaded
+                LightspeedHapticEngine.tick(this@BotMacroEditorDialog)
+            }
 
             DeckDialog(
                 title = {
@@ -68,7 +134,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                             color = lsColors.textPrimary
                         )
                         Text(
-                            text = "◈ SCOPE: $scopeLabel",
+                            text = "◈ ${boundScope.first} • ${boundScope.second}",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             color = lsColors.accentInfo
@@ -83,8 +149,87 @@ class BotMacroEditorDialog : ComponentActivity() {
                             .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Bound Package • Window ID Badge
+                        DeckCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "BOUND TARGET",
+                                        fontSize = 8.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = lsColors.accentInfo
+                                    )
+                                    Text(
+                                        text = "${boundScope.first} • ${boundScope.second}",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = lsColors.textPrimary,
+                                        maxLines = 1
+                                    )
+                                }
+                                val scopeBadgeText = when (selectedScope) {
+                                    LightspeedBotContract.SCOPE_THIS_APP -> "APP-WIDE"
+                                    LightspeedBotContract.SCOPE_GLOBAL -> "GLOBAL"
+                                    else -> "THIS WINDOW"
+                                }
+                                Text(
+                                    text = "[$scopeBadgeText]",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = lsColors.accent
+                                )
+                            }
+                        }
+
+                        // Scope Selector Chips: [ This Window | This App | Global ]
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "MACRO SCOPE",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = lsColors.accentInfo
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                TrackpadPillButton(
+                                    text = "This Window",
+                                    isSelected = selectedScope == LightspeedBotContract.SCOPE_THIS_WINDOW,
+                                    onClick = { onScopeChanged(LightspeedBotContract.SCOPE_THIS_WINDOW) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TrackpadPillButton(
+                                    text = "This App",
+                                    isSelected = selectedScope == LightspeedBotContract.SCOPE_THIS_APP,
+                                    onClick = { onScopeChanged(LightspeedBotContract.SCOPE_THIS_APP) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TrackpadPillButton(
+                                    text = "Global",
+                                    isSelected = selectedScope == LightspeedBotContract.SCOPE_GLOBAL,
+                                    onClick = { onScopeChanged(LightspeedBotContract.SCOPE_GLOBAL) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
                         Text(
-                            text = "RECORDED STEPS (${scopeLabel.uppercase()}): ${steps.size}",
+                            text = "RECORDED STEPS (${when (selectedScope) {
+                                LightspeedBotContract.SCOPE_THIS_APP -> "APP-WIDE"
+                                LightspeedBotContract.SCOPE_GLOBAL -> "GLOBAL"
+                                else -> boundScope.second.uppercase()
+                            }}): ${steps.size}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = lsColors.accentInfo
@@ -106,12 +251,13 @@ class BotMacroEditorDialog : ComponentActivity() {
                                                 delayMs = 250L,
                                                 durationMs = 60L,
                                                 contentDescription = LightspeedBotScreenScanner.TOKEN_BURGER_MENU,
-                                                packageName = activeScope.first
+                                                packageName = boundScope.first,
+                                                useElementTarget = true,
+                                                windowId = boundScope.second
                                             )
                                         )
                                     }
-                                    steps = updated
-                                    LightspeedBotEngine.saveMacroSteps(this@BotMacroEditorDialog, botId, updated, activeScope)
+                                    persistSteps(updated)
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                 modifier = Modifier.weight(1f).height(30.dp)
@@ -130,12 +276,13 @@ class BotMacroEditorDialog : ComponentActivity() {
                                                 delayMs = 250L,
                                                 durationMs = 60L,
                                                 contentDescription = LightspeedBotScreenScanner.TOKEN_ANDROID_MORE_MENU,
-                                                packageName = activeScope.first
+                                                packageName = boundScope.first,
+                                                useElementTarget = true,
+                                                windowId = boundScope.second
                                             )
                                         )
                                     }
-                                    steps = updated
-                                    LightspeedBotEngine.saveMacroSteps(this@BotMacroEditorDialog, botId, updated, activeScope)
+                                    persistSteps(updated)
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                 modifier = Modifier.weight(1f).height(30.dp)
@@ -154,12 +301,13 @@ class BotMacroEditorDialog : ComponentActivity() {
                                                 delayMs = 250L,
                                                 durationMs = 60L,
                                                 contentDescription = LightspeedBotScreenScanner.TOKEN_SEARCH_BUTTON,
-                                                packageName = activeScope.first
+                                                packageName = boundScope.first,
+                                                useElementTarget = true,
+                                                windowId = boundScope.second
                                             )
                                         )
                                     }
-                                    steps = updated
-                                    LightspeedBotEngine.saveMacroSteps(this@BotMacroEditorDialog, botId, updated, activeScope)
+                                    persistSteps(updated)
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                 modifier = Modifier.weight(0.85f).height(30.dp)
@@ -315,7 +463,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                         ) {
                             DeckButton(
                                 onClick = {
-                                    LightspeedBotEngine.playBot(this@BotMacroEditorDialog, botId)
+                                    LightspeedBotEngine.playBot(this@BotMacroEditorDialog, botId, stepsOverride = steps)
                                     finish()
                                 },
                                 modifier = Modifier.weight(1f),
@@ -346,8 +494,7 @@ class BotMacroEditorDialog : ComponentActivity() {
 
                             DeckButton(
                                 onClick = {
-                                    steps = mutableListOf()
-                                    LightspeedBotEngine.saveMacroSteps(this@BotMacroEditorDialog, botId, emptyList(), activeScope)
+                                    persistSteps(emptyList())
                                     LightspeedHapticEngine.tick(this@BotMacroEditorDialog)
                                 },
                                 modifier = Modifier.weight(1f),
@@ -406,7 +553,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                                                 prefs.edit().putBoolean(LightspeedBotContract.KEY_BOT_LOOP_WARN_DISMISSED, true).apply()
                                             }
                                             showLoopWarningDialog = false
-                                            LightspeedBotEngine.startContinuousLoop(this@BotMacroEditorDialog, botId)
+                                            LightspeedBotEngine.startContinuousLoop(this@BotMacroEditorDialog, botId, stepsOverride = steps)
                                             isLooping = true
                                             finish()
                                         }
@@ -454,13 +601,16 @@ class BotMacroEditorDialog : ComponentActivity() {
                                                     color = lsColors.textPrimary
                                                 )
                                                 val condition = when {
-                                                    step.contentDescription == LightspeedBotScreenScanner.TOKEN_BURGER_MENU -> "Smart Target: ⌖ Burger / Drawer Menu"
-                                                    step.contentDescription == LightspeedBotScreenScanner.TOKEN_ANDROID_MORE_MENU -> "Smart Target: ⌖ Android 3-Dot Menu"
-                                                    step.contentDescription == LightspeedBotScreenScanner.TOKEN_SEARCH_BUTTON -> "Smart Target: ⌖ Search Button"
-                                                    !step.viewIdResourceName.isNullOrBlank() -> "ID: ${step.viewIdResourceName.substringAfterLast('/')}"
-                                                    !step.text.isNullOrBlank() -> "Text: \"${step.text}\""
-                                                    !step.contentDescription.isNullOrBlank() -> "Desc: \"${step.contentDescription}\""
-                                                    else -> "Coords: (${(step.xRatio * 100).toInt()}%, ${(step.yRatio * 100).toInt()}%)"
+                                                    step.useElementTarget -> when {
+                                                        step.contentDescription == LightspeedBotScreenScanner.TOKEN_BURGER_MENU -> "⌖ Smart: Burger / Drawer Menu"
+                                                        step.contentDescription == LightspeedBotScreenScanner.TOKEN_ANDROID_MORE_MENU -> "⌖ Smart: Android 3-Dot Menu"
+                                                        step.contentDescription == LightspeedBotScreenScanner.TOKEN_SEARCH_BUTTON -> "⌖ Smart: Search Button"
+                                                        !step.viewIdResourceName.isNullOrBlank() -> "⌖ ID: ${step.viewIdResourceName.substringAfterLast('/')}"
+                                                        !step.text.isNullOrBlank() -> "⌖ Text: \"${step.text}\""
+                                                        !step.contentDescription.isNullOrBlank() -> "⌖ Desc: \"${step.contentDescription}\""
+                                                        else -> "⌖ Element Target"
+                                                    }
+                                                    else -> "◈ Coords: (${(step.xRatio * 100).toInt()}%, ${(step.yRatio * 100).toInt()}%)"
                                                 }
                                                 Text(
                                                     text = condition,
@@ -472,8 +622,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                                             IconButton(
                                                 onClick = {
                                                     val updated = steps.toMutableList().apply { removeAt(index) }
-                                                    steps = updated
-                                                    LightspeedBotEngine.saveMacroSteps(this@BotMacroEditorDialog, botId, updated, activeScope)
+                                                    persistSteps(updated)
                                                 }
                                             ) {
                                                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = lsColors.accentDanger)
@@ -496,5 +645,7 @@ class BotMacroEditorDialog : ComponentActivity() {
 
     companion object {
         const val EXTRA_BOT_ID = "extra_bot_id"
+        const val EXTRA_TARGET_PACKAGE = "extra_target_package"
+        const val EXTRA_TARGET_WINDOW_ID = "extra_target_window_id"
     }
 }

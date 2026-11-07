@@ -229,7 +229,7 @@ internal fun LightspeedCruiseOverlay.handleStickyPinTouch(event: MotionEvent): B
 
             if (hypot((x - touchDownX).toDouble(), (y - touchDownY).toDouble()) < 16f) {
                 if (isSettingsButtonHit(x, y)) { openEditMode(); triggerHardwareHaptic(35, 180); activeItem = null; invalidate(); return true }
-                if (y in gridTopLimit..gridBottomLimit) activeItem?.let { executeLaunch(it); dismissOverlay() } ?: dismissOverlay()
+                if (y in gridTopLimit..gridBottomLimit) activeItem?.let { executeLaunch(it); uiHandler.postDelayed({ dismissOverlay() }, 60L) } ?: dismissOverlay()
                 else dismissOverlay()
             }
             activeItem = null; invalidate(); return true

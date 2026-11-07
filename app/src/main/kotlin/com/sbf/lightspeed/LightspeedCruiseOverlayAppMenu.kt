@@ -129,7 +129,7 @@ internal fun LightspeedCruiseOverlay.handlePinnedAppMenuTap(x: Float, y: Float) 
             PinnedMenuItem.OPEN -> {
                 closePinnedAppMenu()
                 executeLaunch(target)
-                dismissOverlay()
+                uiHandler.postDelayed({ dismissOverlay() }, 60L)
             }
             PinnedMenuItem.APP_INFO -> {
                 closePinnedAppMenu()

@@ -174,38 +174,114 @@ internal object ShizukuExecHelper {
         return false
     }
 
-    fun injectTapEvent(x: Float, y: Float): Boolean {
-        if (!ElevatedTaskCloser.isShizukuActive) return false
-        return try {
-            val rawBinder = SystemServiceHelper.getSystemService("input")
-                ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
-                ?: return false
-            val wrapped = ShizukuBinderWrapper(rawBinder)
-            val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
-            val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
-            val inputManager = asInterface.invoke(null, wrapped) ?: return false
+    @Volatile
+    private var cachedInputManager: Any? = null
+    @Volatile
+    private var cachedInjectMethod: Method? = null
 
-            val injectMethod = inputManager.javaClass.methods.firstOrNull { it.name == "injectInputEvent" }
-            if (injectMethod != null) {
-                val now = SystemClock.uptimeMillis()
-                val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0).apply {
-                    source = InputDevice.SOURCE_TOUCHSCREEN
-                }
-                val up = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_UP, x, y, 0).apply {
-                    source = InputDevice.SOURCE_TOUCHSCREEN
-                }
+    private fun getCachedInputManager(): Pair<Any, Method>? {
+        if (!ElevatedTaskCloser.isShizukuActive) return null
+        val mgr = cachedInputManager
+        val method = cachedInjectMethod
+        if (mgr != null && method != null) return mgr to method
+
+        synchronized(this) {
+            val m2 = cachedInputManager
+            val meth2 = cachedInjectMethod
+            if (m2 != null && meth2 != null) return m2 to meth2
+
+            try {
+                val rawBinder = SystemServiceHelper.getSystemService("input")
+                    ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
+                    ?: return null
+                val wrapped = ShizukuBinderWrapper(rawBinder)
+                val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
+                val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+                val inputManager = asInterface.invoke(null, wrapped) ?: return null
+                val inject = inputManager.javaClass.methods.firstOrNull { it.name == "injectInputEvent" } ?: return null
+                cachedInputManager = inputManager
+                cachedInjectMethod = inject
+                return inputManager to inject
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to initialize IInputManager proxy", e)
+                return null
+            }
+        }
+    }
+
+    fun injectPointerDown(downTime: Long, x: Float, y: Float): Boolean {
+        val (inputManager, injectMethod) = getCachedInputManager() ?: return false
+        val event = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0).apply {
+            source = InputDevice.SOURCE_TOUCHSCREEN
+        }
+        return try {
+            injectMethod.invoke(inputManager, event, 0)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "injectPointerDown failed", e)
+            false
+        } finally {
+            event.recycle()
+        }
+    }
+
+    fun injectPointerMove(downTime: Long, eventTime: Long, x: Float, y: Float): Boolean {
+        val (inputManager, injectMethod) = getCachedInputManager() ?: return false
+        val event = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_MOVE, x, y, 0).apply {
+            source = InputDevice.SOURCE_TOUCHSCREEN
+        }
+        return try {
+            injectMethod.invoke(inputManager, event, 0)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "injectPointerMove failed", e)
+            false
+        } finally {
+            event.recycle()
+        }
+    }
+
+    fun injectPointerUp(downTime: Long, eventTime: Long, x: Float, y: Float): Boolean {
+        val (inputManager, injectMethod) = getCachedInputManager() ?: return false
+        val event = MotionEvent.obtain(downTime, eventTime, MotionEvent.ACTION_UP, x, y, 0).apply {
+            source = InputDevice.SOURCE_TOUCHSCREEN
+        }
+        return try {
+            injectMethod.invoke(inputManager, event, 0)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "injectPointerUp failed", e)
+            false
+        } finally {
+            event.recycle()
+        }
+    }
+
+    fun injectTapEvent(x: Float, y: Float): Boolean {
+        val pair = getCachedInputManager()
+        if (pair != null) {
+            val (inputManager, injectMethod) = pair
+            val now = SystemClock.uptimeMillis()
+            val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0).apply {
+                source = InputDevice.SOURCE_TOUCHSCREEN
+            }
+            val up = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_UP, x, y, 0).apply {
+                source = InputDevice.SOURCE_TOUCHSCREEN
+            }
+            return try {
                 injectMethod.invoke(inputManager, down, 0)
                 injectMethod.invoke(inputManager, up, 0)
+                true
+            } catch (e: Exception) {
+                Log.w(TAG, "Direct tap injection failed", e)
+                execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
+            } finally {
                 down.recycle()
                 up.recycle()
-                true
-            } else {
-                execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Direct tap injection failed", e)
-            execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
         }
+        if (!ElevatedTaskCloser.isShizukuActive) return false
+        return execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
     }
 
     fun triggerCircleToSearch(context: Context) {

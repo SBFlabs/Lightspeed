@@ -5,9 +5,22 @@ All notable changes to the Lightspeed Gesture Launcher & Workspace are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-11-06
+### Added & Improved
+- **Cybernetic Trackpad (120Hz Zero-IPC & Real-Time Drag):** Eliminated Binder IPC from frame rendering and touch-down events for instant 120Hz cursor tracking, plus real-time streamed Hold & Drag via Shizuku.
+- **Draggable 2-Row Macro Recorder Pod:** Replaced the static top bar with a freely draggable 2-row floating pod (`[ ⌖ UI: ON/OFF ]`, `[ ⏹ SAVE ]`, `[ ✕ CANCEL ]`) with a drag handle (`⠿`).
+- **Strict Per-Window Macro Scoping & Live Button Sync:** Deepest-child leaf hit-testing, overlay filtering, Step-1 Window ID locking, automatic linger extension on macro tap, and instant `B1`–`B3` indicator refresh on save or window switch.
+- **Astrogation Airlock Active-Session Refresh:** Continuously refreshes the 10-minute grace period while actively using a gated app so Airlock never interrupts mid-game.
+- **Vulkan (`skiavk`) App Launch Immunity & Blur Timing:** Routed app launches through BAL-immune `ActivityOptions` + Shizuku fallback and added a 45ms overlay-dismissal guard before Central Command blur capture.
+
 ## [1.3.2] - 2026-11-03
 
 ### Fixed
+* **Cybernetic Trackpad Macro Window ID Detection & Strict Per-Window Scoping (`LightspeedForegroundTracker.kt`, `LightspeedBotScreenScanner.kt`, `LightspeedBotEngine.kt`, `LightspeedBotRecorderOverlay.kt`, `BotMacroEditorDialog.kt`, `BotStep.kt`)**:
+  * **True Window / Screen ID Resolution**: Eliminated generic `FrameLayout` pollution by tracking `currentActivityClass` exclusively from verified component/Activity/Dialog classes and combining it with a deterministic screen-header and structure scanner (`resolveActiveWindowId`). Reliably distinguishes sub-screens across single-activity and fragment architectures (e.g. `com.ichi2.anki • DeckPicker` vs `com.ichi2.anki • Statistics`).
+  * **Strict Per-Window Scoping**: Macros recorded on `B1`, `B2`, or `B3` are captured with their pre-intercept target package and window ID, saving strictly under `pref_bot_macro_<id>_win_<pkg>_<windowId>`. Playback enforces strict window/package checks with zero fallback leakage across windows or apps unless explicitly configured via the Macro Scope chips (`[ This Window | This App | Global ]`), aborting with `"No macro for this window"` on mismatch.
+  * **Strict Element ID vs. Coordinate Playback**: Marked recorded steps as Element-Bound (`useElementTarget = true`) when targeting interactive screen elements (e.g. `⌖ Burger Menu`, `⌖ Android Menu`, or node with View ID / description / text), cleanly aborting without coordinate fallback if the element is not found on screen. Coordinate steps strictly verify window scope before dispatch.
+  * **Bound Target Telemetry & Scope Selector**: Exposed live `Package • Window ID` telemetry badge and interactive 3-chip scope selector in `BotMacroEditorDialog`, giving users 100% transparent ownership and migration controls.
 * **Category Cruise Color Engine Polish (`LightspeedCruiseOverlayDraw.kt`, `LightspeedCruiseOverlayEditMode.kt`, `LightspeedCruiseOverlayEditRows.kt`)**:
   * **Hybrid Mode**: Only the focused category's star beacon (`✦`) receives the dynamic accent color, while adjacent non-focused stars retain standard 12-theme white typography styling.
   * **Material 3 Mode**: Full focused category label is tinted in Material 3 accent color; edit panel outer borders and reordering arrows dynamically inherit Material 3 borders and accents.

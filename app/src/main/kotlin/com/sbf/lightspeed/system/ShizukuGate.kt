@@ -42,6 +42,7 @@ object ShizukuGate {
     fun getMode(): Int = prefs?.getInt(KEY_SHIZUKU_GATE_MODE, MODE_UNSET) ?: MODE_UNSET
     fun setMode(mode: Int) { prefs?.edit()?.putInt(KEY_SHIZUKU_GATE_MODE, mode)?.apply() }
     fun isAccessibilityOnly(): Boolean = getMode() == MODE_ACCESSIBILITY_ONLY
+    fun isShizukuUsable(context: Context? = null): Boolean = ElevatedTaskCloser.isShizukuActive
     private fun isDenied(): Boolean = prefs?.getBoolean(KEY_SHIZUKU_GATE_DENIED, false) ?: false
     private fun setDenied(value: Boolean) { prefs?.edit()?.putBoolean(KEY_SHIZUKU_GATE_DENIED, value)?.apply() }
 

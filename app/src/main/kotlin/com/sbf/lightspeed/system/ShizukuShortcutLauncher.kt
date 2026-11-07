@@ -229,4 +229,40 @@ internal object ShizukuShortcutLauncher {
         }
         return args
     }
+
+    fun launchAppPrivileged(context: Context, packageName: String): Boolean {
+        if (!ShellArgGuard.isPackage(packageName)) {
+            Log.w(TAG, "launchAppPrivileged aborting: invalid package '$packageName'")
+            return false
+        }
+        val pm = context.packageManager
+        val launchIntent = pm.getLaunchIntentForPackage(packageName)
+        val component = launchIntent?.component
+        val activityName = component?.className
+
+        return if (!activityName.isNullOrBlank() && ShellArgGuard.isClassName(activityName)) {
+            val cmp = "$packageName/$activityName"
+            val proc = ElevatedTaskCloser.execShizukuArgv(
+                "cmd", "activity", "start-activity",
+                "--user", "0",
+                "-a", "android.intent.action.MAIN",
+                "-c", "android.intent.category.LAUNCHER",
+                "-n", cmp
+            )
+            val exitCode = proc?.waitForOrKill(2000L)
+            Log.i(TAG, "launchAppPrivileged: cmd activity start-activity -n $cmp exited with $exitCode")
+            exitCode == 0
+        } else {
+            val proc = ElevatedTaskCloser.execShizukuArgv(
+                "cmd", "activity", "start-activity",
+                "--user", "0",
+                "-a", "android.intent.action.MAIN",
+                "-c", "android.intent.category.LAUNCHER",
+                "-p", packageName
+            )
+            val exitCode = proc?.waitForOrKill(2000L)
+            Log.i(TAG, "launchAppPrivileged: cmd activity start-activity -p $packageName exited with $exitCode")
+            exitCode == 0
+        }
+    }
 }

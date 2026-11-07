@@ -16,6 +16,31 @@ object LightspeedForegroundTracker {
     @Volatile
     private var lastLauncherPackagesQueryTimeMs: Long = 0L
 
+    @Volatile
+    var currentActivityClass: String? = null
+        internal set
+
+    fun isRealComponentClass(className: String): Boolean {
+        if (className.isBlank()) return false
+        if (className.startsWith("android.widget.") ||
+            className.startsWith("android.view.") ||
+            className.startsWith("com.android.internal.") ||
+            className.startsWith("android.inputmethodservice.")
+        ) return false
+        if (className.startsWith("com.sbf.lightspeed")) return false
+        if (className.contains("FrameLayout") ||
+            className.contains("LinearLayout") ||
+            className.contains("RelativeLayout") ||
+            className.contains("DecorView") ||
+            className.contains("PopupWindow") ||
+            className.contains("Popup")
+        ) return false
+        return true
+    }
+
+    fun resolveActiveWindowId(service: android.accessibilityservice.AccessibilityService?): String =
+        com.sbf.lightspeed.system.bot.LightspeedBotScreenScanner.resolveActiveWindowId(service)
+
     fun getLauncherPackagesCached(context: Context): Set<String> {
         val now = SystemClock.uptimeMillis()
         if (now - lastLauncherPackagesQueryTimeMs > 60_000L || cachedLauncherPackages.isEmpty()) {
@@ -48,6 +73,7 @@ object LightspeedForegroundTracker {
         if (launcherPkgs.contains(pkg)) {
             LightspeedAccessibilityService.lastAppPackage = null
             LightspeedAccessibilityService.lastAppUptimeMs = SystemClock.uptimeMillis()
+            currentActivityClass = null
         } else {
             LightspeedAccessibilityService.lastAppPackage = pkg
             LightspeedAccessibilityService.lastAppUptimeMs = SystemClock.uptimeMillis()
@@ -74,9 +100,23 @@ object LightspeedForegroundTracker {
         }
 
         if (!currentPkg.isNullOrEmpty()) {
-            trackForegroundPackage(service, currentPkg)
-            LightspeedSmartPixelsOverlay.onForegroundPackageChanged(currentPkg)
-            LightspeedConsciousAirlockOverlay.checkAndShowAirlock(service, currentPkg)
+            val underlyingWin = com.sbf.lightspeed.system.bot.LightspeedBotScreenScanner.resolveUnderlyingAppWindow(service)
+            val underlyingPkg = underlyingWin?.root?.packageName?.toString()
+            val isOverlayEvent = !underlyingPkg.isNullOrBlank() && underlyingPkg != currentPkg && !event.isFullScreen
+            val effectivePkg = if (isOverlayEvent) underlyingPkg else currentPkg
+
+            trackForegroundPackage(service, effectivePkg)
+            val fgPkg = LightspeedAccessibilityService.lastAppPackage
+            val isNotSysOrLauncher = effectivePkg != service.packageName &&
+                    effectivePkg != "com.android.systemui" &&
+                    !isInputMethodPackage(service, effectivePkg) &&
+                    !getLauncherPackagesCached(service).contains(effectivePkg)
+            if (isNotSysOrLauncher && (fgPkg == null || effectivePkg == fgPkg) && !isOverlayEvent && isRealComponentClass(className)) {
+                currentActivityClass = className
+            }
+            LightspeedSmartPixelsOverlay.onForegroundPackageChanged(effectivePkg)
+            LightspeedConsciousAirlockOverlay.checkAndShowAirlock(service, effectivePkg)
+            com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
         }
 
         if (com.sbf.lightspeed.system.bot.LightspeedBotRecorderOverlay.isShowing) {

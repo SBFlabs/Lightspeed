@@ -51,20 +51,18 @@ object LightspeedBotEngine {
     var lastResolvedPkg: String = "global"
         private set
     @Volatile
-    var lastResolvedWindow: String = "main"
+    var lastResolvedWindow: String = "Main"
         private set
 
     @Volatile
-    private var recordingScopePkg: String = "global"
+    var recordingScopePkg: String = "global"
+        internal set
     @Volatile
-    private var recordingScopeWindow: String = "main"
+    var recordingScopeWindow: String = "Main"
+        internal set
 
     private fun sanitizeToken(raw: String?): String {
-        if (raw.isNullOrBlank()) return "main"
-        return raw.trim()
-            .replace(Regex("[^a-zA-Z0-9._-]"), "_")
-            .take(48)
-            .ifBlank { "main" }
+        return LightspeedBotScreenScanner.sanitizeToken(raw)
     }
 
     /**
@@ -74,41 +72,42 @@ object LightspeedBotEngine {
      */
     fun resolveActiveScope(context: Context): Pair<String, String> {
         val ownPkg = context.packageName
-        val service = LightspeedAccessibilityService.instance
+        val service = (context as? AccessibilityService) ?: LightspeedAccessibilityService.instance
+        var pkg: String? = null
         if (service != null) {
             try {
-                val windows = service.windows
-                if (!windows.isNullOrEmpty()) {
-                    for (win in windows) {
-                        val root = try { win.root } catch (_: Exception) { null } ?: continue
-                        val pkg = root.packageName?.toString() ?: continue
-                        if (pkg == ownPkg || pkg == "com.android.systemui") continue
-                        val winTitle = try { win.title?.toString() } catch (_: Exception) { null }
-                        val rootCls = root.className?.toString()?.substringAfterLast('.')
-                        val sig = sanitizeToken(
-                            when {
-                                !winTitle.isNullOrBlank() -> winTitle
-                                !rootCls.isNullOrBlank() -> rootCls
-                                else -> "win_${win.id}"
-                            }
-                        )
-                        lastResolvedPkg = pkg
-                        lastResolvedWindow = sig
-                        return pkg to sig
-                    }
+                val appWin = LightspeedBotScreenScanner.resolveUnderlyingAppWindow(service)
+                val activeRoot = appWin?.root ?: service.rootInActiveWindow
+                val rPkg = activeRoot?.packageName?.toString()
+                if (!rPkg.isNullOrBlank() && rPkg != ownPkg && rPkg != "com.android.systemui") {
+                    pkg = rPkg
                 }
-                val activeRoot = service.rootInActiveWindow
-                val pkg = activeRoot?.packageName?.toString()
-                if (!pkg.isNullOrBlank() && pkg != ownPkg && pkg != "com.android.systemui") {
-                    val cls = activeRoot.className?.toString()?.substringAfterLast('.')
-                    val sig = sanitizeToken(cls ?: "main")
-                    lastResolvedPkg = pkg
-                    lastResolvedWindow = sig
-                    return pkg to sig
+                if (pkg == null) {
+                    val windows = service.windows
+                    if (!windows.isNullOrEmpty()) {
+                        for (win in windows) {
+                            val root = try { win.root } catch (_: Exception) { null } ?: continue
+                            val wPkg = root.packageName?.toString() ?: continue
+                            if (wPkg != ownPkg && wPkg != "com.android.systemui") {
+                                pkg = wPkg
+                                break
+                            }
+                        }
+                    }
                 }
             } catch (_: Exception) {}
         }
-        return lastResolvedPkg to lastResolvedWindow
+        if (pkg == null) {
+            pkg = LightspeedAccessibilityService.lastAppPackage ?: "global"
+        }
+        val windowId = if (pkg != "global" && service != null) {
+            LightspeedBotScreenScanner.resolveActiveWindowId(service)
+        } else {
+            "Main"
+        }
+        lastResolvedPkg = pkg
+        lastResolvedWindow = windowId
+        return pkg to windowId
     }
 
     fun getActiveScopeDisplayLabel(context: Context): String {
@@ -120,7 +119,7 @@ object LightspeedBotEngine {
         } catch (_: Exception) {
             pkg.substringAfterLast('.')
         }
-        return if (win.isNotBlank() && win != "main" && !win.equals(appLabel, ignoreCase = true)) {
+        return if (win.isNotBlank() && win != "Main" && !win.equals(appLabel, ignoreCase = true)) {
             "$appLabel • $win"
         } else {
             appLabel
@@ -148,42 +147,125 @@ object LightspeedBotEngine {
     }
 
     /**
-     * Resolves macro steps for [botId] in the current active Window -> current App -> Global fallback.
+     * Resolves macro steps for [botId] in a designated scope for editor loading.
      */
-    fun getMacroSteps(context: Context, botId: Int): MutableList<BotStep> {
+    fun getMacroSteps(
+        context: Context,
+        botId: Int,
+        scopeOverride: Pair<String, String>? = null,
+        scopeType: String = LightspeedBotContract.SCOPE_THIS_WINDOW
+    ): MutableList<BotStep> {
         val prefs = context.defaultPrefs()
-        val (pkg, win) = resolveActiveScope(context)
-        if (pkg != "global") {
-            val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${pkg}_${win}"
-            val winSteps = parseStepsJson(prefs, winKey)
-            if (winSteps.isNotEmpty()) return winSteps
-
-            val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${pkg}"
-            val appSteps = parseStepsJson(prefs, appKey)
-            if (appSteps.isNotEmpty()) return appSteps
+        val (pkg, win) = scopeOverride ?: resolveActiveScope(context)
+        return when (scopeType) {
+            LightspeedBotContract.SCOPE_THIS_APP -> {
+                val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${pkg}"
+                parseStepsJson(prefs, appKey)
+            }
+            LightspeedBotContract.SCOPE_GLOBAL -> {
+                val globalKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
+                parseStepsJson(prefs, globalKey)
+            }
+            else -> {
+                val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${pkg}_${win}"
+                parseStepsJson(prefs, winKey)
+            }
         }
-        val globalKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
-        return parseStepsJson(prefs, globalKey)
+    }
+
+    /**
+     * Strict Per-Window Playback Resolution (Zero Fallback Leakage Across Windows or Apps).
+     * 1. Looks up (currentPkg, currentWindowId) strictly.
+     * 2. Only checks App-Wide or Global if user explicitly configured that macro's scope chip.
+     * 3. Verifies step windowId / packageName under This Window scope.
+     * 4. Aborts cleanly if no match.
+     */
+    fun getPlaybackMacroSteps(context: Context, botId: Int): List<BotStep> {
+        val prefs = context.defaultPrefs()
+        val (currentPkg, currentWin) = resolveActiveScope(context)
+        if (currentPkg == "global") return emptyList()
+
+        // 1. Strict Window-scoped lookup
+        val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${currentPkg}_${currentWin}"
+        val winSteps = parseStepsJson(prefs, winKey)
+        if (winSteps.isNotEmpty()) {
+            val scopeMode = prefs.getString(
+                "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_win_${currentPkg}_${currentWin}",
+                LightspeedBotContract.SCOPE_THIS_WINDOW
+            )
+            if (scopeMode == LightspeedBotContract.SCOPE_THIS_WINDOW) {
+                // Verify initial step package matches currentPkg
+                val firstStep = winSteps.firstOrNull()
+                if (firstStep?.packageName != null && firstStep.packageName != currentPkg) {
+                    Log.w(TAG, "Window macro for $botId targets package ${firstStep.packageName} but active app is $currentPkg")
+                    return emptyList()
+                }
+            }
+            return winSteps
+        }
+
+        // 2. Strict App-Wide lookup ONLY if user explicitly configured App scope
+        val appScopeConfigured = prefs.getString(
+            "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_app_${currentPkg}",
+            null
+        )
+        if (appScopeConfigured == LightspeedBotContract.SCOPE_THIS_APP) {
+            val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${currentPkg}"
+            val appSteps = parseStepsJson(prefs, appKey)
+            if (appSteps.isNotEmpty()) {
+                val hasMismatch = appSteps.any { step ->
+                    step.packageName != null && step.packageName != currentPkg
+                }
+                if (!hasMismatch) return appSteps
+            }
+        }
+
+        // 3. Strict Global lookup ONLY if user explicitly configured Global scope
+        val globalScopeConfigured = prefs.getString(
+            "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_global",
+            null
+        )
+        if (globalScopeConfigured == LightspeedBotContract.SCOPE_GLOBAL) {
+            val globalKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
+            val globalSteps = parseStepsJson(prefs, globalKey)
+            if (globalSteps.isNotEmpty()) return globalSteps
+        }
+
+        return emptyList()
     }
 
     fun saveMacroSteps(
         context: Context,
         botId: Int,
         steps: List<BotStep>,
-        scopeOverride: Pair<String, String>? = null
+        scopeOverride: Pair<String, String>? = null,
+        scopeType: String = LightspeedBotContract.SCOPE_THIS_WINDOW
     ) {
         val arr = JSONArray()
         steps.take(40).forEach { arr.put(it.toJson()) }
         val json = arr.toString()
         val (pkg, win) = scopeOverride ?: resolveActiveScope(context)
         val editor = context.defaultPrefs().edit()
-        if (pkg != "global") {
-            val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${pkg}_${win}"
-            val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${pkg}"
-            editor.putString(winKey, json)
-            editor.putString(appKey, json)
-        } else {
-            editor.putString("${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId", json)
+        when (scopeType) {
+            LightspeedBotContract.SCOPE_THIS_APP -> {
+                val appKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_app_${pkg}"
+                val scopeModeKey = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_app_${pkg}"
+                editor.putString(appKey, json)
+                editor.putString(scopeModeKey, LightspeedBotContract.SCOPE_THIS_APP)
+            }
+            LightspeedBotContract.SCOPE_GLOBAL -> {
+                val globalKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}$botId"
+                val scopeModeKey = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_global"
+                editor.putString(globalKey, json)
+                editor.putString(scopeModeKey, LightspeedBotContract.SCOPE_GLOBAL)
+            }
+            else -> {
+                // Strict This Window scope: save only to winKey without polluting global or app keys
+                val winKey = "${LightspeedBotContract.PREF_BOT_MACRO_PREFIX}${botId}_win_${pkg}_${win}"
+                val scopeModeKey = "${LightspeedBotContract.KEY_BOT_MACRO_SCOPE_PREFIX}${botId}_win_${pkg}_${win}"
+                editor.putString(winKey, json)
+                editor.putString(scopeModeKey, LightspeedBotContract.SCOPE_THIS_WINDOW)
+            }
         }
         editor.apply()
     }
@@ -209,7 +291,8 @@ object LightspeedBotEngine {
                 context = context,
                 botId = activeRecordingBotId,
                 steps = savedSteps,
-                scopeOverride = recordingScopePkg to recordingScopeWindow
+                scopeOverride = recordingScopePkg to recordingScopeWindow,
+                scopeType = LightspeedBotContract.SCOPE_THIS_WINDOW
             )
             Log.i(TAG, "Saved ${savedSteps.size} steps for Bot $activeRecordingBotId in scope $recordingScopePkg / $recordingScopeWindow")
         }
@@ -261,15 +344,22 @@ object LightspeedBotEngine {
         return didCancel
     }
 
-    fun playBot(context: Context, botId: Int, onComplete: () -> Unit = {}) {
+    fun playBot(context: Context, botId: Int, stepsOverride: List<BotStep>? = null, onComplete: () -> Unit = {}) {
         if (isReplaying) {
             stopReplay()
             onComplete()
             return
         }
-        val steps = getMacroSteps(context, botId)
+        val steps = stepsOverride ?: getPlaybackMacroSteps(context, botId)
         if (steps.isEmpty()) {
-            Log.w(TAG, "Bot $botId has no recorded steps")
+            Log.w(TAG, "Bot $botId has no macro for current window")
+            mainHandler.post {
+                android.widget.Toast.makeText(
+                    context.applicationContext,
+                    "No macro for this window",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
             onComplete()
             return
         }
@@ -292,11 +382,11 @@ object LightspeedBotEngine {
         }
     }
 
-    fun startContinuousLoop(context: Context, botId: Int, onIteration: (Int) -> Unit = {}) {
+    fun startContinuousLoop(context: Context, botId: Int, stepsOverride: List<BotStep>? = null, onIteration: (Int) -> Unit = {}) {
         stopContinuousLoop()
         isLooping = true
         loopIterationCount = 0
-        val steps = getMacroSteps(context, botId)
+        val steps = stepsOverride ?: getPlaybackMacroSteps(context, botId)
         val cadence = context.defaultPrefs().getLong(LightspeedBotContract.KEY_BOT_ACTIVE_LOOP_CADENCE_MS, 400L).coerceAtLeast(100L)
 
         loopJob = scope.launch {
@@ -333,6 +423,18 @@ object LightspeedBotEngine {
         val useRecordedDelay = prefs.getBoolean("${LightspeedBotContract.KEY_BOT_USE_RECORDED_DELAY_PREFIX}$botId", false)
         val customStepDelay = prefs.getInt("${LightspeedBotContract.KEY_BOT_STEP_DELAY_MS_PREFIX}$botId", 60).coerceIn(0, 2000).toLong()
 
+        // Scope gate verification ONCE before Step 1 begins
+        val (initialPkg, initialWin) = resolveActiveScope(context)
+        val firstStep = steps.firstOrNull()
+        if (firstStep != null) {
+            val pkgMismatch = firstStep.packageName != null && firstStep.packageName != initialPkg && initialPkg != "global"
+            val winMismatch = firstStep.windowId != null && firstStep.windowId != initialWin && initialWin != "Main"
+            if (pkgMismatch || winMismatch) {
+                Log.w(TAG, "Macro aborted: initial scope mismatch before Step 1 (live: $initialPkg/$initialWin vs step 1: ${firstStep.packageName}/${firstStep.windowId})")
+                return
+            }
+        }
+
         for ((stepIndex, step) in steps.withIndex()) {
             // Step 0 always fires immediately — the delay was the user's pre-recording idle time
             val effectiveDelay = if (stepIndex == 0) {
@@ -346,39 +448,50 @@ object LightspeedBotEngine {
                 delay(effectiveDelay)
             }
 
-            // 1. Accessibility Screen Reading matching: check if target node exists on screen
-            var nodeClicked = false
-            val service = LightspeedAccessibilityService.instance
-            val root = service?.rootInActiveWindow
+            if (step.useElementTarget) {
+                // Element-Bound: Match accessibility node on live underlying window and perform action
+                var nodeClicked = false
+                val service = LightspeedAccessibilityService.instance
+                val root = service?.let { LightspeedBotScreenScanner.resolveUnderlyingAppWindow(it)?.root ?: it.rootInActiveWindow }
 
-            if (root != null) {
-                val matchedNode = LightspeedBotScreenScanner.findSmartMatchingNode(root, step, screenW, screenH)
-                if (matchedNode != null) {
-                    if (matchedNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                        nodeClicked = true
-                    } else {
-                        val rect = Rect()
-                        matchedNode.getBoundsInScreen(rect)
-                        if (!rect.isEmpty) {
-                            val clickX = rect.centerX().toFloat()
-                            val clickY = rect.centerY().toFloat()
-                            injectTapOrDispatch(context, clickX, clickY)
+                if (root != null) {
+                    val matchedNode = LightspeedBotScreenScanner.findSmartMatchingNode(root, step, screenW, screenH)
+                    if (matchedNode != null) {
+                        if (matchedNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
                             nodeClicked = true
+                        } else {
+                            val rect = Rect()
+                            matchedNode.getBoundsInScreen(rect)
+                            if (!rect.isEmpty) {
+                                val clickX = rect.centerX().toFloat()
+                                val clickY = rect.centerY().toFloat()
+                                injectTapOrDispatch(context, clickX, clickY)
+                                nodeClicked = true
+                            }
                         }
                     }
                 }
-            }
 
-            // 2. Fallback to physical coordinate dispatch if node was not matched
-            if (!nodeClicked) {
-                val pxX = step.xRatio * screenW
-                val pxY = step.yRatio * screenH
-                if (step.stepType == BotStep.TYPE_SWIPE) {
-                    val endX = step.endXRatio * screenW
-                    val endY = step.endYRatio * screenH
-                    injectSwipeOrDispatch(context, pxX, pxY, endX, endY, step.durationMs)
+                if (!nodeClicked) {
+                    // NEVER fall back to raw coordinates if the element is not found on screen!
+                    Log.w(TAG, "Step ${stepIndex + 1}: Element-bound target not found (${step.viewIdResourceName ?: step.contentDescription ?: step.text}). Aborting step cleanly.")
+                }
+            } else {
+                // Coordinate-Bound step: verify package still matches app, but do NOT abort Step 2+ on windowId changes
+                val (livePkg, _) = resolveActiveScope(context)
+                val matchesPkg = step.packageName.isNullOrBlank() || step.packageName == livePkg || livePkg == "global"
+                if (!matchesPkg) {
+                    Log.w(TAG, "Step ${stepIndex + 1}: Coordinate-bound step aborted due to app package mismatch (live: $livePkg vs step: ${step.packageName})")
                 } else {
-                    injectTapOrDispatch(context, pxX, pxY)
+                    val pxX = step.xRatio * screenW
+                    val pxY = step.yRatio * screenH
+                    if (step.stepType == BotStep.TYPE_SWIPE) {
+                        val endX = step.endXRatio * screenW
+                        val endY = step.endYRatio * screenH
+                        injectSwipeOrDispatch(context, pxX, pxY, endX, endY, step.durationMs)
+                    } else {
+                        injectTapOrDispatch(context, pxX, pxY)
+                    }
                 }
             }
         }
@@ -407,32 +520,11 @@ object LightspeedBotEngine {
     }
 
     /**
-     * Finds the smallest AccessibilityNodeInfo containing point (x, y) for recording metadata.
+     * Finds the deepest/smallest AccessibilityNodeInfo containing point (x, y) for recording metadata,
+     * prioritizing clickable leaf widgets over layout containers.
      */
     fun findSmallestNodeAt(root: AccessibilityNodeInfo?, x: Float, y: Float): AccessibilityNodeInfo? {
-        if (root == null) return null
-        var bestNode: AccessibilityNodeInfo? = null
-        var minArea = Long.MAX_VALUE
-
-        val queue = ArrayDeque<AccessibilityNodeInfo>()
-        queue.add(root)
-
-        val rect = Rect()
-        while (queue.isNotEmpty()) {
-            val node = queue.removeFirst()
-            node.getBoundsInScreen(rect)
-            if (rect.contains(x.toInt(), y.toInt())) {
-                val area = rect.width().toLong() * rect.height().toLong()
-                if (area < minArea && (!node.viewIdResourceName.isNullOrBlank() || !node.text.isNullOrBlank() || !node.contentDescription.isNullOrBlank())) {
-                    minArea = area
-                    bestNode = node
-                }
-            }
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let { queue.add(it) }
-            }
-        }
-        return bestNode
+        return LightspeedBotScreenScanner.findDeepestNodeAt(root, x, y)
     }
 
     fun injectTapOrDispatch(context: Context, x: Float, y: Float) {

@@ -64,5 +64,11 @@ object LightspeedBotContract {
     const val KEY_BOT_STEP_DELAY_MS_PREFIX = "pref_bot_step_delay_ms_" // Int, default 60 (range 0..2000)
     const val KEY_BOT_LOOP_WARN_DISMISSED = "pref_bot_loop_warn_dismissed" // Boolean, default false
 
+    // Macro Scope Types & Keys
+    const val SCOPE_THIS_WINDOW = "window"
+    const val SCOPE_THIS_APP = "app"
+    const val SCOPE_GLOBAL = "global"
+    const val KEY_BOT_MACRO_SCOPE_PREFIX = "pref_bot_macro_scope_"
+
     const val MAX_BOT_MACROS = 10
 }

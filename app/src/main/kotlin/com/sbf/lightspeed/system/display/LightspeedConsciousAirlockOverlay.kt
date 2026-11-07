@@ -75,8 +75,10 @@ object LightspeedConsciousAirlockOverlay {
         val targetApps = prefs.getStringSet(LightspeedPreferences.KEY_CONSCIOUS_DELAY_PACKAGES, emptySet()) ?: emptySet()
         if (!targetApps.contains(packageName)) return false
 
+        val now = SystemClock.elapsedRealtime()
         val lastAllowed = sessionGraceMap[packageName] ?: 0L
-        if (SystemClock.elapsedRealtime() - lastAllowed < GRACE_PERIOD_MS) {
+        if (now - lastAllowed < GRACE_PERIOD_MS) {
+            sessionGraceMap[packageName] = now
             return false
         }
 

@@ -32,12 +32,3 @@ Thumbs.db
 *.tmp
 release/
 
-# Local machine dumps (never commit)
-dump-*.txt
-lightspeed-dump.txt
-ls-*.txt
-
-# Ephemeral root-level review screenshots (never commit)
-/Screenshot*
-/screenshot*
-

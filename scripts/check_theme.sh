@@ -2,73 +2,75 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SETTINGS_DIR="$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/settings"
+KOTLIN_SRC="$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed"
+SETTINGS_DIR="$KOTLIN_SRC/settings"
 DECK_FILES=(
-    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/SonicDeckManager.kt"
-    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/SonicDeckSections.kt"
-    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/SonicAppMixerSection.kt"
-    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/VistaDeckManager.kt"
-    "$ROOT_DIR/app/src/main/kotlin/com/sbf/lightspeed/system/hud/ExpandedBrightnessWellnessSection.kt"
+    "$KOTLIN_SRC/system/SonicDeckManager.kt"
+    "$KOTLIN_SRC/system/SonicDeckSections.kt"
+    "$KOTLIN_SRC/system/SonicAppMixerSection.kt"
+    "$KOTLIN_SRC/system/VistaDeckManager.kt"
+    "$KOTLIN_SRC/system/hud/ExpandedBrightnessWellnessSection.kt"
 )
 
 echo "=== Lightspeed Theme Drift Guard ==="
 
-# Check 1: Raw Color(0x...) in settings/ outside allow-list (StyleLab*, DeckOpticalCacheBuilder)
-RAW_COLORS=$(grep -rn "Color(0x" "$SETTINGS_DIR" | grep -v "StyleLab\|DeckOpticalCacheBuilder" || true)
-
-if [ -n "$RAW_COLORS" ]; then
-    echo "❌ ERROR: Found raw Color(0x...) in settings/ outside allow-list:"
-    echo "$RAW_COLORS"
-    exit 1
-fi
-echo "✓ PASS: Zero raw Color(0x...) in settings/ outside StyleLab / DeckOpticalCacheBuilder"
-
-# Check 2: Raw AlertDialog( in settings/ outside DeckControls.kt and LiquidGlass theme editor
-ALLOWLIST_DIALOGS="DeckControls.kt|LiquidGlass"
-UNAPPROVED_DIALOGS=$(grep -rn "AlertDialog(" "$SETTINGS_DIR" | grep -vE "$ALLOWLIST_DIALOGS" || true)
-
+# Check 1: Zero raw AlertDialog( or ExposedDropdownMenuBox( anywhere across entire codebase
+UNAPPROVED_DIALOGS=$(grep -rnE "AlertDialog\(|ExposedDropdownMenuBox\(" "$KOTLIN_SRC" || true)
 if [ -n "$UNAPPROVED_DIALOGS" ]; then
-    echo "❌ ERROR: Found unapproved raw AlertDialog( in settings/:"
+    echo "❌ ERROR: Found unapproved raw AlertDialog(/ExposedDropdownMenuBox( (must use DeckDialog / DeckDropdownMenu):"
     echo "$UNAPPROVED_DIALOGS"
     exit 1
 fi
-echo "✓ PASS: All AlertDialog instances in settings/ are strictly confined to DeckControls.kt or LiquidGlass theme editor"
+echo "✓ PASS: Zero raw AlertDialog( or ExposedDropdownMenuBox( across entire codebase"
 
-# Check 3: Raw Card( in settings/ outside DeckControls.kt, StyleLab, and documented pending coordinator containers
-ALLOWLIST_CARDS="DeckControls.kt|StyleLab|SettingsContainerComponents.kt|SettingsDialogComponents.kt|GuidebookBottomSheet.kt|WatchdogComponents.kt|FlightControlDeckComponents.kt"
-UNAPPROVED_CARDS=$(grep -rn "[^a-zA-Z]Card(" "$SETTINGS_DIR" | grep -vE "$ALLOWLIST_CARDS" || true)
+# Check 2: Raw DropdownMenu( only inside DeckSurfaceModifier.kt; ModalBottomSheet( confined to allowlisted sheets
+UNAPPROVED_DROPDOWNS=$(grep -rn "[^a-zA-Z]DropdownMenu(" "$KOTLIN_SRC" | grep -v "DeckSurfaceModifier.kt" || true)
+if [ -n "$UNAPPROVED_DROPDOWNS" ]; then
+    echo "❌ ERROR: Found unapproved raw DropdownMenu( outside DeckSurfaceModifier.kt (must use DeckDropdownMenu):"
+    echo "$UNAPPROVED_DROPDOWNS"
+    exit 1
+fi
+ALLOWLIST_SHEETS="GuidebookBottomSheet.kt|SidebarAttitudeSheet.kt"
+UNAPPROVED_SHEETS=$(grep -rn "ModalBottomSheet(" "$KOTLIN_SRC" | grep -vE "$ALLOWLIST_SHEETS" || true)
+if [ -n "$UNAPPROVED_SHEETS" ]; then
+    echo "❌ ERROR: Found unapproved raw ModalBottomSheet( outside documented glass sheets:"
+    echo "$UNAPPROVED_SHEETS"
+    exit 1
+fi
+echo "✓ PASS: All dropdowns use DeckDropdownMenu and bottom sheets are strictly confined to glass sheets"
 
+# Check 3: Raw Card( app-wide confined only to legacy settings coordinator containers & StyleLab
+ALLOWLIST_CARDS="settings/(StyleLabPreviewDialog|SettingsContainerComponents|SettingsDialogComponents|GuidebookBottomSheet|WatchdogComponents|FlightControlDeckComponents)\.kt"
+UNAPPROVED_CARDS=$(grep -rn "[^a-zA-Z]Card(" "$KOTLIN_SRC" | grep -vE "$ALLOWLIST_CARDS" || true)
 if [ -n "$UNAPPROVED_CARDS" ]; then
-    echo "❌ ERROR: Found unapproved raw Card( in settings/:"
+    echo "❌ ERROR: Found unapproved raw Card( (Cockpit, Refueling, Flyouts, Widgets, Sonic/Vista Decks must use 12-Theme glass/Box):"
     echo "$UNAPPROVED_CARDS"
     exit 1
 fi
-echo "✓ PASS: All Card instances in settings/ are strictly confined to DeckControls.kt, StyleLab, or documented coordinator containers"
+echo "✓ PASS: Zero unapproved raw Card( across Cockpit, Refueling, Flyouts, Widgets, and 12-Theme Decks"
 
-# Check 4: Sonic Deck, Vista Deck & ExpandedBrightnessWellnessSection 12-Theme Compliance
-UNAPPROVED_DECK_CARDS=$(grep -rn "[^a-zA-Z]Card(" "${DECK_FILES[@]}" || true)
-if [ -n "$UNAPPROVED_DECK_CARDS" ]; then
-    echo "❌ ERROR: Found unapproved raw Card( in Sonic/Vista Decks:"
-    echo "$UNAPPROVED_DECK_CARDS"
+# Check 4: Sonic Deck, Vista Deck & Non-Settings UI Packages must use DeckSwitch / DeckSlider (zero raw Switch/Slider)
+NON_SETTINGS_FILES=()
+while IFS= read -r f; do
+    NON_SETTINGS_FILES+=("$f")
+done < <(find "$KOTLIN_SRC" -name "*.kt" ! -path "$SETTINGS_DIR/*" | sort)
+
+TARGET_CONTROL_FILES=("${DECK_FILES[@]}" "${NON_SETTINGS_FILES[@]}")
+UNAPPROVED_SWITCHES=$(grep -rn "[^a-zA-Z.]Switch(" "${TARGET_CONTROL_FILES[@]}" | grep -v "Compat(" || true)
+if [ -n "$UNAPPROVED_SWITCHES" ]; then
+    echo "❌ ERROR: Found unapproved raw Switch( in Decks or non-settings UI (must use DeckSwitch):"
+    echo "$UNAPPROVED_SWITCHES"
     exit 1
 fi
-echo "✓ PASS: Sonic & Vista Decks strictly use 12-Theme optical glass containers (zero raw Card)"
+echo "✓ PASS: Zero raw Switch( in Sonic/Vista Decks, Cockpit, Refueling, Flyouts, or Widgets"
 
-UNAPPROVED_DECK_SWITCHES=$(grep -rn "[^a-zA-Z]Switch(" "${DECK_FILES[@]}" || true)
-if [ -n "$UNAPPROVED_DECK_SWITCHES" ]; then
-    echo "❌ ERROR: Found unapproved raw Switch( in Sonic/Vista Decks (must use DeckSwitch):"
-    echo "$UNAPPROVED_DECK_SWITCHES"
+UNAPPROVED_SLIDERS=$(grep -rn "[^a-zA-Z.]Slider(" "${TARGET_CONTROL_FILES[@]}" || true)
+if [ -n "$UNAPPROVED_SLIDERS" ]; then
+    echo "❌ ERROR: Found unapproved raw Slider( in Decks or non-settings UI (must use DeckSlider):"
+    echo "$UNAPPROVED_SLIDERS"
     exit 1
 fi
-echo "✓ PASS: Sonic & Vista Decks strictly use DeckSwitch for active theme consistency"
-
-UNAPPROVED_DECK_SLIDERS=$(grep -rn "[^a-zA-Z]Slider(" "${DECK_FILES[@]}" || true)
-if [ -n "$UNAPPROVED_DECK_SLIDERS" ]; then
-    echo "❌ ERROR: Found unapproved raw Slider( in Sonic/Vista Decks (must use DeckSlider):"
-    echo "$UNAPPROVED_DECK_SLIDERS"
-    exit 1
-fi
-echo "✓ PASS: Sonic & Vista Decks strictly use DeckSlider for active theme consistency"
+echo "✓ PASS: Zero raw Slider( in Sonic/Vista Decks, Cockpit, Refueling, Flyouts, or Widgets"
 
 echo "=== All theme drift guard checks passed successfully! ==="
 exit 0

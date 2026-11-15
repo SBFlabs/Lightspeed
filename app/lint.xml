@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Known lint false positives: every produceState below assigns `value` inside a nested
+         withContext lambda, which the ProduceStateDoesNotAssignValue detector cannot see. -->
+    <issue id="ProduceStateDoesNotAssignValue">
+        <ignore path="**/settings/BatteryExemptionAppCard.kt" />
+        <ignore path="**/CockpitGearPickerAppRows.kt" />
+        <ignore path="**/CockpitGearPickerSelectedTray.kt" />
+        <ignore path="**/CockpitIconBrowserModal.kt" />
+        <ignore path="**/system/display/LightspeedConsciousAirlockOverlay.kt" />
+        <ignore path="**/widget/LightspeedFolderModalActivity.kt" />
+        <ignore path="**/settings/SidebarAttitudeTargetRow.kt" />
+    </issue>
+</lint>

@@ -38,6 +38,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
 import android.widget.Toast
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
 import com.sbf.lightspeed.system.ActionDispatcher
@@ -60,7 +61,148 @@ import kotlin.math.sin
 
 class LightspeedCruiseOverlay @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
+) : FrameLayout(context, attrs, defStyleAttr) {
+
+    internal var cruiseAppWidgetHost: android.appwidget.AppWidgetHost? = null
+    internal var cruiseAppWidgetHostView: android.appwidget.AppWidgetHostView? = null
+    internal var currentBoundWidgetId: Int = -1
+    internal var cruiseAppWidgetHostView2: android.appwidget.AppWidgetHostView? = null
+    internal var currentBoundWidgetId2: Int = -1
+    internal val cruiseAppWidgetHostViews = mutableMapOf<Int, android.appwidget.AppWidgetHostView>()
+    internal val cruiseAppWidgetHostContainers = mutableMapOf<Int, ScrollableAppWidgetContainer>()
+    internal var widgetSettlePending: Boolean = false
+    internal var lastWidgetCategorySwitchMs: Long = 0L
+    internal val widgetSettleRunnable = Runnable {
+        widgetSettlePending = false
+        updateCategoryAppWidgetView()
+        invalidate()
+    }
+    internal var isHudEditMode: Boolean = false
+    internal var isHudAddWidgetMenuOpen: Boolean = false
+    internal var isHudTuneModalOpen: Boolean = false
+    internal var hudTuneTargetItem: CategoryHudItem? = null
+    internal var pendingDeleteHudItem: CategoryHudItem? = null
+    internal var activeDraggingSliderId: String? = null
+    internal val activeCategoryHudItems = mutableListOf<CategoryHudItem>()
+    internal var isCountdownModalOpen: Boolean = false
+    internal var countdownModalTargetMs: Long = 0L
+    internal var countdownModalTitle: String = "TARGET"
+    internal var countdownModalCatId: String = "comm"
+    internal var isScreenTimeInfoBubbleOpen: Boolean = false
+    internal var screenTimeInfoBubbleRect: android.graphics.RectF = android.graphics.RectF()
+    internal var isPrivacyScoreInfoBubbleOpen: Boolean = false
+    internal var privacyScoreInfoRect: android.graphics.RectF = android.graphics.RectF()
+    internal val vitalsTempGaugeRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsRamGaugeRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsSwapGaugeRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsIntStorageBarRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val vitalsExtStorageBarRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val hudChipInfoRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val hudChipPrimaryRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+    internal val hudChipSecondaryRects: MutableMap<Int, android.graphics.RectF> = HashMap()
+
+    internal fun vitalsRectForSlot(
+        map: MutableMap<Int, android.graphics.RectF>,
+        slotIndex: Int
+    ): android.graphics.RectF = map.getOrPut(slotIndex) { android.graphics.RectF() }
+    internal var hudAlertsPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var hudFirewallPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var pinnedMenuNetPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var pinnedMenuAlertsPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var pinnedMenuPrivacyInfoRect: android.graphics.RectF = android.graphics.RectF()
+    internal var isAlertsHistoryModalOpen: Boolean = false
+    internal var isFirewallModalOpen: Boolean = false
+    internal var firewallBlockedAccordionOpen: Boolean = true
+    internal var firewallAllowedAccordionOpen: Boolean = true
+    internal var firewallOfflineAccordionOpen: Boolean = false
+    internal var firewallModalScrollOffset: Float = 0f
+    internal var firewallModalMaxScroll: Float = 0f
+    internal var firewallModalDraggingRail: Boolean = false
+    internal var firewallModalRect: android.graphics.RectF = android.graphics.RectF()
+    internal var firewallCloseRect: android.graphics.RectF = android.graphics.RectF()
+    internal var firewallFastRailRect: android.graphics.RectF = android.graphics.RectF()
+    internal val firewallAccordionHeaderRects = mutableMapOf<String, android.graphics.RectF>()
+    internal var firewallAppRowRects = mutableMapOf<String, android.graphics.RectF>()
+    internal var firewallCachedApps: List<FirewallAppEntry> = emptyList()
+    internal var isVitalsModalOpen: Boolean = false
+    internal var vitalsModalSpanKey: String = "3H"
+    internal var vitalsModalScrollOffset: Float = 0f
+    internal var vitalsModalMaxScroll: Float = 0f
+    internal var vitalsModalDraggingRail: Boolean = false
+    internal var vitalsModalLoadingApps: Boolean = false
+    internal var vitalsModalRect: android.graphics.RectF = android.graphics.RectF()
+    internal var vitalsCloseRect: android.graphics.RectF = android.graphics.RectF()
+    internal var vitalsTempUnitToggleRect: android.graphics.RectF = android.graphics.RectF()
+    internal var vitalsFastRailRect: android.graphics.RectF = android.graphics.RectF()
+    internal val vitalsSpanPillRects = mutableMapOf<String, android.graphics.RectF>()
+    internal val vitalsForceStopRects = mutableMapOf<String, android.graphics.RectF>()
+    internal var vitalsCachedMemApps: List<AppMemoryEntry> = emptyList()
+    internal var vitalsStorageVolumeFilter: String = "ALL"
+    internal var vitalsStorageSortKey: String = "total"
+    internal var vitalsStorageSortReversed: Boolean = false
+    internal var vitalsStorageShowSystemApps: Boolean = false
+    internal var vitalsAllStorageApps: List<AppStorageEntry> = emptyList()
+    internal var vitalsFilteredStorageApps: List<AppStorageEntry> = emptyList()
+    internal var vitalsHasUsageAccessForStorage: Boolean = true
+    internal var vitalsStorageHasExternalApps: Boolean = false
+    internal val vitalsStorageVolumePillRects = mutableMapOf<String, android.graphics.RectF>()
+    internal val vitalsStorageSortPillRects = mutableMapOf<String, android.graphics.RectF>()
+    internal var vitalsStorageReversePillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var vitalsStorageRefreshPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var vitalsStorageSystemPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var vitalsStoragePermBannerRect: android.graphics.RectF = android.graphics.RectF()
+    internal var vitalsStorageChangeBannerRect: android.graphics.RectF = android.graphics.RectF()
+    internal val vitalsStorageAppInfoRects = mutableMapOf<String, android.graphics.RectF>()
+    internal var vitalsStorageScanDone: Int = 0
+    internal var vitalsStorageScanTotal: Int = 0
+    internal var vitalsStorageScanning: Boolean = false
+    internal val vitalsStorageScanToken = java.util.concurrent.atomic.AtomicInteger(0)
+    internal val vitalsStorageNewlyResolvedMs = mutableMapOf<String, Long>()
+    internal val vitalsStorageJumpMarkers = mutableListOf<StorageJumpMarker>()
+    internal var vitalsStorageRowH: Float = 0f
+    internal var vitalsStorageDragY: Float = -1f
+    internal var vitalsStorageTickerActive: Boolean = false
+    internal var vitalsStoragePrevSummarySum: Long = -1L
+    internal var vitalsStorageSumFlashUntilMs: Long = 0L
+    internal val hudLiveRefreshRunnable = Runnable {
+        if (isAttachedToWindow &&
+            (currentLayer == CruiseLayer.CATEGORY ||
+                currentLayer == CruiseLayer.GRID ||
+                currentLayer == CruiseLayer.STICKY_PIN)
+        ) {
+            invalidate()
+        }
+    }
+    internal var alertsHistoryWindowKey: String = "24H"
+    internal var alertsHistorySelectedPkg: String? = null
+    internal var alertsHistoryScrollOffset: Float = 0f
+    internal var alertsHistoryMaxScroll: Float = 0f
+    internal var alertsHistoryDraggingRail: Boolean = false
+    internal var alertsHistoryModalRect: android.graphics.RectF = android.graphics.RectF()
+    internal var alertsHistoryCloseRect: android.graphics.RectF = android.graphics.RectF()
+    internal var alertsHistoryFastRailRect: android.graphics.RectF = android.graphics.RectF()
+    internal val alertsHistoryWindowPillRects = mutableMapOf<String, android.graphics.RectF>()
+    internal val alertsHistoryAppPillRects = mutableMapOf<String, android.graphics.RectF>()
+    internal val tuneFontPillRects = mutableMapOf<Int, android.graphics.RectF>()
+    internal var tuneFontDropdownRect: android.graphics.RectF = android.graphics.RectF()
+    internal var isTuneFontDropdownOpen: Boolean = false
+    internal var tuneFontDropdownScrollOffset: Float = 0f
+    internal var tuneFontDropdownMaxScroll: Float = 0f
+    internal var tuneFontDropdownListRect: android.graphics.RectF = android.graphics.RectF()
+    internal val tuneFontDropdownItemRects = mutableMapOf<String, android.graphics.RectF>()
+    internal var tuneFontDropdownDragStartY: Float = 0f
+    internal var tuneFontDropdownLastY: Float = 0f
+    internal var tuneFontDropdownDragged: Boolean = false
+    internal var tuneFontDropdownTracking: Boolean = false
+    internal var tuneTempUnitPillRect: android.graphics.RectF = android.graphics.RectF()
+    internal var pinnedEdgeSwitcherRect: android.graphics.RectF = android.graphics.RectF()
+    internal var isDraggingEdgeCategorySwitcher: Boolean = false
+
+    init {
+        setWillNotDraw(false)
+        initAppWidgetHost()
+    }
+
     internal val totalGearSetsCount: Int
         get() {
             val count = getGearSetsOrder(isOpenedFromLeftFlank).size
@@ -225,6 +367,25 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var placedAppsList = mutableListOf<PlacedItem>()
     internal var totalGridContentHeight = 0f
     internal var viewportScrollOffset = 0f
+    internal var hudScrollOffset = 0f
+    internal var screenTimeAppsScrollOffset = 0f
+    internal var screenTimeAppsMaxScroll = 0f
+    internal val batteryAppsScrollOffsets: MutableMap<Int, Float> = HashMap()
+    internal val batteryAppsMaxScrolls: MutableMap<Int, Float> = HashMap()
+
+    internal fun getBatteryAppsScrollOffset(slotIndex: Int): Float =
+        batteryAppsScrollOffsets[slotIndex] ?: 0f
+
+    internal fun setBatteryAppsScrollOffset(slotIndex: Int, offset: Float) {
+        batteryAppsScrollOffsets[slotIndex] = offset
+    }
+
+    internal fun getBatteryAppsMaxScroll(slotIndex: Int): Float =
+        batteryAppsMaxScrolls[slotIndex] ?: 0f
+
+    internal fun setBatteryAppsMaxScroll(slotIndex: Int, maxScroll: Float) {
+        batteryAppsMaxScrolls[slotIndex] = maxScroll
+    }
     internal var activeItem: LightspeedDataBridge.LaunchTarget? = null
     internal var pinnedMenuApp: LightspeedDataBridge.LaunchTarget? = null
     internal var pinnedMenuX = 0f
@@ -238,15 +399,20 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     internal var editModeHoldFired = false
     internal var editModeSavedCategories = listOf<LightspeedDataBridge.CategoryNode>()
     internal var isEditModePromptOpen = false
+    internal var isCategoryIconPickerOpen = false
+    internal var categoryIconPickerTarget: LightspeedDataBridge.CategoryNode? = null
+    internal var editModeHasDragged = false
     internal var editModeDragSourceIndex = -1
     internal var editModeDragTargetIndex = -1
     internal var editModeDragY = 0f
     internal var editModeDragRunnable: Runnable? = null
+    internal var hudVisibilityLongPressRunnable: Runnable? = null
 
     internal val categoryAppsCache = mutableMapOf<String, List<LightspeedDataBridge.LaunchTarget>>()
     internal val categoryGridCache = mutableMapOf<String, List<PlacedItem>>()
     internal val categoryHeightCache = mutableMapOf<String, Float>()
     internal val applicationIconCache = java.util.concurrent.ConcurrentHashMap<String, Drawable>()
+    internal val vitalsRowIconLruCache = android.util.LruCache<String, Drawable>(64)
     private val overlayIoScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     internal var categoryIconJob: Job? = null
     internal var lastLoadedCategoryId: String? = null
@@ -380,6 +546,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        ensureAppWidgetHostListening()
         instance = this
         cachedPrefs = prefs()
         cachedPrefs!!.registerOnSharedPreferenceChangeListener(prefChangeListener)
@@ -388,12 +555,14 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
+        uiHandler.removeCallbacks(hudLiveRefreshRunnable)
         closePinnedAppMenu()
         closeEditMode()
         stopGearAutoRepeat()
         categoryIconJob?.cancel()
         categoryIconJob = null
         applicationIconCache.clear()
+        vitalsRowIconLruCache.evictAll()
         categoryAppsCache.clear()
         categoryGridCache.clear()
         categoryHeightCache.clear()
@@ -401,6 +570,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         glowDelegate.cancel()
         cachedPrefs?.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
         cachedPrefs = null
+        destroyAppWidgetHost()
         if (instance === this) {
             instance = null
         }
@@ -413,6 +583,84 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             updateMetricsDimensions()
             invalidate()
         }
+    }
+
+    /** Widget container that owns the current touch sequence (pinned state), or null. */
+    private var widgetTouchTarget: ScrollableAppWidgetContainer? = null
+
+    private var hudInterceptDownX = 0f
+    private var hudInterceptDownY = 0f
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        if (isHudEditMode || isHudTuneModalOpen || isHudAddWidgetMenuOpen || isCategoryIconPickerOpen || isEditModeOpen || isAlertsHistoryModalOpen || isFirewallModalOpen || isVitalsModalOpen || isPrivacyScoreInfoBubbleOpen) {
+            return true
+        }
+        val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                hudInterceptDownX = ev.x
+                hudInterceptDownY = ev.y
+            }
+            MotionEvent.ACTION_MOVE -> {
+                // Widget with its own scrolling (Calendar list etc.) keeps the whole drag.
+                if (widgetTouchTarget?.hasInnerVerticalScroll() == true) {
+                    return false
+                }
+                val dx = kotlin.math.abs(ev.x - hudInterceptDownX)
+                val dy = kotlin.math.abs(ev.y - hudInterceptDownY)
+                if (dy > dx && dy > slop) {
+                    val hudBounds = getTopHudStripBounds()
+                    val contentBounds = getHudContentBounds()
+                    val isFarSplit = isFarHalfSplitMode()
+                    val maxHudScroll = if (isFarSplit) {
+                        val hudBottomLimit = height.toFloat() * 0.96f
+                        maxOf(0f, contentBounds.bottom - hudBottomLimit + 24f * resources.displayMetrics.density)
+                    } else {
+                        maxOf(0f, contentBounds.bottom - hudBounds.bottom)
+                    }
+                    if (maxHudScroll > 0f) {
+                        touchDownX = hudInterceptDownX; touchDownY = hudInterceptDownY; lastTouchY = ev.y
+                        return true
+                    }
+                }
+            }
+        }
+        return super.onInterceptTouchEvent(ev)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        val pinned = isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN
+        val blocked = isHudEditMode || isHudTuneModalOpen || isHudAddWidgetMenuOpen ||
+            isCategoryIconPickerOpen || isEditModeOpen || isCountdownModalOpen ||
+            isAlertsHistoryModalOpen || isFirewallModalOpen || isVitalsModalOpen ||
+            isPrivacyScoreInfoBubbleOpen || isScreenTimeInfoBubbleOpen || isPinnedAppMenuOpen() ||
+            currentLayer == CruiseLayer.COCKPIT_HANGAR
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            widgetTouchTarget = if (pinned && !blocked && !isTouchOnPinnedEdgeSwitcher(ev.x, ev.y)) {
+                findWidgetContainerAt(ev.x, ev.y)
+            } else {
+                null
+            }
+        }
+        if (widgetTouchTarget != null) {
+            // Entire sequence goes through normal child dispatch: the widget container owns it,
+            // StickyPinTouchHandler only sees it if the child declines or we intercept a HUD scroll.
+            val handled = super.dispatchTouchEvent(ev)
+            if (ev.actionMasked == MotionEvent.ACTION_UP || ev.actionMasked == MotionEvent.ACTION_CANCEL) {
+                widgetTouchTarget = null
+            }
+            return handled
+        }
+        if (blocked) {
+            return onTouchEvent(ev)
+        }
+        if (isHudEditMode || isHudTuneModalOpen || isHudAddWidgetMenuOpen || currentLayer == CruiseLayer.COCKPIT_HANGAR) {
+            return onTouchEvent(ev)
+        }
+        if (isCruising || pinned) {
+            return onTouchEvent(ev)
+        }
+        return super.dispatchTouchEvent(ev)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -438,34 +686,41 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
             categoryIconJob?.cancel()
             categoryIconJob = null
             applicationIconCache.clear()
+            vitalsRowIconLruCache.evictAll()
             lastLoadedCategoryId = targetId
         }
         if (categoryGridCache.containsKey(targetId)) {
-            placedAppsList = categoryGridCache[targetId]!!.toMutableList()
-            totalGridContentHeight = categoryHeightCache[targetId] ?: 0f
-            cachedApps = categoryAppsCache[targetId] ?: emptyList()
-            preloadActiveCategoryIconsAsync()
-        } else {
-            val appsList = dataBridge.getAppsForCategory(targetId)
-            categoryAppsCache[targetId] = appsList
-            cachedApps = appsList
-            buildPackedGridLayout()
-            categoryGridCache[targetId] = ArrayList(placedAppsList)
-            categoryHeightCache[targetId] = totalGridContentHeight
-            preloadActiveCategoryIconsAsync()
+            val cached = categoryGridCache[targetId]!!
+            val density = resources.displayMetrics.density
+            val isSquashed = cached.isNotEmpty() && cached.any { it.bounds.width() < 30f * density }
+            if (!isSquashed) {
+                placedAppsList = cached.toMutableList()
+                totalGridContentHeight = categoryHeightCache[targetId] ?: 0f
+                cachedApps = categoryAppsCache[targetId] ?: emptyList()
+                preloadActiveCategoryIconsAsync()
+                return
+            }
         }
+        val appsList = dataBridge.getAppsForCategory(targetId)
+        categoryAppsCache[targetId] = appsList
+        cachedApps = appsList
+        buildPackedGridLayout()
+        categoryGridCache[targetId] = ArrayList(placedAppsList)
+        categoryHeightCache[targetId] = totalGridContentHeight
+        preloadActiveCategoryIconsAsync()
     }
 
     internal fun preloadActiveCategoryIconsAsync() {
         categoryIconJob?.cancel()
         val appsToLoad = cachedApps.toList()
+        val catId = if (activeCatIndex in cachedCategories.indices) cachedCategories[activeCatIndex].id else null
         categoryIconJob = overlayIoScope.launch {
             try {
                 var loadedCount = 0
                 for (target in appsToLoad) {
                     if (!isActive) break
                     if (!target.isWidget && !applicationIconCache.containsKey(target.packageName)) {
-                        val drawable = dataBridge.getIcon(target.packageName)
+                        val drawable = dataBridge.getIcon(target.packageName, catId)
                         if (drawable != null) {
                             applicationIconCache[target.packageName] = drawable
                             loadedCount++
@@ -484,6 +739,21 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         handleDraw(canvas) { super.onDraw(canvas) }
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+        if (currentLayer == CruiseLayer.GRID || isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) {
+            drawPinnedEdgeSwitcher(canvas)
+            drawCruiseModalsOverlay(canvas)
+        }
+        if (isHudEditMode) {
+            val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
+            val tintColor = categoryAccentOverride() ?: snapshot.tintArgb.toInt()
+            val accent = ensureHighContrastColor(tintColor)
+            val effectiveDensity = resources.displayMetrics.density * getHudScale()
+            drawHudEditModeOverlay(canvas, activeCategoryHudItems, effectiveDensity, accent)
+        }
     }
 
     companion object {
@@ -548,6 +818,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         @Volatile
         private var shaderInstance: android.graphics.RuntimeShader? = null
 
+        @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.TIRAMISU)
         fun getProgressiveShader(context: Context): android.graphics.RuntimeShader {
             if (shaderFailed) {
                 throw IllegalStateException("AGSL RuntimeShader creation previously failed")
@@ -570,6 +841,7 @@ class LightspeedCruiseOverlay @JvmOverloads constructor(
         }
 
         val progressiveShader: android.graphics.RuntimeShader
+            @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.TIRAMISU)
             get() = shaderInstance ?: synchronized(this) {
                 shaderInstance ?: android.graphics.RuntimeShader(agslSource).also { shaderInstance = it }
             }

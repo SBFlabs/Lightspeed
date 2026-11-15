@@ -6,11 +6,13 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioPlaybackConfiguration
 import android.media.audiofx.LoudnessEnhancer
+import android.os.Bundle
 import android.os.IBinder
 import android.os.Process
 import androidx.annotation.Keep
 import com.sbf.lightspeed.system.logSwallowed
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 /**
  * Privileged Shizuku UserService running in UID 2000 (`com.android.shell`).
@@ -344,6 +346,56 @@ class SonicIsolationUserService @Keep constructor() : ISonicIsolationUserService
         }
     }
 
+    override fun execCommand(cmd: Array<String>?, timeoutMs: Long): Bundle {
+        val bundle = Bundle()
+        if (cmd.isNullOrEmpty()) {
+            bundle.putInt("exitCode", -1)
+            return bundle
+        }
+        var proc: java.lang.Process? = null
+        try {
+            val waitMs = timeoutMs.coerceIn(100L, 15000L)
+            val p = ProcessBuilder(*cmd)
+                .redirectErrorStream(true)
+                .start()
+            proc = p
+            val watchdog = Thread {
+                try {
+                    if (!p.waitFor(waitMs, TimeUnit.MILLISECONDS)) {
+                        p.destroyForcibly()
+                    }
+                } catch (_: InterruptedException) {}
+            }.apply {
+                isDaemon = true
+                start()
+            }
+            val outText = try {
+                p.inputStream.bufferedReader().use { it.readText() }
+            } catch (_: Exception) {
+                ""
+            }
+            val finished = p.waitFor(500L, TimeUnit.MILLISECONDS)
+            watchdog.interrupt()
+            val exitCode = if (finished) {
+                p.exitValue()
+            } else {
+                p.destroyForcibly()
+                -1
+            }
+            bundle.putInt("exitCode", exitCode)
+            bundle.putString("stdout", outText)
+        } catch (e: Exception) {
+            logSwallowed("SonicIsolationUserService", "execCommand", e)
+            bundle.putInt("exitCode", -1)
+            bundle.putString("stderr", e.message ?: "")
+        } finally {
+            try { proc?.inputStream?.close() } catch (_: Exception) {}
+            try { proc?.errorStream?.close() } catch (_: Exception) {}
+            try { proc?.outputStream?.close() } catch (_: Exception) {}
+        }
+        return bundle
+    }
+
     override fun destroy() {
         stopPipeline()
         clearAllAppRoutes()
@@ -470,6 +522,7 @@ class SonicIsolationUserService @Keep constructor() : ISonicIsolationUserService
         }
     }
 
+    @android.annotation.SuppressLint("SoonBlockedPrivateApi") // Reflection wrapped in try/catch with public getDevices() fallback
     private fun findTargetDevice(audioManager: AudioManager, route: String): AudioDeviceInfo? {
         val outputs: Array<AudioDeviceInfo> = try {
             val getDevicesStatic = AudioManager::class.java.getDeclaredMethod("getDevicesStatic", Int::class.javaPrimitiveType)

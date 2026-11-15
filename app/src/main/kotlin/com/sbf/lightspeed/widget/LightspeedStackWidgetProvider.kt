@@ -20,12 +20,15 @@ import com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay
 import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
 
 /**
- * 12-Theme Interactive Tactical Stack Widget Provider (< 320 lines).
- * Renders real interactive cards directly on the home screen over wallpaper-blurred glass:
- * - Page 0: Tactical App & Shortcut Grid (1-tap launch)
- * - Page 1: Quick System Deck (Vocal Boost, Smart Pixels, Extra Dim, Vista Deck)
- * - Page 2: Cockpit Telemetry (Active Gear Set, Battery, Immunity, Cycle Gear)
- * - Page 3+: External Hosted Widget Cards
+ * 12-Theme Interactive Widget Stack Provider.
+ * Powered by a robust ViewFlipper engine (adapted from Essentials, MIT License):
+ * - Page 0: Tactical Apps & Shortcuts (1-tap launch)
+ * - Page 1: System Deck (Vocal Boost, Smart Pixels, Extra Dim, Vista Deck)
+ * - Page 2: Cockpit Telemetry (Gear Set, Battery, Immunity, Cycle Gear)
+ * - Page 3+: Live embedded 3rd-party widgets (AnkiDroid, Clock, Spotify, Weather)
+ *
+ * Supports fast 1-tap left/right edge transitions and bottom pagination,
+ * and maintains 100% stability across OEM launchers (including Transsion XOS and One UI).
  */
 class LightspeedStackWidgetProvider : AppWidgetProvider() {
 
@@ -38,10 +41,12 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
         const val ACTION_TOGGLE_SMART_PIXELS = "com.sbf.lightspeed.widget.ACTION_TOGGLE_SMART_PIXELS"
         const val ACTION_TOGGLE_EXTRA_DIM = "com.sbf.lightspeed.widget.ACTION_TOGGLE_EXTRA_DIM"
         const val ACTION_OPEN_VISTA_DECK = "com.sbf.lightspeed.widget.ACTION_OPEN_VISTA_DECK"
+        const val ACTION_OPEN_DECK = "com.sbf.lightspeed.widget.ACTION_OPEN_DECK"
         const val ACTION_CYCLE_GEAR = "com.sbf.lightspeed.widget.ACTION_CYCLE_GEAR"
         const val EXTRA_TOKEN = "extra_token"
 
         fun notifyUpdate(context: Context) {
+            LightspeedWidgetHostEngine.sync(context)
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val component = ComponentName(context, LightspeedStackWidgetProvider::class.java)
             val ids = appWidgetManager.getAppWidgetIds(component)
@@ -53,226 +58,252 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
                 context.sendBroadcast(intent)
             }
         }
+
+        fun notifyStackDataChanged(context: Context) = notifyUpdate(context)
     }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        if (!com.sbf.lightspeed.system.NightlyFeatures.isWidgetStackEnabled) return
+        LightspeedWidgetHostEngine.startIfNeeded(context)
         for (appWidgetId in appWidgetIds) {
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            updateStackWidget(context, appWidgetManager, appWidgetId, options)
+            renderStack(context, appWidgetManager, appWidgetId, options)
         }
         super.onUpdate(context, appWidgetManager, appWidgetIds)
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle) {
-        updateStackWidget(context, appWidgetManager, appWidgetId, newOptions)
+        renderStack(context, appWidgetManager, appWidgetId, newOptions)
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
     }
 
-    private fun updateStackWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, options: Bundle) {
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        LightspeedWidgetHostEngine.sync(context)
+        super.onDeleted(context, appWidgetIds)
+    }
+
+    private fun renderStack(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, options: Bundle) {
         val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 260)
-        val minHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 160)
+        val minHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 180)
         val density = context.resources.displayMetrics.density
-        val widthPx = (minWidthDp * density).toInt().coerceAtLeast(200)
-        val heightPx = (minHeightDp * density).toInt().coerceAtLeast(140)
+        val widthPx = (minWidthDp * density).toInt().coerceAtLeast(180)
+        val heightPx = (minHeightDp * density).toInt().coerceAtLeast(130)
 
         val prefs = context.defaultPrefs()
         val snapshot = DeckThemeManager.getSnapshot(context)
         val bgBitmap = WallpaperBlurHelper.createBlurredWallpaperGlassCard(context, widthPx, heightPx, snapshot)
 
-        val externalWidgetIds = LightspeedPreferences.getRefuelingStackWidgetIds(context).ifEmpty {
-            val raw = prefs.getString(LightspeedPreferences.KEY_REFUELING_WIDGET_IDS, "") ?: ""
-            raw.split(",").mapNotNull { it.trim().toIntOrNull() }
-        }
+        val externalWidgetIds = LightspeedPreferences.getRefuelingStackWidgetIds(context)
         val totalPages = 3 + externalWidgetIds.size
-        val currentPage = (prefs.getInt("stack_widget_page_${appWidgetId}", 0)).mod(totalPages)
+        val currentPage = prefs.getInt("stack_widget_page_${appWidgetId}", 0).mod(totalPages)
 
         val views = RemoteViews(context.packageName, R.layout.widget_stack_layout).apply {
             setImageViewBitmap(R.id.stack_card_bg, bgBitmap)
-            setTextColor(R.id.btn_stack_prev, snapshot.borderColorArgb.toInt())
-            setTextColor(R.id.btn_stack_next, snapshot.borderColorArgb.toInt())
-            setTextColor(R.id.btn_stack_edit, snapshot.borderColorArgb.toInt())
-            setTextColor(R.id.stack_header_title, snapshot.borderColorArgb.toInt())
+            removeAllViews(R.id.stack_flipper)
 
-            wireNavigationHeader(context, this, appWidgetId)
+            // 1. Internal Page 0: Tactical Apps
+            addView(R.id.stack_flipper, createAppsPage(context, snapshot, appWidgetId))
 
-            when (currentPage) {
-                0 -> renderTacticalAppsPage(context, this, snapshot, appWidgetId)
-                1 -> renderSystemDeckPage(context, this, snapshot, appWidgetId)
-                2 -> renderCockpitTelemetryPage(context, this, snapshot, appWidgetId)
-                else -> renderHostedWidgetPage(context, this, snapshot, appWidgetId, externalWidgetIds[currentPage - 3], currentPage, totalPages)
+            // 2. Internal Page 1: System Deck
+            addView(R.id.stack_flipper, createSystemPage(context, snapshot, appWidgetId))
+
+            // 3. Internal Page 2: Cockpit Telemetry
+            addView(R.id.stack_flipper, createTelemetryPage(context, snapshot, appWidgetId))
+
+            // 4. External Pages 3+: Hosted Widgets (Live RemoteViews or Fallback)
+            for (hostedId in externalWidgetIds) {
+                val liveRv = LightspeedWidgetHostEngine.contents[hostedId]
+                val pageRv = RemoteViews(context.packageName, R.layout.widget_stack_page)
+                if (liveRv != null) {
+                    pageRv.addView(R.id.stack_page, liveRv)
+                } else {
+                    pageRv.addView(R.id.stack_page, createHostedPlaceholder(context, snapshot, appWidgetId, hostedId))
+                }
+                addView(R.id.stack_flipper, pageRv)
             }
+
+            // Display current page
+            setDisplayedChild(R.id.stack_flipper, currentPage)
+
+            // Bottom Navigation Strip & Edge Touch Targets
+            val borderColor = snapshot.borderColorArgb.toInt()
+            setTextColor(R.id.btn_stack_prev, borderColor)
+            setTextColor(R.id.btn_stack_next, borderColor)
+            setTextColor(R.id.stack_page_indicator, borderColor)
+            val nightlySuffix = if (com.sbf.lightspeed.BuildConfig.DEBUG) " · [NIGHTLY]" else ""
+            setTextViewText(R.id.stack_page_indicator, "${currentPage + 1} / $totalPages$nightlySuffix")
+
+            val prevIntent = Intent(context, LightspeedStackWidgetProvider::class.java).apply {
+                action = ACTION_PREV_PAGE
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            }
+            val prevPending = PendingIntent.getBroadcast(
+                context,
+                appWidgetId * 10 + 1,
+                prevIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            setOnClickPendingIntent(R.id.btn_stack_prev, prevPending)
+            setOnClickPendingIntent(R.id.stack_edge_prev, prevPending)
+
+            val nextIntent = Intent(context, LightspeedStackWidgetProvider::class.java).apply {
+                action = ACTION_NEXT_PAGE
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            }
+            val nextPending = PendingIntent.getBroadcast(
+                context,
+                appWidgetId * 10 + 2,
+                nextIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            setOnClickPendingIntent(R.id.btn_stack_next, nextPending)
+            setOnClickPendingIntent(R.id.stack_edge_next, nextPending)
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
-    private fun wireNavigationHeader(context: Context, views: RemoteViews, appWidgetId: Int) {
-        val prevIntent = Intent(context, LightspeedStackWidgetProvider::class.java).apply {
-            action = ACTION_PREV_PAGE
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        }
-        views.setOnClickPendingIntent(R.id.btn_stack_prev, PendingIntent.getBroadcast(context, appWidgetId * 10 + 1, prevIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
-
-        val nextIntent = Intent(context, LightspeedStackWidgetProvider::class.java).apply {
-            action = ACTION_NEXT_PAGE
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        }
-        views.setOnClickPendingIntent(R.id.btn_stack_next, PendingIntent.getBroadcast(context, appWidgetId * 10 + 2, nextIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
-
-        val editIntent = Intent(context, LightspeedWidgetConfigActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        }
-        views.setOnClickPendingIntent(R.id.btn_stack_edit, PendingIntent.getActivity(context, appWidgetId * 10 + 3, editIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
-    }
-
-    private fun renderTacticalAppsPage(context: Context, views: RemoteViews, snapshot: DeckThemeSnapshot, appWidgetId: Int) {
-        views.setTextViewText(R.id.stack_header_title, "TACTICAL APPS // ${snapshot.displayName.uppercase()}")
-        views.setViewVisibility(R.id.page_grid_container, View.VISIBLE)
-        views.setViewVisibility(R.id.page_telemetry_container, View.GONE)
-        views.setViewVisibility(R.id.page_hosted_container, View.GONE)
+    private fun createAppsPage(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.stack_item_tiles)
+        val badge = if (com.sbf.lightspeed.BuildConfig.DEBUG) " [NIGHTLY]" else ""
+        views.setTextViewText(R.id.stack_item_title, "APPS$badge")
+        views.setTextColor(R.id.stack_item_title, snapshot.borderColorArgb.toInt())
 
         val activeSet = context.defaultPrefs().getInt(LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX, 0)
         val apps = CockpitGearRepository.getAppsForActiveGear(context, false, activeSet, 0)
-
         val slotIds = intArrayOf(R.id.slot_1, R.id.slot_2, R.id.slot_3, R.id.slot_4)
         val iconIds = intArrayOf(R.id.slot_1_icon, R.id.slot_2_icon, R.id.slot_3_icon, R.id.slot_4_icon)
         val textIds = intArrayOf(R.id.slot_1_text, R.id.slot_2_text, R.id.slot_3_text, R.id.slot_4_text)
-        val statusIds = intArrayOf(R.id.slot_1_status, R.id.slot_2_status, R.id.slot_3_status, R.id.slot_4_status)
 
         for (i in 0 until 4) {
-            views.setViewVisibility(statusIds[i], View.GONE)
             if (i < apps.size) {
                 val token = apps[i]
-                val label = LightspeedShortcutManager.resolveLabel(context, token)
                 val bmp = LightspeedShortcutManager.resolveIconBitmap(context, token, useCache = true)
                     ?: LightspeedIconManager.getIconBitmap(context, token, useCache = true)
-
                 views.setViewVisibility(slotIds[i], View.VISIBLE)
-                views.setTextViewText(textIds[i], label.take(12))
+                views.setTextViewText(textIds[i], LightspeedShortcutManager.resolveLabel(context, token).take(12))
                 if (bmp != null) views.setImageViewBitmap(iconIds[i], bmp)
 
                 val launchIntent = Intent(context, LightspeedStackWidgetProvider::class.java).apply {
                     action = ACTION_LAUNCH_TOKEN
                     putExtra(EXTRA_TOKEN, token)
                 }
-                views.setOnClickPendingIntent(slotIds[i], PendingIntent.getBroadcast(context, appWidgetId * 100 + i, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
+                views.setOnClickPendingIntent(
+                    slotIds[i],
+                    PendingIntent.getBroadcast(
+                        context,
+                        appWidgetId * 100 + i,
+                        launchIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                )
             } else {
                 views.setViewVisibility(slotIds[i], View.INVISIBLE)
             }
         }
+        return views
     }
 
-    private fun renderSystemDeckPage(context: Context, views: RemoteViews, snapshot: DeckThemeSnapshot, appWidgetId: Int) {
-        views.setTextViewText(R.id.stack_header_title, "SYSTEM DECK // ${snapshot.displayName.uppercase()}")
-        views.setViewVisibility(R.id.page_grid_container, View.VISIBLE)
-        views.setViewVisibility(R.id.page_telemetry_container, View.GONE)
-        views.setViewVisibility(R.id.page_hosted_container, View.GONE)
+    private fun createSystemPage(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.stack_item_tiles)
+        val badge = if (com.sbf.lightspeed.BuildConfig.DEBUG) " [NIGHTLY]" else ""
+        views.setTextViewText(R.id.stack_item_title, "SYSTEM CONTROLS$badge")
+        views.setTextColor(R.id.stack_item_title, snapshot.borderColorArgb.toInt())
 
         val prefs = context.defaultPrefs()
-        val tintArgb = snapshot.tintArgb.toInt()
+        val tint = snapshot.tintArgb.toInt()
 
-        // 1. Vocal Boost
-        val vocalActive = SonicVoiceIsolationEngine.isEnabled
-        views.setViewVisibility(R.id.slot_1, View.VISIBLE)
-        views.setTextViewText(R.id.slot_1_text, "Vocal Boost")
-        views.setTextViewText(R.id.slot_1_status, if (vocalActive) "ACTIVE" else "OFF")
-        views.setTextColor(R.id.slot_1_status, if (vocalActive) tintArgb else Color.GRAY)
-        views.setViewVisibility(R.id.slot_1_status, View.VISIBLE)
-        views.setImageViewBitmap(R.id.slot_1_icon, LightspeedStackTileHelper.createThemedTileBitmap(context, R.drawable.ic_music_note, vocalActive, tintArgb))
-        views.setOnClickPendingIntent(R.id.slot_1, PendingIntent.getBroadcast(context, appWidgetId * 100 + 11, Intent(context, LightspeedStackWidgetProvider::class.java).apply { action = ACTION_TOGGLE_VOCAL_BOOST }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
+        fun tile(slot: Int, icon: Int, text: Int, status: Int, label: String, statusText: String, active: Boolean, drawable: Int, actionStr: String, reqCode: Int) {
+            views.setViewVisibility(slot, View.VISIBLE)
+            views.setTextViewText(text, label)
+            views.setTextViewText(status, statusText)
+            views.setTextColor(status, if (active) tint else Color.GRAY)
+            views.setViewVisibility(status, View.VISIBLE)
+            views.setImageViewBitmap(icon, LightspeedStackTileHelper.createThemedTileBitmap(context, drawable, active, tint))
+            val intent = Intent(context, LightspeedStackWidgetProvider::class.java).apply { action = actionStr }
+            views.setOnClickPendingIntent(slot, PendingIntent.getBroadcast(context, appWidgetId * 100 + reqCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+        }
 
-        // 2. Smart Pixels
-        val pixelsActive = prefs.getBoolean(LightspeedPreferences.KEY_SMART_PIXELS_ENABLED, false)
-        views.setViewVisibility(R.id.slot_2, View.VISIBLE)
-        views.setTextViewText(R.id.slot_2_text, "Smart Pixels")
-        views.setTextViewText(R.id.slot_2_status, if (pixelsActive) "ACTIVE" else "OFF")
-        views.setTextColor(R.id.slot_2_status, if (pixelsActive) tintArgb else Color.GRAY)
-        views.setViewVisibility(R.id.slot_2_status, View.VISIBLE)
-        views.setImageViewBitmap(R.id.slot_2_icon, LightspeedStackTileHelper.createThemedTileBitmap(context, R.drawable.ic_widgets, pixelsActive, tintArgb))
-        views.setOnClickPendingIntent(R.id.slot_2, PendingIntent.getBroadcast(context, appWidgetId * 100 + 12, Intent(context, LightspeedStackWidgetProvider::class.java).apply { action = ACTION_TOGGLE_SMART_PIXELS }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
+        val vocal = SonicVoiceIsolationEngine.isEnabled
+        tile(R.id.slot_1, R.id.slot_1_icon, R.id.slot_1_text, R.id.slot_1_status, "Vocal Boost", if (vocal) "ACTIVE" else "OFF", vocal, R.drawable.ic_music_note, ACTION_TOGGLE_VOCAL_BOOST, 11)
 
-        // 3. Extra Dim
-        val dimActive = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
-        views.setViewVisibility(R.id.slot_3, View.VISIBLE)
-        views.setTextViewText(R.id.slot_3_text, "Extra Dim")
-        views.setTextViewText(R.id.slot_3_status, if (dimActive) "ACTIVE" else "OFF")
-        views.setTextColor(R.id.slot_3_status, if (dimActive) tintArgb else Color.GRAY)
-        views.setViewVisibility(R.id.slot_3_status, View.VISIBLE)
-        views.setImageViewBitmap(R.id.slot_3_icon, LightspeedStackTileHelper.createThemedTileBitmap(context, R.drawable.ic_flashlight, dimActive, tintArgb))
-        views.setOnClickPendingIntent(R.id.slot_3, PendingIntent.getBroadcast(context, appWidgetId * 100 + 13, Intent(context, LightspeedStackWidgetProvider::class.java).apply { action = ACTION_TOGGLE_EXTRA_DIM }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
+        val pixels = prefs.getBoolean(LightspeedPreferences.KEY_SMART_PIXELS_ENABLED, false)
+        tile(R.id.slot_2, R.id.slot_2_icon, R.id.slot_2_text, R.id.slot_2_status, "Smart Pixels", if (pixels) "ACTIVE" else "OFF", pixels, R.drawable.ic_widgets, ACTION_TOGGLE_SMART_PIXELS, 12)
 
-        // 4. Vista Deck
-        views.setViewVisibility(R.id.slot_4, View.VISIBLE)
-        views.setTextViewText(R.id.slot_4_text, "Vista Deck")
-        views.setTextViewText(R.id.slot_4_status, "OPEN ↗")
-        views.setTextColor(R.id.slot_4_status, tintArgb)
-        views.setViewVisibility(R.id.slot_4_status, View.VISIBLE)
-        views.setImageViewBitmap(R.id.slot_4_icon, LightspeedStackTileHelper.createThemedTileBitmap(context, R.drawable.ic_qs_flight_armed, true, tintArgb))
-        views.setOnClickPendingIntent(R.id.slot_4, PendingIntent.getBroadcast(context, appWidgetId * 100 + 14, Intent(context, LightspeedStackWidgetProvider::class.java).apply { action = ACTION_OPEN_VISTA_DECK }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
+        val dim = prefs.getBoolean(LightspeedPreferences.KEY_EXTRA_DIM_ENABLED, false)
+        tile(R.id.slot_3, R.id.slot_3_icon, R.id.slot_3_text, R.id.slot_3_status, "Extra Dim", if (dim) "ACTIVE" else "OFF", dim, R.drawable.ic_flashlight, ACTION_TOGGLE_EXTRA_DIM, 13)
+
+        tile(R.id.slot_4, R.id.slot_4_icon, R.id.slot_4_text, R.id.slot_4_status, "Vista Deck", "OPEN", true, R.drawable.ic_qs_flight_armed, ACTION_OPEN_VISTA_DECK, 14)
+
+        return views
     }
 
-    private fun renderCockpitTelemetryPage(context: Context, views: RemoteViews, snapshot: DeckThemeSnapshot, appWidgetId: Int) {
-        views.setTextViewText(R.id.stack_header_title, "COCKPIT TELEMETRY // ${snapshot.displayName.uppercase()}")
-        views.setViewVisibility(R.id.page_grid_container, View.GONE)
-        views.setViewVisibility(R.id.page_telemetry_container, View.VISIBLE)
-        views.setViewVisibility(R.id.page_hosted_container, View.GONE)
+    private fun createTelemetryPage(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.stack_item_telemetry)
+        val badge = if (com.sbf.lightspeed.BuildConfig.DEBUG) " [NIGHTLY]" else ""
+        views.setTextViewText(R.id.stack_item_title, "TELEMETRY$badge")
+        views.setTextColor(R.id.stack_item_title, snapshot.borderColorArgb.toInt())
 
-        val prefs = context.defaultPrefs()
-        val activeSetIndex = prefs.getInt(LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX, 0)
-        val gearName = CockpitGearRepository.getGearSetNameByIndex(context, false, activeSetIndex)
-        val setsList = CockpitGearRepository.getGearSetsOrder(context, false)
-        val totalSets = setsList.size.coerceAtLeast(1)
+        val activeSet = context.defaultPrefs().getInt(LightspeedPreferences.KEY_LAST_ACTIVE_SET_INDEX, 0)
+        val gearName = CockpitGearRepository.getGearSetNameByIndex(context, false, activeSet)
+        val totalSets = CockpitGearRepository.getGearSetsOrder(context, false).size.coerceAtLeast(1)
 
         views.setTextViewText(R.id.telemetry_gear_title, "GEAR: $gearName".uppercase())
-        views.setTextViewText(R.id.telemetry_gear_sub, "SET ${activeSetIndex + 1} OF $totalSets • 4 APPS ARMED")
-        views.setTextViewText(R.id.telemetry_battery_text, "BATTERY: ${LightspeedStackTileHelper.getBatteryTelemetry(context)} • IMMUNITY: ${LightspeedStackTileHelper.getImmunityTelemetry(context)}")
+        views.setTextViewText(R.id.telemetry_gear_sub, "SET ${activeSet + 1} OF $totalSets")
+        views.setTextViewText(
+            R.id.telemetry_battery_text,
+            "BATTERY: ${LightspeedStackTileHelper.getBatteryTelemetry(context)} · IMMUNITY: ${LightspeedStackTileHelper.getImmunityTelemetry(context)}"
+        )
         views.setTextColor(R.id.telemetry_battery_text, snapshot.tintArgb.toInt())
+        views.setTextColor(R.id.btn_telemetry_cycle_gear, snapshot.borderColorArgb.toInt())
+        views.setTextColor(R.id.btn_telemetry_open_deck, snapshot.borderColorArgb.toInt())
 
-        views.setOnClickPendingIntent(R.id.btn_telemetry_cycle_gear, PendingIntent.getBroadcast(context, appWidgetId * 100 + 21, Intent(context, LightspeedStackWidgetProvider::class.java).apply { action = ACTION_CYCLE_GEAR }, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
-        val deckIntent = Intent(context, LightspeedHomeStackOverlayActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP }
-        views.setOnClickPendingIntent(R.id.btn_telemetry_open_deck, PendingIntent.getActivity(context, appWidgetId * 100 + 22, deckIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
-    }
-
-    private fun renderHostedWidgetPage(context: Context, views: RemoteViews, snapshot: DeckThemeSnapshot, appWidgetId: Int, hostedWidgetId: Int, pageIndex: Int, totalPages: Int) {
-        views.setTextViewText(R.id.stack_header_title, "REFUELING BAY // MODULE $pageIndex OF $totalPages")
-        views.setViewVisibility(R.id.page_grid_container, View.GONE)
-        views.setViewVisibility(R.id.page_telemetry_container, View.GONE)
-        views.setViewVisibility(R.id.page_hosted_container, View.VISIBLE)
-
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val info = appWidgetManager.getAppWidgetInfo(hostedWidgetId)
-        val title = info?.loadLabel(context.packageManager) ?: "Android Widget"
-        val iconDrawable = try { info?.loadIcon(context, context.resources.displayMetrics.densityDpi) } catch (_: Exception) { null }
-
-        views.setTextViewText(R.id.hosted_widget_title, title)
-        views.setTextViewText(R.id.hosted_widget_sub, "TAP TO EXPAND INTERACTIVE WIDGET")
-        if (iconDrawable != null) {
-            val bmp = LightspeedIconManager.convertDrawableToBitmap(iconDrawable, 96)
-            if (bmp != null) views.setImageViewBitmap(R.id.hosted_widget_icon, bmp)
-        }
+        val cycleIntent = Intent(context, LightspeedStackWidgetProvider::class.java).apply { action = ACTION_CYCLE_GEAR }
+        views.setOnClickPendingIntent(R.id.btn_telemetry_cycle_gear, PendingIntent.getBroadcast(context, appWidgetId * 100 + 21, cycleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
 
         val deckIntent = Intent(context, LightspeedHomeStackOverlayActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        views.setOnClickPendingIntent(R.id.page_hosted_container, PendingIntent.getActivity(context, appWidgetId * 100 + 31, deckIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
+        views.setOnClickPendingIntent(R.id.btn_telemetry_open_deck, PendingIntent.getActivity(context, appWidgetId * 100 + 22, deckIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+
+        return views
+    }
+
+    private fun createHostedPlaceholder(context: Context, snapshot: DeckThemeSnapshot, appWidgetId: Int, hostedWidgetId: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.stack_item_hosted)
+        val info = AppWidgetManager.getInstance(context).getAppWidgetInfo(hostedWidgetId)
+        views.setTextViewText(R.id.hosted_widget_title, info?.loadLabel(context.packageManager) ?: "Android Widget")
+        val isUnsupported = hostedWidgetId in LightspeedWidgetHostEngine.unsupported
+        views.setTextViewText(R.id.hosted_widget_sub, if (isUnsupported) "TAP TO OPEN FULL WIDGET" else "SYNCING LIVE WIDGET...")
+        views.setTextColor(R.id.hosted_widget_title, Color.WHITE)
+
+        val icon = try { info?.loadIcon(context, context.resources.displayMetrics.densityDpi) } catch (_: Exception) { null }
+        if (icon != null) LightspeedIconManager.convertDrawableToBitmap(icon, 96)?.let { views.setImageViewBitmap(R.id.hosted_widget_icon, it) }
+
+        val deckIntent = Intent(context, LightspeedHomeStackOverlayActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        views.setOnClickPendingIntent(R.id.stack_item_root, PendingIntent.getActivity(context, appWidgetId * 100 + 31, deckIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+        return views
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         val prefs = context.defaultPrefs()
+        val appWidgetManager = AppWidgetManager.getInstance(context)
         val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
         val externalWidgetIds = LightspeedPreferences.getRefuelingStackWidgetIds(context)
         val totalPages = 3 + externalWidgetIds.size
 
         when (intent.action) {
-            ACTION_REFRESH_THEME, AppWidgetManager.ACTION_APPWIDGET_UPDATE -> notifyUpdate(context)
+            ACTION_REFRESH_THEME -> notifyUpdate(context)
             ACTION_PREV_PAGE -> {
                 if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
                     val cur = prefs.getInt("stack_widget_page_${appWidgetId}", 0)
-                    val next = (cur - 1 + totalPages).mod(totalPages)
-                    prefs.edit().putInt("stack_widget_page_${appWidgetId}", next).apply()
-                    notifyUpdate(context)
+                    val prev = (cur - 1 + totalPages).mod(totalPages)
+                    prefs.edit().putInt("stack_widget_page_${appWidgetId}", prev).apply()
+                    val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+                    renderStack(context, appWidgetManager, appWidgetId, options)
                 }
             }
             ACTION_NEXT_PAGE -> {
@@ -280,7 +311,8 @@ class LightspeedStackWidgetProvider : AppWidgetProvider() {
                     val cur = prefs.getInt("stack_widget_page_${appWidgetId}", 0)
                     val next = (cur + 1).mod(totalPages)
                     prefs.edit().putInt("stack_widget_page_${appWidgetId}", next).apply()
-                    notifyUpdate(context)
+                    val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+                    renderStack(context, appWidgetManager, appWidgetId, options)
                 }
             }
             ACTION_LAUNCH_TOKEN -> {

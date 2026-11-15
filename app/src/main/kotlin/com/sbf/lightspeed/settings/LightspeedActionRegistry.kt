@@ -17,6 +17,8 @@ import com.sbf.lightspeed.system.readTextOrKill
 import com.sbf.lightspeed.system.logSwallowed
 import com.sbf.lightspeed.system.defaultPrefs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -24,6 +26,7 @@ import kotlinx.coroutines.withContext
  * Handles background indexing, icon pre-warming, and dynamic label resolution.
  */
 object LightspeedActionRegistry {
+    private val asyncInitMutex = Mutex()
     var isIndexed by mutableStateOf(false)
     val allTokens = mutableStateListOf<String>()
     val labelCache = mutableStateMapOf<String, String>()
@@ -131,6 +134,56 @@ object LightspeedActionRegistry {
                 }
                 allTokens.addAll(appTokens.distinct())
             } catch (e: Exception) { logSwallowed("LightspeedActionRegistry.kt", "initializeSync:108", e) }
+        }
+    }
+
+    /**
+     * Asynchronous Phase-0 launcher & configured-token initialization off the Main thread
+     * so Central Command renders Frame 1 immediately even right after an app install/update.
+     */
+    suspend fun initializeAsync(
+        context: Context,
+        extraRawTokens: Collection<String> = emptyList()
+    ) = asyncInitMutex.withLock {
+        val needsTokenLoad = allTokens.isEmpty()
+        val (computedTokens, computedLabels) = withContext(Dispatchers.IO) {
+            val base = getBaseTokens()
+            val tokens = if (needsTokenLoad) base.toMutableList() else mutableListOf()
+            val labels = HashMap<String, String>(base.size + extraRawTokens.size + 48)
+            if (needsTokenLoad) {
+                base.forEach { labels[it] = resolveDynamicTokenLabel(context, it) }
+                try {
+                    val pm = context.packageManager
+                    val mainIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+                    val resolvedApps = pm.queryIntentActivities(mainIntent, 0)
+                    val appTokens = ArrayList<String>(resolvedApps.size)
+                    resolvedApps.forEach { resolveInfo ->
+                        val pkg = resolveInfo.activityInfo.packageName
+                        val appToken = "app:$pkg"
+                        appTokens.add(appToken)
+                        val appLabel = pm.getApplicationLabel(resolveInfo.activityInfo.applicationInfo).toString()
+                        labels[appToken] = appLabel
+                    }
+                    tokens.addAll(appTokens.distinct())
+                } catch (e: Exception) {
+                    logSwallowed("LightspeedActionRegistry.kt", "initializeAsync", e)
+                }
+            }
+            for (raw in extraRawTokens) {
+                val str = raw.trim()
+                if (str.isNotBlank() && !labels.containsKey(str)) {
+                    labels[str] = resolveDynamicTokenLabel(context, str)
+                }
+            }
+            tokens to labels
+        }
+        withContext(Dispatchers.Main) {
+            if (allTokens.isEmpty() && computedTokens.isNotEmpty()) {
+                allTokens.addAll(computedTokens)
+            }
+            if (computedLabels.isNotEmpty()) {
+                labelCache.putAll(computedLabels)
+            }
         }
     }
 

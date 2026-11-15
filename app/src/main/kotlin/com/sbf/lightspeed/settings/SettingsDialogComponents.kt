@@ -37,7 +37,10 @@ import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.system.LightspeedPreferences
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.draw.scale
@@ -82,6 +85,13 @@ fun CentralCommandDeckDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         val activeSnapshot = LocalDeckTheme.current
+        val isJelly = activeSnapshot.styleId == "jelly"
+        val fluidDragOffsetY by animateFloatAsState(
+            targetValue = dragOffsetY.value,
+            animationSpec = spring(dampingRatio = 0.50f, stiffness = 380f),
+            label = "jelly_fluid_drag_dialog"
+        )
+
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -101,12 +111,21 @@ fun CentralCommandDeckDialog(
                 .padding(horizontal = 8.dp, vertical = 18.dp),
             contentAlignment = Alignment.Center
         ) {
-            DeckGlassCardSurface(
-                modifier = Modifier
-                    .fillMaxWidth(0.98f)
-                    .fillMaxHeight(0.88f)
-                    .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-            ) {
+            CompositionLocalProvider(LocalDeckCardDragOffsetY provides { if (isJelly) fluidDragOffsetY else dragOffsetY.value }) {
+                DeckGlassCardSurface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.98f)
+                        .fillMaxHeight(0.88f)
+                        .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                        .graphicsLayer {
+                            if (isJelly) {
+                                val stretch = (dragOffsetY.value / 550f).coerceIn(-0.06f, 0.12f)
+                                scaleY = 1.0f + stretch
+                                scaleX = 1.0f - stretch * 0.45f
+                                transformOrigin = TransformOrigin(0.5f, 0.0f)
+                            }
+                        }
+                ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Column(
                         modifier = Modifier
@@ -124,20 +143,33 @@ fun CentralCommandDeckDialog(
                                         if (dragOffsetY.value >= thresholdPx) {
                                             onDismiss()
                                         } else {
+                                            val releaseDamping = if (isJelly) Spring.DampingRatioHighBouncy else Spring.DampingRatioMediumBouncy
+                                            val releaseStiffness = if (isJelly) Spring.StiffnessLow else Spring.StiffnessMediumLow
                                             coroutineScope.launch {
+                                                if (isJelly) {
+                                                    LightspeedHapticEngine.tick(context)
+                                                }
                                                 dragOffsetY.animateTo(
                                                     0f,
                                                     animationSpec = spring(
-                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                        stiffness = Spring.StiffnessMediumLow
+                                                        dampingRatio = releaseDamping,
+                                                        stiffness = releaseStiffness
                                                     )
                                                 )
                                             }
                                         }
                                     },
                                     onDragCancel = {
+                                        val releaseDamping = if (isJelly) Spring.DampingRatioHighBouncy else Spring.DampingRatioMediumBouncy
+                                        val releaseStiffness = if (isJelly) Spring.StiffnessLow else Spring.StiffnessMediumLow
                                         coroutineScope.launch {
-                                            dragOffsetY.animateTo(0f)
+                                            dragOffsetY.animateTo(
+                                                0f,
+                                                animationSpec = spring(
+                                                    dampingRatio = releaseDamping,
+                                                    stiffness = releaseStiffness
+                                                )
+                                            )
                                         }
                                     },
                                     onVerticalDrag = { change, dragAmount ->
@@ -370,6 +402,7 @@ fun CentralCommandDeckDialog(
             }
         }
     }
+}
 }
 }
 }

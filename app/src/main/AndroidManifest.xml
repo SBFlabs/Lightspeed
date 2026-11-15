@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
 
     <queries>
@@ -75,6 +77,7 @@
             android:autoRemoveFromRecents="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
+            android:configChanges="density|fontScale|uiMode|orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.Lightspeed.Floating" />
 
         <activity
@@ -276,7 +279,8 @@
         <!-- 12-Theme 1x1 Space Pod Widget Provider -->
         <receiver
             android:name=".widget.SpacePodWidgetProvider"
-            android:label="@string/space_pod_widget_title"
+            android:label="${spacePodWidgetLabel}"
+            android:enabled="${spacePodWidgetEnabled}"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -287,10 +291,11 @@
                 android:resource="@xml/space_pod_widget_info" />
         </receiver>
 
-        <!-- 12-Theme Resizable Tactical Folder Widget Provider -->
+        <!-- 12-Theme Resizable Folder Widget Provider -->
         <receiver
             android:name=".widget.LightspeedFolderWidgetProvider"
-            android:label="@string/folder_widget_title"
+            android:label="${folderWidgetLabel}"
+            android:enabled="${folderWidgetEnabled}"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -301,11 +306,11 @@
                 android:resource="@xml/lightspeed_folder_widget_info" />
         </receiver>
 
-        <!-- 12-Theme Tactical Folder Management Modal Activity -->
+        <!-- 12-Theme Folder Management Modal Activity -->
         <activity
             android:name=".widget.LightspeedFolderModalActivity"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:theme="@style/Theme.Lightspeed.Floating"
             android:excludeFromRecents="true" />
 
         <!-- Internal Automation Receiver for notification actions and 1-tap shortcuts -->
@@ -334,11 +339,11 @@
         <!-- 12-Theme Stackable Tactical Home Screen Widget -->
         <receiver
             android:name=".widget.LightspeedStackWidgetProvider"
-            android:label="@string/widget_stack_title"
+            android:label="${widgetStackLabel}"
+            android:enabled="${widgetStackEnabled}"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.sbf.lightspeed.widget.ACTION_ITEM_CLICK" />
                 <action android:name="com.sbf.lightspeed.widget.ACTION_REFRESH_THEME" />
             </intent-filter>
             <meta-data
@@ -350,7 +355,7 @@
         <activity
             android:name=".widget.LightspeedWidgetConfigActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:theme="@style/Theme.Lightspeed.Floating"
             android:excludeFromRecents="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
@@ -360,8 +365,9 @@
         <!-- 12-Theme Refueling-Bay-Style Stack Overlay Modal Activity -->
         <activity
             android:name=".widget.LightspeedHomeStackOverlayActivity"
+            android:enabled="${widgetStackEnabled}"
             android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:theme="@style/Theme.Lightspeed.Floating"
             android:excludeFromRecents="true" />
 
         <!-- 12-Theme Tactical Bot Macro & Screen-Condition Editor Dialog -->

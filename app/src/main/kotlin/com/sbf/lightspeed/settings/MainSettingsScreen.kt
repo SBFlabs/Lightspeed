@@ -1,5 +1,6 @@
 package com.sbf.lightspeed.settings
 
+import com.sbf.lightspeed.BuildConfig
 import com.sbf.lightspeed.system.safeReloadPreferences
 
 import android.app.Activity
@@ -11,15 +12,20 @@ import androidx.compose.foundation.layout.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.outlined.UnfoldLess
 import androidx.compose.material.icons.outlined.UnfoldMore
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
@@ -68,7 +74,49 @@ fun MainSettingsScreen() {
     var activeLanguageIndex by remember { mutableIntStateOf(-1) }
 
     var showGuidebook by remember { mutableStateOf(false) }
+    var showTypographyDialog by remember { mutableStateOf(false) }
+    var typographyRootTopLeft by remember { mutableStateOf(Offset.Zero) }
+    var typographyIconWindowCenter by remember { mutableStateOf(Offset.Zero) }
+    var typographyIconSizePx by remember { mutableFloatStateOf(0f) }
     var showCentralCommandDeck by rememberSaveable { mutableStateOf(false) }
+    val initialDecision = remember { SupporterReminderController.consumeInitialLaunchGate(context) }
+    val initialGate = initialDecision.gate
+    var initialGateType by rememberSaveable { mutableStateOf(initialGate.name) }
+    var startWelcomeForInitialGate by rememberSaveable { mutableStateOf(initialDecision.showWelcome) }
+    val initialPhase = remember {
+        when {
+            initialGate == CentralCommandLaunchGate.FRESH_INSTALL ||
+                initialGate == CentralCommandLaunchGate.VERSION_UPDATE -> "WHATS_NEW"
+            initialGate == CentralCommandLaunchGate.BUILD_REFRESH ||
+                !CentralCommandWarmupCoordinator.isUiWarmed -> "WARMING_UP"
+            else -> "READY"
+        }
+    }
+    var launchGatePhase by rememberSaveable {
+        mutableStateOf(initialPhase)
+    }
+    var mountMatrixDeck by rememberSaveable {
+        mutableStateOf(initialPhase == "READY")
+    }
+    var slideSettled by remember { mutableStateOf(false) }
+    LaunchedEffect(isVisible) {
+        if (isVisible && !slideSettled) {
+            delay(340L)
+            slideSettled = true
+        }
+    }
+    var supporterReminderBadge by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+    var showWhatsNewMorph by rememberSaveable { mutableStateOf(false) }
+    var replayWelcomeFromGuidebook by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(launchGatePhase) {
+        if (launchGatePhase == "READY" && supporterReminderBadge == null) {
+            kotlinx.coroutines.delay(650L)
+            supporterReminderBadge = SupporterReminderController.checkAndConsumeReminderReason(context)
+        }
+    }
+    var showSupporterInfinityDialog by rememberSaveable { mutableStateOf(false) }
     val initialTargetSection = remember { (context as? android.app.Activity)?.intent?.getStringExtra("target_section") }
     val initialTargetTab = remember { (context as? android.app.Activity)?.intent?.getIntExtra("target_tab", if (initialTargetSection != null) 1 else -1) ?: -1 }
     var targetJumpTab by remember { mutableIntStateOf(initialTargetTab) }
@@ -131,23 +179,58 @@ fun MainSettingsScreen() {
                 visible = isVisible,
                 enter = slideInVertically(
                     initialOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                    animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+                ) + fadeIn(animationSpec = tween(durationMillis = 240)),
                 exit = slideOutVertically(
                     targetOffsetY = { fullHeight -> fullHeight },
-                    animationSpec = tween(durationMillis = 300, easing = FastOutLinearInEasing)
-                ) + fadeOut(animationSpec = tween(durationMillis = 250))
+                    animationSpec = tween(durationMillis = 260, easing = FastOutLinearInEasing)
+                ) + fadeOut(animationSpec = tween(durationMillis = 220))
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.96f)
                         .fillMaxHeight(0.94f)
+                        .onGloballyPositioned { coords ->
+                            typographyRootTopLeft = coords.positionInWindow()
+                        }
                         .clickable(enabled = false) {}
                 ) {
                     var refreshKey by remember { mutableStateOf(0) }
                     var toggleAllTrigger by remember { mutableStateOf(0) }
+                    val hideMatrixDeck = showWhatsNewMorph || launchGatePhase != "READY"
+                    val deckAlpha by animateFloatAsState(
+                        targetValue = if (hideMatrixDeck) 0.005f else 1f,
+                        animationSpec = tween(durationMillis = 180),
+                        label = "cc_morph_alpha"
+                    )
 
-                    FloatingOverlayContainer(
+                    CompositionLocalProvider(
+                        LocalOpenWhatsNew provides {
+                            replayWelcomeFromGuidebook = false
+                            showWhatsNewMorph = true
+                        },
+                        LocalTestWarmupGate provides if (com.sbf.lightspeed.system.NightlyFeatures.isWarmupGateTesterEnabled) {
+                            {
+                                initialGateType = CentralCommandLaunchGate.FRESH_INSTALL.name
+                                startWelcomeForInitialGate = true
+                                replayWelcomeFromGuidebook = false
+                                showWhatsNewMorph = false
+                                mountMatrixDeck = false
+                                launchGatePhase = "WHATS_NEW"
+                            }
+                        } else {
+                            null
+                        }
+                    ) {
+                        if (mountMatrixDeck) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        alpha = deckAlpha
+                                    }
+                            ) {
+                                FloatingOverlayContainer(
                         title = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.CENTRAL_COMMAND, langMode),
                         onDismiss = { dismissAction() },
                         onTitleClick = {
@@ -198,6 +281,31 @@ fun MainSettingsScreen() {
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        .onGloballyPositioned { coords ->
+                                            if (coords.size.width > 0 && coords.size.height > 0) {
+                                                val pos = coords.positionInWindow()
+                                                typographyIconWindowCenter = Offset(
+                                                    pos.x + coords.size.width / 2f,
+                                                    pos.y + coords.size.height / 2f
+                                                )
+                                                typographyIconSizePx = coords.size.width.toFloat()
+                                            }
+                                        }
+                                        .clickable { showTypographyDialog = !showTypographyDialog },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.FormatSize,
+                                        contentDescription = "Central Command Typography",
+                                        tint = colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                                 Box {
                                     Box(
                                         modifier = Modifier
@@ -311,7 +419,12 @@ fun MainSettingsScreen() {
                             }
                         },
                         footer = {
-                            CentralCommandFooter(context = context)
+                            CentralCommandFooter(
+                                context = context,
+                                onVersionClick = {
+                                    showWhatsNewMorph = true
+                                }
+                            )
                         }
                     ) {
                         CentralCommandMatrixFields(
@@ -323,6 +436,21 @@ fun MainSettingsScreen() {
                             onRefreshNeeded = { /* Local state reacts immediately */ }
                         )
                     }
+                            }
+                        }
+                    }
+
+                    val iconCenterInContainer = if (typographyIconWindowCenter != Offset.Zero) {
+                        typographyIconWindowCenter - typographyRootTopLeft
+                    } else Offset.Zero
+
+                    CentralCommandTypographyMenu(
+                        context = context,
+                        expanded = showTypographyDialog,
+                        iconCenterInContainer = iconCenterInContainer,
+                        iconSizePx = typographyIconSizePx,
+                        onDismiss = { showTypographyDialog = false }
+                    )
 
                     if (showCentralCommandDeck) {
                         CentralCommandDeckDialog(
@@ -340,10 +468,106 @@ fun MainSettingsScreen() {
                                 targetJumpTab = tabIdx
                                 targetJumpSection = secKey
                                 showGuidebook = false
+                            },
+                            onReplayWelcome = {
+                                showGuidebook = false
+                                replayWelcomeFromGuidebook = true
+                                showWhatsNewMorph = true
                             }
                         )
                     }
 
+                    val activeReminderBadge = supporterReminderBadge
+                    if (activeReminderBadge != null) {
+                        LightspeedSupporterReminderDialog(
+                            context = context,
+                            milestoneBadge = activeReminderBadge,
+                            onDismiss = { supporterReminderBadge = null },
+                            onOpenInfinityUnlock = {
+                                supporterReminderBadge = null
+                                showSupporterInfinityDialog = true
+                            }
+                        )
+                    }
+
+                    val showingWhatsNew = showWhatsNewMorph || launchGatePhase == "WHATS_NEW"
+                    AnimatedVisibility(
+                        visible = showingWhatsNew,
+                        enter = fadeIn(animationSpec = tween(durationMillis = 240)) +
+                            scaleIn(
+                                initialScale = 0.92f,
+                                animationSpec = spring(
+                                    dampingRatio = 0.84f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            ),
+                        exit = fadeOut(animationSpec = tween(durationMillis = 170)) +
+                            scaleOut(
+                                targetScale = 0.93f,
+                                animationSpec = tween(durationMillis = 170)
+                            )
+                    ) {
+                        CentralCommandWhatsNewMorphPanel(
+                            context = context,
+                            startOnWelcome = replayWelcomeFromGuidebook ||
+                                (!showWhatsNewMorph && startWelcomeForInitialGate),
+                            onDismiss = {
+                                if (launchGatePhase == "WHATS_NEW") {
+                                    launchGatePhase = "WARMING_UP"
+                                }
+                                startWelcomeForInitialGate = false
+                                replayWelcomeFromGuidebook = false
+                                showWhatsNewMorph = false
+                            },
+                            onOpenInfinityUnlock = {
+                                if (launchGatePhase == "WHATS_NEW") {
+                                    launchGatePhase = "WARMING_UP"
+                                }
+                                startWelcomeForInitialGate = false
+                                replayWelcomeFromGuidebook = false
+                                showWhatsNewMorph = false
+                                showSupporterInfinityDialog = true
+                            }
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = launchGatePhase == "WARMING_UP" && !showWhatsNewMorph,
+                        enter = fadeIn(animationSpec = tween(durationMillis = 220)) +
+                            scaleIn(
+                                initialScale = 0.95f,
+                                animationSpec = spring(
+                                    dampingRatio = 0.86f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            ),
+                        exit = fadeOut(animationSpec = tween(durationMillis = 180)) +
+                            scaleOut(
+                                targetScale = 1.03f,
+                                animationSpec = tween(durationMillis = 180)
+                            )
+                    ) {
+                        CentralCommandWarmupPanel(
+                            context = context,
+                            canStageDeck = slideSettled,
+                            onStageDeck = { mountMatrixDeck = true },
+                            onWarmupComplete = {
+                                mountMatrixDeck = true
+                                launchGatePhase = "READY"
+                            },
+                            onProceedAnyway = {
+                                mountMatrixDeck = true
+                                launchGatePhase = "READY"
+                            }
+                        )
+                    }
+
+                    if (showSupporterInfinityDialog) {
+                        LightspeedInfinityDialog(
+                            context = context,
+                            onDismiss = { showSupporterInfinityDialog = false }
+                        )
+                    }
 
                 }
             }

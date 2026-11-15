@@ -492,7 +492,7 @@ class LightspeedLeftWingOverlay(
                     activeScrubBrightness = -1
                     activeScrubVolumePct = -1
                     activeScrubAccumulator = 0f
-                    LightspeedStatusBarOverlay.dismissActionHud(1200L)
+                    LightspeedStatusBarOverlay.dismissActionHud(0L)
                     invalidate()
                     return true
                 }
@@ -530,7 +530,7 @@ class LightspeedLeftWingOverlay(
                     return true
                 }
                 if (isScrubbing || currentGesture == "SCRUBBING") {
-                    LightspeedStatusBarOverlay.dismissActionHud(600L)
+                    LightspeedStatusBarOverlay.dismissActionHud(0L)
                 }
                 isScrubbing = false
                 currentGesture = "NONE"

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.settings.DeckDialog
 import com.sbf.lightspeed.settings.DragOnlySlider
 import com.sbf.lightspeed.settings.SliderCalibrationFlyoutDialog
 import com.sbf.lightspeed.settings.LightspeedActionRegistry
@@ -118,7 +119,7 @@ fun PickerSystemCategoryHeaderRow(
 
     if (showTransientInfoDialog) {
         val cautionAmber = LightspeedStyle.colors.accentWarn
-        AlertDialog(
+        DeckDialog(
             onDismissRequest = { showTransientInfoDialog = false },
             icon = {
                 Icon(
@@ -172,9 +173,7 @@ fun PickerSystemCategoryHeaderRow(
                 TextButton(onClick = { showTransientInfoDialog = false }) {
                     Text("DISMISS", color = LightspeedStyle.colors.textSecondary, fontSize = 12.sp)
                 }
-            },
-            containerColor = Color(0xFF1B1F2B),
-            shape = RoundedCornerShape(16.dp)
+            }
         )
     }
 
@@ -487,7 +486,7 @@ fun PickerCustomizationSliderRow(
     val prefs = remember(context) { context.defaultPrefs() }
     var isFlyoutOpen by remember { mutableStateOf(false) }
     var isTapToJumpEnabled by remember {
-        mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_${item.prefKey}", false))
+        mutableStateOf(prefs.getBoolean(LightspeedPreferences.keySliderTapToJump(item.prefKey), false))
     }
 
     val defaultValStr = remember(item.prefKey, item.range) {
@@ -614,7 +613,7 @@ fun PickerCustomizationSliderRow(
             isTapToJumpEnabled = isTapToJumpEnabled,
             onTapToJumpChanged = { enabled ->
                 isTapToJumpEnabled = enabled
-                prefs.edit().putBoolean("pref_slider_tap_to_jump_${item.prefKey}", enabled).apply()
+                prefs.edit().putBoolean(LightspeedPreferences.keySliderTapToJump(item.prefKey), enabled).apply()
             }
         )
     }

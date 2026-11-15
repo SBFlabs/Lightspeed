@@ -36,8 +36,10 @@ internal fun LightspeedCruiseOverlay.launchLauncherSettings() {
 
 internal fun LightspeedCruiseOverlay.dismissOverlay() {
     stopGearAutoRepeat()
+    uiHandler.removeCallbacks(hudLiveRefreshRunnable)
     uiHandler.removeCallbacks(neutralToCategoryRunnable)
     uiHandler.removeCallbacks(holdTimerRunnable)
+    LightspeedCruiseHudPods.resetHudEntranceState()
     longPressHangarBayRunnable?.let { removeCallbacks(it) }
     longPressCogRunnable?.let { removeCallbacks(it) }
     longPressHangarBayRunnable = null
@@ -59,7 +61,7 @@ internal fun LightspeedCruiseOverlay.dismissOverlay() {
     categoryScrubbingEngaged = false
     maxVerticalDisplacement = 0f
     currentLayer = CruiseLayer.HIDDEN
-    activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f
+    activeItem = null; activeCatIndex = -1; viewportScrollOffset = 0f; categoryVisualOffset = 0f; hudScrollOffset = 0f
     categoryIconJob?.cancel()
     categoryIconJob = null
     applicationIconCache.clear()
@@ -68,6 +70,26 @@ internal fun LightspeedCruiseOverlay.dismissOverlay() {
     categoryHeightCache.clear()
     lastLoadedCategoryId = null
     placedAppsList.clear(); cachedApps = emptyList(); cachedCategories = emptyList()
+    uiHandler.removeCallbacks(widgetSettleRunnable)
+    widgetSettlePending = false
+    try { cruiseAppWidgetHost?.stopListening() } catch (_: Exception) {}
+    cruiseAppWidgetHostView?.visibility = android.view.View.GONE
+    cruiseAppWidgetHostView2?.visibility = android.view.View.GONE
+    for ((_, view) in cruiseAppWidgetHostViews) {
+        view.visibility = android.view.View.GONE
+    }
+    for ((_, container) in cruiseAppWidgetHostContainers) {
+        container.visibility = android.view.View.GONE
+    }
+    // Trim warm off-screen widget views when hidden so large RemoteViews hierarchies don't linger in RAM
+    val excessWarm = cruiseAppWidgetHostContainers.keys.toList().dropLast(1)
+    for (id in excessWarm) {
+        cruiseAppWidgetHostContainers.remove(id)?.let {
+            it.visibility = android.view.View.GONE
+            removeView(it)
+        }
+        cruiseAppWidgetHostViews.remove(id)
+    }
     if (getFlankLaunchBehavior(isOpenedFromLeftFlank) != "last") {
         activeGearSetIndex = 0
     }
@@ -115,6 +137,27 @@ fun LightspeedCruiseOverlay.openHangarDirectly(setIndex: Int = -1) {
     isStickyPinned = false
     service?.updateWindowLayout(true)
     updateMetricsDimensions()
+    invalidate()
+}
+
+fun LightspeedCruiseOverlay.openCategoryCruisePinned(categoryId: String) {
+    uiHandler.removeCallbacks(neutralToCategoryRunnable)
+    uiHandler.removeCallbacks(holdTimerRunnable)
+    categoryScrubbingEngaged = false
+    maxVerticalDisplacement = 0f
+    cachedCategories = dataBridge.getLiveCategories()
+    val idx = cachedCategories.indexOfFirst { it.id == categoryId }.let { if (it >= 0) it else 0 }
+    activeCatIndex = idx
+    currentLayer = CruiseLayer.STICKY_PIN
+    isCruising = false
+    isStickyPinned = true
+    applicationIconCache.clear()
+    categoryGridCache.clear()
+    categoryAppsCache.clear()
+    lastLoadedCategoryId = null
+    service?.updateWindowLayout(true)
+    updateMetricsDimensions()
+    loadActiveCategoryGrid()
     invalidate()
 }
 
@@ -172,7 +215,7 @@ internal fun LightspeedCruiseOverlay.triggerHyperdriveWarpLaunch(focalX: Float, 
 
     uiHandler.postDelayed({
         deepSpaceRenderer.reactorRenderer.cancelWarp()
+        dismissOverlay()
         onLaunch()
-        uiHandler.postDelayed({ dismissOverlay() }, 60L)
     }, 130L)
 }

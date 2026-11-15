@@ -2,8 +2,10 @@ package com.sbf.lightspeed
 
 import android.app.Activity
 import android.appwidget.AppWidgetHost
+import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.os.Bundle
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -12,6 +14,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Custom FrameLayout host container for AppWidgetHostView.
@@ -60,8 +64,8 @@ class ScrollableAppWidgetContainer(
     }
 
     private fun hasVerticalScrollableChild(v: View): Boolean {
-        // Dynamically checks if view actually has scrollable content.
-        // If Anki or Calendar has only 1-2 items that all fit on screen, this returns false!
+        // Dynamically checks if view actually has scrollable content or is a scrollable container
+        if (v is android.widget.AbsListView || v is android.widget.ScrollView) return true
         if (v.canScrollVertically(1) || v.canScrollVertically(-1)) return true
         if (v is ViewGroup) {
             for (i in 0 until v.childCount) {
@@ -70,6 +74,9 @@ class ScrollableAppWidgetContainer(
         }
         return false
     }
+
+    /** True when this widget has an inner collection/scroll view that needs vertical drags. */
+    fun hasInnerVerticalScroll(): Boolean = hasVerticalScrollableChild(this)
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (!isStackMode || onSwipeDelta == null) {
@@ -200,7 +207,9 @@ fun AppWidgetContainerView(
         }
 
         if (appWidgetInfo != null) {
-            Box(modifier = modifier) {
+            BoxWithConstraints(modifier = modifier) {
+                val widthDp = maxWidth.value.roundToInt().coerceAtLeast(40)
+                val heightDp = maxHeight.value.roundToInt().coerceAtLeast(40)
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { ctx ->
@@ -213,6 +222,7 @@ fun AppWidgetContainerView(
                             )
                             val hostView = appWidgetHost.createView(ctx, widgetId, appWidgetInfo)
                             hostView.setAppWidget(widgetId, appWidgetInfo)
+                            syncWidgetHostSize(hostView, widthDp, heightDp)
                             container.addView(
                                 hostView,
                                 FrameLayout.LayoutParams(
@@ -233,6 +243,10 @@ fun AppWidgetContainerView(
                             view.isStackMode = isStackMode
                             view.onSwipeDelta = onSwipeDelta
                             view.onSwipeEnd = onSwipeEnd
+                            val hostView = view.getChildAt(0) as? AppWidgetHostView
+                            if (hostView != null) {
+                                syncWidgetHostSize(hostView, widthDp, heightDp)
+                            }
                         }
                     }
                 )
@@ -259,4 +273,14 @@ fun AppWidgetContainerView(
             }
         }
     }
+}
+
+@Suppress("DEPRECATION")
+private fun syncWidgetHostSize(hostView: AppWidgetHostView, widthDp: Int, heightDp: Int) {
+    val sizeKey = "${widthDp}x${heightDp}"
+    if (hostView.tag == sizeKey) return
+    hostView.tag = sizeKey
+    try {
+        hostView.updateAppWidgetSize(Bundle.EMPTY, widthDp, heightDp, widthDp, heightDp)
+    } catch (_: Exception) {}
 }

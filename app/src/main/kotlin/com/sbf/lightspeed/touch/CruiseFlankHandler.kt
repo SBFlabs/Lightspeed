@@ -220,7 +220,7 @@ internal fun LightspeedCruiseOverlay.performFlankTouchEvent(isLeft: Boolean, eve
                 uiHandler.removeCallbacks(neutralToCategoryRunnable)
                 if (currentLayer == CruiseLayer.STICKY_PIN) {
                     isStickyPinned = true; currentLayer = CruiseLayer.GRID
-                    updateMetricsDimensions(); invalidate()
+                    updateMetricsDimensions(); invalidate(); postInvalidateOnAnimation()
                 } else if (currentLayer == CruiseLayer.CATEGORY && activeCatIndex in cachedCategories.indices && cachedCategories[activeCatIndex].id == "launcher_settings_virtual_id") {
                     launchLauncherSettings()
                 } else if (currentLayer == CruiseLayer.NEUTRAL) {

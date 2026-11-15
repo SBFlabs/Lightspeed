@@ -18,14 +18,35 @@ class LightspeedApplication : Application() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= 10 /* TRIM_MEMORY_RUNNING_LOW / TRIM_MEMORY_BACKGROUND */ || level == TRIM_MEMORY_UI_HIDDEN) {
-            com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
-            com.sbf.lightspeed.system.LightspeedShortcutManager.clearMemoryCache()
+            trimOptionalCaches(purgeOverlayWidgets = level >= 15 /* TRIM_MEMORY_RUNNING_CRITICAL or background */)
         }
     }
 
     override fun onLowMemory() {
         super.onLowMemory()
+        trimOptionalCaches(purgeOverlayWidgets = true)
+    }
+
+    private fun trimOptionalCaches(purgeOverlayWidgets: Boolean) {
         com.sbf.lightspeed.system.LightspeedIconManager.clearCache()
         com.sbf.lightspeed.system.LightspeedShortcutManager.clearMemoryCache()
+        TacticalWidgetPreviewCache.clear()
+        com.sbf.lightspeed.system.InstalledTacticalToolsScanner.clearCache()
+        com.sbf.lightspeed.settings.LightspeedActionRegistry.iconBitmapCache.clear()
+        if (!com.sbf.lightspeed.settings.CentralCommandActivity.isActive) {
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.clearBitmap()
+            if (purgeOverlayWidgets) {
+                com.sbf.lightspeed.settings.CentralCommandWarmupCoordinator.markCold()
+            } else {
+                com.sbf.lightspeed.settings.CentralCommandWarmupCoordinator.markUiCold()
+            }
+        }
+        if (purgeOverlayWidgets) {
+            LightspeedCruiseOverlay.instance?.let { overlay ->
+                if (overlay.currentLayer == CruiseLayer.HIDDEN && !overlay.isStickyPinned) {
+                    overlay.destroyAppWidgetHost()
+                }
+            }
+        }
     }
 }

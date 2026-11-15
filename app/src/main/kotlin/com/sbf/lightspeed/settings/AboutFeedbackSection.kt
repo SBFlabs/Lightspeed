@@ -8,21 +8,44 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.R
+import com.sbf.lightspeed.system.DistributionVerifier
 import com.sbf.lightspeed.system.LightspeedLanguageEngine
+import com.sbf.lightspeed.system.NightlyFeatures
+import com.sbf.lightspeed.system.SignatureStatus
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 
@@ -31,6 +54,10 @@ private const val TEXT_SECTION_TITLE = "About & Feedback"
 private const val TEXT_BUTTON_BUG = "Report a bug"
 private const val TEXT_BUTTON_LANGUAGE = "Language issue"
 private const val TEXT_HINT = "Opens a pre-filled page in your browser. Nothing is sent until you submit it there."
+private const val TEXT_COMMUNITIES_NOTE =
+    "Use XDA Forums for discussions & setup tips.\nGitHub Issues handles bugs, feature feedback, language requests & Q&A."
+private const val TEXT_SUPPORT_PAYMENT_NOTE =
+    "Buy Me a Coffee ($1.99 Lightspeed ∞) supports Google Pay."
 private const val TEXT_NO_BROWSER = "No browser found; link copied"
 private const val TEXT_UNKNOWN = "unknown"
 private const val TEXT_BUTTON_SHARE = "Share Lightspeed"
@@ -38,8 +65,10 @@ private const val TEXT_BUTTON_COFFEE = "Coffee"
 private const val TEXT_BUTTON_INFINITY = "Lightspeed Infinity"
 private const val TEXT_SHARE_CHOOSER = "Share Lightspeed"
 private const val TEXT_SHARE_BODY =
-    "Lightspeed: a free, ad-free, 100% offline gesture workstation, launcher, and Shizuku control layer for Android. https://github.com/SBFlabs/Lightspeed"
-private const val COFFEE_URL = "https://buymeacoffee.com/sbflabs"
+    "Lightspeed: a free, ad-free, 100% offline meta-launcher & Android control layer. https://github.com/SBFlabs/Lightspeed"
+private const val COFFEE_PAGE_URL = "https://buymeacoffee.com/sbflabs"
+private const val COFFEE_SHOP_URL = "https://buymeacoffee.com/sbflabs/e/579114"
+private const val XDA_THREAD_URL = "https://xdaforums.com/t/4804419/"
 
 private const val ISSUE_TITLE_BUG = "[Bug] "
 private const val ISSUE_TITLE_LANGUAGE = "[Language] "
@@ -60,11 +89,36 @@ private val ISSUE_PATH_SEGMENTS = listOf("SBFlabs", "Lightspeed", "issues", "new
 fun AboutFeedbackSection(context: Context) {
     var isExpanded by rememberSaveable { mutableStateOf(false) }
     var showLicensesDialog by rememberSaveable { mutableStateOf(false) }
+    var showBuildVerificationDialog by rememberSaveable { mutableStateOf(false) }
     var showInfinityDialog by rememberSaveable { mutableStateOf(false) }
+    var showSupporterReminderPreview by rememberSaveable { mutableStateOf(false) }
+    val buildVerification = remember { DistributionVerifier.inspectBuild(context) }
+    val openWhatsNewMorph = LocalOpenWhatsNew.current
+    val testWarmupGate = LocalTestWarmupGate.current
     val lsColors = LightspeedStyle.colors
+
+    if (showSupporterReminderPreview) {
+        LightspeedSupporterReminderDialog(
+            context = context,
+            milestoneBadge = "UPDATED TO v${com.sbf.lightspeed.BuildConfig.VERSION_NAME}",
+            onDismiss = { showSupporterReminderPreview = false },
+            onOpenInfinityUnlock = {
+                showSupporterReminderPreview = false
+                showInfinityDialog = true
+            }
+        )
+    }
 
     if (showInfinityDialog) {
         LightspeedInfinityDialog(context = context, onDismiss = { showInfinityDialog = false })
+    }
+
+    if (showBuildVerificationDialog) {
+        BuildVerificationDialog(
+            context = context,
+            verification = buildVerification,
+            onDismiss = { showBuildVerificationDialog = false }
+        )
     }
 
     if (showLicensesDialog) {
@@ -144,17 +198,87 @@ fun AboutFeedbackSection(context: Context) {
         onToggle = { isExpanded = !isExpanded }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                text = versionLine(context),
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = lsColors.textPrimary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = versionLine(context),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    color = lsColors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                        .clickable {
+                            if (openWhatsNewMorph != null) {
+                                openWhatsNewMorph()
+                            } else {
+                                showSupporterReminderPreview = true
+                            }
+                        }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "What's New",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open What's New",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            if (NightlyFeatures.isWarmupGateTesterEnabled && testWarmupGate != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(lsColors.accent.copy(alpha = 0.12f))
+                        .clickable { testWarmupGate() }
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Test Welcome & Update Gate${NightlyFeatures.BADGE_SUFFIX}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = lsColors.accent
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Test Welcome & Update Gate",
+                        tint = lsColors.accent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
             Button(
                 onClick = { shareApp(context) },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("📡  $TEXT_BUTTON_SHARE", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(TEXT_BUTTON_SHARE, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -186,16 +310,90 @@ fun AboutFeedbackSection(context: Context) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("📊", fontSize = 12.sp)
+                    Icon(
+                        imageVector = Icons.Default.Analytics,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
                     Text("Contribute OEM Diagnostics", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
-            Text(
-                text = TEXT_HINT,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-            )
+            AboutNoteBanner(text = TEXT_HINT)
+
+            OutlinedButton(
+                onClick = { openUrl(context, XDA_THREAD_URL) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Forum,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text("XDA Forums Thread", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            AboutNoteBanner(text = TEXT_COMMUNITIES_NOTE)
+
+            val (verifyIcon, verifyTint, verifySubtitle) = when (buildVerification.signatureStatus) {
+                SignatureStatus.OFFICIAL_RELEASE -> Triple(
+                    Icons.Default.CheckCircle,
+                    lsColors.accentOk,
+                    "Official SBF Labs Signature · ${buildVerification.installOrigin.displayName}"
+                )
+                SignatureStatus.NIGHTLY_DEV_BUILD -> Triple(
+                    Icons.Default.Shield,
+                    lsColors.accent,
+                    "Nightly Dev Build · ${buildVerification.installOrigin.displayName}"
+                )
+                SignatureStatus.CUSTOM_OR_UNVERIFIED -> Triple(
+                    Icons.Default.Warning,
+                    lsColors.accentWarn,
+                    "Custom Signature · Tap to verify & see official sources"
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(verifyTint.copy(alpha = 0.09f))
+                    .border(0.8.dp, verifyTint.copy(alpha = 0.30f), RoundedCornerShape(10.dp))
+                    .clickable { showBuildVerificationDialog = true }
+                    .padding(horizontal = 11.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Icon(
+                    imageVector = verifyIcon,
+                    contentDescription = null,
+                    tint = verifyTint,
+                    modifier = Modifier.size(18.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Build Verification & Official Sources",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = lsColors.textPrimary
+                    )
+                    Text(
+                        text = verifySubtitle,
+                        fontSize = 10.5.sp,
+                        color = lsColors.textSecondary
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Inspect build verification",
+                    tint = verifyTint,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
 
             OutlinedButton(
                 onClick = { showLicensesDialog = true },
@@ -210,10 +408,23 @@ fun AboutFeedbackSection(context: Context) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
-                    onClick = { openUrl(context, COFFEE_URL) },
+                    onClick = {
+                        val url = if (com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) COFFEE_PAGE_URL else COFFEE_SHOP_URL
+                        openUrl(context, url)
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("☕ $TEXT_BUTTON_COFFEE", fontSize = 11.5.sp, textAlign = TextAlign.Center)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_buymeacoffee),
+                            contentDescription = "Buy Me a Coffee",
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(TEXT_BUTTON_COFFEE, fontSize = 11.5.sp, textAlign = TextAlign.Center)
+                    }
                 }
                 OutlinedButton(
                     onClick = { showInfinityDialog = true },
@@ -222,11 +433,64 @@ fun AboutFeedbackSection(context: Context) {
                     Text("Lightspeed ∞", fontSize = 11.5.sp, textAlign = TextAlign.Center)
                 }
             }
+
+            AboutNoteBanner(annotatedText = buildGooglePayAnnotatedText(TEXT_SUPPORT_PAYMENT_NOTE))
         }
     }
 }
 
+internal fun buildGooglePayAnnotatedText(text: String): AnnotatedString {
+    val keyword = "Google Pay"
+    val idx = text.indexOf(keyword)
+    if (idx < 0) return AnnotatedString(text)
+    return buildAnnotatedString {
+        append(text.substring(0, idx))
+        withStyle(
+            SpanStyle(
+                fontWeight = FontWeight.Bold,
+                textDecoration = TextDecoration.Underline
+            )
+        ) {
+            append(keyword)
+        }
+        append(text.substring(idx + keyword.length))
+    }
+}
+
 /** Opens the system share sheet with a short pitch and the project link. */
+@Composable
+private fun AboutNoteBanner(
+    text: String? = null,
+    annotatedText: AnnotatedString? = null
+) {
+    val shape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+            .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f), shape)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.ErrorOutline,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(top = 1.dp)
+                .size(14.dp)
+        )
+        Text(
+            text = annotatedText ?: AnnotatedString(text.orEmpty()),
+            fontSize = 11.sp,
+            lineHeight = 14.5.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.88f)
+        )
+    }
+}
+
 private fun shareApp(context: Context) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"

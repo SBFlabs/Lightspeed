@@ -77,6 +77,23 @@ object LightspeedHapticEngine {
         return false
     }
 
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
+    private fun createScaledHapticEffect(
+        hasAmp: Boolean,
+        durationMs: Long,
+        effectiveDuration: Long,
+        clampedAmp: Int
+    ): VibrationEffect = when {
+        durationMs >= 50L -> VibrationEffect.createOneShot(effectiveDuration, clampedAmp)
+        !hasAmp -> {
+            if (durationMs <= 25L) VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+            else VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+        }
+        durationMs <= 20L -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+        durationMs <= 35L -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+        else -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+    }
+
     /**
      * Executes a single vibration pulse with specified duration and amplitude.
      */
@@ -94,18 +111,7 @@ object LightspeedHapticEngine {
             val effectiveDuration = if (!hasAmp) durationMs.coerceAtLeast(30L) else durationMs
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val effect = if (!hasAmp) {
-                    if (durationMs <= 25L) VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
-                    else VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
-                } else if (durationMs <= 20L) {
-                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
-                } else if (durationMs <= 35L) {
-                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
-                } else if (durationMs <= 60L) {
-                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
-                } else {
-                    VibrationEffect.createOneShot(effectiveDuration, clampedAmp)
-                }
+                val effect = createScaledHapticEffect(hasAmp, durationMs, effectiveDuration, clampedAmp)
                 val attrs = VibrationAttributes.Builder()
                     .setUsage(VibrationAttributes.USAGE_HARDWARE_FEEDBACK)
                     .build()
@@ -115,18 +121,7 @@ object LightspeedHapticEngine {
                     vibrator.vibrate(VibrationEffect.createOneShot(effectiveDuration, clampedAmp), attrs)
                 }
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val effect = if (!hasAmp) {
-                    if (durationMs <= 25L) VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
-                    else VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
-                } else if (durationMs <= 20L) {
-                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
-                } else if (durationMs <= 35L) {
-                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
-                } else if (durationMs <= 60L) {
-                    VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
-                } else {
-                    VibrationEffect.createOneShot(effectiveDuration, clampedAmp)
-                }
+                val effect = createScaledHapticEffect(hasAmp, durationMs, effectiveDuration, clampedAmp)
                 val audioAttrs = AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
@@ -267,8 +262,13 @@ object LightspeedHapticEngine {
         if (profile == "off") return
         when (profile) {
             "soft_low_freq", "soft" -> vibrateDirect(context, durationMs = 28L, amplitude = 130)
-            "heavy" -> vibrate(context, durationMs = 55L, amplitude = 255)
-            else -> vibrate(context, durationMs = 45L, amplitude = 220)
+            "heavy" -> vibrate(context, durationMs = 68L, amplitude = 255)
+            else -> {
+                val scale = getSystemScale(context)
+                val duration = (52f * scale).toLong().coerceIn(36L, 75L)
+                val amplitude = (235f * scale).toInt().coerceIn(170, 255)
+                vibrate(context, durationMs = duration, amplitude = amplitude)
+            }
         }
     }
 

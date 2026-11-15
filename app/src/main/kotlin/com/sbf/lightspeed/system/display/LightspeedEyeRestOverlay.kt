@@ -37,6 +37,7 @@ import com.sbf.lightspeed.system.OverlayLifecycleOwner
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 object LightspeedEyeRestOverlay {
 
@@ -204,7 +205,7 @@ object LightspeedEyeRestOverlay {
         val tint = Color(themeSnapshot.tintArgb.toInt())
 
         Box(
-            modifier = Modifier.fillMaxSize().background(Color(0xF00A0D14)).padding(24.dp),
+            modifier = Modifier.fillMaxSize().background(LightspeedTokens.TacticalSurfaceDark.copy(alpha = 0.94f)).padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -213,7 +214,7 @@ object LightspeedEyeRestOverlay {
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color(0xEE141824))
+                    .background(LightspeedTokens.TacticalSurfaceModal.copy(alpha = 0.94f))
                     .border(1.5.dp, tint.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
                     .padding(24.dp)
             ) {
@@ -230,8 +231,8 @@ object LightspeedEyeRestOverlay {
 
                 Spacer(Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = onSnooze, colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FFA726)), modifier = Modifier.weight(1f)) {
-                        Text("Snooze 5m", color = Color(0xFFFFA726), fontSize = 11.5.sp)
+                    Button(onClick = onSnooze, colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusWarningOrange.copy(alpha = 0.20f)), modifier = Modifier.weight(1f)) {
+                        Text("Snooze 5m", color = LightspeedTokens.StatusWarningOrange, fontSize = 11.5.sp)
                     }
                     Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = tint), modifier = Modifier.weight(1f)) {
                         Text("Dismiss", color = Color.Black, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
@@ -264,7 +265,7 @@ object LightspeedEyeRestOverlay {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xF0141824))
+                    .background(LightspeedTokens.TacticalSurfaceModal.copy(alpha = 0.94f))
                     .border(1.5.dp, tint.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
                     .clickable(onClick = onDismiss)
                     .padding(horizontal = 16.dp, vertical = 12.dp),

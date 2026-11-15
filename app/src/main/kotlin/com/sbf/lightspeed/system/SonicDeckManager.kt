@@ -123,7 +123,9 @@ object SonicDeckManager {
             // 4. Shut down the privileged service process itself so it stops holding RAM
             SonicVoiceIsolationEngine.teardown(appCtx)
         } else {
-            SonicVoiceIsolationEngine.ensureBound(appCtx)
+            if (SonicVoiceIsolationEngine.needsPrivilegedServiceInBackground(appCtx)) {
+                SonicVoiceIsolationEngine.ensureBound(appCtx)
+            }
             // Re-enabling restores all back:
             // 1. Restore Voice Isolation if previously stashed active
             val shouldRestoreVoice = prefs.getBoolean(KEY_SONIC_VOICE_ISOLATION_STASHED, false)
@@ -148,6 +150,13 @@ object SonicDeckManager {
 
             val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
             windowManager = wm
+
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(wm)
+            val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(service)
+            val nativeSupported = com.sbf.lightspeed.settings.BackdropBlurModeManager.isNativeBlurSupported(wm)
+            com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(
+                nativeSupported && blurMode != com.sbf.lightspeed.settings.BackdropBlurMode.SCREENSHOT
+            )
 
             val view = ComposeView(service)
             val owner = OverlayLifecycleOwner()
@@ -226,6 +235,9 @@ object SonicDeckManager {
                 windowParams = null
             }
             windowManager = null
+            if (!com.sbf.lightspeed.settings.CentralCommandActivity.isActive) {
+                com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onWindowHidden(false)
+            }
         }
     }
 
@@ -279,10 +291,12 @@ object SonicDeckManager {
             }
         }
 
+        val isCapturing = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isCapturing
+        val scrimAlpha = if (isCapturing) 0f else (snapshot.dimAmount * 0.85f).coerceIn(0.25f, 0.65f)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f))
+                .background(Color.Black.copy(alpha = scrimAlpha))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -291,7 +305,7 @@ object SonicDeckManager {
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
-                visible = isVisible,
+                visible = isVisible && !isCapturing,
                 enter = fadeIn(tween(200)) + scaleIn(tween(250), initialScale = 0.94f),
                 exit = fadeOut(tween(150)) + scaleOut(tween(200), targetScale = 0.94f)
             ) {
@@ -394,7 +408,7 @@ object SonicDeckManager {
                                 }
                             }
 
-                            HorizontalDivider(color = Color(0x25FFFFFF))
+                            HorizontalDivider(color = tint.copy(alpha = 0.25f))
 
                             currentSectionOrder.forEach { secId ->
                                 when (secId) {

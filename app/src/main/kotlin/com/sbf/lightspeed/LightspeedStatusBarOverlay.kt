@@ -173,6 +173,16 @@ class LightspeedStatusBarOverlay(
             customCutoutWidth = prefs.getInt(LightspeedPreferences.KEY_NOTCH_CUTOUT_WIDTH, -1),
             customCutoutOffsetX = LightspeedPreferences.getEffectiveCutoutOffsetX(prefs)
         )
+        val isMediaRoutingEnabled = renderCache.mediaRouting != "none"
+        if (isMediaRoutingEnabled) {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            if (pm?.isInteractive == true && isAttachedToWindow) {
+                uiHandler.removeCallbacks(horizonTickRunnable)
+                uiHandler.postDelayed(horizonTickRunnable, 5000L)
+            }
+        } else {
+            uiHandler.removeCallbacks(horizonTickRunnable)
+        }
     }
 
     internal val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -191,6 +201,36 @@ class LightspeedStatusBarOverlay(
     internal val telemetryListener: () -> Unit = {
         postInvalidate()
     }
+
+    private val horizonTickRunnable = object : Runnable {
+        override fun run() {
+            if (renderCache.mediaRouting == "none") return
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            if (pm?.isInteractive == true && isAttachedToWindow) {
+                com.sbf.lightspeed.system.LightspeedNotificationListener.instance?.refreshMediaTelemetry()
+                postInvalidate()
+                uiHandler.postDelayed(this, 5000L)
+            }
+        }
+    }
+
+    private val screenStateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: android.content.Intent?) {
+            when (intent?.action) {
+                android.content.Intent.ACTION_SCREEN_ON -> {
+                    uiHandler.removeCallbacks(horizonTickRunnable)
+                    if (renderCache.mediaRouting != "none") {
+                        uiHandler.postDelayed(horizonTickRunnable, 5000L)
+                    }
+                    postInvalidate()
+                }
+                android.content.Intent.ACTION_SCREEN_OFF -> {
+                    uiHandler.removeCallbacks(horizonTickRunnable)
+                }
+            }
+        }
+    }
+    private var isScreenReceiverRegistered = false
 
     data class TransientHudState(
         val title: String,
@@ -289,6 +329,24 @@ class LightspeedStatusBarOverlay(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         updateRenderCache()
+        if (!isScreenReceiverRegistered) {
+            val filter = android.content.IntentFilter().apply {
+                addAction(android.content.Intent.ACTION_SCREEN_ON)
+                addAction(android.content.Intent.ACTION_SCREEN_OFF)
+            }
+            androidx.core.content.ContextCompat.registerReceiver(
+                context,
+                screenStateReceiver,
+                filter,
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            isScreenReceiverRegistered = true
+        }
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        if (pm?.isInteractive == true && renderCache.mediaRouting != "none") {
+            uiHandler.removeCallbacks(horizonTickRunnable)
+            uiHandler.postDelayed(horizonTickRunnable, 5000L)
+        }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration?) {
@@ -308,6 +366,11 @@ class LightspeedStatusBarOverlay(
         if (activeInstance === this) {
             activeInstance = null
         }
+        uiHandler.removeCallbacks(horizonTickRunnable)
+        if (isScreenReceiverRegistered) {
+            try { context.unregisterReceiver(screenStateReceiver) } catch (_: Exception) {}
+            isScreenReceiverRegistered = false
+        }
         transientDismissRunnable?.let { uiHandler.removeCallbacks(it) }
         currentTransientHudState = null
         prefs.unregisterOnSharedPreferenceChangeListener(prefListener)
@@ -320,10 +383,33 @@ class LightspeedStatusBarOverlay(
     internal fun expandForHud() {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         val lp = layoutParams as? WindowManager.LayoutParams ?: return
+        val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(context)
+        if (com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseScreenshotBlur(wm, blurMode) &&
+            !com.sbf.lightspeed.settings.CentralCommandBackdropBlur.hasHudBackdrop() &&
+            !com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isHudCapturing
+        ) {
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForHudOnly(wm) {
+                postInvalidateOnAnimation()
+            }
+        }
         val d = resources.displayMetrics.density
         val screenW = resources.displayMetrics.widthPixels
         val targetH = (260 * d).toInt()
-        if (lp.height != targetH || lp.width != screenW) {
+        var layoutDirty = lp.height != targetH || lp.width != screenW
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val useNative = com.sbf.lightspeed.settings.BackdropBlurModeManager.shouldUseNativeBlur(wm, blurMode)
+            val hasBlurFlag = (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) != 0
+            if (useNative && !hasBlurFlag) {
+                lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                lp.blurBehindRadius = com.sbf.lightspeed.settings.DeckThemeManager.snapshotFlow.value.windowBlurRadiusPx.coerceIn(0, 150)
+                layoutDirty = true
+            } else if (!useNative && hasBlurFlag) {
+                lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                lp.blurBehindRadius = 0
+                layoutDirty = true
+            }
+        }
+        if (layoutDirty) {
             lp.x = 0
             lp.y = 0
             lp.width = screenW
@@ -364,7 +450,14 @@ class LightspeedStatusBarOverlay(
         lp.x = 0
         lp.y = 0
         lp.gravity = Gravity.TOP or Gravity.START
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) != 0
+        ) {
+            lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+            lp.blurBehindRadius = 0
+        }
         try { wm.updateViewLayout(this, lp) } catch (e: Exception) { logSwallowed("LightspeedStatusBarOverlay", "restoreWindowLayout:360", e) }
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onHudHidden()
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -396,6 +489,7 @@ class LightspeedStatusBarOverlay(
             style: String = "canopy_droppod",
             colorMode: String? = null
         ): Boolean {
+            LightspeedAccessibilityService.instance?.hideMediaScrubber()
             val inst = activeInstance ?: return false
             inst.displayTransientHud(title, value, stepIndex, totalSteps, durationMs, style, colorMode)
             return true
@@ -405,6 +499,16 @@ class LightspeedStatusBarOverlay(
             val inst = activeInstance ?: return false
             inst.dismissTransientHud(delayMs)
             return true
+        }
+
+        fun hideActionHudNow() {
+            val inst = activeInstance ?: return
+            inst.uiHandler.post {
+                inst.transientDismissRunnable?.let { inst.uiHandler.removeCallbacks(it) }
+                inst.currentTransientHudState = null
+                inst.restoreWindowLayout()
+                inst.invalidate()
+            }
         }
     }
 }

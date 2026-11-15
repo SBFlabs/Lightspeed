@@ -57,6 +57,7 @@ internal fun CockpitGearPickerScreenContent(
     ringIndex: Int,
     singleSelectPrefKey: String?,
     singleSelectTitle: String,
+    customListPrefKey: String? = null,
     isSingleSelect: Boolean,
     isSplitMode: Boolean,
     isHoldGesture: Boolean,
@@ -315,7 +316,7 @@ internal fun CockpitGearPickerScreenContent(
                                 .align(Alignment.TopCenter)
                                 .padding(top = 48.dp)
                                 .size(80.dp)
-                                .background(Color(0xFF1E1E28).copy(alpha = 0.94f), shape = RoundedCornerShape(16.dp))
+                                .background(com.sbf.lightspeed.ui.theme.LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.94f), shape = RoundedCornerShape(16.dp))
                                 .border(2.2.dp, dynamicPrimary, shape = RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -336,7 +337,8 @@ internal fun CockpitGearPickerScreenContent(
                         dynamicPrimary = dynamicPrimary,
                         onCancel = onFinish,
                         onSave = {
-                            prefs.edit().putString("gear_set_${setId}_ring_${ringIndex}_packages", selectedTokens.joinToString(",")).apply()
+                            val targetKey = customListPrefKey ?: "gear_set_${setId}_ring_${ringIndex}_packages"
+                            prefs.edit().putString(targetKey, selectedTokens.joinToString(",")).apply()
                             onFinish()
                         }
                     )

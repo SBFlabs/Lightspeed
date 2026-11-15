@@ -45,7 +45,7 @@ fun OverrideSliderRow(
 ) {
     val lsColors = LightspeedStyle.colors
     var isFlyoutOpen by remember { mutableStateOf(false) }
-    var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_$sliderKey", false)) }
+    var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean(com.sbf.lightspeed.system.LightspeedPreferences.keySliderTapToJump(sliderKey), false)) }
 
     Column(
         modifier = Modifier
@@ -148,7 +148,7 @@ fun OverrideSliderRow(
             isTapToJumpEnabled = isTapToJumpEnabled,
             onTapToJumpChanged = {
                 isTapToJumpEnabled = it
-                prefs.edit().putBoolean("pref_slider_tap_to_jump_$sliderKey", it).apply()
+                prefs.edit().putBoolean(com.sbf.lightspeed.system.LightspeedPreferences.keySliderTapToJump(sliderKey), it).apply()
             }
         )
     }

@@ -1,6 +1,11 @@
 package com.sbf.lightspeed.system
 
 import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,13 +16,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Speaker
-import androidx.compose.material.icons.filled.SyncAlt
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +43,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.sbf.lightspeed.settings.DeckSlider
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.system.sonic.SonicChannelRouter
 import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
@@ -113,11 +123,29 @@ internal fun SonicAppMixerSection(
         }
     }
 
-    val sortedApps = remember(displayApps, pinnedApps, ignoredApps) {
+    var isHiddenAppsExpanded by remember {
+        mutableStateOf(context.defaultPrefs().getBoolean("pref_sonic_sub_hidden_apps_expanded", false))
+    }
+
+    val activeApps = remember(displayApps, pinnedApps, ignoredApps) {
         val pinned = displayApps.filter { pinnedApps.contains(it) && !ignoredApps.contains(it) }
         val normal = displayApps.filter { !pinnedApps.contains(it) && !ignoredApps.contains(it) }
-        val ignored = displayApps.filter { ignoredApps.contains(it) }
-        pinned + normal + ignored
+        pinned + normal
+    }
+
+    val hiddenApps = remember(displayApps, ignoredApps) {
+        val list = mutableListOf<String>()
+        for (pkg in displayApps) {
+            if (ignoredApps.contains(pkg) && !list.contains(pkg)) {
+                list.add(pkg)
+            }
+        }
+        for (pkg in ignoredApps) {
+            if (!list.contains(pkg)) {
+                list.add(pkg)
+            }
+        }
+        list
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -131,8 +159,8 @@ internal fun SonicAppMixerSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF261805).copy(alpha = 0.85f))
-                    .border(1.dp, Color(0xFFFFB300).copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                    .background(LightspeedTokens.TacticalNoticeWarm.copy(alpha = 0.85f))
+                    .border(1.dp, LightspeedTokens.StatusWarning.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
                     .padding(10.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -143,12 +171,12 @@ internal fun SonicAppMixerSection(
                         Icon(
                             imageVector = Icons.Default.WarningAmber,
                             contentDescription = null,
-                            tint = Color(0xFFFFB300),
+                            tint = LightspeedTokens.StatusWarning,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "AUDIO ROUTED OUTSIDE ISOLATION",
-                            color = Color(0xFFFFB300),
+                            color = LightspeedTokens.StatusWarning,
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -179,7 +207,7 @@ internal fun SonicAppMixerSection(
                                 onCheckedChange = { dontShowAgainChecked = it },
                                 modifier = Modifier.size(18.dp),
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = Color(0xFFFFB300),
+                                    checkedColor = LightspeedTokens.StatusWarning,
                                     uncheckedColor = Color.White.copy(alpha = 0.5f),
                                     checkmarkColor = Color.Black
                                 )
@@ -203,7 +231,7 @@ internal fun SonicAppMixerSection(
                             },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                             modifier = Modifier.height(24.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB300))
+                            colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusWarning)
                         ) {
                             Text("OK", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
@@ -212,37 +240,63 @@ internal fun SonicAppMixerSection(
             }
         }
 
-        if (sortedApps.isEmpty()) {
+        if (activeApps.isEmpty() && hiddenApps.isEmpty()) {
             Text("No active or pinned audio applications.", color = Color.Gray, fontSize = 10.sp)
         } else {
-            for (pkg in sortedApps) {
-                key(pkg) {
-                    SonicAppRow(
-                        context = context,
-                        pkg = pkg,
-                        tint = tint,
-                        isPinned = pinnedApps.contains(pkg),
-                        isIgnored = ignoredApps.contains(pkg),
-                        onTogglePin = {
-                            SonicChannelRouter.togglePinApp(context, pkg)
-                            pinnedApps = SonicChannelRouter.getPinnedApps(context)
-                            ignoredApps = SonicChannelRouter.getIgnoredApps(context)
-                        },
-                        onToggleIgnore = {
-                            SonicChannelRouter.toggleIgnoreApp(context, pkg)
-                            pinnedApps = SonicChannelRouter.getPinnedApps(context)
-                            ignoredApps = SonicChannelRouter.getIgnoredApps(context)
-                        },
-                        onRouteChanged = { newRoute ->
-                            if (newRoute != SonicChannelRouter.ROUTE_DEFAULT &&
-                                SonicVoiceIsolationEngine.isEnabled &&
-                                !context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_SONIC_ROUTING_BYPASS_WARNING_DISMISSED, false)
-                            ) {
-                                showBypassWarning = true
+            if (activeApps.isEmpty()) {
+                Text("All detected audio applications are hidden.", color = Color.Gray, fontSize = 10.sp)
+            } else {
+                for (pkg in activeApps) {
+                    key(pkg) {
+                        SonicAppRow(
+                            context = context,
+                            pkg = pkg,
+                            tint = tint,
+                            isPinned = pinnedApps.contains(pkg),
+                            onTogglePin = {
+                                SonicChannelRouter.togglePinApp(context, pkg)
+                                pinnedApps = SonicChannelRouter.getPinnedApps(context)
+                                ignoredApps = SonicChannelRouter.getIgnoredApps(context)
+                            },
+                            onToggleIgnore = {
+                                SonicChannelRouter.toggleIgnoreApp(context, pkg)
+                                pinnedApps = SonicChannelRouter.getPinnedApps(context)
+                                ignoredApps = SonicChannelRouter.getIgnoredApps(context)
+                            },
+                            onRouteChanged = { newRoute ->
+                                if (newRoute != SonicChannelRouter.ROUTE_DEFAULT &&
+                                    SonicVoiceIsolationEngine.isEnabled &&
+                                    !context.defaultPrefs().getBoolean(LightspeedPreferences.KEY_SONIC_ROUTING_BYPASS_WARNING_DISMISSED, false)
+                                ) {
+                                    showBypassWarning = true
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
+            }
+
+            AnimatedVisibility(
+                visible = hiddenApps.isNotEmpty(),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                SonicHiddenAppsSubAccordion(
+                    hiddenApps = hiddenApps,
+                    context = context,
+                    isExpanded = isHiddenAppsExpanded,
+                    onToggle = {
+                        isHiddenAppsExpanded = !isHiddenAppsExpanded
+                        context.defaultPrefs().edit()
+                            .putBoolean("pref_sonic_sub_hidden_apps_expanded", isHiddenAppsExpanded)
+                            .apply()
+                    },
+                    onUnhideApp = { pkg ->
+                        SonicChannelRouter.toggleIgnoreApp(context, pkg)
+                        pinnedApps = SonicChannelRouter.getPinnedApps(context)
+                        ignoredApps = SonicChannelRouter.getIgnoredApps(context)
+                    }
+                )
             }
         }
     }
@@ -254,15 +308,14 @@ private fun SonicAppRow(
     pkg: String,
     tint: Color,
     isPinned: Boolean,
-    isIgnored: Boolean,
     onTogglePin: () -> Unit,
     onToggleIgnore: () -> Unit,
     onRouteChanged: (String) -> Unit = {}
 ) {
     val lsColors = LightspeedStyle.colors
-    var volume by remember(pkg, isIgnored) { mutableFloatStateOf(if (isIgnored) 1.0f else SonicAppVolumeEngine.getAppVolume(context, pkg)) }
-    var route by remember(pkg, isIgnored) { mutableStateOf(if (isIgnored) SonicChannelRouter.ROUTE_DEFAULT else SonicChannelRouter.getAppRoute(context, pkg)) }
-    var isAlwaysOn by remember(pkg, isIgnored) { mutableStateOf(if (isIgnored) false else SonicChannelRouter.isAlwaysOnAudioFocus(context, pkg)) }
+    var volume by remember(pkg) { mutableFloatStateOf(SonicAppVolumeEngine.getAppVolume(context, pkg)) }
+    var route by remember(pkg) { mutableStateOf(SonicChannelRouter.getAppRoute(context, pkg)) }
+    var isAlwaysOn by remember(pkg) { mutableStateOf(SonicChannelRouter.isAlwaysOnAudioFocus(context, pkg)) }
 
     val pm = context.packageManager
     val label = remember(pkg) {
@@ -284,22 +337,13 @@ private fun SonicAppRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .alpha(if (isIgnored) 0.38f else 1.0f)
             .clip(RoundedCornerShape(8.dp))
             .background(
-                when {
-                    isPinned -> tint.copy(alpha = 0.14f)
-                    isIgnored -> Color.White.copy(alpha = 0.03f)
-                    else -> Color.White.copy(alpha = 0.08f)
-                }
+                if (isPinned) tint.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.08f)
             )
             .border(
                 0.8.dp,
-                when {
-                    isPinned -> tint.copy(alpha = 0.55f)
-                    isIgnored -> Color.White.copy(alpha = 0.06f)
-                    else -> Color.White.copy(alpha = 0.15f)
-                },
+                if (isPinned) tint.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.15f),
                 RoundedCornerShape(8.dp)
             )
             .padding(horizontal = 10.dp, vertical = 7.dp),
@@ -330,7 +374,7 @@ private fun SonicAppRow(
 
             Text(
                 text = label,
-                color = if (isIgnored) Color.Gray else Color.White,
+                color = Color.White,
                 fontSize = 11.5.sp,
                 fontWeight = if (isPinned) FontWeight.Bold else FontWeight.SemiBold,
                 maxLines = 1,
@@ -340,8 +384,8 @@ private fun SonicAppRow(
             )
 
             Text(
-                text = if (isIgnored) "IGN" else "${(volume.coerceIn(0.0f, 1.0f) * 100).toInt()}%",
-                color = if (isIgnored) Color.Gray else lsColors.textPrimary,
+                text = "${(volume.coerceIn(0.0f, 1.0f) * 100).toInt()}%",
+                color = lsColors.textPrimary,
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -351,35 +395,53 @@ private fun SonicAppRow(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             DeckSlider(
                 value = volume.coerceIn(0.0f, 1.0f),
                 valueRange = 0.0f..1.0f,
-                enabled = !isIgnored,
                 onValueChange = {
-                    if (!isIgnored) {
-                        volume = it
-                        SonicAppVolumeEngine.setAppVolume(context, pkg, it)
-                    }
+                    volume = it
+                    SonicAppVolumeEngine.setAppVolume(context, pkg, it)
                 },
                 modifier = Modifier
                     .weight(1f)
                     .height(24.dp)
             )
 
-            val routeIcon = when (route) {
-                SonicChannelRouter.ROUTE_SPEAKER -> Icons.Default.Speaker
-                SonicChannelRouter.ROUTE_BLUETOOTH, SonicChannelRouter.ROUTE_WIRED -> Icons.Default.Headphones
-                else -> Icons.Default.SyncAlt
+            // Audio Routing Selector
+            val (routeIcon, routeColor, routeDesc) = when (route) {
+                SonicChannelRouter.ROUTE_SPEAKER -> Triple(
+                    Icons.Default.Speaker,
+                    LightspeedTokens.StatusSky,
+                    "Speaker"
+                )
+                SonicChannelRouter.ROUTE_BLUETOOTH, SonicChannelRouter.ROUTE_WIRED -> Triple(
+                    Icons.Default.Headphones,
+                    LightspeedTokens.StatusOkSoft,
+                    "Headphones"
+                )
+                else -> Triple(
+                    Icons.AutoMirrored.Filled.VolumeUp,
+                    if (tint == Color.White) LightspeedTokens.StatusSlate else tint,
+                    "Default Audio Route"
+                )
             }
             Box(
                 modifier = Modifier
                     .size(26.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
-                    .border(0.8.dp, if (isIgnored) Color.Gray.copy(alpha = 0.25f) else tint.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
-                    .clickable(enabled = !isIgnored) {
+                    .background(
+                        if (route != SonicChannelRouter.ROUTE_DEFAULT) routeColor.copy(alpha = 0.22f)
+                        else Color.White.copy(alpha = 0.08f)
+                    )
+                    .border(
+                        0.9.dp,
+                        if (route != SonicChannelRouter.ROUTE_DEFAULT) routeColor.copy(alpha = 0.75f)
+                        else Color.White.copy(alpha = 0.35f),
+                        RoundedCornerShape(6.dp)
+                    )
+                    .clickable {
                         val next = when (route) {
                             SonicChannelRouter.ROUTE_DEFAULT -> SonicChannelRouter.ROUTE_SPEAKER
                             SonicChannelRouter.ROUTE_SPEAKER -> SonicChannelRouter.ROUTE_BLUETOOTH
@@ -393,64 +455,256 @@ private fun SonicAppRow(
             ) {
                 Icon(
                     imageVector = routeIcon,
-                    contentDescription = when (route) {
-                        SonicChannelRouter.ROUTE_SPEAKER -> "Speaker"
-                        SonicChannelRouter.ROUTE_BLUETOOTH, SonicChannelRouter.ROUTE_WIRED -> "Headphones"
-                        else -> "Default Audio Route"
-                    },
-                    tint = if (isIgnored) Color.Gray else tint,
-                    modifier = Modifier.size(14.dp)
+                    contentDescription = routeDesc,
+                    tint = if (route != SonicChannelRouter.ROUTE_DEFAULT) routeColor else Color.White,
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
             // No-Ducking Audio Sovereignty Lock
-            IconButton(
-                onClick = {
-                    if (!isIgnored) {
+            val lockColor = if (isAlwaysOn) lsColors.accentOk else Color.White.copy(alpha = 0.65f)
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (isAlwaysOn) lsColors.accentOk.copy(alpha = 0.20f) else Color.White.copy(alpha = 0.08f))
+                    .border(
+                        0.8.dp,
+                        if (isAlwaysOn) lsColors.accentOk.copy(alpha = 0.70f) else Color.White.copy(alpha = 0.20f),
+                        RoundedCornerShape(6.dp)
+                    )
+                    .clickable {
                         isAlwaysOn = !isAlwaysOn
                         SonicChannelRouter.setAlwaysOnAudioFocus(context, pkg, isAlwaysOn)
-                    }
-                },
-                enabled = !isIgnored,
-                modifier = Modifier.size(24.dp)
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isAlwaysOn) Icons.Default.Lock else Icons.Default.LockOpen,
                     contentDescription = if (isAlwaysOn) "Always-On Focus" else "Duckable",
-                    tint = when {
-                        isIgnored -> Color.Gray.copy(alpha = 0.3f)
-                        isAlwaysOn -> lsColors.accentOk
-                        else -> Color.White.copy(alpha = 0.45f)
-                    },
-                    modifier = Modifier.size(14.dp)
+                    tint = lockColor,
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
             // Pin to top button
-            IconButton(
-                onClick = onTogglePin,
-                modifier = Modifier.size(22.dp)
+            val pinAccent = LightspeedTokens.StatusWarning
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (isPinned) pinAccent.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.08f))
+                    .border(
+                        0.9.dp,
+                        if (isPinned) pinAccent.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.20f),
+                        RoundedCornerShape(6.dp)
+                    )
+                    .clickable(onClick = onTogglePin),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.PushPin,
                     contentDescription = if (isPinned) "Unpin App" else "Pin to Top",
-                    tint = if (isPinned) tint else Color.White.copy(alpha = 0.32f),
-                    modifier = Modifier.size(13.dp)
+                    tint = if (isPinned) pinAccent else Color.White.copy(alpha = 0.65f),
+                    modifier = Modifier.size(15.dp)
                 )
             }
 
-            // Ignore App button (moves to bottom, grays out, disables controls)
-            IconButton(
-                onClick = onToggleIgnore,
-                modifier = Modifier.size(22.dp)
+            // Hide App button (moves to hidden sub-accordion, resets overrides)
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(
+                        0.8.dp,
+                        Color.White.copy(alpha = 0.20f),
+                        RoundedCornerShape(6.dp)
+                    )
+                    .clickable(onClick = onToggleIgnore),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Block,
-                    contentDescription = if (isIgnored) "Unignore App" else "Ignore App",
-                    tint = if (isIgnored) lsColors.accentDanger else Color.White.copy(alpha = 0.30f),
-                    modifier = Modifier.size(13.dp)
+                    imageVector = Icons.Default.VisibilityOff,
+                    contentDescription = "Hide App",
+                    tint = Color.White.copy(alpha = 0.50f),
+                    modifier = Modifier.size(14.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SonicHiddenAppsSubAccordion(
+    hiddenApps: List<String>,
+    context: Context,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    onUnhideApp: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.04f))
+            .border(0.6.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    LightspeedHapticEngine.centralCommandClick(context)
+                    onToggle()
+                }
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.VisibilityOff,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "HIDDEN APPLICATIONS",
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White.copy(alpha = 0.85f),
+                    letterSpacing = 0.3.sp
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = "${hiddenApps.size}",
+                        fontSize = 8.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.85f)
+                    )
+                }
+            }
+
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                tint = Color.White.copy(alpha = 0.65f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                for (pkg in hiddenApps) {
+                    key(pkg) {
+                        SonicHiddenAppRow(
+                            context = context,
+                            pkg = pkg,
+                            onUnhide = { onUnhideApp(pkg) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SonicHiddenAppRow(
+    context: Context,
+    pkg: String,
+    onUnhide: () -> Unit
+) {
+    val lsColors = LightspeedStyle.colors
+    val pm = context.packageManager
+    val label = remember(pkg) {
+        try {
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        } catch (_: Exception) {
+            pkg.substringAfterLast('.')
+        }
+    }
+    val appBitmap = remember(pkg) {
+        try {
+            pm.getApplicationIcon(pkg).toBitmap(width = 40, height = 40).asImageBitmap()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+            .clickable(onClick = onUnhide)
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (appBitmap != null) {
+            Image(
+                bitmap = appBitmap,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(RoundedCornerShape(4.dp))
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Apps,
+                contentDescription = null,
+                tint = lsColors.textSecondary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.75f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Restore / Unhide Action Button
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .background(lsColors.accentOk.copy(alpha = 0.16f))
+                .border(0.6.dp, lsColors.accentOk.copy(alpha = 0.6f), RoundedCornerShape(5.dp))
+                .clickable(onClick = onUnhide),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Visibility,
+                contentDescription = "Unhide App",
+                tint = lsColors.accentOk,
+                modifier = Modifier.size(13.dp)
+            )
         }
     }
 }

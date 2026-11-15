@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,10 +33,10 @@ import kotlin.math.roundToInt
 /**
  * AGSL "liquid glass" refraction for the Glass Lava (prism) theme (API 33+).
  *
- * Takes the same screen snapshot as the blur workaround ([CentralCommandBackdropBlur.backdropBitmap])
- * but keeps it SHARP: pixels near the card rim are pulled in from deeper inside the card (lens bevel),
- * split slightly per colour channel (chromatic dispersion), lightly saturated, and finished with a
- * bright rim and soft inner glow. No blur is applied.
+ * Light bending (lens refraction) and chromatic dispersion are strictly confined
+ * to the outer rim bevel (perimeter chamfer). In the center of the card, the glass
+ * is parallel and flat: light passes straight through 1:1 without geometric warping,
+ * maintaining crystal-clear UI legibility over the frosted backdrop blur.
  */
 private const val LIQUID_REFRACTION_AGSL = """
 uniform shader content;
@@ -50,58 +51,64 @@ float sdRoundRect(float2 p, float2 hsz, float r) {
     return length(max(q, float2(0.0))) + min(max(q.x, q.y), 0.0) - r;
 }
 
-half3 sampleDisp(float2 p, float2 offs) {
-    float2 mx = size - float2(1.0);
-    half r = content.eval(clamp(p + offs * 0.14, float2(1.0), mx)).r;
-    half g = content.eval(clamp(p, float2(1.0), mx)).g;
-    half b = content.eval(clamp(p - offs * 0.14, float2(1.0), mx)).b;
-    return half3(r, g, b);
-}
-
 half4 main(float2 fragCoord) {
     float2 c = size * 0.5;
     float2 p = fragCoord - c;
     float d = sdRoundRect(p, c, radius);
     float depth = clamp(-d / bevel, 0.0, 1.0);
-    float edge = pow(1.0 - depth, 1.7);
+    float edge = smoothstep(1.0, 0.0, depth);
 
-    float e = 1.5;
-    float2 grad = float2(
-        sdRoundRect(p + float2(e, 0.0), c, radius) - sdRoundRect(p - float2(e, 0.0), c, radius),
-        sdRoundRect(p + float2(0.0, e), c, radius) - sdRoundRect(p - float2(0.0, e), c, radius)
-    );
-    float2 g = grad / max(length(grad), 0.0001);
+    float2 mx = size - float2(1.0);
+    half3 col;
 
-    // Lens: gentle pull of the background inward near the rim
-    float2 offs = -g * edge * strength;
-    float2 base = fragCoord + offs;
+    if (edge > 0.0001) {
+        // Border Bevel Zone: light is refracted inward strictly along the outer rim
+        float e = 1.5;
+        float2 grad = float2(
+            sdRoundRect(p + float2(e, 0.0), c, radius) - sdRoundRect(p - float2(e, 0.0), c, radius),
+            sdRoundRect(p + float2(0.0, e), c, radius) - sdRoundRect(p - float2(0.0, e), c, radius)
+        );
+        float2 g = grad / max(length(grad), 0.0001);
+        float2 offs = -g * edge * strength;
+        float2 base = fragCoord + offs;
 
-    // Soft uniform blurring across interior, fading to razor sharp at the refractive bevel edge
-    float br = mix(2.0 * scale, 0.4 * scale, edge);
-    half3 acc = sampleDisp(base, offs);
-    for (int i = 0; i < 8; i++) {
-        float ang = float(i) * 0.785398;
-        acc += sampleDisp(base + float2(cos(ang), sin(ang)) * br, offs);
+        // Chromatic dispersion: subtle prismatic split along the chamfer
+        half r = content.eval(clamp(base + offs * 0.12, float2(0.0), mx)).r;
+        half gCol = content.eval(clamp(base, float2(0.0), mx)).g;
+        half b = content.eval(clamp(base - offs * 0.12, float2(0.0), mx)).b;
+        col = half3(r, gCol, b);
+        col *= mix(0.92, 1.0, edge);
+    } else {
+        // Center Zone: Flat optical transmission with zero bending or distortion
+        col = content.eval(clamp(fragCoord, float2(0.0), mx)).rgb;
     }
-    half3 col = acc / 9.0;
 
-    // Neutral glass transparency: slight luma bump, completely neutral tone (no forced blue tint)
-    float luma = dot(col, half3(0.299, 0.587, 0.114));
-    col = mix(half3(luma), col, 1.08);
-    col *= mix(0.85, 1.0, edge);
+    // Anti-aliased outer edge mask: strictly clip any pixel outside the rounded boundary
+    float mask = clamp(0.5 - d, 0.0, 1.0);
+    if (mask <= 0.0) {
+        return half4(0.0);
+    }
 
-    // Rim lighting: pure white specular gleam on top-left, soft rim catch
+    // Rim lighting: pure white specular gleam on top-left, soft rim catch strictly at outer chamfer
     float rimW = 2.0 * scale;
-    float a = 1.0 - clamp(-d / (rimW * 1.5), 0.0, 1.0);
-    a = a * a;
-    float facing = dot(g, normalize(float2(-0.6, -0.8)));
-    float spec = pow(max(facing, 0.0), 2.2) * a;
-    float back = pow(max(-facing, 0.0), 1.8) * a;
-    col += half3(spec * 0.85); // Pure neutral white gleam
-    col += half3(0.18) * back; // Soft neutral rim
-    col += half3(0.15) * a;
+    float a = (d <= 0.0) ? (1.0 - clamp(-d / (rimW * 1.5), 0.0, 1.0)) : 0.0;
+    if (a > 0.001) {
+        a = a * a;
+        float e = 1.5;
+        float2 grad = float2(
+            sdRoundRect(p + float2(e, 0.0), c, radius) - sdRoundRect(p - float2(e, 0.0), c, radius),
+            sdRoundRect(p + float2(0.0, e), c, radius) - sdRoundRect(p - float2(0.0, e), c, radius)
+        );
+        float2 g = grad / max(length(grad), 0.0001);
+        float facing = dot(g, normalize(float2(-0.6, -0.8)));
+        float spec = pow(max(facing, 0.0), 2.2) * a;
+        float back = pow(max(-facing, 0.0), 1.8) * a;
+        col += half3(spec * 0.85); // Pure neutral white gleam
+        col += half3(0.18) * back; // Soft neutral rim catch
+        col += half3(0.15) * a;
+    }
 
-    return half4(clamp(col, 0.0, 1.0), 1.0);
+    return half4(clamp(col, 0.0, 1.0) * mask, mask);
 }
 """
 
@@ -144,12 +151,14 @@ internal fun LiquidRefractionLayer(
 
     val view = LocalView.current
     val screenLocation = remember { IntArray(2) }
-    var screenOffset by remember { mutableStateOf(IntOffset.Zero) }
+    var basePosX by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    var basePosY by remember { mutableIntStateOf(Int.MIN_VALUE) }
+    val dragOffsetYProvider = LocalDeckCardDragOffsetY.current
     var boxSize by remember { mutableStateOf(IntSize.Zero) }
 
     val cornerPx = with(density) { snapshot.cornerRadiusDp.dp.toPx() }
-    val bevelPx = with(density) { 22.dp.toPx() }
-    val strengthPx = with(density) { 24.dp.toPx() }
+    val bevelPx = with(density) { 16.dp.toPx() }
+    val strengthPx = with(density) { 14.dp.toPx() }
     val scalePx = density.density
 
     val blurRadiusPx = snapshot.windowBlurRadiusPx
@@ -182,32 +191,42 @@ internal fun LiquidRefractionLayer(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .onSizeChanged { boxSize = it }
+            .onSizeChanged {
+                boxSize = it
+                basePosX = Int.MIN_VALUE
+                basePosY = Int.MIN_VALUE
+            }
             .onGloballyPositioned { coords ->
                 view.getLocationOnScreen(screenLocation)
                 val posInWindow = coords.positionInWindow()
-                val screenX = screenLocation[0] + posInWindow.x.roundToInt()
-                val screenY = screenLocation[1] + posInWindow.y.roundToInt()
-                screenOffset = IntOffset(screenX, screenY)
+                val currentDrag = dragOffsetYProvider().roundToInt()
+                val newX = screenLocation[0] + posInWindow.x.roundToInt()
+                val newY = screenLocation[1] + posInWindow.y.roundToInt() - currentDrag
+                if (basePosX != newX) basePosX = newX
+                if (basePosY != newY) basePosY = newY
             }
     ) {
         if (boxSize.width > 0 && boxSize.height > 0) {
-            val metrics = view.context.resources.displayMetrics
-            val screenW = metrics.widthPixels.coerceAtLeast(1)
-            val screenH = metrics.heightPixels.coerceAtLeast(1)
-            val scaleX = bitmap.width.toFloat() / screenW
-            val scaleY = bitmap.height.toFloat() / screenH
-
-            val srcX = (screenOffset.x * scaleX).roundToInt().coerceIn(0, (bitmap.width - 1).coerceAtLeast(0))
-            val srcY = (screenOffset.y * scaleY).roundToInt().coerceIn(0, (bitmap.height - 1).coerceAtLeast(0))
-            val srcW = (boxSize.width * scaleX).roundToInt().coerceIn(1, bitmap.width - srcX)
-            val srcH = (boxSize.height * scaleY).roundToInt().coerceIn(1, bitmap.height - srcY)
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { renderEffect = effect }
+                    .graphicsLayer {
+                        renderEffect = effect
+                        clip = true
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(snapshot.cornerRadiusDp.dp)
+                    }
                     .drawWithContent {
+                        if (basePosX == Int.MIN_VALUE || basePosY == Int.MIN_VALUE) return@drawWithContent
+                        val currentDrag = dragOffsetYProvider().roundToInt()
+                        val screenX = basePosX
+                        val screenY = basePosY + currentDrag
+
+                        // 1:1 Native Resolution Mapping
+                        val srcX = screenX.coerceIn(0, (bitmap.width - 1).coerceAtLeast(0))
+                        val srcY = screenY.coerceIn(0, (bitmap.height - 1).coerceAtLeast(0))
+                        val srcW = boxSize.width.coerceIn(1, (bitmap.width - srcX).coerceAtLeast(1))
+                        val srcH = boxSize.height.coerceIn(1, (bitmap.height - srcY).coerceAtLeast(1))
+
                         drawImage(
                             image = bitmap,
                             srcOffset = IntOffset(srcX, srcY),

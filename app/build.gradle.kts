@@ -27,8 +27,8 @@ android {
         applicationId = "com.sbf.lightspeed"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.3.3"
+        versionCode = 13
+        versionName = "1.4.0"
         manifestPlaceholders["appName"] = "Lightspeed"
     }
 
@@ -76,6 +76,12 @@ android {
             applicationIdSuffix = ".nightly"
             versionNameSuffix = "-NIGHTLY"
             manifestPlaceholders["appName"] = "Lightspeed Nightly"
+            manifestPlaceholders["widgetStackEnabled"] = "true"
+            manifestPlaceholders["folderWidgetEnabled"] = "true"
+            manifestPlaceholders["spacePodWidgetEnabled"] = "true"
+            manifestPlaceholders["widgetStackLabel"] = "@string/widget_stack_title_nightly"
+            manifestPlaceholders["folderWidgetLabel"] = "@string/folder_widget_title_nightly"
+            manifestPlaceholders["spacePodWidgetLabel"] = "@string/space_pod_widget_title"
         }
         release {
             isMinifyEnabled = true
@@ -83,6 +89,12 @@ android {
             isDebuggable = false
             signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else null
             manifestPlaceholders["appName"] = "Lightspeed"
+            manifestPlaceholders["widgetStackEnabled"] = "false"
+            manifestPlaceholders["folderWidgetEnabled"] = "false"
+            manifestPlaceholders["spacePodWidgetEnabled"] = "true"
+            manifestPlaceholders["widgetStackLabel"] = "@string/widget_stack_title"
+            manifestPlaceholders["folderWidgetLabel"] = "@string/folder_widget_title"
+            manifestPlaceholders["spacePodWidgetLabel"] = "@string/space_pod_widget_title"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -96,6 +108,7 @@ android {
     buildFeatures {
         compose = true
         aidl = true
+        buildConfig = true
     }
 }
 

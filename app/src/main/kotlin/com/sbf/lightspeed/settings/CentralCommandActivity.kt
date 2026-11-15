@@ -52,7 +52,9 @@ class CentralCommandActivity : ComponentActivity() {
     private var crossWindowBlurListener: Consumer<Boolean>? = null
 
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
-        checkAndRequestShizuku()
+        lifecycleScope.launch(Dispatchers.IO) {
+            checkAndRequestShizuku()
+        }
     }
 
     private val permissionResultListener = Shizuku.OnRequestPermissionResultListener { _, grantResult ->
@@ -102,6 +104,7 @@ class CentralCommandActivity : ComponentActivity() {
         isActive = true
         activeInstance = this
         enableEdgeToEdge()
+        overrideZeroTransition()
         CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
 
         try {
@@ -109,7 +112,10 @@ class CentralCommandActivity : ComponentActivity() {
             Shizuku.addRequestPermissionResultListener(permissionResultListener)
         } catch (e: Exception) { logSwallowed("CentralCommandActivity", "onCreate:50", e) }
 
-        checkAndRequestShizuku()
+        lifecycleScope.launch(Dispatchers.IO) {
+            CentralCommandWarmupCoordinator.warmImmediatelyAsync(applicationContext)
+            checkAndRequestShizuku()
+        }
 
         window.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
 

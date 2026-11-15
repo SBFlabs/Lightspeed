@@ -124,6 +124,7 @@ object LightspeedSmartPixelsOverlay {
         overlayView?.visibility = if (shouldHide) View.GONE else View.VISIBLE
     }
 
+    @android.annotation.SuppressLint("MissingPermission") // Guarded by SDK_INT >= 35 and try/catch
     private fun registerCaptureListeners(service: Context, wm: WindowManager) {
         val dm = service.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
         if (dm != null && !displayListenerRegistered) {
@@ -148,6 +149,7 @@ object LightspeedSmartPixelsOverlay {
         }
     }
 
+    @android.annotation.SuppressLint("MissingPermission") // Guarded by SDK_INT >= 35 and try/catch
     private fun unregisterCaptureListeners(service: Context, wm: WindowManager) {
         val dm = service.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
         if (dm != null && displayListenerRegistered) {

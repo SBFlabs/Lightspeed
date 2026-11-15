@@ -33,6 +33,7 @@ import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
 import com.sbf.lightspeed.system.sonic.SonicChannelRouter
 import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -405,7 +406,7 @@ internal fun SonicMasterStreamsSection(
                 },
                 modifier = Modifier.weight(1f).height(30.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0x35FF4B4B))
+                colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusDanger.copy(alpha = 0.22f))
             ) {
                 Text("MUTE ALL", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
@@ -428,7 +429,7 @@ internal fun SonicMasterStreamsSection(
                 },
                 modifier = Modifier.weight(1f).height(30.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0x356A88FF))
+                colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusBlue.copy(alpha = 0.22f))
             ) {
                 Text("DND TOGGLE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }
@@ -440,7 +441,7 @@ internal fun SonicMasterStreamsSection(
                 },
                 modifier = Modifier.weight(1f).height(30.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0x354AE082))
+                colors = ButtonDefaults.buttonColors(containerColor = LightspeedTokens.StatusOk.copy(alpha = 0.22f))
             ) {
                 Text("RESET APPS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
             }

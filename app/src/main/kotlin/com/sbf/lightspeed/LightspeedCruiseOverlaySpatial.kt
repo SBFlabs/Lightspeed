@@ -91,7 +91,10 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
             }
             if (!isCategoryVectorLocked && closestIndex != activeCatIndex) {
                 activeCatIndex = closestIndex
+                hudScrollOffset = 0f
                 triggerCruiseCategoryHaptic()
+                computeHudSlotBounds()
+                scheduleDebouncedWidgetAttach()
             }
         }
         invalidate()
@@ -129,7 +132,11 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
                         closestIndex = index
                     }
                 }
-                activeCatIndex = closestIndex
+                if (activeCatIndex != closestIndex) {
+                    activeCatIndex = closestIndex
+                    computeHudSlotBounds()
+                    scheduleDebouncedWidgetAttach()
+                }
             }
             invalidate()
             return
@@ -155,11 +162,22 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
 
         val cursorProgress = ((flankDistance - exitThreshold) / (wF * 0.28f)).coerceIn(0f, 1f)
 
+        val isFarSplit = isFarHalfSplitMode()
+        val halfW = wF * 0.5f
+        val baseMargin = if (isFarSplit) halfW * 0.04f else wF * 0.04f
+        val gridStartX = if (isFarSplit) {
+            // Nearest half to finger / triggering flank:
+            if (isOpenedFromLeftFlank) baseMargin else halfW + baseMargin
+        } else {
+            baseMargin
+        }
+        val gridWidth = if (isFarSplit) halfW * 0.92f else wF * 0.92f
+
         val columns = querySystemColumnPreference(resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
-        val cellW = (wF * 0.92f) / columns
+        val cellW = gridWidth / columns
         val cellH = cellW * 1.1f
-        val firstColCenterX = (wF * 0.04f) + (cellW * 0.5f)
-        val lastColCenterX = (wF * 0.96f) - (cellW * 0.5f)
+        val firstColCenterX = gridStartX + (cellW * 0.5f)
+        val lastColCenterX = (gridStartX + gridWidth) - (cellW * 0.5f)
 
         virtualCursorX = if (isOpenedFromLeftFlank) {
             firstColCenterX + (cursorProgress * (lastColCenterX - firstColCenterX))
@@ -167,8 +185,9 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
             lastColCenterX - (cursorProgress * (lastColCenterX - firstColCenterX))
         }
 
-        val gTop = hF * 0.16f
-        val gBot = hF * 0.94f
+        val catId = cachedCategories.getOrNull(activeCatIndex)?.id ?: "comm"
+        val gTop = getCategoryGridTop(catId)
+        val gBot = hF * 0.98f
         val gScope = gBot - gTop
         val rowCount = if (cellH > 0f) (totalGridContentHeight / cellH).toInt().coerceAtLeast(1) else 1
 
@@ -208,15 +227,28 @@ internal fun LightspeedCruiseOverlay.evaluateSpatialMetrics(rawX: Float, rawY: F
 }
 
 internal fun LightspeedCruiseOverlay.buildPackedGridLayout() {
-    val wF = width.toFloat()
-    val hF = height.toFloat()
+    val displayMetrics = resources.displayMetrics
+    val screenW = displayMetrics.widthPixels.toFloat()
+    val screenH = displayMetrics.heightPixels.toFloat()
+    val wF = if (width > 200) width.toFloat() else screenW
+    val hF = if (height > 200) height.toFloat() else screenH
     if (wF <= 0f) return
-    val baseFlankMargin = wF * 0.04f
-    val gridStartX = baseFlankMargin
+    val isFarSplit = isFarHalfSplitMode()
+    val halfW = wF * 0.5f
+    val baseMargin = if (isFarSplit) halfW * 0.04f else wF * 0.04f
+    val gridStartX = if (isFarSplit) {
+        // Nearest half to finger / triggering flank:
+        if (isOpenedFromLeftFlank) baseMargin else halfW + baseMargin
+    } else {
+        baseMargin
+    }
+    val gridWidth = if (isFarSplit) halfW * 0.92f else wF * 0.92f
 
     val columns = querySystemColumnPreference(resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
-    val cellW = (wF * 0.92f) / columns
+    val cellW = gridWidth / columns
     val cellH = cellW * 1.1f
+    val catId = cachedCategories.getOrNull(activeCatIndex)?.id ?: "comm"
+    val gTop = getCategoryGridTop(catId)
     placedAppsList.clear()
     val occupied = HashSet<Pair<Int, Int>>()
     for (app in cachedApps.distinctBy { "${it.packageName}_${it.activityName}_${it.instanceId}" }) {
@@ -246,9 +278,9 @@ internal fun LightspeedCruiseOverlay.buildPackedGridLayout() {
                             app,
                             RectF(
                                 gridStartX + (col * cellW),
-                                (hF * 0.16f) + (row * cellH),
+                                gTop + (row * cellH),
                                 gridStartX + ((col + sW) * cellW),
-                                (hF * 0.16f) + ((row + sH) * cellH)
+                                gTop + ((row + sH) * cellH)
                             )
                         )
                     )

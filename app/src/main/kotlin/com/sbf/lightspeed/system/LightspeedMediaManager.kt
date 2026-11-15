@@ -254,10 +254,23 @@ object LightspeedMediaManager {
         LightspeedAccessibilityService.instance?.showMediaScrubber()
     }
 
-    fun stepHardwareScrubber(context: Context, isForward: Boolean) {
-        val deltaMs = if (isForward) 2500L else -2500L
+    fun stepHardwareScrubber(context: Context, isForward: Boolean, steps: Int = if (isForward) 1 else -1) {
+        val prefs = context.defaultPrefs()
+        val stepSec = prefs.getInt(LightspeedPreferences.KEY_MEDIA_SCRUB_STEP_SEC, 5).coerceIn(2, 60)
+        val accelEnabled = prefs.getBoolean(LightspeedPreferences.KEY_MEDIA_SCRUB_ACCEL_ENABLED, true)
+        val effectiveSteps = if (steps != 0) steps else (if (isForward) 1 else -1)
+        val absSteps = kotlin.math.abs(effectiveSteps)
+        val accelRate = if (accelEnabled && absSteps > 1) {
+            1f + (absSteps - 1) * 0.45f
+        } else {
+            1f
+        }
+        val deltaMs = (effectiveSteps * stepSec * 1000f * accelRate).toLong()
         scrubRelative(context, deltaMs)
-        LightspeedAccessibilityService.instance?.updateMediaScrubberProgress()
+        val svc = LightspeedAccessibilityService.instance
+        if (svc?.mediaScrubberOverlayView != null) {
+            svc.updateMediaScrubberProgress()
+        }
     }
 
     fun sendMediaKeyEvent(context: Context, keyCode: Int) {

@@ -80,6 +80,32 @@ fun DeckThemeCustomizationDialog(
         highlightStrength,
         customTintArgb
     ) {
+        val tintVal = customTintArgb
+        val effectiveTint = if (basePreset.styleId == DeckStylePresets.ADAPTIVE.styleId) basePreset.tintArgb else (tintVal ?: basePreset.tintArgb)
+        val effectiveGlow = if (tintVal != null && basePreset.styleId in setOf("jelly", "depth", "neon", "prism", "cyberpunk", "hologram")) {
+            tintVal
+        } else basePreset.glowColorArgb
+
+        val effectiveBorder = if (tintVal != null && basePreset.styleId in setOf("jelly", "depth")) {
+            val r = (tintVal shr 16 and 0xFF).toInt()
+            val g = (tintVal shr 8 and 0xFF).toInt()
+            val b = (tintVal and 0xFF).toInt()
+            val brightR = (r * 0.65f + 255 * 0.35f).toInt().coerceIn(0, 255)
+            val brightG = (g * 0.65f + 255 * 0.35f).toInt().coerceIn(0, 255)
+            val brightB = (b * 0.65f + 255 * 0.35f).toInt().coerceIn(0, 255)
+            (0xB3L shl 24) or (brightR.toLong() shl 16) or (brightG.toLong() shl 8) or brightB.toLong()
+        } else basePreset.borderColorArgb
+
+        val effectivePanel = if (tintVal != null && basePreset.styleId in setOf("jelly", "depth")) {
+            val r = (tintVal shr 16 and 0xFF).toInt()
+            val g = (tintVal shr 8 and 0xFF).toInt()
+            val b = (tintVal and 0xFF).toInt()
+            val baseR = (14 * 0.85f + r * 0.15f).toInt().coerceIn(0, 255)
+            val baseG = (16 * 0.85f + g * 0.15f).toInt().coerceIn(0, 255)
+            val baseB = (24 * 0.85f + b * 0.15f).toInt().coerceIn(0, 255)
+            (0xFFL shl 24) or (baseR.toLong() shl 16) or (baseG.toLong() shl 8) or baseB.toLong()
+        } else basePreset.panelColorArgb
+
         basePreset.copy(
             windowBlurRadiusPx = blurRadius,
             panelAlpha = opacity,
@@ -87,7 +113,10 @@ fun DeckThemeCustomizationDialog(
             borderWidthDp = borderWidth,
             glowStrength = glowStrength,
             highlightStrength = highlightStrength,
-            tintArgb = if (basePreset.styleId == DeckStylePresets.ADAPTIVE.styleId) basePreset.tintArgb else (customTintArgb ?: basePreset.tintArgb)
+            tintArgb = effectiveTint,
+            glowColorArgb = effectiveGlow,
+            borderColorArgb = effectiveBorder,
+            panelColorArgb = effectivePanel
         )
     }
 

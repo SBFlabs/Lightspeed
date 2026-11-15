@@ -183,17 +183,31 @@ internal fun CockpitGearPickerAlphabetScroller(
                         .align(Alignment.TopCenter)
                 )
             } else {
+                val availableHeightDp = with(LocalDensity.current) { sideBarHeight.toDp() }
+                val isCompactVertical = availableHeightDp < 380.dp
+                val displayLetters = remember(isCompactVertical, letterIndices) {
+                    if (!isCompactVertical) {
+                        "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".toList()
+                    } else {
+                        // Compact landscape: prioritize populated letters + key milestones so scroller fits without clipping
+                        val populated = letterIndices.keys
+                        val sampleAlphabet = "#ADGJMPSVYZ".toList()
+                        (populated + sampleAlphabet).distinct().sorted()
+                    }
+                }
+                val fontSizeSp = if (isCompactVertical) 7.5.sp else 9.sp
+
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.SpaceEvenly,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    "#ABCDEFGHIJKLMNOPQRSTUVWXYZ".forEach { letter ->
+                    displayLetters.forEach { letter ->
                         val hasApps = letterIndices.containsKey(letter)
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.weight(1f, fill = false), contentAlignment = Alignment.Center) {
                             Text(
                                 text = letter.toString(),
-                                fontSize = 9.sp,
+                                fontSize = fontSizeSp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (hasApps) dynamicSecondary else lsColors.textPrimary.copy(alpha = 0.2f)
                             )
@@ -210,7 +224,7 @@ internal fun CockpitGearPickerAlphabetScroller(
                     .align(Alignment.TopCenter)
                     .padding(top = 48.dp)
                     .size(80.dp)
-                    .background(Color(0xFF1E1E28).copy(alpha = 0.94f), shape = RoundedCornerShape(16.dp))
+                    .background(com.sbf.lightspeed.ui.theme.LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.94f), shape = RoundedCornerShape(16.dp))
                     .border(2.2.dp, dynamicPrimary, shape = RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {

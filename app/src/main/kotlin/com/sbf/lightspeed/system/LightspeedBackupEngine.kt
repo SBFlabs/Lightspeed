@@ -55,6 +55,7 @@ object LightspeedBackupEngine {
         key in RESTRICTED_SYSTEM_STATE_KEYS ||
         key.startsWith("key_last_crash") ||
         key == "key_has_unreported_crash" ||
+        key == "key_flight_log_entries" ||
         key == "key_allow_external_automation" ||
         key.endsWith("_dismissed") ||
         key.endsWith("_demoted") ||
@@ -341,7 +342,7 @@ object LightspeedBackupEngine {
                         } else if (existingVal is Float || key == LightspeedPreferences.KEY_BACK_TAP_THRESHOLD) {
                             val floatVal = value.toFloatOrNull()
                             if (floatVal != null) editor.putFloat(key, floatVal) else editor.putString(key, value)
-                        } else if (existingVal is Int || key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_bottom_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE || key == LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_FORWARD_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_BACKWARD_SECONDS || key == LightspeedPreferences.KEY_CHARGE_LIMIT_PERCENTAGE) {
+                        } else if (existingVal is Int || key.startsWith("pref_hardware_") || key.startsWith("pref_sidebar_") || key.startsWith("pref_statusbar_") || key.startsWith("pref_bottom_statusbar_") || key.startsWith("pref_notch_") || key.startsWith("pref_horizon_rail_") || key.startsWith("last_active_set_index") || key == LightspeedPreferences.KEY_REFUELING_WIDGET_ID || key == LightspeedPreferences.KEY_CAPSULE_WIDGET_ID || key == LightspeedPreferences.KEY_REFUELING_STACK_LAST_PAGE || key == LightspeedPreferences.KEY_REFUELING_GRID_GAP_DP || key.startsWith("widget_width_pct_") || key.startsWith("widget_height_") || key == LightspeedPreferences.KEY_MEDIA_SKIP_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_FORWARD_SECONDS || key == LightspeedPreferences.KEY_MEDIA_SKIP_BACKWARD_SECONDS || key == LightspeedPreferences.KEY_CHARGE_LIMIT_PERCENTAGE) {
                             val intVal = value.toIntOrNull()
                             if (intVal != null) editor.putInt(key, intVal) else editor.putString(key, value)
                         } else if (existingVal is Long || key.endsWith("_time") || key.endsWith("_timestamp")) {
@@ -436,6 +437,7 @@ object LightspeedBackupEngine {
                 LightspeedLanguageEngine.init(context)
                 com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.init(context)
                 com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay.init(context)
+                com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.init(context)
                 LightspeedBackTapEngine.reloadPreferences()
                 BackdropBlurModeManager.init(context)
                 DeckThemeManager.refresh(context)
@@ -550,6 +552,7 @@ object LightspeedBackupEngine {
         LightspeedLanguageEngine.init(context)
         com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.init(context)
         com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay.init(context)
+        com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.init(context)
         LightspeedBackTapEngine.reloadPreferences()
         DeckThemeManager.refresh(context)
         BackdropBlurModeManager.init(context)
@@ -590,11 +593,13 @@ object LightspeedBackupEngine {
                 key == LightspeedPreferences.KEY_BACK_TAP_TRIPLE ||
                 key == LightspeedPreferences.KEY_SPLIT_WITH_APP_TARGET ||
                 key == LightspeedPreferences.KEY_PICKER_PINNED_APPS ||
+                key == LightspeedPreferences.KEY_WIDGET_PICKER_PINNED_APPS ||
                 (key.startsWith("gear_set_") && (key.contains("ring") || key.contains("_packages")))
     }
 
     private fun isCsvActionTokenKey(key: String): Boolean {
         return key == LightspeedPreferences.KEY_PICKER_PINNED_APPS ||
+                key == LightspeedPreferences.KEY_WIDGET_PICKER_PINNED_APPS ||
                 (key.startsWith("gear_set_") && (key.contains("ring") || key.contains("_packages")))
     }
 

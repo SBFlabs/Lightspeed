@@ -118,6 +118,7 @@ fun GestureMappingRow(
             (currentRawValue == "system:brightness") ||
             (currentRawValue == "system:volume") ||
             (currentRawValue == "system:scroll_scrub") ||
+            (currentRawValue == "system:media_scrubber") ||
             (currentRawValue == "system:media_skip_forward" || currentRawValue == "system:media_skip_backward")
 
     val isScrubAction = direction == ArrowDirection.SCRUB ||
@@ -276,7 +277,7 @@ fun GestureMappingRow(
                             extraRow1Content = contextualGestureChips
                         )
                     }
-                } else if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:scroll_scrub") {
+                } else if (currentRawValue == "system:screen_timeout" || currentRawValue == "system:scroll_scrub" || currentRawValue == "system:media_scrubber") {
                     Box(modifier = Modifier.padding(top = 6.dp)) {
                         GestureGenericScrubDualRowControls(
                             context, prefs, key, currentRawValue, activeSnapshot, readableTint,

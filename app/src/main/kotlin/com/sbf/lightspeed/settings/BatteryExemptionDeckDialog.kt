@@ -349,9 +349,11 @@ fun BatteryExemptionDeckDialog(
                         }
 
                         if (isLoading) {
-                            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                            }
+                            BatteryPowerCellLoader(
+                                title = "CHECKING POWER PROFILES",
+                                subtitle = "Indexing battery exemptions...",
+                                modifier = Modifier.fillMaxWidth().weight(1f)
+                            )
                         } else if (filteredApps.isEmpty()) {
                             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                                 Text(

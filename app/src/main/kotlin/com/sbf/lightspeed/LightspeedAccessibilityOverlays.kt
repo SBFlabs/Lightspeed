@@ -383,6 +383,7 @@ internal fun LightspeedAccessibilityService.triggerDeflectorGlowInternal(isLeft:
 
 internal fun LightspeedAccessibilityService.updateWindowLayoutInternal(expand: Boolean) {
     if (windowManager == null || overlayView == null) return
+    com.sbf.lightspeed.system.display.LightspeedRefreshRateEngine.applyOverlayPeakBoost(this, windowParams, expand)
     if (expand) {
         windowParams.gravity = Gravity.TOP or Gravity.START
         windowParams.x = 0; windowParams.y = 0
@@ -399,10 +400,18 @@ internal fun LightspeedAccessibilityService.updateWindowLayoutInternal(expand: B
             }
         }
         windowManager?.updateViewLayout(overlayView, windowParams)
+        leftWingOverlayView?.let { wing ->
+            leftWingWindowParams.flags = leftWingWindowParams.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            try { windowManager?.updateViewLayout(wing, leftWingWindowParams) } catch (_: Exception) {}
+        }
     } else {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             windowParams.flags = windowParams.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
             windowParams.blurBehindRadius = 0
+        }
+        leftWingOverlayView?.let { wing ->
+            leftWingWindowParams.flags = leftWingWindowParams.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+            try { windowManager?.updateViewLayout(wing, leftWingWindowParams) } catch (_: Exception) {}
         }
         overlayView?.updateMetricsDimensions()
     }
@@ -508,8 +517,18 @@ internal fun LightspeedAccessibilityService.updateOverlaysVisibilityInternal(isL
     val isRightPreview = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_PREVIEW, false)
     val isOrientationSuppressed = isSuppressedByOrientation()
 
-    val leftVisibility = if ((isLeftDeflectorEnabled || isLeftPreview) && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
-    val rightVisibility = if ((isRightDeflectorEnabled || isRightPreview) && !isOrientationSuppressed && !isFullLockdown) View.VISIBLE else View.GONE
+    // Suppress Edge Deflector pills while modal picker activities sit over screen edges and no overlay panel is open
+    val isCruiseOverlayIdle = overlayView == null ||
+        overlayView?.currentLayer == CruiseLayer.HIDDEN ||
+        overlayView?.currentLayer == CruiseLayer.NEUTRAL
+    val isInModalPicker = CockpitDialogActivity.isActive ||
+        CockpitGearPickerActivity.isActive ||
+        LightspeedRefuelingActivity.isActive ||
+        com.sbf.lightspeed.widget.LightspeedHomeStackOverlayActivity.isActive
+    val suppressDeflectorsForModal = isInModalPicker && isCruiseOverlayIdle
+
+    val leftVisibility = if ((isLeftDeflectorEnabled || isLeftPreview) && !isOrientationSuppressed && !isFullLockdown && !suppressDeflectorsForModal) View.VISIBLE else View.GONE
+    val rightVisibility = if ((isRightDeflectorEnabled || isRightPreview) && !isOrientationSuppressed && !isFullLockdown && !suppressDeflectorsForModal) View.VISIBLE else View.GONE
 
 
     overlayView?.visibility = rightVisibility
@@ -617,6 +636,7 @@ internal fun LightspeedAccessibilityService.updateForcedOrientationInternal(orie
 
 fun LightspeedAccessibilityService.showBaySleepBlackout() {
     handler.post {
+        if (!LightspeedRefuelingActivity.isActive) return@post
         if (!defaultPrefs().getBoolean(LightspeedPreferences.KEY_REFUELING_SLEEP_BLACKOUT, true)) return@post
         lastBaySleepHeartbeat = System.currentTimeMillis()
         if (baySleepBlackoutView != null) return@post
@@ -624,6 +644,7 @@ fun LightspeedAccessibilityService.showBaySleepBlackout() {
         @Suppress("DEPRECATION")
         val flags = WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
 
@@ -632,7 +653,7 @@ fun LightspeedAccessibilityService.showBaySleepBlackout() {
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             flags,
-            PixelFormat.OPAQUE
+            PixelFormat.TRANSLUCENT
         ).apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
@@ -670,6 +691,10 @@ fun LightspeedAccessibilityService.hideBaySleepBlackout() {
 
 fun LightspeedAccessibilityService.sendBaySleepHeartbeat() {
     handler.post {
+        if (!LightspeedRefuelingActivity.isActive) {
+            hideBaySleepBlackout()
+            return@post
+        }
         if (baySleepBlackoutView == null) {
             showBaySleepBlackout()
         } else {

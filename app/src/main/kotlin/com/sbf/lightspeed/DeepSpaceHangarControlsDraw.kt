@@ -166,7 +166,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             isSelected -> Color.WHITE
             else -> Color.argb(240, 230, 242, 255)
         }
-        val displayLabel = if (isLocked && !label.startsWith("🔒")) "🔒 $label" else label
+        val displayLabel = if (isLocked && !label.startsWith("[LOCKED]")) "[LOCKED] $label" else label
         canvas.drawText(displayLabel, rect.centerX(), rect.centerY() + 3.5f * d, textPaint)
     }
 
@@ -206,7 +206,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
         canvas.drawRoundRect(bayRect, 9f * d, 9f * d, highlightPaint)
 
         val isBayLocked = (g >= 2 && !isInfinityUnlocked)
-        val shortLabel = if (isBayLocked) "🔒 ${g + 1}: ${setName.take(5)}" else "${g + 1}: ${setName.take(6)}"
+        val shortLabel = if (isBayLocked) "[LOCKED] ${g + 1}: ${setName.take(4)}" else "${g + 1}: ${setName.take(6)}"
 
         highlightPaint.style = Paint.Style.FILL
         highlightPaint.color = when {
@@ -242,7 +242,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
     canvas.drawRoundRect(plusRect, 9f * d, 9f * d, highlightPaint)
     textPaint.textSize = if (isPlusLocked) 10f * d else 14f * d
     textPaint.color = if (isPlusLocked) 0xFFFFD700.toInt() else Color.WHITE
-    canvas.drawText(if (isPlusLocked) "🔒 +" else "+", plusBtnX, rBayY + 4f * d, textPaint)
+    canvas.drawText(if (isPlusLocked) "[LOCKED] +" else "+", plusBtnX, rBayY + 4f * d, textPaint)
     canvas.restore()
 
     // ROW 2: 3 COLLAPSIBLE ACCORDION TABS (Zero colored emojis; crisp tactical symbols)
@@ -342,7 +342,7 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             val shape3Rect = RectF(leftX + (shapeW + gap) * 2f, layout.sub1Y - 13f * d, leftX + (shapeW + gap) * 2f + shapeW, layout.sub1Y + 13f * d)
             val shape4Rect = RectF(rightX - shapeW, layout.sub1Y - 13f * d, rightX, layout.sub1Y + 13f * d)
             val currentShape = CockpitGearRepository.getGearShape(context)
-            drawPill(shape1Rect, "⚙ GEAR", currentShape == LightspeedPreferences.GEAR_SHAPE_CIRCLE, m3Primary, 8.8f)
+            drawPill(shape1Rect, "◎ GEAR", currentShape == LightspeedPreferences.GEAR_SHAPE_CIRCLE, m3Primary, 8.8f)
             drawPill(shape2Rect, "⬡ HEX", currentShape == LightspeedPreferences.GEAR_SHAPE_SQUARE, m3Primary, 8.8f)
             drawPill(shape3Rect, "✦ PETAL", currentShape == LightspeedPreferences.GEAR_SHAPE_SQUIRCLE, m3Primary, 8.8f)
             drawPill(shape4Rect, "◈ BLADE", currentShape == LightspeedPreferences.GEAR_SHAPE_STAR, m3Primary, 8.8f)
@@ -383,8 +383,8 @@ internal fun DeepSpaceRenderer.drawHangarControlRows(
             val col2Rect = RectF(leftX + colW + gap, layout.sub4Y - 13f * d, leftX + colW * 2f + gap, layout.sub4Y + 13f * d)
             val col3Rect = RectF(rightX - colW, layout.sub4Y - 13f * d, rightX, layout.sub4Y + 13f * d)
             drawPill(col1Rect, "◈ 12-THEME", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12, m3Primary, 8.4f)
-            drawPill(col2Rect, "🎨 M3 DYNAMIC", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, m3Primary, 8.4f)
-            drawPill(col3Rect, "⚡ HYBRID", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, m3Primary, 8.4f)
+            drawPill(col2Rect, "✦ M3 DYNAMIC", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, m3Primary, 8.4f)
+            drawPill(col3Rect, ":: HYBRID", colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, m3Primary, 8.4f)
         }
     }
 

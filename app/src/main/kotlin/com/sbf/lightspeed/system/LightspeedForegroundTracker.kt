@@ -9,6 +9,7 @@ import android.view.inputmethod.InputMethodManager
 import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.display.LightspeedConsciousAirlockOverlay
 import com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay
+import com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay
 
 object LightspeedForegroundTracker {
     @Volatile
@@ -94,16 +95,23 @@ object LightspeedForegroundTracker {
 
         val isFullScreen = event.isFullScreen
         val isLauncher = LightspeedOrientationEngine.isLauncherPackage(service, currentPkg)
+        if (isLauncher) {
+            LightspeedConsciousAirlockOverlay.dismiss()
+        }
         val isLikelyActivity = isFullScreen || isLauncher || (className.endsWith("Activity") || className.endsWith("Launcher") || className.contains("Workspace") || className.contains("Launcher") || className.contains("quickstep", ignoreCase = true))
         if (isLikelyActivity) {
             LightspeedOrientationManager.evaluateContextGuardrails(service, isLocked, currentPkg)
         }
 
         if (!currentPkg.isNullOrEmpty()) {
-            val underlyingWin = com.sbf.lightspeed.system.bot.LightspeedBotScreenScanner.resolveUnderlyingAppWindow(service)
-            val underlyingPkg = underlyingWin?.root?.packageName?.toString()
+            val underlyingPkg = if (!event.isFullScreen) {
+                com.sbf.lightspeed.system.bot.LightspeedBotScreenScanner
+                    .resolveUnderlyingAppWindow(service)?.root?.packageName?.toString()
+            } else {
+                null
+            }
             val isOverlayEvent = !underlyingPkg.isNullOrBlank() && underlyingPkg != currentPkg && !event.isFullScreen
-            val effectivePkg = if (isOverlayEvent) underlyingPkg else currentPkg
+            val effectivePkg = if (isOverlayEvent) underlyingPkg!! else currentPkg
 
             trackForegroundPackage(service, effectivePkg)
             val fgPkg = LightspeedAccessibilityService.lastAppPackage
@@ -115,7 +123,10 @@ object LightspeedForegroundTracker {
                 currentActivityClass = className
             }
             LightspeedSmartPixelsOverlay.onForegroundPackageChanged(effectivePkg)
-            LightspeedConsciousAirlockOverlay.checkAndShowAirlock(service, effectivePkg)
+            LightspeedTelemetryHudOverlay.onForegroundPackageChanged(service, fgPkg)
+            if (!isLauncher) {
+                LightspeedConsciousAirlockOverlay.checkAndShowAirlock(service, effectivePkg)
+            }
             com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.refreshMacroButtonsState()
         }
 

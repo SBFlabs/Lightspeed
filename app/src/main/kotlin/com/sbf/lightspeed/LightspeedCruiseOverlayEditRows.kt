@@ -80,6 +80,15 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
         paint.color = Color.argb(245, 240, 245, 255)
         canvas.drawText(cat.label, textX, rowCenterY - textYOffset, paint)
 
+        val customPack = com.sbf.lightspeed.system.LightspeedPreferences.getCategoryIconPack(context, cat.id)
+        if (customPack != null) {
+            val labelW = paint.measureText(cat.label)
+            paint.color = ensureHighContrastColor(tintColor)
+            paint.textSize = textSize * 0.75f
+            canvas.drawText("✦", textX + labelW + 5f * dp, rowCenterY - textYOffset, paint)
+            paint.textSize = textSize
+        }
+
         // Up arrow
         val effectiveAccent = ensureHighContrastColor(tintColor)
         val upColor = if (slot > 0) Color.argb(235, Color.red(effectiveAccent), Color.green(effectiveAccent), Color.blue(effectiveAccent)) else Color.argb(45, Color.red(effectiveAccent), Color.green(effectiveAccent), Color.blue(effectiveAccent))
@@ -130,6 +139,15 @@ internal fun LightspeedCruiseOverlay.drawEditModeCategoryRows(
         paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
         paint.color = Color.argb(255, 255, 255, 255)
         canvas.drawText(draggedCat.label, textX, clampedCenterY - textYOffset, paint)
+
+        val draggedPack = com.sbf.lightspeed.system.LightspeedPreferences.getCategoryIconPack(context, draggedCat.id)
+        if (draggedPack != null) {
+            val labelW = paint.measureText(draggedCat.label)
+            paint.color = ensureHighContrastColor(tintColor)
+            paint.textSize = textSize * 0.75f
+            canvas.drawText("✦", textX + labelW + 5f * dp, clampedCenterY - textYOffset, paint)
+            paint.textSize = textSize
+        }
 
         // Up arrow
         paint.color = Color.argb(230, 160, 225, 255)

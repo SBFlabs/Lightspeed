@@ -29,6 +29,31 @@ object ThemeCustomizationManager {
         val customTintArgb: Long?
     ) {
         fun toSnapshot(base: DeckThemeSnapshot): DeckThemeSnapshot {
+            val effectiveTint = if (base.styleId == DeckStylePresets.ADAPTIVE.styleId) base.tintArgb else (customTintArgb ?: base.tintArgb)
+            val effectiveGlow = if (customTintArgb != null && base.styleId in setOf("jelly", "depth", "neon", "prism", "cyberpunk", "hologram")) {
+                customTintArgb
+            } else base.glowColorArgb
+
+            val effectiveBorder = if (customTintArgb != null && base.styleId in setOf("jelly", "depth")) {
+                val r = (customTintArgb shr 16 and 0xFF).toInt()
+                val g = (customTintArgb shr 8 and 0xFF).toInt()
+                val b = (customTintArgb and 0xFF).toInt()
+                val brightR = (r * 0.65f + 255 * 0.35f).toInt().coerceIn(0, 255)
+                val brightG = (g * 0.65f + 255 * 0.35f).toInt().coerceIn(0, 255)
+                val brightB = (b * 0.65f + 255 * 0.35f).toInt().coerceIn(0, 255)
+                (0xB3L shl 24) or (brightR.toLong() shl 16) or (brightG.toLong() shl 8) or brightB.toLong()
+            } else base.borderColorArgb
+
+            val effectivePanel = if (customTintArgb != null && base.styleId in setOf("jelly", "depth")) {
+                val r = (customTintArgb shr 16 and 0xFF).toInt()
+                val g = (customTintArgb shr 8 and 0xFF).toInt()
+                val b = (customTintArgb and 0xFF).toInt()
+                val baseR = (14 * 0.85f + r * 0.15f).toInt().coerceIn(0, 255)
+                val baseG = (16 * 0.85f + g * 0.15f).toInt().coerceIn(0, 255)
+                val baseB = (24 * 0.85f + b * 0.15f).toInt().coerceIn(0, 255)
+                (0xFFL shl 24) or (baseR.toLong() shl 16) or (baseG.toLong() shl 8) or baseB.toLong()
+            } else base.panelColorArgb
+
             return base.copy(
                 windowBlurRadiusPx = blurRadius,
                 panelAlpha = opacity,
@@ -36,7 +61,10 @@ object ThemeCustomizationManager {
                 borderWidthDp = borderWidth,
                 glowStrength = glowStrength,
                 highlightStrength = highlightStrength,
-                tintArgb = if (base.styleId == DeckStylePresets.ADAPTIVE.styleId) base.tintArgb else (customTintArgb ?: base.tintArgb)
+                tintArgb = effectiveTint,
+                glowColorArgb = effectiveGlow,
+                borderColorArgb = effectiveBorder,
+                panelColorArgb = effectivePanel
             )
         }
 

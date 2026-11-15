@@ -53,4 +53,54 @@ object LightspeedPreferencesFlows : LightspeedPreferencesFlowsContract {
     override fun getLiquidGlassConfig(context: Context): LiquidGlassConfig = LightspeedDeckStyleManager.getLiquidGlassConfig(context)
     override fun setLiquidGlassConfig(context: Context, config: LiquidGlassConfig) = LightspeedDeckStyleManager.setLiquidGlassConfig(context, config)
     override fun refreshLiquidGlassConfig(context: Context) = LightspeedDeckStyleManager.refreshLiquidGlassConfig(context)
+
+    private val _centralCommandFontScaleFlow = MutableStateFlow<Float?>(null)
+    override val centralCommandFontScaleFlow: StateFlow<Float?> get() = _centralCommandFontScaleFlow
+
+    private val _centralCommandFontFamilyFlow = MutableStateFlow<String?>(null)
+    override val centralCommandFontFamilyFlow: StateFlow<String?> get() = _centralCommandFontFamilyFlow
+
+    override fun getCentralCommandFontScale(context: Context): Float {
+        _centralCommandFontScaleFlow.value?.let { return it }
+        val scale = context.defaultPrefs()
+            .getFloat(LightspeedPreferences.KEY_CENTRAL_COMMAND_FONT_SCALE, 1.0f)
+            .coerceIn(0.80f, 1.35f)
+        _centralCommandFontScaleFlow.value = scale
+        return scale
+    }
+
+    override fun setCentralCommandFontScale(context: Context, scale: Float) {
+        val clamped = scale.coerceIn(0.80f, 1.35f)
+        context.defaultPrefs().edit()
+            .putFloat(LightspeedPreferences.KEY_CENTRAL_COMMAND_FONT_SCALE, clamped)
+            .apply()
+        _centralCommandFontScaleFlow.value = clamped
+    }
+
+    override fun getCentralCommandFontFamily(context: Context): String {
+        _centralCommandFontFamilyFlow.value?.let { return it }
+        val family = context.defaultPrefs()
+            .getString(LightspeedPreferences.KEY_CENTRAL_COMMAND_FONT_FAMILY, "system_default")
+            ?: "system_default"
+        _centralCommandFontFamilyFlow.value = family
+        return family
+    }
+
+    override fun setCentralCommandFontFamily(context: Context, family: String) {
+        val clean = family.ifBlank { "system_default" }
+        context.defaultPrefs().edit()
+            .putString(LightspeedPreferences.KEY_CENTRAL_COMMAND_FONT_FAMILY, clean)
+            .apply()
+        _centralCommandFontFamilyFlow.value = clean
+    }
+
+    override fun refreshCentralCommandTypography(context: Context) {
+        val prefs = context.defaultPrefs()
+        _centralCommandFontScaleFlow.value = prefs
+            .getFloat(LightspeedPreferences.KEY_CENTRAL_COMMAND_FONT_SCALE, 1.0f)
+            .coerceIn(0.80f, 1.35f)
+        _centralCommandFontFamilyFlow.value = prefs
+            .getString(LightspeedPreferences.KEY_CENTRAL_COMMAND_FONT_FAMILY, "system_default")
+            ?: "system_default"
+    }
 }

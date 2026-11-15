@@ -15,10 +15,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 object LightspeedVolumeKeyEngine {
+    private const val STALE_PRESS_TIMEOUT_MS = 6000L
+
     private var engineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var isVolUpPressed = false
     private var isVolDownPressed = false
+    private var volUpDownTime = 0L
+    private var volDownDownTime = 0L
     private var isVolUpLongPressed = false
     private var isVolDownLongPressed = false
     private var isVolUpUsedInChord = false
@@ -34,6 +38,21 @@ object LightspeedVolumeKeyEngine {
     private var seqTapHoldJob: Job? = null
     private var autoRepeatJob: Job? = null
     private var accessibilityShortcutJob: Job? = null
+
+    private fun triggerHoldAction(context: Context, actionToken: String, isDownKey: Boolean, armAutoRepeat: Boolean = true) {
+        if (isDownKey) {
+            isVolDownLongPressed = true
+            volDownHoldJob?.cancel(); volDownHoldJob = null
+        } else {
+            isVolUpLongPressed = true
+            volUpHoldJob?.cancel(); volUpHoldJob = null
+        }
+        LightspeedHapticEngine.heavyClick(context)
+        ActionDispatcher.dispatch(actionToken, context)
+        if (armAutoRepeat) {
+            startAutoRepeat(context, actionToken)
+        }
+    }
 
     private fun startAutoRepeat(context: Context, actionToken: String) {
         val prefs = context.defaultPrefs()
@@ -65,7 +84,7 @@ object LightspeedVolumeKeyEngine {
         }
     }
 
-    private fun checkSequenceTapHold(context: Context, diff: Long, isOppositePressed: Boolean, slot: VolumeTriggerSlot) {
+    private fun checkSequenceTapHold(context: Context, diff: Long, isOppositePressed: Boolean, slot: VolumeTriggerSlot): Boolean {
         if (diff in 1..LightspeedKeyEngine.SEQUENCE_TIMEOUT_MS && !isOppositePressed) {
             val tapHoldAction = LightspeedKeyEngine.getBoundAction(context, slot)
             if (tapHoldAction != null) {
@@ -73,14 +92,17 @@ object LightspeedVolumeKeyEngine {
                 seqTapHoldJob = engineScope.launch {
                     delay(LightspeedKeyEngine.LONG_PRESS_TIMEOUT_MS)
                     isSeqTapHoldFired = true
+                    seqTapHoldJob = null
                     lastVolDownReleaseTime = 0L
                     lastVolUpReleaseTime = 0L
                     LightspeedHapticEngine.heavyClick(context)
                     ActionDispatcher.dispatch(tapHoldAction, context)
                     startAutoRepeat(context, tapHoldAction)
                 }
+                return true
             }
         }
+        return false
     }
 
     private fun checkSingleTapSequence(context: Context, diff: Long, isOppositePressed: Boolean, slot: VolumeTriggerSlot): Boolean {
@@ -151,14 +173,41 @@ object LightspeedVolumeKeyEngine {
         }
     }
 
+    private fun tryPromoteHoldIfElapsed(
+        context: Context,
+        isDownKey: Boolean,
+        heldMs: Long,
+        hadSeqHoldPending: Boolean,
+        armAutoRepeat: Boolean
+    ): Boolean {
+        val alreadyLong = if (isDownKey) isVolDownLongPressed else isVolUpLongPressed
+        val usedInChord = if (isDownKey) isVolDownUsedInChord else isVolUpUsedInChord
+        if (alreadyLong || usedInChord || isSequenceFired || isSeqTapHoldFired || hadSeqHoldPending) return false
+        if (heldMs < LightspeedKeyEngine.LONG_PRESS_TIMEOUT_MS) return false
+        val slot = if (isDownKey) VolumeTriggerSlot.VOL_DOWN_LONG_PRESS else VolumeTriggerSlot.VOL_UP_LONG_PRESS
+        val actionToken = LightspeedKeyEngine.getBoundAction(context, slot) ?: return false
+        triggerHoldAction(context, actionToken, isDownKey, armAutoRepeat)
+        return true
+    }
+
     private fun handleVolumeUp(context: Context, action: Int, event: KeyEvent, now: Long, isCustomHud: Boolean, cleanSuppression: Boolean, preserveAccessibility: Boolean): Boolean {
         if (action == KeyEvent.ACTION_DOWN) {
             if (event.repeatCount > 0) {
+                if (volUpDownTime > 0L) {
+                    tryPromoteHoldIfElapsed(context, isDownKey = false, heldMs = now - volUpDownTime, hadSeqHoldPending = seqTapHoldJob != null, armAutoRepeat = true)
+                }
                 if (isVolUpLongPressed) handleScrubberRepeat(context, VolumeTriggerSlot.VOL_UP_LONG_PRESS, event.repeatCount, isForward = true)
                 return isVolUpLongPressed || isSequenceFired || isSeqTapHoldFired || isVolUpUsedInChord
             }
 
+            if (isVolDownPressed && (volDownDownTime == 0L || (now - volDownDownTime) > STALE_PRESS_TIMEOUT_MS)) {
+                isVolDownPressed = false
+                isVolDownUsedInChord = false
+                volDownDownTime = 0L
+            }
+
             isVolUpPressed = true
+            volUpDownTime = now
             isVolUpLongPressed = false
             isSeqTapHoldFired = false
 
@@ -172,7 +221,7 @@ object LightspeedVolumeKeyEngine {
             if (isAccessibilityBypassed) return false
 
             val diffDown = now - lastVolDownReleaseTime
-            checkSequenceTapHold(context, diffDown, isVolDownPressed, VolumeTriggerSlot.SEQ_DOWN_TAP_THEN_UP_HOLD)
+            val seqHoldArmed = checkSequenceTapHold(context, diffDown, isVolDownPressed, VolumeTriggerSlot.SEQ_DOWN_TAP_THEN_UP_HOLD)
 
             if (isVolDownPressed) {
                 isVolDownUsedInChord = true
@@ -185,26 +234,32 @@ object LightspeedVolumeKeyEngine {
 
             isVolUpUsedInChord = false
             isSequenceFired = false
-            volUpHoldJob?.cancel()
+            volUpHoldJob?.cancel(); volUpHoldJob = null
 
             val longPressAction = LightspeedKeyEngine.getBoundAction(context, VolumeTriggerSlot.VOL_UP_LONG_PRESS)
-            if (longPressAction != null) {
+            if (!seqHoldArmed && longPressAction != null) {
                 volUpHoldJob = engineScope.launch {
                     delay(LightspeedKeyEngine.LONG_PRESS_TIMEOUT_MS)
-                    isVolUpLongPressed = true
-                    LightspeedHapticEngine.heavyClick(context)
-                    ActionDispatcher.dispatch(longPressAction, context)
-                    startAutoRepeat(context, longPressAction)
+                    triggerHoldAction(context, longPressAction, isDownKey = false)
                 }
             }
             return cleanSuppression
         } else if (action == KeyEvent.ACTION_UP) {
+            val heldMs = if (volUpDownTime > 0L) now - volUpDownTime else 0L
+            val isCanceled = (event.flags and KeyEvent.FLAG_CANCELED) != 0
+            val hadSeqHoldPending = seqTapHoldJob != null
             isVolUpPressed = false
+            volUpDownTime = 0L
             volUpHoldJob?.cancel(); volUpHoldJob = null
             seqTapHoldJob?.cancel(); seqTapHoldJob = null
             stopAutoRepeat()
             accessibilityShortcutJob?.cancel(); accessibilityShortcutJob = null
 
+            if (isCanceled) {
+                isVolUpLongPressed = false; isVolUpUsedInChord = false
+                isSequenceFired = false; isSeqTapHoldFired = false
+                return false
+            }
             if (isAccessibilityBypassed) { isAccessibilityBypassed = false; return false }
             if (isSeqTapHoldFired) { isSeqTapHoldFired = false; return true }
             if (isSequenceFired) { isSequenceFired = false; return true }
@@ -220,6 +275,11 @@ object LightspeedVolumeKeyEngine {
                 return true
             }
 
+            if (tryPromoteHoldIfElapsed(context, isDownKey = false, heldMs = heldMs, hadSeqHoldPending = hadSeqHoldPending, armAutoRepeat = false)) {
+                isVolUpLongPressed = false
+                return true
+            }
+
             val diffDown = now - lastVolDownReleaseTime
             if (checkSingleTapSequence(context, diffDown, isVolDownPressed, VolumeTriggerSlot.SEQ_DOWN_THEN_UP)) return true
 
@@ -232,11 +292,21 @@ object LightspeedVolumeKeyEngine {
     private fun handleVolumeDown(context: Context, action: Int, event: KeyEvent, now: Long, isCustomHud: Boolean, cleanSuppression: Boolean, preserveAccessibility: Boolean): Boolean {
         if (action == KeyEvent.ACTION_DOWN) {
             if (event.repeatCount > 0) {
+                if (volDownDownTime > 0L) {
+                    tryPromoteHoldIfElapsed(context, isDownKey = true, heldMs = now - volDownDownTime, hadSeqHoldPending = seqTapHoldJob != null, armAutoRepeat = true)
+                }
                 if (isVolDownLongPressed) handleScrubberRepeat(context, VolumeTriggerSlot.VOL_DOWN_LONG_PRESS, event.repeatCount, isForward = false)
                 return isVolDownLongPressed || isSequenceFired || isSeqTapHoldFired || isVolDownUsedInChord
             }
 
+            if (isVolUpPressed && (volUpDownTime == 0L || (now - volUpDownTime) > STALE_PRESS_TIMEOUT_MS)) {
+                isVolUpPressed = false
+                isVolUpUsedInChord = false
+                volUpDownTime = 0L
+            }
+
             isVolDownPressed = true
+            volDownDownTime = now
             isVolDownLongPressed = false
             isSeqTapHoldFired = false
 
@@ -250,7 +320,7 @@ object LightspeedVolumeKeyEngine {
             if (isAccessibilityBypassed) return false
 
             val diffUp = now - lastVolUpReleaseTime
-            checkSequenceTapHold(context, diffUp, isVolUpPressed, VolumeTriggerSlot.SEQ_UP_TAP_THEN_DOWN_HOLD)
+            val seqHoldArmed = checkSequenceTapHold(context, diffUp, isVolUpPressed, VolumeTriggerSlot.SEQ_UP_TAP_THEN_DOWN_HOLD)
 
             if (isVolUpPressed) {
                 isVolUpUsedInChord = true
@@ -263,26 +333,32 @@ object LightspeedVolumeKeyEngine {
 
             isVolDownUsedInChord = false
             isSequenceFired = false
-            volDownHoldJob?.cancel()
+            volDownHoldJob?.cancel(); volDownHoldJob = null
 
             val longPressAction = LightspeedKeyEngine.getBoundAction(context, VolumeTriggerSlot.VOL_DOWN_LONG_PRESS)
-            if (longPressAction != null) {
+            if (!seqHoldArmed && longPressAction != null) {
                 volDownHoldJob = engineScope.launch {
                     delay(LightspeedKeyEngine.LONG_PRESS_TIMEOUT_MS)
-                    isVolDownLongPressed = true
-                    LightspeedHapticEngine.heavyClick(context)
-                    ActionDispatcher.dispatch(longPressAction, context)
-                    startAutoRepeat(context, longPressAction)
+                    triggerHoldAction(context, longPressAction, isDownKey = true)
                 }
             }
             return cleanSuppression
         } else if (action == KeyEvent.ACTION_UP) {
+            val heldMs = if (volDownDownTime > 0L) now - volDownDownTime else 0L
+            val isCanceled = (event.flags and KeyEvent.FLAG_CANCELED) != 0
+            val hadSeqHoldPending = seqTapHoldJob != null
             isVolDownPressed = false
+            volDownDownTime = 0L
             volDownHoldJob?.cancel(); volDownHoldJob = null
             seqTapHoldJob?.cancel(); seqTapHoldJob = null
             stopAutoRepeat()
             accessibilityShortcutJob?.cancel(); accessibilityShortcutJob = null
 
+            if (isCanceled) {
+                isVolDownLongPressed = false; isVolDownUsedInChord = false
+                isSequenceFired = false; isSeqTapHoldFired = false
+                return false
+            }
             if (isAccessibilityBypassed) { isAccessibilityBypassed = false; return false }
             if (isSeqTapHoldFired) { isSeqTapHoldFired = false; return true }
             if (isSequenceFired) { isSequenceFired = false; return true }
@@ -295,6 +371,11 @@ object LightspeedVolumeKeyEngine {
                     ActionDispatcher.dispatch(chordAction, context)
                 }
                 isVolDownUsedInChord = false
+                return true
+            }
+
+            if (tryPromoteHoldIfElapsed(context, isDownKey = true, heldMs = heldMs, hadSeqHoldPending = hadSeqHoldPending, armAutoRepeat = false)) {
+                isVolDownLongPressed = false
                 return true
             }
 
@@ -318,6 +399,8 @@ object LightspeedVolumeKeyEngine {
 
         isVolUpPressed = false
         isVolDownPressed = false
+        volUpDownTime = 0L
+        volDownDownTime = 0L
         isVolUpLongPressed = false
         isVolDownLongPressed = false
         isVolUpUsedInChord = false

@@ -193,7 +193,7 @@ fun PowerButtonLabSubSection(
         }
 
         var isFlyoutOpen by remember { mutableStateOf(false) }
-        var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_${LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW}", false)) }
+        var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.keySliderTapToJump(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW), false)) }
 
         Column(
             modifier = Modifier
@@ -282,7 +282,7 @@ fun PowerButtonLabSubSection(
                 isTapToJumpEnabled = isTapToJumpEnabled,
                 onTapToJumpChanged = { enabled ->
                     isTapToJumpEnabled = enabled
-                    prefs.edit().putBoolean("pref_slider_tap_to_jump_${LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW}", enabled).apply()
+                    prefs.edit().putBoolean(LightspeedPreferences.keySliderTapToJump(LightspeedPreferences.KEY_POWER_DOUBLE_PRESS_WINDOW), enabled).apply()
                 }
             )
         }

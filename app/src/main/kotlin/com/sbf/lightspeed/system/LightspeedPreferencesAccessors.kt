@@ -61,6 +61,28 @@ object LightspeedPreferencesAccessors : LightspeedPreferencesAccessorsContract {
         context.defaultPrefs().edit().putString(LightspeedPreferences.KEY_CATEGORY_ORDER, result.joinToString(",")).apply()
     }
 
+    override fun getCategoryIconPack(context: Context, categoryId: String): String? {
+        val pack = context.defaultPrefs().getString(LightspeedPreferences.KEY_CATEGORY_ICON_PACK_PREFIX + categoryId, null)
+        return if (pack.isNullOrBlank() || pack == "default") null else pack
+    }
+
+    override fun setCategoryIconPack(context: Context, categoryId: String, iconPackPkg: String?) {
+        val key = LightspeedPreferences.KEY_CATEGORY_ICON_PACK_PREFIX + categoryId
+        if (iconPackPkg.isNullOrBlank() || iconPackPkg == "default") {
+            context.defaultPrefs().edit().remove(key).apply()
+        } else {
+            context.defaultPrefs().edit().putString(key, iconPackPkg).apply()
+        }
+    }
+
+    override fun getEffectiveCategoryIconPack(context: Context, categoryId: String): String {
+        val catPack = getCategoryIconPack(context, categoryId)
+        if (!catPack.isNullOrBlank()) return catPack
+        val cruisePack = context.defaultPrefs().getString(LightspeedPreferences.KEY_CATEGORY_CRUISE_ICON_PACK, null)
+        if (!cruisePack.isNullOrBlank() && cruisePack != "default") return cruisePack
+        return LightspeedIconManager.getActiveIconPack(context)
+    }
+
     override fun isScrubRegionsLinked(context: Context, isLeft: Boolean): Boolean {
         val prefs = context.defaultPrefs()
         val key = if (isLeft) LightspeedPreferences.KEY_UNIFIED_SCRUB_REGIONS_LINKED_LEFT else LightspeedPreferences.KEY_UNIFIED_SCRUB_REGIONS_LINKED_RIGHT
@@ -171,20 +193,26 @@ object LightspeedPreferencesAccessors : LightspeedPreferencesAccessorsContract {
 
     override fun getRefuelingStackWidgetIds(context: Context): List<Int> {
         val prefs = context.defaultPrefs()
-        val jsonStr = prefs.getString(LightspeedPreferences.KEY_REFUELING_STACK_PROFILE, null)
+        val rawStr = prefs.getString(LightspeedPreferences.KEY_REFUELING_STACK_PROFILE, null)
             ?: prefs.getString(LightspeedPreferences.KEY_REFUELING_WIDGET_IDS, null)
-        if (!jsonStr.isNullOrBlank()) {
-            try {
-                val jsonArray = JSONArray(jsonStr)
-                val list = mutableListOf<Int>()
-                for (i in 0 until jsonArray.length()) {
-                    val id = jsonArray.getInt(i)
-                    if (id != -1 && !list.contains(id)) {
-                        list.add(id)
+        if (!rawStr.isNullOrBlank()) {
+            val trimmed = rawStr.trim()
+            if (trimmed.startsWith("[")) {
+                try {
+                    val jsonArray = JSONArray(trimmed)
+                    val list = mutableListOf<Int>()
+                    for (i in 0 until jsonArray.length()) {
+                        val id = jsonArray.getInt(i)
+                        if (id != -1 && !list.contains(id)) {
+                            list.add(id)
+                        }
                     }
-                }
-                return list
-            } catch (e: Exception) { logSwallowed("LightspeedPreferencesAccessors", "getRefuelingStackWidgetIds", e) }
+                    if (list.isNotEmpty()) return list
+                } catch (e: Exception) { logSwallowed("LightspeedPreferencesAccessors", "getRefuelingStackWidgetIds JSON", e) }
+            } else {
+                val list = trimmed.split(",").mapNotNull { it.trim().toIntOrNull() }.filter { it != -1 }.distinct()
+                if (list.isNotEmpty()) return list
+            }
         }
         val legacyId = prefs.getInt(LightspeedPreferences.KEY_REFUELING_WIDGET_ID, -1)
         return if (legacyId != -1) listOf(legacyId) else emptyList()

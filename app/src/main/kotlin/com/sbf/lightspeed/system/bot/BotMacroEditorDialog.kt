@@ -26,10 +26,12 @@ import com.sbf.lightspeed.settings.DeckButton
 import com.sbf.lightspeed.settings.DeckCard
 import com.sbf.lightspeed.settings.DeckDialog
 import com.sbf.lightspeed.settings.DeckSlider
+import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.TrackpadPillButton
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
 /**
  * 12-Theme Dialog for Inspecting, Recording, Looping & Editing Bot Macro Steps and Screen Conditions.
@@ -47,8 +49,10 @@ class BotMacroEditorDialog : ComponentActivity() {
         val boundScope = targetPkg to targetWin
 
         setContent {
-            val lsColors = LightspeedStyle.colors
-            val prefs = remember { defaultPrefs() }
+            remember { DeckThemeManager.getSnapshot(this) }
+            LightspeedTheme(forceDark = true) {
+                val lsColors = LightspeedStyle.colors
+                val prefs = remember { defaultPrefs() }
             val buttonNumber = ((botId - 1) % 3) + 1
             val repeatPrefKey = remember { "${LightspeedBotContract.KEY_BOT_MACRO_REPEAT_PREFIX}$botId" }
             val useRecordedDelayPrefKey = remember { "${LightspeedBotContract.KEY_BOT_USE_RECORDED_DELAY_PREFIX}$botId" }
@@ -240,7 +244,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            OutlinedButton(
+                            DeckButton(
                                 onClick = {
                                     val updated = steps.toMutableList().apply {
                                         add(
@@ -259,13 +263,13 @@ class BotMacroEditorDialog : ComponentActivity() {
                                     }
                                     persistSteps(updated)
                                 },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.weight(1f).height(30.dp)
+                                modifier = Modifier.weight(1f).height(30.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text("⌖ Burger Menu", fontSize = 9.5.sp, color = lsColors.textPrimary, maxLines = 1)
                             }
 
-                            OutlinedButton(
+                            DeckButton(
                                 onClick = {
                                     val updated = steps.toMutableList().apply {
                                         add(
@@ -284,13 +288,13 @@ class BotMacroEditorDialog : ComponentActivity() {
                                     }
                                     persistSteps(updated)
                                 },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.weight(1f).height(30.dp)
+                                modifier = Modifier.weight(1f).height(30.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text("⌖ Android Menu", fontSize = 9.5.sp, color = lsColors.textPrimary, maxLines = 1)
                             }
 
-                            OutlinedButton(
+                            DeckButton(
                                 onClick = {
                                     val updated = steps.toMutableList().apply {
                                         add(
@@ -309,8 +313,8 @@ class BotMacroEditorDialog : ComponentActivity() {
                                     }
                                     persistSteps(updated)
                                 },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.weight(0.85f).height(30.dp)
+                                modifier = Modifier.weight(0.85f).height(30.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text("⌖ Search", fontSize = 9.5.sp, color = lsColors.textPrimary, maxLines = 1)
                             }
@@ -486,7 +490,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                                     modifier = Modifier
                                         .size(9.dp)
                                         .clip(androidx.compose.foundation.shape.CircleShape)
-                                        .background(androidx.compose.ui.graphics.Color(0xFFFF3B30))
+                                        .background(com.sbf.lightspeed.ui.theme.LightspeedTokens.StatusDangerAlt)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text("Record", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
@@ -547,7 +551,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                                     }
                                 },
                                 confirmButton = {
-                                    TextButton(
+                                    DeckButton(
                                         onClick = {
                                             if (dontRemindLoopWarn) {
                                                 prefs.edit().putBoolean(LightspeedBotContract.KEY_BOT_LOOP_WARN_DISMISSED, true).apply()
@@ -556,13 +560,14 @@ class BotMacroEditorDialog : ComponentActivity() {
                                             LightspeedBotEngine.startContinuousLoop(this@BotMacroEditorDialog, botId, stepsOverride = steps)
                                             isLooping = true
                                             finish()
-                                        }
+                                        },
+                                        isActive = true
                                     ) {
                                         Text("Start Loop", fontWeight = FontWeight.Bold, color = lsColors.accentWarn)
                                     }
                                 },
                                 dismissButton = {
-                                    TextButton(onClick = { showLoopWarningDialog = false }) {
+                                    DeckButton(onClick = { showLoopWarningDialog = false }) {
                                         Text("Cancel", color = lsColors.textSecondary)
                                     }
                                 }
@@ -635,6 +640,7 @@ class BotMacroEditorDialog : ComponentActivity() {
                     }
                 }
             )
+            }
         }
     }
 

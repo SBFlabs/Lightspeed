@@ -3,6 +3,8 @@ package com.sbf.lightspeed
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.system.LightspeedPreferences
 
@@ -128,17 +130,27 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
     drawCosmicStarfield(canvas, w, h, density, 0.7f)
 
     // Ambient radial spotlight centered on currently focused app icon's (X, Y) coordinate
+    val catId = cachedCategories.getOrNull(activeCatIndex)?.id ?: "comm"
+    val gTop = getCategoryGridTop(catId)
+    val gBot = h * 0.98f
+    val gScope = gBot - gTop
+    val scroll = if (totalGridContentHeight <= gScope) 0f else viewportScrollOffset
+
     val focusedPlaced = placedAppsList.find { it.app == activeItem }
     if (focusedPlaced != null) {
-        val scroll = if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset
         val spotX = focusedPlaced.bounds.centerX()
         val spotY = focusedPlaced.bounds.centerY() - scroll
         drawGalacticNebula(canvas, spotX, spotY, 150f * density, focusAccent, 0.75f)
     }
 
+    val hasInspector = activeCategoryHudItems.any { it.type == LightspeedCruiseHudPods.MODE_APP_AND_CAT }
+    val hideGridLabels = hasInspector && currentLayer == CruiseLayer.GRID && !isStickyPinned
+
     textPaint.textAlign = Paint.Align.CENTER
-    canvas.save(); canvas.clipRect(0f, 0f, w, h)
-    canvas.translate(0f, -(if (totalGridContentHeight <= (h * 0.79f)) 0f else viewportScrollOffset))
+    textPaint.textSize = 11f * density
+    val gridLayerCount = canvas.saveLayer(0f, gTop, w, gBot, null)
+    canvas.clipRect(0f, gTop, w, gBot)
+    canvas.translate(0f, -scroll)
     for (item in placedAppsList) {
         val b = item.bounds; val isSel = activeItem == item.app
         if (isSel) {
@@ -170,17 +182,24 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
             textPaint.typeface = android.graphics.Typeface.DEFAULT
         }
         if (item.app.isWidget) {
-            canvas.drawText(if (item.app.label.length > 16) item.app.label.take(14) + ".." else item.app.label, b.centerX(), b.centerY() + 8f, textPaint)
+            if (!hideGridLabels) {
+                textPaint.textSize = 11f * density
+                canvas.drawText(if (item.app.label.length > 16) item.app.label.take(14) + ".." else item.app.label, b.centerX(), b.centerY() + 8f, textPaint)
+            }
         } else {
             val icon = applicationIconCache[item.app.packageName]
             if (icon != null) {
                 val sz = minOf(b.width() * 0.48f, b.height() * 0.48f)
-                icon.setBounds((b.centerX() - sz / 2f).toInt(), (b.centerY() - sz * 0.62f).toInt(), (b.centerX() + sz / 2f).toInt(), (b.centerY() - sz * 0.62f + sz).toInt())
+                val iconTopY = if (hideGridLabels) (b.centerY() - sz * 0.5f).toInt() else (b.centerY() - sz * 0.62f).toInt()
+                icon.setBounds((b.centerX() - sz / 2f).toInt(), iconTopY, (b.centerX() + sz / 2f).toInt(), iconTopY + sz.toInt())
                 icon.draw(canvas)
-                canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
+                if (!hideGridLabels) {
+                    textPaint.textSize = 11f * density
+                    canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
+                }
             } else {
                 val sz = minOf(b.width() * 0.44f, b.height() * 0.44f)
-                val iconY = b.centerY() - sz * 0.62f + sz / 2f
+                val iconY = if (hideGridLabels) b.centerY() else (b.centerY() - sz * 0.62f + sz / 2f)
                 elementPaint.style = Paint.Style.FILL
                 elementPaint.color = Color.argb(22, 200, 220, 255)
                 canvas.drawCircle(b.centerX(), iconY, sz * 0.44f, elementPaint)
@@ -194,15 +213,157 @@ internal fun LightspeedCruiseOverlay.drawCruiseGridLayer(canvas: Canvas, w: Floa
                 textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
                 canvas.drawText(initial, b.centerX(), iconY + (sz * 0.16f), textPaint)
 
-                textPaint.textSize = 10f * density
-                textPaint.typeface = android.graphics.Typeface.DEFAULT
-                canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
+                if (!hideGridLabels) {
+                    textPaint.textSize = 11f * density
+                    textPaint.typeface = android.graphics.Typeface.DEFAULT
+                    canvas.drawText(if (item.app.label.length > 12) item.app.label.take(10) + ".." else item.app.label, b.centerX(), b.centerY() + (sz * 0.55f) + 14f, textPaint)
+                }
             }
         }
     }
-    canvas.restore()
-    if (isStickyPinned || currentLayer == CruiseLayer.STICKY_PIN) drawSettingsButton(canvas, elementPaint)
+    canvas.translate(0f, scroll)
+    val gridMaxScroll = kotlin.math.max(0f, totalGridContentHeight - (gBot - gTop))
+    LightspeedHudVectorIcons.applyVerticalEdgeFeathering(
+        canvas = canvas,
+        left = 0f,
+        top = gTop,
+        right = w,
+        bottom = gBot,
+        featherTopPx = if (scroll > 0.5f) 18f * density else 0f,
+        featherBottomPx = if (scroll < gridMaxScroll - 0.5f) 22f * density else 0f,
+        density = density,
+        seed = 4242
+    )
+    canvas.restoreToCount(gridLayerCount)
+
+    drawCategoryTopHudStrip(canvas, w, density, 1f)
+}
+
+/**
+ * Computes the screen-space bounds of the Pinned-view Edge Category Switcher strip.
+ * Anchored independently of per-category HUD widgets and docked flush to the screen edge and bottom.
+ */
+internal fun LightspeedCruiseOverlay.computePinnedEdgeSwitcherRect(outRect: RectF): Boolean {
+    if ((!isStickyPinned && currentLayer != CruiseLayer.STICKY_PIN) || isEditModeOpen || isHudEditMode || cachedCategories.isEmpty()) {
+        outRect.setEmpty()
+        return false
+    }
+    val density = resources.displayMetrics.density
+    val w = width.toFloat()
+    val h = height.toFloat()
+    if (w <= 0f || h <= 0f) {
+        outRect.setEmpty()
+        return false
+    }
+
+    val stripW = 30f * density
+    val stripLeft = if (isOpenedFromLeftFlank) 0f else (w - stripW)
+    val safeMinTop = getSafeHudTopOffset() + 8f * density
+    val fixedTop = if (isFarHalfSplitMode() || w > h) {
+        safeMinTop
+    } else {
+        (h * 0.42f).coerceAtLeast(safeMinTop)
+    }
+    val stripBot = h
+    val stripTop = fixedTop.coerceAtMost(stripBot - 72f * density).coerceAtLeast(safeMinTop)
+    outRect.set(stripLeft, stripTop, stripLeft + stripW, stripBot)
+    return !outRect.isEmpty
+}
+
+/**
+ * Returns true if (x, y) falls within the expanded touch target of the Pinned-view Edge Category Switcher.
+ */
+internal fun LightspeedCruiseOverlay.isTouchOnPinnedEdgeSwitcher(x: Float, y: Float): Boolean {
+    if (pinnedEdgeSwitcherRect.isEmpty && !computePinnedEdgeSwitcherRect(pinnedEdgeSwitcherRect)) {
+        return false
+    }
+    val dp = resources.displayMetrics.density
+    val hitLeft = (pinnedEdgeSwitcherRect.left - 10f * dp).coerceAtLeast(0f)
+    val hitTop = (pinnedEdgeSwitcherRect.top - 6f * dp).coerceAtLeast(0f)
+    val hitRight = (pinnedEdgeSwitcherRect.right + 10f * dp).coerceAtMost(width.toFloat())
+    val hitBottom = pinnedEdgeSwitcherRect.bottom
+    return x in hitLeft..hitRight && y in hitTop..hitBottom
+}
+
+/**
+ * Draws the Pinned-view Edge Category Switcher strip flush against the triggering edge
+ * and bottom of the screen during [LightspeedCruiseOverlay.dispatchDraw].
+ */
+internal fun LightspeedCruiseOverlay.drawPinnedEdgeSwitcher(canvas: Canvas) {
+    if (!computePinnedEdgeSwitcherRect(pinnedEdgeSwitcherRect)) {
+        return
+    }
+    val density = resources.displayMetrics.density
+    val snapshot = DeckThemeManager.getSnapshot(context)
+    val tintColor = categoryAccentOverride() ?: snapshot.tintArgb.toInt()
+    val focusAccent = ensureHighContrastColor(tintColor)
+
+    val stripW = pinnedEdgeSwitcherRect.width()
+    val stripTop = pinnedEdgeSwitcherRect.top
+    val stripBot = pinnedEdgeSwitcherRect.bottom
+    val innerCornerR = stripW * 0.5f
+    val radii = if (isOpenedFromLeftFlank) {
+        floatArrayOf(0f, 0f, innerCornerR, innerCornerR, 0f, 0f, 0f, 0f)
+    } else {
+        floatArrayOf(innerCornerR, innerCornerR, 0f, 0f, 0f, 0f, 0f, 0f)
+    }
+    val dockPath = Path().apply {
+        addRoundRect(pinnedEdgeSwitcherRect, radii, Path.Direction.CW)
+    }
+
+    elementPaint.style = Paint.Style.FILL
+    elementPaint.color = Color.argb(185, 10, 14, 24)
+    canvas.drawPath(dockPath, elementPaint)
+    elementPaint.style = Paint.Style.STROKE
+    elementPaint.strokeWidth = 1.1f * density
+    elementPaint.color = Color.argb(145, Color.red(focusAccent), Color.green(focusAccent), Color.blue(focusAccent))
+    canvas.drawPath(dockPath, elementPaint)
+
+    val count = cachedCategories.size
+    val innerTop = stripTop + 6f * density
+    val innerBot = (stripBot - 10f * density).coerceAtLeast(innerTop + count * 12f * density)
+    val slotH = (innerBot - innerTop) / count
+    val iconR = (slotH * 0.30f).coerceIn(5.0f * density, 8.0f * density)
+    for (i in 0 until count) {
+        val cat = cachedCategories[i]
+        val cy = innerTop + slotH * (i + 0.5f)
+        val cx = pinnedEdgeSwitcherRect.centerX()
+        val isSel = (i == activeCatIndex)
+        if (isSel) {
+            elementPaint.style = Paint.Style.FILL
+            elementPaint.color = Color.argb(230, Color.red(focusAccent), Color.green(focusAccent), Color.blue(focusAccent))
+            canvas.drawCircle(cx, cy, (iconR + 3.5f * density), elementPaint)
+        }
+        LightspeedHudVectorIcons.drawCategoryVectorIcon(
+            canvas = canvas,
+            categoryId = cat.id,
+            cx = cx,
+            cy = cy,
+            r = iconR,
+            color = if (isSel) Color.BLACK else Color.WHITE,
+            alpha = if (isSel) 255 else 215,
+            strokeWidth = (1.4f * density)
+        )
+    }
+}
+
+/**
+ * Draws all cruise popups, context menus, info bubbles, and modals on top of child Views
+ * (such as [android.appwidget.AppWidgetHostView]) during [LightspeedCruiseOverlay.dispatchDraw].
+ */
+internal fun LightspeedCruiseOverlay.drawCruiseModalsOverlay(canvas: Canvas) {
+    val density = resources.displayMetrics.density
+    val snapshot = DeckThemeManager.getSnapshot(context)
+    val tintColor = categoryAccentOverride() ?: snapshot.tintArgb.toInt()
+    val focusAccent = ensureHighContrastColor(tintColor)
+
     if (isPinnedAppMenuOpen()) drawPinnedAppMenu(canvas, elementPaint)
     if (isEditModeOpen) drawEditModePanel(canvas, elementPaint)
+    if (isCountdownModalOpen) drawCountdownModal(canvas, elementPaint)
+    if (isScreenTimeInfoBubbleOpen) drawScreenTimeInfoBubble(canvas)
+    if (isPrivacyScoreInfoBubbleOpen) drawPrivacyScoreInfoBubble(canvas)
+    if (isAlertsHistoryModalOpen) drawAlertsHistoryModal(canvas, density, focusAccent)
+    if (isFirewallModalOpen) drawFirewallManagerModal(canvas, density, focusAccent)
+    if (isVitalsModalOpen) drawVitalsTaskManagerModal(canvas, density, focusAccent)
 }
 

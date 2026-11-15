@@ -99,19 +99,27 @@ fun DeflectorTabBody(
             add(trackpadSecId)
         }
     }
-    val currentOrder = sectionOrderStr.split(",").map { it.trim() }.filter { it in defaultOrder }.distinct().let { list ->
-        list + (defaultOrder - list.toSet())
+    val currentOrder = remember(sectionOrderStr, isFlankUnified, isTrackpadLabsEnabled, isLeft) {
+        sectionOrderStr.split(",").map { it.trim() }.filter { it in defaultOrder }.distinct().let { list ->
+            list + (defaultOrder - list.toSet())
+        }
     }
 
-    val defaultSub = listOf("geo", "scrub", "gestures")
-    val subTopStr = prefs.getString("pref_sub_order_${topSecId}_2", "geo,scrub,gestures")!!
-    var currentSubTop by remember { mutableStateOf(subTopStr.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) }) }
+    val defaultSub = remember { listOf("geo", "scrub", "gestures") }
+    var currentSubTop by remember(topSecId) {
+        val raw = prefs.getString("pref_sub_order_${topSecId}_2", "geo,scrub,gestures")!!
+        mutableStateOf(raw.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) })
+    }
 
-    val subBottomStr = prefs.getString("pref_sub_order_${bottomSecId}_2", "geo,scrub,gestures")!!
-    var currentSubBottom by remember { mutableStateOf(subBottomStr.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) }) }
+    var currentSubBottom by remember(bottomSecId) {
+        val raw = prefs.getString("pref_sub_order_${bottomSecId}_2", "geo,scrub,gestures")!!
+        mutableStateOf(raw.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) })
+    }
 
-    val subUnifiedStr = prefs.getString("pref_sub_order_${unifiedSecId}_2", "geo,scrub,gestures")!!
-    var currentSubUnified by remember { mutableStateOf(subUnifiedStr.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) }) }
+    var currentSubUnified by remember(unifiedSecId) {
+        val raw = prefs.getString("pref_sub_order_${unifiedSecId}_2", "geo,scrub,gestures")!!
+        mutableStateOf(raw.split(",").filter { it in defaultSub }.let { it + (defaultSub - it.toSet()) })
+    }
 
     val sectionOrderPrefKey = if (isLeft) LightspeedPreferences.KEY_TAB_SECTION_ORDER_0 else LightspeedPreferences.KEY_TAB_SECTION_ORDER_2
     val pinnedAccordionPrefKey = if (isLeft) LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_0 else LightspeedPreferences.KEY_TAB_PINNED_ACCORDION_2
@@ -176,15 +184,20 @@ fun DeflectorTabBody(
         val deflectorCoverageRatio = if (screenHeightDp > 0) totalDeflectorSpanDp.toFloat() / screenHeightDp.toFloat() else 0f
         val exceedsEdgeThreshold = deflectorCoverageRatio > 0.25f
 
-        val isNativeInsetsZeroed = remember(prefsChangeTrigger) {
-            try {
-                val left = android.provider.Settings.Secure.getFloat(context.contentResolver, "back_gesture_inset_scale_left", -1f)
-                val right = android.provider.Settings.Secure.getFloat(context.contentResolver, "back_gesture_inset_scale_right", -1f)
-                val prefSavedScale = prefs.getFloat("sys_override_edge_gesture", -1f)
-                (left in 0.0f..0.01f && right in 0.0f..0.01f) || (prefSavedScale in 0.0f..0.01f)
-            } catch (_: Exception) {
-                val prefSavedScale = prefs.getFloat("sys_override_edge_gesture", -1f)
-                prefSavedScale in 0.0f..0.01f
+        var isNativeInsetsZeroed by remember {
+            mutableStateOf(prefs.getFloat("sys_override_edge_gesture", -1f) in 0.0f..0.01f)
+        }
+        LaunchedEffect(prefsChangeTrigger) {
+            isNativeInsetsZeroed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val left = android.provider.Settings.Secure.getFloat(context.contentResolver, "back_gesture_inset_scale_left", -1f)
+                    val right = android.provider.Settings.Secure.getFloat(context.contentResolver, "back_gesture_inset_scale_right", -1f)
+                    val prefSavedScale = prefs.getFloat("sys_override_edge_gesture", -1f)
+                    (left in 0.0f..0.01f && right in 0.0f..0.01f) || (prefSavedScale in 0.0f..0.01f)
+                } catch (_: Exception) {
+                    val prefSavedScale = prefs.getFloat("sys_override_edge_gesture", -1f)
+                    prefSavedScale in 0.0f..0.01f
+                }
             }
         }
 

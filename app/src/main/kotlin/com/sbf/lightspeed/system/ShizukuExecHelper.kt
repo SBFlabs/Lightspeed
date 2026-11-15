@@ -2,18 +2,27 @@ package com.sbf.lightspeed.system
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
+import android.os.IInterface
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.view.InputDevice
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.widget.Toast
+import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
 import rikka.shizuku.Shizuku
 import rikka.shizuku.ShizukuBinderWrapper
 import rikka.shizuku.SystemServiceHelper
+import java.io.ByteArrayInputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.lang.reflect.Constructor
 import java.lang.reflect.Method
 
 internal object ShizukuExecHelper {
@@ -55,6 +64,7 @@ internal object ShizukuExecHelper {
 
     internal fun getActivityTaskManager(): Any? {
         if (!ElevatedTaskCloser.isShizukuActive) return null
+        exemptHiddenApis()
         return try {
             val rawBinder = SystemServiceHelper.getSystemService("activity_task")
                 ?: SystemServiceHelper.getSystemService(Context.ACTIVITY_SERVICE)
@@ -72,64 +82,111 @@ internal object ShizukuExecHelper {
         }
     }
 
-    fun execShizuku(cmd: String): Process? {
-        if (ShizukuGate.isAccessibilityOnly()) return null
+    @Volatile private var cachedRemoteProcessCtor: Constructor<*>? = null
+    @Volatile private var cachedShizukuAsInterface: Method? = null
+    @Volatile private var cachedServiceNewProcess: Method? = null
+    @Volatile private var cachedLegacyNewProcess: Method? = null
+
+    private fun isStreamingCommand(argv: Array<out String>): Boolean {
+        return argv.any { arg ->
+            arg.contains("lsinputd") ||
+                arg.contains("getevent") ||
+                arg.contains("nohup ")
+        }
+    }
+
+    private fun execViaBoundUserService(argv: Array<out String>): Process? {
+        if (!SonicVoiceIsolationEngine.isBound) return null
+        val svc = SonicVoiceIsolationEngine.userService ?: return null
+        if (svc.asBinder()?.isBinderAlive == false) return null
         return try {
-            val m = Shizuku::class.java.getDeclaredMethod(
+            val bundle = svc.execCommand(Array(argv.size) { argv[it] }, 8000L) ?: return null
+            val exitCode = bundle.getInt("exitCode", -1)
+            val stdout = bundle.getString("stdout").orEmpty()
+            val stderr = bundle.getString("stderr").orEmpty()
+            CompletedShizukuProcess(exitCode, stdout, stderr)
+        } catch (e: Exception) {
+            Log.w(TAG, "UserService execCommand fallback failed", e)
+            null
+        }
+    }
+
+    private fun execViaShizukuServiceBinder(argv: Array<out String>): Process? {
+        return try {
+            val binder = Shizuku.getBinder() ?: return null
+            val asInterface = cachedShizukuAsInterface ?: Class.forName("moe.shizuku.server.IShizukuService\$Stub")
+                .getMethod("asInterface", IBinder::class.java)
+                .also { cachedShizukuAsInterface = it }
+            val service = asInterface.invoke(null, binder) ?: return null
+            val newProcMethod = cachedServiceNewProcess ?: service.javaClass.getMethod(
                 "newProcess",
                 Array<String>::class.java,
                 Array<String>::class.java,
                 String::class.java
-            ).apply { isAccessible = true }
-            m.invoke(null, arrayOf("sh", "-c", cmd), null, null) as? Process
-        } catch (e: Exception) {
-            Log.e(TAG, "execShizuku error", e)
+            ).also { cachedServiceNewProcess = it }
+            val remoteProc = newProcMethod.invoke(service, argv, null, null) ?: return null
+            val ctor = cachedRemoteProcessCtor ?: Class.forName("rikka.shizuku.ShizukuRemoteProcess")
+                .getDeclaredConstructor(Class.forName("moe.shizuku.server.IRemoteProcess"))
+                .apply { isAccessible = true }
+                .also { cachedRemoteProcessCtor = it }
+            ctor.newInstance(remoteProc) as? Process
+        } catch (_: Exception) {
             null
         }
+    }
+
+    private fun execViaLegacyReflection(argv: Array<out String>): Process? {
+        return try {
+            val m = cachedLegacyNewProcess ?: Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java
+            ).apply { isAccessible = true }.also { cachedLegacyNewProcess = it }
+            m.invoke(null, argv, null, null) as? Process
+        } catch (e: Exception) {
+            Log.e(TAG, "execShizuku reflection fallback error", e)
+            null
+        }
+    }
+
+    fun execShizuku(cmd: String): Process? {
+        return execShizukuArgv("sh", "-c", cmd)
     }
 
     fun execShizukuArgv(vararg args: String): Process? {
-        if (ShizukuGate.isAccessibilityOnly()) return null
-        return try {
-            val m = Shizuku::class.java.getDeclaredMethod(
-                "newProcess",
-                Array<String>::class.java,
-                Array<String>::class.java,
-                String::class.java
-            ).apply { isAccessible = true }
-            m.invoke(null, args, null, null) as? Process
-        } catch (e: Exception) {
-            Log.e(TAG, "execShizukuArgv error", e)
-            null
+        if (!ElevatedTaskCloser.isShizukuActive) return null
+        val streaming = isStreamingCommand(args)
+        if (!streaming) {
+            execViaBoundUserService(args)?.let { return it }
         }
+        execViaShizukuServiceBinder(args)?.let { return it }
+        execViaLegacyReflection(args)?.let { return it }
+        return if (streaming) null else execViaBoundUserService(args)
     }
 
     fun injectKeyEvent(keyCode: Int): Boolean {
-        if (!ElevatedTaskCloser.isShizukuActive) return false
+        val (inputManager, injectMethod) = getCachedInputManager() ?: return false
         return try {
-            val rawBinder = SystemServiceHelper.getSystemService("input")
-                ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
-                ?: return false
-            val wrapped = ShizukuBinderWrapper(rawBinder)
-            val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
-            val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
-            val inputManager = asInterface.invoke(null, wrapped) ?: return false
-
-            val injectMethod = inputManager.javaClass.methods.firstOrNull { it.name == "injectInputEvent" }
-            if (injectMethod != null) {
-                val now = SystemClock.uptimeMillis()
-                val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0)
-                val up = KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0)
-                // mode 0 = INJECT_INPUT_EVENT_MODE_ASYNC
-                injectMethod.invoke(inputManager, down, 0)
-                injectMethod.invoke(inputManager, up, 0)
-                true
-            } else {
-                execShizuku("input keyevent $keyCode") != null
-            }
+            val now = SystemClock.uptimeMillis()
+            val down = KeyEvent(
+                now, now, KeyEvent.ACTION_DOWN, keyCode, 0, 0,
+                KeyCharacterMap.VIRTUAL_KEYBOARD, 0, KeyEvent.FLAG_FROM_SYSTEM,
+                InputDevice.SOURCE_KEYBOARD
+            )
+            val up = KeyEvent(
+                now, now + 10, KeyEvent.ACTION_UP, keyCode, 0, 0,
+                KeyCharacterMap.VIRTUAL_KEYBOARD, 0, KeyEvent.FLAG_FROM_SYSTEM,
+                InputDevice.SOURCE_KEYBOARD
+            )
+            // mode 0 = INJECT_INPUT_EVENT_MODE_ASYNC
+            injectMethod.invoke(inputManager, down, 0)
+            injectMethod.invoke(inputManager, up, 0)
+            true
         } catch (e: Exception) {
-            Log.w(TAG, "Direct input injection failed, falling back to shell", e)
-            execShizuku("input keyevent $keyCode") != null
+            Log.w(TAG, "Direct key injection failed for keyCode=$keyCode", e)
+            invalidateInputManagerCache()
+            false
         }
     }
 
@@ -139,39 +196,7 @@ internal object ShizukuExecHelper {
             PowerGrabHelper.sendBack(powerProc)
             return true
         }
-        if (ElevatedTaskCloser.isShizukuActive) {
-            try {
-                val rawBinder = SystemServiceHelper.getSystemService("input")
-                    ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
-                if (rawBinder != null) {
-                    val wrapped = ShizukuBinderWrapper(rawBinder)
-                    val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
-                    val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
-                    val inputManager = asInterface.invoke(null, wrapped)
-                    val injectMethod = inputManager?.javaClass?.methods?.firstOrNull { it.name == "injectInputEvent" }
-                    if (injectMethod != null) {
-                        val now = SystemClock.uptimeMillis()
-                        val down = KeyEvent(
-                            now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0, 0,
-                            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0,
-                            InputDevice.SOURCE_KEYBOARD
-                        )
-                        val up = KeyEvent(
-                            now, now + 15, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK, 0, 0,
-                            android.view.KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0,
-                            InputDevice.SOURCE_KEYBOARD
-                        )
-                        injectMethod.invoke(inputManager, down, 0)
-                        injectMethod.invoke(inputManager, up, 0)
-                        return true
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Direct back input injection failed, falling back to shell", e)
-            }
-            return execShizuku("input keyevent 4") != null
-        }
-        return false
+        return injectKeyEvent(KeyEvent.KEYCODE_BACK)
     }
 
     @Volatile
@@ -179,17 +204,31 @@ internal object ShizukuExecHelper {
     @Volatile
     private var cachedInjectMethod: Method? = null
 
+    private fun invalidateInputManagerCache() {
+        synchronized(this) {
+            cachedInputManager = null
+            cachedInjectMethod = null
+        }
+    }
+
     private fun getCachedInputManager(): Pair<Any, Method>? {
         if (!ElevatedTaskCloser.isShizukuActive) return null
         val mgr = cachedInputManager
         val method = cachedInjectMethod
-        if (mgr != null && method != null) return mgr to method
+        if (mgr != null && method != null) {
+            val alive = (mgr as? IInterface)?.asBinder()?.isBinderAlive != false
+            if (alive) return mgr to method
+        }
 
         synchronized(this) {
             val m2 = cachedInputManager
             val meth2 = cachedInjectMethod
-            if (m2 != null && meth2 != null) return m2 to meth2
+            if (m2 != null && meth2 != null) {
+                val alive = (m2 as? IInterface)?.asBinder()?.isBinderAlive != false
+                if (alive) return m2 to meth2
+            }
 
+            exemptHiddenApis()
             try {
                 val rawBinder = SystemServiceHelper.getSystemService("input")
                     ?: SystemServiceHelper.getSystemService(Context.INPUT_SERVICE)
@@ -219,6 +258,7 @@ internal object ShizukuExecHelper {
             true
         } catch (e: Exception) {
             Log.w(TAG, "injectPointerDown failed", e)
+            invalidateInputManagerCache()
             false
         } finally {
             event.recycle()
@@ -235,6 +275,7 @@ internal object ShizukuExecHelper {
             true
         } catch (e: Exception) {
             Log.w(TAG, "injectPointerMove failed", e)
+            invalidateInputManagerCache()
             false
         } finally {
             event.recycle()
@@ -251,6 +292,7 @@ internal object ShizukuExecHelper {
             true
         } catch (e: Exception) {
             Log.w(TAG, "injectPointerUp failed", e)
+            invalidateInputManagerCache()
             false
         } finally {
             event.recycle()
@@ -258,59 +300,84 @@ internal object ShizukuExecHelper {
     }
 
     fun injectTapEvent(x: Float, y: Float): Boolean {
-        val pair = getCachedInputManager()
-        if (pair != null) {
-            val (inputManager, injectMethod) = pair
-            val now = SystemClock.uptimeMillis()
-            val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0).apply {
-                source = InputDevice.SOURCE_TOUCHSCREEN
-            }
-            val up = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_UP, x, y, 0).apply {
-                source = InputDevice.SOURCE_TOUCHSCREEN
-            }
-            return try {
-                injectMethod.invoke(inputManager, down, 0)
-                injectMethod.invoke(inputManager, up, 0)
-                true
-            } catch (e: Exception) {
-                Log.w(TAG, "Direct tap injection failed", e)
-                execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
-            } finally {
-                down.recycle()
-                up.recycle()
-            }
+        val (inputManager, injectMethod) = getCachedInputManager() ?: return false
+        val now = SystemClock.uptimeMillis()
+        val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0).apply {
+            source = InputDevice.SOURCE_TOUCHSCREEN
         }
+        val up = MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_UP, x, y, 0).apply {
+            source = InputDevice.SOURCE_TOUCHSCREEN
+        }
+        return try {
+            injectMethod.invoke(inputManager, down, 0)
+            injectMethod.invoke(inputManager, up, 0)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Direct tap injection failed", e)
+            invalidateInputManagerCache()
+            false
+        } finally {
+            down.recycle()
+            up.recycle()
+        }
+    }
+
+    private fun triggerAssistViaStatusBarBinder(): Boolean {
         if (!ElevatedTaskCloser.isShizukuActive) return false
-        return execShizuku("input tap ${x.toInt()} ${y.toInt()}") != null
+        exemptHiddenApis()
+        return try {
+            val rawBinder = SystemServiceHelper.getSystemService("statusbar")
+                ?: SystemServiceHelper.getSystemService(Context.STATUS_BAR_SERVICE)
+                ?: return false
+            val wrapped = ShizukuBinderWrapper(rawBinder)
+            val stubClass = Class.forName("com.android.internal.statusbar.IStatusBarService\$Stub")
+            val statusBarService = stubClass.getMethod("asInterface", IBinder::class.java)
+                .invoke(null, wrapped) ?: return false
+            val startAssist = statusBarService.javaClass.methods.firstOrNull {
+                it.name == "startAssist" && it.parameterTypes.size == 1 && it.parameterTypes[0] == Bundle::class.java
+            } ?: return false
+            startAssist.invoke(statusBarService, Bundle())
+            true
+        } catch (e: Exception) {
+            logSwallowed(TAG, "circleToSearch.statusBarBinder", e)
+            false
+        }
+    }
+
+    private fun triggerAssistViaVoiceInteractionBinder(): Boolean {
+        if (!ElevatedTaskCloser.isShizukuActive) return false
+        exemptHiddenApis()
+        return try {
+            val rawBinder = SystemServiceHelper.getSystemService("voiceinteraction") ?: return false
+            val wrapped = ShizukuBinderWrapper(rawBinder)
+            val stubClass = Class.forName("com.android.internal.app.IVoiceInteractionManagerService\$Stub")
+            val viService = stubClass.getMethod("asInterface", IBinder::class.java)
+                .invoke(null, wrapped) ?: return false
+            val showMethod = viService.javaClass.methods.firstOrNull {
+                it.name == "showSessionFromSession" && it.parameterTypes.size == 4
+            }
+            if (showMethod != null) {
+                val res = showMethod.invoke(viService, null, Bundle(), 0, null) as? Boolean
+                if (res == true) return true
+            }
+            false
+        } catch (e: Exception) {
+            logSwallowed(TAG, "circleToSearch.voiceInteractionBinder", e)
+            false
+        }
     }
 
     fun triggerCircleToSearch(context: Context) {
         var handled = false
         if (ElevatedTaskCloser.isShizukuActive) {
-            try {
-                val proc = execShizuku("cmd voiceinteraction show")
-                val exit = proc?.waitFor()
-                if (exit == 0) {
-                    handled = true
-                }
-            } catch (e: Exception) {
-                logSwallowed(TAG, "circleToSearch.voiceinteraction", e)
-            }
-            if (!handled) {
-                try {
-                    val proc = execShizuku("input keyevent --longpress KEYCODE_HOME || input keyevent 219")
-                    if (proc?.waitFor() == 0) {
-                        handled = true
-                    }
-                } catch (e: Exception) {
-                    logSwallowed(TAG, "circleToSearch.keyevent", e)
-                }
-            }
+            handled = triggerAssistViaStatusBarBinder() ||
+                triggerAssistViaVoiceInteractionBinder() ||
+                injectKeyEvent(KeyEvent.KEYCODE_ASSIST)
         }
         if (!handled) {
             try {
-                val intent = android.content.Intent(android.content.Intent.ACTION_VOICE_COMMAND).apply {
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                val intent = Intent(Intent.ACTION_VOICE_COMMAND).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
                 handled = true
@@ -318,9 +385,8 @@ internal object ShizukuExecHelper {
                 try {
                     val gIntent = context.packageManager.getLaunchIntentForPackage("com.google.android.googlequicksearchbox")
                     if (gIntent != null) {
-                        gIntent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        gIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(gIntent)
-                        handled = true
                     }
                 } catch (e: Exception) {
                     logSwallowed(TAG, "circleToSearch.fallback", e)
@@ -334,5 +400,24 @@ internal object ShizukuExecHelper {
             val msg = if (!Shizuku.pingBinder()) "$feature needs Shizuku, which isn't running. Start it, then try again." else "$feature needs Shizuku: authorize Lightspeed in your Shizuku app or fork"
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private class CompletedShizukuProcess(
+        private val code: Int,
+        stdout: String,
+        stderr: String
+    ) : Process() {
+        private val outStream = ByteArrayInputStream(stdout.toByteArray(Charsets.UTF_8))
+        private val errStream = ByteArrayInputStream(stderr.toByteArray(Charsets.UTF_8))
+        private val sinkStream = object : OutputStream() {
+            override fun write(b: Int) {}
+        }
+
+        override fun getOutputStream(): OutputStream = sinkStream
+        override fun getInputStream(): InputStream = outStream
+        override fun getErrorStream(): InputStream = errStream
+        override fun waitFor(): Int = code
+        override fun exitValue(): Int = code
+        override fun destroy() {}
     }
 }

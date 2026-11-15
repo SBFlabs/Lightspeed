@@ -17,7 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.settings.DeckDialog
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
+import com.sbf.lightspeed.ui.theme.LightspeedTokens
 
 @Composable
 fun PinAppDialog(
@@ -29,7 +31,7 @@ fun PinAppDialog(
     onDismiss: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -70,9 +72,7 @@ fun PinAppDialog(
             TextButton(onClick = onDismiss) {
                 Text("CANCEL", color = lsColors.textSecondary)
             }
-        },
-        containerColor = Color(0xFF181B24),
-        shape = RoundedCornerShape(16.dp)
+        }
     )
 }
 
@@ -85,41 +85,29 @@ fun DeepActivityWarningDialog(
     val lsColors = LightspeedStyle.colors
     var doNotShowAgain by remember { mutableStateOf(false) }
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF161822).copy(alpha = 0.95f))
-                .border(1.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF161822).copy(alpha = 0.95f))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
+    DeckDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = lsColors.accentWarn,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "Deep Activity Warning",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = lsColors.textPrimary
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = lsColors.accentWarn,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Deep Activity Warning",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = lsColors.textPrimary
+                )
+            }
+        },
+        text = {
+            Column {
                 Text(
                     text = "Launching internal activities directly may cause instability or unexpected behavior.",
                     fontSize = 13.sp,
@@ -127,7 +115,7 @@ fun DeepActivityWarningDialog(
                     lineHeight = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -152,34 +140,29 @@ fun DeepActivityWarningDialog(
                         color = lsColors.textPrimary
                     )
                 }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Cancel", color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = { onProceed(doNotShowAgain) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = dynamicPrimary,
-                            contentColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Understood", fontWeight = FontWeight.Bold)
-                    }
-                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Cancel", color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onProceed(doNotShowAgain) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = dynamicPrimary,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Understood", fontWeight = FontWeight.Bold)
             }
         }
-    }
+    )
 }
 
 @Composable
@@ -190,31 +173,25 @@ fun SystemAccordionPrefsDialog(
     onDismiss: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF161822).copy(alpha = 0.95f))
-                .border(1.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF161822).copy(alpha = 0.95f))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                val sysTitle = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_ACTIONS)
-                Text(
-                    text = "$sysTitle Default State",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = lsColors.textPrimary
-                )
+    val sysTitle = com.sbf.lightspeed.system.LightspeedLanguageEngine.resolve(com.sbf.lightspeed.system.LightspeedVocabulary.Key.SYSTEM_ACTIONS)
+    val options = listOf(
+        Triple("remember", "Remember Last State", "Restore the exact categories you left open"),
+        Triple("expanded", "Always Start Expanded", "Expand all categories by default"),
+        Triple("collapsed", "Always Start Collapsed", "Keep all categories neatly collapsed by default")
+    )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
+    DeckDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "$sysTitle Default State",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = lsColors.textPrimary
+            )
+        },
+        text = {
+            Column {
                 Text(
                     text = "How should the $sysTitle categories behave when you open the Action Picker?",
                     fontSize = 13.sp,
@@ -222,13 +199,7 @@ fun SystemAccordionPrefsDialog(
                     lineHeight = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                val options = listOf(
-                    Triple("remember", "Remember Last State", "Restore the exact categories you left open"),
-                    Triple("expanded", "Always Start Expanded", "Expand all categories by default"),
-                    Triple("collapsed", "Always Start Collapsed", "Keep all categories neatly collapsed by default")
-                )
+                Spacer(modifier = Modifier.height(12.dp))
 
                 options.forEach { (key, title, subtitle) ->
                     val isSelected = currentPreference == key
@@ -258,22 +229,16 @@ fun SystemAccordionPrefsDialog(
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Close", color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold)
-                    }
-                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Close", color = lsColors.textSecondary, fontWeight = FontWeight.SemiBold)
             }
         }
-    }
+    )
 }
 

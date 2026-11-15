@@ -57,7 +57,9 @@ object SonicAppVolumeEngine {
             .putBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, true)
             .putFloat(LightspeedPreferences.KEY_PER_APP_VOLUME_PREFIX + packageName, clamped)
             .apply()
-        SonicVoiceIsolationEngine.ensureBound(context)
+        if (kotlin.math.abs(clamped - 1.0f) > 0.01f || SonicVoiceIsolationEngine.needsPrivilegedServiceInBackground(context)) {
+            SonicVoiceIsolationEngine.ensureBound(context)
+        }
         try {
             SonicVoiceIsolationEngine.userService?.setPackageVolume(packageName, clamped)
         } catch (e: Exception) {
@@ -143,6 +145,9 @@ object SonicAppVolumeEngine {
     }
 
     fun queryPrivilegedAudioPackages(context: Context): List<String> {
+        if (!SonicVoiceIsolationEngine.isBound && !SonicVoiceIsolationEngine.needsPrivilegedServiceInBackground(context)) {
+            return emptyList()
+        }
         SonicVoiceIsolationEngine.ensureBound(context)
         val svc = SonicVoiceIsolationEngine.userService ?: return emptyList()
         return try {
@@ -169,7 +174,9 @@ object SonicAppVolumeEngine {
     }
 
     fun startMonitoring(context: Context) {
-        SonicVoiceIsolationEngine.ensureBound(context)
+        if (SonicVoiceIsolationEngine.needsPrivilegedServiceInBackground(context)) {
+            SonicVoiceIsolationEngine.ensureBound(context)
+        }
         ensurePlaybackCallback(context)
         refreshActiveAudioPlayers(context)
     }

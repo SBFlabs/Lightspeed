@@ -201,6 +201,7 @@ internal class SonicPrivilegedAudioPipeline(
         }
     }
 
+    @android.annotation.SuppressLint("MissingPermission") // Runs as privileged Shizuku user service; wrapped in try/catch
     private fun createFixedVolumeAudioRecord(
         policy: Any,
         policyClass: Class<*>,

@@ -25,42 +25,50 @@ internal fun LightspeedCruiseOverlay.executeMacroAction(zone: TouchZone, gesture
         else -> isOpenedFromLeftFlank
     }
 
+    val gestureKey = if (gesture == MacroGesture.NONE) "TAP_HOLD" else gesture.name
+
     val actionValue = if (isFromLeft) {
         val isLeftUnified = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_LINK_FLANK_ACTIONS, true)
-        val leftGesture = when (gesture.name) {
+        val leftGesture = when (gestureKey) {
             "SWIPE_LEFT" -> "SWIPE_RIGHT"
             "SWIPE_LEFT_UP" -> "SWIPE_RIGHT_UP"
             "SWIPE_LEFT_DOWN" -> "SWIPE_RIGHT_DOWN"
             "SWIPE_LEFT_BACK" -> "SWIPE_RIGHT_BACK"
             "SWIPE_UP_LEFT" -> "SWIPE_UP_RIGHT"
             "SWIPE_DOWN_LEFT" -> "SWIPE_DOWN_RIGHT"
-            else -> gesture.name
+            "SWIPE_LEFT_HOLD" -> "SWIPE_RIGHT_HOLD"
+            "SWIPE_LEFT_UP_HOLD" -> "SWIPE_RIGHT_UP_HOLD"
+            "SWIPE_LEFT_DOWN_HOLD" -> "SWIPE_RIGHT_DOWN_HOLD"
+            "SWIPE_LEFT_BACK_HOLD" -> "SWIPE_RIGHT_BACK_HOLD"
+            "SWIPE_UP_LEFT_HOLD" -> "SWIPE_UP_RIGHT_HOLD"
+            "SWIPE_DOWN_LEFT_HOLD" -> "SWIPE_DOWN_RIGHT_HOLD"
+            else -> gestureKey
         }
         val isLeftGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = true, leftGesture)
         val leftZone = if (isLeftUnified && isLeftGestureUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
         val explicitAction = prefs.getString("pref_macro_action_${leftZone}_$leftGesture", null)
-        if (!explicitAction.isNullOrEmpty()) {
+        if (!explicitAction.isNullOrEmpty() && explicitAction != "none") {
             explicitAction
         } else {
             // Mirror right deflector or fallback to intuitive defaults
-            val isRightGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gesture.name)
+            val isRightGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gestureKey)
             val rightZone = if (isFlankUnified && isRightGestureUnified) "UNIFIED" else zoneName
-            val rightAction = prefs.getString("pref_macro_action_${rightZone}_${gesture.name}", null)
-            if (!rightAction.isNullOrEmpty()) {
+            val rightAction = prefs.getString("pref_macro_action_${rightZone}_$gestureKey", null)
+            if (!rightAction.isNullOrEmpty() && rightAction != "none") {
                 rightAction
             } else {
                 getDefaultMacroAction(leftGesture, isLeft = true)
             }
         }
     } else {
-        val isGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gesture.name)
+        val isGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gestureKey)
         val dynamicZone = if (isFlankUnified && isGestureUnified) "UNIFIED" else zoneName
-        val actionKey = "pref_macro_action_${dynamicZone}_${gesture.name}"
+        val actionKey = "pref_macro_action_${dynamicZone}_$gestureKey"
         val explicit = prefs.getString(actionKey, null)
-        if (!explicit.isNullOrEmpty()) {
+        if (!explicit.isNullOrEmpty() && explicit != "none") {
             explicit
         } else {
-            getDefaultMacroAction(gesture.name, isLeft = false)
+            getDefaultMacroAction(gestureKey, isLeft = false)
         }
     }
 

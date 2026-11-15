@@ -58,6 +58,8 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     }
 
     override fun finish() {
+        isActive = false
+        LightspeedAccessibilityService.instance?.hideBaySleepBlackout()
         finishAndRemoveTask()
         super.finish()
         overrideZeroTransition()
@@ -101,6 +103,31 @@ class LightspeedRefuelingActivity : ComponentActivity() {
 
     private var isWaitingForResult: Boolean = false
     private var pendingProvider: AppWidgetProviderInfo? = null
+    @Volatile internal var isCustomSleepScreenOffTriggered: Boolean = false
+    @Volatile internal var isExplicitlyDismissedByUser: Boolean = false
+
+    fun enforceKeepScreenOn() {
+        if (!isCustomSleepScreenOffTriggered) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            window.decorView.keepScreenOn = true
+        }
+    }
+
+    fun clearKeepScreenOnForCustomSleep() {
+        isCustomSleepScreenOffTriggered = true
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.decorView.keepScreenOn = false
+    }
+
+    private fun isDeviceCurrentlyPluggedIn(): Boolean {
+        return try {
+            val intent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val plugged = intent?.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+            plugged != 0
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     private val widgetBindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         isWaitingForResult = false
@@ -155,10 +182,12 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         isActive = true
         isChargingSessionDismissed = false
+        isCustomSleepScreenOffTriggered = false
+        isExplicitlyDismissedByUser = false
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        enforceKeepScreenOn()
         // Lockscreen Wake & Screen-Off Launch
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
@@ -196,8 +225,9 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         loadWidgetsForCurrentMode(initialMode)
 
         setContent {
-            com.sbf.lightspeed.ui.theme.LightspeedTheme(forceDark = true) {
-                RefuelingBayScreen(
+            com.sbf.lightspeed.ui.theme.DeckTheme {
+                com.sbf.lightspeed.ui.theme.LightspeedTheme(forceDark = true) {
+                    RefuelingBayScreen(
                     activity = this,
                     widgetIds = widgetIdsState.toList(),
                     reorderVersion = reorderTriggerState.intValue,
@@ -212,6 +242,8 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                     onToggleLayoutMode = { toggleLayoutMode() },
                     onToggleEditMode = { isEditModeState.value = !isEditModeState.value },
                     onDismiss = {
+                        isExplicitlyDismissedByUser = true
+                        isChargingSessionDismissed = true
                         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                         insetsController.show(WindowInsetsCompat.Type.systemBars())
                         val lp = window.attributes
@@ -220,8 +252,9 @@ class LightspeedRefuelingActivity : ComponentActivity() {
                         finish()
                     },
                     externalInteractionTimestamp = interactionTimestampState.longValue,
-                    onDeployWidgetProvider = { provider -> bindProvider(provider) }
-                )
+                        onDeployWidgetProvider = { provider -> bindProvider(provider) }
+                    )
+                }
             }
         }
     }
@@ -466,6 +499,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         val isLand = isCurrentLandscape()
         if (widgetLayoutModeState.value == "smart_stack") {
             LightspeedPreferences.saveRefuelingStackWidgetIds(this, widgetIdsState.toList())
+            com.sbf.lightspeed.widget.LightspeedStackWidgetProvider.notifyUpdate(this)
         } else {
             LightspeedPreferences.saveRefuelingGridWidgetIds(this, widgetIdsState.toList(), isLand)
         }
@@ -489,6 +523,8 @@ class LightspeedRefuelingActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         isActive = true
+        isCustomSleepScreenOffTriggered = false
+        enforceKeepScreenOn()
         appWidgetHost?.startListening()
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
     }
@@ -497,12 +533,38 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         super.onResume()
         isActive = true
         isWaitingForResult = false
+        isCustomSleepScreenOffTriggered = false
+        enforceKeepScreenOn()
         appWidgetHost?.startListening()
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && !isCustomSleepScreenOffTriggered) {
+            enforceKeepScreenOn()
+        }
+    }
+
     override fun onStop() {
         super.onStop()
+        val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val isInteractive = pm?.isInteractive == true
+        val isKeyguardOrPocketOcclusion = !isInteractive || km?.isKeyguardLocked == true ||
+            LightspeedAccessibilityService.lastAppPackage == "com.android.systemui"
+        val sleepAction = defaultPrefs().getString(LightspeedPreferences.KEY_REFUELING_SLEEP_ACTION, "oled_black") ?: "oled_black"
+
+        // If still plugged in and not explicitly dismissed by the user, do not let system 2-minute
+        // screen timeout or Infinix Pocket Mode / Keyguard occlusion kill Refueling Bay unless
+        // the user's custom sleep action is explicitly "screen_off" and triggered.
+        if (!isChangingConfigurations && !isWaitingForResult && !isExplicitlyDismissedByUser && isDeviceCurrentlyPluggedIn()) {
+            if (!isCustomSleepScreenOffTriggered && (sleepAction != "screen_off" || isKeyguardOrPocketOcclusion)) {
+                enforceKeepScreenOn()
+                return
+            }
+        }
+
         isActive = false
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.show(WindowInsetsCompat.Type.systemBars())
@@ -514,8 +576,7 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
         if (!isChangingConfigurations && !isWaitingForResult) {
             val dismissBehavior = defaultPrefs().getString(LightspeedPreferences.KEY_REFUELING_DISMISS_BEHAVIOR, "session") ?: "session"
-            val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-            val isScreenOffStop = dismissBehavior == "screen_off" && pm?.isInteractive == false
+            val isScreenOffStop = (dismissBehavior == "screen_off" || isCustomSleepScreenOffTriggered) && !isInteractive
             if (!isScreenOffStop) {
                 isChargingSessionDismissed = true
             }
@@ -541,5 +602,10 @@ class LightspeedRefuelingActivity : ComponentActivity() {
         window.attributes = lp
         isActive = false
         LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+        if (!isChangingConfigurations) {
+            TacticalWidgetPreviewCache.clear()
+            com.sbf.lightspeed.system.LightspeedIconManager.temporaryPickerCache.clear()
+            com.sbf.lightspeed.system.LightspeedShortcutManager.temporaryPickerCache.clear()
+        }
     }
 }

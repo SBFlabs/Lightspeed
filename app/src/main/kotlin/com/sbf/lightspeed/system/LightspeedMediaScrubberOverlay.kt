@@ -30,12 +30,23 @@ class LightspeedMediaScrubberOverlay(
         onDismissRequest()
     }
 
-    private val dynamicPrimary: Int
+    private val resolvedAccentColor: Int
         get() {
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getColor(android.R.color.system_accent1_300)
-            } else {
-                0xFF80D8FF.toInt()
+            val prefs = context.defaultPrefs()
+            val mode = LightspeedPreferences.resolveHudColorMode(prefs, actionToken = "system:media_scrubber")
+            return when (mode) {
+                LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        context.getColor(android.R.color.system_accent1_300)
+                    } else {
+                        0xFF80D8FF.toInt()
+                    }
+                }
+                else -> {
+                    val raw = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context).effectiveTintArgb.toInt()
+                    val rgb = raw and 0x00FFFFFF
+                    if (rgb == 0) 0xFF00E5FF.toInt() else (rgb or 0xFF000000.toInt())
+                }
             }
         }
 
@@ -56,11 +67,27 @@ class LightspeedMediaScrubberOverlay(
         handler.postDelayed(dismissRunnable, delayMs)
     }
 
+    private val screenLoc = IntArray(2)
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val density = resources.displayMetrics.density
+        if (com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isHudCapturing) {
+            return
+        }
+        getLocationOnScreen(screenLoc)
+        val dm = resources.displayMetrics
+        LightspeedHudRenderer.updateOverlayScreenCoordinates(
+            screenX = screenLoc[0],
+            screenY = screenLoc[1],
+            displayWidthPx = dm.widthPixels,
+            displayHeightPx = dm.heightPixels
+        )
+        val density = dm.density
         val cx = width / 2f
         val topY = (10f * density)
+        val prefs = context.defaultPrefs()
+        val mode = LightspeedPreferences.resolveHudColorMode(prefs, actionToken = "system:media_scrubber")
+        val useCentralTheme = mode != LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
 
         drawMediaScrubberHud(
             canvas = canvas,
@@ -70,10 +97,11 @@ class LightspeedMediaScrubberOverlay(
             durationMs = trackInfo.durationMs,
             cx = cx,
             topY = topY,
-            primaryColor = dynamicPrimary,
+            primaryColor = resolvedAccentColor,
             d = density,
             isSeeking = isSeeking,
-            seekFraction = seekFraction
+            seekFraction = seekFraction,
+            context = if (useCentralTheme) context else null
         )
     }
 
@@ -256,7 +284,8 @@ class LightspeedMediaScrubberOverlay(
             primaryColor: Int,
             d: Float,
             isSeeking: Boolean = false,
-            seekFraction: Float = -1f
+            seekFraction: Float = -1f,
+            context: Context? = null
         ) {
             resetSharedPaints()
             val cardW = 330f * d
@@ -269,21 +298,31 @@ class LightspeedMediaScrubberOverlay(
             val g = Color.green(primaryColor)
             val b = Color.blue(primaryColor)
 
-            // 1. Frosted Prism Backplane — cached shader
-            val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, primaryColor)
+            // 1. Frosted Prism Backplane — 12-Theme Screenshot Blur + translucent glass tint
+            val path = createChamferedPath(rect, chamfer)
+            val spec = LightspeedHudThemeHelper.resolveSpec(context != null, primaryColor, d)
+            LightspeedHudRenderer.drawHudBackdropLayer(canvas, path, 0f, 0f, 0f, spec)
+            val pA = if (spec.isCentralTheme) {
+                (spec.panelAlpha * 255).toInt().coerceIn(38, 250)
+            } else {
+                (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
+            }
+            val pR = Color.red(spec.panelColor)
+            val pG = Color.green(spec.panelColor)
+            val pB = Color.blue(spec.panelColor)
+            val glassKey = gradKey4f(rect.left, rect.top, rect.left, rect.bottom, spec.panelColor) xor primaryColor.toLong() xor pA.toLong()
             if (glassKey != mediaGlassKey) {
                 mediaGlassShader = LinearGradient(
                     rect.left, rect.top, rect.left, rect.bottom,
                     intArrayOf(
-                        Color.argb(225, (16 + r * 0.08f).toInt().coerceIn(0, 255), (20 + g * 0.08f).toInt().coerceIn(0, 255), (32 + b * 0.08f).toInt().coerceIn(0, 255)),
-                        Color.argb(245, (10 + r * 0.04f).toInt().coerceIn(0, 255), (14 + g * 0.04f).toInt().coerceIn(0, 255), (24 + b * 0.04f).toInt().coerceIn(0, 255))
+                        Color.argb(pA, (pR + r * 0.10f).toInt().coerceIn(0, 255), (pG + g * 0.10f).toInt().coerceIn(0, 255), (pB + b * 0.10f).toInt().coerceIn(0, 255)),
+                        Color.argb((pA * 1.05f).toInt().coerceIn(0, 255), pR, pG, pB)
                     ),
                     floatArrayOf(0f, 1f),
                     Shader.TileMode.CLAMP
                 )
                 mediaGlassKey = glassKey
             }
-            val path = createChamferedPath(rect, chamfer)
             glassFillPaint.withShader(mediaGlassShader) {
                 canvas.drawPath(path, it)
             }

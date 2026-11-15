@@ -181,6 +181,9 @@ fun GestureGenericScrubDualRowControls(
             verticalAlignment = Alignment.CenterVertically
         ) {
             extraRow1Content?.invoke(this)
+            if (currentRawValue == "system:media_scrubber") {
+                GestureMediaScrubControls(context, prefs, activeSnapshot)
+            }
             GestureHudStyleDropdown(context, prefs, key, currentRawValue, activeSnapshot)
         }
 

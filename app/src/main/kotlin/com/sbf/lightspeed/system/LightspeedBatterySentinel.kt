@@ -29,6 +29,7 @@ object LightspeedBatterySentinel {
 
     private var isInitialized = false
     private var hasAlertedThisSession = false
+    private var registeredAppCtx: Context? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent?) {
@@ -51,6 +52,9 @@ object LightspeedBatterySentinel {
     fun init(context: Context) {
         if (isInitialized) return
         val appCtx = context.applicationContext ?: context
+        if (!appCtx.defaultPrefs().getBoolean(LightspeedPreferences.KEY_CHARGE_LIMIT_SENTINEL_ENABLED, false)) {
+            return
+        }
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED)
             addAction(Intent.ACTION_POWER_DISCONNECTED)
@@ -58,9 +62,36 @@ object LightspeedBatterySentinel {
         }
         try {
             ContextCompat.registerReceiver(appCtx, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            registeredAppCtx = appCtx
             isInitialized = true
         } catch (e: Exception) {
             logSwallowed(TAG, "init", e)
+        }
+    }
+
+    fun destroy() {
+        val appCtx = registeredAppCtx ?: return
+        if (isInitialized) {
+            try {
+                appCtx.unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                logSwallowed(TAG, "destroy", e)
+            }
+            isInitialized = false
+        }
+        hasAlertedThisSession = false
+        registeredAppCtx = null
+    }
+
+    fun setSentinelEnabled(context: Context, enabled: Boolean) {
+        val appCtx = context.applicationContext ?: context
+        appCtx.defaultPrefs().edit()
+            .putBoolean(LightspeedPreferences.KEY_CHARGE_LIMIT_SENTINEL_ENABLED, enabled)
+            .apply()
+        if (enabled) {
+            init(appCtx)
+        } else {
+            destroy()
         }
     }
 
@@ -98,7 +129,7 @@ object LightspeedBatterySentinel {
             Handler(Looper.getMainLooper()).post {
                 Toast.makeText(
                     context,
-                    "⚡ Charge Limit Sentinel: Battery reached $levelPct%! Unplug to protect battery health.",
+                    ":: Charge Limit Sentinel: Battery reached $levelPct%! Unplug to protect battery health.",
                     Toast.LENGTH_LONG
                 ).show()
             }

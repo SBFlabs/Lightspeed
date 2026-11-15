@@ -50,6 +50,10 @@ object CruiseScrubEngine {
         if (showHud) {
             val fallbackKey = actionKey ?: "pref_macro_action_SCRUBBING"
             val hudStyle = LightspeedPreferences.resolveHudStyle(prefs, fallbackKey, scrubType)
+            if (scrubType == "system:media_scrubber" && hudStyle == "prism_timeline") {
+                com.sbf.lightspeed.system.LightspeedMediaManager.showScrubber(context)
+                return
+            }
             val hudColorMode = LightspeedPreferences.resolveHudColorMode(prefs, fallbackKey, scrubType)
 
             LightspeedStatusBarOverlay.showActionHud(
@@ -287,6 +291,61 @@ object CruiseScrubEngine {
             totalSteps = LightspeedTimeoutEngine.TIMEOUT_STEPS.size
         )
     }
+
+    fun executeMediaScrub(
+        context: Context,
+        prefs: SharedPreferences,
+        steps: Int,
+        actionKey: String?,
+        onHaptic: (() -> Unit)? = null
+    ): ScrubResult {
+        if (steps != 0) {
+            com.sbf.lightspeed.system.LightspeedMediaManager.stepHardwareScrubber(
+                context = context,
+                isForward = steps > 0,
+                steps = steps
+            )
+            onHaptic?.invoke()
+        }
+        val hudStyle = LightspeedPreferences.resolveHudStyle(
+            prefs,
+            actionKey ?: "pref_macro_action_SCRUBBING",
+            "system:media_scrubber"
+        )
+        if (hudStyle == "prism_timeline") {
+            com.sbf.lightspeed.system.LightspeedMediaManager.showScrubber(context)
+        }
+        val track = com.sbf.lightspeed.system.LightspeedMediaManager.getActiveTrackInfo(context)
+        val stepSec = prefs.getInt(LightspeedPreferences.KEY_MEDIA_SCRUB_STEP_SEC, 5).coerceIn(2, 60)
+        val title = if (track.title.isNotBlank()) {
+            "MEDIA · ${track.title.uppercase()}"
+        } else {
+            "MEDIA TIMELINE"
+        }
+        val value = when {
+            track.durationMs > 0L -> {
+                val posStr = com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay.formatTime(track.positionMs)
+                val durStr = com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay.formatTime(track.durationMs)
+                "$posStr / $durStr"
+            }
+            steps > 0 -> "+${stepSec * abs(steps)}s SEEK ▸▸"
+            steps < 0 -> "◂◂ -${stepSec * abs(steps)}s SEEK"
+            track.isPlaying -> "${com.sbf.lightspeed.system.LightspeedMediaScrubberOverlay.formatTime(track.positionMs)} · LIVE"
+            else -> "READY (${stepSec}s STEP)"
+        }
+        val stepIdx = if (track.durationMs > 0L) {
+            ((track.positionMs * 100L) / track.durationMs).toInt().coerceIn(0, 100)
+        } else {
+            50
+        }
+        return ScrubResult(
+            title = title,
+            value = value,
+            currentValue = stepIdx,
+            stepIndex = stepIdx,
+            totalSteps = 100
+        )
+    }
 }
 
 internal fun LightspeedCruiseOverlay.dispatchScrubHud(title: String, value: String, stepIndex: Int, totalSteps: Int) {
@@ -363,7 +422,12 @@ internal fun LightspeedCruiseOverlay.executeLinearScrubTrack(zone: TouchZone, pi
                 invalidate()
             }
             "system:media_scrubber" -> {
-                com.sbf.lightspeed.system.LightspeedMediaManager.stepHardwareScrubber(context, isForward = steps > 0)
+                val fallbackKey = activeHoldScrubActionKey ?: "pref_macro_action_${dynamicZone}_SCRUBBING"
+                val res = CruiseScrubEngine.executeMediaScrub(context, prefs, steps, fallbackKey)
+                scrubHudTitle = res.title
+                scrubHudValue = res.value
+                dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
+                invalidate()
             }
         }
     }

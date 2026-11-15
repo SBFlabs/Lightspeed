@@ -67,7 +67,7 @@ fun GestureHoldDurationControl(
         var applyToAll by remember { mutableStateOf(false) }
         var isHoldFlyoutOpen by remember { mutableStateOf(false) }
         var isTapToJumpHold by remember {
-            mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_$perGestureHoldKey", false))
+            mutableStateOf(prefs.getBoolean(LightspeedPreferences.keySliderTapToJump(perGestureHoldKey), false))
         }
 
         DeckDialog(
@@ -211,7 +211,7 @@ fun GestureHoldDurationControl(
                 isTapToJumpEnabled = isTapToJumpHold,
                 onTapToJumpChanged = { enabled ->
                     isTapToJumpHold = enabled
-                    prefs.edit().putBoolean("pref_slider_tap_to_jump_$perGestureHoldKey", enabled).apply()
+                    prefs.edit().putBoolean(LightspeedPreferences.keySliderTapToJump(perGestureHoldKey), enabled).apply()
                 }
             )
         }

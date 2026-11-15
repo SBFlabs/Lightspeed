@@ -1,28 +1,41 @@
 package com.sbf.lightspeed
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sbf.lightspeed.settings.DeckButton
+import com.sbf.lightspeed.settings.deckGlassSurface
+import com.sbf.lightspeed.settings.resolveOpticalColors
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 
+/**
+ * Central-Command-aligned 12-Theme toolbar for switching Refueling Bay Stack/Grid modes,
+ * toggling edit controls, mounting widgets, and toggling Smart Stack page memory.
+ */
 @Composable
 fun WidgetEngineToolbar(
     widgetCount: Int,
@@ -35,151 +48,133 @@ fun WidgetEngineToolbar(
     isStackMemoryEnabled: Boolean = false,
     onToggleStackMemory: () -> Unit = {}
 ) {
-    val lsColors = LightspeedStyle.colors
+    val snapshot = LocalDeckTheme.current
+    val opticalColors = snapshot.resolveOpticalColors()
+    val cornerRadius = (snapshot.cornerRadiusDp * 0.40f).coerceIn(8f, 14f).dp
+    val statusShape = RoundedCornerShape(cornerRadius)
+    val countLabel = widgetCount.toString().padStart(2, '0')
+    val modeLabel = if (widgetLayoutMode == "smart_stack") "STACK" else "GRID"
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 2.dp),
-        horizontalArrangement = Arrangement.End,
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Cockpit Action Modules (Laid out Left-to-Right in code so Right-to-Left on screen is: 1. GRID/STACK, 2. CONFIG, 3. MODULE, 4. MEMORY)
+        // Left interactive telemetry badge: quick layout mode status & one-tap Stack <-> Grid switch
+        Row(
+            modifier = Modifier
+                .height(30.dp)
+                .clip(statusShape)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            opticalColors.panelColor.copy(alpha = 0.72f),
+                            opticalColors.panelColor.copy(alpha = 0.52f)
+                        )
+                    )
+                )
+                .border(1.dp, opticalColors.borderColor.copy(alpha = 0.36f), statusShape)
+                .clickable { onToggleLayoutMode() }
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = if (widgetLayoutMode == "smart_stack") Icons.Default.ViewCarousel else Icons.Default.GridView,
+                contentDescription = "Active Layout",
+                tint = opticalColors.readableTintColor,
+                modifier = Modifier.size(12.dp)
+            )
+            Text(
+                text = "$modeLabel · $countLabel",
+                fontSize = 9.5.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.90f),
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+
+        // Right Central-Command DeckButtons
         Row(
             modifier = Modifier.wrapContentSize(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 4th from Right (Leftmost): Smart Stack Page Memory Toggle [MEM: ON / OFF]
             if (widgetLayoutMode == "smart_stack") {
-                Row(
-                    modifier = Modifier
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(
-                            if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                            else LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.85f)
-                        )
-                        .border(
-                            1.dp,
-                            if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary
-                            else lsColors.textPrimary.copy(alpha = 0.15f),
-                            RoundedCornerShape(6.dp)
-                        )
-                        .clickable { onToggleStackMemory() }
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Memory,
-                        contentDescription = "Toggle Stack Memory",
-                        tint = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.65f),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = if (isStackMemoryEnabled) "MEM: ON" else "MEM: OFF",
-                        fontSize = 9.5.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isStackMemoryEnabled) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.65f)
-                    )
-                }
-            }
-
-            // 3rd from Right: Edit / Configure Mode Toggle [CONFIG / LOCK]
-            Row(
-                modifier = Modifier
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(
-                        if (isEditMode) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                        else LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.85f)
-                    )
-                    .border(
-                        1.dp,
-                        if (isEditMode) MaterialTheme.colorScheme.primary
-                        else lsColors.textPrimary.copy(alpha = 0.15f),
-                        RoundedCornerShape(6.dp)
-                    )
-                    .clickable { onToggleEditMode() }
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = if (isEditMode) Icons.Default.Done else Icons.Default.Tune,
-                    contentDescription = "Edit Widgets",
-                    tint = if (isEditMode) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.85f),
-                    modifier = Modifier.size(13.dp)
-                )
-                Text(
-                    text = if (isEditMode) "LOCK" else "CONFIG",
-                    fontSize = 9.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isEditMode) MaterialTheme.colorScheme.primary else lsColors.textPrimary.copy(alpha = 0.85f)
+                ToolbarDeckPillButton(
+                    icon = Icons.Default.Memory,
+                    label = if (isStackMemoryEnabled) "MEM:ON" else "MEM",
+                    isActive = isStackMemoryEnabled,
+                    onClick = onToggleStackMemory
                 )
             }
 
-            // 2nd from Right: Add Widget Module [+ MODULE]
-            Row(
-                modifier = Modifier
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
-                    .clickable { onAddWidget() }
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Widget",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(13.dp)
-                )
-                Text(
-                    text = "MODULE",
-                    fontSize = 9.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            ToolbarDeckPillButton(
+                icon = if (isEditMode) Icons.Default.Done else Icons.Default.Tune,
+                label = if (isEditMode) "DONE" else "EDIT",
+                isActive = isEditMode,
+                onClick = onToggleEditMode
+            )
 
-            // 1st from Right (Rightmost): Mode Switcher [GRID / STACK]
-            Row(
-                modifier = Modifier
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(LightspeedTokens.TacticalSurfaceCard.copy(alpha = 0.85f))
-                    .border(1.dp, lsColors.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                    .clickable { onToggleLayoutMode() }
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
-                    contentDescription = "Switch Layout",
-                    tint = lsColors.textPrimary.copy(alpha = 0.85f),
-                    modifier = Modifier.size(13.dp)
-                )
-                Text(
-                    text = if (widgetLayoutMode == "smart_stack") "GRID" else "STACK",
-                    fontSize = 9.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = lsColors.textPrimary.copy(alpha = 0.85f)
-                )
-            }
+            ToolbarDeckPillButton(
+                icon = Icons.Default.Add,
+                label = "ADD",
+                isActive = true,
+                onClick = onAddWidget
+            )
+
+            ToolbarDeckPillButton(
+                icon = if (widgetLayoutMode == "smart_stack") Icons.Default.GridView else Icons.Default.ViewCarousel,
+                label = if (widgetLayoutMode == "smart_stack") "GRID" else "STACK",
+                isActive = false,
+                onClick = onToggleLayoutMode
+            )
         }
     }
 }
 
+@Composable
+private fun ToolbarDeckPillButton(
+    icon: ImageVector,
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    val snapshot = LocalDeckTheme.current
+    val opticalColors = snapshot.resolveOpticalColors()
+    val tint = if (isActive) opticalColors.readableTintColor else Color.White.copy(alpha = 0.90f)
+    DeckButton(
+        onClick = onClick,
+        isActive = isActive,
+        snapshot = snapshot,
+        modifier = Modifier.height(30.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(12.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            fontSize = 9.5.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            color = tint,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
 /**
- * Integrated Tactical HUD badge for reordering and ejecting widget modules in Edit Mode.
+ * Integrated 12-Theme glass pill for reordering, configuring, and removing widget panels in Edit Mode.
  */
 @Composable
 internal fun TacticalWidgetEditControls(
@@ -189,106 +184,96 @@ internal fun TacticalWidgetEditControls(
     onMoveForward: () -> Unit,
     onRemove: () -> Unit,
     onConfigure: (() -> Unit)? = null,
+    onTune: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isCompact: Boolean = false
 ) {
-    val lsColors = LightspeedStyle.colors
-    val btnSize = if (isCompact) 20.dp else 26.dp
-    val iconSize = if (isCompact) 11.dp else 14.dp
+    val snapshot = LocalDeckTheme.current
+    val opticalColors = snapshot.resolveOpticalColors()
+    val pillCorner = (snapshot.cornerRadiusDp * 0.42f).coerceIn(8f, 14f).dp
+    val pillShape = RoundedCornerShape(pillCorner)
+    val btnSize = if (isCompact) 22.dp else 26.dp
+    val iconSize = if (isCompact) 12.dp else 14.dp
 
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(LightspeedTokens.TacticalSurfaceDeepAlt.copy(alpha = 0.96f))
-            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.50f), RoundedCornerShape(6.dp))
-            .padding(horizontal = if (isCompact) 3.dp else 5.dp, vertical = 2.dp),
+            .clip(pillShape)
+            .deckGlassSurface(
+                snapshot = snapshot,
+                isBlurAvailable = false,
+                isCard = true,
+                withNoise = false,
+                shapeOverride = pillShape
+            )
+            .padding(horizontal = if (isCompact) 4.dp else 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(if (isCompact) 2.dp else 4.dp)
+        horizontalArrangement = Arrangement.spacedBy(if (isCompact) 3.dp else 4.dp)
     ) {
         if (canMoveBack) {
-            Box(
-                modifier = Modifier
-                    .size(btnSize)
-                    .clip(RoundedCornerShape(4.dp))
-                    .clickable { onMoveBack() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Shift Prev",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(iconSize)
-                )
-            }
+            CompactGlassActionIcon(
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Move Earlier",
+                tint = opticalColors.readableTintColor,
+                size = btnSize,
+                iconSize = iconSize,
+                onClick = onMoveBack
+            )
         }
         if (canMoveForward) {
-            Box(
-                modifier = Modifier
-                    .size(btnSize)
-                    .clip(RoundedCornerShape(4.dp))
-                    .clickable { onMoveForward() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Shift Next",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(iconSize)
-                )
-            }
+            CompactGlassActionIcon(
+                icon = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = "Move Later",
+                tint = opticalColors.readableTintColor,
+                size = btnSize,
+                iconSize = iconSize,
+                onClick = onMoveForward
+            )
         }
-
         if (onConfigure != null) {
-            Box(
-                modifier = Modifier
-                    .size(btnSize)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(lsColors.textPrimary.copy(alpha = 0.08f))
-                    .border(0.8.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.40f), RoundedCornerShape(4.dp))
-                    .clickable { onConfigure() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Configure Widget",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(iconSize)
-                )
-            }
+            CompactGlassActionIcon(
+                icon = Icons.Default.Edit,
+                contentDescription = "Configure Widget",
+                tint = opticalColors.readableTintColor,
+                size = btnSize,
+                iconSize = iconSize,
+                onClick = onConfigure
+            )
+        }
+        if (onTune != null) {
+            CompactGlassActionIcon(
+                icon = Icons.Default.Tune,
+                contentDescription = "Tune Widget Layout",
+                tint = opticalColors.readableTintColor,
+                size = btnSize,
+                iconSize = iconSize,
+                onClick = onTune
+            )
         }
 
         Box(
             modifier = Modifier
                 .height(if (isCompact) 12.dp else 14.dp)
                 .width(1.dp)
-                .background(lsColors.textPrimary.copy(alpha = 0.25f))
+                .background(opticalColors.borderColor.copy(alpha = 0.35f))
         )
 
-        // Eject / Remove Button
-        Row(
+        val removeCorner = (snapshot.cornerRadiusDp * 0.28f).coerceIn(5f, 9f).dp
+        val removeShape = RoundedCornerShape(removeCorner)
+        Surface(
             modifier = Modifier
-                .height(btnSize)
-                .clip(RoundedCornerShape(4.dp))
-                .background(LightspeedTokens.StatusDangerAlt.copy(alpha = 0.22f))
-                .border(0.8.dp, LightspeedTokens.StatusDangerAlt.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                .clickable { onRemove() }
-                .padding(horizontal = if (isCompact) 5.dp else 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                .size(btnSize)
+                .clip(removeShape)
+                .clickable { onRemove() },
+            shape = removeShape,
+            color = MaterialTheme.colorScheme.error.copy(alpha = 0.26f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.72f))
         ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Eject",
-                tint = LightspeedTokens.StatusDangerFlash,
-                modifier = Modifier.size(iconSize)
-            )
-            if (!isCompact) {
-                Text(
-                    text = "EJECT",
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = LightspeedTokens.StatusDangerFlash
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove Widget",
+                    tint = LightspeedTokens.StatusDangerFlash,
+                    modifier = Modifier.size(iconSize)
                 )
             }
         }
@@ -296,8 +281,39 @@ internal fun TacticalWidgetEditControls(
 }
 
 @Composable
+private fun CompactGlassActionIcon(
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color,
+    size: androidx.compose.ui.unit.Dp,
+    iconSize: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit
+) {
+    val snapshot = LocalDeckTheme.current
+    val corner = (snapshot.cornerRadiusDp * 0.28f).coerceIn(5f, 9f).dp
+    val shape = RoundedCornerShape(corner)
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.08f))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
+@Composable
 fun EmptyWidgetSlot(onPickWidget: () -> Unit) {
     val lsColors = LightspeedStyle.colors
+    val snapshot = LocalDeckTheme.current
+    val opticalColors = snapshot.resolveOpticalColors()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -309,24 +325,24 @@ fun EmptyWidgetSlot(onPickWidget: () -> Unit) {
         Icon(
             imageVector = Icons.Default.AddCircleOutline,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = opticalColors.readableTintColor,
             modifier = Modifier.size(32.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "[ MOUNT AVIONICS MODULE ]",
+            text = "ADD WIDGET PANEL",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
-            letterSpacing = 1.2.sp,
+            letterSpacing = 1.sp,
             color = lsColors.textPrimary
         )
         Spacer(modifier = Modifier.height(3.dp))
         Text(
-            text = "Tap to browse tactical widget catalog",
+            text = "Tap to choose an app widget",
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            color = lsColors.textSecondary.copy(alpha = 0.65f)
+            color = lsColors.textSecondary.copy(alpha = 0.72f)
         )
     }
 }

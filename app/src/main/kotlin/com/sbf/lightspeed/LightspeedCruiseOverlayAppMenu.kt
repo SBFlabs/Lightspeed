@@ -17,6 +17,7 @@ internal enum class PinnedMenuItem {
     SPLIT_WITH,
     POPUP_WINDOW,
     CHANGE_CATEGORY,
+    CHANGE_ICON,
     UNINSTALL,
     NONE
 }
@@ -27,15 +28,21 @@ internal fun LightspeedCruiseOverlay.closePinnedAppMenu() {
     stickyPinLongPressFired = false
     pinnedMenuApp = null
     pinnedMenuCategoryMode = false
+    pinnedMenuNetPillRect.setEmpty()
+    pinnedMenuAlertsPillRect.setEmpty()
+    pinnedMenuPrivacyInfoRect.setEmpty()
 }
 
 internal fun LightspeedCruiseOverlay.isPinnedAppMenuOpen(): Boolean = pinnedMenuApp != null
 
+private fun getPinnedMenuHeaderHeightDp(): Float = 66f
+
 internal fun LightspeedCruiseOverlay.getPinnedAppMenuBounds(): RectF {
     val dp = resources.displayMetrics.density
-    val menuW = 168f * dp
-    val rowH = 44f * dp
-    val menuH = rowH * 6f
+    val menuW = (238f * dp).coerceAtMost(width.toFloat() - 24f * dp)
+    val rowH = 42f * dp
+    val headerH = getPinnedMenuHeaderHeightDp() * dp
+    val menuH = headerH + (rowH * 7f)
     val margin = 12f * dp
     val screenW = width.toFloat()
     val screenH = height.toFloat()
@@ -77,14 +84,18 @@ internal fun LightspeedCruiseOverlay.hitTestPinnedAppMenu(x: Float, y: Float): P
     if (pinnedMenuApp == null) return PinnedMenuItem.NONE
     val bounds = getPinnedAppMenuBounds()
     if (!bounds.contains(x, y)) return PinnedMenuItem.NONE
-    val rowH = bounds.height() / 6f
-    val offset = y - bounds.top
+    val dp = resources.displayMetrics.density
+    val headerH = getPinnedMenuHeaderHeightDp() * dp
+    val offset = y - bounds.top - headerH
+    if (offset < 0f) return PinnedMenuItem.NONE
+    val rowH = (bounds.height() - headerH) / 7f
     return when {
         offset < rowH -> PinnedMenuItem.APP_INFO
         offset < rowH * 2f -> PinnedMenuItem.SPLIT_WITH
         offset < rowH * 3f -> PinnedMenuItem.SPLIT_SCREEN
         offset < rowH * 4f -> PinnedMenuItem.POPUP_WINDOW
         offset < rowH * 5f -> PinnedMenuItem.CHANGE_CATEGORY
+        offset < rowH * 6f -> PinnedMenuItem.CHANGE_ICON
         else -> PinnedMenuItem.UNINSTALL
     }
 }
@@ -124,6 +135,27 @@ internal fun LightspeedCruiseOverlay.handlePinnedAppMenuTap(x: Float, y: Float) 
             closePinnedAppMenu()
         }
     } else {
+        if (!pinnedMenuPrivacyInfoRect.isEmpty && pinnedMenuPrivacyInfoRect.contains(x, y)) {
+            triggerHardwareHaptic(18, 90)
+            privacyScoreInfoRect.set(pinnedMenuPrivacyInfoRect)
+            isPrivacyScoreInfoBubbleOpen = true
+            invalidate()
+            return
+        }
+        if (!pinnedMenuNetPillRect.isEmpty && pinnedMenuNetPillRect.contains(x, y)) {
+            triggerHardwareHaptic(22, 110)
+            LightspeedCruiseHudPods.toggleAppFirewall(context, target.packageName, target.label)
+            invalidate()
+            return
+        }
+        if (!pinnedMenuAlertsPillRect.isEmpty && pinnedMenuAlertsPillRect.contains(x, y)) {
+            triggerHardwareHaptic(20, 100)
+            val pkg = target.packageName
+            closePinnedAppMenu()
+            openAlertsHistoryModal(pkg)
+            invalidate()
+            return
+        }
         val hitItem = hitTestPinnedAppMenu(x, y)
         when (hitItem) {
             PinnedMenuItem.OPEN -> {
@@ -173,6 +205,23 @@ internal fun LightspeedCruiseOverlay.handlePinnedAppMenuTap(x: Float, y: Float) 
                 pinnedMenuCategoryMode = true
                 triggerHardwareHaptic(25, 120)
             }
+            PinnedMenuItem.CHANGE_ICON -> {
+                val activeCatId = cachedCategories.getOrNull(activeCatIndex)?.id ?: "comm"
+                closePinnedAppMenu()
+                dismissOverlay()
+                try {
+                    val intent = Intent(context, CockpitDialogActivity::class.java).apply {
+                        action = CockpitDialogActivity.ACTION_EDIT_ITEM
+                        putExtra(CockpitDialogActivity.EXTRA_TOKEN, target.packageName)
+                        putExtra(CockpitDialogActivity.EXTRA_OPEN_ICON_PACK_BROWSER, true)
+                        putExtra(CockpitDialogActivity.EXTRA_RETURN_CATEGORY_ID, activeCatId)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Log.e("PinnedAppMenu", "Failed to open icon picker for ${target.packageName}", e)
+                }
+            }
             PinnedMenuItem.UNINSTALL -> {
                 closePinnedAppMenu()
                 dismissOverlay()
@@ -195,7 +244,7 @@ internal fun LightspeedCruiseOverlay.handlePinnedAppMenuTap(x: Float, y: Float) 
 }
 
 internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Paint) {
-    if (pinnedMenuApp == null) return
+    val target = pinnedMenuApp ?: return
     if (pinnedMenuCategoryMode) {
         drawPinnedAppCategoryMenu(canvas, paint)
         return
@@ -203,15 +252,144 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
 
     val dp = resources.displayMetrics.density
     val bounds = getPinnedAppMenuBounds()
-    val rowH = bounds.height() / 6f
+    val headerH = getPinnedMenuHeaderHeightDp() * dp
+    val listTop = bounds.top + headerH
+    val rowH = (bounds.height() - headerH) / 7f
 
     // Theme-driven optical styling
     val snapshot = com.sbf.lightspeed.settings.DeckThemeManager.getSnapshot(context)
     val cornerRadius = (snapshot.cornerRadiusDp * 0.65f).coerceIn(10f, 24f) * dp
     val borderColor = snapshot.borderColorArgb.toInt()
+    val tintColor = snapshot.tintArgb.toInt()
 
     // 1-4. Full 12-theme optical flyout surface (shadow, dense substrate, light deflection, specular cap & border)
     drawDeckThemedFlyoutSurface(canvas, bounds, snapshot, cornerRadius, dp, paint)
+
+    // Compact Focused App Inspector telemetry header
+    val telemetry = LightspeedCruiseHudPods.focusedAppTelemetry(context, target.packageName, target.label)
+    val padX = 14f * dp
+    val iconSz = 28f * dp
+    val iconTop = bounds.top + 10f * dp
+    val icon = applicationIconCache[target.packageName]
+    if (icon != null) {
+        icon.setBounds(
+            (bounds.left + padX).toInt(),
+            iconTop.toInt(),
+            (bounds.left + padX + iconSz).toInt(),
+            (iconTop + iconSz).toInt()
+        )
+        icon.draw(canvas)
+    }
+
+    val titleLeft = if (icon != null) bounds.left + padX + iconSz + 8f * dp else bounds.left + padX
+    val maxTextW = (bounds.right - padX - titleLeft).coerceAtLeast(40f * dp)
+
+    paint.style = Paint.Style.FILL
+    paint.textAlign = Paint.Align.LEFT
+    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.textSize = 12.5f * dp
+    paint.color = Color.argb(250, 245, 248, 255)
+    canvas.drawText(ellipsizeMenuText(target.label, paint, maxTextW), titleLeft, iconTop + 12f * dp, paint)
+
+    paint.typeface = android.graphics.Typeface.MONOSPACE
+    paint.textSize = 8.2f * dp
+    paint.color = Color.argb(220, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
+    canvas.drawText(ellipsizeMenuText(target.packageName, paint, maxTextW), titleLeft, iconTop + 23f * dp, paint)
+
+    // Compact telemetry line: Privacy Score + Tappable NET/BLOCKED Pill + Tappable ALERTS Pill
+    val score = telemetry.profile.score
+    val scoreColor = LightspeedPrivacyProfiler.scoreColor(score)
+    val netKind = when {
+        telemetry.firewallBlocked -> "BLOCKED"
+        telemetry.profile.hasInternet -> "NET"
+        else -> "OFFLINE"
+    }
+    val netColor = when (netKind) {
+        "BLOCKED" -> Color.rgb(239, 68, 68)
+        "OFFLINE" -> Color.rgb(34, 197, 94)
+        else -> tintColor
+    }
+    val pillH = 15f * dp
+    val pillTop = bounds.top + headerH - pillH - 4f * dp
+    val fmHead = paint.fontMetrics
+    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.textSize = 8.0f * dp
+    paint.textAlign = Paint.Align.LEFT
+    paint.color = scoreColor
+    val scoreTxt = LightspeedPrivacyProfiler.formatScore(score)
+    val scoreW = paint.measureText(scoreTxt)
+    val scoreX = bounds.left + padX
+    canvas.drawText(scoreTxt, scoreX, pillTop + pillH * 0.5f - ((fmHead.descent + fmHead.ascent) / 2f), paint)
+
+    // Tappable [ ! ] Privacy Score Formula Info Button
+    val infoSz = 13.5f * dp
+    val infoLeft = scoreX + scoreW + 4f * dp
+    val infoRect = RectF(infoLeft, pillTop + (pillH - infoSz) * 0.5f, infoLeft + infoSz, pillTop + (pillH + infoSz) * 0.5f)
+    pinnedMenuPrivacyInfoRect.set(infoRect)
+    paint.style = Paint.Style.FILL
+    paint.color = Color.argb(55, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
+    canvas.drawRoundRect(infoRect, 3.8f * dp, 3.8f * dp, paint)
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 0.85f * dp
+    paint.color = Color.argb(140, Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor))
+    canvas.drawRoundRect(infoRect, 3.8f * dp, 3.8f * dp, paint)
+    paint.style = Paint.Style.FILL
+    paint.textAlign = Paint.Align.CENTER
+    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.textSize = 8.2f * dp
+    paint.color = Color.WHITE
+    canvas.drawText("!", infoRect.centerX(), infoRect.centerY() - ((fmHead.descent + fmHead.ascent) / 2f), paint)
+
+    val netPillRect = LightspeedHudVectorIcons.drawVectorPill(
+        canvas = canvas,
+        left = infoRect.right + 5f * dp,
+        top = pillTop,
+        height = pillH,
+        label = netKind,
+        iconKind = netKind,
+        pillColor = netColor,
+        bgAlpha = 48,
+        borderAlpha = 130,
+        textAlpha = 250,
+        density = dp,
+        textPaint = paint
+    )
+    pinnedMenuNetPillRect.set(netPillRect)
+
+    val alertLabel = "${telemetry.alertCount} ALERTS"
+    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    paint.textSize = 7.6f * dp
+    val estAlertW = 19f * dp + paint.measureText(alertLabel)
+    val alertRect = LightspeedHudVectorIcons.drawVectorPill(
+        canvas = canvas,
+        left = (bounds.right - padX - estAlertW).coerceAtLeast(netPillRect.right + 4f * dp),
+        top = pillTop,
+        height = pillH,
+        label = alertLabel,
+        iconKind = "ALERTS",
+        pillColor = tintColor,
+        bgAlpha = 48,
+        borderAlpha = 130,
+        textAlpha = 250,
+        density = dp,
+        textPaint = paint
+    )
+    pinnedMenuAlertsPillRect.set(alertRect)
+
+    val scrnStr = telemetry.screenTimeTodayMs?.let { LightspeedCruiseHudPods.formatDurationCompact(it) } ?: "--"
+    paint.textAlign = Paint.Align.RIGHT
+    paint.typeface = android.graphics.Typeface.MONOSPACE
+    paint.textSize = 7.6f * dp
+    paint.color = Color.argb(215, 215, 228, 248)
+    if (alertRect.left - netPillRect.right > paint.measureText(scrnStr) + 8f * dp) {
+        canvas.drawText(scrnStr, alertRect.left - 5f * dp, pillTop + pillH * 0.5f - ((fmHead.descent + fmHead.ascent) / 2f), paint)
+    }
+
+    // Header separator
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = 1.2f * dp
+    paint.color = Color.argb(95, Color.red(borderColor), Color.green(borderColor), Color.blue(borderColor))
+    canvas.drawLine(bounds.left + 12f * dp, listTop, bounds.right - 12f * dp, listTop, paint)
 
     // 5. Divider lines between rows
     paint.strokeWidth = 1f * dp
@@ -221,8 +399,8 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
         Color.green(borderColor),
         Color.blue(borderColor)
     )
-    for (i in 1 until 6) {
-        val divY = bounds.top + (rowH * i)
+    for (i in 1 until 7) {
+        val divY = listTop + (rowH * i)
         canvas.drawLine(bounds.left + 16f * dp, divY, bounds.right - 16f * dp, divY, paint)
     }
 
@@ -237,11 +415,22 @@ internal fun LightspeedCruiseOverlay.drawPinnedAppMenu(canvas: Canvas, paint: Pa
     val fontMetrics = paint.fontMetrics
     val textYOffset = (fontMetrics.descent + fontMetrics.ascent) / 2f
 
-    val menuItems = listOf("App info", "Split with...", "Split screen", "Pop-up window", "Change category", "Uninstall")
+    val menuItems = listOf("App info", "Split with...", "Split screen", "Pop-up window", "Change category", "Change icon", "Uninstall")
     menuItems.forEachIndexed { i, label ->
-        val centerY = bounds.top + (rowH * i) + (rowH / 2f)
+        val isUninstall = (i == menuItems.lastIndex)
+        val centerY = listTop + (rowH * i) + (rowH / 2f)
+        paint.color = if (isUninstall) Color.rgb(255, 107, 107) else Color.argb(245, 240, 245, 255)
         canvas.drawText(label, textX, centerY - textYOffset, paint)
     }
+}
+
+private fun ellipsizeMenuText(text: String, paint: Paint, maxWidth: Float): String {
+    if (paint.measureText(text) <= maxWidth) return text
+    var end = text.length
+    while (end > 1 && paint.measureText(text.substring(0, end) + "..") > maxWidth) {
+        end--
+    }
+    return text.substring(0, end) + ".."
 }
 
 internal fun LightspeedCruiseOverlay.drawPinnedAppCategoryMenu(canvas: Canvas, paint: Paint) {

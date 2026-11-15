@@ -74,8 +74,10 @@ object LightspeedUsageStats {
                 return resultMap
             }
 
-            val start = now - (days.toLong() * 24L * 60L * 60L * 1000L)
-            val statsList = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, start, now) ?: return emptyMap()
+            val isAllTime = days <= 0 || days >= 3650
+            val start = if (isAllTime) 0L else (now - (days.toLong() * 24L * 60L * 60L * 1000L))
+            val interval = if (isAllTime) UsageStatsManager.INTERVAL_YEARLY else UsageStatsManager.INTERVAL_BEST
+            val statsList = usm.queryUsageStats(interval, start, now) ?: return emptyMap()
             val resultMap = mutableMapOf<String, Long>()
             for (stat in statsList) {
                 val pkg = stat.packageName ?: continue

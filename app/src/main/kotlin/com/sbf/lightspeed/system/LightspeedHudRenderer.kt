@@ -40,7 +40,31 @@ object LightspeedHudRenderer {
     private val gaugeEmptyStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 
     private val chamferedPath = Path()
+    private val circleClipPath = Path()
+    private val backdropDstRect = RectF()
+    private val backdropBitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val canopyCardRect = RectF()
+
+    @Volatile
+    private var overlayScreenX: Int = 0
+    @Volatile
+    private var overlayScreenY: Int = 0
+    @Volatile
+    private var overlayDisplayWidthPx: Int = 0
+    @Volatile
+    private var overlayDisplayHeightPx: Int = 0
+
+    fun updateOverlayScreenCoordinates(
+        screenX: Int,
+        screenY: Int,
+        displayWidthPx: Int,
+        displayHeightPx: Int
+    ) {
+        overlayScreenX = screenX
+        overlayScreenY = screenY
+        overlayDisplayWidthPx = displayWidthPx
+        overlayDisplayHeightPx = displayHeightPx
+    }
     private val segRect = RectF()
     private val gaugeTrackRect = RectF()
     private val gaugeFillRect = RectF()
@@ -86,6 +110,51 @@ object LightspeedHudRenderer {
         gaugeEmptyStrokePaint.shader = null
     }
 
+    /**
+     * Draws the active 12-theme Backdrop Blur Engine layer (100% opaque blurred screenshot slice)
+     * mapped to real screen coordinates and clipped strictly inside the HUD card path or circle,
+     * before translucent 12-Theme glass tint fills.
+     */
+    internal fun drawHudBackdropLayer(
+        canvas: Canvas,
+        clipPath: Path?,
+        circleCx: Float,
+        circleCy: Float,
+        circleR: Float,
+        spec: HudThemeSpec
+    ) {
+        if (!spec.isCentralTheme) return
+        val mode = com.sbf.lightspeed.settings.BackdropBlurModeManager.modeFlow.value
+        if (mode == com.sbf.lightspeed.settings.BackdropBlurMode.NATIVE) return
+        if (com.sbf.lightspeed.settings.CentralCommandActivity.isCrossWindowBlurActive &&
+            mode != com.sbf.lightspeed.settings.BackdropBlurMode.SCREENSHOT
+        ) return
+        val effectiveBlurPx = spec.blurRadiusPx.coerceAtLeast(28f)
+
+        val bmp = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.getBlurredCanvasBitmap(effectiveBlurPx) ?: return
+        val targetPath = clipPath ?: circleClipPath.apply {
+            rewind()
+            addCircle(circleCx, circleCy, circleR, Path.Direction.CW)
+        }
+        val fullW = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.capturedDisplayWidthPx
+            .takeIf { it > 0 }?.toFloat()
+            ?: overlayDisplayWidthPx.takeIf { it > 0 }?.toFloat()
+            ?: canvas.width.toFloat().coerceAtLeast(1f)
+        val fullH = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.capturedDisplayHeightPx
+            .takeIf { it > 0 }?.toFloat()
+            ?: overlayDisplayHeightPx.takeIf { it > 0 }?.toFloat()
+            ?: (fullW * (bmp.height.toFloat() / bmp.width.coerceAtLeast(1).toFloat()))
+
+        val offX = -overlayScreenX.toFloat()
+        val offY = -overlayScreenY.toFloat()
+        backdropDstRect.set(offX, offY, offX + fullW, offY + fullH)
+        backdropBitmapPaint.alpha = 255
+        canvas.save()
+        canvas.clipPath(targetPath)
+        canvas.drawBitmap(bmp, null, backdropDstRect, backdropBitmapPaint)
+        canvas.restore()
+    }
+
     fun drawGlassCard(
         canvas: Canvas,
         rect: RectF,
@@ -120,9 +189,16 @@ object LightspeedHudRenderer {
         val tR = Color.red(spec.tintColor)
         val tG = Color.green(spec.tintColor)
         val tB = Color.blue(spec.tintColor)
-        val pA = (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
+        val pA = if (spec.isCentralTheme) {
+            (spec.panelAlpha * 255).toInt().coerceIn(38, 250)
+        } else {
+            (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
+        }
 
-        // 1. Solid Frosted Backplane (Base fill guarantees 100% legibility & zero transparency)
+        // 0. Clipped Screenshot / Shader Backdrop Blur Layer
+        drawHudBackdropLayer(canvas, path, 0f, 0f, 0f, spec)
+
+        // 1. Frosted Backplane
         glassFillPaint.shader = null
         glassFillPaint.color = Color.argb(pA, (pR + tR * 0.08f).toInt().coerceIn(0, 255), (pG + tG * 0.08f).toInt().coerceIn(0, 255), (pB + tB * 0.08f).toInt().coerceIn(0, 255))
         canvas.drawPath(path, glassFillPaint)
@@ -149,13 +225,13 @@ object LightspeedHudRenderer {
         val bColor = spec.borderColor
         val rimKey = gradKey4f(rect.left, rect.top, rect.right, rect.bottom, bColor) xor spec.tintColor.toLong()
         if (rimKey != cardRimKey) {
-            val bA = Color.alpha(bColor).coerceAtLeast(100)
+            val bA = Color.alpha(bColor).coerceAtLeast(135)
             cardRimShader = LinearGradient(
                 rect.left, rect.top, rect.right, rect.bottom,
                 intArrayOf(
-                    Color.argb(160, 255, 255, 255),
+                    Color.argb(165, 255, 255, 255),
                     Color.argb(bA, Color.red(bColor), Color.green(bColor), Color.blue(bColor)),
-                    Color.argb(35, 255, 255, 255),
+                    Color.argb(55, 255, 255, 255),
                     Color.argb(bA, tR, tG, tB)
                 ),
                 floatArrayOf(0f, 0.35f, 0.7f, 1f),
@@ -163,7 +239,7 @@ object LightspeedHudRenderer {
             )
             cardRimKey = rimKey
         }
-        glassRimPaint.strokeWidth = if (useCentralTheme) spec.borderWidthPx else (rimWidth * d)
+        glassRimPaint.strokeWidth = (if (useCentralTheme) spec.borderWidthPx else (rimWidth * d)).coerceAtLeast(1.0f * d)
         glassRimPaint.withShader(cardRimShader) { p ->
             canvas.drawPath(path, p)
         }
@@ -213,6 +289,21 @@ object LightspeedHudRenderer {
         subTextPaint.textAlign = Paint.Align.CENTER
 
         when (style) {
+            "modern_symbol_pill" -> LightspeedHudModernRenderer.drawModernSymbolPill(
+                canvas, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme, colorMode
+            )
+            "modern_floating_orb" -> LightspeedHudModernRenderer.drawModernFloatingOrb(
+                canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, useCentralTheme, colorMode
+            )
+            "modern_slim_slider" -> LightspeedHudModernRenderer.drawModernSlimSlider(
+                canvas, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme, colorMode
+            )
+            "signature_sonic_eq",
+            "signature_solar_lux",
+            "signature_chrono_dial",
+            "signature_kinetic_thruster" -> LightspeedHudSignatureRenderer.drawActionSignatureHud(
+                canvas, style, title, value, stepIndex, totalSteps, centerX, topY, primaryColor, density, useCentralTheme, colorMode
+            )
             "cockpit_reticle" -> LightspeedHudReticleRenderer.drawCockpitReticle(
                 canvas, title, value, stepIndex, totalSteps, centerX, centerY, primaryColor, density, useCentralTheme, colorMode
             )

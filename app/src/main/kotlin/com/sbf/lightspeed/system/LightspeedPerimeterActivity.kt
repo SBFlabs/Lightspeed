@@ -15,9 +15,11 @@ import com.sbf.lightspeed.ui.theme.LightspeedTheme
 class LightspeedPerimeterActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setDimAmount(0.65f)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager) {
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.applyStandaloneActivityBlur(this)
+        }
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.applyStandaloneActivityBlur(this)
 
         setContent {
             LightspeedTheme(forceDark = true) {
@@ -43,8 +45,16 @@ class LightspeedPerimeterActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (com.sbf.lightspeed.settings.CentralCommandBackdropBlur.backdropBitmap == null) {
-            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(windowManager) {
+                com.sbf.lightspeed.settings.CentralCommandBackdropBlur.applyStandaloneActivityBlur(this)
+            }
         }
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.applyStandaloneActivityBlur(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onWindowHidden(isChangingConfigurations)
     }
 
     override fun finish() {

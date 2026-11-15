@@ -103,7 +103,6 @@ object LightspeedAppCategorizer {
         "com.adilhanney.no_more_background" to "settings",
         "com.jksalcedo.librefind" to "settings",
         "com.fadseclab.fadocx" to "productivity",
-        "com.example.lifedots" to "productivity",
         "app.inkos" to "productivity",
         "com.kieronquinn.app.darq" to "utilities",
         "com.iyps" to "security",

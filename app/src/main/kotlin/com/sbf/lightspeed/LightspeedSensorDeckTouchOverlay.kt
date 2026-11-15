@@ -234,7 +234,11 @@ class LightspeedSensorDeckTouchOverlay(
                 CruiseScrubEngine.dispatchScrubHud(context, prefs, scrubType, fallbackKey, scrubHudTitle, scrubHudValue, 1, 1)
             }
             "system:media_scrubber" -> {
-                com.sbf.lightspeed.system.LightspeedMediaManager.showScrubber(context)
+                val res = CruiseScrubEngine.executeMediaScrub(context, prefs, 0, fallbackKey)
+                scrubCurrentValue = res.currentValue
+                scrubHudTitle = res.title
+                scrubHudValue = res.value
+                CruiseScrubEngine.dispatchScrubHud(context, prefs, scrubType, fallbackKey, res.title, res.value, res.stepIndex, res.totalSteps)
             }
         }
     }
@@ -290,8 +294,12 @@ class LightspeedSensorDeckTouchOverlay(
                     CruiseScrubEngine.dispatchScrubHud(context, prefs, activeScrubType, fallbackKey, "SCROLL SCRUB", scrubHudValue, 1, 1)
                 }
                 "system:media_scrubber" -> {
-                    triggerHaptic(14, 90)
-                    com.sbf.lightspeed.system.LightspeedMediaManager.stepHardwareScrubber(context, isForward = steps > 0)
+                    val res = CruiseScrubEngine.executeMediaScrub(context, prefs, steps, fallbackKey) {
+                        triggerHaptic(14, 90)
+                    }
+                    scrubCurrentValue = res.currentValue
+                    scrubHudValue = res.value
+                    CruiseScrubEngine.dispatchScrubHud(context, prefs, activeScrubType, fallbackKey, res.title, res.value, res.stepIndex, res.totalSteps)
                 }
             }
         }
@@ -360,6 +368,7 @@ class LightspeedSensorDeckTouchOverlay(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prewarmForGesture(context)
                 isDownwardPullFired = false
                 latestRawX = event.rawX
                 latestRawY = event.rawY
@@ -502,7 +511,7 @@ class LightspeedSensorDeckTouchOverlay(
                     isSecondTapInSequence = false
                     lastTapTime = 0L
                     currentGesture = SensorGesture.NONE
-                    LightspeedStatusBarOverlay.dismissActionHud(1200L)
+                    LightspeedStatusBarOverlay.dismissActionHud(0L)
                     return true
                 }
 
@@ -551,7 +560,7 @@ class LightspeedSensorDeckTouchOverlay(
                     isScrubbing = false
                     activeScrubType = "none"
                     activeScrubActionKey = null
-                    LightspeedStatusBarOverlay.dismissActionHud(600L)
+                    LightspeedStatusBarOverlay.dismissActionHud(0L)
                 }
                 isHoldFired = false
                 isSecondTapInSequence = false

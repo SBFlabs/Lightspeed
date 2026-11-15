@@ -34,7 +34,13 @@ import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.defaultPrefs
 
     fun LightspeedAccessibilityService.showMediaScrubber() {
+        LightspeedStatusBarOverlay.hideActionHudNow()
         handler.post {
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForHudOnly(
+                windowManager = windowManager
+            ) {
+                mediaScrubberOverlayView?.postInvalidateOnAnimation()
+            }
             if (mediaScrubberOverlayView != null) {
                 mediaScrubberOverlayView?.updateTrackInfo()
                 return@post

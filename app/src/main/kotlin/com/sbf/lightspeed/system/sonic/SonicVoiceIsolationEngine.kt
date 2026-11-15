@@ -98,6 +98,23 @@ object SonicVoiceIsolationEngine {
         }
     }
 
+    fun needsPrivilegedServiceInBackground(context: Context): Boolean {
+        val prefs = context.defaultPrefs()
+        if (!prefs.getBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, false)) return false
+        if (prefs.getBoolean(LightspeedPreferences.KEY_SONIC_VOICE_ISOLATION_ENABLED, false)) return true
+        for ((key, value) in prefs.all) {
+            when {
+                key.startsWith(LightspeedPreferences.KEY_PER_APP_VOLUME_PREFIX) &&
+                    value is Float && kotlin.math.abs(value - 1.0f) > 0.01f -> return true
+                key.startsWith(LightspeedPreferences.KEY_SONIC_CHANNEL_ROUTING_PREFIX) &&
+                    value is String && value != SonicChannelRouter.ROUTE_DEFAULT -> return true
+                key.startsWith(LightspeedPreferences.KEY_SONIC_ALWAYS_AUDIO_FOCUS_PREFIX) &&
+                    value == true -> return true
+            }
+        }
+        return false
+    }
+
     fun initialize(context: Context) {
         val appCtx = context.applicationContext ?: context
         appContext = appCtx
@@ -113,7 +130,9 @@ object SonicVoiceIsolationEngine {
         backgroundMuffleLevel = savedMuffle
         val shouldEnable = prefs.getBoolean(LightspeedPreferences.KEY_SONIC_VOICE_ISOLATION_ENABLED, false)
 
-        ensureBound(appCtx)
+        if (shouldEnable || needsPrivilegedServiceInBackground(appCtx)) {
+            ensureBound(appCtx)
+        }
         if (shouldEnable) {
             start(appCtx)
         }
@@ -234,7 +253,15 @@ object SonicVoiceIsolationEngine {
     }
 
     @Synchronized
-    fun setEnabled(context: Context, enable: Boolean): Boolean = if (enable) start(context) else { stop(context); true }
+    fun setEnabled(context: Context, enable: Boolean): Boolean = if (enable) {
+        start(context)
+    } else {
+        stop(context)
+        if (!needsPrivilegedServiceInBackground(context)) {
+            teardown(context)
+        }
+        true
+    }
 
     @Synchronized
     fun start(context: Context): Boolean {

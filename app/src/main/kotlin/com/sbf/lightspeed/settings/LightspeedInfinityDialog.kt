@@ -2,8 +2,6 @@ package com.sbf.lightspeed.settings
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.sbf.lightspeed.R
 import com.sbf.lightspeed.system.LightspeedHapticEngine
 import com.sbf.lightspeed.system.LightspeedInfinityManager
@@ -92,9 +89,9 @@ fun LightspeedInfinityDialog(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    PerkRow("♾️", "Unlimited Cockpit Gear Sets", "Expand beyond the 2 default flight decks")
-                    PerkRow("🎨", "All Available Themes", "Unlock all current and future optical themes")
-                    PerkRow("🚀", "Independent Craftsman Support", "100% offline, zero trackers, DRM-free honor system")
+                    PerkRow("∞", "Unlimited Cockpit Gear Sets", "Expand beyond the 2 default flight decks")
+                    PerkRow("◈", "All Available Themes", "Unlock all current and future optical themes")
+                    PerkRow("✦", "Independent Craftsman Support", "100% offline, zero trackers, DRM-free honor system")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -137,14 +134,7 @@ fun LightspeedInfinityDialog(
                             .clip(RoundedCornerShape(10.dp))
                             .background(LightspeedTokens.StatusGoldAlt)
                             .clickable {
-                                try {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/sbflabs/e/579114")).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
-                                }
+                                openExternalUrl(context, "https://buymeacoffee.com/sbflabs/e/579114")
                             }
                             .padding(vertical = 10.dp, horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -158,7 +148,7 @@ fun LightspeedInfinityDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Get Key on Buy Me a Coffee",
+                            text = buildGooglePayAnnotatedText("Get Lightspeed ∞ ($1.99 · Google Pay)"),
                             color = Color.Black,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -265,7 +255,7 @@ private fun PerkRow(icon: String, title: String, subtitle: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(icon, fontSize = 14.sp)
+        Text(icon, fontSize = 14.sp, color = lsColors.accentGold, fontWeight = FontWeight.Bold)
         Column {
             Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
             Text(subtitle, fontSize = 9.5.sp, color = lsColors.textSecondary.copy(alpha = 0.7f))

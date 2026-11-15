@@ -1,22 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/pod_widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center">
-
-    <ImageView
-        android:id="@+id/pod_widget_bg"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="fitXY"
-        android:contentDescription="@null" />
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="2dp">
 
     <ImageView
         android:id="@+id/pod_widget_icon"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
-        android:layout_gravity="center"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:scaleType="fitCenter"
         android:src="@drawable/ic_qs_flight_armed"
         android:contentDescription="@null" />
 
@@ -24,10 +19,15 @@
         android:id="@+id/pod_widget_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="4dp"
-        android:textSize="9sp"
+        android:layout_marginTop="3dp"
+        android:textSize="9.5sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
+        android:shadowColor="#CC000000"
+        android:shadowDx="0"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:maxLines="1"
+        android:ellipsize="end"
         android:text="POD 1" />
-</FrameLayout>
+</LinearLayout>

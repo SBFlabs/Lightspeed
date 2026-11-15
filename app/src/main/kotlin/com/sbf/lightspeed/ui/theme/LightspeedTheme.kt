@@ -3,6 +3,7 @@ package com.sbf.lightspeed.ui.theme
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -17,8 +18,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import com.sbf.lightspeed.settings.DeckStylePresets
 import com.sbf.lightspeed.settings.DeckThemeManager
+import com.sbf.lightspeed.system.DeviceFontScanner
 import com.sbf.lightspeed.system.LightspeedPreferences
 
 private val DarkDefaultColorScheme = darkColorScheme(
@@ -91,8 +98,22 @@ fun LightspeedTheme(
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val currentDensity = LocalDensity.current
     val savedThemeMode by LightspeedPreferences.themeModeFlow.collectAsState()
     val themeMode = savedThemeMode ?: remember { LightspeedPreferences.getThemeMode(context) }
+    val savedFontScale by LightspeedPreferences.centralCommandFontScaleFlow.collectAsState()
+    val userFontScale = savedFontScale ?: remember { LightspeedPreferences.getCentralCommandFontScale(context) }
+    val savedFontFamilyKey by LightspeedPreferences.centralCommandFontFamilyFlow.collectAsState()
+    val userFontFamilyKey = savedFontFamilyKey ?: remember { LightspeedPreferences.getCentralCommandFontFamily(context) }
+    val resolvedFontFamily = remember(userFontFamilyKey) {
+        DeviceFontScanner.resolveComposeFontFamily(userFontFamilyKey)
+    }
+    val typography = remember(resolvedFontFamily) {
+        buildLightspeedTypography(resolvedFontFamily)
+    }
+    val independentDensity = remember(currentDensity.density, userFontScale) {
+        Density(density = currentDensity.density, fontScale = userFontScale)
+    }
     val isDark = forceDark || when (themeMode) {
         "light" -> false
         "dark" -> true
@@ -201,12 +222,39 @@ fun LightspeedTheme(
         }
     }
 
-    MaterialTheme(colorScheme = colorScheme) {
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = typography
+    ) {
         CompositionLocalProvider(
             LocalLightspeedColors provides lsColors,
-            LocalDeckTheme provides snapshot
+            LocalDeckTheme provides snapshot,
+            LocalDensity provides independentDensity,
+            LocalLayoutDirection provides LayoutDirection.Ltr
         ) {
             content()
         }
     }
+}
+
+private fun buildLightspeedTypography(fontFamily: FontFamily?): Typography {
+    val base = Typography()
+    if (fontFamily == null) return base
+    return Typography(
+        displayLarge = base.displayLarge.copy(fontFamily = fontFamily),
+        displayMedium = base.displayMedium.copy(fontFamily = fontFamily),
+        displaySmall = base.displaySmall.copy(fontFamily = fontFamily),
+        headlineLarge = base.headlineLarge.copy(fontFamily = fontFamily),
+        headlineMedium = base.headlineMedium.copy(fontFamily = fontFamily),
+        headlineSmall = base.headlineSmall.copy(fontFamily = fontFamily),
+        titleLarge = base.titleLarge.copy(fontFamily = fontFamily),
+        titleMedium = base.titleMedium.copy(fontFamily = fontFamily),
+        titleSmall = base.titleSmall.copy(fontFamily = fontFamily),
+        bodyLarge = base.bodyLarge.copy(fontFamily = fontFamily),
+        bodyMedium = base.bodyMedium.copy(fontFamily = fontFamily),
+        bodySmall = base.bodySmall.copy(fontFamily = fontFamily),
+        labelLarge = base.labelLarge.copy(fontFamily = fontFamily),
+        labelMedium = base.labelMedium.copy(fontFamily = fontFamily),
+        labelSmall = base.labelSmall.copy(fontFamily = fontFamily)
+    )
 }

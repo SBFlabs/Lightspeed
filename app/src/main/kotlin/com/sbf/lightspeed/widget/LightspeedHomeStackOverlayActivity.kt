@@ -6,8 +6,10 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import com.sbf.lightspeed.MultiWidgetContainer
 import com.sbf.lightspeed.TacticalWidgetPickerModal
 import com.sbf.lightspeed.settings.DeckGlassCardSurface
@@ -48,10 +51,33 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
         private const val STACK_HOST_ID = 2049
         private const val REQUEST_PICK_WIDGET = 701
         private const val REQUEST_CONFIG_WIDGET = 702
+
+        @Volatile
+        var isActive: Boolean = false
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isActive = true
+        com.sbf.lightspeed.LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        isActive = false
+        com.sbf.lightspeed.LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        // Make window completely transparent & edge-to-edge with zero black status/nav bars
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+
         appWidgetHost = AppWidgetHost(applicationContext, STACK_HOST_ID)
         appWidgetManager = AppWidgetManager.getInstance(applicationContext)
 
@@ -99,7 +125,7 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
                                 ) {
                                     Column {
                                         Text(
-                                            text = "TACTICAL STACK DECK // ${snapshot.displayName.uppercase()}",
+                                            text = "TACTICAL STACK",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = lsColors.textPrimary
@@ -126,7 +152,7 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
                                     MultiWidgetContainer(
                                         activity = this@LightspeedHomeStackOverlayActivity,
                                         widgetIds = widgetIds,
-                                        widgetLayoutMode = "stack",
+                                        widgetLayoutMode = "smart_stack",
                                         isEditMode = true,
                                         isLandscape = false,
                                         appWidgetHost = appWidgetHost,
@@ -135,7 +161,7 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
                                         onRemoveWidget = { idToRemove ->
                                             val updated = widgetIds.filter { it != idToRemove }
                                             widgetIds = updated
-                                            prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_WIDGET_IDS, updated.joinToString(",")).apply()
+                                            LightspeedPreferences.saveRefuelingStackWidgetIds(this@LightspeedHomeStackOverlayActivity, updated)
                                             try { appWidgetHost?.deleteAppWidgetId(idToRemove) } catch (_: Exception) {}
                                             LightspeedStackWidgetProvider.notifyUpdate(this@LightspeedHomeStackOverlayActivity)
                                         },
@@ -145,7 +171,7 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
                                                 val item = mutable.removeAt(from)
                                                 mutable.add(to, item)
                                                 widgetIds = mutable
-                                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_WIDGET_IDS, mutable.joinToString(",")).apply()
+                                                LightspeedPreferences.saveRefuelingStackWidgetIds(this@LightspeedHomeStackOverlayActivity, mutable)
                                                 LightspeedStackWidgetProvider.notifyUpdate(this@LightspeedHomeStackOverlayActivity)
                                             }
                                         }
@@ -163,7 +189,7 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
                                 allocateAndBindWidget(providerInfo) { newId ->
                                     val updated = widgetIds + newId
                                     widgetIds = updated
-                                    prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_WIDGET_IDS, updated.joinToString(",")).apply()
+                                    LightspeedPreferences.saveRefuelingStackWidgetIds(this@LightspeedHomeStackOverlayActivity, updated)
                                     LightspeedStackWidgetProvider.notifyUpdate(this@LightspeedHomeStackOverlayActivity)
                                 }
                             }
@@ -204,9 +230,16 @@ class LightspeedHomeStackOverlayActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        isActive = false
+        com.sbf.lightspeed.LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
         super.onDestroy()
         try {
             appWidgetHost?.stopListening()
         } catch (_: Exception) {}
+        if (!isChangingConfigurations) {
+            com.sbf.lightspeed.TacticalWidgetPreviewCache.clear()
+            com.sbf.lightspeed.system.LightspeedIconManager.temporaryPickerCache.clear()
+            com.sbf.lightspeed.system.LightspeedShortcutManager.temporaryPickerCache.clear()
+        }
     }
 }

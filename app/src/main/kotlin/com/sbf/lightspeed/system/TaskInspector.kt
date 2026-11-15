@@ -4,10 +4,12 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.util.Locale
 
 object TaskInspector {
     private const val TAG = ElevatedTaskCloser.TAG
@@ -287,11 +289,51 @@ object TaskInspector {
         return result
     }
 
+    fun isTranssionActivityInMultiWindow(packageName: String?): Boolean {
+        if (packageName.isNullOrBlank()) return false
+        val brand = (Build.BRAND ?: "").lowercase(Locale.US)
+        val manufacturer = (Build.MANUFACTURER ?: "").lowercase(Locale.US)
+        val isTranssion = brand.contains("infinix") ||
+            brand.contains("tecno") ||
+            brand.contains("itel") ||
+            manufacturer.contains("transsion")
+        if (!isTranssion) return false
+
+        ElevatedTaskCloser.exemptHiddenApis()
+        return try {
+            val atm = ElevatedTaskCloser.getActivityTaskManager() ?: run {
+                val smClass = Class.forName("android.os.ServiceManager")
+                val getService = smClass.getMethod("getService", String::class.java)
+                val binder = getService.invoke(null, "activity_task") as? android.os.IBinder ?: return false
+                val stubClass = Class.forName("android.app.IActivityTaskManager\$Stub")
+                val asInterface = stubClass.getMethod("asInterface", android.os.IBinder::class.java)
+                asInterface.invoke(null, binder)
+            } ?: return false
+
+            val method = atm.javaClass.methods.firstOrNull {
+                it.name == "activityInMultiWindow" &&
+                    it.parameterTypes.size == 1 &&
+                    it.parameterTypes[0] == String::class.java
+            } ?: return false
+
+            (method.invoke(atm, packageName) as? Boolean) == true
+        } catch (e: Exception) {
+            Log.w(TAG, "isTranssionActivityInMultiWindow check failed for $packageName", e)
+            false
+        }
+    }
+
     fun verifyWindowMode(
         taskId: Int?,
         packageName: String?,
         expectedMode: String
     ): Pair<Boolean, String?> {
+        if (expectedMode == "freeform" && isTranssionActivityInMultiWindow(packageName)) {
+            val info = "transsion:activityInMultiWindow($packageName)=true"
+            PopupDiagnostics.lastTopTaskLine = info
+            return Pair(true, info)
+        }
+
         val taskLines = getTaskLinesFromDumpsys()
         if (taskLines.isEmpty()) {
             Log.w(TAG, "dumpsys activity activities returned no Task lines (Shizuku active=${ElevatedTaskCloser.isShizukuActive})")

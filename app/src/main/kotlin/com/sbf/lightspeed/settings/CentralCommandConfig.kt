@@ -75,6 +75,7 @@ fun CentralCommandMatrixFields(
     )
 
     val currentLanguageMode by LightspeedLanguageEngine.modeFlow.collectAsState()
+    val uiAlreadyWarm = remember { CentralCommandWarmupCoordinator.isUiWarmed }
 
     val scope = rememberCoroutineScope()
 
@@ -204,8 +205,8 @@ fun CentralCommandMatrixFields(
                 state.isStatusBarGeoExpandedState.value
             val bottomCanopyActive = inFocus && page == 1 &&
                 state.isSensorDeckExpandedState.value &&
-                prefs.getBoolean("pref_sub_bottom_statusbar_expanded", false) &&
-                prefs.getBoolean("pref_sub_bottom_statusbar_geo", false)
+                prefs.getBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_EXPANDED, false) &&
+                prefs.getBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_GEO, false)
             val rightActive = inFocus && page == 2 && (
                 (state.isCenterExpandedState.value && state.isCenterGeoExpandedState.value) ||
                 (if (state.isRightFlankUnifiedState.value) {
@@ -316,7 +317,12 @@ fun CentralCommandMatrixFields(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("⚠️", fontSize = 16.sp)
+                        Text(
+                            text = "[!]",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
                         Text(
                             text = "CORE AVIONICS DORMANT",
                             fontWeight = FontWeight.Bold,
@@ -347,7 +353,7 @@ fun CentralCommandMatrixFields(
                                 val revived = com.sbf.lightspeed.system.LightspeedWatchdogEngine.reviveAccessibilityService(context)
                                 if (revived) {
                                     isA11yActive = true
-                                    android.widget.Toast.makeText(context, "⚡ Core Avionics Armed!", android.widget.Toast.LENGTH_SHORT).show()
+                                    android.widget.Toast.makeText(context, ":: Core Avionics Armed!", android.widget.Toast.LENGTH_SHORT).show()
                                 } else {
                                     com.sbf.lightspeed.system.LightspeedWatchdogEngine.openAccessibilitySettings(context)
                                     val serviceLabel = context.getString(R.string.accessibility_service_label)
@@ -360,7 +366,7 @@ fun CentralCommandMatrixFields(
                             ),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("⚡ ARM SERVICE", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(":: ARM SERVICE", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
 
                         OutlinedButton(
@@ -369,7 +375,7 @@ fun CentralCommandMatrixFields(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("🛡️ PERIMETER", fontSize = 12.sp)
+                            Text("◈ PERIMETER", fontSize = 12.sp)
                         }
                     }
                 }
@@ -489,10 +495,17 @@ fun CentralCommandMatrixFields(
             }
         }
 
+        var beyondTabCount by remember { mutableIntStateOf(if (uiAlreadyWarm) 2 else 0) }
+        LaunchedEffect(uiAlreadyWarm) {
+            if (beyondTabCount < 2) {
+                androidx.compose.runtime.withFrameNanos { }
+                beyondTabCount = 2
+            }
+        }
         HorizontalPager(
             state = state.pagerState,
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            beyondViewportPageCount = 2
+            beyondViewportPageCount = beyondTabCount
         ) { pageIndex ->
             when (pageIndex) {
                 0 -> {
@@ -609,7 +622,7 @@ fun CentralCommandMatrixFields(
                     )
                 }
             }
-        }
+            }
 
         // Central Command Modal Dialogs Deck
         CentralCommandDialogDeck(

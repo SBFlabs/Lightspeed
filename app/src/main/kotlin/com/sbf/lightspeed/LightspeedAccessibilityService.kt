@@ -89,7 +89,9 @@ class LightspeedAccessibilityService : AccessibilityService() {
 
     internal val shizukuBinderReceivedListener = rikka.shizuku.Shizuku.OnBinderReceivedListener {
         try {
-            com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.ensureBound(applicationContext)
+            if (com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.isEnabled) {
+                com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine.ensureBound(applicationContext)
+            }
         } catch (_: Exception) {}
     }
 
@@ -103,7 +105,7 @@ class LightspeedAccessibilityService : AccessibilityService() {
         override fun run() {
             try {
                 val now = System.currentTimeMillis()
-                if (baySleepBlackoutView == null || now - lastBaySleepHeartbeat > 5000L) {
+                if (!LightspeedRefuelingActivity.isActive || baySleepBlackoutView == null || now - lastBaySleepHeartbeat > 5000L) {
                     hideBaySleepBlackout()
                     return
                 }
@@ -134,6 +136,19 @@ class LightspeedAccessibilityService : AccessibilityService() {
                 logSwallowed("LightspeedAccessibilityService", "baySleepRaiseRunnable", e)
             }
             handler.postDelayed(this, 2000L)
+        }
+    }
+
+    internal val chargeTelemetrySampleRunnable = object : Runnable {
+        override fun run() {
+            val charging = isDeviceCharging()
+            RefuelingTelemetryHistoryBuffer.sampleBatteryNow(
+                context = this@LightspeedAccessibilityService,
+                forceChargingState = charging
+            )
+            if (charging) {
+                handler.postDelayed(this, 30_000L)
+            }
         }
     }
 
@@ -235,6 +250,12 @@ class LightspeedAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun reopenCategoryCruise(categoryId: String) {
+        overlayView?.post {
+            overlayView?.openCategoryCruisePinned(categoryId)
+        }
+    }
+
     fun startCruiseFromLeft(rawX: Float, rawY: Float) {
         overlayView?.isDispatchingFromLeftFlankView = true
         try {
@@ -288,9 +309,29 @@ class LightspeedAccessibilityService : AccessibilityService() {
         return LightspeedKeyEngine.onKeyEvent(this, event)
     }
 
+    @Volatile
+    internal var pendingWidgetLaunchDismissUntilMs: Long = 0L
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             LightspeedForegroundTracker.handleWindowStateChanged(this, event)
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now <= pendingWidgetLaunchDismissUntilMs) {
+                val pkg = event.packageName?.toString()
+                if (!pkg.isNullOrEmpty() && pkg != packageName && pkg != "com.android.systemui") {
+                    pendingWidgetLaunchDismissUntilMs = 0L
+                    overlayView?.post { overlayView?.dismissOverlay() }
+                }
+            }
+        } else if (event?.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            val parcelable = event.parcelableData
+            if (parcelable !is android.app.Notification) {
+                val toastText = event.text?.joinToString(" ") { it.toString() }?.trim().orEmpty()
+                val pkg = event.packageName?.toString() ?: "android"
+                if (toastText.isNotEmpty()) {
+                    LightspeedNotificationListener.recordAlert("TOAST", pkg, toastText, this)
+                }
+            }
         }
     }
 

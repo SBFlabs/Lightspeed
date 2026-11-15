@@ -10,6 +10,11 @@ import com.sbf.lightspeed.system.defaultPrefs
 internal fun LightspeedCruiseOverlay.handleEditModeTap(x: Float, y: Float) {
     if (!isEditModeOpen) return
 
+    if (isCategoryIconPickerOpen) {
+        handleCategoryIconPickerTap(x, y)
+        return
+    }
+
     val dp = resources.displayMetrics.density
 
     if (isEditModePromptOpen) {
@@ -60,7 +65,7 @@ internal fun LightspeedCruiseOverlay.handleEditModeTap(x: Float, y: Float) {
     }
 
     val numCategories = editModeCategories.size
-    val totalRows = numCategories + 2
+    val totalRows = getEditModeRowCount()
     val actualRowH = bounds.height() / totalRows
     val tabRowBottom = bounds.top + actualRowH
     val btnRowTop = bounds.bottom - actualRowH
@@ -142,7 +147,7 @@ internal fun LightspeedCruiseOverlay.handleEditModeTap(x: Float, y: Float) {
             }
         }
     } else if (editModeTab == EditModeTab.HUD) {
-        handleHudTabTap(x, y, bounds, tabRowBottom, actualRowH)
+        handleHudTabTap(x, y, bounds, tabRowBottom, btnRowTop)
     }
 }
 
@@ -151,94 +156,61 @@ private fun LightspeedCruiseOverlay.handleHudTabTap(
     y: Float,
     bounds: RectF,
     tabRowBottom: Float,
-    actualRowH: Float
+    btnRowTop: Float
 ) {
     val dp = resources.displayMetrics.density
-    val gearSectionY = tabRowBottom + (16f * dp)
-    val gearPillH = 26f * dp
-    val gearPillY = gearSectionY + (10f * dp)
+    val layout = computeHudStyleTabLayout(bounds, tabRowBottom, btnRowTop, dp)
 
-    if (y in (gearPillY - 4f * dp)..(gearPillY + gearPillH + 4f * dp)) {
-        val pillSpacing = 4f * dp
-        val margin = 10f * dp
-        val gearTotalPillW = bounds.width() - (margin * 2f)
-        val gearPillW = (gearTotalPillW - pillSpacing) / 2f
+    if (layout.openInPlaceRect.contains(x, y)) {
+        triggerHardwareHaptic(22, 110)
+        closeEditMode()
+        isHudEditMode = true
+        invalidate()
+        return
+    }
 
-        val options = listOf(false, true)
-        for (i in options.indices) {
-            val pLeft = bounds.left + margin + (i * (gearPillW + pillSpacing))
-            val pRight = pLeft + gearPillW
-            if (x in pLeft..pRight) {
-                val selected = options[i]
-                triggerHardwareHaptic(20, 100)
-                context.defaultPrefs().edit()
-                    .putBoolean(LightspeedPreferences.KEY_PINNED_GEAR_LEFT, selected)
-                    .apply()
-                invalidate()
-                return
-            }
+    for ((modeId, rect) in layout.colorPills) {
+        if (rect.contains(x, y)) {
+            triggerHardwareHaptic(20, 100)
+            context.defaultPrefs().edit()
+                .putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_COLOR_MODE, modeId)
+                .apply()
+            invalidate()
+            return
         }
     }
 
-    // Color Engine pills (second option)
-    val gearNoteY = gearPillY + gearPillH + (18f * dp)
-    val colorPillY = gearNoteY + (22f * dp) + (10f * dp)
-    if (y in (colorPillY - 4f * dp)..(colorPillY + gearPillH + 4f * dp)) {
-        val pillSpacing = 4f * dp
-        val margin = 10f * dp
-        val count = CATEGORY_COLOR_ENGINE_OPTIONS.size
-        val pillW = (bounds.width() - (margin * 2f) - pillSpacing * (count - 1)) / count
-        for (i in 0 until count) {
-            val pLeft = bounds.left + margin + (i * (pillW + pillSpacing))
-            if (x in pLeft..(pLeft + pillW)) {
-                val modeId = CATEGORY_COLOR_ENGINE_OPTIONS[i].first
-                triggerHardwareHaptic(20, 100)
-                context.defaultPrefs().edit()
-                    .putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_COLOR_MODE, modeId)
-                    .apply()
-                invalidate()
-                return
-            }
+    for ((spacingPct, rect) in layout.spacingPills) {
+        if (rect.contains(x, y)) {
+            triggerHardwareHaptic(20, 100)
+            context.defaultPrefs().edit()
+                .putInt(LightspeedPreferences.KEY_CATEGORY_CRUISE_SPACING_PERCENT, spacingPct)
+                .apply()
+            invalidate()
+            return
         }
     }
 
-    // Category Cruise name spacing pills
-    val spacingPillY = colorPillY + gearPillH + (22f * dp) + (10f * dp)
-    if (y in (spacingPillY - 4f * dp)..(spacingPillY + gearPillH + 4f * dp)) {
-        val pillSpacing = 4f * dp
-        val margin = 10f * dp
-        val count = CATEGORY_SPACING_OPTIONS.size
-        val pillW = (bounds.width() - (margin * 2f) - pillSpacing * (count - 1)) / count
-        for (i in 0 until count) {
-            val pLeft = bounds.left + margin + (i * (pillW + pillSpacing))
-            if (x in pLeft..(pLeft + pillW)) {
-                triggerHardwareHaptic(20, 100)
-                context.defaultPrefs().edit()
-                    .putInt(LightspeedPreferences.KEY_CATEGORY_CRUISE_SPACING_PERCENT, CATEGORY_SPACING_OPTIONS[i].first)
-                    .apply()
-                invalidate()
-                return
-            }
+    for ((feelProfile, rect) in layout.feelPills) {
+        if (rect.contains(x, y)) {
+            triggerHardwareHaptic(20, 100)
+            context.defaultPrefs().edit()
+                .putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_PHYSICS_PROFILE, feelProfile)
+                .apply()
+            invalidate()
+            return
         }
     }
 
-    // Category slider feel pills
-    val feelPillY = spacingPillY + gearPillH + (22f * dp) + (10f * dp)
-    if (y in (feelPillY - 4f * dp)..(feelPillY + gearPillH + 4f * dp)) {
-        val pillSpacing = 4f * dp
-        val margin = 10f * dp
-        val count = CATEGORY_PHYSICS_OPTIONS.size
-        val pillW = (bounds.width() - (margin * 2f) - pillSpacing * (count - 1)) / count
-        for (i in 0 until count) {
-            val pLeft = bounds.left + margin + (i * (pillW + pillSpacing))
-            if (x in pLeft..(pLeft + pillW)) {
-                triggerHardwareHaptic(20, 100)
-                context.defaultPrefs().edit()
-                    .putString(LightspeedPreferences.KEY_CATEGORY_CRUISE_PHYSICS_PROFILE, CATEGORY_PHYSICS_OPTIONS[i].first)
-                    .apply()
-                invalidate()
-                return
-            }
+    for ((radiusDp, rect) in layout.radiusPills) {
+        if (rect.contains(x, y)) {
+            triggerHardwareHaptic(20, 100)
+            context.defaultPrefs().edit()
+                .putInt(LightspeedPreferences.KEY_CATEGORY_HUD_CORNER_RADIUS_DP, radiusDp)
+                .apply()
+            updateCategoryAppWidgetView()
+            invalidate()
+            return
         }
     }
 }

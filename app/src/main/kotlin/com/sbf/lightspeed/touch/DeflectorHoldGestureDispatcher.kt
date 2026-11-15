@@ -45,9 +45,13 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
         val prefs = prefs()
         val isFlankUnified = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_RIGHT_LINK_FLANK_ACTIONS, true)
         val gestMode = prefs.getString(LightspeedPreferences.KEY_SYMMETRY_GESTURE_MODE, "independent") ?: "independent"
-        val isMirroringLeft = gestMode == "left"
+        val isFromLeft = when (gestMode) {
+            "left" -> true
+            "right" -> false
+            else -> isOpenedFromLeftFlank
+        }
 
-        val actionKey = if (isMirroringLeft) {
+        val (actionKey, actionValue) = if (isFromLeft) {
             val isLeftUnified = prefs.getBoolean(LightspeedPreferences.KEY_SIDEBAR_LEFT_LINK_FLANK_ACTIONS, true)
             val leftGesture = when (gestureKey) {
                 "SWIPE_LEFT_HOLD" -> "SWIPE_RIGHT_HOLD"
@@ -60,17 +64,32 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
             }
             val isLeftGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = true, leftGesture)
             val leftZone = if (isLeftUnified && isLeftGestureUnified) "LEFT_UNIFIED" else "LEFT_$zoneName"
-            "pref_macro_action_${leftZone}_$leftGesture"
+            val leftKey = "pref_macro_action_${leftZone}_$leftGesture"
+            val explicitLeft = prefs.getString(leftKey, null)
+            if (!explicitLeft.isNullOrEmpty() && explicitLeft != "none") {
+                leftKey to explicitLeft
+            } else {
+                val isRightGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gestureKey)
+                val rightZone = if (isFlankUnified && isRightGestureUnified) "UNIFIED" else zoneName
+                val rightKey = "pref_macro_action_${rightZone}_$gestureKey"
+                val explicitRight = prefs.getString(rightKey, null)
+                if (!explicitRight.isNullOrEmpty() && explicitRight != "none") {
+                    rightKey to explicitRight
+                } else {
+                    leftKey to LightspeedActionRegistry.getDefaultActionForGestureKey(leftKey)
+                }
+            }
         } else {
             val isGestureUnified = LightspeedPreferences.isGestureUnified(context, isLeft = false, gestureKey)
             val dynamicZone = if (isFlankUnified && isGestureUnified) "UNIFIED" else zoneName
-            "pref_macro_action_${dynamicZone}_$gestureKey"
-        }
-        val explicit = prefs.getString(actionKey, null)
-        val actionValue = if (!explicit.isNullOrEmpty() && explicit != "none") {
-            explicit
-        } else {
-            LightspeedActionRegistry.getDefaultActionForGestureKey(actionKey)
+            val rightKey = "pref_macro_action_${dynamicZone}_$gestureKey"
+            val explicit = prefs.getString(rightKey, null)
+            val resolved = if (!explicit.isNullOrEmpty() && explicit != "none") {
+                explicit
+            } else {
+                LightspeedActionRegistry.getDefaultActionForGestureKey(rightKey)
+            }
+            rightKey to resolved
         }
 
         // Gesture Bot Flow: Swipe & Hold on a zone bound to Bot Macro starts Bot Recording Mode
@@ -84,7 +103,7 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
             return
         }
 
-        if (actionValue == "system:volume" || actionValue == "system:brightness" || actionValue == "system:screen_timeout" || actionValue == "scrub:volume" || actionValue == "scrub:brightness") {
+        if (actionValue == "system:volume" || actionValue == "system:brightness" || actionValue == "system:screen_timeout" || actionValue == "scrub:volume" || actionValue == "scrub:brightness" || actionValue == "system:media_scrubber" || actionValue == "system:scroll_scrub" || actionValue == "scrub:scroll") {
             isHoldFired = true
             currentDetectedGesture = MacroGesture.SCRUBBING
             activeHoldScrubAction = actionValue
@@ -116,6 +135,17 @@ internal fun LightspeedCruiseOverlay.resolveAndDispatchHoldGesture(zone: TouchZo
                     val idx = LightspeedTimeoutEngine.getCurrentTimeoutIndex(context)
                     scrubHudValue = LightspeedTimeoutEngine.TIMEOUT_STEPS[idx].second
                     dispatchScrubHud(scrubHudTitle, scrubHudValue, idx, LightspeedTimeoutEngine.TIMEOUT_STEPS.size)
+                }
+                "system:media_scrubber" -> {
+                    val res = CruiseScrubEngine.executeMediaScrub(context, prefs, 0, actionKey)
+                    scrubHudTitle = res.title
+                    scrubHudValue = res.value
+                    dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
+                }
+                "system:scroll_scrub", "scrub:scroll" -> {
+                    scrubHudTitle = "SCROLL SCRUB"
+                    scrubHudValue = "ACTIVE"
+                    dispatchScrubHud(scrubHudTitle, scrubHudValue, 1, 1)
                 }
             }
             invalidate()

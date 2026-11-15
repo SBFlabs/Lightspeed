@@ -2,6 +2,7 @@ package com.sbf.lightspeed.system
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 import android.content.Context
 import android.content.Intent
@@ -25,6 +26,7 @@ import android.view.Surface
  */
 object LightspeedOrientationEngine {
     private const val TAG = "LightspeedOrientation"
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     enum class AttitudeBucket(
         val key: String,
@@ -181,7 +183,7 @@ object LightspeedOrientationEngine {
         }
 
         if (ElevatedTaskCloser.isShizukuActive) {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            ioScope.launch {
                 try {
                     ElevatedTaskCloser.execShizuku("settings put secure camera_autorotate $target")
                 } catch (e: Exception) {
@@ -306,7 +308,7 @@ object LightspeedOrientationEngine {
             }
         }
         if (ElevatedTaskCloser.isShizukuActive) {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            ioScope.launch {
                 try {
                     ElevatedTaskCloser.execShizuku("settings put system $name $value")
                     recordInternalWrite()

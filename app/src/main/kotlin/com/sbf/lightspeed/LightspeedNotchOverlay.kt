@@ -225,7 +225,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         updateRenderCache()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val insets = rootWindowInsets?.displayCutout
-            (insets?.boundingRectTop ?: insets?.boundingRects?.firstOrNull { it.top == 0 })?.let {
+            insets?.topCutoutRect()?.let {
                 if (it.width() > 0) cachedCutoutRect = it
             }
         }
@@ -275,7 +275,7 @@ class LightspeedNotchOverlay(context: Context) : View(context) {
         // Cutout Metrics
         val topCutout = cachedCutoutRect ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val insets = rootWindowInsets?.displayCutout
-            (insets?.boundingRectTop ?: insets?.boundingRects?.firstOrNull { it.top == 0 })?.also {
+            insets?.topCutoutRect()?.also {
                 if (it.width() > 0) cachedCutoutRect = it
             }
         } else null

@@ -85,7 +85,10 @@ internal fun LightspeedCruiseOverlay.processMacroGestureMove(rawX: Float, rawY: 
                         dispatchScrubHud(scrubHudTitle, scrubHudValue, 1, 1)
                     }
                     "system:media_scrubber" -> {
-                        com.sbf.lightspeed.system.LightspeedMediaManager.showScrubber(context)
+                        val res = CruiseScrubEngine.executeMediaScrub(context, prefs(), 0, activeHoldScrubActionKey)
+                        scrubHudTitle = res.title
+                        scrubHudValue = res.value
+                        dispatchScrubHud(res.title, res.value, res.stepIndex, res.totalSteps)
                     }
                 }
                 invalidate()

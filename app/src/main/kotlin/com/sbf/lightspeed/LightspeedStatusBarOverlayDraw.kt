@@ -8,12 +8,22 @@ import android.os.Build
 import com.sbf.lightspeed.system.LightspeedHudRenderer
 
 private val tempSensorRect = RectF()
+private val overlayScreenLoc = IntArray(2)
 
 internal fun LightspeedStatusBarOverlay.handleDraw(canvas: Canvas, superCall: () -> Unit) {
     superCall()
     val d = resources.displayMetrics.density
     val screenW = resources.displayMetrics.widthPixels.toFloat()
+    val screenH = resources.displayMetrics.heightPixels.toFloat()
     val h = height.toFloat()
+
+    getLocationOnScreen(overlayScreenLoc)
+    LightspeedHudRenderer.updateOverlayScreenCoordinates(
+        screenX = overlayScreenLoc[0],
+        screenY = overlayScreenLoc[1],
+        displayWidthPx = screenW.toInt(),
+        displayHeightPx = screenH.toInt()
+    )
 
     val orientation = resources.configuration.orientation
     val isLandscape = orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
@@ -35,9 +45,11 @@ internal fun LightspeedStatusBarOverlay.handleDraw(canvas: Canvas, superCall: ()
         drawTelemetryTicker(canvas, layout, d, screenW, h, isLandscape)
     }
 
-    val activeMedia = com.sbf.lightspeed.system.LightspeedNotificationListener.activeMediaTelemetry
-    if (activeMedia?.isPlaying == true) {
-        postInvalidateDelayed(1000)
+    if (renderCache.mediaRouting != "none") {
+        val activeMedia = com.sbf.lightspeed.system.LightspeedNotificationListener.activeMediaTelemetry
+        if (activeMedia?.isPlaying == true) {
+            postInvalidateDelayed(1000)
+        }
     }
 
     // 3. Hardware Gear Set HUD Navigation & Transient Action HUD Renderer
@@ -109,14 +121,30 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
     m3Primary: Int
 ) {
     val navState = com.sbf.lightspeed.system.LightspeedKeyEngine.currentNavState
+    val transientHud = currentTransientHudState
+    val hasActiveHud = (navState != null && navState.isActive) || transientHud != null
+    if (!hasActiveHud) return
+
+    // Gate Frame-0 rendering while takeScreenshot() is actively capturing (~15-25ms)
+    // so the HUD never flashes unblurred for a split-second and never captures itself.
+    if (com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isHudCapturing &&
+        !com.sbf.lightspeed.settings.CentralCommandBackdropBlur.hasHudBackdrop()
+    ) {
+        return
+    }
+
     if (navState != null && navState.isActive) {
         val hudColorMode = com.sbf.lightspeed.system.LightspeedPreferences.resolveHudColorMode(prefs, actionToken = "system:gear_nav")
         val useCentralTheme = hudColorMode != com.sbf.lightspeed.system.LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
+        val gearHudStyle = prefs.getString(
+            com.sbf.lightspeed.system.LightspeedPreferences.KEY_HUD_STYLE_DEFAULT,
+            com.sbf.lightspeed.system.LightspeedPreferences.DEFAULT_HUD_STYLE
+        ) ?: "canopy_droppod"
         val topY = (renderCache.thicknessDp * d) + (8f * d)
         val hudCenterY = topY + (72f * d)
         LightspeedHudRenderer.renderHud(
             canvas = canvas,
-            style = "canopy_droppod",
+            style = gearHudStyle,
             title = "GEAR SET NAV: ${navState.setName}",
             value = navState.currentLabel,
             stepIndex = navState.currentIndex,
@@ -129,29 +157,26 @@ internal fun LightspeedStatusBarOverlay.drawScrubHud(
             useCentralTheme = useCentralTheme,
             colorMode = hudColorMode
         )
-    } else {
-        val transientHud = currentTransientHudState
-        if (transientHud != null) {
-            val hudColorMode = transientHud.colorMode
-                ?: com.sbf.lightspeed.system.LightspeedPreferences.resolveHudColorMode(prefs)
-            val useCentralTheme = hudColorMode != com.sbf.lightspeed.system.LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
-            val topY = (renderCache.thicknessDp * d) + (8f * d)
-            val hudCenterY = topY + (72f * d)
-            LightspeedHudRenderer.renderHud(
-                canvas = canvas,
-                style = transientHud.style,
-                title = transientHud.title,
-                value = transientHud.value,
-                stepIndex = transientHud.stepIndex,
-                totalSteps = transientHud.totalSteps,
-                centerX = screenW / 2f,
-                centerY = hudCenterY,
-                topY = topY,
-                primaryColor = m3Primary,
-                density = d,
-                useCentralTheme = useCentralTheme,
-                colorMode = hudColorMode
-            )
-        }
+    } else if (transientHud != null) {
+        val hudColorMode = transientHud.colorMode
+            ?: com.sbf.lightspeed.system.LightspeedPreferences.resolveHudColorMode(prefs)
+        val useCentralTheme = hudColorMode != com.sbf.lightspeed.system.LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC
+        val topY = (renderCache.thicknessDp * d) + (8f * d)
+        val hudCenterY = topY + (72f * d)
+        LightspeedHudRenderer.renderHud(
+            canvas = canvas,
+            style = transientHud.style,
+            title = transientHud.title,
+            value = transientHud.value,
+            stepIndex = transientHud.stepIndex,
+            totalSteps = transientHud.totalSteps,
+            centerX = screenW / 2f,
+            centerY = hudCenterY,
+            topY = topY,
+            primaryColor = m3Primary,
+            density = d,
+            useCentralTheme = useCentralTheme,
+            colorMode = hudColorMode
+        )
     }
 }

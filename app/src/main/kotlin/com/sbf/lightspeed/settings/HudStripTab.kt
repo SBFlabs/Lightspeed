@@ -97,9 +97,14 @@ fun HudStripTabContent(
     var thresholdCrossedFlash by thresholdCrossedFlashState
 
     val oemFeatureName = remember { OemNotchDetector.getDetectedFeatureName() }
-    val installedTacticalTools by produceState(initialValue = emptyList<TacticalToolItem>()) {
-        value = withContext(Dispatchers.IO) {
-            InstalledTacticalToolsScanner.scan(context)
+    var installedTacticalTools by remember {
+        mutableStateOf(InstalledTacticalToolsScanner.getCachedOrEmpty())
+    }
+    LaunchedEffect(Unit) {
+        if (installedTacticalTools.isEmpty()) {
+            installedTacticalTools = withContext(Dispatchers.IO) {
+                InstalledTacticalToolsScanner.scan(context)
+            }
         }
     }
     val scope = rememberCoroutineScope()

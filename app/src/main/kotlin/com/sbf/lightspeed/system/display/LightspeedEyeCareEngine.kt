@@ -165,7 +165,14 @@ object LightspeedEyeCareEngine {
         val service = LightspeedAccessibilityService.instance ?: return
         val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
 
-        if (dimAlpha <= 0.001f && kelvin <= 0) {
+        // Composite Color: Amber Warm Tint + Black Dim Alpha
+        // Warm alpha strictly capped at 0.35f, and combined max alpha capped at 0.70f
+        val warmAlpha = if (kelvin > 0) {
+            val factor = 1f - ((kelvin - 2200f) / 3300f).coerceIn(0f, 1f)
+            (factor * 0.35f).coerceIn(0f, 0.35f)
+        } else 0f
+
+        if (dimAlpha <= 0.001f && warmAlpha <= 0.001f) {
             overlayView?.let {
                 try { wm.removeView(it) } catch (_: Exception) {}
                 overlayView = null
@@ -186,6 +193,8 @@ object LightspeedEyeCareEngine {
             }
             val params = createFullDisplayOverlayParams(service).apply {
                 format = android.graphics.PixelFormat.TRANSLUCENT
+                // Strip FLAG_HARDWARE_ACCELERATED since this overlay uses LAYER_TYPE_SOFTWARE; prevents idle GPU swapchain allocation
+                flags = flags and WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED.inv()
             }
             try {
                 wm.addView(v, params)
@@ -196,15 +205,8 @@ object LightspeedEyeCareEngine {
             }
         }
 
-        // Composite Color: Amber Warm Tint + Black Dim Alpha
-        // Warm alpha strictly capped at 0.35f, and combined max alpha capped at 0.70f
-        val warmAlpha = if (kelvin > 0) {
-            val factor = 1f - ((kelvin - 2200f) / 3300f).coerceIn(0f, 1f)
-            (factor * 0.35f).coerceIn(0f, 0.35f)
-        } else 0f
-
         val finalColor = when {
-            dimAlpha > 0f && kelvin > 0 -> {
+            dimAlpha > 0f && warmAlpha > 0.001f -> {
                 val combinedAlpha = (dimAlpha + warmAlpha * 0.4f).coerceIn(0f, 0.70f)
                 val r = (255 * (1f - dimAlpha * 0.25f)).toInt().coerceIn(0, 255)
                 val g = (175 * (1f - dimAlpha * 0.35f)).toInt().coerceIn(0, 255)
@@ -215,7 +217,7 @@ object LightspeedEyeCareEngine {
                 val safeDim = dimAlpha.coerceIn(0f, 0.70f)
                 android.graphics.Color.argb((safeDim * 255).toInt(), 0, 0, 0)
             }
-            kelvin > 0 -> {
+            warmAlpha > 0.001f -> {
                 val safeWarm = warmAlpha.coerceIn(0f, 0.35f)
                 android.graphics.Color.argb((safeWarm * 255).toInt(), 255, 175, 50)
             }

@@ -7,6 +7,7 @@ import com.sbf.lightspeed.settings.DeckThemeSnapshot
 data class HudThemeSpec(
     val panelColor: Int,
     val panelAlpha: Float,
+    val blurRadiusPx: Float,
     val tintColor: Int,
     val borderColor: Int,
     val borderWidthPx: Float,
@@ -31,6 +32,7 @@ object LightspeedHudThemeHelper {
             return HudThemeSpec(
                 panelColor = Color.rgb((16 + r * 0.12f).toInt().coerceIn(0, 255), (20 + g * 0.12f).toInt().coerceIn(0, 255), (32 + b * 0.12f).toInt().coerceIn(0, 255)),
                 panelAlpha = 0.92f,
+                blurRadiusPx = 0f,
                 tintColor = primaryColor,
                 borderColor = Color.argb(175, r, g, b),
                 borderWidthPx = 1.5f * density,
@@ -47,25 +49,34 @@ object LightspeedHudThemeHelper {
         val rawBorder = snapshot.borderColorArgb.toInt()
         val rawGlow = snapshot.glowColorArgb.toInt()
 
-        // Ensure rich, solid panel colors (never transparent)
         val pR = Color.red(rawPanel)
         val pG = Color.green(rawPanel)
         val pB = Color.blue(rawPanel)
         val panelOpaque = Color.rgb(pR, pG, pB)
 
-        // HUD backplane requires minimum 88%..95% opacity for outdoor & overlay legibility
-        val safeAlpha = (snapshot.panelAlpha * 0.25f + 0.70f).coerceIn(0.88f, 0.95f)
+        // Enforce a constant minimum frosted screenshot blur floor on Deflector Scrubber HUDs
+        // whenever Screenshot or Automatic fallback blur is active, even if a theme slider is 0.
+        val rawBlurPx = snapshot.windowBlurRadiusPx.toFloat().coerceAtLeast(0f)
+        val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.modeFlow.value
+        val isScreenshotBlurActive = blurMode == com.sbf.lightspeed.settings.BackdropBlurMode.SCREENSHOT ||
+            (blurMode == com.sbf.lightspeed.settings.BackdropBlurMode.AUTOMATIC &&
+                !com.sbf.lightspeed.settings.CentralCommandActivity.isCrossWindowBlurActive)
+        val blurPx = if (isScreenshotBlurActive) rawBlurPx.coerceAtLeast(28f * density) else rawBlurPx
+        val minAlpha = if (blurPx <= 0f) 0.20f else 0.14f
+        val safeAlpha = snapshot.panelAlpha.coerceIn(minAlpha, 1.0f)
 
-        // Ensure legible tint contrast for title & values
+        // Ensure legible, full-opacity tint contrast for icons, progress bars, headers & values
         val tR = Color.red(rawTint)
         val tG = Color.green(rawTint)
         val tB = Color.blue(rawTint)
+        val opaqueTint = Color.rgb(tR, tG, tB)
         val lum = (0.299f * tR + 0.587f * tG + 0.114f * tB) / 255f
-        val safeTint = if (lum < 0.45f) Color.WHITE else rawTint
+        val safeTint = if (lum < 0.45f) Color.WHITE else opaqueTint
 
-        val corner = (snapshot.cornerRadiusDp * 0.45f * density).coerceIn(8f * density, 22f * density)
-        val stroke = (snapshot.borderWidthDp * density).coerceIn(1.2f * density, 3.0f * density)
-        val safeBorder = if (Color.alpha(rawBorder) < 90) Color.argb(160, tR, tG, tB) else rawBorder
+        val corner = (snapshot.cornerRadiusDp * 0.45f * density).coerceIn(0f, 32f * density)
+        val minStroke = if (safeAlpha < 0.30f || blurPx <= 0f) 1.1f * density else 0.75f * density
+        val stroke = (snapshot.borderWidthDp * density).coerceIn(minStroke, 6f * density)
+        val safeBorder = if (Color.alpha(rawBorder) < 130) Color.argb(165, tR, tG, tB) else rawBorder
 
         if (colorMode == LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION) {
             val fusedPanel = Color.rgb(
@@ -85,13 +96,14 @@ object LightspeedHudThemeHelper {
             return HudThemeSpec(
                 panelColor = fusedPanel,
                 panelAlpha = safeAlpha,
+                blurRadiusPx = blurPx,
                 tintColor = primaryColor,
                 borderColor = fusedBorder,
                 borderWidthPx = stroke,
                 cornerRadiusPx = corner,
                 glowColor = primaryColor,
-                glowStrength = snapshot.glowStrength.coerceAtLeast(0.28f),
-                highlightStrength = snapshot.highlightStrength.coerceAtLeast(0.55f),
+                glowStrength = snapshot.glowStrength.coerceIn(0f, 1.5f),
+                highlightStrength = snapshot.highlightStrength.coerceIn(0f, 1.5f),
                 isCentralTheme = true
             )
         }
@@ -99,13 +111,14 @@ object LightspeedHudThemeHelper {
         return HudThemeSpec(
             panelColor = panelOpaque,
             panelAlpha = safeAlpha,
+            blurRadiusPx = blurPx,
             tintColor = safeTint,
             borderColor = safeBorder,
             borderWidthPx = stroke,
             cornerRadiusPx = corner,
-            glowColor = if (rawGlow == 0) safeTint else rawGlow,
-            glowStrength = snapshot.glowStrength.coerceAtLeast(0.20f),
-            highlightStrength = snapshot.highlightStrength.coerceAtLeast(0.50f),
+            glowColor = if (Color.alpha(rawGlow) == 0) safeTint else rawGlow,
+            glowStrength = snapshot.glowStrength.coerceIn(0f, 1.5f),
+            highlightStrength = snapshot.highlightStrength.coerceIn(0f, 1.5f),
             isCentralTheme = true
         )
     }

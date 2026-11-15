@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/stack_item_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 12-Theme Glass Card Surface Background -->
+    <ImageView
+        android:id="@+id/stack_item_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="@null" />
+
+    <!-- Container for live captured 3rd-party widget RemoteViews -->
+    <FrameLayout
+        android:id="@+id/hosted_widget_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="6dp"
+        android:visibility="gone" />
+
+    <!-- Themed Fallback Placeholder while widget RemoteViews is loading or syncing -->
+    <LinearLayout
+        android:id="@+id/hosted_widget_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/stack_item_title"
+            android:layout_width="match_parent"
+            android:layout_height="22dp"
+            android:gravity="center"
+            android:textSize="10.5sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <ImageView
+            android:id="@+id/hosted_widget_icon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:contentDescription="@null" />
+
+        <TextView
+            android:id="@+id/hosted_widget_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="6dp" />
+
+        <TextView
+            android:id="@+id/hosted_widget_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="8.5sp"
+            android:textStyle="bold"
+            android:textColor="#CCCCCC"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+</FrameLayout>

@@ -104,6 +104,7 @@ object LightspeedPreferences :
 
     // App Category Override & Icon Pipeline Keys
     const val KEY_APP_CATEGORY_OVERRIDE_PREFIX = "pref_app_category_override_"
+    const val KEY_CATEGORY_ICON_PACK_PREFIX = "pref_category_icon_pack_"
     const val KEY_CATEGORY_ORDER = "pref_category_order"
     const val KEY_ACTIVE_ICON_PACK = "pref_active_icon_pack"
     const val KEY_CATEGORY_CRUISE_ICON_PACK = "pref_category_cruise_icon_pack"
@@ -345,6 +346,7 @@ object LightspeedPreferences :
     const val KEY_POWER_SINGLE_PRESS_UNLOCKED = "pref_power_single_press_unlocked"
     const val KEY_SUPPRESS_DEEP_ACTIVITY_WARNING = "pref_suppress_deep_activity_warning"
     const val KEY_PICKER_PINNED_APPS = "pref_picker_pinned_apps"
+    const val KEY_WIDGET_PICKER_PINNED_APPS = "pref_widget_picker_pinned_apps"
     const val KEY_SYSTEM_ACCORDION_MODE = "pref_picker_system_accordion_mode"
     const val KEY_EXPANDED_SUBSECTIONS = "pref_picker_expanded_subsections"
     const val KEY_SECTION_EXPERIMENTAL_LABS_EXPANDED = "pref_section_experimental_labs_expanded"
@@ -483,12 +485,105 @@ object LightspeedPreferences :
     const val KEY_MEDIA_SKIP_SECONDS = "pref_media_skip_seconds"
     const val KEY_MEDIA_SKIP_FORWARD_SECONDS = "pref_media_skip_forward_seconds"
     const val KEY_MEDIA_SKIP_BACKWARD_SECONDS = "pref_media_skip_backward_seconds"
+    const val KEY_MEDIA_SCRUB_STEP_SEC = "pref_media_scrub_step_sec"
+    const val KEY_MEDIA_SCRUB_ACCEL_ENABLED = "pref_media_scrub_accel_enabled"
     const val KEY_GESTURE_HOLD_DURATION_MS = "pref_gesture_hold_duration_ms"
     const val DEFAULT_GESTURE_HOLD_DURATION_MS = 300
     const val KEY_GRAVITY_ENFORCEMENT_ENGINE = "pref_gravity_enforcement_engine"
     const val GRAVITY_ENGINE_DUAL_HYBRID = "dual_hybrid"
     const val GRAVITY_ENGINE_SYSTEM_SETTINGS = "system_settings"
     const val GRAVITY_ENGINE_WINDOW_ANCHOR = "window_anchor"
+
+    // Vista Deck Overdrive Refresh Rate & Per-App Tactical Telemetry HUD Keys
+    const val KEY_VISTA_SUB_TELEMETRY_EXPANDED = "pref_vista_sub_telemetry_expanded"
+    const val KEY_OVERDRIVE_TARGET_HZ = "pref_overdrive_target_hz"
+    const val KEY_OVERDRIVE_FLOOR_MODE = "pref_overdrive_floor_mode"
+    const val OVERDRIVE_FLOOR_ADAPTIVE = "adaptive"
+    const val OVERDRIVE_FLOOR_LOCKED = "locked"
+    const val KEY_TELEMETRY_HUD_ENABLED = "pref_telemetry_hud_enabled"
+    const val KEY_TELEMETRY_HUD_PACKAGES = "pref_telemetry_hud_packages"
+    const val KEY_TELEMETRY_HUD_SHOW_FPS = "pref_telemetry_hud_show_fps"
+    const val KEY_TELEMETRY_HUD_SHOW_CPU = "pref_telemetry_hud_show_cpu"
+    const val KEY_TELEMETRY_HUD_SHOW_TEMP = "pref_telemetry_hud_show_temp"
+    const val KEY_TELEMETRY_HUD_SHOW_RAM = "pref_telemetry_hud_show_ram"
+    const val KEY_TELEMETRY_HUD_SHOW_BAT = "pref_telemetry_hud_show_bat"
+    const val KEY_TELEMETRY_HUD_SHOW_WATT = "pref_telemetry_hud_show_watt"
+    const val KEY_TELEMETRY_HUD_POS_X = "pref_telemetry_hud_pos_x"
+    const val KEY_TELEMETRY_HUD_POS_Y = "pref_telemetry_hud_pos_y"
+    const val KEY_CLOAK_RESET_REFRESH_RATE = "pref_cloak_reset_refresh_rate"
+
+    // Category Cruise Per-Category Top HUD Strip & Custom Icon Lists Keys
+    const val KEY_CATEGORY_HUD_ITEMS_PREFIX = "pref_category_hud_items_"
+    const val KEY_CATEGORY_HUD_WIDGET_CONFIG_PREFIX = "pref_category_hud_widget_config_"
+    const val KEY_CATEGORY_HUD_MODE_PREFIX = "pref_category_hud_mode_"
+    const val KEY_CATEGORY_HUD_WIDGET_ID_PREFIX = "pref_category_hud_widget_id_"
+    const val KEY_CATEGORY_HUD_WIDGET_LABEL_PREFIX = "pref_category_hud_widget_label_"
+    const val KEY_CATEGORY_HUD_WIDGET_PKG_PREFIX = "pref_category_hud_widget_pkg_"
+    const val KEY_CATEGORY_HUD_SLOT2_MODE_PREFIX = "pref_category_hud_slot2_mode_"
+    const val KEY_CATEGORY_HUD_SLOT2_WIDGET_ID_PREFIX = "pref_category_hud_slot2_widget_id_"
+    const val KEY_CATEGORY_HUD_SLOT2_WIDGET_LABEL_PREFIX = "pref_category_hud_slot2_widget_label_"
+    const val KEY_CATEGORY_HUD_SLOT2_WIDGET_PKG_PREFIX = "pref_category_hud_slot2_widget_pkg_"
+    const val KEY_CATEGORY_HUD_SLOT2_TIME_SPAN_PREFIX = "pref_category_hud_slot2_time_span_"
+    const val KEY_CATEGORY_HUD_SLOT2_TIME_SCOPE_PREFIX = "pref_category_hud_slot2_time_scope_"
+    const val KEY_CATEGORY_HUD_SLOT2_BATTERY_MODE_PREFIX = "pref_category_hud_slot2_bat_mode_"
+    const val KEY_CATEGORY_HUD_SLOT2_BATTERY_SPAN_PREFIX = "pref_category_hud_slot2_bat_span_"
+    const val KEY_CATEGORY_HUD_SLOT2_PRIVACY_VIEW_PREFIX = "pref_category_hud_slot2_privacy_view_"
+    const val KEY_CATEGORY_HUD_TIME_SPAN = "pref_category_hud_time_span"
+    const val KEY_CATEGORY_HUD_TIME_SPAN_PREFIX = "pref_category_hud_time_span_"
+    const val KEY_CATEGORY_HUD_TIME_SCOPE = "pref_category_hud_time_scope"
+    const val KEY_CATEGORY_HUD_TIME_SCOPE_PREFIX = "pref_category_hud_time_scope_"
+    const val KEY_CATEGORY_HUD_BATTERY_MODE = "pref_category_hud_battery_mode"
+    const val KEY_CATEGORY_HUD_BATTERY_MODE_PREFIX = "pref_category_hud_battery_mode_"
+    const val KEY_CATEGORY_HUD_BATTERY_SPAN = "pref_category_hud_battery_span"
+    const val KEY_CATEGORY_HUD_BATTERY_SPAN_PREFIX = "pref_category_hud_battery_span_"
+    const val KEY_CATEGORY_HUD_PRIVACY_VIEW = "pref_category_hud_privacy_view"
+    const val KEY_CATEGORY_HUD_PRIVACY_VIEW_PREFIX = "pref_category_hud_privacy_view_"
+    const val KEY_HUD_INSIDE_CATEGORY_ONLY = "pref_hud_inside_category_only"
+    const val KEY_CATEGORY_HUD_INSIDE_ONLY_PREFIX = "pref_category_hud_inside_only_"
+    const val KEY_CATEGORY_HUD_CORNER_RADIUS_DP = "pref_category_hud_corner_radius_dp"
+    const val DEFAULT_CATEGORY_HUD_CORNER_RADIUS_DP = 12
+    const val KEY_CATEGORY_HUD_GAP_DP = "pref_category_hud_gap_dp"
+    const val DEFAULT_CATEGORY_HUD_GAP_DP = 8
+    const val KEY_CATEGORY_HUD_OPACITY_PERCENT = "pref_category_hud_opacity_percent"
+    const val DEFAULT_CATEGORY_HUD_OPACITY_PERCENT = 100
+    const val KEY_CATEGORY_HUD_PAD_LEFT_DP = "pref_category_hud_pad_left_dp"
+    const val KEY_CATEGORY_HUD_PAD_TOP_DP = "pref_category_hud_pad_top_dp"
+    const val KEY_CATEGORY_HUD_PAD_RIGHT_DP = "pref_category_hud_pad_right_dp"
+    const val KEY_CATEGORY_HUD_PAD_BOTTOM_DP = "pref_category_hud_pad_bottom_dp"
+    const val KEY_FIREWALL_BLOCKED_PACKAGES = "pref_firewall_blocked_packages"
+    const val KEY_CUSTOM_ICON_LISTS_JSON = "pref_custom_icon_lists_json"
+    const val KEY_TIMELINE_COUNTDOWN_ENABLED = "pref_timeline_countdown_enabled"
+    const val KEY_TIMELINE_COUNTDOWN_TITLE = "pref_timeline_countdown_title"
+    const val KEY_TIMELINE_COUNTDOWN_TARGET_MS = "pref_timeline_countdown_target_ms"
+    const val KEY_VITALS_TEMP_UNIT_FAHRENHEIT = "pref_vitals_temp_unit_fahrenheit"
+    const val KEY_VITALS_PEAK_CHARGE_WATTS = "pref_vitals_peak_charge_watts"
+    const val KEY_VITALS_MIN_CHARGE_WATTS = "pref_vitals_min_charge_watts"
+    const val KEY_VITALS_STORAGE_SORT_KEY = "pref_vitals_storage_sort_key"
+    const val KEY_VITALS_STORAGE_SORT_REVERSED = "pref_vitals_storage_sort_reversed"
+    const val KEY_VITALS_STORAGE_VOLUME_FILTER = "pref_vitals_storage_volume_filter"
+    const val KEY_VITALS_STORAGE_SHOW_SYSTEM = "pref_vitals_storage_system_enabled"
+
+    // Supporter Milestone & Post-Update Reminder Keys
+    const val KEY_SUPPORTER_REMINDER_OPT_OUT = "pref_supporter_reminder_opt_out"
+    const val KEY_SUPPORTER_LAST_SEEN_VERSION = "pref_supporter_last_seen_version"
+    const val KEY_SUPPORTER_LAST_SEEN_INSTALL_TIME = "pref_supporter_last_seen_install_time"
+    const val KEY_SUPPORTER_FIRST_USE_MS = "pref_supporter_first_use_ms"
+    const val KEY_SUPPORTER_SHOWN_7D = "pref_supporter_shown_7d"
+    const val KEY_SUPPORTER_SHOWN_30D = "pref_supporter_shown_30d"
+    const val KEY_WELCOME_V140_SEEN = "pref_welcome_v140_seen"
+
+    // Widget Engine & Visual Presentation Keys
+    const val KEY_WIDGET_THEME_MODE = "pref_widget_theme_mode" // "12_theme", "material_you", "hybrid"
+    const val KEY_WIDGET_BACKGROUND_OPACITY = "pref_widget_background_opacity" // float 0.0f .. 1.0f
+
+    // Typed Sub-Section & Interactive Control Preference Keys
+    const val KEY_SUB_SWIPE_DOWN_STATUSBAR = "pref_sub_swipe_down_statusbar"
+    const val KEY_SUB_BOTTOM_STATUSBAR_EXPANDED = "pref_sub_bottom_statusbar_expanded"
+    const val KEY_SUB_BOTTOM_STATUSBAR_GEO = "pref_sub_bottom_statusbar_geo"
+    const val KEY_SUB_BOTTOM_STATUSBAR_GESTURES = "pref_sub_bottom_statusbar_gestures"
+
+    fun keySliderTapToJump(sliderKey: String): String = "pref_slider_tap_to_jump_$sliderKey"
+
     const val KEY_DEFAULTS_INITIALIZED = "pref_defaults_initialized_v3"
 
     // Defaults Initialization Delegate

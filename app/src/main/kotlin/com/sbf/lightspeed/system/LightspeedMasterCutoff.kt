@@ -11,7 +11,9 @@ import com.sbf.lightspeed.LightspeedAccessibilityService
 import com.sbf.lightspeed.system.display.LightspeedConsciousAirlockOverlay
 import com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine
 import com.sbf.lightspeed.system.display.LightspeedEyeCareEngine
+import com.sbf.lightspeed.system.display.LightspeedRefreshRateEngine
 import com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay
+import com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay
 import com.sbf.lightspeed.system.sonic.SonicAppVolumeEngine
 import com.sbf.lightspeed.system.sonic.SonicChannelRouter
 import com.sbf.lightspeed.system.sonic.SonicVoiceIsolationEngine
@@ -35,6 +37,8 @@ object LightspeedMasterCutoff {
     private const val KEY_STASHED_EYE_CARE = "pref_cloak_stashed_eye_care"
     private const val KEY_STASHED_EYE_CARE_TEMP = "pref_cloak_stashed_eye_care_temp"
     private const val KEY_STASHED_SMART_PIXELS = "pref_cloak_stashed_smart_pixels"
+    private const val KEY_STASHED_OVERDRIVE_HZ = "pref_cloak_stashed_overdrive_hz"
+    private const val KEY_STASHED_OVERDRIVE_FLOOR = "pref_cloak_stashed_overdrive_floor"
 
     fun isSystemArmed(context: Context): Boolean {
         return LightspeedPreferences.isMasterFlightArmed(context)
@@ -144,6 +148,7 @@ object LightspeedMasterCutoff {
         val disableExtraDim = prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EXTRA_DIM, true)
         val disableEyeCare = prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EYE_CARE, false)
         val disableSmartPixels = prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_SMART_PIXELS, true)
+        val resetRefreshRate = prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_RESET_REFRESH_RATE, false)
         val suspendSonicDeck = prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_SUSPEND_SONIC_DECK, true)
         val stopShizuku = prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_STOP_SHIZUKU, false)
         val shizukuFork = prefs.getString(LightspeedPreferences.KEY_CLOAK_SHIZUKU_FORK, "auto") ?: "auto"
@@ -207,6 +212,31 @@ object LightspeedMasterCutoff {
                 }
             } catch (e: Exception) { logSwallowed(TAG, "cutoff:smartpixels", e) }
 
+            // 3b. Overdrive Refresh Rate (Optional — OFF by default in Cloak checklist)
+            try {
+                if (resetRefreshRate) {
+                    val wasTargetHz = prefs.getInt(LightspeedPreferences.KEY_OVERDRIVE_TARGET_HZ, 0)
+                    val wasFloorMode = prefs.getString(
+                        LightspeedPreferences.KEY_OVERDRIVE_FLOOR_MODE,
+                        LightspeedPreferences.OVERDRIVE_FLOOR_ADAPTIVE
+                    ) ?: LightspeedPreferences.OVERDRIVE_FLOOR_ADAPTIVE
+                    prefs.edit()
+                        .putInt(KEY_STASHED_OVERDRIVE_HZ, wasTargetHz)
+                        .putString(KEY_STASHED_OVERDRIVE_FLOOR, wasFloorMode)
+                        .apply()
+                    if (wasTargetHz > 0) {
+                        val defaultAdaptiveHz = LightspeedRefreshRateEngine.getSupportedRefreshRates(context)
+                            .firstOrNull { it <= 120 && it >= 90 } ?: 60
+                        LightspeedRefreshRateEngine.applyRefreshRate(
+                            context,
+                            defaultAdaptiveHz,
+                            LightspeedPreferences.OVERDRIVE_FLOOR_ADAPTIVE
+                        )
+                        prefs.edit().putInt(LightspeedPreferences.KEY_OVERDRIVE_TARGET_HZ, 0).apply()
+                    }
+                }
+            } catch (e: Exception) { logSwallowed(TAG, "cutoff:refreshrate", e) }
+
             // 4. Restore Native Android Edge Back Gestures to 1.0
             try {
                 if (ElevatedTaskCloser.isShizukuActive) {
@@ -217,9 +247,11 @@ object LightspeedMasterCutoff {
                 }
             } catch (e: Exception) { logSwallowed(TAG, "cutoff:back_gesture", e) }
 
-            // 5. Conscious Airlock, Space Pods & Bot Overlays
+            // 5. Conscious Airlock, Telemetry Micro-HUD, Keep Screen On, Space Pods & Bot Overlays
             try {
                 LightspeedConsciousAirlockOverlay.dismiss()
+                LightspeedTelemetryHudOverlay.detachOverlay()
+                LightspeedTimeoutEngine.releaseAlwaysOn()
                 LightspeedSpacePodOverlay.hide()
                 com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.hide()
                 com.sbf.lightspeed.system.bot.LightspeedBotRecorderOverlay.hide()
@@ -395,6 +427,17 @@ object LightspeedMasterCutoff {
                     LightspeedSmartPixelsOverlay.setEnabled(context, true)
                     prefs.edit().putBoolean(KEY_STASHED_SMART_PIXELS, false).apply()
                 }
+                if (resetRefreshRate) {
+                    val savedHz = prefs.getInt(KEY_STASHED_OVERDRIVE_HZ, 0)
+                    if (savedHz > 0) {
+                        val savedFloorMode = prefs.getString(
+                            KEY_STASHED_OVERDRIVE_FLOOR,
+                            LightspeedPreferences.OVERDRIVE_FLOOR_ADAPTIVE
+                        ) ?: LightspeedPreferences.OVERDRIVE_FLOOR_ADAPTIVE
+                        LightspeedRefreshRateEngine.applyRefreshRate(context, savedHz, savedFloorMode)
+                        prefs.edit().putInt(KEY_STASHED_OVERDRIVE_HZ, 0).apply()
+                    }
+                }
                 if (suspendSonicDeck && prefs.getBoolean(LightspeedPreferences.KEY_SONIC_DECK_ENABLED, false)) {
                     SonicDeckManager.onMasterToggle(context, true)
                 }
@@ -403,6 +446,7 @@ object LightspeedMasterCutoff {
             LightspeedAccessibilityService.instance?.let { svc ->
                 svc.updateOverlaysVisibility()
                 svc.reloadPreferences()
+                LightspeedTelemetryHudOverlay.init(svc)
             }
         }
     }

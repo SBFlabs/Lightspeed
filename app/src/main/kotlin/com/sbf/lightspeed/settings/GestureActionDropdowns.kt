@@ -324,8 +324,8 @@ fun GestureHudThemeToggleChip(
 
     val colorModes = listOf(
         Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_THEME_12, "◈ 12-Theme", "12-Theme"),
-        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, "🎨 Material 3", "Material 3"),
-        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, "⚡ Hybrid Fusion", "Hybrid Fusion")
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_M3_DYNAMIC, "✦ Material 3", "Material 3"),
+        Triple(LightspeedPreferences.COCKPIT_COLOR_MODE_HYBRID_FUSION, ":: Hybrid Fusion", "Hybrid Fusion")
     )
 
     Box {

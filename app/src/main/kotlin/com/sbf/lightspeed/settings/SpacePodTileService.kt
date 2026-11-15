@@ -20,6 +20,7 @@ abstract class BaseSpacePodTileService(private val podIndex: Int) : TileService(
         updateTileState()
     }
 
+    @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated") // PendingIntent overload used on API 34+
     override fun onClick() {
         super.onClick()
         if (!SpacePodGestureDispatcher.isPodConfigured(this, podIndex)) {

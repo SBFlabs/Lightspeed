@@ -136,7 +136,11 @@ object LightspeedHudHorizonRenderer {
         val tR = Color.red(spec.tintColor)
         val tG = Color.green(spec.tintColor)
         val tB = Color.blue(spec.tintColor)
-        val pA = (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
+        val pA = if (spec.isCentralTheme) {
+            (spec.panelAlpha * 255).toInt().coerceIn(12, 250)
+        } else {
+            (spec.panelAlpha * 255).toInt().coerceIn(210, 245)
+        }
         val r = tR
         val g = tG
         val b = tB
@@ -156,7 +160,10 @@ object LightspeedHudHorizonRenderer {
             canvas.drawPath(path, glowPaint)
         }
 
-        // 1. Solid Frosted Base (Guarantees zero transparency)
+        // 0. Clipped Screenshot / Shader Backdrop Blur Layer
+        LightspeedHudRenderer.drawHudBackdropLayer(canvas, path, 0f, 0f, 0f, spec)
+
+        // 1. Frosted Base
         glassFillPaint.shader = null
         glassFillPaint.color = Color.argb(pA, (pR + tR * 0.08f).toInt().coerceIn(0, 255), (pG + tG * 0.08f).toInt().coerceIn(0, 255), (pB + tB * 0.08f).toInt().coerceIn(0, 255))
         canvas.drawPath(path, glassFillPaint)

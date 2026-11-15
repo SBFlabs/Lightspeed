@@ -217,7 +217,10 @@ internal fun LightspeedCruiseOverlay.refreshActiveRenderEffect() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val isPillEnabled = if (isOpenedFromLeftFlank) renderCacheLeftGlowEnabled else renderCacheGlowEnabled
         val isExpanded = (currentLayer != CruiseLayer.HIDDEN && currentLayer != CruiseLayer.NEUTRAL)
-        val shouldApplyBlur = isExpanded && (isPillEnabled || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN)
+        val isCategoryOrGrid = (currentLayer == CruiseLayer.CATEGORY || currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN || isStickyPinned)
+        // In Category Cruise (CATEGORY, GRID, STICKY_PIN), never apply fullscreen blur/vignette so the top HUD deck,
+        // bottom row of apps, and context menus remain 100% crisp, sharp, and unobstructed!
+        val shouldApplyBlur = isExpanded && isPillEnabled && !isCategoryOrGrid
         setRenderEffect(if (shouldApplyBlur) cachedRenderEffect else null)
     }
 }
@@ -240,10 +243,22 @@ internal fun LightspeedCruiseOverlay.updatePillShaderUniforms(
                 setFloatUniform("viewSize", screenW, screenH)
                 setFloatUniform("topBlurHeight", 130.0f * density)
                 setFloatUniform("bottomBlurHeight", 160.0f * density)
-                setFloatUniform("headerBlurActive", if (currentLayer == CruiseLayer.GRID || currentLayer == CruiseLayer.STICKY_PIN) 1f else 0f)
+                setFloatUniform("headerBlurActive", 0f)
             }
         } catch (e: Exception) {
             Log.e("LightspeedBlur", "Failed to update AGSL uniforms", e)
         }
     }
 }
+
+internal fun LightspeedCruiseOverlay.isFarHalfSplitMode(): Boolean {
+    val dp = resources.displayMetrics.density
+    val w = if (width > 200) width.toFloat() else resources.displayMetrics.widthPixels.toFloat()
+    val h = if (height > 200) height.toFloat() else resources.displayMetrics.heightPixels.toFloat()
+    val swDp = minOf(w, h) / dp
+    val isPortrait = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
+    val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || (!isPortrait && w > h)
+    val isTablet = swDp >= 600f
+    return isLandscape || isTablet
+}
+

@@ -9,6 +9,10 @@ import androidx.compose.ui.text.font.FontFamily
 import com.sbf.lightspeed.R
 import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,7 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import com.sbf.lightspeed.ui.theme.LocalDeckTheme
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -68,15 +76,32 @@ fun FloatingOverlayContainer(
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
 
+    val activeSnapshot = LocalDeckTheme.current
+    val isJelly = activeSnapshot.styleId == "jelly"
+
     val thresholdPx = with(density) { 90.dp.toPx() }
     val dragOffsetY = remember { Animatable(0f) }
+    val fluidDragOffsetY by animateFloatAsState(
+        targetValue = dragOffsetY.value,
+        animationSpec = spring(dampingRatio = 0.50f, stiffness = 380f),
+        label = "jelly_fluid_drag"
+    )
     var hasCrossedThreshold by remember { mutableStateOf(false) }
 
-    DeckGlassCardSurface(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
-    ) {
+    CompositionLocalProvider(LocalDeckCardDragOffsetY provides { if (isJelly) fluidDragOffsetY else dragOffsetY.value }) {
+        DeckGlassCardSurface(
+            modifier = Modifier
+                .fillMaxSize()
+                .offset { IntOffset(0, dragOffsetY.value.roundToInt()) }
+                .graphicsLayer {
+                    if (isJelly) {
+                        val stretch = (dragOffsetY.value / 550f).coerceIn(-0.06f, 0.12f)
+                        scaleY = 1.0f + stretch
+                        scaleX = 1.0f - stretch * 0.45f
+                        transformOrigin = TransformOrigin(0.5f, 0.0f)
+                    }
+                }
+        ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
             // Scoped Drag Handle + Header Region (drag detection strictly scoped to header/handle)
@@ -92,24 +117,31 @@ fun FloatingOverlayContainer(
                                 if (dragOffsetY.value >= thresholdPx) {
                                     onDismiss()
                                 } else {
+                                    val releaseDamping = if (isJelly) Spring.DampingRatioHighBouncy else Spring.DampingRatioMediumBouncy
+                                    val releaseStiffness = if (isJelly) Spring.StiffnessLow else Spring.StiffnessMediumLow
                                     coroutineScope.launch {
+                                        if (isJelly) {
+                                            LightspeedHapticEngine.tick(context)
+                                        }
                                         dragOffsetY.animateTo(
                                             0f,
                                             animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMediumLow
+                                                dampingRatio = releaseDamping,
+                                                stiffness = releaseStiffness
                                             )
                                         )
                                     }
                                 }
                             },
                             onDragCancel = {
+                                val releaseDamping = if (isJelly) Spring.DampingRatioHighBouncy else Spring.DampingRatioMediumBouncy
+                                val releaseStiffness = if (isJelly) Spring.StiffnessLow else Spring.StiffnessMediumLow
                                 coroutineScope.launch {
                                     dragOffsetY.animateTo(
                                         0f,
                                         animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessMediumLow
+                                            dampingRatio = releaseDamping,
+                                            stiffness = releaseStiffness
                                         )
                                     )
                                 }
@@ -220,13 +252,16 @@ fun FloatingOverlayContainer(
     }
 }
 }
+}
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CentralCommandFooter(
     context: Context,
     onVersionClick: (() -> Unit)? = null
 ) {
     val lsColors = LightspeedStyle.colors
+    val haptics = LocalHapticFeedback.current
     val versionName = remember {
         try {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
@@ -242,18 +277,22 @@ fun CentralCommandFooter(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Lightspeed Version Badge
+        // Lightspeed Version Badge (Tap -> What's New, Long Press -> Copy version info)
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(lsColors.textPrimary.copy(alpha = 0.06f))
-                .clickable {
-                    val info = "Lightspeed v$versionName (${context.packageName})"
-                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("Lightspeed Version", info))
-                    Toast.makeText(context, "Copied: $info", Toast.LENGTH_SHORT).show()
-                    onVersionClick?.invoke()
-                }
+                .combinedClickable(
+                    onClick = { onVersionClick?.invoke() },
+                    onLongClick = {
+                        LightspeedHapticEngine.tick(context)
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val info = "Lightspeed v$versionName (${context.packageName})"
+                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                        cm?.setPrimaryClip(android.content.ClipData.newPlainText("Lightspeed Version", info))
+                        Toast.makeText(context, "Copied: $info", Toast.LENGTH_SHORT).show()
+                    }
+                )
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -319,7 +358,12 @@ fun CentralCommandFooter(
                     .border(0.8.dp, LightspeedTokens.StatusGoldAlt.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
                     .clickable {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/sbflabs")).apply {
+                            val targetUrl = if (com.sbf.lightspeed.system.LightspeedInfinityManager.isUnlocked(context)) {
+                                "https://buymeacoffee.com/sbflabs"
+                            } else {
+                                "https://buymeacoffee.com/sbflabs/e/579114"
+                            }
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                             context.startActivity(intent)
@@ -413,7 +457,21 @@ fun CompactAccordionSection(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            AnimatedVisibility(visible = isExpanded) {
+            val activeSnapshot = LocalDeckTheme.current
+            val isJelly = activeSnapshot.styleId == "jelly"
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = if (isJelly) {
+                    expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
+                } else {
+                    expandVertically() + fadeIn()
+                },
+                exit = if (isJelly) {
+                    shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
+                } else {
+                    shrinkVertically() + fadeOut()
+                }
+            ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 10.dp)) {
                     content()
                 }
@@ -492,7 +550,21 @@ fun CollapsibleSubSection(
                     )
                 }
             }
-            AnimatedVisibility(visible = isExpanded) {
+            val activeSnapshot = LocalDeckTheme.current
+            val isJelly = activeSnapshot.styleId == "jelly"
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = if (isJelly) {
+                    expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
+                } else {
+                    expandVertically() + fadeIn()
+                },
+                exit = if (isJelly) {
+                    shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
+                } else {
+                    shrinkVertically() + fadeOut()
+                }
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -616,7 +688,21 @@ fun HazardAccordionSection(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            AnimatedVisibility(visible = isExpanded) {
+            val activeSnapshot = LocalDeckTheme.current
+            val isJelly = activeSnapshot.styleId == "jelly"
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = if (isJelly) {
+                    expandVertically(animationSpec = spring(dampingRatio = 0.62f, stiffness = 420f)) + fadeIn()
+                } else {
+                    expandVertically() + fadeIn()
+                },
+                exit = if (isJelly) {
+                    shrinkVertically(animationSpec = spring(dampingRatio = 0.75f, stiffness = 500f)) + fadeOut()
+                } else {
+                    shrinkVertically() + fadeOut()
+                }
+            ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                     content()
                 }

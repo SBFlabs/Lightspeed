@@ -225,7 +225,7 @@ fun DragOnlySlider(
         }
     }
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(44.dp)
@@ -447,11 +447,32 @@ fun PrefDottedSliderRow(
     minVal: Int,
     maxVal: Int,
     step: Int = 1,
-    defaultVal: Int
+    defaultVal: Int,
+    valueSuffix: String = "",
+    externalValue: Int? = null,
+    onValueChanged: ((Int) -> Unit)? = null,
+    onValueChangeFinished: ((Int) -> Unit)? = null
 ) {
     val key = remember(keyResName) { resKey(context, keyResName) }
     val title = remember(titleResName) { resStr(context, titleResName, defaultTitle) }
-    var value by remember { mutableStateOf(prefs.getInt(key, defaultVal)) }
+    var value by remember { mutableStateOf(externalValue ?: prefs.getInt(key, defaultVal)) }
+    LaunchedEffect(externalValue) {
+        if (externalValue != null) value = externalValue
+    }
+    val updateValue: (Int) -> Unit = { newVal ->
+        val clamped = newVal.coerceIn(minVal, maxVal)
+        value = clamped
+        if (onValueChanged != null) {
+            onValueChanged(clamped)
+        } else {
+            prefs.edit().putInt(key, clamped).apply()
+        }
+    }
+    val commitDiscreteValue: (Int) -> Unit = { newVal ->
+        val clamped = newVal.coerceIn(minVal, maxVal)
+        updateValue(clamped)
+        onValueChangeFinished?.invoke(clamped)
+    }
     val steps = remember(minVal, maxVal, step) { ((maxVal - minVal) / step) - 1 }
     var isFlyoutOpen by remember { mutableStateOf(false) }
     var isTapToJumpEnabled by remember { mutableStateOf(prefs.getBoolean("pref_slider_tap_to_jump_$key", false)) }
@@ -484,13 +505,12 @@ fun PrefDottedSliderRow(
                         },
                         onLongClick = {
                             LightspeedHapticEngine.heavyClick(context)
-                            value = defaultVal
-                            prefs.edit().putInt(key, defaultVal).apply()
+                            commitDiscreteValue(defaultVal)
                         }
                     )
             ) {
                 Text(
-                    text = value.toString(),
+                    text = "$value$valueSuffix",
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.5.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
@@ -504,8 +524,10 @@ fun PrefDottedSliderRow(
             value = value.toFloat(),
             onValueChange = {
                 // DragOnlySlider provides the value stepped according to normal step or vertical fine 1-step
-                value = it.roundToInt().coerceIn(minVal, maxVal)
-                prefs.edit().putInt(key, value).apply()
+                updateValue(it.roundToInt())
+            },
+            onValueChangeFinished = {
+                onValueChangeFinished?.invoke(value)
             },
             valueRange = minVal.toFloat()..maxVal.toFloat(),
             steps = steps,
@@ -523,19 +545,16 @@ fun PrefDottedSliderRow(
             onValueTyped = { typedStr ->
                 val parsed = typedStr.filter { it.isDigit() || it == '-' }.toIntOrNull()
                 if (parsed != null) {
-                    value = parsed.coerceIn(minVal, maxVal)
-                    prefs.edit().putInt(key, value).apply()
+                    commitDiscreteValue(parsed)
                 }
             },
             onResetToDefault = {
-                value = defaultVal
-                prefs.edit().putInt(key, defaultVal).apply()
+                commitDiscreteValue(defaultVal)
             },
             onSelectProfile = { profileStr ->
                 val parsed = profileStr.filter { it.isDigit() || it == '-' }.toIntOrNull()
                 if (parsed != null) {
-                    value = parsed.coerceIn(minVal, maxVal)
-                    prefs.edit().putInt(key, value).apply()
+                    commitDiscreteValue(parsed)
                 }
             },
             onDismiss = { isFlyoutOpen = false },

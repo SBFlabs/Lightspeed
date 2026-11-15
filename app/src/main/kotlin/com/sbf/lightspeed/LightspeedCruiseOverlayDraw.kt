@@ -157,38 +157,8 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
             // 2. Cosmic Stardust Particle Field
             drawCosmicStarfield(canvas, w, h, density, decelerationFactor)
 
-            // 3. Top Flight Telemetry Header (Sector Cruise HUD with Auto-Fit)
-            val topBadgeY = 54f * density
-            val currentSector = (activeCatIndex + 1).toString().padStart(2, '0')
-            val totalSectors = cachedCategories.size.toString().padStart(2, '0')
-            val activeCatName = cachedCategories.getOrNull(activeCatIndex)?.label?.uppercase() ?: "CRUISE"
-            val hudHeader = "◈ SECTOR $currentSector / $totalSectors  ✦  $activeCatName ◈"
-
-            textPaint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            textPaint.textAlign = Paint.Align.CENTER
-            var hudTextSize = 10.5f * density
-            textPaint.textSize = hudTextSize
-            val maxHudW = w * 0.85f
-            while (textPaint.measureText(hudHeader) > maxHudW && hudTextSize > 7.5f * density) {
-                hudTextSize -= 0.5f * density
-                textPaint.textSize = hudTextSize
-            }
-            val hudWidth = textPaint.measureText(hudHeader)
-
-            highlightPaint.style = Paint.Style.FILL
-            highlightPaint.color = Color.argb((150 * decelerationFactor).toInt(), 10, 14, 26)
-            cachedHudHeaderRect.set(w / 2f - hudWidth / 2f - 14f * density, topBadgeY - 13f * density, w / 2f + hudWidth / 2f + 14f * density, topBadgeY + 13f * density)
-            canvas.drawRoundRect(cachedHudHeaderRect, 9f * density, 9f * density, highlightPaint)
-
-            textPaint.color = Color.WHITE
-            textPaint.alpha = (255 * decelerationFactor).toInt()
-            canvas.drawText(hudHeader, w / 2f, topBadgeY + 3.5f * density, textPaint)
-
-            // Subtitle Guidance Hint for Category Cruise
-            textPaint.textSize = 8.5f * density
-            textPaint.typeface = android.graphics.Typeface.DEFAULT
-            textPaint.color = Color.argb((160 * decelerationFactor).toInt(), 180, 210, 245)
-            canvas.drawText(if (isOpenedFromLeftFlank) "PULL RIGHT >> ENTER STAR SYSTEM  •  SLIDE LEFT << CANCEL" else "PULL LEFT >> ENTER STAR SYSTEM  •  SLIDE RIGHT << CANCEL", w / 2f, topBadgeY + 26f * density, textPaint)
+            // 3. Top Flight Telemetry Header (Per-Category Configurable HUD Strip / Pods; filtered per-widget by scope)
+            drawCategoryTopHudStrip(canvas, w, density, decelerationFactor)
 
             // 4. Galactic Horizon: Cruising Through Nebulae & Star Systems
             if (cachedCategories.isNotEmpty()) {
@@ -278,8 +248,18 @@ internal fun LightspeedCruiseOverlay.handleDraw(canvas: Canvas, superCall: () ->
                         // Non-focused stars keep standard 12-theme white.
                         textPaint.color = if (isFocusedCat) catAccent else Color.WHITE
                         textPaint.alpha = (255 * beaconAlpha * decelerationFactor).toInt()
-                        val beaconX = if (isOpenedFromLeftFlank) targetTextX + measuredLabelW + 6f * density else targetTextX - measuredLabelW - 6f * density
-                        canvas.drawText("✦", beaconX, centerY + 5.5f * density, textPaint)
+                        val beaconX = if (isOpenedFromLeftFlank) targetTextX + measuredLabelW + 10f * density else targetTextX - measuredLabelW - 10f * density
+                        val beaconColor = if (isFocusedCat) catAccent else Color.WHITE
+                        val beaconA = (255 * beaconAlpha * decelerationFactor).toInt().coerceIn(0, 255)
+                        LightspeedHudVectorIcons.drawCategoryVectorIcon(
+                            canvas = canvas,
+                            categoryId = cat.id,
+                            cx = beaconX,
+                            cy = centerY + 1f * density,
+                            r = (currentTextSize * 0.36f).coerceAtLeast(4.5f * density),
+                            color = beaconColor,
+                            alpha = beaconA
+                        )
                     }
                     canvas.restore()
                 }

@@ -103,7 +103,8 @@ internal fun BackdropBlurModeSelector(
                 ) {
                     Text(
                         text = mode.label,
-                        fontSize = 11.5.sp,
+                        fontSize = 10.5.sp,
+                        maxLines = 1,
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                         color = textColor
                     )

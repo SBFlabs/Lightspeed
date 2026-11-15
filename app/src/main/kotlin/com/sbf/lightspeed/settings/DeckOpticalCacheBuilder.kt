@@ -47,7 +47,8 @@ internal fun buildUnifiedDeckOpticalCache(
     isFlyout: Boolean = false,
     isCard: Boolean = false,
     isApi28Plus: Boolean,
-    density: Density
+    density: Density,
+    bottomCr: CornerRadius = cr
 ): UnifiedDeckOpticalCache = with(density) {
     val w = safeSize.width
     val h = safeSize.height
@@ -119,8 +120,8 @@ internal fun buildUnifiedDeckOpticalCache(
         "jelly" -> ditheredBrushPaint(
             Brush.radialGradient(
                 colors = listOf(
-                    Color(0xFFFF4081).copy(alpha = 0.30f),
-                    Color(0xFF7C4DFF).copy(alpha = 0.22f),
+                    colors.tintColor.copy(alpha = 0.32f),
+                    colors.glowColor.copy(alpha = 0.22f),
                     Color.Transparent
                 ),
                 center = Offset(w * 0.30f, h * 0.16f),
@@ -160,7 +161,7 @@ internal fun buildUnifiedDeckOpticalCache(
         )
     } else null
 
-    val bottomCatchPaint = if (!isCard && !isMiniTile && styleId in setOf("prism", "dark", "neon", "glassmorphism", "progressive")) {
+    val bottomCatchPaint = if (!isCard && !isMiniTile && bottomCr.x > 1f && styleId in setOf("prism", "dark", "neon", "glassmorphism", "progressive")) {
         val catchColor = if (styleId == "dark") Color(0xFF00E5FF) else if (styleId == "prism") Color.White else colors.tintColor
         val catchAlpha = if (styleId == "dark") 0.22f else (0.18f * hl.coerceAtLeast(0.35f))
         ditheredBrushPaint(
@@ -175,8 +176,19 @@ internal fun buildUnifiedDeckOpticalCache(
 
     val insetPx = (if (styleId == "jelly") 3.2.dp else 1.8.dp).toPx()
     val innerRect = rect.deflate(insetPx * 0.5f)
-    val innerCr = CornerRadius((cr.x - insetPx * 0.5f).coerceAtLeast(1f))
-    val innerCushionPath = Path().apply { addRoundRect(RoundRect(innerRect, innerCr)) }
+    val innerTopCr = CornerRadius((cr.x - insetPx * 0.5f).coerceAtLeast(0f))
+    val innerBottomCr = CornerRadius((bottomCr.x - insetPx * 0.5f).coerceAtLeast(0f))
+    val innerCushionPath = Path().apply {
+        addRoundRect(
+            RoundRect(
+                rect = innerRect,
+                topLeft = innerTopCr,
+                topRight = innerTopCr,
+                bottomRight = innerBottomCr,
+                bottomLeft = innerBottomCr
+            )
+        )
+    }
     val innerCushionPaint = if (!isCard && !isMiniTile && styleId in setOf("jelly", "frosted")) {
         val rimAlpha = when (styleId) {
             "jelly" -> 0.44f
@@ -249,7 +261,7 @@ internal fun buildUnifiedDeckOpticalCache(
                     listOf(
                         Color.White.copy(alpha = 0.70f),
                         colors.borderColor.copy(alpha = 0.55f),
-                        Color(0xFFDF00FF).copy(alpha = 0.35f)
+                        colors.tintColor.copy(alpha = 0.35f)
                     ),
                     start = Offset.Zero,
                     end = Offset(w, h)

@@ -29,6 +29,11 @@ import com.sbf.lightspeed.ui.theme.LocalDomainPalette
 import java.util.function.Consumer
 
 class CockpitGearPickerActivity : ComponentActivity() {
+    companion object {
+        @Volatile
+        var isActive: Boolean = false
+    }
+
     private var crossWindowBlurListener: Consumer<Boolean>? = null
 
     internal fun applyWindowBlur(): Int {
@@ -69,10 +74,18 @@ class CockpitGearPickerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        isActive = true
+        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
         if (CentralCommandBackdropBlur.backdropBitmap == null) {
             CentralCommandBackdropBlur.prepareForCentralCommand(windowManager)
         }
         applyWindowBlur()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        isActive = false
+        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -91,6 +104,8 @@ class CockpitGearPickerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        isActive = false
+        LightspeedAccessibilityService.instance?.updateOverlaysVisibility()
         super.onDestroy()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             crossWindowBlurListener?.let { listener ->
@@ -143,6 +158,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
 
         val singleSelectPrefKey = intent.getStringExtra("SINGLE_SELECT_PREF_KEY")
         val singleSelectTitle = intent.getStringExtra("SINGLE_SELECT_TITLE") ?: "Select Action"
+        val customListPrefKey = intent.getStringExtra("CUSTOM_LIST_PREF_KEY")
         val isSingleSelect = !singleSelectPrefKey.isNullOrBlank()
         val isSplitMode = intent.getBooleanExtra("SPLIT_MODE", false)
         val isHoldGesture = intent.getBooleanExtra("IS_HOLD_GESTURE", false) ||
@@ -183,6 +199,9 @@ class CockpitGearPickerActivity : ComponentActivity() {
         val initialItems = if (isSingleSelect) {
             val currentToken = prefs.getString(singleSelectPrefKey, "none") ?: "none"
             if (currentToken != "none") listOf(currentToken) else emptyList()
+        } else if (!customListPrefKey.isNullOrBlank()) {
+            val csvString = prefs.getString(customListPrefKey, "") ?: ""
+            csvString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
         } else {
             val csvString = prefs.getString("gear_set_${setId}_ring_${ringIndex}_packages", "") ?: ""
             csvString.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -202,6 +221,7 @@ class CockpitGearPickerActivity : ComponentActivity() {
                         ringIndex = ringIndex,
                         singleSelectPrefKey = singleSelectPrefKey,
                         singleSelectTitle = singleSelectTitle,
+                        customListPrefKey = customListPrefKey,
                         isSingleSelect = isSingleSelect,
                         isSplitMode = isSplitMode,
                         isHoldGesture = isHoldGesture,

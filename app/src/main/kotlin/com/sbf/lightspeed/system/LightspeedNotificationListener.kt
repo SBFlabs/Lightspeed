@@ -47,6 +47,15 @@ class LightspeedNotificationListener : NotificationListenerService() {
         val album: String = ""
     )
 
+    data class RecentAlertEntry(
+        val kind: String, // "NOTIF" or "TOAST"
+        val packageName: String,
+        val summary: String,
+        val timestampMs: Long = System.currentTimeMillis(),
+        val firstTimestampMs: Long = timestampMs,
+        val count: Int = 1
+    )
+
     companion object {
         private const val TAG = "LightspeedNotif"
 
@@ -54,8 +63,161 @@ class LightspeedNotificationListener : NotificationListenerService() {
             private set
 
         val activeDownloads = ConcurrentHashMap<String, DownloadTelemetry>()
+        val recentAlerts = java.util.concurrent.CopyOnWriteArrayList<RecentAlertEntry>()
+        private const val MAX_ALERT_HISTORY = 1500
+        private const val ALERT_RETENTION_MS = 365L * 24L * 3_600_000L
+        private const val ALERTS_HISTORY_FILE = "alerts_history.json"
+        @Volatile private var alertsLoaded = false
         var activeMediaTelemetry: MediaTelemetry? = null
             private set
+
+        private fun squashAlerts(entries: List<RecentAlertEntry>): List<RecentAlertEntry> {
+            val map = LinkedHashMap<Triple<String, String, String>, RecentAlertEntry>(entries.size)
+            for (entry in entries) {
+                val key = Triple(entry.kind, entry.packageName, entry.summary)
+                val existing = map[key]
+                if (existing == null) {
+                    map[key] = entry
+                } else {
+                    map[key] = existing.copy(
+                        timestampMs = maxOf(existing.timestampMs, entry.timestampMs),
+                        firstTimestampMs = minOf(existing.firstTimestampMs, entry.firstTimestampMs),
+                        count = existing.count + entry.count.coerceAtLeast(1)
+                    )
+                }
+            }
+            return map.values.sortedByDescending { it.timestampMs }
+        }
+
+        fun ensureAlertsLoaded(context: Context) {
+            if (alertsLoaded) return
+            var needsPersist = false
+            synchronized(recentAlerts) {
+                if (alertsLoaded) return
+                alertsLoaded = true
+                try {
+                    val file = java.io.File(context.applicationContext.filesDir, ALERTS_HISTORY_FILE)
+                    if (file.exists()) {
+                        val arr = org.json.JSONArray(file.readText())
+                        val cutoff = System.currentTimeMillis() - ALERT_RETENTION_MS
+                        val loaded = mutableListOf<RecentAlertEntry>()
+                        for (i in 0 until arr.length()) {
+                            val obj = arr.optJSONObject(i) ?: continue
+                            val ts = obj.optLong("ts", 0L)
+                            if (ts < cutoff) continue
+                            val firstTs = obj.optLong("firstTs", ts).let { if (it <= 0L) ts else minOf(it, ts) }
+                            val cnt = obj.optInt("count", 1).coerceAtLeast(1)
+                            loaded.add(
+                                RecentAlertEntry(
+                                    kind = obj.optString("kind", "NOTIF"),
+                                    packageName = obj.optString("pkg", "android"),
+                                    summary = obj.optString("msg", ""),
+                                    timestampMs = ts,
+                                    firstTimestampMs = firstTs,
+                                    count = cnt
+                                )
+                            )
+                        }
+                        if (loaded.isNotEmpty()) {
+                            val squashed = squashAlerts(loaded).take(MAX_ALERT_HISTORY)
+                            needsPersist = squashed.size < loaded.size
+                            recentAlerts.addAll(squashed)
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+            if (needsPersist) persistAlertsAsync(context)
+        }
+
+        @Volatile
+        private var lastAlertsPersistMs: Long = 0L
+        @Volatile
+        private var alertsPersistScheduled: Boolean = false
+        private val persistDebounceHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+        private fun persistAlertsAsync(context: Context, immediate: Boolean = false) {
+            val appCtx = context.applicationContext ?: context
+            val now = android.os.SystemClock.uptimeMillis()
+            if (!immediate && lastAlertsPersistMs > 0L && (now - lastAlertsPersistMs) < 60_000L) {
+                if (!alertsPersistScheduled) {
+                    alertsPersistScheduled = true
+                    val delay = (60_000L - (now - lastAlertsPersistMs)).coerceIn(5_000L, 60_000L)
+                    persistDebounceHandler.postDelayed({
+                        alertsPersistScheduled = false
+                        persistAlertsNow(appCtx)
+                    }, delay)
+                }
+                return
+            }
+            persistAlertsNow(appCtx)
+        }
+
+        private fun persistAlertsNow(appCtx: Context) {
+            lastAlertsPersistMs = android.os.SystemClock.uptimeMillis()
+            Thread {
+                try {
+                    val snapshot = synchronized(recentAlerts) { recentAlerts.take(MAX_ALERT_HISTORY) }
+                    val arr = org.json.JSONArray()
+                    for (entry in snapshot) {
+                        arr.put(org.json.JSONObject().apply {
+                            put("kind", entry.kind)
+                            put("pkg", entry.packageName)
+                            put("msg", entry.summary)
+                            put("ts", entry.timestampMs)
+                            put("firstTs", entry.firstTimestampMs)
+                            put("count", entry.count)
+                        })
+                    }
+                    val file = java.io.File(appCtx.filesDir, ALERTS_HISTORY_FILE)
+                    file.writeText(arr.toString())
+                } catch (_: Exception) {}
+            }.start()
+        }
+
+        fun recordAlert(kind: String, packageName: String, summary: String, context: Context? = null) {
+            if (context != null) ensureAlertsLoaded(context)
+            val clean = summary.trim().replace("\n", " ").take(240)
+            if (clean.isEmpty()) return
+            val now = System.currentTimeMillis()
+            synchronized(recentAlerts) {
+                val idx = recentAlerts.indexOfFirst {
+                    it.kind == kind && it.packageName == packageName && it.summary == clean
+                }
+                if (idx >= 0) {
+                    val existing = recentAlerts.removeAt(idx)
+                    recentAlerts.add(
+                        0,
+                        existing.copy(
+                            timestampMs = maxOf(existing.timestampMs, now),
+                            firstTimestampMs = minOf(existing.firstTimestampMs, now),
+                            count = existing.count + 1
+                        )
+                    )
+                } else {
+                    recentAlerts.add(
+                        0,
+                        RecentAlertEntry(
+                            kind = kind,
+                            packageName = packageName,
+                            summary = clean,
+                            timestampMs = now,
+                            firstTimestampMs = now,
+                            count = 1
+                        )
+                    )
+                }
+                while (recentAlerts.size > MAX_ALERT_HISTORY) {
+                    try { recentAlerts.removeAt(recentAlerts.lastIndex) } catch (_: Exception) { break }
+                }
+            }
+            if (context != null) persistAlertsAsync(context)
+        }
+
+        fun getAlertsInWindow(context: Context, windowMs: Long): List<RecentAlertEntry> {
+            ensureAlertsLoaded(context)
+            val cutoff = System.currentTimeMillis() - windowMs
+            return recentAlerts.filter { it.timestampMs >= cutoff }
+        }
 
         private val telemetryListeners = CopyOnWriteArraySet<() -> Unit>()
 
@@ -111,9 +273,10 @@ class LightspeedNotificationListener : NotificationListenerService() {
         scanExistingNotifications()
 
         try {
+            val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
             mediaSessionManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
             val component = getComponentName(this)
-            mediaSessionManager?.addOnActiveSessionsChangedListener(sessionsChangedListener, component)
+            mediaSessionManager?.addOnActiveSessionsChangedListener(sessionsChangedListener, component, mainHandler)
             val controllers = mediaSessionManager?.getActiveSessions(component)
             updateMediaControllers(controllers)
         } catch (e: Exception) {
@@ -158,8 +321,9 @@ class LightspeedNotificationListener : NotificationListenerService() {
                     refreshMediaTelemetry()
                 }
             }
+            val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
             try {
-                controller.registerCallback(callback)
+                controller.registerCallback(callback, mainHandler)
                 activeControllers[controller] = callback
             } catch (e: Exception) { logSwallowed(TAG, "onSessionDestroyed:164", e) }
         }
@@ -198,6 +362,15 @@ class LightspeedNotificationListener : NotificationListenerService() {
         if (isMediaNotification) {
             refreshMediaTelemetry()
             return
+        }
+
+        if (!sbn.isOngoing && sbn.packageName != packageName) {
+            val notifTitle = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+            val notifText = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
+            val combined = if (notifTitle.isNotBlank() && notifText.isNotBlank()) "$notifTitle: $notifText" else notifTitle.ifBlank { notifText }
+            if (combined.isNotBlank()) {
+                recordAlert("NOTIF", sbn.packageName, combined, this)
+            }
         }
 
         val max = extras.getInt(Notification.EXTRA_PROGRESS_MAX, -1)

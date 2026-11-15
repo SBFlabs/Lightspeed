@@ -80,8 +80,15 @@ class LightspeedDataBridge(rawContext: Context) {
         return appCache[categoryId] ?: emptyList()
     }
 
-    fun getIcon(packageName: String): Drawable? {
-        return com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, packageName)
+    fun getAllApps(): List<LaunchTarget> {
+        return appCache.values.flatten()
+    }
+
+    fun getIcon(packageName: String, categoryId: String? = null): Drawable? {
+        val pack = if (categoryId != null) {
+            com.sbf.lightspeed.system.LightspeedPreferences.getEffectiveCategoryIconPack(context, categoryId)
+        } else null
+        return com.sbf.lightspeed.system.LightspeedIconManager.getIconDrawable(context, packageName, iconPackPkg = pack)
     }
 
     fun moveAppCategory(pkg: String, newCat: String) {
@@ -137,6 +144,23 @@ class LightspeedDataBridge(rawContext: Context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 refreshCacheAsync()
+                val pkg = intent?.data?.schemeSpecificPart
+                val isReplacing = intent?.getBooleanExtra(Intent.EXTRA_REPLACING, false) ?: false
+                val changeKind = when (intent?.action) {
+                    Intent.ACTION_PACKAGE_REMOVED ->
+                        if (isReplacing) null else LightspeedStorageAnalyzer.CHANGE_REMOVED
+                    Intent.ACTION_PACKAGE_REPLACED ->
+                        LightspeedStorageAnalyzer.CHANGE_UPDATED
+                    Intent.ACTION_PACKAGE_ADDED ->
+                        if (isReplacing) LightspeedStorageAnalyzer.CHANGE_UPDATED else LightspeedStorageAnalyzer.CHANGE_ADDED
+                    else -> null
+                }
+                if (changeKind != null) {
+                    LightspeedStorageAnalyzer.onPackageChanged(pkg, changeKind)
+                    if (pkg != null && (changeKind == LightspeedStorageAnalyzer.CHANGE_ADDED || changeKind == LightspeedStorageAnalyzer.CHANGE_UPDATED)) {
+                        LightspeedStorageAnalyzer.refreshPackageInCacheAsync(context, pkg)
+                    }
+                }
             }
         }
         packageReceiver = receiver

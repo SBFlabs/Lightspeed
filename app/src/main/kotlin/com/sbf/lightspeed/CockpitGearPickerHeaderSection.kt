@@ -22,8 +22,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -176,13 +174,13 @@ internal fun CockpitGearPickerNoneRow(
 @Composable
 internal fun CockpitGearPickerWarningBanner(modifier: Modifier = Modifier) {
     val lsColors = LightspeedStyle.colors
-    Card(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = lsColors.accentWarn.copy(alpha = 0.12f)),
-        border = BorderStroke(1.dp, lsColors.accentWarn.copy(alpha = 0.35f))
+            .padding(bottom = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(lsColors.accentWarn.copy(alpha = 0.12f))
+            .border(1.dp, lsColors.accentWarn.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
     ) {
         Row(
             modifier = Modifier

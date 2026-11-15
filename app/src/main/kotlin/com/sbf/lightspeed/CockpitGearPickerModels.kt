@@ -239,6 +239,8 @@ fun buildFlatItemsList(
                             val isCustomizable = token == "system:screen_timeout" ||
                                     token == "system:volume" ||
                                     token == "system:brightness" ||
+                                    token == "system:media_scrubber" ||
+                                    token == "system:scroll_scrub" ||
                                     token == "system:media_skip_forward" ||
                                     token == "system:media_skip_backward" ||
                                     token == "system:popup_window" ||
@@ -402,51 +404,7 @@ fun buildFlatItemsList(
                                         )
                                     )
 
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:canopy_droppod",
-                                            title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive \"glass\" gauge",
-                                            isSelected = currentStyle == "canopy_droppod"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:cockpit_reticle",
-                                            title = "Style: Holographic Cockpit Reticle",
-                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
-                                            isSelected = currentStyle == "cockpit_reticle"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:edge_blade",
-                                            title = "Style: Dynamic Edge Blade",
-                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
-                                            isSelected = currentStyle == "edge_blade"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:quantum_horizon",
-                                            title = "Style: Quantum Synthetic Horizon",
-                                            subtitle = "Synthetic horizon collimator with swept flight wings & digital telemetry",
-                                            isSelected = currentStyle == "quantum_horizon"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:tachyon_dial",
-                                            title = "Style: Tachyon Orbital Radar",
-                                            subtitle = "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair",
-                                            isSelected = currentStyle == "tachyon_dial"
-                                        )
-                                    )
+                                    addHudStylePickerOptions(list, token, currentStyle)
                                 } else if (token == "system:volume") {
                                     val currentStyle = LightspeedPreferences.resolveHudStyle(prefs, singleSelectPrefKey, token)
                                     val isHudOn = prefs.getBoolean(LightspeedPreferences.KEY_HUD_VOLUME_ENABLED, true)
@@ -504,99 +462,10 @@ fun buildFlatItemsList(
                                         )
                                     )
 
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:canopy_droppod",
-                                            title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive \"glass\" gauge",
-                                            isSelected = currentStyle == "canopy_droppod"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:cockpit_reticle",
-                                            title = "Style: Holographic Cockpit Reticle",
-                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
-                                            isSelected = currentStyle == "cockpit_reticle"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:edge_blade",
-                                            title = "Style: Dynamic Edge Blade",
-                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
-                                            isSelected = currentStyle == "edge_blade"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:quantum_horizon",
-                                            title = "Style: Quantum Synthetic Horizon",
-                                            subtitle = "Synthetic horizon collimator with swept flight wings & digital telemetry",
-                                            isSelected = currentStyle == "quantum_horizon"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:tachyon_dial",
-                                            title = "Style: Tachyon Orbital Radar",
-                                            subtitle = "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair",
-                                            isSelected = currentStyle == "tachyon_dial"
-                                        )
-                                    )
-                                } else if (token == "system:screen_timeout") {
+                                    addHudStylePickerOptions(list, token, currentStyle)
+                                } else if (token == "system:screen_timeout" || token == "system:media_scrubber" || token == "system:scroll_scrub") {
                                     val currentStyle = LightspeedPreferences.resolveHudStyle(prefs, singleSelectPrefKey, token)
-
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:canopy_droppod",
-                                            title = "Style: Tactical Canopy Drop-Pod",
-                                            subtitle = "Chamfered visor below status bar with adaptive \"glass\" gauge",
-                                            isSelected = currentStyle == "canopy_droppod"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:cockpit_reticle",
-                                            title = "Style: Holographic Cockpit Reticle",
-                                            subtitle = "Upper-third focal circular tachyon arc with orbital lock pips",
-                                            isSelected = currentStyle == "cockpit_reticle"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:edge_blade",
-                                            title = "Style: Dynamic Edge Blade",
-                                            subtitle = "Lateral energy ladder aligned to active swipe edge",
-                                            isSelected = currentStyle == "edge_blade"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:quantum_horizon",
-                                            title = "Style: Quantum Synthetic Horizon",
-                                            subtitle = "Synthetic horizon collimator with swept flight wings & digital telemetry",
-                                            isSelected = currentStyle == "quantum_horizon"
-                                        )
-                                    )
-                                    list.add(
-                                        PickerRowItem.SystemCustomizationOption(
-                                            parentToken = token,
-                                            optionKey = "hud_style:tachyon_dial",
-                                            title = "Style: Tachyon Orbital Radar",
-                                            subtitle = "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair",
-                                            isSelected = currentStyle == "tachyon_dial"
-                                        )
-                                    )
+                                    addHudStylePickerOptions(list, token, currentStyle)
                                 } else if (token == "system:popup_window" || token == "system:freeform") {
                                     list.add(
                                         PickerRowItem.SystemCustomizationOption(
@@ -665,7 +534,7 @@ fun buildFlatItemsList(
             if (appShortcuts.isNotEmpty()) {
                 val subKey = "$pkg|AppShortcuts"
                 val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
-                list.add(PickerRowItem.SubHeader(pkg, subKey, "📱 App Shortcuts (${appShortcuts.size})", isSubExpanded))
+                list.add(PickerRowItem.SubHeader(pkg, subKey, "▸ App Shortcuts (${appShortcuts.size})", isSubExpanded))
                 if (isSubExpanded) {
                     appShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
                         list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = true))
@@ -676,7 +545,7 @@ fun buildFlatItemsList(
             if (homeShortcuts.isNotEmpty()) {
                 val subKey = "$pkg|HomeShortcuts"
                 val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
-                list.add(PickerRowItem.SubHeader(pkg, subKey, "🏠 Home Shortcuts (${homeShortcuts.size})", isSubExpanded))
+                list.add(PickerRowItem.SubHeader(pkg, subKey, "◈ Home Shortcuts (${homeShortcuts.size})", isSubExpanded))
                 if (isSubExpanded) {
                     homeShortcuts.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
                         list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = false))
@@ -687,7 +556,7 @@ fun buildFlatItemsList(
             if (deepActivities.isNotEmpty()) {
                 val subKey = "$pkg|DeepActivities"
                 val isSubExpanded = expandedSubsections.contains(subKey) || searchQuery.isNotBlank()
-                list.add(PickerRowItem.SubHeader(pkg, subKey, "⚡ Deep Activities (${deepActivities.size})", isSubExpanded))
+                list.add(PickerRowItem.SubHeader(pkg, subKey, ":: Deep Activities (${deepActivities.size})", isSubExpanded))
                 if (isSubExpanded) {
                     deepActivities.sortedBy { (labelCache[it] ?: it).lowercase() }.forEach {
                         list.add(PickerRowItem.ShortcutAction(it, labelCache[it] ?: it, pkg, isPlugin = false))
@@ -697,4 +566,42 @@ fun buildFlatItemsList(
         }
     }
     return list
+}
+
+private fun addHudStylePickerOptions(
+    list: MutableList<PickerRowItem>,
+    token: String,
+    currentStyle: String
+) {
+    val signatureOption = when {
+        token.contains("brightness") ->
+            Triple("signature_solar_lux", "Style: Solar Lux Photometer (Signature)", "Action-specific brightness HUD with estimated Nits & segmented photonic lux meter")
+        token.contains("timeout") ->
+            Triple("signature_chrono_dial", "Style: Chrono Countdown Dial (Signature)", "Action-specific sleep-horizon HUD with stepped timeout timeline & chrono badge")
+        token.contains("scroll") ->
+            Triple("signature_kinetic_thruster", "Style: Kinetic Thruster Gauge (Signature)", "Action-specific bi-directional scroll velocity vector gauge")
+        else ->
+            Triple("signature_sonic_eq", "Style: Sonic Equalizer Deck (Signature)", "Action-specific volume HUD with live 18-bar equalizer spectrum & dB readout")
+    }
+    listOf(
+        signatureOption,
+        Triple("modern_symbol_pill", "Style: Modern Symbol Pill", "Sleek frosted glass pill with sculpted symbol badge & fluid progress bar"),
+        Triple("modern_floating_orb", "Style: Modern Symbol Orb", "Compact circular glass button with perimeter progress ring & sculpted symbol"),
+        Triple("modern_slim_slider", "Style: Modern Glass Slider", "Full-capsule liquid fill slider bar with sculpted symbol & bold readout"),
+        Triple("canopy_droppod", "Style: Tactical Canopy Drop-Pod", "Chamfered visor below status bar with adaptive \"glass\" gauge"),
+        Triple("cockpit_reticle", "Style: Holographic Cockpit Reticle", "Upper-third focal circular tachyon arc with orbital lock pips"),
+        Triple("edge_blade", "Style: Dynamic Edge Blade", "Lateral energy ladder aligned to active swipe edge"),
+        Triple("quantum_horizon", "Style: Quantum Synthetic Horizon", "Synthetic horizon collimator with swept flight wings & digital telemetry"),
+        Triple("tachyon_dial", "Style: Tachyon Orbital Radar", "Concentric orbital radar dial with 360° azimuth degree hashes & target crosshair")
+    ).forEach { (styleKey, title, subtitle) ->
+        list.add(
+            PickerRowItem.SystemCustomizationOption(
+                parentToken = token,
+                optionKey = "hud_style:$styleKey",
+                title = title,
+                subtitle = subtitle,
+                isSelected = currentStyle == styleKey
+            )
+        )
+    }
 }

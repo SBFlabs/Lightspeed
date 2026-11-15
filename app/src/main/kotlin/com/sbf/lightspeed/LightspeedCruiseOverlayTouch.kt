@@ -19,11 +19,24 @@ internal fun LightspeedCruiseOverlay.handleTouchEvent(
     currentTouchY = if (event.action == MotionEvent.ACTION_UP ||
         event.action == MotionEvent.ACTION_CANCEL) -1f else y
 
+    if (isScreenTimeInfoBubbleOpen) {
+        if (event.actionMasked == MotionEvent.ACTION_UP) {
+            isScreenTimeInfoBubbleOpen = false
+            triggerHardwareHaptic(14, 70)
+            invalidate()
+        }
+        return true
+    }
+
+    if (isCountdownModalOpen) {
+        return handleCountdownModalTouch(event)
+    }
+
     if (currentLayer == CruiseLayer.COCKPIT_HANGAR) {
         return handleCockpitHangarTouch(event)
     }
 
-    if (isStickyPinned) {
+    if (isStickyPinned || isHudEditMode || isHudTuneModalOpen || currentLayer == CruiseLayer.STICKY_PIN) {
         return handleStickyPinTouch(event)
     }
 

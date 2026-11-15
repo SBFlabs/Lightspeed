@@ -102,6 +102,20 @@ internal object PopupLauncher {
             }
             val auto = ActionMethods.AUTO in methods
             val a11yOnly = ShizukuGate.isAccessibilityOnly()
+            val explicitRecentsOnly = ActionMethods.RECENTS_BUTTON in methods &&
+                !auto &&
+                !(ActionMethods.SHIZUKU in methods && ElevatedTaskCloser.isShizukuActive)
+
+            if (isTranssionDevice() && !explicitRecentsOnly && !targetPkg.isNullOrBlank()) {
+                val transsionResult = executeTranssionMultiWindow(context, targetTaskId, targetPkg, topComponent)
+                if (transsionResult.success) {
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Pop-up: OK", Toast.LENGTH_SHORT).show()
+                    }
+                    return@execute
+                }
+            }
+
             val useRecentsButton = allowRecents && ((auto && a11yOnly) || (ActionMethods.RECENTS_BUTTON in methods && !(ActionMethods.SHIZUKU in methods && ElevatedTaskCloser.isShizukuActive)))
             Log.w(TAG, "popup methods=$methods useRecentsButton=$useRecentsButton")
 
@@ -169,12 +183,192 @@ internal object PopupLauncher {
         }
     }
 
+    private fun isTranssionDevice(): Boolean {
+        val brand = (Build.BRAND ?: "").lowercase(Locale.US)
+        val manufacturer = (Build.MANUFACTURER ?: "").lowercase(Locale.US)
+        return brand.contains("infinix") ||
+            brand.contains("tecno") ||
+            brand.contains("itel") ||
+            manufacturer.contains("transsion")
+    }
+
+    private fun executeTranssionMultiWindow(
+        context: Context,
+        targetTaskId: Int?,
+        targetPkg: String?,
+        topComponent: String?
+    ): PopupLaunchResult {
+        if (targetPkg.isNullOrBlank()) {
+            return PopupLaunchResult(success = false, step = "transsion_no_pkg")
+        }
+
+        // Tier 1: If popping up the current foreground app and Shizuku is active, convert live task in-place
+        if (targetTaskId != null &&
+            ElevatedTaskCloser.isShizukuActive &&
+            !ElevatedTaskCloser.isLauncherOrSystem(context, targetPkg)
+        ) {
+            try {
+                val atm = ElevatedTaskCloser.getActivityTaskManager()
+                val startCurrentMethod = atm?.javaClass?.methods?.firstOrNull {
+                    it.name == "startCurrentAppInMultiWindow" &&
+                        it.parameterTypes.size == 2 &&
+                        (it.parameterTypes[0] == Boolean::class.javaPrimitiveType || it.parameterTypes[0] == java.lang.Boolean::class.java) &&
+                        (it.parameterTypes[1] == Int::class.javaPrimitiveType || it.parameterTypes[1] == java.lang.Integer::class.java)
+                }
+                if (startCurrentMethod != null) {
+                    startCurrentMethod.invoke(atm, true, 2)
+                    PopupDiagnostics.recordStep(
+                        "popup",
+                        "transsion:startCurrentAppInMultiWindow",
+                        ran = true,
+                        returned = "invoked(true, 2)",
+                        verified = false
+                    )
+                    val (verified, line) = ElevatedTaskCloser.verifyWindowModePolling(
+                        targetTaskId,
+                        targetPkg,
+                        "freeform",
+                        maxWaitMs = 650L,
+                        stepMs = 120L
+                    )
+                    if (verified) {
+                        PopupDiagnostics.updateStepVerification("popup", "transsion:startCurrentAppInMultiWindow", true)
+                        Log.w(TAG, "XOS Lightning Multi-Window verified via startCurrentAppInMultiWindow: $line")
+                        return PopupLaunchResult(success = true, step = "transsion_current_app_multiwindow")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Transsion startCurrentAppInMultiWindow failed", e)
+            }
+        }
+
+        // Tier 2: SmartPanel-style ActivityOptions ThunderBack bundle (works with or without Shizuku, any focus scene)
+        val launchIntent = when {
+            topComponent != null -> {
+                val cn = ComponentName.unflattenFromString(topComponent)
+                if (cn != null) Intent().setComponent(cn) else null
+            }
+            else -> context.packageManager.getLaunchIntentForPackage(targetPkg)
+        }
+
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                if (ElevatedTaskCloser.isShizukuActive) {
+                    try {
+                        val atm = ElevatedTaskCloser.getActivityTaskManager()
+                        val setStartMethod = atm?.javaClass?.methods?.firstOrNull {
+                            it.name == "setStartInMultiWindow" && it.parameterTypes.size == 4
+                        }
+                        setStartMethod?.invoke(atm, targetPkg, 2, 0, 4)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Transsion pre-arm setStartInMultiWindow failed", e)
+                    }
+                }
+
+                val options = android.app.ActivityOptions.makeBasic()
+                try {
+                    val setTb = options.javaClass.methods.firstOrNull {
+                        it.name == "setThunderBackSupport" && it.parameterTypes.size == 1
+                    }
+                    setTb?.invoke(options, true)
+                    val setTbUser = options.javaClass.methods.firstOrNull {
+                        it.name == "setThunderBackSupportAsUser" && it.parameterTypes.size == 1
+                    }
+                    setTbUser?.invoke(options, 0)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Transsion reflective setThunderBackSupport failed", e)
+                }
+
+                val bundle = options.toBundle()
+                bundle.putBoolean("tran:activity.thunderback.support", true)
+                bundle.putInt("android:activity.thunderback.userId", 0)
+
+                context.startActivity(launchIntent, bundle)
+                PopupDiagnostics.recordStep(
+                    "popup",
+                    "transsion:thunderback_bundle",
+                    ran = true,
+                    returned = "startActivity with tran:activity.thunderback.support=true",
+                    verified = false
+                )
+                val (verified, line) = ElevatedTaskCloser.verifyWindowModePolling(
+                    targetTaskId,
+                    targetPkg,
+                    "freeform",
+                    maxWaitMs = 750L,
+                    stepMs = 120L
+                )
+                if (verified) {
+                    PopupDiagnostics.updateStepVerification("popup", "transsion:thunderback_bundle", true)
+                    Log.w(TAG, "XOS Lightning Multi-Window verified via ThunderBack ActivityOptions: $line")
+                    return PopupLaunchResult(success = true, step = "transsion_thunderback_bundle")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Transsion ThunderBack bundle launch failed", e)
+                PopupDiagnostics.recordStep(
+                    "popup",
+                    "transsion:thunderback_bundle",
+                    ran = true,
+                    returned = "error: ${e.message}",
+                    verified = false
+                )
+            }
+        }
+
+        // Tier 3: Shizuku setStartInMultiWindow + am start -n (without --windowingMode 5)
+        if (ElevatedTaskCloser.isShizukuActive && topComponent != null && ShellArgGuard.isComponent(topComponent)) {
+            try {
+                val atm = ElevatedTaskCloser.getActivityTaskManager()
+                val setStartMethod = atm?.javaClass?.methods?.firstOrNull {
+                    it.name == "setStartInMultiWindow" && it.parameterTypes.size == 4
+                }
+                setStartMethod?.invoke(atm, targetPkg, 2, 0, 4)
+
+                val cmd = "am start -n '$topComponent'"
+                val exitCode = ElevatedTaskCloser.execShizuku(cmd).waitForOrKill()
+                PopupDiagnostics.recordStep(
+                    "popup",
+                    "transsion:shizuku_setStartInMultiWindow",
+                    ran = true,
+                    returned = "exit $exitCode",
+                    verified = false
+                )
+                if (exitCode == 0) {
+                    val (verified, line) = ElevatedTaskCloser.verifyWindowModePolling(
+                        targetTaskId,
+                        targetPkg,
+                        "freeform",
+                        maxWaitMs = 750L,
+                        stepMs = 120L
+                    )
+                    if (verified) {
+                        PopupDiagnostics.updateStepVerification("popup", "transsion:shizuku_setStartInMultiWindow", true)
+                        Log.w(TAG, "XOS Lightning Multi-Window verified via Shizuku setStartInMultiWindow: $line")
+                        return PopupLaunchResult(success = true, step = "transsion_shizuku_multiwindow")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Transsion Shizuku setStartInMultiWindow failed", e)
+            }
+        }
+
+        return PopupLaunchResult(success = false, step = "transsion multiwindow unverified")
+    }
+
     private fun executeNativePopup(
         context: Context,
         targetTaskId: Int?,
         targetPkg: String?,
         topComponent: String?
     ): PopupLaunchResult {
+        if (isTranssionDevice()) {
+            val transsionResult = executeTranssionMultiWindow(context, targetTaskId, targetPkg, topComponent)
+            if (transsionResult.success) {
+                return transsionResult
+            }
+        }
+
         // a. Shizuku shell: "am start --windowingMode 5 -n <topComponent>"
         if (topComponent != null && ElevatedTaskCloser.isShizukuActive) {
             if (ShellArgGuard.isComponent(topComponent)) {
@@ -342,10 +536,12 @@ internal object PopupLauncher {
 
         Log.w(TAG, "Executing OEM pop-up check for signature: $combined")
 
-        if (brand.contains("infinix") || brand.contains("tecno") || brand.contains("itel") || manufacturer.contains("transsion")) {
-            Log.w(TAG, "OEM pop-up on Transsion is handled by internal com.transsion.multiwindow service (signature-only) without shell/intent API. Falling back to native.")
-            PopupDiagnostics.recordLastResult("launchInPopup:oem", "Transsion OEM pop-up internal; falling back to native")
-            return PopupLaunchResult(success = false, step = "oem pop-up unsupported on Transsion")
+        if (isTranssionDevice()) {
+            val transsionResult = executeTranssionMultiWindow(context, targetTaskId, targetPkg, topComponent)
+            if (transsionResult.success) {
+                return transsionResult
+            }
+            return PopupLaunchResult(success = false, step = transsionResult.step)
         }
 
         val launchIntent = when {

@@ -36,6 +36,7 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     LightspeedOrientationManager.killConflictingTools(this)
     LightspeedGuardHelper.start(this)
     LightspeedBatterySentinel.init(this)
+    com.sbf.lightspeed.settings.CentralCommandWarmupCoordinator.scheduleServiceWarmup(applicationContext)
 
     val initPrefs = defaultPrefs()
     initPrefs.edit().putBoolean("pref_service_intentionally_stopped", false).apply()
@@ -170,6 +171,7 @@ internal fun LightspeedAccessibilityService.initializeServiceSession() {
     }
     LightspeedEyeCareEngine.init(this)
     LightspeedSmartPixelsOverlay.init(this)
+    com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.init(this)
     LightspeedSpacePodOverlay.init(this)
     com.sbf.lightspeed.system.bot.LightspeedBotTrackpadOverlay.init(this)
 

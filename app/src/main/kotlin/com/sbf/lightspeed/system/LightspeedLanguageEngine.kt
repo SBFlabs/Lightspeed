@@ -3,6 +3,7 @@ package com.sbf.lightspeed.system
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -54,10 +55,12 @@ object LightspeedLanguageEngine {
 
     val mode: LanguageMode get() = _mode.value
 
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     // ─── Lifecycle ──────────────────────────────────────────────────────────
     fun init(context: Context) {
         val appContext = context.applicationContext
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val prefs = appContext.defaultPrefs()
             val saved = prefs.getString(KEY_LANGUAGE_MODE, null)
             _mode.value = LanguageMode.fromPref(saved)

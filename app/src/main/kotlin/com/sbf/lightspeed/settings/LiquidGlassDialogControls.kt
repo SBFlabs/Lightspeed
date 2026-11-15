@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -240,13 +239,9 @@ internal fun ThemeDiscardChangesDialog(
     onDismissRequest: () -> Unit
 ) {
     val lsColors = LightspeedStyle.colors
-    val snapshot = LocalDeckTheme.current
-    val cornerShape = RoundedCornerShape((snapshot.cornerRadiusDp * 0.7f).coerceIn(14f, 28f).dp)
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = onDismissRequest,
-        shape = cornerShape,
-        containerColor = lsColors.dialogSurface,
         icon = {
             Icon(
                 imageVector = Icons.Default.Warning,
@@ -290,13 +285,9 @@ internal fun ThemeProfileNamingDialog(
 ) {
     var name by remember { mutableStateOf(initialName) }
     val lsColors = LightspeedStyle.colors
-    val snapshot = LocalDeckTheme.current
-    val cornerShape = RoundedCornerShape((snapshot.cornerRadiusDp * 0.7f).coerceIn(14f, 28f).dp)
 
-    AlertDialog(
+    DeckDialog(
         onDismissRequest = onDismiss,
-        shape = cornerShape,
-        containerColor = lsColors.dialogSurface,
         title = {
             Text(text = title, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = lsColors.textPrimary)
         },

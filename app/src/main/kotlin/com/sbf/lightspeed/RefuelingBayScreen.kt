@@ -100,8 +100,34 @@ fun RefuelingBayScreen(
     val timeRemainingMinutes = telemetry.timeRemainingMinutes
     val chargeTypeLabel = telemetry.chargeTypeLabel
 
+    // Keep charging power & thermal history sampling continuously while Refueling Bay is open (including Sleep Shield)
+    val latestSampleWattage by rememberUpdatedState(wattage)
+    val latestSampleTempC by rememberUpdatedState(batteryTempC)
+    val latestIsCharging by rememberUpdatedState(isCharging)
+    val latestBatteryPct by rememberUpdatedState(batteryPct)
+    LaunchedEffect(Unit) {
+        RefuelingTelemetryHistoryBuffer.ensureLoaded(context)
+        while (latestBatteryPct <= 0) {
+            delay(50L)
+        }
+        while (true) {
+            RefuelingTelemetryHistoryBuffer.record(
+                wattage = latestSampleWattage,
+                tempC = latestSampleTempC,
+                isCharging = latestIsCharging,
+                context = context
+            )
+            delay(2000L)
+        }
+    }
+
     // Style, Sleep & Resizable Split Settings
     var batteryStyle by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, "halo") ?: "halo") }
+    var gaugeScale by remember { mutableFloatStateOf(prefs.getFloat(LightspeedPreferences.KEY_REFUELING_GAUGE_SCALE, 1.0f).coerceIn(0.75f, 1.45f)) }
+    var graphMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_GRAPH_MODE, "strip") ?: "strip") }
+    var graphSpan by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_GRAPH_SPAN, "charge") ?: "charge") }
+    var graphUnpluggedMode by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_GRAPH_UNPLUGGED_MODE, "live_15m") ?: "live_15m") }
+    var showGraphLabels by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_GRAPH_LABELS, true)) }
     var sleepTimeoutSetting by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, "60s") ?: "60s") }
     var sleepAction by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_SLEEP_ACTION, "overlay") ?: "overlay") }
     var splitRatioPortrait by remember { mutableFloatStateOf(prefs.getFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_PORTRAIT, 0.52f).coerceIn(0.3f, 0.7f)) }
@@ -111,6 +137,8 @@ fun RefuelingBayScreen(
     var clockFont by remember { mutableStateOf(prefs.getString(LightspeedPreferences.KEY_REFUELING_CLOCK_FONT, "mono") ?: "mono") }
     var showAlarm by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_SHOW_ALARM, true)) }
     var showCustomizationModal by remember { mutableStateOf(false) }
+    var dockedWidgetTune by remember { mutableStateOf<DockedWidgetTuneData?>(null) }
+    var tuneDismissSignal by remember { mutableIntStateOf(0) }
 
     val sleepTimeoutMs = when (normalizeRefuelingTimeout(sleepTimeoutSetting)) {
         "5s" -> 5_000L
@@ -204,14 +232,18 @@ fun RefuelingBayScreen(
                 nextAlarmStr = null
             }
 
+            // Ensure FLAG_KEEP_SCREEN_ON is held continuously until custom sleep timer triggers with "screen_off"
+            if (!isSleeping || sleepAction != "screen_off") {
+                (activity as? LightspeedRefuelingActivity)?.enforceKeepScreenOn()
+            }
+
             // Check auto-sleep timeout
             val idleDuration = System.currentTimeMillis() - lastInteractionTimestamp
             if (sleepTimeoutMsLatest < Long.MAX_VALUE && idleDuration >= sleepTimeoutMsLatest && !isSleeping) {
                 LightspeedAccessibilityService.noteBayDark()
                 if (sleepAction == "screen_off") {
                     lastInteractionTimestamp = System.currentTimeMillis()
-                    val window = activity.window
-                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    (activity as? LightspeedRefuelingActivity)?.clearKeepScreenOnForCustomSleep()
                     if (com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
                         LightspeedRefuelingActivity.shizukuPanelOff = true
                         com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("cmd display power-off 0")
@@ -220,6 +252,7 @@ fun RefuelingBayScreen(
                     }
                 } else {
                     isSleeping = true
+                    (activity as? LightspeedRefuelingActivity)?.enforceKeepScreenOn()
                     val window = activity.window
                     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -250,17 +283,22 @@ fun RefuelingBayScreen(
         if (isSleeping) {
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
             val isBlackoutEnabled = prefs.getBoolean(LightspeedPreferences.KEY_REFUELING_SLEEP_BLACKOUT, true)
-            if (isBlackoutEnabled) {
-                LightspeedAccessibilityService.instance?.showBaySleepBlackout()
-            }
-            while (isSleeping) {
-                if (lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+            try {
+                if (isBlackoutEnabled && LightspeedRefuelingActivity.isActive) {
+                    LightspeedAccessibilityService.instance?.showBaySleepBlackout()
+                }
+                while (isSleeping && LightspeedRefuelingActivity.isActive) {
+                    if (!lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+                        break
+                    }
                     LightspeedAccessibilityService.noteBayDark()
+                    if (isBlackoutEnabled) {
+                        LightspeedAccessibilityService.instance?.sendBaySleepHeartbeat()
+                    }
+                    delay(1000L)
                 }
-                if (isBlackoutEnabled) {
-                    LightspeedAccessibilityService.instance?.sendBaySleepHeartbeat()
-                }
-                delay(1000L)
+            } finally {
+                LightspeedAccessibilityService.instance?.hideBaySleepBlackout()
             }
         } else {
             LightspeedAccessibilityService.instance?.hideBaySleepBlackout()
@@ -271,7 +309,8 @@ fun RefuelingBayScreen(
     // Function to wake up from sleep shield
     fun wakeShield(durationMs: Long = 15_000L) {
         val window = activity.window
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        (activity as? LightspeedRefuelingActivity)?.isCustomSleepScreenOffTriggered = false
+        (activity as? LightspeedRefuelingActivity)?.enforceKeepScreenOn()
         if (sleepAction == "screen_off" && com.sbf.lightspeed.system.ElevatedTaskCloser.isShizukuActive) {
             com.sbf.lightspeed.system.ElevatedTaskCloser.execShizuku("cmd display power-on 0")
         }
@@ -327,238 +366,162 @@ fun RefuelingBayScreen(
                     .offset { IntOffset(driftOffsetX.roundToInt(), driftOffsetY.roundToInt()) }
                     .alpha(animatedContentAlpha)
             ) {
-            if (isLandscape) {
-                // =========================================================================
-                // LANDSCAPE: HORIZONTAL SPLIT (Left = Cryo Telemetry, Right = Multi-Widget Container)
-                // =========================================================================
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Left Column: Cryo Clock & Battery Arc Telemetry (Long-Press to Customize, Swipe-Up to Unlock Zone)
-                    Column(
-                        modifier = Modifier
-                            .weight(splitRatioLandscape)
-                            .fillMaxHeight()
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        showCustomizationModal = true
-                                    }
-                                )
-                            }
-                            .refuelingBayUnlockSwipe(context, activity, onDismiss) {
-                                lastInteractionTimestamp = System.currentTimeMillis()
-                            },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        CryoClockHeader(
-                            currentTimeStr = currentTimeStr,
-                            currentDateStr = currentDateStr,
-                            nextAlarmStr = nextAlarmStr,
-                            showAlarm = showAlarm,
-                            clockFormat = clockFormat,
-                            clockFont = clockFont,
-                            isLandscape = true
-                        )
+                val openClockGaugeStudio = {
+                    tuneDismissSignal++
+                    dockedWidgetTune = null
+                    showCustomizationModal = true
+                }
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Battery Telemetry Arc (Selectable Style)
-                        BatteryTelemetryCircle(
-                            batteryPct = batteryPct,
+                RefuelingSplitHostLayout(
+                    isLandscape = isLandscape,
+                    splitRatio = if (isLandscape) splitRatioLandscape else splitRatioPortrait,
+                    context = context,
+                    activity = activity,
+                    onDismiss = onDismiss,
+                    onUserInteraction = { lastInteractionTimestamp = System.currentTimeMillis() },
+                    primaryPane = { paneModifier ->
+                        RefuelingPrimaryPane(
+                            context = context,
+                            activity = activity,
+                            dockedWidgetTune = dockedWidgetTune,
+                            isLandscape = isLandscape,
                             wattage = wattage,
                             batteryTempC = batteryTempC,
+                            batteryPct = batteryPct,
                             chargeTypeLabel = chargeTypeLabel,
                             timeRemainingMinutes = timeRemainingMinutes,
                             isCharging = isCharging,
                             isFull = isFull,
                             batteryStyle = batteryStyle,
+                            gaugeScale = gaugeScale,
+                            graphMode = graphMode,
+                            graphSpan = graphSpan,
+                            graphUnpluggedMode = graphUnpluggedMode,
+                            showGraphLabels = showGraphLabels,
                             dynamicArcColor = dynamicArcColor,
                             thermalBadgeColor = thermalBadgeColor,
-                            sizeDp = 156.dp
-                        )
-                    }
-
-                    // Right Column: Multi-Widget Engine Container
-                    Column(
-                        modifier = Modifier
-                            .weight(1f - splitRatioLandscape)
-                            .fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Header Toolbar for Widget Controls
-                        WidgetEngineToolbar(
-                            widgetCount = widgetIds.size,
-                            widgetLayoutMode = widgetLayoutMode,
-                            isEditMode = isEditMode,
-                            onToggleLayoutMode = onToggleLayoutMode,
-                            onToggleEditMode = onToggleEditMode,
-                            onAddWidget = { showTacticalWidgetPicker = true },
-                            isLandscape = true,
-                            isStackMemoryEnabled = isStackMemoryEnabled,
-                            onToggleStackMemory = {
-                                val newVal = !isStackMemoryEnabled
-                                isStackMemoryEnabled = newVal
-                                LightspeedPreferences.setRefuelingStackMemoryEnabled(context, newVal)
-                            }
-                        )
-
-                        // Multi-Widget Surface
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                        ) {
-                            MultiWidgetContainer(
-                                activity = activity,
-                                widgetIds = widgetIds,
-                                widgetLayoutMode = widgetLayoutMode,
-                                isEditMode = isEditMode,
-                                isLandscape = true,
-                                appWidgetHost = appWidgetHost,
-                                appWidgetManager = appWidgetManager,
-                                onPickWidget = { showTacticalWidgetPicker = true },
-                                onRemoveWidget = onRemoveWidget,
-                                onReorderWidget = onReorderWidget,
-                                onReconfigureWidget = onReconfigureWidget,
-                                reorderVersion = reorderVersion
-                            )
-                        }
-                    }
-                }
-            } else {
-                // =========================================================================
-                // PORTRAIT: VERTICAL STACK (Top = Clock & Battery Telemetry, Bottom = Multi-Widget Container)
-                // =========================================================================
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Top Interactive Region: Cryo Clock & Battery Arc (Long-Press to Customize, Swipe-Up to Unlock Zone)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(splitRatioPortrait)
-                            .refuelingBayUnlockSwipe(context, activity, onDismiss) {
-                                lastInteractionTimestamp = System.currentTimeMillis()
-                            },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        // Header: Customizable Cryo Clock (Long-Press to Customize)
-                        CryoClockHeader(
                             currentTimeStr = currentTimeStr,
                             currentDateStr = currentDateStr,
                             nextAlarmStr = nextAlarmStr,
                             showAlarm = showAlarm,
                             clockFormat = clockFormat,
                             clockFont = clockFont,
-                            isLandscape = false,
-                            onLongPress = { showCustomizationModal = true }
+                            onOpenCustomization = openClockGaugeStudio,
+                            onCycleGraphSpan = {
+                                val nextSpan = nextRefuelingGraphSpan(graphSpan)
+                                graphSpan = nextSpan
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_GRAPH_SPAN, nextSpan).apply()
+                            },
+                            onUserInteraction = { lastInteractionTimestamp = System.currentTimeMillis() },
+                            onDismiss = onDismiss,
+                            modifier = paneModifier
                         )
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Center Battery Telemetry Arc (Long-Press to Customize)
-                        Box(
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        showCustomizationModal = true
-                                    }
-                                )
-                            }
-                        ) {
-                            BatteryTelemetryCircle(
-                                batteryPct = batteryPct,
-                                wattage = wattage,
-                                batteryTempC = batteryTempC,
-                                chargeTypeLabel = chargeTypeLabel,
-                                timeRemainingMinutes = timeRemainingMinutes,
-                                isCharging = isCharging,
-                                isFull = isFull,
-                                batteryStyle = batteryStyle,
-                                dynamicArcColor = dynamicArcColor,
-                                thermalBadgeColor = thermalBadgeColor,
-                                sizeDp = 184.dp
-                            )
-                        }
-                    }
-
-                    // Middle Section: Multi-Widget Section & Toolbar (Pure widget touch area - no drag stealing)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth(0.96f)
-                            .weight(1f - splitRatioPortrait)
-                            .padding(bottom = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        WidgetEngineToolbar(
-                            widgetCount = widgetIds.size,
+                    },
+                    secondaryPane = { paneModifier ->
+                        RefuelingSecondaryPane(
+                            activity = activity,
+                            showCustomizationPanel = showCustomizationModal,
+                            isLandscape = isLandscape,
+                            widgetIds = widgetIds,
                             widgetLayoutMode = widgetLayoutMode,
                             isEditMode = isEditMode,
+                            appWidgetHost = appWidgetHost,
+                            appWidgetManager = appWidgetManager,
+                            reorderVersion = reorderVersion,
+                            isStackMemoryEnabled = isStackMemoryEnabled,
+                            batteryStyle = batteryStyle,
+                            gaugeScale = gaugeScale,
+                            graphMode = graphMode,
+                            graphSpan = graphSpan,
+                            graphUnpluggedMode = graphUnpluggedMode,
+                            showGraphLabels = showGraphLabels,
+                            sleepTimeout = sleepTimeoutSetting,
+                            sleepAction = sleepAction,
+                            splitRatio = if (isLandscape) splitRatioLandscape else splitRatioPortrait,
+                            clockFormat = clockFormat,
+                            dateFormat = dateFormat,
+                            clockFont = clockFont,
+                            showAlarm = showAlarm,
+                            tuneDismissSignal = tuneDismissSignal,
+                            onDockedTuneChange = { tune ->
+                                dockedWidgetTune = tune
+                                if (tune != null) showCustomizationModal = false
+                            },
                             onToggleLayoutMode = onToggleLayoutMode,
                             onToggleEditMode = onToggleEditMode,
                             onAddWidget = { showTacticalWidgetPicker = true },
-                            isLandscape = false,
-                            isStackMemoryEnabled = isStackMemoryEnabled,
+                            onRemoveWidget = onRemoveWidget,
+                            onReorderWidget = onReorderWidget,
+                            onReconfigureWidget = onReconfigureWidget,
                             onToggleStackMemory = {
                                 val newVal = !isStackMemoryEnabled
                                 isStackMemoryEnabled = newVal
                                 LightspeedPreferences.setRefuelingStackMemoryEnabled(context, newVal)
-                            }
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                        ) {
-                            MultiWidgetContainer(
-                                activity = activity,
-                                widgetIds = widgetIds,
-                                widgetLayoutMode = widgetLayoutMode,
-                                isEditMode = isEditMode,
-                                isLandscape = false,
-                                appWidgetHost = appWidgetHost,
-                                appWidgetManager = appWidgetManager,
-                                onPickWidget = { showTacticalWidgetPicker = true },
-                                onRemoveWidget = onRemoveWidget,
-                                onReorderWidget = onReorderWidget,
-                                onReconfigureWidget = onReconfigureWidget,
-                                reorderVersion = reorderVersion
-                            )
-                        }
-                    }
-
-                    // Bottom Interactive Region: Exit Note & Generous Bottom Swipe-Up Unlock Zone
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = 44.dp)
-                            .refuelingBayUnlockSwipe(context, activity, onDismiss) {
-                                lastInteractionTimestamp = System.currentTimeMillis()
                             },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "✦ Double Tap to Exit · Swipe Up to Unlock ✦",
-                            fontSize = 11.sp,
-                            color = LightspeedStyle.colors.textPrimary.copy(alpha = 0.45f),
-                            letterSpacing = 1.sp,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            onBatteryStyleChange = {
+                                batteryStyle = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, it).apply()
+                            },
+                            onGaugeScaleChange = {
+                                gaugeScale = it
+                                prefs.edit().putFloat(LightspeedPreferences.KEY_REFUELING_GAUGE_SCALE, it).apply()
+                            },
+                            onGraphModeChange = {
+                                graphMode = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_GRAPH_MODE, it).apply()
+                            },
+                            onGraphSpanChange = {
+                                graphSpan = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_GRAPH_SPAN, it).apply()
+                            },
+                            onGraphUnpluggedModeChange = {
+                                graphUnpluggedMode = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_GRAPH_UNPLUGGED_MODE, it).apply()
+                            },
+                            onShowGraphLabelsChange = {
+                                showGraphLabels = it
+                                prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_GRAPH_LABELS, it).apply()
+                            },
+                            onSleepTimeoutChange = {
+                                sleepTimeoutSetting = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, it).apply()
+                            },
+                            onSleepActionChange = {
+                                sleepAction = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_ACTION, it).apply()
+                            },
+                            onSplitRatioChange = { newRatio ->
+                                if (isLandscape) {
+                                    splitRatioLandscape = newRatio
+                                    prefs.edit().putFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_LANDSCAPE, newRatio).apply()
+                                } else {
+                                    splitRatioPortrait = newRatio
+                                    prefs.edit().putFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_PORTRAIT, newRatio).apply()
+                                }
+                            },
+                            onClockFormatChange = {
+                                clockFormat = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_CLOCK_FORMAT, it).apply()
+                            },
+                            onDateFormatChange = {
+                                dateFormat = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_DATE_FORMAT, it).apply()
+                            },
+                            onClockFontChange = {
+                                clockFont = it
+                                prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_CLOCK_FONT, it).apply()
+                            },
+                            onShowAlarmChange = {
+                                showAlarm = it
+                                prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_SHOW_ALARM, it).apply()
+                            },
+                            onDismissCustomization = { showCustomizationModal = false },
+                            modifier = paneModifier
                         )
                     }
-                }
+                )
             }
         }
-    }
 
         // 2. Full-Screen Sleep Shield Layer (TOPMOST)
         if (isSleeping) {
@@ -595,61 +558,6 @@ fun RefuelingBayScreen(
                         showTacticalWidgetPicker = false
                         onDeployWidgetProvider?.invoke(provider)
                     }
-                )
-            }
-        }
-
-        // 4. Refueling HUD Customization Modal (Triggered by Long-Press on Clock/Gauge)
-        if (showCustomizationModal) {
-            DeckTheme {
-                RefuelingCustomizationModal(
-                    isLandscape = isLandscape,
-                    batteryStyle = batteryStyle,
-                    sleepTimeout = sleepTimeoutSetting,
-                    sleepAction = sleepAction,
-                    splitRatio = if (isLandscape) splitRatioLandscape else splitRatioPortrait,
-                    clockFormat = clockFormat,
-                    dateFormat = dateFormat,
-                    clockFont = clockFont,
-                    showAlarm = showAlarm,
-                    onBatteryStyleChange = { newStyle ->
-                        batteryStyle = newStyle
-                        prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_BATTERY_STYLE, newStyle).apply()
-                    },
-                    onSleepTimeoutChange = { newTimeout ->
-                        sleepTimeoutSetting = newTimeout
-                        prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_TIMEOUT, newTimeout).apply()
-                    },
-                    onSleepActionChange = { newAction ->
-                        sleepAction = newAction
-                        prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_SLEEP_ACTION, newAction).apply()
-                    },
-                    onSplitRatioChange = { newRatio ->
-                        if (isLandscape) {
-                            splitRatioLandscape = newRatio
-                            prefs.edit().putFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_LANDSCAPE, newRatio).apply()
-                        } else {
-                            splitRatioPortrait = newRatio
-                            prefs.edit().putFloat(LightspeedPreferences.KEY_REFUELING_SPLIT_RATIO_PORTRAIT, newRatio).apply()
-                        }
-                    },
-                    onClockFormatChange = { newFmt ->
-                        clockFormat = newFmt
-                        prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_CLOCK_FORMAT, newFmt).apply()
-                    },
-                    onDateFormatChange = { newFmt ->
-                        dateFormat = newFmt
-                        prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_DATE_FORMAT, newFmt).apply()
-                    },
-                    onClockFontChange = { newFont ->
-                        clockFont = newFont
-                        prefs.edit().putString(LightspeedPreferences.KEY_REFUELING_CLOCK_FONT, newFont).apply()
-                    },
-                    onShowAlarmChange = { newShow ->
-                        showAlarm = newShow
-                        prefs.edit().putBoolean(LightspeedPreferences.KEY_REFUELING_SHOW_ALARM, newShow).apply()
-                    },
-                    onDismiss = { showCustomizationModal = false }
                 )
             }
         }

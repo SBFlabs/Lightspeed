@@ -323,19 +323,27 @@ fun TacticalFlyoutTile(
     isPulse: Boolean = false,
     onClick: () -> Unit
 ) {
-    Card(
+    val activeSnapshot = LocalDeckTheme.current
+    val tileShape = RoundedCornerShape((activeSnapshot.cornerRadiusDp * 0.58f).coerceIn(10f, 18f).dp)
+    Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(tileShape)
+            .deckGlassSurface(
+                snapshot = activeSnapshot,
+                isBlurAvailable = true,
+                isCard = true,
+                shapeOverride = tileShape
+            )
+            .then(
+                if (isPulse) Modifier.background(LightspeedTokens.StatusErrorPulse.copy(alpha = 0.22f))
+                else Modifier
+            )
             .clickable { onClick() }
             .border(
                 1.dp,
-                if (isPulse) LightspeedTokens.StatusErrorPulse else accentColor.copy(alpha = 0.35f),
-                RoundedCornerShape(14.dp)
-            ),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isPulse) LightspeedTokens.StatusErrorPulse.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.45f)
-        )
+                if (isPulse) LightspeedTokens.StatusErrorPulse else accentColor.copy(alpha = 0.42f),
+                tileShape
+            )
     ) {
         Column(
             modifier = Modifier

@@ -73,6 +73,8 @@ internal fun rememberRefuelingBatteryTelemetry(context: Context): RefuelingBatte
     var timeRemainingMinutes by remember { mutableLongStateOf(-1L) }
     var chargeTypeLabel by remember { mutableStateOf("Standard Charge") }
 
+    val recentDrawSamples = remember { mutableListOf<Int>() }
+
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: Intent?) {
@@ -96,22 +98,29 @@ internal fun rememberRefuelingBatteryTelemetry(context: Context): RefuelingBatte
                 if (bm != null) {
                     val currentNowUa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
                     val currentUa: Int = if (abs(currentNowUa) < 10_000) abs(currentNowUa) * 1000 else abs(currentNowUa)
-                    currentMa = (currentUa / 1000).coerceAtLeast(0)
+                    val currentMaNow = (currentUa / 1000).coerceAtLeast(0)
+                    currentMa = currentMaNow
+
                     val rawWattage = (voltageMv / 1000f) * (currentUa / 1_000_000f)
-                    wattage = if (rawWattage > 0.05f) rawWattage else 0f
+                    wattage = if (isCharging && rawWattage > 0.05f) rawWattage else 0f
 
                     chargeTypeLabel = when {
-                        !isCharging -> "Auxiliary Power"
+                        !isCharging -> "On Battery"
                         wattage >= 45f -> "⚡ Cryo-Hyper Turbo Charge"
                         wattage >= 20f -> "⚡ Super Fast Warp Charge"
                         wattage >= 10f -> "⚡ Fast Refueling"
                         else -> "⚡ Standard Dock Refuel"
                     }
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && isCharging && !isFull) {
-                        val remainingMs = bm.computeChargeTimeRemaining()
-                        timeRemainingMinutes = if (remainingMs > 0) remainingMs / 60000L else -1L
-                    }
+                    timeRemainingMinutes = estimateBatteryEtaMinutes(
+                        context = context,
+                        bm = bm,
+                        batteryPct = batteryPct,
+                        isCharging = isCharging,
+                        isFull = isFull,
+                        liveCurrentMa = currentMaNow,
+                        recentDrawSamples = recentDrawSamples
+                    )
                 }
             }
         }
@@ -148,6 +157,58 @@ internal fun rememberRefuelingBatteryTelemetry(context: Context): RefuelingBatte
         timeRemainingMinutes = timeRemainingMinutes,
         chargeTypeLabel = chargeTypeLabel
     )
+}
+
+private fun estimateBatteryEtaMinutes(
+    context: Context,
+    bm: BatteryManager,
+    batteryPct: Int,
+    isCharging: Boolean,
+    isFull: Boolean,
+    liveCurrentMa: Int,
+    recentDrawSamples: MutableList<Int>
+): Long {
+    if (isFull) return -1L
+
+    val rawChargeUa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+    val chargeCounterMah = if (rawChargeUa > 0 && rawChargeUa != Int.MIN_VALUE) rawChargeUa / 1000f else -1f
+    val designCapMah = LightspeedCruiseHudTelemetryPoller.resolveDesignBatteryCapacityMah(context)
+        .let { if (it > 0) it.toFloat() else 5000f }
+    val currentMah = if (chargeCounterMah > 0f) chargeCounterMah else designCapMah * (batteryPct.coerceIn(0, 100) / 100f)
+
+    if (isCharging) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val remainingMs = try { bm.computeChargeTimeRemaining() } catch (_: Exception) { -1L }
+            if (remainingMs > 60_000L) return remainingMs / 60_000L
+        }
+        val missingMah = (designCapMah - currentMah).coerceAtLeast(30f)
+        if (liveCurrentMa >= 150) {
+            return ((missingMah / liveCurrentMa.toFloat()) * 60f).toLong().coerceIn(2L, 12 * 60L)
+        }
+        return -1L
+    }
+
+    if (liveCurrentMa in 40..5500) {
+        recentDrawSamples.add(liveCurrentMa)
+        if (recentDrawSamples.size > 6) recentDrawSamples.removeAt(0)
+    }
+
+    val rawAvgUa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
+    val avgMa = if (rawAvgUa != 0 && rawAvgUa != Int.MIN_VALUE) {
+        val absRaw = abs(rawAvgUa)
+        if (absRaw < 10_000) absRaw else absRaw / 1000
+    } else {
+        0
+    }
+
+    val effDrawMa = when {
+        avgMa in 50..5000 -> avgMa.toFloat()
+        recentDrawSamples.isNotEmpty() -> recentDrawSamples.average().toFloat()
+        else -> 0f
+    }
+
+    if (effDrawMa < 50f || currentMah <= 0f) return -1L
+    return ((currentMah / effDrawMa) * 60f).toLong().coerceIn(5L, 72 * 60L)
 }
 
 internal fun Modifier.refuelingBayUnlockSwipe(
@@ -204,9 +265,17 @@ internal fun CryoClockHeader(
     onLongPress: (() -> Unit)? = null
 ) {
     val clockFontFamily = when (clockFont) {
-        "sans" -> FontFamily.SansSerif
+        "mono", "monospace" -> FontFamily.Monospace
+        "sans", "sans-serif" -> FontFamily.SansSerif
         "serif" -> FontFamily.Serif
-        else -> FontFamily.Monospace
+        "cyber" -> remember {
+            com.sbf.lightspeed.system.DeviceFontScanner.resolveComposeFontFamily("sans-serif-condensed")
+                ?: FontFamily.Monospace
+        }
+        else -> remember(clockFont) {
+            com.sbf.lightspeed.system.DeviceFontScanner.resolveComposeFontFamily(clockFont)
+                ?: FontFamily.Monospace
+        }
     }
     val clockLetterSpacing = when {
         clockFormat == "orbital" || clockFormat == "stardate" -> if (isLandscape) 1.0.sp else 1.2.sp

@@ -142,16 +142,18 @@ fun AppAssignmentSheet(
     val opticalColors = activeSnapshot.resolveOpticalColors()
     val cornerDp = activeSnapshot.cornerRadiusDp.dp
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetShape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp, bottomEnd = 0.dp, bottomStart = 0.dp)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = Color.Transparent,
+        scrimColor = Color.Black.copy(alpha = 0.55f),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp),
-        dragHandle = null
+        shape = sheetShape,
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
     ) {
-        val sheetShape = RoundedCornerShape(topStart = cornerDp, topEnd = cornerDp)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -167,11 +169,16 @@ fun AppAssignmentSheet(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .deckGlassSurface(snapshot = activeSnapshot, isBlurAvailable = true)
+                    .deckGlassSurface(
+                        snapshot = activeSnapshot,
+                        isBlurAvailable = true,
+                        shapeOverride = sheetShape
+                    )
             )
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(top = 12.dp, start = 16.dp, end = 16.dp, bottom = 16.dp)
             ) {
             // Drag handle pill at the top

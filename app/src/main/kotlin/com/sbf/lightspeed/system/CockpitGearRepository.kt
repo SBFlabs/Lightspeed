@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 object CockpitGearRepository {
@@ -18,6 +19,7 @@ object CockpitGearRepository {
     private val gearSetsOrderCache = java.util.concurrent.ConcurrentHashMap<Boolean, MutableList<String>>()
     private val gearSetNamesCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     private var prefListenerRegistered = false
+    private val bgScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key != null && (key.startsWith("gear_set_") || key.startsWith("gear_sets_order"))) {
             clearCache()
@@ -485,7 +487,7 @@ object CockpitGearRepository {
 
     fun prewarmGearCache(context: Context) {
         val appContext = context.applicationContext ?: context
-        CoroutineScope(Dispatchers.Default).launch {
+        bgScope.launch {
             try {
                 for (isLeft in listOf(false, true)) {
                     val setsList = getGearSetsOrder(appContext, isLeft)

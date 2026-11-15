@@ -5,6 +5,9 @@ import android.content.Context
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
+import com.sbf.lightspeed.settings.resolveCanvasPalette
+import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.defaultPrefs
 
 /**
  * Captures wallpaper, applies fast box-stack blur, and composites 12-theme optical glass.
@@ -20,6 +23,11 @@ object WallpaperBlurHelper {
         val w = widthPx.coerceAtLeast(120)
         val h = heightPx.coerceAtLeast(120)
 
+        val prefs = context.defaultPrefs()
+        val opacity = prefs.getFloat(LightspeedPreferences.KEY_WIDGET_BACKGROUND_OPACITY, 0.85f).coerceIn(0f, 1f)
+        val themeMode = prefs.getString(LightspeedPreferences.KEY_WIDGET_THEME_MODE, "theme_12") ?: "theme_12"
+        val palette = snapshot.resolveCanvasPalette(context, themeMode)
+
         // Downscale for fast blur execution
         val blurW = (w / 3).coerceAtLeast(40)
         val blurH = (h / 3).coerceAtLeast(40)
@@ -34,43 +42,63 @@ object WallpaperBlurHelper {
         val rect = RectF(4f, 4f, w - 4f, h - 4f)
         val cornerRadius = (snapshot.cornerRadiusDp * 2.2f).coerceIn(12f, 44f)
 
-        // 1. Clip and draw blurred wallpaper
+        // 1. Clip and draw blurred wallpaper (if opacity > 0.1f)
         val path = Path().apply {
             addRoundRect(rect, cornerRadius, cornerRadius, Path.Direction.CW)
         }
         canvas.save()
         canvas.clipPath(path)
-        canvas.drawBitmap(blurredWallpaper, null, Rect(0, 0, w, h), paint)
+        if (opacity > 0.05f) {
+            paint.alpha = (255 * opacity).toInt().coerceIn(0, 255)
+            canvas.drawBitmap(blurredWallpaper, null, Rect(0, 0, w, h), paint)
+        }
 
-        // 2. Composite Central Command 12-Theme Glass Panel Tint
+        // 2. Composite Central Command 12-Theme / M3 / Hybrid Glass Panel Tint
         paint.style = Paint.Style.FILL
-        paint.color = snapshot.panelColorArgb.toInt()
-        paint.alpha = (snapshot.panelAlpha * 255).toInt().coerceIn(35, 230)
+        paint.color = palette.panelInnerArgb
+        paint.alpha = (snapshot.panelAlpha * 255 * opacity).toInt().coerceIn(0, 255)
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), paint)
 
         // 3. Specular Highlight / Gradient
-        val specPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(
-                0f, 0f, 0f, h.toFloat(),
-                Color.argb(45, 255, 255, 255),
-                Color.argb(0, 255, 255, 255),
-                Shader.TileMode.CLAMP
-            )
+        if (opacity > 0.2f) {
+            val specPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = LinearGradient(
+                    0f, 0f, 0f, h.toFloat(),
+                    Color.argb((45 * opacity).toInt(), 255, 255, 255),
+                    Color.argb(0, 255, 255, 255),
+                    Shader.TileMode.CLAMP
+                )
+            }
+            canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), specPaint)
         }
-        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), specPaint)
         canvas.restore()
 
-        // 4. 12-Theme Refractive Border Stroke
+        // 4. Refractive Neon Border & Glowing Optical Seams
+        val seamColor = palette.borderArgb
+        val accentGlow = palette.secondaryAccentArgb
+
+        // Outer Neon Glow Seam pass
+        val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 6f
+            color = accentGlow
+            alpha = (90 * opacity.coerceAtLeast(0.35f)).toInt().coerceIn(0, 255)
+        }
+        canvas.drawRoundRect(rect, cornerRadius, cornerRadius, glowPaint)
+
+        // Crisp Optical Seam Outline pass
         val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
-            strokeWidth = 2.5f
-            color = snapshot.borderColorArgb.toInt()
+            strokeWidth = 2.2f
+            color = seamColor
+            alpha = (255 * opacity.coerceAtLeast(0.35f)).toInt().coerceIn(0, 255)
         }
         canvas.drawRoundRect(rect, cornerRadius, cornerRadius, borderPaint)
 
         return output
     }
 
+    @android.annotation.SuppressLint("MissingPermission") // Falls back to theme gradient on SecurityException
     private fun getRawWallpaperBitmap(
         context: Context,
         w: Int,

@@ -148,7 +148,7 @@ fun HudSensorDeckSection(
 
             // 3. HUD Strip Swipe-Down to Notifications
             var isSwipeDownExpanded by rememberSaveable {
-                mutableStateOf(prefs.getBoolean("pref_sub_swipe_down_statusbar", false))
+                mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_SWIPE_DOWN_STATUSBAR, false))
             }
             CollapsibleSubSection(
                 title = "HUD Strip Swipe-Down to Notifications",
@@ -164,7 +164,7 @@ fun HudSensorDeckSection(
                 isExpanded = isSwipeDownExpanded,
                 onToggle = {
                     isSwipeDownExpanded = !isSwipeDownExpanded
-                    prefs.edit().putBoolean("pref_sub_swipe_down_statusbar", isSwipeDownExpanded).apply()
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_SWIPE_DOWN_STATUSBAR, isSwipeDownExpanded).apply()
                 }
             ) {
                 PrefToggleRow(
@@ -182,13 +182,13 @@ fun HudSensorDeckSection(
 
             // 4. Bottom Sensor Area
             var isBottomSensorExpanded by rememberSaveable {
-                mutableStateOf(prefs.getBoolean("pref_sub_bottom_statusbar_expanded", false))
+                mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_EXPANDED, false))
             }
             var isBottomGeoExpanded by rememberSaveable {
-                mutableStateOf(prefs.getBoolean("pref_sub_bottom_statusbar_geo", false))
+                mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_GEO, false))
             }
             var isBottomGesturesExpanded by rememberSaveable {
-                mutableStateOf(prefs.getBoolean("pref_sub_bottom_statusbar_gestures", false))
+                mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_GESTURES, false))
             }
 
             val bottomSpanKey = if (isLandscape) LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN_LANDSCAPE else LightspeedPreferences.KEY_BOTTOM_STATUSBAR_SPAN
@@ -212,7 +212,7 @@ fun HudSensorDeckSection(
                 isExpanded = isBottomSensorExpanded,
                 onToggle = {
                     isBottomSensorExpanded = !isBottomSensorExpanded
-                    prefs.edit().putBoolean("pref_sub_bottom_statusbar_expanded", isBottomSensorExpanded).apply()
+                    prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_EXPANDED, isBottomSensorExpanded).apply()
                     safeReloadPreferences()
                     onRefreshNeeded()
                 }
@@ -237,7 +237,7 @@ fun HudSensorDeckSection(
                         isExpanded = isBottomGeoExpanded,
                         onToggle = {
                             isBottomGeoExpanded = !isBottomGeoExpanded
-                            prefs.edit().putBoolean("pref_sub_bottom_statusbar_geo", isBottomGeoExpanded).apply()
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_GEO, isBottomGeoExpanded).apply()
                             safeReloadPreferences()
                             onRefreshNeeded()
                         }
@@ -282,7 +282,7 @@ fun HudSensorDeckSection(
                         isExpanded = isBottomGesturesExpanded,
                         onToggle = {
                             isBottomGesturesExpanded = !isBottomGesturesExpanded
-                            prefs.edit().putBoolean("pref_sub_bottom_statusbar_gestures", isBottomGesturesExpanded).apply()
+                            prefs.edit().putBoolean(LightspeedPreferences.KEY_SUB_BOTTOM_STATUSBAR_GESTURES, isBottomGesturesExpanded).apply()
                         }
                     ) {
                         val bottomVectors = listOf(

@@ -147,7 +147,6 @@ object SonicChannelRouter {
         val appCtx = context.applicationContext ?: context
         appContext = appCtx
         SonicVoiceIsolationEngine.initialize(appCtx)
-        SonicVoiceIsolationEngine.ensureBound(appCtx)
         reapplyPrivilegedRoutes(appCtx)
         reconcileAudioFocusState(appCtx)
     }
@@ -183,7 +182,9 @@ object SonicChannelRouter {
     private fun applyRouteForPackage(context: Context, packageName: String, route: String) {
         val userSvc = SonicVoiceIsolationEngine.userService
         if (userSvc == null) {
-            SonicVoiceIsolationEngine.ensureBound(context)
+            if (route != ROUTE_DEFAULT) {
+                SonicVoiceIsolationEngine.ensureBound(context)
+            }
             return
         }
         try {

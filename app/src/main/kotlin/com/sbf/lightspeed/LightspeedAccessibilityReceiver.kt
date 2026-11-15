@@ -96,6 +96,9 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.onScreenStateChanged(this@registerSystemStateReceiver, false)
                 }
                 Intent.ACTION_SCREEN_ON -> {
+                    if (!LightspeedRefuelingActivity.isActive) {
+                        hideBaySleepBlackout()
+                    }
                     com.sbf.lightspeed.system.display.LightspeedEyeCareEngine.onScreenStateChanged(this@registerSystemStateReceiver, true)
                     com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOn(this@registerSystemStateReceiver)
                     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
@@ -112,6 +115,9 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     }
                 }
                 Intent.ACTION_DREAMING_STOPPED, Intent.ACTION_USER_PRESENT -> {
+                    if (!LightspeedRefuelingActivity.isActive) {
+                        hideBaySleepBlackout()
+                    }
                     com.sbf.lightspeed.system.LightspeedPowerKeyEngine.onScreenOn(this@registerSystemStateReceiver)
                     val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                     val isLocked = keyguardManager?.isKeyguardLocked == true
@@ -135,9 +141,22 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
                     }, 250L)
                 }
                 Intent.ACTION_POWER_CONNECTED -> {
+                    RefuelingTelemetryHistoryBuffer.sampleBatteryNow(
+                        context = this@registerSystemStateReceiver,
+                        forceChargingState = true,
+                        forceFlush = true
+                    )
+                    startChargeTelemetrySampling()
                     checkPowerConnectedRefuelingTrigger(prefs)
                 }
                 Intent.ACTION_POWER_DISCONNECTED -> {
+                    stopChargeTelemetrySampling()
+                    RefuelingTelemetryHistoryBuffer.sampleBatteryNow(
+                        context = this@registerSystemStateReceiver,
+                        forceChargingState = false,
+                        forceFlush = true
+                    )
+                    hideBaySleepBlackout()
                     LightspeedRefuelingActivity.isChargingSessionDismissed = false
                     LightspeedRefuelingActivity.isSessionDismissed = false
                 }
@@ -172,12 +191,27 @@ internal fun LightspeedAccessibilityService.registerSystemStateReceiver() {
     try {
         ContextCompat.registerReceiver(this, systemStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     } catch (e: Exception) { logSwallowed("LightspeedAccessibilityReceiver", "registerSystemStateReceiver:136", e) }
+    if (isDeviceCharging()) {
+        RefuelingTelemetryHistoryBuffer.sampleBatteryNow(this, forceChargingState = true, forceFlush = false)
+        startChargeTelemetrySampling()
+    }
+}
+
+internal fun LightspeedAccessibilityService.startChargeTelemetrySampling() {
+    handler.removeCallbacks(chargeTelemetrySampleRunnable)
+    handler.postDelayed(chargeTelemetrySampleRunnable, 30_000L)
+}
+
+internal fun LightspeedAccessibilityService.stopChargeTelemetrySampling() {
+    handler.removeCallbacks(chargeTelemetrySampleRunnable)
 }
 
 internal fun LightspeedAccessibilityService.teardown() {
+    stopChargeTelemetrySampling()
     LightspeedKeyEngine.reset()
     com.sbf.lightspeed.system.LightspeedBackTapEngine.destroy()
     com.sbf.lightspeed.system.LightspeedOrientationManager.stopActiveSensorPortraitDriver()
+    com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay.detachOverlay()
     try {
         rikka.shizuku.Shizuku.removeBinderReceivedListener(shizukuBinderReceivedListener)
     } catch (_: Exception) {}
@@ -242,4 +276,8 @@ internal fun LightspeedAccessibilityService.teardown() {
     com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine.clearVideoOverride(this)
     com.sbf.lightspeed.system.display.LightspeedConsciousAirlockOverlay.dismiss()
     com.sbf.lightspeed.system.LightspeedSpacePodOverlay.hide()
+    com.sbf.lightspeed.settings.CentralCommandBackdropBlur.clearBitmap()
+    com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onHudHidden()
+    com.sbf.lightspeed.widget.LightspeedWidgetHostEngine.stop()
+    com.sbf.lightspeed.system.LightspeedBatterySentinel.destroy()
 }

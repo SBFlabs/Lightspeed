@@ -70,6 +70,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
             if (currentActiveZone == TouchZone.CENTER_CRUISE) {
                 startCruiseFromFlank(isLeft = isOpenedFromLeftFlank, startRawX = rawX, startRawY = rawY)
             } else if (currentActiveZone != TouchZone.NONE) {
+                com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prewarmForGesture(context)
                 macroTrackingActive = true
                 val holdDuration = com.sbf.lightspeed.system.LightspeedPreferences.getGestureHoldDurationMs(context)
                 uiHandler.postDelayed(holdTimerRunnable, holdDuration)
@@ -217,7 +218,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
                 uiHandler.removeCallbacks(neutralToCategoryRunnable)
                 if (currentLayer == CruiseLayer.STICKY_PIN) {
                     isStickyPinned = true; currentLayer = CruiseLayer.GRID
-                    updateMetricsDimensions(); invalidate()
+                    updateMetricsDimensions(); invalidate(); postInvalidateOnAnimation()
                 } else if (currentLayer == CruiseLayer.CATEGORY && activeCatIndex in cachedCategories.indices && cachedCategories[activeCatIndex].id == "launcher_settings_virtual_id") {
                     launchLauncherSettings()
                 } else if (currentLayer == CruiseLayer.NEUTRAL) {
@@ -267,7 +268,7 @@ internal fun LightspeedCruiseOverlay.handleCruiseTouch(
             }
             isHoldFired = false
             if (currentDetectedGesture == MacroGesture.SCRUBBING) {
-                LightspeedStatusBarOverlay.dismissActionHud(1200L)
+                LightspeedStatusBarOverlay.dismissActionHud(0L)
             }
             activeHoldScrubAction = null
             activeHoldScrubActionKey = null

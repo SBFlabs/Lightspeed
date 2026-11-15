@@ -139,8 +139,67 @@ object LightspeedIconManager {
         componentToDrawableMap.clear()
         packageToDrawableMap.clear()
         calendarPrefixMap.clear()
+        packCache.clear()
         isPackLoaded = false
         currentLoadedPack = null
+    }
+
+    data class ParsedIconPack(
+        val componentToDrawable: Map<String, String>,
+        val packageToDrawable: Map<String, String>,
+        val calendarPrefix: Map<String, String>
+    )
+
+    private val packCache = ConcurrentHashMap<String, ParsedIconPack>()
+
+    fun getOrLoadPack(context: Context, packPkg: String): ParsedIconPack? {
+        if (packPkg == "system" || packPkg.isBlank()) return null
+        packCache[packPkg]?.let { return it }
+
+        synchronized(packCache) {
+            packCache[packPkg]?.let { return it }
+            val compMap = HashMap<String, String>()
+            val pkgMap = HashMap<String, String>()
+            val calMap = HashMap<String, String>()
+
+            try {
+                val pm = context.packageManager
+                val iconPackRes = pm.getResourcesForApplication(packPkg)
+
+                var inputStream: InputStream? = null
+                try {
+                    val appfilterResId = iconPackRes.getIdentifier("appfilter", "xml", packPkg)
+                    if (appfilterResId != 0) {
+                        val xmlParser = iconPackRes.getXml(appfilterResId)
+                        parseXmlInto(xmlParser, compMap, pkgMap, calMap)
+                        val pack = ParsedIconPack(compMap, pkgMap, calMap)
+                        packCache[packPkg] = pack
+                        return pack
+                    }
+                } catch (e: Exception) { logSwallowed(TAG, "getOrLoadPack:xml", e) }
+
+                try {
+                    inputStream = iconPackRes.assets.open("appfilter.xml")
+                } catch (_: Exception) {
+                    try {
+                        inputStream = iconPackRes.assets.open("appfilter_full.xml")
+                    } catch (e: Exception) { logSwallowed(TAG, "getOrLoadPack:assets", e) }
+                }
+
+                if (inputStream != null) {
+                    val factory = XmlPullParserFactory.newInstance()
+                    val parser = factory.newPullParser()
+                    parser.setInput(inputStream, "UTF-8")
+                    parseXmlInto(parser, compMap, pkgMap, calMap)
+                    inputStream.close()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load icon pack: $packPkg", e)
+            }
+            val pack = ParsedIconPack(compMap, pkgMap, calMap)
+            packCache[packPkg] = pack
+            return pack
+        }
     }
 
     fun ensureLoaded(context: Context) {
@@ -169,43 +228,21 @@ object LightspeedIconManager {
             return
         }
 
-        try {
-            val pm = context.packageManager
-            val iconPackRes = pm.getResourcesForApplication(iconPackPkg)
-
-            var inputStream: InputStream? = null
-            try {
-                val appfilterResId = iconPackRes.getIdentifier("appfilter", "xml", iconPackPkg)
-                if (appfilterResId != 0) {
-                    val xmlParser = iconPackRes.getXml(appfilterResId)
-                    parseXmlStream(xmlParser)
-                    isPackLoaded = true
-                    return
-                }
-            } catch (e: Exception) { logSwallowed(TAG, "loadIconPackSync:163", e) }
-
-            try {
-                inputStream = iconPackRes.assets.open("appfilter.xml")
-            } catch (_: Exception) {
-                try {
-                    inputStream = iconPackRes.assets.open("appfilter_full.xml")
-                } catch (e: Exception) { logSwallowed(TAG, "loadIconPackSync:170", e) }
-            }
-
-            if (inputStream != null) {
-                val factory = XmlPullParserFactory.newInstance()
-                val parser = factory.newPullParser()
-                parser.setInput(inputStream, "UTF-8")
-                parseXmlStream(parser)
-                inputStream.close()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to load icon pack: $iconPackPkg", e)
+        val pack = getOrLoadPack(context, iconPackPkg)
+        if (pack != null) {
+            componentToDrawableMap.putAll(pack.componentToDrawable)
+            packageToDrawableMap.putAll(pack.packageToDrawable)
+            calendarPrefixMap.putAll(pack.calendarPrefix)
         }
         isPackLoaded = true
     }
 
-    private fun parseXmlStream(parser: XmlPullParser) {
+    private fun parseXmlInto(
+        parser: XmlPullParser,
+        compMap: MutableMap<String, String>,
+        pkgMap: MutableMap<String, String>,
+        calMap: MutableMap<String, String>
+    ) {
         var eventType = parser.eventType
         while (eventType != XmlPullParser.END_DOCUMENT) {
             if (eventType == XmlPullParser.START_TAG) {
@@ -215,18 +252,18 @@ object LightspeedIconManager {
                     val drawable = parser.getAttributeValue(null, "drawable")
                     if (!component.isNullOrBlank() && !drawable.isNullOrBlank()) {
                         val cleanComp = component.removePrefix("ComponentInfo{").removeSuffix("}")
-                        componentToDrawableMap[cleanComp] = drawable
+                        compMap[cleanComp] = drawable
                         val pkg = cleanComp.substringBefore("/")
-                        packageToDrawableMap[pkg] = drawable
+                        pkgMap[pkg] = drawable
                     }
                 } else if (tagName.equals("calendar", ignoreCase = true)) {
                     val component = parser.getAttributeValue(null, "component")
                     val prefix = parser.getAttributeValue(null, "prefix")
                     if (!component.isNullOrBlank() && !prefix.isNullOrBlank()) {
                         val cleanComp = component.removePrefix("ComponentInfo{").removeSuffix("}")
-                        calendarPrefixMap[cleanComp] = prefix
+                        calMap[cleanComp] = prefix
                         val pkg = cleanComp.substringBefore("/")
-                        calendarPrefixMap[pkg] = prefix
+                        calMap[pkg] = prefix
                     }
                 }
             }
@@ -234,19 +271,30 @@ object LightspeedIconManager {
         }
     }
 
+    private fun parseXmlStream(parser: XmlPullParser) {
+        parseXmlInto(parser, componentToDrawableMap, packageToDrawableMap, calendarPrefixMap)
+    }
+
     private val customShortcutBitmaps = java.util.concurrent.ConcurrentHashMap<String, Bitmap>()
 
-    /** Saves a manually-chosen icon bitmap for any token (shortcut:, custom:, or app:packageName).
+    /** Saves a manually-chosen icon bitmap for any token (shortcut:, custom:, app:packageName, or packageName).
      *  Writes to disk under shortcut_icons/ and records the token in the "manual_icon_overrides"
      *  SharedPreferences set so backups know to include it. */
     fun saveCustomShortcutBitmap(context: Context, token: String, bitmap: Bitmap) {
         if (token.isBlank()) return
+        drawableCache.evictAll()
+        bitmapCache.evictAll()
         customShortcutBitmaps[token] = bitmap
         bitmapCache.put(token, bitmap)
         drawableCache.put(token, BitmapDrawable(context.resources, bitmap))
 
         // Mark as manually overridden for backup tracking
         markAsManuallyOverridden(context, token)
+        if (!token.startsWith("shortcut:") && !token.startsWith("custom:") && !token.startsWith("system:")) {
+            val altToken = if (token.startsWith("app:")) token.removePrefix("app:") else "app:$token"
+            customShortcutBitmaps[altToken] = bitmap
+            markAsManuallyOverridden(context, altToken)
+        }
 
         managerScope.launch {
             try {
@@ -255,6 +303,13 @@ object LightspeedIconManager {
                 val file = File(dir, "${token.hashCode()}.png")
                 FileOutputStream(file).use { out ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+                if (!token.startsWith("shortcut:") && !token.startsWith("custom:") && !token.startsWith("system:")) {
+                    val altToken = if (token.startsWith("app:")) token.removePrefix("app:") else "app:$token"
+                    val altFile = File(dir, "${altToken.hashCode()}.png")
+                    FileOutputStream(altFile).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Error saving shortcut bitmap to disk", e)
@@ -281,12 +336,20 @@ object LightspeedIconManager {
         val prefs = context.defaultPrefs()
         val current = prefs.getStringSet("manual_icon_overrides", emptySet())?.toMutableSet() ?: return
         current.remove(token)
+        val altToken = if (!token.startsWith("shortcut:") && !token.startsWith("custom:") && !token.startsWith("system:")) {
+            if (token.startsWith("app:")) token.removePrefix("app:") else "app:$token"
+        } else null
+        if (altToken != null) current.remove(altToken)
         prefs.edit().putStringSet("manual_icon_overrides", current).apply()
         customShortcutBitmaps.remove(token)
-        bitmapCache.remove(token)
-        drawableCache.remove(token)
+        if (altToken != null) customShortcutBitmaps.remove(altToken)
+        drawableCache.evictAll()
+        bitmapCache.evictAll()
         try {
             File(context.filesDir, "shortcut_icons/${token.hashCode()}.png").delete()
+            if (altToken != null) {
+                File(context.filesDir, "shortcut_icons/${altToken.hashCode()}.png").delete()
+            }
         } catch (e: Exception) { logSwallowed(TAG, "clearManualOverride:268", e) }
     }
 
@@ -356,16 +419,23 @@ object LightspeedIconManager {
         }
     }
 
-    fun getIconDrawable(context: Context, tokenOrPkg: String, useCache: Boolean = true): Drawable? {
+    fun getIconDrawable(
+        context: Context,
+        tokenOrPkg: String,
+        useCache: Boolean = true,
+        iconPackPkg: String? = null
+    ): Drawable? {
         if (tokenOrPkg.isBlank()) return null
-        if (useCache) drawableCache.get(tokenOrPkg)?.let {
+        val activePack = iconPackPkg ?: getActiveIconPack(context)
+        val cacheKey = if (iconPackPkg != null && iconPackPkg != getActiveIconPack(context)) "$tokenOrPkg@$iconPackPkg" else tokenOrPkg
+        if (useCache) drawableCache.get(cacheKey)?.let {
             return it.constantState?.newDrawable()?.mutate() ?: it
         }
 
         // Custom shortcut bitmaps (shortcut:, custom:) and manually overridden app: icons
         loadCustomShortcutBitmap(context, tokenOrPkg)?.let { bmp ->
             val d = BitmapDrawable(context.resources, bmp)
-            if (useCache) drawableCache.put(tokenOrPkg, d)
+            if (useCache) drawableCache.put(cacheKey, d)
             return d
         }
 
@@ -381,7 +451,7 @@ object LightspeedIconManager {
             if (shortcutDrawable != null) {
                 val mutated = shortcutDrawable.constantState?.newDrawable()?.mutate() ?: shortcutDrawable.mutate()
                 mutated.alpha = 255
-                if (useCache) drawableCache.put(tokenOrPkg, mutated)
+                if (useCache) drawableCache.put(cacheKey, mutated)
                 return mutated.constantState?.newDrawable()?.mutate() ?: mutated
             }
         }
@@ -409,14 +479,15 @@ object LightspeedIconManager {
                 if (d != null) {
                     val mutated = d.constantState?.newDrawable()?.mutate() ?: d.mutate()
                     mutated.alpha = 255
-                    if (useCache) drawableCache.put(tokenOrPkg, mutated)
+                    if (useCache) drawableCache.put(cacheKey, mutated)
                     return mutated.constantState?.newDrawable()?.mutate() ?: mutated
                 }
             }
         }
 
-        ensureLoaded(context)
-        val activePack = getActiveIconPack(context)
+        if (iconPackPkg == null) {
+            ensureLoaded(context)
+        }
         val dayOfMonth = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
         val dayStr = dayOfMonth.toString().padStart(2, '0')
 
@@ -428,40 +499,43 @@ object LightspeedIconManager {
         if (extractedPkg.isBlank()) return null
 
         // 1. Third-Party Icon Pack Resolution (e.g. Arcticons)
-        if (activePack != "system" && isPackLoaded) {
+        if (activePack != "system" && activePack.isNotBlank()) {
             try {
-                val pm = context.packageManager
-                val iconPackRes = pm.getResourcesForApplication(activePack)
+                val pack = getOrLoadPack(context, activePack)
+                if (pack != null) {
+                    val pm = context.packageManager
+                    val iconPackRes = pm.getResourcesForApplication(activePack)
 
-                // Check dynamic calendar rule in icon pack
-                val calPrefix = calendarPrefixMap[extractedPkg]
-                if (calPrefix != null) {
-                    val calCandidates = listOf("${calPrefix}${dayOfMonth}", "${calPrefix}${dayStr}")
-                    for (cand in calCandidates) {
-                        val calResId = iconPackRes.getIdentifier(cand, "drawable", activePack)
-                        if (calResId != 0) {
-                            val calDrawable = iconPackRes.getDrawable(calResId, null)
-                            if (calDrawable != null) {
-                                val mutated = calDrawable.constantState?.newDrawable()?.mutate() ?: calDrawable.mutate()
-                                mutated.alpha = 255
-                                if (useCache) drawableCache.put(tokenOrPkg, mutated)
-                                return mutated.constantState?.newDrawable()?.mutate() ?: mutated
+                    // Check dynamic calendar rule in icon pack
+                    val calPrefix = pack.calendarPrefix[extractedPkg]
+                    if (calPrefix != null) {
+                        val calCandidates = listOf("${calPrefix}${dayOfMonth}", "${calPrefix}${dayStr}")
+                        for (cand in calCandidates) {
+                            val calResId = iconPackRes.getIdentifier(cand, "drawable", activePack)
+                            if (calResId != 0) {
+                                val calDrawable = iconPackRes.getDrawable(calResId, null)
+                                if (calDrawable != null) {
+                                    val mutated = calDrawable.constantState?.newDrawable()?.mutate() ?: calDrawable.mutate()
+                                    mutated.alpha = 255
+                                    if (useCache) drawableCache.put(cacheKey, mutated)
+                                    return mutated.constantState?.newDrawable()?.mutate() ?: mutated
+                                }
                             }
                         }
                     }
-                }
 
-                // Check standard app/component mapping in icon pack
-                val drawableName = packageToDrawableMap[extractedPkg]
-                if (!drawableName.isNullOrBlank()) {
-                    val resId = iconPackRes.getIdentifier(drawableName, "drawable", activePack)
-                    if (resId != 0) {
-                        val packDrawable = iconPackRes.getDrawable(resId, null)
-                        if (packDrawable != null) {
-                            val mutated = packDrawable.constantState?.newDrawable()?.mutate() ?: packDrawable.mutate()
-                            mutated.alpha = 255
-                            if (useCache) drawableCache.put(tokenOrPkg, mutated)
-                            return mutated.constantState?.newDrawable()?.mutate() ?: mutated
+                    // Check standard app/component mapping in icon pack
+                    val drawableName = pack.packageToDrawable[extractedPkg]
+                    if (!drawableName.isNullOrBlank()) {
+                        val resId = iconPackRes.getIdentifier(drawableName, "drawable", activePack)
+                        if (resId != 0) {
+                            val packDrawable = iconPackRes.getDrawable(resId, null)
+                            if (packDrawable != null) {
+                                val mutated = packDrawable.constantState?.newDrawable()?.mutate() ?: packDrawable.mutate()
+                                mutated.alpha = 255
+                                if (useCache) drawableCache.put(cacheKey, mutated)
+                                return mutated.constantState?.newDrawable()?.mutate() ?: mutated
+                            }
                         }
                     }
                 }
@@ -508,22 +582,29 @@ object LightspeedIconManager {
                 mutated.alpha = 255
                 mutated
             }
-            if (useCache) drawableCache.put(tokenOrPkg, compactDrawable)
+            if (useCache) drawableCache.put(cacheKey, compactDrawable)
             compactDrawable.constantState?.newDrawable()?.mutate() ?: compactDrawable
         } catch (_: Exception) {
             null
         }
     }
 
-    fun getIconBitmap(context: Context, tokenOrPkg: String, useCache: Boolean = true): Bitmap? {
+    fun getIconBitmap(
+        context: Context,
+        tokenOrPkg: String,
+        useCache: Boolean = true,
+        iconPackPkg: String? = null
+    ): Bitmap? {
         if (tokenOrPkg.isBlank()) return null
-        if (useCache) bitmapCache.get(tokenOrPkg)?.let { return it }
-        if (!useCache) temporaryPickerCache[tokenOrPkg]?.let { return it }
+        val activePack = iconPackPkg ?: getActiveIconPack(context)
+        val cacheKey = if (iconPackPkg != null && iconPackPkg != getActiveIconPack(context)) "$tokenOrPkg@$iconPackPkg" else tokenOrPkg
+        if (useCache) bitmapCache.get(cacheKey)?.let { return it }
+        if (!useCache) temporaryPickerCache[cacheKey]?.let { return it }
 
-        val drawable = getIconDrawable(context, tokenOrPkg) ?: return null
+        val drawable = getIconDrawable(context, tokenOrPkg, useCache, iconPackPkg) ?: return null
         val bitmap = convertDrawableToBitmap(drawable, 120)
         if (bitmap != null) {
-            if (useCache) bitmapCache.put(tokenOrPkg, bitmap) else temporaryPickerCache[tokenOrPkg] = bitmap
+            if (useCache) bitmapCache.put(cacheKey, bitmap) else temporaryPickerCache[cacheKey] = bitmap
         }
         return bitmap
     }

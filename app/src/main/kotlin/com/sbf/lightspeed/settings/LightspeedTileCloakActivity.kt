@@ -157,6 +157,7 @@ private fun CloakMatrixContent(
     var disableExtraDim by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EXTRA_DIM, true)) }
     var disableEyeCare by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_EYE_CARE, false)) }
     var disableSmartPixels by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_SMART_PIXELS, true)) }
+    var resetRefreshRate by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_RESET_REFRESH_RATE, false)) }
     var suspendSonicDeck by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_SUSPEND_SONIC_DECK, true)) }
     var hideDevOptions by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_DEV_OPTIONS, false)) }
     var hideUsbDebugging by remember { mutableStateOf(prefs.getBoolean(LightspeedPreferences.KEY_CLOAK_HIDE_USB_DEBUGGING, false)) }
@@ -409,11 +410,25 @@ private fun CloakMatrixContent(
                             // 3. Smart Pixels & Video Override (ON by default)
                             CloakChecklistItem(
                                 title = "Turn Off Smart Pixels & Video Override",
-                                subtitle = "Removes OLED pixel mesh & brightness lock overlays while cloaked",
+                                subtitle = "Removes OLED pixel mesh, brightness lock & Telemetry HUD overlays while cloaked",
                                 checked = disableSmartPixels,
                                 onCheckedChange = {
                                     disableSmartPixels = it
                                     prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_DISABLE_SMART_PIXELS, it).apply()
+                                    LightspeedHapticEngine.tick(context)
+                                }
+                            )
+
+                            HorizontalDivider(color = lsColors.textPrimary.copy(alpha = 0.06f))
+
+                            // 3b. Reset Overdrive Refresh Rate (OFF by default)
+                            CloakChecklistItem(
+                                title = "Reset Overdrive Refresh Rate while Cloaked",
+                                subtitle = "Reverts display Hz to system Auto while cloaked and restores Overdrive Hz on uncloak (OFF by default)",
+                                checked = resetRefreshRate,
+                                onCheckedChange = {
+                                    resetRefreshRate = it
+                                    prefs.edit().putBoolean(LightspeedPreferences.KEY_CLOAK_RESET_REFRESH_RATE, it).apply()
                                     LightspeedHapticEngine.tick(context)
                                 }
                             )

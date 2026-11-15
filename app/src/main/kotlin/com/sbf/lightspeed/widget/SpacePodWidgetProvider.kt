@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.widget.RemoteViews
@@ -15,7 +16,9 @@ import com.sbf.lightspeed.R
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.DeckThemeSnapshot
 import com.sbf.lightspeed.settings.SpacePodShortcutActivity
+import com.sbf.lightspeed.settings.resolveCanvasPalette
 import com.sbf.lightspeed.system.LightspeedIconManager
+import com.sbf.lightspeed.system.LightspeedPreferences
 import com.sbf.lightspeed.system.LightspeedShortcutManager
 import com.sbf.lightspeed.system.SpacePodGestureDispatcher
 import com.sbf.lightspeed.system.defaultPrefs
@@ -45,25 +48,9 @@ class SpacePodWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        fun createPodSurfaceBitmap(snapshot: DeckThemeSnapshot, sizePx: Int = 180): Bitmap {
+        fun createPodSurfaceBitmap(context: Context, snapshot: DeckThemeSnapshot, sizePx: Int = 180): Bitmap {
+            // Space Pod is pure floating icon on the home screen: transparent backing, no borders
             val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-            // Panel glass base
-            paint.style = Paint.Style.FILL
-            paint.color = snapshot.panelColorArgb.toInt()
-            paint.alpha = (snapshot.panelAlpha * 255).toInt().coerceIn(30, 255)
-            val rect = RectF(6f, 6f, sizePx - 6f, sizePx - 6f)
-            val radius = sizePx / 2f
-            canvas.drawRoundRect(rect, radius, radius, paint)
-
-            // Inner glass glow / border
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 3f
-            paint.color = snapshot.borderColorArgb.toInt()
-            canvas.drawRoundRect(rect, radius, radius, paint)
-
             return bitmap
         }
     }
@@ -73,8 +60,9 @@ class SpacePodWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        if (!com.sbf.lightspeed.system.NightlyFeatures.isSpacePodWidgetEnabled) return
         val snapshot = DeckThemeManager.getSnapshot(context)
-        val bgBitmap = createPodSurfaceBitmap(snapshot)
+        val bgBitmap = createPodSurfaceBitmap(context, snapshot)
         val prefs = context.defaultPrefs()
 
         for (appWidgetId in appWidgetIds) {
@@ -97,9 +85,10 @@ class SpacePodWidgetProvider : AppWidgetProvider() {
             } else null
 
             val views = RemoteViews(context.packageName, R.layout.widget_space_pod_layout).apply {
-                setImageViewBitmap(R.id.pod_widget_bg, bgBitmap)
-                setTextColor(R.id.pod_widget_label, snapshot.borderColorArgb.toInt())
-                setTextViewText(R.id.pod_widget_label, label.take(10).uppercase())
+                val hideLabel = prefs.getBoolean("pref_space_pod_${podIndex}_hide_label", false)
+                setViewVisibility(R.id.pod_widget_label, if (hideLabel) android.view.View.GONE else android.view.View.VISIBLE)
+                setTextColor(R.id.pod_widget_label, Color.WHITE)
+                setTextViewText(R.id.pod_widget_label, label.take(12))
 
                 if (iconBmp != null) {
                     setImageViewBitmap(R.id.pod_widget_icon, iconBmp)
@@ -116,7 +105,7 @@ class SpacePodWidgetProvider : AppWidgetProvider() {
                     context,
                     appWidgetId,
                     clickIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
                 setOnClickPendingIntent(R.id.pod_widget_root, pendingIntent)
             }

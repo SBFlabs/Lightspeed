@@ -8,10 +8,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -36,17 +38,19 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.view.WindowCompat
 import com.sbf.lightspeed.CockpitGearPickerActivity
 import com.sbf.lightspeed.IconPackBrowserModal
 import com.sbf.lightspeed.R
 import com.sbf.lightspeed.settings.DeckButton
 import com.sbf.lightspeed.settings.DeckCard
 import com.sbf.lightspeed.settings.DeckDialog
+import com.sbf.lightspeed.settings.DeckSlider
 import com.sbf.lightspeed.settings.DeckThemeManager
 import com.sbf.lightspeed.settings.SpacePodShortcutActivity
 import com.sbf.lightspeed.system.*
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
-import com.sbf.lightspeed.ui.theme.LocalDeckTheme
+import com.sbf.lightspeed.ui.theme.LightspeedTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,8 +66,15 @@ class LightspeedWidgetConfigActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setResult(Activity.RESULT_CANCELED)
+
+        // Make window completely transparent & edge-to-edge with zero black status/nav bars
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
 
         val appWidgetId = intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID) ?: AppWidgetManager.INVALID_APPWIDGET_ID
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
@@ -83,50 +94,69 @@ class LightspeedWidgetConfigActivity : ComponentActivity() {
         }
 
         setContent {
-            val snapshot = remember { DeckThemeManager.getSnapshot(this) }
-            val lsColors = LightspeedStyle.colors
-            val prefs = remember { defaultPrefs() }
-            val scope = rememberCoroutineScope()
-            var selectedPod by remember { mutableIntStateOf(intent?.getIntExtra(EXTRA_POD_INDEX, 1)?.coerceIn(1, 4) ?: 1) }
-            var reloadTrigger by remember { mutableIntStateOf(0) }
-            var showIconPacks by remember { mutableStateOf(false) }
+            remember { DeckThemeManager.getSnapshot(this) }
+            LightspeedTheme(forceDark = true) {
+                val lsColors = LightspeedStyle.colors
+                val prefs = remember { defaultPrefs() }
+                val scope = rememberCoroutineScope()
+                var selectedPod by remember { mutableIntStateOf(intent?.getIntExtra(EXTRA_POD_INDEX, 1)?.coerceIn(1, 4) ?: 1) }
+                var reloadTrigger by remember { mutableIntStateOf(0) }
+                var showIconPacks by remember { mutableStateOf(false) }
 
-            val clickPref = SpacePodGestureDispatcher.getActionPrefKey(selectedPod, SpacePodGestureDispatcher.GESTURE_CLICK)
-            val dblClickPref = SpacePodGestureDispatcher.getActionPrefKey(selectedPod, SpacePodGestureDispatcher.GESTURE_DOUBLE_CLICK)
-            val clickToken = remember(selectedPod, reloadTrigger) { prefs.getString(clickPref, "") ?: "" }
-            val dblClickToken = remember(selectedPod, reloadTrigger) { prefs.getString(dblClickPref, "") ?: "" }
-            val customLabel = remember(selectedPod, reloadTrigger) { prefs.getString("pref_space_pod_${selectedPod}_custom_label", "") ?: "" }
-            var labelInput by remember(selectedPod, reloadTrigger) { mutableStateOf(customLabel) }
-            var customBmp by remember(selectedPod, reloadTrigger) {
-                mutableStateOf<Bitmap?>(LightspeedIconManager.getCustomShortcutBitmap(this@LightspeedWidgetConfigActivity, "space_pod_$selectedPod"))
-            }
-
-            val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-                if (res.resultCode == Activity.RESULT_OK) reloadTrigger++
-            }
-            val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-                if (uri != null) scope.launch(Dispatchers.IO) {
-                    try {
-                        contentResolver.openInputStream(uri)?.use { stream ->
-                            val bmp = BitmapFactory.decodeStream(stream) ?: return@use
-                            val scaled = Bitmap.createScaledBitmap(bmp, 128, 128, true)
-                            LightspeedIconManager.saveCustomShortcutBitmap(this@LightspeedWidgetConfigActivity, "space_pod_$selectedPod", scaled)
-                            withContext(Dispatchers.Main) { customBmp = scaled; reloadTrigger++ }
-                        }
-                    } catch (_: Exception) {}
+                val clickPref = SpacePodGestureDispatcher.getActionPrefKey(selectedPod, SpacePodGestureDispatcher.GESTURE_CLICK)
+                val dblClickPref = SpacePodGestureDispatcher.getActionPrefKey(selectedPod, SpacePodGestureDispatcher.GESTURE_DOUBLE_CLICK)
+                val clickToken = remember(selectedPod, reloadTrigger) { prefs.getString(clickPref, "") ?: "" }
+                val dblClickToken = remember(selectedPod, reloadTrigger) { prefs.getString(dblClickPref, "") ?: "" }
+                val customLabel = remember(selectedPod, reloadTrigger) { prefs.getString("pref_space_pod_${selectedPod}_custom_label", "") ?: "" }
+                var labelInput by remember(selectedPod, reloadTrigger) { mutableStateOf(customLabel) }
+                var hideLabel by remember(selectedPod, reloadTrigger) { mutableStateOf(prefs.getBoolean("pref_space_pod_${selectedPod}_hide_label", false)) }
+                var customBmp by remember(selectedPod, reloadTrigger) {
+                    mutableStateOf<Bitmap?>(LightspeedIconManager.getCustomShortcutBitmap(this@LightspeedWidgetConfigActivity, "space_pod_$selectedPod"))
                 }
-            }
 
-            CompositionLocalProvider(LocalDeckTheme provides snapshot) {
+                var widgetThemeMode by remember {
+                    mutableStateOf(prefs.getString(LightspeedPreferences.KEY_WIDGET_THEME_MODE, "theme_12") ?: "theme_12")
+                }
+                var widgetOpacity by remember {
+                    mutableFloatStateOf(prefs.getFloat(LightspeedPreferences.KEY_WIDGET_BACKGROUND_OPACITY, 0.85f))
+                }
+
+                val pickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+                    if (res.resultCode == Activity.RESULT_OK) reloadTrigger++
+                }
+                val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                    if (uri != null) scope.launch(Dispatchers.IO) {
+                        try {
+                            contentResolver.openInputStream(uri)?.use { stream ->
+                                val bmp = BitmapFactory.decodeStream(stream) ?: return@use
+                                val scaled = Bitmap.createScaledBitmap(bmp, 128, 128, true)
+                                LightspeedIconManager.saveCustomShortcutBitmap(this@LightspeedWidgetConfigActivity, "space_pod_$selectedPod", scaled)
+                                withContext(Dispatchers.Main) { customBmp = scaled; reloadTrigger++ }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+
                 if (showIconPacks) {
-                    IconPackBrowserModal(onDismiss = { showIconPacks = false }, onIconSelected = { bmp ->
-                        LightspeedIconManager.saveCustomShortcutBitmap(this, "space_pod_$selectedPod", bmp)
-                        customBmp = bmp; showIconPacks = false; reloadTrigger++
-                    })
+                    DeckDialog(onDismissRequest = { showIconPacks = false }) {
+                        IconPackBrowserModal(
+                            onDismiss = { showIconPacks = false },
+                            onIconSelected = { bmp ->
+                                LightspeedIconManager.saveCustomShortcutBitmap(this@LightspeedWidgetConfigActivity, "space_pod_$selectedPod", bmp)
+                                customBmp = bmp
+                                showIconPacks = false
+                                reloadTrigger++
+                            }
+                        )
+                    }
                 } else {
                     DeckDialog(onDismissRequest = { finish() }, title = {
-                        Text(if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) "CONFIGURE SPACE POD WIDGET" else "SPACE POD STUDIO",
-                            fontSize = 12.sp, fontWeight = FontWeight.Bold, color = lsColors.textPrimary)
+                        Text(
+                            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) "CONFIGURE SPACE POD WIDGET" else "SPACE POD STUDIO",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = lsColors.textPrimary
+                        )
                     }) {
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             for (pod in 1..4) {
@@ -154,34 +184,125 @@ class LightspeedWidgetConfigActivity : ComponentActivity() {
                                 if (resolvedBmp != null) Image(bitmap = resolvedBmp.asImageBitmap(), contentDescription = null, modifier = Modifier.size(32.dp))
                                 else Icon(painterResource(R.drawable.ic_qs_flight_armed), null, tint = lsColors.accentInfo, modifier = Modifier.size(24.dp))
                             }
-                            OutlinedTextField(value = labelInput, onValueChange = {
-                                labelInput = it; prefs.edit().putString("pref_space_pod_${selectedPod}_custom_label", it.trim()).apply()
-                            }, label = { Text("Display Name", fontSize = 11.sp) }, singleLine = true, modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp))
+                            OutlinedTextField(
+                                value = labelInput,
+                                onValueChange = {
+                                    labelInput = it
+                                    prefs.edit().putString("pref_space_pod_${selectedPod}_custom_label", it.trim()).apply()
+                                    SpacePodWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                },
+                                label = { Text("Display Name", fontSize = 11.sp) },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = lsColors.accent,
+                                    unfocusedBorderColor = lsColors.borderSubtle,
+                                    focusedLabelColor = lsColors.accent,
+                                    unfocusedLabelColor = lsColors.textSecondary,
+                                    focusedTextColor = lsColors.textPrimary,
+                                    unfocusedTextColor = lsColors.textPrimary,
+                                    cursorColor = lsColors.accent
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Hide Label", fontSize = 11.sp, color = lsColors.textSecondary)
+                            com.sbf.lightspeed.settings.DeckSwitch(
+                                checked = hideLabel,
+                                onCheckedChange = { checked ->
+                                    hideLabel = checked
+                                    prefs.edit().putBoolean("pref_space_pod_${selectedPod}_hide_label", checked).apply()
+                                    SpacePodWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                }
+                            )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            OutlinedButton(onClick = { galleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) {
-                                Icon(Icons.Default.Photo, null, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(4.dp)); Text("Gallery", fontSize = 11.sp)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            DeckButton(onClick = { galleryLauncher.launch("image/*") }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.Photo, null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Gallery", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 3.dp))
                             }
-                            FilledTonalButton(onClick = { showIconPacks = true }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) {
-                                Icon(Icons.Default.Category, null, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(4.dp)); Text("Packs", fontSize = 11.sp)
+                            DeckButton(onClick = { showIconPacks = true }, modifier = Modifier.weight(1f), isActive = true) {
+                                Icon(Icons.Default.Category, null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Packs", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(vertical = 3.dp))
                             }
                             IconButton(onClick = {
                                 LightspeedIconManager.clearManualOverride(this@LightspeedWidgetConfigActivity, "space_pod_$selectedPod")
-                                prefs.edit().remove("pref_space_pod_${selectedPod}_custom_label").apply()
-                                customBmp = null; labelInput = ""; reloadTrigger++
-                            }) { Icon(Icons.Default.Refresh, contentDescription = "Reset", tint = MaterialTheme.colorScheme.error) }
+                                prefs.edit().remove("pref_space_pod_${selectedPod}_custom_label").remove("pref_space_pod_${selectedPod}_hide_label").apply()
+                                customBmp = null; labelInput = ""; hideLabel = false; reloadTrigger++
+                                SpacePodWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                            }) { Icon(Icons.Default.Refresh, contentDescription = "Reset", tint = lsColors.accentDanger) }
                         }
-                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = lsColors.borderSubtle.copy(alpha = 0.4f))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Theme Mode & Opacity
+                        Text("WIDGET THEME ENGINE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.textSecondary)
+                        Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val modes = listOf("theme_12" to "12-THEME", "m3_dynamic" to "MATERIAL YOU", "hybrid_fusion" to "HYBRID")
+                            for ((modeKey, modeTitle) in modes) {
+                                DeckButton(
+                                    onClick = {
+                                        widgetThemeMode = modeKey
+                                        prefs.edit().putString(LightspeedPreferences.KEY_WIDGET_THEME_MODE, modeKey).apply()
+                                        SpacePodWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                        LightspeedFolderWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                        LightspeedStackWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    isActive = widgetThemeMode == modeKey
+                                ) {
+                                    Text(modeTitle, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 4.dp))
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("BACKGROUND OPACITY", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.textSecondary)
+                            Text("${(widgetOpacity * 100).toInt()}%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lsColors.accentInfo)
+                        }
+                        DeckSlider(
+                            value = widgetOpacity,
+                            onValueChange = { widgetOpacity = it },
+                            onValueChangeFinished = {
+                                prefs.edit().putFloat(LightspeedPreferences.KEY_WIDGET_BACKGROUND_OPACITY, widgetOpacity).apply()
+                                SpacePodWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                LightspeedFolderWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                LightspeedStackWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                            },
+                            valueRange = 0f..1f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                                Button(onClick = {
-                                    prefs.edit().putInt("widget_pod_index_$appWidgetId", selectedPod).apply()
-                                    SpacePodWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
-                                    setResult(Activity.RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
-                                    finish()
-                                }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(10.dp)) {
-                                    Text("Save Widget", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                DeckButton(
+                                    onClick = {
+                                        prefs.edit().putInt("widget_pod_index_$appWidgetId", selectedPod).apply()
+                                        SpacePodWidgetProvider.notifyUpdate(this@LightspeedWidgetConfigActivity)
+                                        setResult(Activity.RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId))
+                                        finish()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    isActive = true
+                                ) {
+                                    Text("Save Widget", fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(vertical = 4.dp))
                                 }
                             }
                             DeckButton(onClick = {

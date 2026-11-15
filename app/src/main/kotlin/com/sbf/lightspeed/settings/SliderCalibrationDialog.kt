@@ -2,8 +2,10 @@ package com.sbf.lightspeed.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +21,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,9 +33,138 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.sbf.lightspeed.system.LightspeedHapticEngine
+import com.sbf.lightspeed.system.LightspeedPreferences
+import com.sbf.lightspeed.system.defaultPrefs
 import com.sbf.lightspeed.ui.theme.LightspeedStyle
 import com.sbf.lightspeed.ui.theme.LightspeedTokens
 import com.sbf.lightspeed.ui.theme.LocalDeckTheme
+
+/**
+ * Reusable signature Lightspeed dotted slider row for callback-driven panels (Refueling Bay,
+ * Widget Tune overlays) featuring DragOnlySlider vertical fine-gearing, tappable value pill
+ * opening [SliderCalibrationFlyoutDialog], and long-press reset to default.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun DeckSignatureSliderRow(
+    title: String,
+    sliderKey: String,
+    value: Float,
+    valueDisplayText: String,
+    currentValueForDialog: String = valueDisplayText,
+    defaultValueDisplay: String,
+    valueRange: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    precisionStep: Float? = 1f,
+    accent: Color = MaterialTheme.colorScheme.primary,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (() -> Unit)? = null,
+    onParseTypedValue: (String) -> Float? = { raw ->
+        raw.filter { it.isDigit() || it == '.' || it == '-' }.toFloatOrNull()
+    },
+    onResetToDefault: () -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.defaultPrefs() }
+    var isFlyoutOpen by remember { mutableStateOf(false) }
+    var isTapToJumpEnabled by remember(sliderKey) {
+        mutableStateOf(prefs.getBoolean(LightspeedPreferences.keySliderTapToJump(sliderKey), false))
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                fontSize = 10.5.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.7.sp,
+                color = LightspeedStyle.colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = accent.copy(alpha = 0.15f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.42f)),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .combinedClickable(
+                        onClick = {
+                            LightspeedHapticEngine.tick(context)
+                            isFlyoutOpen = true
+                        },
+                        onLongClick = {
+                            LightspeedHapticEngine.heavyClick(context)
+                            onResetToDefault()
+                            onValueChangeFinished?.invoke()
+                        }
+                    )
+            ) {
+                Text(
+                    text = valueDisplayText,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = accent,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        }
+
+        DragOnlySlider(
+            value = value.coerceIn(valueRange.start, valueRange.endInclusive),
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = valueRange,
+            steps = steps,
+            precisionStep = precisionStep,
+            tapToJump = isTapToJumpEnabled,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+
+    if (isFlyoutOpen) {
+        SliderCalibrationFlyoutDialog(
+            title = title,
+            sliderKey = sliderKey,
+            currentValueStr = currentValueForDialog,
+            defaultValueStr = defaultValueDisplay,
+            onValueTyped = { typedStr ->
+                onParseTypedValue(typedStr)?.let { parsed ->
+                    onValueChange(parsed.coerceIn(valueRange.start, valueRange.endInclusive))
+                    onValueChangeFinished?.invoke()
+                }
+            },
+            onResetToDefault = {
+                onResetToDefault()
+                onValueChangeFinished?.invoke()
+            },
+            onSelectProfile = { profileStr ->
+                onParseTypedValue(profileStr)?.let { parsed ->
+                    onValueChange(parsed.coerceIn(valueRange.start, valueRange.endInclusive))
+                    onValueChangeFinished?.invoke()
+                }
+            },
+            onDismiss = { isFlyoutOpen = false },
+            prefs = prefs,
+            context = context,
+            isTapToJumpEnabled = isTapToJumpEnabled,
+            onTapToJumpChanged = { enabled ->
+                isTapToJumpEnabled = enabled
+                prefs.edit().putBoolean(LightspeedPreferences.keySliderTapToJump(sliderKey), enabled).apply()
+            }
+        )
+    }
+}
 
 @Composable
 fun SliderCalibrationFlyoutDialog(

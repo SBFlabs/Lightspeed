@@ -197,15 +197,20 @@ fun rememberCentralCommandState(
     val tokenLabelCache = LightspeedActionRegistry.labelCache
 
     LaunchedEffect(Unit) {
-        LightspeedActionRegistry.initializeSync(context)
-        val activeKeys = prefs.all.filterKeys { it.startsWith("pref_macro_action_") || it.startsWith("pref_key_") }
-        activeKeys.values.forEach { rawVal ->
-            val str = rawVal?.toString() ?: ""
-            if (str.isNotBlank()) {
-                tokenLabelCache[str] = resolveDynamicTokenLabel(context, str)
-            }
+        val (alreadyReady, activeRawTokens) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val raw = prefs.all
+                .filterKeys { it.startsWith("pref_macro_action_") || it.startsWith("pref_key_") }
+                .values
+                .mapNotNull { it?.toString()?.trim()?.takeIf { s -> s.isNotBlank() } }
+            val ready = LightspeedActionRegistry.allTokens.isNotEmpty() &&
+                raw.all { LightspeedActionRegistry.labelCache.containsKey(it) }
+            ready to raw
         }
-        LightspeedActionRegistry.ensureIndexed(context)
+        if (!alreadyReady) {
+            // Only resolve configured action tokens + installed launcher labels on startup;
+            // deep exported activity/shortcut indexing runs lazily inside CockpitGearPickerActivity.
+            LightspeedActionRegistry.initializeAsync(context, activeRawTokens)
+        }
     }
 
     val sectionTitles0 = remember(isLeftFlankUnified, currentLanguageMode) {
@@ -255,87 +260,89 @@ fun rememberCentralCommandState(
         }
     }
 
-    val toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit = { tabId, sectionId, currentExpanded, onSetExpanded ->
-        val mode = when (tabId) {
-            0 -> tabMode0
-            1 -> tabMode1
-            2 -> tabMode2
-            else -> "custom_pinned"
-        }
-
-        val pinned = when (tabId) {
-            0 -> pinnedSection0
-            1 -> pinnedSection1
-            2 -> pinnedSection2
-            else -> null
-        }
-
-        if (mode == "solo") {
-            if (!currentExpanded) {
-                when (tabId) {
-                    0 -> {
-                        isLeftCenterExpanded = false
-                        isLeftTopExpanded = false
-                        isLeftBottomExpanded = false
-                        isLeftUnifiedExpanded = false
-                    }
-                    1 -> {
-                        isSensorDeckExpanded = false
-                        isSyntheticGravityExpanded = false
-                        isTelemetryExpanded = false
-                        isTacticalHardwareExpanded = false
-                        isRefuelingExpanded = false
-                        isSystemOverridesExpanded = false
-                        isConfigVaultExpanded = false
-                        isExperimentalLabsExpanded = false
-                    }
-                    2 -> {
-                        isCenterExpanded = false
-                        isTopExpanded = false
-                        isBottomExpanded = false
-                        isRightUnifiedExpanded = false
-                    }
-                }
-                onSetExpanded(true)
-            } else {
-                onSetExpanded(false)
+    val toggleSection: (Int, String, Boolean, (Boolean) -> Unit) -> Unit = remember {
+        { tabId, sectionId, currentExpanded, onSetExpanded ->
+            val mode = when (tabId) {
+                0 -> tabMode0
+                1 -> tabMode1
+                2 -> tabMode2
+                else -> "custom_pinned"
             }
-        } else if (mode == "custom_pinned") {
-            if (sectionId == pinned) {
-                onSetExpanded(!currentExpanded)
-            } else {
+
+            val pinned = when (tabId) {
+                0 -> pinnedSection0
+                1 -> pinnedSection1
+                2 -> pinnedSection2
+                else -> null
+            }
+
+            if (mode == "solo") {
                 if (!currentExpanded) {
                     when (tabId) {
                         0 -> {
-                            if (pinned != "left_center") isLeftCenterExpanded = false
-                            if (pinned != "left_top") isLeftTopExpanded = false
-                            if (pinned != "left_bottom") isLeftBottomExpanded = false
-                            if (pinned != "left_unified") isLeftUnifiedExpanded = false
+                            isLeftCenterExpanded = false
+                            isLeftTopExpanded = false
+                            isLeftBottomExpanded = false
+                            isLeftUnifiedExpanded = false
                         }
                         1 -> {
-                            if (pinned != "sensor_deck") isSensorDeckExpanded = false
-                            if (pinned != "telemetry_indicators") isTelemetryExpanded = false
-                            if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
-                            if (pinned != "synthetic_gravity") isSyntheticGravityExpanded = false
-                            if (pinned != "refueling_bay") isRefuelingExpanded = false
-                            if (pinned != "system_overrides") isSystemOverridesExpanded = false
-                            if (pinned != "config_vault") isConfigVaultExpanded = false
-                            if (pinned != "experimental_labs") isExperimentalLabsExpanded = false
+                            isSensorDeckExpanded = false
+                            isSyntheticGravityExpanded = false
+                            isTelemetryExpanded = false
+                            isTacticalHardwareExpanded = false
+                            isRefuelingExpanded = false
+                            isSystemOverridesExpanded = false
+                            isConfigVaultExpanded = false
+                            isExperimentalLabsExpanded = false
                         }
                         2 -> {
-                            if (pinned != "center") isCenterExpanded = false
-                            if (pinned != "top") isTopExpanded = false
-                            if (pinned != "bottom") isBottomExpanded = false
-                            if (pinned != "unified") isRightUnifiedExpanded = false
+                            isCenterExpanded = false
+                            isTopExpanded = false
+                            isBottomExpanded = false
+                            isRightUnifiedExpanded = false
                         }
                     }
                     onSetExpanded(true)
                 } else {
                     onSetExpanded(false)
                 }
+            } else if (mode == "custom_pinned") {
+                if (sectionId == pinned) {
+                    onSetExpanded(!currentExpanded)
+                } else {
+                    if (!currentExpanded) {
+                        when (tabId) {
+                            0 -> {
+                                if (pinned != "left_center") isLeftCenterExpanded = false
+                                if (pinned != "left_top") isLeftTopExpanded = false
+                                if (pinned != "left_bottom") isLeftBottomExpanded = false
+                                if (pinned != "left_unified") isLeftUnifiedExpanded = false
+                            }
+                            1 -> {
+                                if (pinned != "sensor_deck") isSensorDeckExpanded = false
+                                if (pinned != "telemetry_indicators") isTelemetryExpanded = false
+                                if (pinned != "tactical_hardware") isTacticalHardwareExpanded = false
+                                if (pinned != "synthetic_gravity") isSyntheticGravityExpanded = false
+                                if (pinned != "refueling_bay") isRefuelingExpanded = false
+                                if (pinned != "system_overrides") isSystemOverridesExpanded = false
+                                if (pinned != "config_vault") isConfigVaultExpanded = false
+                                if (pinned != "experimental_labs") isExperimentalLabsExpanded = false
+                            }
+                            2 -> {
+                                if (pinned != "center") isCenterExpanded = false
+                                if (pinned != "top") isTopExpanded = false
+                                if (pinned != "bottom") isBottomExpanded = false
+                                if (pinned != "unified") isRightUnifiedExpanded = false
+                            }
+                        }
+                        onSetExpanded(true)
+                    } else {
+                        onSetExpanded(false)
+                    }
+                }
+            } else {
+                onSetExpanded(!currentExpanded)
             }
-        } else {
-            onSetExpanded(!currentExpanded)
         }
     }
 

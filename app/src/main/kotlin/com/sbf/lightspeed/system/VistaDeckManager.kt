@@ -50,10 +50,12 @@ import com.sbf.lightspeed.settings.CollapsibleSubSection
 import com.sbf.lightspeed.system.display.LightspeedDisplayWellnessResetEngine
 import com.sbf.lightspeed.system.display.LightspeedEyeCareEngine
 import com.sbf.lightspeed.system.display.LightspeedSmartPixelsOverlay
+import com.sbf.lightspeed.system.display.LightspeedTelemetryHudOverlay
 import com.sbf.lightspeed.system.hud.VistaBrightnessSection
 import com.sbf.lightspeed.system.hud.VistaOpticsSection
 import com.sbf.lightspeed.system.hud.VistaEyeCareSection
 import com.sbf.lightspeed.system.hud.VistaAirlockSection
+import com.sbf.lightspeed.system.hud.VistaTelemetryHudSection
 import com.sbf.lightspeed.ui.theme.DeckTheme
 import com.sbf.lightspeed.ui.theme.LightspeedTheme
 
@@ -99,6 +101,13 @@ object VistaDeckManager {
 
             val wm = service.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return@post
             windowManager = wm
+
+            com.sbf.lightspeed.settings.CentralCommandBackdropBlur.prepareForCentralCommand(wm)
+            val blurMode = com.sbf.lightspeed.settings.BackdropBlurModeManager.getMode(service)
+            val nativeSupported = com.sbf.lightspeed.settings.BackdropBlurModeManager.isNativeBlurSupported(wm)
+            com.sbf.lightspeed.settings.CentralCommandActivity.updateCrossWindowBlurState(
+                nativeSupported && blurMode != com.sbf.lightspeed.settings.BackdropBlurMode.SCREENSHOT
+            )
 
             val view = ComposeView(service)
             val owner = OverlayLifecycleOwner()
@@ -176,6 +185,9 @@ object VistaDeckManager {
                 windowParams = null
             }
             windowManager = null
+            if (!com.sbf.lightspeed.settings.CentralCommandActivity.isActive) {
+                com.sbf.lightspeed.settings.CentralCommandBackdropBlur.onWindowHidden(false)
+            }
         }
     }
 
@@ -189,9 +201,10 @@ object VistaDeckManager {
         val prefs = service.defaultPrefs()
         var showAirlockPicker by remember { mutableStateOf(false) }
         var showMediaFilterPicker by remember { mutableStateOf(false) }
+        var showTelemetryAppPicker by remember { mutableStateOf(false) }
         var isBlueprintMode by remember { mutableStateOf(false) }
-        LaunchedEffect(showAirlockPicker, showMediaFilterPicker, isBlueprintMode) {
-            val focusable = showAirlockPicker || showMediaFilterPicker || isBlueprintMode
+        LaunchedEffect(showAirlockPicker, showMediaFilterPicker, showTelemetryAppPicker, isBlueprintMode) {
+            val focusable = showAirlockPicker || showMediaFilterPicker || showTelemetryAppPicker || isBlueprintMode
             updateWindowFocusable(focusable)
             if (focusable) {
                 composeView?.isFocusableInTouchMode = true
@@ -201,6 +214,7 @@ object VistaDeckManager {
                         when {
                             showAirlockPicker -> { showAirlockPicker = false; true }
                             showMediaFilterPicker -> { showMediaFilterPicker = false; true }
+                            showTelemetryAppPicker -> { showTelemetryAppPicker = false; true }
                             isBlueprintMode -> { isBlueprintMode = false; true }
                             else -> false
                         }
@@ -212,13 +226,14 @@ object VistaDeckManager {
         }
         val tint = Color(snapshot.effectiveTintArgb.toInt())
 
-        val defaultSections = listOf("brightness", "optics", "airlock")
+        val defaultSections = listOf("brightness", "optics", "telemetry", "airlock")
         val sectionTitles = mapOf(
             "brightness" to "Brightness and Beyond",
             "optics" to "Optics & Eye Care",
+            "telemetry" to "Overdrive Hz & Telemetry HUD",
             "airlock" to "Astrogation Airlock & 20-20-20"
         )
-        val savedOrderStr = prefs.getString("pref_vista_deck_section_order", "brightness,optics,airlock") ?: "brightness,optics,airlock"
+        val savedOrderStr = prefs.getString("pref_vista_deck_section_order", "brightness,optics,telemetry,airlock") ?: "brightness,optics,telemetry,airlock"
         var currentSectionOrder by remember(savedOrderStr) {
             mutableStateOf(
                 savedOrderStr.split(",").filter { it in defaultSections }.let { list ->
@@ -232,12 +247,15 @@ object VistaDeckManager {
 
         var isBrightnessExpanded by remember { mutableStateOf(pinnedSection == "brightness" || prefs.getBoolean("pref_vista_sub_brightness_expanded", true)) }
         var isOpticsExpanded by remember { mutableStateOf(pinnedSection == "optics" || prefs.getBoolean("pref_vista_sub_optics_expanded", true)) }
+        var isTelemetryExpanded by remember { mutableStateOf(pinnedSection == "telemetry" || prefs.getBoolean(LightspeedPreferences.KEY_VISTA_SUB_TELEMETRY_EXPANDED, true)) }
         var isAirlockExpanded by remember { mutableStateOf(pinnedSection == "airlock" || prefs.getBoolean("pref_vista_sub_airlock_expanded", true)) }
 
+        val isCapturing = com.sbf.lightspeed.settings.CentralCommandBackdropBlur.isCapturing
+        val scrimAlpha = if (isCapturing) 0f else (snapshot.dimAmount * 0.85f).coerceIn(0.25f, 0.65f)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f))
+                .background(Color.Black.copy(alpha = scrimAlpha))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -246,7 +264,7 @@ object VistaDeckManager {
             contentAlignment = Alignment.Center
         ) {
             AnimatedVisibility(
-                visible = isVisible,
+                visible = isVisible && !isCapturing,
                 enter = fadeIn(tween(200)) + scaleIn(tween(250), initialScale = 0.94f),
                 exit = fadeOut(tween(150)) + scaleOut(tween(200), targetScale = 0.94f)
             ) {
@@ -276,6 +294,27 @@ object VistaDeckManager {
                             subtitleTemplate = { count ->
                                 if (count == 0) "All apps trigger Auto-Reset on Recents Close"
                                 else "$count media apps trigger Auto-Reset on Recents Close"
+                            },
+                            loaderStyle = com.sbf.lightspeed.settings.AppPickerLoaderStyle.SOLAR_BRIGHTNESS_TRIGGER
+                        )
+                    } else if (showTelemetryAppPicker) {
+                        ConsciousAirlockAppPickerContent(
+                            context = service,
+                            prefs = service.defaultPrefs(),
+                            onDismissRequest = {
+                                showTelemetryAppPicker = false
+                                LightspeedTelemetryHudOverlay.refreshState(service)
+                            },
+                            prefKey = LightspeedPreferences.KEY_TELEMETRY_HUD_PACKAGES,
+                            title = "Select Telemetry HUD Target Apps",
+                            subtitleTemplate = { count ->
+                                if (count == 0) "No apps selected (HUD stays hidden)"
+                                else "$count target app(s) armed (Games prioritized)"
+                            },
+                            prioritizeGames = true,
+                            loaderStyle = com.sbf.lightspeed.settings.AppPickerLoaderStyle.TELEMETRY_WAVEFORM,
+                            onSelectionChanged = {
+                                LightspeedTelemetryHudOverlay.refreshState(service)
                             }
                         )
                     } else if (isBlueprintMode) {
@@ -314,6 +353,7 @@ object VistaDeckManager {
                                     when (id) {
                                         "brightness" -> { isBrightnessExpanded = true; prefs.edit().putBoolean("pref_vista_sub_brightness_expanded", true).apply() }
                                         "optics" -> { isOpticsExpanded = true; prefs.edit().putBoolean("pref_vista_sub_optics_expanded", true).apply() }
+                                        "telemetry" -> { isTelemetryExpanded = true; prefs.edit().putBoolean(LightspeedPreferences.KEY_VISTA_SUB_TELEMETRY_EXPANDED, true).apply() }
                                         "airlock" -> { isAirlockExpanded = true; prefs.edit().putBoolean("pref_vista_sub_airlock_expanded", true).apply() }
                                     }
                                 },
@@ -367,7 +407,7 @@ object VistaDeckManager {
                                 }
                             }
 
-                            HorizontalDivider(color = Color(0x25FFFFFF))
+                            HorizontalDivider(color = tint.copy(alpha = 0.25f))
 
                             currentSectionOrder.forEach { secId ->
                                 when (secId) {
@@ -398,6 +438,22 @@ object VistaDeckManager {
                                             }
                                         ) {
                                             VistaOpticsSection(service = service)
+                                        }
+                                    }
+                                    "telemetry" -> {
+                                        CollapsibleSubSection(
+                                            title = "Overdrive Hz & Telemetry HUD",
+                                            subtitle = "Hardware refresh rate selector & per-app FPS, CPU, Temp, RAM, Battery, Watts visor",
+                                            isExpanded = isTelemetryExpanded,
+                                            onToggle = {
+                                                isTelemetryExpanded = !isTelemetryExpanded
+                                                prefs.edit().putBoolean(LightspeedPreferences.KEY_VISTA_SUB_TELEMETRY_EXPANDED, isTelemetryExpanded).apply()
+                                            }
+                                        ) {
+                                            VistaTelemetryHudSection(
+                                                service = service,
+                                                onOpenTelemetryAppPicker = { showTelemetryAppPicker = true }
+                                            )
                                         }
                                     }
                                     "airlock" -> {

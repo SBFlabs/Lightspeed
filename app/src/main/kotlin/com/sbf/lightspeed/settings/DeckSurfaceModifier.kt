@@ -4,6 +4,10 @@ import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.view.WindowManager
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
@@ -22,13 +26,16 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
@@ -53,6 +60,7 @@ fun Modifier.deckGlassSurface(
     shapeOverride: Shape? = null
 ): Modifier {
     val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
     val isApi28Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
     val isApi31Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
@@ -82,16 +90,40 @@ fun Modifier.deckGlassSurface(
         val w = size.width.coerceAtLeast(1f)
         val h = size.height.coerceAtLeast(1f)
         val safeSize = Size(w, h)
-        val crPx = if (shapeOverride is RoundedCornerShape) {
-            shapeOverride.topStart.toPx(safeSize, density)
+        val (topLeftCr, topRightCr, bottomRightCr, bottomLeftCr) = if (shapeOverride is RoundedCornerShape) {
+            val ts = shapeOverride.topStart.toPx(safeSize, density)
+            val te = shapeOverride.topEnd.toPx(safeSize, density)
+            val be = shapeOverride.bottomEnd.toPx(safeSize, density)
+            val bs = shapeOverride.bottomStart.toPx(safeSize, density)
+            listOf(CornerRadius(ts, ts), CornerRadius(te, te), CornerRadius(be, be), CornerRadius(bs, bs))
         } else {
-            with(density) {
+            val defCr = with(density) {
                 (if (isMiniTile) snapshot.cornerRadiusDp * 0.42f else snapshot.cornerRadiusDp).dp.toPx()
             }
+            listOf(CornerRadius(defCr, defCr), CornerRadius(defCr, defCr), CornerRadius(defCr, defCr), CornerRadius(defCr, defCr))
         }
-        val cr = CornerRadius(crPx, crPx)
+
+        val cr = topLeftCr
         val rect = Rect(0f, 0f, w, h)
-        val outlinePath = Path().apply { addRoundRect(RoundRect(rect, cr)) }
+        val customOutline = shapeOverride?.takeIf { it !is RoundedCornerShape }
+            ?.createOutline(safeSize, layoutDirection, density)
+        val isGenericShape = customOutline is Outline.Generic
+        val outlinePath = when (customOutline) {
+            is Outline.Generic -> customOutline.path
+            is Outline.Rounded -> Path().apply { addRoundRect(customOutline.roundRect) }
+            is Outline.Rectangle -> Path().apply { addRect(customOutline.rect) }
+            else -> Path().apply {
+                addRoundRect(
+                    RoundRect(
+                        rect = rect,
+                        topLeft = topLeftCr,
+                        topRight = topRightCr,
+                        bottomRight = bottomRightCr,
+                        bottomLeft = bottomLeftCr
+                    )
+                )
+            }
+        }
 
         val cache = buildUnifiedDeckOpticalCache(
             snapshot = snapshot,
@@ -104,44 +136,43 @@ fun Modifier.deckGlassSurface(
             isFlyout = isFlyout,
             isCard = isCard,
             isApi28Plus = isApi28Plus,
-            density = density
+            density = density,
+            bottomCr = bottomRightCr
         )
 
         onDrawBehind {
             drawIntoCanvas { canvas ->
                 // 1. Stacked 3D rotated depth sheets behind the card ("depth")
-                for (sheet in cache.depthSheets) {
-                    if (cache.shadowPaint != null) {
-                        canvas.nativeCanvas.drawPath(sheet.shadowPath, cache.shadowPaint)
+                if (!isGenericShape) {
+                    for (sheet in cache.depthSheets) {
+                        if (cache.shadowPaint != null) {
+                            canvas.nativeCanvas.drawPath(sheet.shadowPath, cache.shadowPaint)
+                        }
+                        canvas.drawPath(sheet.sheetPath, sheet.fillPaint)
+                        canvas.drawPath(sheet.sheetPath, sheet.tintPaint)
+                        canvas.drawPath(sheet.sheetPath, sheet.borderPaint)
                     }
-                    canvas.drawPath(sheet.sheetPath, sheet.fillPaint)
-                    canvas.drawPath(sheet.sheetPath, sheet.tintPaint)
-                    canvas.drawPath(sheet.sheetPath, sheet.borderPaint)
                 }
 
                 // 2. Outer neon / ambient bloom halo (API 28+)
                 if (cache.outerHaloPaint != null) {
-                    canvas.nativeCanvas.drawRoundRect(
-                        0f, 0f, w, h, crPx, crPx, cache.outerHaloPaint
-                    )
+                    canvas.nativeCanvas.drawPath(outlinePath.asAndroidPath(), cache.outerHaloPaint)
                 }
                 if (cache.secondaryHaloPaint != null) {
-                    canvas.nativeCanvas.drawRoundRect(
-                        0f, 0f, w, h, crPx, crPx, cache.secondaryHaloPaint
-                    )
+                    canvas.nativeCanvas.drawPath(outlinePath.asAndroidPath(), cache.secondaryHaloPaint)
                 }
             }
 
             // 3. Clipped interior optical layers
             clipPath(outlinePath) {
                 drawIntoCanvas { canvas ->
-                    canvas.drawRoundRect(0f, 0f, w, h, crPx, crPx, cache.substratePaint)
-                    canvas.drawRoundRect(0f, 0f, w, h, crPx, crPx, cache.tintInfusionPaint)
+                    canvas.drawPath(outlinePath, cache.substratePaint)
+                    canvas.drawPath(outlinePath, cache.tintInfusionPaint)
                     cache.lavaRefractionPaint?.let {
-                        canvas.drawRoundRect(0f, 0f, w, h, crPx, crPx, it)
+                        canvas.drawPath(outlinePath, it)
                     }
                     cache.secondaryPocketPaint?.let {
-                        canvas.drawRoundRect(0f, 0f, w, h, crPx, crPx, it)
+                        canvas.drawPath(outlinePath, it)
                     }
                 }
 
@@ -151,15 +182,18 @@ fun Modifier.deckGlassSurface(
 
                 drawIntoCanvas { canvas ->
                     cache.topGlarePaint?.let {
-                        canvas.drawRoundRect(0f, 0f, w, h, crPx, crPx, it)
+                        canvas.drawPath(outlinePath, it)
                     }
                     cache.bottomCatchPaint?.let {
-                        canvas.drawRoundRect(0f, 0f, w, h, crPx, crPx, it)
+                        canvas.drawPath(outlinePath, it)
                     }
                     cache.innerCushionPaint?.let {
-                        canvas.drawPath(cache.innerCushionPath, it)
+                        canvas.drawPath(
+                            if (isGenericShape) outlinePath else cache.innerCushionPath,
+                            it
+                        )
                     }
-                    if (cache.specularPath != null && cache.specularPaint != null) {
+                    if (!isGenericShape && cache.specularPath != null && cache.specularPaint != null) {
                         canvas.drawPath(cache.specularPath, cache.specularPaint)
                     }
                 }
@@ -186,37 +220,55 @@ fun DeckGlassCardSurface(
     modifier: Modifier = Modifier,
     snapshotOverride: DeckThemeSnapshot? = null,
     isFlyout: Boolean = false,
+    shapeOverride: Shape? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val activeSnapshot by DeckThemeManager.snapshotFlow.collectAsState()
     val snapshot = snapshotOverride ?: activeSnapshot
+    val view = LocalView.current
+    val blurMode by BackdropBlurModeManager.modeFlow.collectAsState()
     val isBlurAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
         (CentralCommandActivity.isCrossWindowBlurActive || CentralCommandBackdropBlur.backdropBitmap != null)
-    val shape = RoundedCornerShape(snapshot.cornerRadiusDp.dp)
+    val shape = shapeOverride ?: RoundedCornerShape(snapshot.cornerRadiusDp.dp)
 
-    // Hardware window blur for modal dialog windows & clear rectangular Android window substrate
-    val view = LocalView.current
+    // Hardware window blur for modal dialog windows & standalone overlay decks
     SideEffect {
+        val wm = view.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+        val useNative = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            BackdropBlurModeManager.shouldUseNativeBlur(wm, blurMode)
         val dialogWindow = (view.parent as? DialogWindowProvider)?.window
         dialogWindow?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (dialogWindow != null) {
-                dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                 val lp = dialogWindow.attributes
-                if (lp != null) {
-                    lp.blurBehindRadius = snapshot.windowBlurRadiusPx.coerceIn(20, 150)
-                    dialogWindow.attributes = lp
+                if (useNative) {
+                    dialogWindow.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                    if (lp != null) {
+                        lp.blurBehindRadius = snapshot.windowBlurRadiusPx.coerceIn(20, 150)
+                        dialogWindow.attributes = lp
+                    }
+                } else {
+                    dialogWindow.clearFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                    if (lp != null && lp.blurBehindRadius != 0) {
+                        lp.blurBehindRadius = 0
+                        dialogWindow.attributes = lp
+                    }
                 }
             } else {
                 val rootView = view.rootView
                 val lp = rootView.layoutParams as? WindowManager.LayoutParams
-                if (lp != null && (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) == 0) {
-                    lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    lp.blurBehindRadius = snapshot.windowBlurRadiusPx.coerceIn(20, 150)
-                    val wm = view.context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-                    try {
-                        wm?.updateViewLayout(rootView, lp)
-                    } catch (_: Exception) {}
+                if (lp != null) {
+                    val hasFlag = (lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND) != 0
+                    val targetRadius = if (useNative) snapshot.windowBlurRadiusPx.coerceIn(20, 150) else 0
+                    if (useNative && (!hasFlag || lp.blurBehindRadius != targetRadius)) {
+                        lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                        lp.blurBehindRadius = targetRadius
+                        try { wm?.updateViewLayout(rootView, lp) } catch (_: Exception) {}
+                    } else if (!useNative && (hasFlag || lp.blurBehindRadius != 0)) {
+                        lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                        lp.blurBehindRadius = 0
+                        try { wm?.updateViewLayout(rootView, lp) } catch (_: Exception) {}
+                    }
                 }
             }
         }
@@ -224,10 +276,14 @@ fun DeckGlassCardSurface(
 
     Box(modifier = modifier) {
         // Layer 1: Clipped fallback hardware blur strictly inside the card's rounded bounds
+        // Hardware RenderNode clip keeps Layer 1 isolated from foreground scroll invalidations.
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(shape)
+                .graphicsLayer {
+                    this.shape = shape
+                    this.clip = true
+                }
         ) {
             ClippedFallbackBlurLayer(snapshot = snapshot)
         }
@@ -239,13 +295,18 @@ fun DeckGlassCardSurface(
                 .deckGlassSurface(
                     snapshot = snapshot,
                     isBlurAvailable = isBlurAvailable,
-                    isFlyout = isFlyout
+                    isFlyout = isFlyout,
+                    shapeOverride = shape
                 )
         )
 
         // Layer 3: Foreground UI content clipped to the card's rounded shape
         Box(
-            modifier = Modifier.clip(shape),
+            modifier = Modifier
+                .graphicsLayer {
+                    this.shape = shape
+                    this.clip = true
+                },
             content = content
         )
     }
@@ -362,7 +423,25 @@ fun DeckThemedDropdownMenu(
                     }
                 }
             }
-            Box(modifier = Modifier.clip(shape)) {
+            val isJelly = snapshot.styleId == "jelly"
+            val scaleAnim = remember(expanded) { Animatable(if (isJelly) 0.88f else 1.0f) }
+            if (isJelly) {
+                LaunchedEffect(expanded) {
+                    if (expanded) {
+                        scaleAnim.animateTo(1.0f, spring(dampingRatio = 0.65f, stiffness = 450f))
+                    }
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .clip(shape)
+                    .graphicsLayer {
+                        if (isJelly) {
+                            scaleX = scaleAnim.value
+                            scaleY = scaleAnim.value
+                        }
+                    }
+            ) {
                 // Layer 1: Clipped fallback physical hardware blur directly inside dropdown
                 Box(
                     modifier = Modifier

@@ -61,12 +61,24 @@ import kotlin.math.sin
 object LightspeedConsciousAirlockOverlay {
 
     private const val GRACE_PERIOD_MS = 10 * 60 * 1000L
+    private const val GRACE_PERSIST_INTERVAL_MS = 15_000L
+    private const val PREFS_AIRLOCK_RUNTIME = "lightspeed_airlock_runtime"
+    private const val KEY_GRACE_PREFIX = "grace_"
     private val sessionGraceMap = ConcurrentHashMap<String, Long>()
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun runtimePrefs(context: Context) =
+        context.getSharedPreferences(PREFS_AIRLOCK_RUNTIME, Context.MODE_PRIVATE)
+
+    private var abortCooldownPackage: String? = null
+    private var abortCooldownTimestamp: Long = 0L
 
     private var composeView: ComposeView? = null
     private var windowManager: WindowManager? = null
     private var lifecycleOwner: OverlayLifecycleOwner? = null
+
+    val isShowing: Boolean
+        get() = composeView != null
 
     fun checkAndShowAirlock(service: AccessibilityService, packageName: String): Boolean {
         val prefs = service.defaultPrefs()
@@ -76,9 +88,21 @@ object LightspeedConsciousAirlockOverlay {
         if (!targetApps.contains(packageName)) return false
 
         val now = SystemClock.elapsedRealtime()
-        val lastAllowed = sessionGraceMap[packageName] ?: 0L
-        if (now - lastAllowed < GRACE_PERIOD_MS) {
+        if (packageName == abortCooldownPackage && (now - abortCooldownTimestamp) < 5000L) {
+            return false
+        }
+
+        val persisted = runtimePrefs(service).getLong("$KEY_GRACE_PREFIX$packageName", -1L)
+        val lastAllowed = sessionGraceMap[packageName] ?: persisted
+        if (lastAllowed > now) {
+            // Device rebooted (elapsedRealtime reset): clear stale persisted grace timestamp
+            sessionGraceMap.remove(packageName)
+            runtimePrefs(service).edit().remove("$KEY_GRACE_PREFIX$packageName").apply()
+        } else if (lastAllowed >= 0L && (now - lastAllowed) < GRACE_PERIOD_MS) {
             sessionGraceMap[packageName] = now
+            if (persisted < 0L || (now - persisted) >= GRACE_PERSIST_INTERVAL_MS) {
+                runtimePrefs(service).edit().putLong("$KEY_GRACE_PREFIX$packageName", now).apply()
+            }
             return false
         }
 
@@ -112,10 +136,16 @@ object LightspeedConsciousAirlockOverlay {
                         service = service,
                         packageName = targetPkg,
                         onProceed = {
-                            sessionGraceMap[targetPkg] = SystemClock.elapsedRealtime()
+                            val now = SystemClock.elapsedRealtime()
+                            sessionGraceMap[targetPkg] = now
+                            runtimePrefs(service).edit().putLong("$KEY_GRACE_PREFIX$targetPkg", now).apply()
                             dismiss()
                         },
                         onAbort = {
+                            sessionGraceMap.remove(targetPkg)
+                            runtimePrefs(service).edit().remove("$KEY_GRACE_PREFIX$targetPkg").apply()
+                            abortCooldownPackage = targetPkg
+                            abortCooldownTimestamp = SystemClock.elapsedRealtime()
                             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
                             dismiss()
                         }
@@ -185,12 +215,16 @@ object LightspeedConsciousAirlockOverlay {
         }
 
         val hasUsageAccess = remember { LightspeedUsageStats.hasUsageAccess(service) }
+        var isTelemetryLoaded by remember(packageName) { mutableStateOf(false) }
+        var flipTick by remember { mutableIntStateOf(0) }
+        var isFlipPhaseActive by remember(packageName) { mutableStateOf(true) }
+
         val telemetryTriple by produceState(
             initialValue = Triple("Other", "0m today", "0m today"),
             key1 = packageName,
             key2 = hasUsageAccess
         ) {
-            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val loaded = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 val usageMap = if (hasUsageAccess) LightspeedUsageStats.usageMillisByPackage(service, days = 1) else emptyMap()
                 val appMs = usageMap[packageName] ?: 0L
                 val appMins = (appMs / 60000L).toInt()
@@ -237,8 +271,30 @@ object LightspeedConsciousAirlockOverlay {
 
                 Triple(catLabel, appFormatted, sectorFormatted)
             }
+            value = loaded
+            isTelemetryLoaded = true
         }
-        val (categoryTitle, appTimeText, sectorTimeText) = telemetryTriple
+
+        LaunchedEffect(packageName) {
+            val startUptime = SystemClock.uptimeMillis()
+            while (!isTelemetryLoaded || (SystemClock.uptimeMillis() - startUptime) < 380L) {
+                kotlinx.coroutines.delay(33L)
+                flipTick++
+            }
+            isFlipPhaseActive = false
+        }
+
+        val categoryTitle = telemetryTriple.first
+        val appTimeText = if (isFlipPhaseActive && flipTick >= 0) {
+            com.sbf.lightspeed.LightspeedCruiseHudPods.scrambleDigits(telemetryTriple.second, seedOffset = 1)
+        } else {
+            telemetryTriple.second
+        }
+        val sectorTimeText = if (isFlipPhaseActive && flipTick >= 0) {
+            com.sbf.lightspeed.LightspeedCruiseHudPods.scrambleDigits(telemetryTriple.third, seedOffset = 2)
+        } else {
+            telemetryTriple.third
+        }
 
         LaunchedEffect(Unit) {
             while (secondsLeft > 0) {

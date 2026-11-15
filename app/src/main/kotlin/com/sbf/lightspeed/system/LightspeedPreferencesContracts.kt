@@ -13,6 +13,9 @@ interface LightspeedPreferencesAccessorsContract {
     fun setAppCategoryOverride(context: Context, pkg: String, categoryKey: String)
     fun getCategoryOrder(context: Context): List<String>
     fun setCategoryOrder(context: Context, keys: List<String>)
+    fun getCategoryIconPack(context: Context, categoryId: String): String?
+    fun setCategoryIconPack(context: Context, categoryId: String, iconPackPkg: String?)
+    fun getEffectiveCategoryIconPack(context: Context, categoryId: String): String
     fun isScrubRegionsLinked(context: Context, isLeft: Boolean): Boolean
     fun setScrubRegionsLinked(context: Context, isLeft: Boolean, linked: Boolean)
     fun getGestureUnifiedKey(isLeft: Boolean, gestureKey: String): String
@@ -109,4 +112,11 @@ interface LightspeedPreferencesFlowsContract {
     fun getLiquidGlassConfig(context: Context): LiquidGlassConfig
     fun setLiquidGlassConfig(context: Context, config: LiquidGlassConfig)
     fun refreshLiquidGlassConfig(context: Context)
+    val centralCommandFontScaleFlow: StateFlow<Float?>
+    fun getCentralCommandFontScale(context: Context): Float
+    fun setCentralCommandFontScale(context: Context, scale: Float)
+    val centralCommandFontFamilyFlow: StateFlow<String?>
+    fun getCentralCommandFontFamily(context: Context): String
+    fun setCentralCommandFontFamily(context: Context, family: String)
+    fun refreshCentralCommandTypography(context: Context)
 }

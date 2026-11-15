@@ -191,7 +191,7 @@ internal fun LightspeedStatusBarOverlay.drawTelemetryTicker(
 
     val rawCutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) rootWindowInsets?.displayCutout else null
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && rawCutout != null) {
-        val found = rawCutout.boundingRectTop ?: rawCutout.boundingRects.firstOrNull { it.top == 0 }
+        val found = rawCutout.topCutoutRect()
         if (found != null && found.width() > 0) {
             LightspeedNotchOverlay.cachedCutoutRect = found
         }

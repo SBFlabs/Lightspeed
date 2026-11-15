@@ -18,9 +18,42 @@ data class TacticalToolItem(
  */
 object InstalledTacticalToolsScanner {
 
+    private const val CACHE_TTL_MS = 60_000L
+    private val cacheLock = Any()
+
+    @Volatile
+    private var cachedTools: List<TacticalToolItem>? = null
+
+    @Volatile
+    private var cachedAtMs: Long = 0L
+
+    /** Returns the currently cached tool list immediately without blocking on PackageManager. */
+    fun getCachedOrEmpty(): List<TacticalToolItem> = cachedTools ?: emptyList()
+
+    /** Clears the in-memory PackageManager scan cache on low-memory trims. */
+    fun clearCache() {
+        synchronized(cacheLock) {
+            cachedTools = null
+            cachedAtMs = 0L
+        }
+    }
+
     fun scan(context: Context): List<TacticalToolItem> {
-        val pm = context.packageManager
-        val tools = mutableListOf<TacticalToolItem>()
+        val now = android.os.SystemClock.elapsedRealtime()
+        val existing = cachedTools
+        if (existing != null && (now - cachedAtMs) in 0L until CACHE_TTL_MS) {
+            return existing
+        }
+
+        synchronized(cacheLock) {
+            val recheckNow = android.os.SystemClock.elapsedRealtime()
+            val recheck = cachedTools
+            if (recheck != null && (recheckNow - cachedAtMs) in 0L until CACHE_TTL_MS) {
+                return recheck
+            }
+
+            val pm = context.packageManager
+            val tools = mutableListOf<TacticalToolItem>()
 
         // =========================================================================
         // 1. AI Overlays & Assistants (Dynamic Installed Validation)
@@ -158,7 +191,11 @@ object InstalledTacticalToolsScanner {
         )
 
 
-        return tools
+            val snapshot = tools.toList()
+            cachedTools = snapshot
+            cachedAtMs = android.os.SystemClock.elapsedRealtime()
+            return snapshot
+        }
     }
 
     private fun isPackageInstalled(pm: PackageManager, packageName: String): Boolean {
